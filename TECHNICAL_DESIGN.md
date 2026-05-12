@@ -15,11 +15,12 @@ Honoは初期構成には含めない。Convexはquery、mutation、action、HTT
 | フロントエンド | Vite + React + TypeScript | Convex Reactと相性がよく、SPAを軽く構築できるため |
 | ルーティング | React Router | 複数画面を明確に分けやすいため |
 | UIライブラリ | MUI | 利用実績が大きく、フォーム、テーブル、ダッシュボード系画面に強いため |
+| レイアウトCSS | Tailwind CSS | 画面骨格、余白、レスポンシブ、表示切替を素早く実装するため。MUIコンポーネントの見た目制御には使いすぎない |
 | 認証 | Clerk Google OAuth | Googleアカウントで素早く開始でき、Convex連携も用意されているため |
 | バックエンド/DB | Convex | Reactから型安全にquery/mutationを呼べ、リアクティブ同期が標準で使えるため |
 | 入力バリデーション | Valibot | 軽量でTypeScriptとの相性がよく、ユーザー希望にも合うため |
 | テスト | Vitest + Testing Library + Playwright | ロジック、UI、主要フローを段階的に検証できるため |
-| ホスティング | Cloudflare Pages または Vercel | Vite SPAを配信しやすいため |
+| ホスティング | Vercel | Vite SPAの配信、Preview/Production環境、MCP連携を単純に扱えるため |
 
 ## 3. SupabaseではなくConvexを選ぶ理由
 
@@ -96,6 +97,21 @@ convex/
   export.ts
   users.ts
 ```
+
+### 5.1 スタイリング責務
+
+MUIとTailwind CSSは併用するが、責務を分ける。
+
+| 対象 | 担当 |
+|---|---|
+| MUI theme | 色、Typography、角丸、影、コンポーネント標準スタイル |
+| MUI `sx` | MUIコンポーネント単位の微調整、状態依存、theme参照が必要なスタイル |
+| MUI `styled` | 再利用する独自コンポーネントや複雑なスタイル |
+| Tailwind CSS | ページ全体のflex/grid、gap、padding、responsive、表示/非表示、外側ラッパー |
+
+Tailwind CSSはレイアウト用途に限定する。`Button`、`TextField`、`Chip`、`Alert`、`Snackbar`、`Table` などのMUIコンポーネントの色、サイズ、角丸、状態表現はMUI themeを正とする。
+
+MUIコンポーネント内部をTailwind CSSで深く上書きしない。必要な場合は、まずMUI theme、`sx`、`slotProps`、`styled` の順で検討する。
 
 ## 6. 認証設計
 
@@ -285,11 +301,13 @@ CSVは指定週または全期間の支出を対象に生成する。
 
 ## 14. ホスティング
 
-Vite SPAはCloudflare PagesまたはVercelで配信する。
+Vite SPAはVercelで配信する。
 
-Cloudflareを使う場合でも、Honoは必須ではない。Cloudflare Pagesで静的アセットを配信し、データ操作はConvex clientからConvex backendへ接続する。
+独自ドメインは初期MVPでは使わず、Vercelが提供する `*.vercel.app` URLを使う。
 
-将来Cloudflare Workers固有の処理が必要になった場合に、Honoを追加する。
+DEV/PreviewはVercel Preview DeploymentのURLを使い、PRODはVercel Production DeploymentのURLを使う。
+
+将来、独自ドメインやCloudflare Workers固有の処理が必要になった場合に、ドメイン移行やHono追加を検討する。
 
 ## 15. 環境設計
 
@@ -297,19 +315,21 @@ DEVとPRODの2環境を分けて構築する。
 
 | 領域 | DEV | PROD |
 |---|---|---|
-| フロントエンド | 開発用URL、またはpreview環境 | 本番URL |
-| Clerk | 開発用Clerk application | 本番用Clerk application |
+| フロントエンド | Vercel Preview URL、またはlocalhost | Vercel Production URL |
+| URL | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo.vercel.app` などのProduction URL |
+| Clerk | Development instance | Production instance |
 | Clerk認証方式 | Google OAuth | Google OAuth |
-| Convex | 開発用deployment | 本番用deployment |
+| Convex | dev deployment | production deployment |
 | データ | テストデータ | 実ユーザーデータ |
-| 環境変数 | `.env.local` | ホスティング側の本番環境変数 |
+| 環境変数 | `.env.local`、Vercel Preview env | Vercel Production env |
 
 ### 15.1 環境分離方針
 
-- DEVとPRODでClerk applicationを分ける
+- DEVとPRODでClerk instanceを分ける
 - DEVとPRODでConvex deploymentを分ける
 - DEVのGoogle OAuth callback URLに本番URLを入れない
 - PRODのGoogle OAuth callback URLにローカルURLを入れない
+- 初期MVPでは独自ドメインを使わず、`*.vercel.app` のURLを使う
 - DEVデータをPRODへ手動投入しない
 - PRODの環境変数をローカル開発に流用しない
 
@@ -389,7 +409,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 ## 17. 実装タスク分解
 
 1. Vite + React + TypeScriptの初期構築
-2. MUI themeと基本レイアウトの整備
+2. MUI theme、Tailwind CSS、基本レイアウトの整備
 3. Clerk導入とGoogle OAuth設定
 4. Convex導入
 5. Clerk + Convex連携
@@ -420,10 +440,11 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 | Hono追加時の複雑化 | API層が増えて責務が曖昧になる | Convexで足りない要件が出るまで追加しない |
 | 環境混在 | DEVのClerkやConvexがPRODに混ざる | Clerk application、Convex deployment、環境変数を明確に分離する |
 
-## 19. 実装前に決めること
+## 19. 実装前に決めたこと
 
-- MUIの見た目をMaterial Design寄りにするか、独自テーマで抑えめにするか
-- CSVエクスポートをクライアント生成にするか、Convex側生成にするか
-- オフライン時の閲覧・入力をMVPから扱うか
-- Cloudflare PagesとVercelのどちらに初期デプロイするか
-- DEV/PRODそれぞれのURL命名規則
+- MUIは標準Material Design感を抑えた独自テーマにする
+- Tailwind CSSはレイアウト用途に限定して採用する
+- CSVエクスポートの生成場所は初期セットアップでは扱わず、実装時にクライアント生成を第一候補として再確認する
+- オフライン入力はMVPでは扱わない
+- 初期デプロイ先はVercelにする
+- 独自ドメインは使わず、DEV/PRODともに `*.vercel.app` のURLを使う
