@@ -1,0 +1,31 @@
+# Dependencies
+node_modules
+.pnpm-store/
+
+# Build and test outputs
+dist
+coverage
+playwright-report
+test-results
+dev-server-check.png
+
+# Local environment and secrets
+.env
+.env.*
+!.env.example
+.npmrc
+*.local
+*.secret
+*.secrets
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Service local state
+.vercel/
+.agents/
+
+# Logs and OS files
+*.log
+.DS_Store
