@@ -165,6 +165,62 @@ E2E 基盤はすぐには導入しませんが、将来的には Pull Request �
 - Artifact の retention は 1〜3 日程度にします。
 - 無料枠を消費するため、重い E2E は必須チェック化する前に実行時間を確認します。
 
+## Codex 開発時の Clerk 認証
+
+Codex で画面確認や将来の E2E を行う場合は、Clerk Development instance 上の
+テスト専用ユーザーを使います。本番 instance、本番キー、個人ユーザーは使いません。
+
+初回セットアップ:
+
+```bash
+pnpm exec clerk auth login
+pnpm exec clerk link
+pnpm exec clerk env pull --instance dev --file .env.local
+```
+
+`.env.local` に Codex/E2E 用ユーザー情報を追加します。パスワードはローカル専用で
+生成し、ログ、Pull Request、チャットに出力してはいけません。
+
+```env
+E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
+E2E_CLERK_USER_PASSWORD=...
+```
+
+テストユーザーを作成します。
+
+```bash
+pnpm exec clerk users create \
+  --instance dev \
+  --email "$E2E_CLERK_USER_EMAIL" \
+  --password "$E2E_CLERK_USER_PASSWORD" \
+  --first-name Codex \
+  --last-name Test \
+  --yes
+```
+
+`.env.local` に必要な値:
+
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
+E2E_CLERK_USER_PASSWORD=...
+VITE_CONVEX_URL=https://...
+```
+
+Convex backend が Clerk JWT を検証するため、Clerk の Frontend API URL を
+Convex dev deployment に設定します。これは `.env.local` だけでは反映されません。
+
+```bash
+pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN 'https://xxxx.clerk.accounts.dev'
+pnpm run convex:dev
+```
+
+将来 Playwright を導入する場合は、`@clerk/testing` で
+`E2E_CLERK_USER_EMAIL` のユーザーとしてログインし、`storageState` を
+`playwright/.clerk/user.json` に保存して再利用します。これにより、毎回 Clerk UI を
+操作せずに、Clerk と Convex の実際の認証経路を通して確認できます。
+
 ## Definition of Done
 
 変更は、関連する次の項目を満たしたときに完了とします。
