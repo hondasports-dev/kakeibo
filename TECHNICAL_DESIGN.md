@@ -340,15 +340,21 @@ DEVとPRODの2環境を分けて構築する。
 ```text
 VITE_CLERK_PUBLISHABLE_KEY=
 VITE_CONVEX_URL=
+VITE_CONVEX_SITE_URL=
 ```
 
 Convex:
 
 ```text
+CONVEX_DEPLOYMENT=
 CLERK_JWT_ISSUER_DOMAIN=
 ```
 
 `CLERK_JWT_ISSUER_DOMAIN` は、DEV/PRODそれぞれのClerk Frontend API URLに合わせる。
+
+ローカルではClerk CLIとConvex CLIにより `.env.local` が生成される。`.env.local`、`.vercel/`、`.agents/`、`.pnpm-store/`、`.npmrc` はGit管理外にする。
+
+VercelにはPreview / Productionの環境変数を分けて登録する。Production secretをローカル開発へ流用しない。
 
 ### 15.3 デプロイ方針
 
@@ -408,26 +414,29 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 ## 17. 実装タスク分解
 
-1. Vite + React + TypeScriptの初期構築
-2. MUI theme、Tailwind CSS、基本レイアウトの整備
-3. Clerk導入とGoogle OAuth設定
-4. Convex導入
-5. Clerk + Convex連携
-6. DEV/PROD環境変数とClerk issuer設定
-7. Convex schemaとindex定義
-8. 認証ユーザー取得とuser初期化
-9. 初期カテゴリseed
-10. 週開始日、週終了日のdate utility
-11. レシート入力、編集、削除
-12. 週次セッション作成、再開、完了
-13. ダッシュボード集計
-14. 週次振り返りメモ
-15. カテゴリ管理
-16. CSVエクスポート
-17. Unit testとComponent test
-18. Convex function test
-19. E2E test
-20. レスポンシブ確認
+1. Vite + React + TypeScriptの初期構築（完了）
+2. Clerk CLI、Convex CLI、Vercel CLI/MCP、Convex MCP、Chrome DevTools MCPの初期接続（完了）
+3. Vercel projectとGitHub repositoryの連携（完了）
+4. Convex AI filesの追加（完了）
+5. MUI theme、Tailwind CSS、基本レイアウトの整備
+6. Clerk導入とGoogle OAuth設定
+7. Convex導入
+8. Clerk + Convex連携
+9. DEV/PROD環境変数とClerk issuer設定
+10. Convex schemaとindex定義
+11. 認証ユーザー取得とuser初期化
+12. 初期カテゴリseed
+13. 週開始日、週終了日のdate utility
+14. レシート入力、編集、削除
+15. 週次セッション作成、再開、完了
+16. ダッシュボード集計
+17. 週次振り返りメモ
+18. カテゴリ管理
+19. CSVエクスポート
+20. Unit testとComponent test
+21. Convex function test
+22. E2E test
+23. レスポンシブ確認
 
 ## 18. リスクとトレードオフ
 

@@ -1,5 +1,26 @@
 # 仮想ソフト開発会社エージェント
 
+## kakeibo 開発環境
+
+このリポジトリでは、週1レシート入力Web家計簿 `kakeibo` の開発環境も管理しています。
+
+開発環境のセットアップ手順は `SERVICE_TOOLING_SETUP.md` を参照してください。現在の進捗と次アクションは `PROJECT_STATUS.md` に記録します。
+
+ローカル起動:
+
+```bash
+pnpm install
+pnpm run dev -- --host 127.0.0.1
+```
+
+主要なローカルsecretとサービス状態はGit管理外です。
+
+- `.env.local`
+- `.vercel/`
+- `.agents/`
+- `.pnpm-store/`
+- `.npmrc`
+
 ## これは何か
 
 Codexにソフトウェア開発を依頼するとき、企画、設計、実装、QA、レビュー、リリースを役割分担して進めるためのエージェント指示書です。
