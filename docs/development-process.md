@@ -136,6 +136,35 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 - force push を禁止する。
 - 保護対象の `main` ブランチ削除を禁止する。
 
+## E2E Preview 確認方針
+
+E2E 基盤はすぐには導入しませんが、将来的には Pull Request ごとの Vercel Preview
+に対して GitHub Actions で Playwright などの E2E を実行します。
+
+基本方針:
+
+- Vercel Git Integration が作成した Preview Deployment の URL を対象にします。
+- E2E は GitHub Actions 上で実行し、Codex の QA Agent は workflow の起動、結果確認、
+  失敗内容の要約のみを担当します。
+- QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
+- Vercel Authentication 付き Preview へのアクセスには、Vercel の
+  Protection Bypass for Automation を使います。
+- `VERCEL_AUTOMATION_BYPASS_SECRET` は GitHub Actions Secrets にのみ保存し、ログ、
+  Pull Request コメント、チャット、ローカルファイルには出力しません。
+- Vercel MCP の一時共有 URL は、Codex での一時的な手動確認には利用できますが、
+  継続的な CI/E2E の認証手段にはしません。
+- fork など信頼できない Pull Request では、Secrets を渡す E2E は実行しません。
+- Playwright の trace、HAR、スクリーンショット、artifact には認証情報や cookie が
+  含まれる可能性があるため、保存期間を短くし、必要最小限だけ保存します。
+
+初期導入時の想定:
+
+- GitHub-hosted runner は `ubuntu-latest` を使います。
+- 最初は Chromium の smoke test から始めます。
+- 失敗時のみ trace または screenshot を保存します。
+- Artifact の retention は 1〜3 日程度にします。
+- 無料枠を消費するため、重い E2E は必須チェック化する前に実行時間を確認します。
+
 ## Definition of Done
 
 変更は、関連する次の項目を満たしたときに完了とします。

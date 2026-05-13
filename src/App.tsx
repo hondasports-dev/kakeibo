@@ -19,9 +19,27 @@ const summaryItems = [
 ] as const
 
 const receipts = [
-  { store: 'スーパー北浜', category: '食費', amount: '4,280円', date: '5/12' },
-  { store: 'ドラッグストア', category: '日用品', amount: '1,540円', date: '5/12' },
-  { store: 'カフェ', category: '外食', amount: '960円', date: '5/11' },
+  {
+    id: 'receipt-super-kitahama-2026-05-12',
+    store: 'スーパー北浜',
+    category: '食費',
+    amount: '4,280円',
+    date: '5/12',
+  },
+  {
+    id: 'receipt-drugstore-2026-05-12',
+    store: 'ドラッグストア',
+    category: '日用品',
+    amount: '1,540円',
+    date: '5/12',
+  },
+  {
+    id: 'receipt-cafe-2026-05-11',
+    store: 'カフェ',
+    category: '外食',
+    amount: '960円',
+    date: '5/11',
+  },
 ] as const
 
 const categories = [
@@ -104,18 +122,29 @@ function App() {
                     前回の日付とカテゴリを引き継いで、次のレシートを続けて入力できます。
                   </Alert>
 
-                  <Box className="week-day-grid" aria-label="週内の日付候補">
+                  <Box className="week-day-grid" aria-label="週内の日付候補" role="list">
                     {weekDays.map((day) => (
-                      <Button
-                        aria-pressed={day.selected}
+                      <Box
+                        aria-label={`${day.label}曜日 ${day.date}${
+                          day.selected ? ' 選択中' : ''
+                        }`}
                         className="week-day-button"
-                        color={day.selected ? 'primary' : 'secondary'}
                         key={day.label}
-                        variant={day.selected ? 'contained' : 'outlined'}
+                        role="listitem"
+                        sx={{
+                          border: '1px solid',
+                          borderColor: day.selected ? 'primary.main' : 'divider',
+                          borderRadius: 1,
+                          bgcolor: day.selected ? 'primary.main' : 'background.paper',
+                          color: day.selected ? 'primary.contrastText' : 'text.primary',
+                          px: 1,
+                          py: 1,
+                          textAlign: 'center',
+                        }}
                       >
                         <span>{day.label}</span>
                         <small>{day.date}</small>
-                      </Button>
+                      </Box>
                     ))}
                   </Box>
 
@@ -160,22 +189,40 @@ function App() {
                     <Typography component="p" variant="body2" sx={{ fontWeight: 700 }}>
                       カテゴリ
                     </Typography>
-                    <Box className="category-grid">
+                    <Box className="category-grid" aria-label="カテゴリ候補" role="list">
                       {categories.map((category) => (
-                        <Button
-                          aria-pressed={category.selected}
+                        <Box
+                          aria-label={`${category.label}${
+                            category.selected ? ' 選択中' : ''
+                          }`}
                           className="category-button"
-                          color={category.selected ? 'primary' : 'secondary'}
                           key={category.label}
+                          role="listitem"
                           sx={
                             category.selected
-                              ? undefined
-                              : { borderColor: category.color, color: category.color }
+                              ? {
+                                  border: '1px solid',
+                                  borderColor: 'primary.main',
+                                  borderRadius: 1,
+                                  bgcolor: 'primary.main',
+                                  color: 'primary.contrastText',
+                                  px: 1,
+                                  py: 0.75,
+                                  textAlign: 'center',
+                                }
+                              : {
+                                  border: '1px solid',
+                                  borderColor: category.color,
+                                  borderRadius: 1,
+                                  color: category.color,
+                                  px: 1,
+                                  py: 0.75,
+                                  textAlign: 'center',
+                                }
                           }
-                          variant={category.selected ? 'contained' : 'outlined'}
                         >
                           {category.label}
-                        </Button>
+                        </Box>
                       ))}
                     </Box>
                   </Stack>
@@ -235,7 +282,7 @@ function App() {
                     </Typography>
                     <Box className="receipt-list">
                       {receipts.map((receipt) => (
-                        <Box className="receipt-row" key={`${receipt.date}-${receipt.store}`}>
+                        <Box className="receipt-row" key={receipt.id}>
                           <Box>
                             <Typography sx={{ fontWeight: 700 }}>
                               {receipt.store}
