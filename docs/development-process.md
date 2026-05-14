@@ -208,6 +208,32 @@ E2E_CLERK_USER_PASSWORD=...
 VITE_CONVEX_URL=https://...
 ```
 
+ローカルで Google OAuth を確認する場合、フロントエンドは
+`VITE_CLERK_PUBLISHABLE_KEY` を必須とします。未設定のまま起動すると、アプリは
+明示的なエラーで停止します。
+
+Google OAuth の確認には、実在する Google アカウントを使います。
+`codex+clerk_test@example.com` のような Clerk 開発用テストユーザーは
+Clerk のメール/パスワード認証や E2E 補助用であり、Google OAuth のログインには
+使えません。Google の認証画面で存在しない Google アカウントを入力すると、
+Google 側でエラーになります。
+
+このアプリの OAuth callback は `/sso-callback` です。Vite dev server の標準ポートを
+使う場合、ローカルの callback URL は `http://localhost:5173/sso-callback`、
+ログイン完了後の戻り先は `http://localhost:5173/` です。ポートを変える場合は、
+同じパスで origin だけを実際の dev server に合わせます。
+
+Clerk Dashboard の Development instance では次を確認します。
+
+- Google social connection を有効にする。
+- Sign-in と Sign-up の両方で Google を利用できる状態にする。
+- redirect URL や allowed origin を制限している場合は、ローカルの
+  `http://localhost:5173` と `http://localhost:5173/sso-callback` を許可する。
+- 独自の Google OAuth credentials を使う場合は、Google Cloud Console に
+  Clerk Dashboard が表示する Google 接続用 callback URL を登録する。ローカルの
+  `/sso-callback` は Clerk からアプリへ戻るための URL であり、Google Cloud 側の
+  redirect URI ではありません。
+
 Convex backend が Clerk JWT を検証するため、Clerk の Frontend API URL を
 Convex dev deployment に設定します。これは `.env.local` だけでは反映されません。
 
