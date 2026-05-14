@@ -1,4 +1,3 @@
-import { query } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
@@ -40,11 +39,3 @@ export async function requireAuthenticatedUserId(ctx: AuthContext) {
 
   return identity.tokenIdentifier;
 }
-
-export const getAuthState = query({
-  args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-    return getAuthStateFromIdentity(identity);
-  },
-});
