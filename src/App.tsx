@@ -1,16 +1,42 @@
+import { useState } from 'react'
+import {
+  AuthenticateWithRedirectCallback,
+  useAuth,
+  useClerk,
+  useUser,
+} from '@clerk/react'
+import { useSignIn } from '@clerk/react/legacy'
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
+  CircularProgress,
   Divider,
   LinearProgress,
+  Menu,
+  MenuItem,
   Paper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material'
 import './App.css'
+
+const OAUTH_CALLBACK_PATH = '/sso-callback'
+
+function getClerkErrorMessage(error: unknown) {
+  const clerkError = error as {
+    errors?: Array<{ longMessage?: string; message?: string }>
+  }
+
+  return (
+    clerkError.errors?.[0]?.longMessage ??
+    clerkError.errors?.[0]?.message ??
+    'Googleログインを開始できませんでした。Clerk DashboardのGoogle OAuth設定を確認してください。'
+  )
+}
 
 const summaryItems = [
   { label: '入力済み', value: '3件', helper: '目安 10件', tone: 'primary' },
@@ -64,6 +90,175 @@ const weekDays = [
 ] as const
 
 function App() {
+  if (window.location.pathname === OAUTH_CALLBACK_PATH) {
+    return <AuthCallbackScreen />
+  }
+
+  return <AuthenticatedApp />
+}
+
+function AuthCallbackScreen() {
+  return (
+    <Box className="auth-screen">
+      <Paper className="auth-panel paper-panel" elevation={0}>
+        <Stack spacing={2.5} sx={{ alignItems: 'center', textAlign: 'center' }}>
+          <CircularProgress aria-label="Googleログイン処理中" />
+          <Box>
+            <Typography component="h1" variant="h5">
+              Googleログインを処理中
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              認証が完了したら家計簿画面に戻ります。
+            </Typography>
+          </Box>
+          <AuthenticateWithRedirectCallback
+            signInFallbackRedirectUrl="/"
+            signUpFallbackRedirectUrl="/"
+          />
+        </Stack>
+      </Paper>
+    </Box>
+  )
+}
+
+function AuthenticatedApp() {
+  const { isLoaded, isSignedIn } = useAuth()
+
+  if (!isLoaded) {
+    return (
+      <Box className="auth-screen">
+        <Paper className="auth-panel paper-panel" elevation={0}>
+          <Stack spacing={2.5} sx={{ alignItems: 'center', textAlign: 'center' }}>
+            <CircularProgress aria-label="ログイン状態を確認中" />
+            <Typography color="text.secondary">ログイン状態を確認しています。</Typography>
+          </Stack>
+        </Paper>
+      </Box>
+    )
+  }
+
+  if (!isSignedIn) {
+    return <SignedOutScreen />
+  }
+
+  return <KakeiboApp />
+}
+
+function SignedOutScreen() {
+  const { isLoaded, signIn } = useSignIn()
+  const [error, setError] = useState('')
+  const [isRedirecting, setIsRedirecting] = useState(false)
+
+  const handleGoogleSignIn = async () => {
+    if (!isLoaded) {
+      return
+    }
+
+    setError('')
+    setIsRedirecting(true)
+
+    try {
+      await signIn.authenticateWithRedirect({
+        redirectUrl: OAUTH_CALLBACK_PATH,
+        redirectUrlComplete: '/',
+        strategy: 'oauth_google',
+      })
+    } catch (caughtError) {
+      setError(getClerkErrorMessage(caughtError))
+      setIsRedirecting(false)
+    }
+  }
+
+  return (
+    <Box className="auth-screen">
+      <Paper className="auth-panel paper-panel" elevation={0}>
+        <Stack spacing={3}>
+          <Box>
+            <Typography component="h1" variant="h4">
+              家計簿にログイン
+            </Typography>
+            <Typography color="text.secondary">
+              実在するGoogleアカウントでログインすると、レシート入力画面を確認できます。
+            </Typography>
+          </Box>
+
+          <Alert severity="info" variant="outlined">
+            Clerkの開発用テストユーザーではGoogle OAuthにログインできません。
+            Googleの認証画面では、実際に使えるGoogleアカウントを入力してください。
+          </Alert>
+
+          {error ? (
+            <Alert severity="error" variant="outlined">
+              {error}
+            </Alert>
+          ) : null}
+
+          <Button
+            disabled={!isLoaded || isRedirecting}
+            onClick={handleGoogleSignIn}
+            size="large"
+            variant="contained"
+          >
+            {isRedirecting ? 'Googleへ移動しています' : 'Googleでログイン'}
+          </Button>
+        </Stack>
+      </Paper>
+    </Box>
+  )
+}
+
+function UserMenu() {
+  const { openUserProfile, signOut } = useClerk()
+  const { user } = useUser()
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null)
+  const open = Boolean(anchorEl)
+  const displayName =
+    user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? 'ログイン中'
+
+  const handleClose = () => {
+    setAnchorEl(null)
+  }
+
+  const handleOpenProfile = () => {
+    handleClose()
+    openUserProfile()
+  }
+
+  const handleSignOut = () => {
+    handleClose()
+    void signOut({ redirectUrl: '/' })
+  }
+
+  return (
+    <>
+      <Button
+        aria-controls={open ? 'user-menu' : undefined}
+        aria-expanded={open ? 'true' : undefined}
+        aria-haspopup="menu"
+        className="user-menu-button"
+        color="secondary"
+        onClick={(event) => setAnchorEl(event.currentTarget)}
+        variant="outlined"
+      >
+        <Avatar alt={displayName} src={user?.imageUrl} sx={{ height: 24, width: 24 }}>
+          {displayName.slice(0, 1)}
+        </Avatar>
+        <span>{displayName}</span>
+      </Button>
+      <Menu
+        anchorEl={anchorEl}
+        id="user-menu"
+        onClose={handleClose}
+        open={open}
+      >
+        <MenuItem onClick={handleOpenProfile}>アカウント設定</MenuItem>
+        <MenuItem onClick={handleSignOut}>ログアウト</MenuItem>
+      </Menu>
+    </>
+  )
+}
+
+function KakeiboApp() {
   return (
     <Box className="app-shell">
       <Box component="main" className="app-main">
@@ -84,9 +279,23 @@ function App() {
                 2026年5月11日 - 5月17日
               </Typography>
             </Box>
-            <Button variant="contained" size="large" aria-label="週次サマリーを見る">
-              週次サマリーを見る
-            </Button>
+            <Stack
+              direction={{ xs: 'column', sm: 'row' }}
+              spacing={1.5}
+              sx={{
+                alignItems: { xs: 'stretch', sm: 'center' },
+                width: { xs: '100%', sm: 'auto' },
+              }}
+            >
+              <Button
+                aria-label="週次サマリーを見る"
+                size="large"
+                variant="contained"
+              >
+                週次サマリーを見る
+              </Button>
+              <UserMenu />
+            </Stack>
           </Stack>
 
           <Box className="summary-grid">
