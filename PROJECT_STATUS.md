@@ -6,7 +6,7 @@
 
 要件定義は初版作成済み。Product Lead視点でWebアプリ前提に整理し、Tech Lead視点でConvex構成に再設計した状態である。
 Vite + React + TypeScriptの雛形作成と、Chrome DevTools MCPによるローカル画面確認まで完了している。
-Clerk CLI、Vercel CLI/MCP、Convex CLI/MCPの初期接続は完了した。Vercel projectとGitHub repositoryの連携はブラウザ上で実施済み。ただし、Clerk Google OAuthとClerk + Convex連携は未完了のため、まだアプリ機能実装フェーズには入っていない。
+Clerk CLI、Vercel CLI/MCP、Convex CLI/MCPの初期接続は完了した。Vercel projectとGitHub repositoryの連携はブラウザ上で実施済み。ただし、Clerk Google OAuthの実ログイン確認とVercel env登録方針は未完了のため、まだアプリ機能実装フェーズには入っていない。
 
 ## 完了したこと
 
@@ -31,6 +31,8 @@ Clerk CLI、Vercel CLI/MCP、Convex CLI/MCPの初期接続は完了した。Verc
 - Vercel MCPでproject取得を確認した
 - Convex AI filesをインストールし、`AGENTS.md`、`CLAUDE.md`、`convex/_generated/ai/guidelines.md` を追加した
 - `.agents/` をGit管理外にした
+- Clerk + Convex連携方針を確定し、`ConvexProviderWithClerk`、`ctx.auth.getUserIdentity()`、`UserIdentity.tokenIdentifier`を認証・認可の基準にする方針を反映した
+- 2人限定公開はClerk Restricted mode + invitationで運用し、invitation対象メールをコードや環境変数に持たせない方針にした
 - Tailwind CSSはレイアウト用途に限定して採用する方針にした
 - HonoはMVPでは使わず、必要になったら検討する方針にした
 - DEV/PRODの2環境を分ける方針を追加した
@@ -58,7 +60,7 @@ Clerk CLI、Vercel CLI/MCP、Convex CLI/MCPの初期接続は完了した。Verc
 | Frontend | Vite + React + TypeScript |
 | UI | MUI |
 | Layout CSS | Tailwind CSSはレイアウト用途に限定 |
-| Auth | Clerk Google OAuth |
+| Auth | Clerk Google OAuth + Clerk Restricted mode + invitation |
 | Backend / DB | Convex |
 | Validation | Valibot |
 | Routing | React Router |
@@ -158,7 +160,7 @@ CSVエクスポートを実装する段階で、クライアント側生成を�
 4. CSV生成場所を決める（初期セットアップでは不要）
 5. オフライン対応をMVPに含めるか決める（完了）
 
-プロダクト方針と主要サービスの初期接続は進んだが、Google OAuthとClerk + Convex連携は未完了である。
+プロダクト方針と主要サービスの初期接続は進んだが、Google OAuthの実ログイン確認とVercel env登録方針は未完了である。
 
 ## 実装フェーズへ進む前に必要なセットアップ
 
@@ -166,7 +168,7 @@ CSVエクスポートを実装する段階で、クライアント側生成を�
 2. Clerk Production instanceをいつ作るか決める
 3. Vercel Preview / Productionへ登録する環境変数の一覧を確定する
 4. Convex MCP toolsが次回Codexセッションで見えるか確認する
-5. Clerk + Convex連携方針を `TECHNICAL_DESIGN.md` と照合する
+5. Clerk + Convex連携方針を `TECHNICAL_DESIGN.md` と照合する（完了）
 6. `pnpm run lint`、`pnpm run build`、`pnpm test` を開発環境の基本検証コマンドとして通す
 
 ## 実装フェーズ開始後の初期タスク
@@ -175,7 +177,7 @@ CSVエクスポートを実装する段階で、クライアント側生成を�
 2. Chrome DevTools issue対応として、手入力フォームの各フィールドに `id` または `name` を付与する
 3. Clerk React SDKを画面に組み込み、Google OAuthログインを確認する
 4. Convex schemaとindex定義を追加する
-5. Clerk + Convex連携を実装する
+5. Clerk + Convex連携を実装する（初期方針とprovider構成は完了）
 
 ## 開発環境セットアップの次アクション
 
@@ -215,4 +217,4 @@ Go条件:
 
 - Clerk Google OAuthのDevelopment動作確認
 - Vercel env登録方針の確定
-- Clerk + Convex連携方針の実装前確認
+- Clerk + Convex連携方針の実装前確認（完了）

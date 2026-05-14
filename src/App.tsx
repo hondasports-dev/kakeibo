@@ -22,6 +22,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material'
+import { useConvexAuth } from 'convex/react'
 import './App.css'
 
 const OAUTH_CALLBACK_PATH = '/sso-callback'
@@ -123,6 +124,8 @@ function AuthCallbackScreen() {
 
 function AuthenticatedApp() {
   const { isLoaded, isSignedIn } = useAuth()
+  const { isLoading: isConvexAuthLoading, isAuthenticated: isConvexAuthenticated } =
+    useConvexAuth()
 
   if (!isLoaded) {
     return (
@@ -139,6 +142,32 @@ function AuthenticatedApp() {
 
   if (!isSignedIn) {
     return <SignedOutScreen />
+  }
+
+  if (isConvexAuthLoading) {
+    return (
+      <Box className="auth-screen">
+        <Paper className="auth-panel paper-panel" elevation={0}>
+          <Stack spacing={2.5} sx={{ alignItems: 'center', textAlign: 'center' }}>
+            <CircularProgress aria-label="Convex認証状態を確認中" />
+            <Typography color="text.secondary">データ同期の認証状態を確認しています。</Typography>
+          </Stack>
+        </Paper>
+      </Box>
+    )
+  }
+
+  if (!isConvexAuthenticated) {
+    return (
+      <Box className="auth-screen">
+        <Paper className="auth-panel paper-panel" elevation={0}>
+          <Alert severity="error" variant="outlined">
+            Clerkログインは完了していますが、Convexで認証できませんでした。
+            ClerkのConvex連携とCLERK_JWT_ISSUER_DOMAINを確認してください。
+          </Alert>
+        </Paper>
+      </Box>
+    )
   }
 
   return <KakeiboApp />
