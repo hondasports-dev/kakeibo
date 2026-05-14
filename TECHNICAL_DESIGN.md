@@ -117,11 +117,41 @@ MUIコンポーネント内部をTailwind CSSで深く上書きしない。必�
 
 Clerkを認証プロバイダーとして使い、Googleアカウント認証のみをMVP対象にする。
 
-Convexとは `ConvexProviderWithClerk` で連携する。フロントエンドでは、未ログイン状態では家計簿画面を表示しない。ログイン後のみ、Convex query/mutationを呼び出す。
+Convexとは `ConvexProviderWithClerk` で連携する。`ClerkProvider` の内側に
+`ConvexProviderWithClerk` を置き、`useAuth` を渡してConvexへClerkの認証トークンを
+送る。フロントエンドでは、Clerkログイン済みであってもConvex側の認証が完了するまで
+家計簿画面を表示しない。
 
-Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザーを確認する。未認証の場合は処理を拒否する。
+Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザーを確認する。
+未認証の場合は処理を拒否し、公開query/mutation/actionではクライアントから渡された
+`userId` を認可判断に使わない。
 
-ユーザーIDは各データに `userId` として保存する。query/mutationでは、必ず `userId` で絞り込む。
+ユーザー識別子は、Clerkの素のuser idではなく、Convex `UserIdentity` の
+`tokenIdentifier` を正とする。各テーブルにはこの値を `userId` として保存し、
+query/mutationでは必ず `userId` で絞り込む。receipt、category、weekSessionをID指定で
+更新または削除する場合も、取得したドキュメントの `userId` と認証ユーザーの
+`tokenIdentifier` が一致することを確認する。
+
+`users` テーブルはClerkプロフィールのキャッシュまたはアプリ内表示名の保存が必要に
+なった場合に使う。MVPの認可は `users` テーブルの存在に依存せず、
+`ctx.auth.getUserIdentity()` の結果を基準に行う。
+
+### 6.1 2人限定公開方針
+
+MVP時点の利用者は2人に限定する。Clerk Allowlistは本番利用で有料機能になるため、
+Clerk Restricted mode と invitation を採用する。
+
+- Clerk DashboardでRestricted modeを有効化する
+- 対象2人へinvitationを発行する
+- 誰でもGoogleログインまたはサインアップできる状態にはしない
+- invitation対象メールはアプリコード、Git管理ファイル、環境変数に持たせない
+- Restricted modeはアプリ入口の制限であり、Convexデータ認可の代替にはしない
+
+### 6.2 認証テスト方針
+
+Convex関数を実装する時点で、未認証の場合に拒否されること、認証済みの場合に
+自分の `userId` のデータだけを扱うことをテストする。所有者チェックが必要な更新・削除は、
+他ユーザーのドキュメントIDを渡しても拒否されることを確認する。
 
 ## 7. 画面とルーティング
 
@@ -142,7 +172,7 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 
 | 項目 | 型 | 説明 |
 |---|---|---|
-| clerkUserId | string | ClerkのユーザーID |
+| userId | string | `UserIdentity.tokenIdentifier` |
 | displayName | string | 表示名 |
 | email | string | メールアドレス |
 | createdAt | number | 作成日時 |
@@ -152,7 +182,7 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 
 | 項目 | 型 | 説明 |
 |---|---|---|
-| userId | string | ClerkユーザーID |
+| userId | string | `UserIdentity.tokenIdentifier` |
 | date | string | 支出日。`YYYY-MM-DD` |
 | shopName | string | 店名 |
 | amountYen | number | 金額。日本円の整数 |
@@ -166,7 +196,7 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 
 | 項目 | 型 | 説明 |
 |---|---|---|
-| userId | string | ClerkユーザーID |
+| userId | string | `UserIdentity.tokenIdentifier` |
 | weekStartDate | string | 週開始日 |
 | weekEndDate | string | 週終了日 |
 | budgetAmountYen | number | 週次予算 |
@@ -179,7 +209,7 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 
 | 項目 | 型 | 説明 |
 |---|---|---|
-| userId | string | ClerkユーザーID |
+| userId | string | `UserIdentity.tokenIdentifier` |
 | name | string | カテゴリ名 |
 | color | string | 表示色 |
 | isActive | boolean | 新規入力で利用可能か |
@@ -191,12 +221,12 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 
 | テーブル | index | 用途 |
 |---|---|---|
-| users | `by_clerk_user_id` | ClerkユーザーIDからユーザーを取得 |
-| receipts | `by_user_week` | 指定ユーザー、指定週の支出取得 |
-| receipts | `by_user_date` | 指定ユーザー、期間指定の支出取得 |
-| receipts | `by_user_shop` | 店名候補、カテゴリ推定 |
-| weekSessions | `by_user_week` | 指定ユーザー、指定週のセッション取得 |
-| categories | `by_user_active_sort` | 有効カテゴリの表示 |
+| users | `by_user_id` | `UserIdentity.tokenIdentifier`からユーザーを取得 |
+| receipts | `by_user_id_and_week_start_date` | 指定ユーザー、指定週の支出取得 |
+| receipts | `by_user_id_and_date` | 指定ユーザー、期間指定の支出取得 |
+| receipts | `by_user_id_and_shop_name` | 店名候補、カテゴリ推定 |
+| weekSessions | `by_user_id_and_week_start_date` | 指定ユーザー、指定週のセッション取得 |
+| categories | `by_user_id_and_is_active_and_sort_order` | 有効カテゴリの表示 |
 
 ## 10. Convex function設計
 
