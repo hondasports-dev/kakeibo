@@ -104,7 +104,7 @@ npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.c
 | ファイル | 役割 |
 |---|---|
 | `convex/auth.config.ts` | Convex の JWT issuer 設定（CLERK_JWT_ISSUER_DOMAIN を参照） |
-| `convex/schema.ts` | users テーブル定義（`by_user_id` インデックス） |
+| `convex/schema.ts` | users テーブル定義（`by_token_identifier` インデックス） |
 | `convex/users.ts` | 認証ヘルパー・upsertUser mutation |
 | `src/main.tsx` | ClerkProvider + ConvexProviderWithClerk の Provider 構成 |
 | `src/App.tsx` | 認証状態ガード（AuthenticatedApp）と KakeiboApp での初期化呼び出し |
