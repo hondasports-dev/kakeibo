@@ -96,7 +96,7 @@ type Doc = {
   _creationTime: number;
   userId: string;
   displayName: string;
-  email: string;
+  email?: string;
   createdAt: number;
   updatedAt: number;
 };
@@ -128,6 +128,9 @@ function createMutationCtx(
       patch: patchMock,
       // 以下は今回のハンドラーでは未使用だがMutationCtx型を満たすためにキャスト
     },
+    // TODO: MutationCtx の完全な型を満たす型安全なモックファクトリーへの置き換えを検討する
+    //       現状は as any as MutationCtx で型チェックをバイパスしているため、
+    //       将来的には convex-test などのテストユーティリティの活用を検討してください。
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as MutationCtx;
 }
@@ -231,5 +234,49 @@ describe("upsertUser", () => {
     );
     // Clerk の生 user_xxx 形式の subject は使われていないこと
     expect(insertedDoc.userId).not.toBe("user_clerk_raw_id");
+  });
+
+  it("name が undefined/null の場合は email を displayName に使う", async () => {
+    // name なし・email あり → email が displayName になる
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-no-name",
+      name: undefined,
+      email: "fallback@example.com",
+    });
+    const ctx = createMutationCtx(identity, null);
+
+    await upsertUserHandler(ctx);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    const insertedDoc = dbInsert.mock.calls[0][1] as {
+      displayName: string;
+      email?: string;
+    };
+
+    expect(insertedDoc.displayName).toBe("fallback@example.com");
+    expect(insertedDoc.email).toBe("fallback@example.com");
+  });
+
+  it("name も email も null/undefined の場合は 'ユーザー' を displayName に使う", async () => {
+    // name も email もなし → "ユーザー" が displayName になる
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-no-name-no-email",
+      name: undefined,
+      email: undefined,
+    });
+    const ctx = createMutationCtx(identity, null);
+
+    await upsertUserHandler(ctx);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    const insertedDoc = dbInsert.mock.calls[0][1] as {
+      displayName: string;
+      email?: string;
+    };
+
+    expect(insertedDoc.displayName).toBe("ユーザー");
+    expect(insertedDoc.email).toBeUndefined();
   });
 });
