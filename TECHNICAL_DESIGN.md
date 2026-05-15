@@ -174,7 +174,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 |---|---|---|
 | userId | string | `UserIdentity.tokenIdentifier` |
 | displayName | string | 表示名 |
-| email | string | メールアドレス |
+| email | string (optional) | メールアドレス |
 | createdAt | number | 作成日時 |
 | updatedAt | number | 更新日時 |
 
@@ -199,8 +199,8 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | userId | string | `UserIdentity.tokenIdentifier` |
 | weekStartDate | string | 週開始日 |
 | weekEndDate | string | 週終了日 |
-| budgetAmountYen | number | 週次予算 |
-| reviewMemo | string | 振り返りメモ |
+| budgetAmountYen | number (optional) | 週次予算 |
+| reviewMemo | string (optional) | 振り返りメモ |
 | status | `draft` / `completed` | セッション状態 |
 | createdAt | number | 作成日時 |
 | updatedAt | number | 更新日時 |
@@ -221,7 +221,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 | テーブル | index | 用途 |
 |---|---|---|
-| users | `by_user_id` | `UserIdentity.tokenIdentifier`からユーザーを取得 |
+| users | `by_token_identifier` | `UserIdentity.tokenIdentifier`からユーザーを取得 |
 | receipts | `by_user_id_and_week_start_date` | 指定ユーザー、指定週の支出取得 |
 | receipts | `by_user_id_and_date` | 指定ユーザー、期間指定の支出取得 |
 | receipts | `by_user_id_and_shop_name` | 店名候補、カテゴリ推定 |
