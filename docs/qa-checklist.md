@@ -1,0 +1,89 @@
+# QA チェックリスト
+
+このドキュメントは、kakeibo プロジェクトの品質確認手順をまとめたものです。
+
+## 自動検証（CI）
+
+Pull Request ごとに GitHub Actions で自動確認する項目：
+
+```bash
+pnpm run lint      # 必須：ESLint（TypeScript/React hooks チェック）
+pnpm run build     # 必須：tsc -b + vite build（型エラー + ビルド成功）
+pnpm test --run    # 任意：vitest（現状5テスト、失敗してもブロックしない）
+```
+
+## Clerk Restricted mode + Invitation 手動 QA
+
+Clerk Dashboard で Restricted mode を有効にした状態での公開範囲検証です。
+
+### 前提条件
+
+- [ ] Clerk Dashboard > Settings > Restrictions で Restricted mode が ON であること
+- [ ] 対象2名の invitation が発行済みであること
+
+### QA-01: 未招待アカウントのサインアップ拒否
+
+- [ ] 招待していない Google アカウントでアクセスする
+- [ ] 「Googleでログイン」ボタンを押す
+- [ ] Google認証後、アプリに戻れない（Clerk がブロックする）こと
+- [ ] ブラウザのコンソールに意図しないエラーが出ていないこと
+
+### QA-02: Invitation link からの登録
+
+- [ ] 招待済みユーザー A に送った invitation link を開く
+- [ ] Google アカウントでサインアップできること
+- [ ] /sso-callback 経由で家計簿画面（/）にリダイレクトされること
+- [ ] 招待済みユーザー B でも同様に確認できること
+
+### QA-03: 登録済みユーザーの Google ログイン
+
+- [ ] 登録済みユーザー A が「Googleでログイン」からログインできること
+- [ ] Convex 認証が完了し、家計簿画面が表示されること
+- [ ] 登録済みユーザー B でも同様に確認できること
+
+### QA-04: 未認証状態での Convex 関数アクセス拒否（M2以降）
+
+- [ ] ログインせずに Convex の保護対象 mutation/query を呼ぼうとする
+- [ ] ConvexError("Not authenticated") が返ること
+- [ ] フロントエンドでエラーが適切に表示されること
+
+### QA-05: 他ユーザーデータへのアクセス拒否（M2以降）
+
+- [ ] ユーザー A でログインし、ユーザー B の receipt ID を直接指定する
+- [ ] 取得・更新・削除が拒否されること（userId が一致しない）
+- [ ] 同様に category、weekSession でも拒否されること
+
+### QA-06: ログアウト後の状態確認
+
+- [ ] サインアウト後、/ にリダイレクトされること
+- [ ] サインアウト後、保護対象ページにアクセスするとログイン画面が表示されること
+
+## 品質基準
+
+### Severity 定義
+
+| レベル | 内容 | 対応方針 |
+|---|---|---|
+| Critical | 招待していない人がログインできる | リリースブロック |
+| Critical | 他ユーザーのデータが見える | リリースブロック |
+| High | invited user が登録できない | リリースブロック |
+| Medium | ログアウト後の遷移が不正 | 修正してからリリース |
+| Low | UI 表示の軽微なずれ | 次のPRで対応可 |
+
+### 実行タイミング
+
+- **公開前**: Restricted mode 有効化時
+- **PR時**: Clerk設定に変更があった場合
+- **定期確認**: 月1回程度の動作確認
+
+## レポート方法
+
+QA実施後は、以下の形式で結果を記録してください：
+
+```
+QA実施日: 2026-XX-XX
+実施者: @username
+対象環境: Production/Preview
+結果: 全項目PASS / 1件FAIL (QA-XX)
+詳細: FAILした項目の具体的な症状と対応方針
+```
