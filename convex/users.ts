@@ -16,6 +16,8 @@ export async function upsertUserHandler(ctx: MutationCtx) {
   const userId = identity.tokenIdentifier;
   const now = Date.now();
 
+  // NOTE: by_user_id インデックスには Convex の仕様上 unique constraint を付与できない。
+  // そのため、複数ドキュメントが挿入されないよう upsertUser の呼び出し元で制御すること。
   const existing = await ctx.db
     .query("users")
     .withIndex("by_user_id", (q) => q.eq("userId", userId))
@@ -25,7 +27,7 @@ export async function upsertUserHandler(ctx: MutationCtx) {
     await ctx.db.insert("users", {
       userId,
       displayName: identity.name ?? identity.email ?? "ユーザー",
-      email: identity.email ?? "",
+      email: identity.email ?? undefined,
       createdAt: now,
       updatedAt: now,
     });

@@ -5,7 +5,7 @@ export default defineSchema({
   users: defineTable({
     userId: v.string(),
     displayName: v.string(),
-    email: v.string(),
+    email: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user_id", ["userId"]),

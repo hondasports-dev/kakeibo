@@ -26,8 +26,13 @@ export function useInitializeUser() {
 
     hasInitialized.current = true
 
-    upsertUser().catch((err: unknown) => {
-      console.error('[useInitializeUser] upsertUser failed:', err)
-    })
+    upsertUser()
+      .then(() => {
+        hasInitialized.current = true
+      })
+      .catch((err: unknown) => {
+        hasInitialized.current = false // リトライ許可
+        console.error('[useInitializeUser] upsertUser failed:', err)
+      })
   }, [isAuthenticated, upsertUser])
 }
