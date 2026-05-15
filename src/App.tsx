@@ -23,6 +23,7 @@ import {
   Typography,
 } from '@mui/material'
 import { useConvexAuth } from 'convex/react'
+import { useInitializeUser } from './hooks/useInitializeUser'
 import './App.css'
 
 const OAUTH_CALLBACK_PATH = '/sso-callback'
@@ -327,6 +328,8 @@ function UserMenu() {
 }
 
 function KakeiboApp() {
+  useInitializeUser()
+
   return (
     <Box className="app-shell">
       <Box component="main" className="app-main">
