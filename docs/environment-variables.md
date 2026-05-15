@@ -180,8 +180,4 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - `.env.example` はすべての変数を含む（値はプレースホルダー）
 - `VITE_*` でない変数をフロントエンドで参照しない
 
-## 更新履歴
 
-- 2026-05-15: 初版作成 (Issue #5対応)
-- 2026-05-15: Tech Leadレビュー指摘を反映。Preview環境廃止、CONVEX_DEPLOY_KEY追加、VITE_CONVEX_SITE_URL削除（Convex HTTP Actions未使用のため不要と判断）、CLERK_JWT_ISSUERのSecret扱い見直し、VERCEL_AUTOMATION_BYPASS_SECRETの扱い整合化、.env.example整合性ルール追加
-- 2026-05-15: Reviewerレビュー指摘を反映。E2E用認証情報のGitHub Actions格納方針を修正、QA Agentへの「渡さない」スコープを明確化、CONVEX_DEPLOYMENTのSecret扱いを修正、CLERK_JWT_ISSUER_DOMAINのLocal設定方法（Convex CLI）を明確化、Convexデプロイに限定したGitHub Actions不使用表現に修正
