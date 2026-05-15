@@ -187,7 +187,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | shopName | string | 店名 |
 | amountYen | number | 金額。日本円の整数 |
 | categoryId | Id<"categories"> | カテゴリID |
-| memo | string | 任意メモ |
+| memo | string (optional) | 任意メモ |
 | weekStartDate | string | 所属週の開始日。`YYYY-MM-DD` |
 | createdAt | number | 作成日時 |
 | updatedAt | number | 更新日時 |
