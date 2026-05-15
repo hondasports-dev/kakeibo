@@ -35,6 +35,32 @@
 - 外部APIや課金に関わる変更は失敗時の挙動を考える。
 - テスト不能な変更を避ける。
 
+## ブランチ運用手順
+
+**重要：mainブランチに直接commitしないでください。必ず作業ブランチを作成してから実装してください。**
+
+### 作業前の準備
+1. `git checkout main` - mainブランチに切り替え
+2. `git pull origin main` - mainブランチを最新化
+3. `git checkout -b feature/issue-{番号}-{短い説明}` - 作業ブランチを作成
+
+### 実装・コミット
+4. 設計に基づいて実装
+5. `git add .` - 変更をステージング
+6. `git commit -m "Issue #{番号}: 変更内容の要約"` - コミット
+
+### プッシュとPR作成
+7. `git push origin feature/issue-{番号}-{短い説明}` - ブランチをプッシュ
+8. GitHubでPRを作成し、レビューを依頼
+9. レビュー完了後にマージ
+
+### ブランチ名の例
+- `feature/issue-7-clerk-convex-auth`
+- `feature/issue-12-weekly-form-connect`
+- `fix/issue-15-validation-error`
+
+**例外：** ドキュメント修正のみの小さな変更で、Tech Leadの許可がある場合のみmainブランチに直接commitできます。
+
 ## 依頼テンプレート
 
 ```text
