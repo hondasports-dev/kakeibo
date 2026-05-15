@@ -1,9 +1,42 @@
 import { mutation } from "./_generated/server";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 
 type AuthContext = Pick<QueryCtx, "auth">;
+
+/** upsertUser mutation の handler ロジック（テスト用に export） */
+export async function upsertUserHandler(ctx: MutationCtx) {
+  const identity = await ctx.auth.getUserIdentity();
+
+  if (identity === null) {
+    throw new ConvexError("Not authenticated");
+  }
+
+  const userId = identity.tokenIdentifier;
+  const now = Date.now();
+
+  const existing = await ctx.db
+    .query("users")
+    .withIndex("by_user_id", (q) => q.eq("userId", userId))
+    .unique();
+
+  if (existing === null) {
+    await ctx.db.insert("users", {
+      userId,
+      displayName: identity.name ?? identity.email ?? "ユーザー",
+      email: identity.email ?? "",
+      createdAt: now,
+      updatedAt: now,
+    });
+  } else {
+    await ctx.db.patch(existing._id, {
+      displayName: identity.name ?? identity.email ?? existing.displayName,
+      email: identity.email ?? existing.email,
+      updatedAt: now,
+    });
+  }
+}
 
 export type AuthState =
   | {
@@ -48,35 +81,5 @@ export async function requireAuthenticatedUserId(ctx: AuthContext) {
  */
 export const upsertUser = mutation({
   args: {},
-  handler: async (ctx) => {
-    const identity = await ctx.auth.getUserIdentity();
-
-    if (identity === null) {
-      throw new ConvexError("Not authenticated");
-    }
-
-    const userId = identity.tokenIdentifier;
-    const now = Date.now();
-
-    const existing = await ctx.db
-      .query("users")
-      .withIndex("by_user_id", (q) => q.eq("userId", userId))
-      .unique();
-
-    if (existing === null) {
-      await ctx.db.insert("users", {
-        userId,
-        displayName: identity.name ?? identity.email ?? "ユーザー",
-        email: identity.email ?? "",
-        createdAt: now,
-        updatedAt: now,
-      });
-    } else {
-      await ctx.db.patch(existing._id, {
-        displayName: identity.name ?? identity.email ?? existing.displayName,
-        email: identity.email ?? existing.email,
-        updatedAt: now,
-      });
-    }
-  },
+  handler: upsertUserHandler,
 });
