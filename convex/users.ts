@@ -1,3 +1,4 @@
+import { mutation } from "./_generated/server";
 import type { QueryCtx } from "./_generated/server";
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
@@ -39,3 +40,43 @@ export async function requireAuthenticatedUserId(ctx: AuthContext) {
 
   return identity.tokenIdentifier;
 }
+
+/**
+ * ログイン後に呼び出す mutation。
+ * Clerk identity から users テーブルを upsert する。
+ * userId はクライアント引数を信用せず、サーバー側で identity.tokenIdentifier から解決する。
+ */
+export const upsertUser = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+
+    if (identity === null) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    const userId = identity.tokenIdentifier;
+    const now = Date.now();
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_user_id", (q) => q.eq("userId", userId))
+      .unique();
+
+    if (existing === null) {
+      await ctx.db.insert("users", {
+        userId,
+        displayName: identity.name ?? identity.email ?? "ユーザー",
+        email: identity.email ?? "",
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      await ctx.db.patch(existing._id, {
+        displayName: identity.name ?? identity.email ?? existing.displayName,
+        email: identity.email ?? existing.email,
+        updatedAt: now,
+      });
+    }
+  },
+});
