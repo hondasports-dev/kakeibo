@@ -24,7 +24,11 @@ dev-server-check.png
 
 # Service local state
 .vercel/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/kakeibo-*/
+!.agents/skills/kakeibo-*/**
 
 # Logs and OS files
 *.log

@@ -19,7 +19,7 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 ## 2. 採用方針
 
 | ツール | 採用 | 主な用途 | 状態 |
-|---|---:|---|---|
+| --- | ---: | --- | --- |
 | Clerk CLI | 採用 | Clerk初期化、app連携、env取得、設定差分管理、API確認 | authenticated / app linked |
 | Vercel MCP | 採用 | Vercel docs検索、project/deployment/log確認 | configured / OAuth completed |
 | Convex MCP | 採用 | Convex deployment、tables、logs、env確認 | configured |
@@ -33,7 +33,7 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 2026-05-12時点では、主要な外部サービスの初期接続は完了している。アプリ実装へ進む前の確認事項として、Google OAuth、Clerk + Convex連携、Vercel env登録方針が残っている。
 
 | 項目 | 状態 | 次に必要な作業 |
-|---|---|---|
+| --- | --- | --- |
 | `pnpm` | 完了 | なし |
 | Vite + React + TypeScript | 雛形作成済み | サービス連携完了後に本実装へ進む |
 | Chrome DevTools MCP | 設定済み、ローカル画面確認済み | 必要に応じてブラウザ確認に使う |
@@ -59,7 +59,7 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 pnpm install
 ```
 
-2. Codex MCPを登録する。
+1. Codex MCPを登録する。
 
 ```bash
 codex mcp add vercel --url https://mcp.vercel.com
@@ -67,7 +67,7 @@ codex mcp add convex -- npx -y convex@latest mcp start
 codex mcp add chrome-devtools -- npx -y chrome-devtools-mcp@latest
 ```
 
-3. Clerk CLIにログインし、`kakeibo` applicationを作成またはリンクする。
+1. Clerk CLIにログインし、`kakeibo` applicationを作成またはリンクする。
 
 ```bash
 pnpm exec clerk auth login
@@ -79,7 +79,7 @@ pnpm exec clerk doctor
 
 既存applicationを使う場合は、`pnpm exec clerk apps list` でIDを確認してから `pnpm exec clerk link --app <app_id>` を使う。
 
-4. Convex projectとdev deploymentを作成する。
+1. Convex projectとdev deploymentを作成する。
 
 ```bash
 pnpm exec convex dev --once --configure new
@@ -90,7 +90,7 @@ pnpm exec convex ai-files install
 
 `convex ai-files install` により、`AGENTS.md`、`CLAUDE.md`、`convex/_generated/ai/guidelines.md` が生成される。
 
-5. Vercel CLIにログインし、projectをリンクする。
+1. Vercel CLIにログインし、projectをリンクする。
 
 ```bash
 pnpm exec vercel whoami
@@ -100,14 +100,14 @@ pnpm exec vercel pull --yes --environment=development
 
 GitHub repository連携は、必要に応じてVercel Dashboard上で確認する。
 
-6. secret/local stateがGit管理外になっていることを確認する。
+1. secret/local stateがGit管理外になっていることを確認する。
 
 ```bash
 git check-ignore -v .env.local .vercel/project.json .vercel/.env.development.local .agents .pnpm-store .npmrc
 git ls-files --others --exclude-standard
 ```
 
-7. ローカル開発サーバを起動し、Chrome DevTools MCPで確認する。
+1. ローカル開発サーバを起動し、Chrome DevTools MCPで確認する。
 
 ```bash
 pnpm run dev -- --host 127.0.0.1
@@ -136,9 +136,15 @@ pnpm run dev -- --host 127.0.0.1
 *.p12
 *.pfx
 .vercel/
-.agents/
+.agents/*
+!.agents/skills/
+.agents/skills/*
+!.agents/skills/kakeibo-*/
+!.agents/skills/kakeibo-*/**
 .pnpm-store/
 ```
+
+`.agents/` 配下の生成物はGit管理外にする。ただし、このリポジトリで共有するCodex Skillだけは `.agents/skills/kakeibo-*` としてGit管理する。
 
 `skills-lock.json` はsecretを含まないスキルhash一覧である。Git管理するかどうかは、スキル再現性を重視するか、生成物を減らすかで別途判断する。
 
@@ -164,7 +170,7 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 無料枠前提では、以下の対応にする。
 
 | 用途 | Vercel | Clerk | Convex |
-|---|---|---|---|
+| --- | --- | --- | --- |
 | local dev | local `.env.local` | Development instance `pk_test_*` | dev deployment |
 | preview PR | Vercel Preview `*.vercel.app` URL | 原則Development instance | dev deployment、必要時preview deployment |
 | production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*` | production deployment |
@@ -652,13 +658,13 @@ args: -y chrome-devtools-mcp@latest
 
 ## 12. 参考
 
-- Clerk CLI: https://clerk.com/docs/cli
-- Clerk React CLI guide: https://clerk.com/articles/add-clerk-authentication-to-a-react-app-with-the-clerk-cli
-- Clerk Google social connection: https://clerk.com/docs/guides/configure/auth-strategies/social-connections/google
-- Clerk environments: https://clerk.com/docs/guides/development/managing-environments
-- Vercel MCP: https://vercel.com/docs/agent-resources/vercel-mcp
-- Vercel MCP tools: https://vercel.com/docs/agent-resources/vercel-mcp/tools
-- Vercel environments: https://vercel.com/docs/deployments/environments
-- Convex MCP: https://docs.convex.dev/ai/convex-mcp-server
-- Convex production: https://docs.convex.dev/production
-- Chrome DevTools MCP: https://developer.chrome.com/blog/chrome-devtools-mcp
+- Clerk CLI: <https://clerk.com/docs/cli>
+- Clerk React CLI guide: <https://clerk.com/articles/add-clerk-authentication-to-a-react-app-with-the-clerk-cli>
+- Clerk Google social connection: <https://clerk.com/docs/guides/configure/auth-strategies/social-connections/google>
+- Clerk environments: <https://clerk.com/docs/guides/development/managing-environments>
+- Vercel MCP: <https://vercel.com/docs/agent-resources/vercel-mcp>
+- Vercel MCP tools: <https://vercel.com/docs/agent-resources/vercel-mcp/tools>
+- Vercel environments: <https://vercel.com/docs/deployments/environments>
+- Convex MCP: <https://docs.convex.dev/ai/convex-mcp-server>
+- Convex production: <https://docs.convex.dev/production>
+- Chrome DevTools MCP: <https://developer.chrome.com/blog/chrome-devtools-mcp>

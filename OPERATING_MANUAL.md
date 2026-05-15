@@ -2,36 +2,41 @@
 
 ## 使い方
 
-まず `agents/00-company-coordinator.md` を読み、依頼を分解する。その後、必要なエージェントの指示書を読み、役割ごとに作業を委譲する。
+Codexでは、まず `$kakeibo-virtual-company` を使って依頼を分解する。
+
+`agents/` 配下はCodexの実行時サブエージェントではなく、役割別プロンプト集である。必要な役割だけを読み、過剰な分業を避ける。
 
 ## Codexでの使い方
 
 ### 企画から始める場合
 
 ```text
-virtual-software-company-agents/agents/00-company-coordinator.md を使って、
+$kakeibo-virtual-company を使って、
 このアプリ案を企画、設計、実装、QA、レビュー、リリースに分解して。
 ```
 
 ### 市場調査から始める場合
 
 ```text
-virtual-software-company-agents/agents/01-product-lead.md と
-$research-current-market を使って、今作るべきアプリ案を調査して。
+$kakeibo-virtual-company と $research-current-market を使って、
+今作るべきアプリ案を調査して。
+ユーザーが承認するまで実装には進まないで。
 ```
 
 ### 実装だけ頼む場合
 
 ```text
-virtual-software-company-agents/agents/03-implementer.md を使って、
+$kakeibo-virtual-company を使って、
 次の設計に基づいて実装して。
+必要な役割は Implementer を中心にして。
 ```
 
 ### レビューだけ頼む場合
 
 ```text
-virtual-software-company-agents/agents/05-reviewer.md を使って、
+$kakeibo-virtual-company を使って、
 この差分をレビューして。
+必要な役割は Reviewer を中心にして。
 ```
 
 ## 並列化の方針
@@ -43,4 +48,4 @@ virtual-software-company-agents/agents/05-reviewer.md を使って、
 
 ## 注意
 
-このディレクトリは永続的な指示書です。Codexの実行時サブエージェントそのものを常駐させるものではありません。会話中にサブエージェントを使う場合は、ここにある各エージェント指示書をプロンプトとして渡します。
+`agents/` ディレクトリは永続的な指示書であり、Codexの実行時サブエージェントそのものを常駐させるものではない。会話中に役割分担する場合は、`$kakeibo-virtual-company` から必要な指示書だけを参照する。
