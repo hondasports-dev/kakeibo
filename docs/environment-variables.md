@@ -17,7 +17,7 @@
 |--------|------|-------|------------|------------|----------|
 | `VITE_CLERK_PUBLISHABLE_KEY` | フロントエンド用公開鍵 | ✅ | ✅ | ❌ | .env.local / Vercel Env |
 | `CLERK_SECRET_KEY` | サーバー用秘密鍵 | ✅ | ✅ | ✅ | .env.local / Vercel Secrets |
-| `CLERK_JWT_ISSUER_DOMAIN` | Convex認証用JWT issuerドメイン | ✅ | ✅ | ❌ | .env.local / Vercel Env / Convex Dashboard |
+| `CLERK_JWT_ISSUER_DOMAIN` | Convex認証用JWT issuerドメイン | ✅ | ✅ | ❌ | Convex Dashboard (CLI) / Vercel Env |
 | `E2E_CLERK_USER_EMAIL` | E2Eテスト用メール | ✅ | ❌ | ✅ | .env.local のみ |
 | `E2E_CLERK_USER_PASSWORD` | E2Eテスト用パスワード | ✅ | ❌ | ✅ | .env.local のみ |
 
@@ -25,7 +25,7 @@
 
 | 変数名 | 用途 | Local | Production | Secret扱い | 設定場所 |
 |--------|------|-------|------------|------------|----------|
-| `CONVEX_DEPLOYMENT` | ローカル開発用デプロイメント名 | ✅ | ❌ | ✅ | .env.local のみ |
+| `CONVEX_DEPLOYMENT` | ローカル開発用デプロイメント名 | ✅ | ❌ | ❌ | .env.local のみ |
 | `VITE_CONVEX_URL` | フロントエンド用Convex接続URL | ✅ | ✅ | ❌ | .env.local / Vercel Env |
 | `CONVEX_DEPLOY_KEY` | VercelビルドからConvexへのデプロイ用キー | ❌ | ✅ | ✅ | Vercel Secrets のみ |
 
@@ -33,13 +33,12 @@
 
 ### Local開発環境
 
-`.env.local` に全ての環境変数を設定する。このファイルは `.gitignore` 済みで、リポジトリには含めない。
+`.env.local` に以下の環境変数を設定する。このファイルは `.gitignore` 済みで、リポジトリには含めない。
 
 ```env
 # Clerk認証 (Development instance)
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
-CLERK_JWT_ISSUER_DOMAIN=https://your-clerk-frontend-api-url.clerk.accounts.dev
 
 # E2Eテスト用 (Local専用)
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
@@ -48,6 +47,13 @@ E2E_CLERK_USER_PASSWORD=change-me
 # Convex
 CONVEX_DEPLOYMENT=dev:your-deployment
 VITE_CONVEX_URL=https://your-deployment.convex.cloud
+```
+
+`CLERK_JWT_ISSUER_DOMAIN` はフロントエンドでは使わないため `.env.local` には不要だが、
+Convex バックエンド（dev deployment）には CLI で別途設定が必要：
+
+```bash
+npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
 ```
 
 ### Vercel Production環境
@@ -78,7 +84,8 @@ Vercel DashboardのEnvironment Variablesに設定する。
 ## Vercel ビルドとConvexデプロイの仕組み
 
 Vercel と GitHub を連携している場合、Convexのデプロイは **Vercelのビルドコマンド経由**で行われる。
-GitHub Actions は使用しない。
+**Convex のデプロイに関しては** GitHub Actions は使用しない（Vercelビルド経由のため）。
+lint/build の CI チェックや将来の E2E 実行には GitHub Actions を使用する。
 
 **Vercel Build Commandの設定:**
 ```
@@ -96,12 +103,14 @@ npx convex deploy --cmd 'pnpm run build'
 ### GitHub Actions Secretsに保存する項目
 
 - `VERCEL_AUTOMATION_BYPASS_SECRET` — E2E Playwright導入時に追加予定
+- `E2E_CLERK_USER_EMAIL` — E2E Playwright導入時に追加予定
+- `E2E_CLERK_USER_PASSWORD` — E2E Playwright導入時に追加予定（信頼できるブランチのみ）
 
 ### 重要ルール
 
 1. **Secrets限定**: 秘匿情報はGitHub Actions Secretsにのみ保存
 2. **ログ出力禁止**: Secretsをログ、PRコメント、チャットに出力しない
-3. **E2E用パスワード**: `E2E_CLERK_USER_PASSWORD` はGitHub Actionsに保存しない
+3. **E2E用認証情報**: `E2E_CLERK_USER_EMAIL` / `E2E_CLERK_USER_PASSWORD` はGitHub Actions Secretsにのみ保存し、ログ・PRコメント・チャットには出力しない
 4. **公開情報**: `VITE_*` はVercel DashboardのEnvironment Variablesに設定
 
 ## Convex Dashboard設定
@@ -114,6 +123,9 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 > Secretsではなく通常のEnvironment Variableとして扱う。真のSecretは `CLERK_SECRET_KEY` のみ。
 
 ## QA Agentとの連携方針
+
+> ここでの「渡さない」とは、QA Agentのチャット・コンテキストへの共有を禁止する意味です。
+> GitHub Actions Secretsへの保存はこの制限に含まれません。
 
 ### 渡さないSecret情報
 
@@ -171,4 +183,5 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 ## 更新履歴
 
 - 2026-05-15: 初版作成 (Issue #5対応)
-- 2026-05-15: Tech Leadレビュー指摘を反映。Preview環境廃止、CONVEX_DEPLOY_KEY追加、VITE_CONVEX_SITE_URL削除、CLERK_JWT_ISSUERのSecret扱い見直し、VERCEL_AUTOMATION_BYPASS_SECRETの扱い整合化、.env.example整合性ルール追加
+- 2026-05-15: Tech Leadレビュー指摘を反映。Preview環境廃止、CONVEX_DEPLOY_KEY追加、VITE_CONVEX_SITE_URL削除（Convex HTTP Actions未使用のため不要と判断）、CLERK_JWT_ISSUERのSecret扱い見直し、VERCEL_AUTOMATION_BYPASS_SECRETの扱い整合化、.env.example整合性ルール追加
+- 2026-05-15: Reviewerレビュー指摘を反映。E2E用認証情報のGitHub Actions格納方針を修正、QA Agentへの「渡さない」スコープを明確化、CONVEX_DEPLOYMENTのSecret扱いを修正、CLERK_JWT_ISSUER_DOMAINのLocal設定方法（Convex CLI）を明確化、Convexデプロイに限定したGitHub Actions不使用表現に修正
