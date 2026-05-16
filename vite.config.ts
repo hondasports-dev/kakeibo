@@ -9,4 +9,8 @@ export default defineConfig({
       ignored: ['**/.agents/**'],
     },
   },
+  test: {
+    // e2e/ は Playwright で実行するため Vitest から除外
+    exclude: ['**/node_modules/**', '**/e2e/**'],
+  },
 })

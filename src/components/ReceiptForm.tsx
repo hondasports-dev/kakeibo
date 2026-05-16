@@ -135,7 +135,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   return (
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
-        <form onSubmit={handleSubmit}>
+        <form noValidate onSubmit={handleSubmit}>
           <Stack spacing={2.5}>
             <Box>
               <Typography component="h2" variant="h5">
@@ -252,7 +252,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               slotProps={{
                 htmlInput: {
                   inputMode: 'numeric',
-                  pattern: '[0-9]*',
                 },
               }}
               value={formValues.amountYen}

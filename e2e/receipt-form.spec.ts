@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import { setupClerkTestingToken } from '@clerk/testing/playwright'
+import { clerk } from '@clerk/testing/playwright'
 import { gotoAuthenticated } from './helpers/auth'
 
 /**
@@ -47,8 +47,10 @@ test.describe('メイン画面の表示確認', () => {
 
 test.describe('レシート保存フロー（Issue #13 受け入れ確認）', () => {
   test.beforeEach(async ({ page }) => {
-    await setupClerkTestingToken({ page })
+    const email = process.env.E2E_CLERK_USER_EMAIL
+    if (!email) throw new Error('E2E_CLERK_USER_EMAIL is not set')
     await page.goto('/')
+    await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
   })
 
@@ -157,17 +159,22 @@ test.describe('レシート保存フロー（Issue #13 受け入れ確認）', (
     await page.getByRole('button', { name: '保存して次へ' }).click()
     await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
 
-    // レシート一覧に追加されていることを確認
+    // レシート一覧に追加されていることを確認（表示順は問わない）
+    // 注: 一覧は新着順（getReceiptsByWeek .order("desc")）で表示されるが、
+    //     E2E テストは共有 Dev DB を使うため既存データが存在する場合がある。
+    //     「ドラッグストアが一覧内に存在する」ことと「件数が2件以上」を確認する。
     const receiptList = page.locator('[class*="receipt-row"]')
-    await expect(receiptList.first()).toContainText('ドラッグストア')
+    await expect(receiptList.filter({ hasText: 'ドラッグストア' }).first()).toBeVisible()
     expect(await receiptList.count()).toBeGreaterThanOrEqual(2)
   })
 })
 
 test.describe('バリデーション（P1）', () => {
   test.beforeEach(async ({ page }) => {
-    await setupClerkTestingToken({ page })
+    const email = process.env.E2E_CLERK_USER_EMAIL
+    if (!email) throw new Error('E2E_CLERK_USER_EMAIL is not set')
     await page.goto('/')
+    await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
   })
 
@@ -207,10 +214,15 @@ test.describe('バリデーション（P1）', () => {
 
   test('シナリオ10: 金額に文字を入力して保存するとエラーが表示される', async ({ page }) => {
     await page.locator('input[name="shopName"]').fill('スーパー北浜')
-    await page.locator('input[name="amountYen"]').fill('abc')
+    // fill 後に値が反映されたことを確認してからカテゴリ選択・保存へ進む
+    const amountInput = page.locator('input[name="amountYen"]')
+    await amountInput.fill('abc')
+    await expect(amountInput).toHaveValue('abc')
     await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
     await page.getByRole('button', { name: '保存して次へ' }).click()
 
-    await expect(page.locator('text=金額は数字のみで入力してください')).toBeVisible()
+    // バリデーションエラーは MUI TextField の helperText（.MuiFormHelperText-root）として表示される
+    // エラー発生時のみ DOM に追加されるため、toBeVisible で待機する
+    await expect(page.locator('.MuiFormHelperText-root', { hasText: '金額は数字のみで入力してください' })).toBeVisible()
   })
 })
