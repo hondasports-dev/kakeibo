@@ -1,0 +1,76 @@
+name: E2E
+
+# Vercel Git Integration が Preview デプロイを完了した時点で実行する。
+# deployment_status イベントを使うことで:
+#   1. Vercel が発行するデプロイ完了通知を受け取る
+#   2. github.event.deployment_status.target_url に Preview URL が入る
+#   3. Secrets が GitHub から安全に渡される（pull_request イベントの fork 問題を回避）
+#
+# 必要な GitHub Actions Secrets（手動設定が必要）:
+#   VERCEL_AUTOMATION_BYPASS_SECRET  — Vercel Dashboard > Protection Bypass for Automation
+#   CLERK_PUBLISHABLE_KEY            — Clerk Dev instance の pk_test_...
+#   CLERK_SECRET_KEY                 — Clerk Dev instance の sk_test_...
+#   E2E_CLERK_USER_EMAIL             — テストユーザーのメールアドレス
+#   E2E_CLERK_USER_PASSWORD          — テストユーザーのパスワード
+#   VITE_CONVEX_URL                  — Dev deployment の Convex URL
+#
+# 詳細: docs/development-process.md「E2E Preview 確認方針」
+#       docs/environment-variables.md「GitHub Actions Secrets に保存する項目」
+on:
+  deployment_status:
+
+jobs:
+  e2e:
+    name: E2E (Playwright / Chromium)
+    # Vercel の Preview デプロイが成功した時のみ実行
+    # Production デプロイ（environment == 'Production'）は除外する
+    if: |
+      github.event.deployment_status.state == 'success' &&
+      contains(github.event.deployment_status.environment, 'Preview')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers (Chromium only)
+        run: pnpm exec playwright install chromium --with-deps
+
+      - name: Run E2E tests
+        run: pnpm run e2e --project=chromium
+        env:
+          # Vercel Preview の URL（Vercel が deployment_status に埋め込む）
+          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          # Vercel Protection Bypass for Automation
+          PLAYWRIGHT_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+          # Clerk Testing Token 取得用
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          # E2E テストユーザー認証情報（ログ出力禁止）
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+          E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
+          # Convex Dev deployment URL
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+
+      # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          # 1日で削除（認証情報が含まれる可能性があるため最短期間）
+          retention-days: 1
