@@ -31,6 +31,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          # deployment_status イベントでは github.sha がデプロイ時点の SHA になるため
+          # ブランチの最新コミットを明示的にチェックアウトする
+          ref: ${{ github.event.deployment.ref }}
 
       - uses: pnpm/action-setup@v4
         with:
