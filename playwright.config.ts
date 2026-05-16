@@ -31,6 +31,15 @@ export default defineConfig({
     trace: 'on-first-retry',
     /* Clerk 認証済み storageState（global setup で作成） */
     storageState: 'playwright/.clerk/user.json',
+    /*
+     * Vercel Protection Bypass for Automation ヘッダー
+     * GitHub Actions から PLAYWRIGHT_BYPASS_SECRET が渡された場合のみ有効になる。
+     * ローカル実行時は undefined になるため影響なし。
+     * 詳細: docs/development-process.md「E2E Preview 確認方針」
+     */
+    extraHTTPHeaders: process.env.PLAYWRIGHT_BYPASS_SECRET
+      ? { 'x-vercel-protection-bypass': process.env.PLAYWRIGHT_BYPASS_SECRET }
+      : undefined,
   },
   projects: [
     {
