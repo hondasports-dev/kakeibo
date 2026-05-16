@@ -27,7 +27,8 @@
 
 ```env
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
-CLERK_SECRET_KEY=sk_test_...
+# CLERK_SECRET_KEY はサーバーサイド用（Webhook 等）。フロントエンドのみの E2E テストでは不要。
+# Playwright + @clerk/testing の setupClerkTestingToken はパブリッシャブルキーのみ使用する。
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
 E2E_CLERK_USER_PASSWORD=<secure-password>
 VITE_CONVEX_URL=https://...

@@ -1,10 +1,25 @@
 import * as v from 'valibot';
 
+/**
+ * YYYY-MM-DD 形式の日付文字列が実在する日付かチェックする。
+ * 例: "2026-02-30" は false（2月に30日は存在しない）。
+ */
+function isValidCalendarDate(value: string): boolean {
+  const [year, month, day] = value.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  return (
+    date.getFullYear() === year &&
+    date.getMonth() === month - 1 &&
+    date.getDate() === day
+  );
+}
+
 export const receiptFormSchema = v.object({
   date: v.pipe(
     v.string(),
     v.nonEmpty('日付は必須です'),
     v.regex(/^\d{4}-\d{2}-\d{2}$/, 'YYYY-MM-DD 形式で入力してください'),
+    v.check(isValidCalendarDate, '存在しない日付です'),
   ),
   shopName: v.pipe(
     v.string(),
@@ -26,6 +41,8 @@ export const receiptFormSchema = v.object({
   memo: v.optional(v.pipe(
     v.string(),
     v.maxLength(500, 'メモは 500 文字以内です'),
+    // 空文字列は undefined として扱う（Convex に空文字を保存しない）
+    v.transform((s) => (s === '' ? undefined : s)),
   )),
 });
 

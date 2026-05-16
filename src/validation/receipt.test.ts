@@ -116,4 +116,21 @@ describe('validateReceiptForm', () => {
       expect(result.errors.memo).toBe('メモは 500 文字以内です');
     }
   });
+
+  it('date が "2026-02-30"（存在しない日付）→ success: false', () => {
+    const result = validateReceiptForm({ ...validInput, date: '2026-02-30' });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.date).toBeDefined();
+      expect(result.errors.date).toBe('存在しない日付です');
+    }
+  });
+
+  it('memo が空文字列 → success: true、data.memo は undefined', () => {
+    const result = validateReceiptForm({ ...validInput, memo: '' });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.memo).toBeUndefined();
+    }
+  });
 });

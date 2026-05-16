@@ -310,6 +310,9 @@ function KakeiboApp() {
   } | null>(null)
   const [sessionError, setSessionError] = useState('')
 
+  // getOrCreateCurrentWeekSession は副作用を持つ mutation のため useQuery ではなく useMutation を使用。
+  // useEffect + useCallback でマウント時に一度だけ実行し、結果を local state に保持する。
+  // Strict Mode での二重実行については、mutation の冪等性（同じ週のセッションは1回のみ作成）で担保している。
   const initSession = useCallback(() => {
     getOrCreateSession()
       .then(setWeekSession)

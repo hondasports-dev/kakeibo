@@ -21,7 +21,7 @@ import {
 interface ReceiptFormProps {
   weekStartDate: string
   weekEndDate: string
-  categories: Array<{ _id: string; name: string; color: string }>
+  categories: Array<{ _id: Id<'categories'>; name: string; color: string }>
 }
 
 /**
@@ -51,7 +51,13 @@ function generateWeekDays(weekStartDate: string, weekEndDate: string) {
 }
 
 export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptFormProps) {
-  const [formValues, setFormValues] = useState({
+  const [formValues, setFormValues] = useState<{
+    date: string
+    shopName: string
+    amountYen: string
+    categoryId: Id<'categories'> | ''
+    memo: string
+  }>({
     date: weekStartDate,
     shopName: '',
     amountYen: '',
@@ -88,7 +94,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
         date: validation.data.date,
         shopName: validation.data.shopName,
         amountYen: validation.data.amountYen,
-        categoryId: validation.data.categoryId as Id<'categories'>,
+        categoryId: validation.data.categoryId as Id<'categories'>, // バリデーション済みの categoryId
         memo: validation.data.memo,
       })
       // 保存成功 → 店名・金額・メモをクリア、日付・カテゴリを引き継ぐ
@@ -135,16 +141,25 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               前回の日付とカテゴリを引き継いで、次のレシートを続けて入力できます。
             </Alert>
 
-            <Box className="week-day-grid" aria-label="週内の日付候補" role="list">
+            <Box className="week-day-grid" aria-label="週内の日付候補" role="listbox">
               {weekDays.map((day) => {
                 const isSelected = formValues.date === day.isoDate
                 return (
                   <Box
                     aria-label={`${day.label}曜日 ${day.date}${isSelected ? ' 選択中' : ''}`}
+                    aria-pressed={isSelected}
+                    aria-selected={isSelected}
                     className="week-day-button"
                     key={day.isoDate}
                     onClick={() => handleFieldChange('date', day.isoDate)}
-                    role="listitem"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleFieldChange('date', day.isoDate)
+                      }
+                    }}
+                    role="option"
+                    tabIndex={0}
                     sx={{
                       border: '1px solid',
                       borderColor: isSelected ? 'primary.main' : 'divider',
@@ -155,6 +170,11 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
                       py: 1,
                       textAlign: 'center',
                       cursor: 'pointer',
+                      '&:focus-visible': {
+                        outline: '2px solid',
+                        outlineColor: 'primary.main',
+                        outlineOffset: '2px',
+                      },
                     }}
                   >
                     <span>{day.label}</span>
@@ -223,16 +243,24 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
                   {errors.categoryId}
                 </Typography>
               )}
-              <Box className="category-grid" aria-label="カテゴリ候補" role="list">
+              <Box className="category-grid" aria-label="カテゴリ候補" role="listbox">
                 {categories.map((category) => {
                   const isSelected = formValues.categoryId === category._id
                   return (
                     <Box
                       aria-label={`${category.name}${isSelected ? ' 選択中' : ''}`}
+                      aria-selected={isSelected}
                       className="category-button"
                       key={category._id}
                       onClick={() => handleFieldChange('categoryId', category._id)}
-                      role="listitem"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          handleFieldChange('categoryId', category._id)
+                        }
+                      }}
+                      role="option"
+                      tabIndex={0}
                       sx={
                         isSelected
                           ? {
@@ -245,6 +273,11 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
                               py: 0.75,
                               textAlign: 'center',
                               cursor: 'pointer',
+                              '&:focus-visible': {
+                                outline: '2px solid',
+                                outlineColor: 'primary.main',
+                                outlineOffset: '2px',
+                              },
                             }
                           : {
                               border: '1px solid',
@@ -255,6 +288,11 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
                               py: 0.75,
                               textAlign: 'center',
                               cursor: 'pointer',
+                              '&:focus-visible': {
+                                outline: '2px solid',
+                                outlineColor: category.color,
+                                outlineOffset: '2px',
+                              },
                             }
                       }
                     >
