@@ -2,13 +2,13 @@ import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { calculateWeekStartDate } from "./utils";
 import {
   createReceiptHandler,
   deleteReceiptHandler,
   getReceiptsByDateHandler,
   getReceiptsByWeekHandler,
   updateReceiptHandler,
-  calculateWeekStartDate,
 } from "./receipts";
 
 // ---------------------------------------------------------------------------
