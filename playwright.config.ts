@@ -1,0 +1,57 @@
+import { defineConfig, devices } from '@playwright/test'
+
+/**
+ * E2E テスト設定
+ * 詳細なテストシナリオ仕様: docs/e2e-test-cases.md
+ * Clerk 認証セットアップ手順: docs/development-process.md「Codex 開発時の Clerk 認証」
+ */
+export default defineConfig({
+  testDir: './e2e',
+  /* 全テストの最大タイムアウト（API 遅延対応） */
+  timeout: 30_000,
+  /* expect() のタイムアウト */
+  expect: {
+    timeout: 10_000,
+  },
+  /* CI 環境では flaky テストを最大 2 回リトライ */
+  retries: process.env.CI ? 2 : 0,
+  /* CI 環境では並列実行しない（認証状態の競合回避） */
+  workers: process.env.CI ? 1 : undefined,
+  /* 失敗時のみスクリーンショット・trace を保存（認証情報が含まれる可能性があるため短期保持） */
+  reporter: [
+    ['html', { open: 'never' }],
+    ['list'],
+  ],
+  use: {
+    /* テスト対象 URL。環境変数 E2E_BASE_URL が設定されていれば Vercel Preview を対象にする */
+    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
+    /* 失敗時のみスクリーンショット保存 */
+    screenshot: 'only-on-failure',
+    /* 失敗時のみ trace 保存 */
+    trace: 'on-first-retry',
+    /* Clerk 認証済み storageState（global setup で作成） */
+    storageState: 'playwright/.clerk/user.json',
+  },
+  projects: [
+    {
+      // global setup: Clerk 認証を事前実行して storageState を保存
+      name: 'setup',
+      testMatch: /global-setup\.ts/,
+      use: { storageState: undefined },
+    },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+      dependencies: ['setup'],
+    },
+  ],
+  /* ローカル実行時は vite dev サーバーを自動起動 */
+  webServer: process.env.E2E_BASE_URL
+    ? undefined
+    : {
+        command: 'pnpm run dev',
+        url: 'http://localhost:5173',
+        reuseExistingServer: !process.env.CI,
+        timeout: 60_000,
+      },
+})
