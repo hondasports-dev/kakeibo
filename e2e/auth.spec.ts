@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test'
-import { clerk } from '@clerk/testing/playwright'
 
 /**
  * 認証フロー E2E テスト
@@ -15,7 +14,17 @@ test.describe('未ログイン状態', () => {
 
   test('シナリオ1: アクセスするとログイン画面が表示される', async ({ page }) => {
     await page.goto('/')
-    await page.waitForSelector('text=家計簿にログイン')
+
+    // Clerk Testing Token 環境では Cookie なしでも CLERK_TESTING_TOKEN がリクエストに付与されるため
+    // isLoaded が true になるまで waitForFunction で明示的に待機する。
+    // storageState が空なので isSignedIn は false になり、ログイン画面に遷移するはず。
+    await page.waitForFunction(
+      () => {
+        const w = window as Window & { Clerk?: { loaded?: boolean } }
+        return w.Clerk?.loaded === true
+      },
+      { timeout: 30_000 },
+    )
 
     await expect(page.getByRole('heading', { name: '家計簿にログイン' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible()
