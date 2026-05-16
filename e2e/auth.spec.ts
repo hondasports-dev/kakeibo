@@ -6,15 +6,12 @@ import { test, expect } from '@playwright/test'
  * カバーするシナリオ:
  *   - シナリオ 1: 未ログイン状態でアクセス → ログイン画面が表示される (P0)
  *   - シナリオ 4: ログアウト → ログイン画面に戻る (P1)
- *
- * 注意: このファイルは storageState を「使わない」テスト用。
- *       ログイン済みテストは receipt-form.spec.ts を参照。
  */
 
-// storageState を持ち込まない（未ログイン状態をテストするため）
-test.use({ storageState: { cookies: [], origins: [] } })
-
 test.describe('未ログイン状態', () => {
+  // storageState を空にして未ログイン状態を強制する
+  test.use({ storageState: { cookies: [], origins: [] } })
+
   test('シナリオ1: アクセスするとログイン画面が表示される', async ({ page }) => {
     await page.goto('/')
     await page.waitForSelector('text=家計簿にログイン')
@@ -29,10 +26,9 @@ test.describe('未ログイン状態', () => {
 
 /**
  * ログアウトテスト
- * storageState（ログイン済み）を使ってログアウト後の状態を確認する。
+ * setupClerkTestingToken で Testing Token を付与してログイン状態を作り、
+ * ログアウト後の状態を確認する。
  */
-test.use({ storageState: 'playwright/.clerk/user.json' })
-
 test.describe('ログアウト', () => {
   test('シナリオ4: ログアウトするとログイン画面に戻る', async ({ page }) => {
     const { setupClerkTestingToken } = await import('@clerk/testing/playwright')
