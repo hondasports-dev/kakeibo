@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   AuthenticateWithRedirectCallback,
   useAuth,
@@ -19,11 +19,12 @@ import {
   MenuItem,
   Paper,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material'
-import { useConvexAuth } from 'convex/react'
+import { useConvexAuth, useMutation, useQuery } from 'convex/react'
+import { api } from '../convex/_generated/api'
 import { useInitializeUser } from './hooks/useInitializeUser'
+import { ReceiptForm } from './components/ReceiptForm'
 import './App.css'
 
 const OAUTH_CALLBACK_PATH = '/sso-callback'
@@ -44,51 +45,6 @@ const summaryItems = [
   { label: '入力済み', value: '3件', helper: '目安 10件', tone: 'primary' },
   { label: '今週の支出', value: '18,420円', helper: '予算 50,000円', tone: 'secondary' },
   { label: '予算残り', value: '31,580円', helper: '63% 残り', tone: 'success' },
-] as const
-
-const receipts = [
-  {
-    id: 'receipt-super-kitahama-2026-05-12',
-    store: 'スーパー北浜',
-    category: '食費',
-    amount: '4,280円',
-    date: '5/12',
-  },
-  {
-    id: 'receipt-drugstore-2026-05-12',
-    store: 'ドラッグストア',
-    category: '日用品',
-    amount: '1,540円',
-    date: '5/12',
-  },
-  {
-    id: 'receipt-cafe-2026-05-11',
-    store: 'カフェ',
-    category: '外食',
-    amount: '960円',
-    date: '5/11',
-  },
-] as const
-
-const categories = [
-  { label: '食費', color: '#0f766e', selected: true },
-  { label: '日用品', color: '#2563eb', selected: false },
-  { label: '外食', color: '#b45309', selected: false },
-  { label: '交通', color: '#7c3aed', selected: false },
-  { label: '医療', color: '#be123c', selected: false },
-  { label: '娯楽', color: '#7c3aed', selected: false },
-  { label: '衣服', color: '#c2410c', selected: false },
-  { label: 'その他', color: '#64748b', selected: false },
-] as const
-
-const weekDays = [
-  { label: '月', date: '5/11', selected: true },
-  { label: '火', date: '5/12', selected: false },
-  { label: '水', date: '5/13', selected: false },
-  { label: '木', date: '5/14', selected: false },
-  { label: '金', date: '5/15', selected: false },
-  { label: '土', date: '5/16', selected: false },
-  { label: '日', date: '5/17', selected: false },
 ] as const
 
 function App() {
@@ -327,8 +283,83 @@ function UserMenu() {
   )
 }
 
+function formatDateForDisplay(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
+  const start = new Date(weekStartDate + 'T00:00:00')
+  const end = new Date(weekEndDate + 'T00:00:00')
+  const sy = start.getFullYear()
+  const sm = start.getMonth() + 1
+  const sd = start.getDate()
+  const em = end.getMonth() + 1
+  const ed = end.getDate()
+  return `${sy}年${sm}月${sd}日 - ${em}月${ed}日`
+}
+
 function KakeiboApp() {
   useInitializeUser()
+
+  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateCurrentWeekSession)
+  const [weekSession, setWeekSession] = useState<{
+    weekStartDate: string
+    weekEndDate: string
+    status: 'draft' | 'completed'
+  } | null>(null)
+  const [sessionError, setSessionError] = useState('')
+
+  // getOrCreateCurrentWeekSession は副作用を持つ mutation のため useQuery ではなく useMutation を使用。
+  // useEffect + useCallback でマウント時に一度だけ実行し、結果を local state に保持する。
+  // Strict Mode での二重実行については、mutation の冪等性（同じ週のセッションは1回のみ作成）で担保している。
+  const initSession = useCallback(() => {
+    getOrCreateSession()
+      .then(setWeekSession)
+      .catch((err: unknown) => {
+        console.error('週次セッション初期化失敗:', err)
+        setSessionError('週次セッションの初期化に失敗しました。ページをリロードしてください。')
+      })
+  }, [getOrCreateSession])
+
+  useEffect(() => {
+    initSession()
+  }, [initSession])
+
+  const categories = useQuery(api.categories.listActive) ?? []
+  const receipts = useQuery(
+    api.receipts.getReceiptsByWeek,
+    weekSession ? { weekStartDate: weekSession.weekStartDate } : 'skip',
+  ) ?? []
+
+  // ローディング中
+  if (!weekSession && !sessionError) {
+    return (
+      <Box className="app-shell">
+        <Box component="main" className="app-main">
+          <Stack spacing={3} sx={{ alignItems: 'center', py: 8 }}>
+            <CircularProgress aria-label="データを読み込み中" />
+            <Typography color="text.secondary">今週のセッションを準備しています...</Typography>
+          </Stack>
+        </Box>
+      </Box>
+    )
+  }
+
+  // セッション初期化エラー
+  if (sessionError || !weekSession) {
+    return (
+      <Box className="app-shell">
+        <Box component="main" className="app-main">
+          <Alert severity="error" variant="outlined">
+            {sessionError || '週次セッションの読み込みに失敗しました。'}
+          </Alert>
+        </Box>
+      </Box>
+    )
+  }
+
+  const { weekStartDate, weekEndDate } = weekSession
 
   return (
     <Box className="app-shell">
@@ -347,7 +378,7 @@ function KakeiboApp() {
                 今週のレシート入力
               </Typography>
               <Typography color="text.secondary">
-                2026年5月11日 - 5月17日
+                {formatWeekPeriod(weekStartDate, weekEndDate)}
               </Typography>
             </Box>
             <Stack
@@ -386,148 +417,11 @@ function KakeiboApp() {
           </Box>
 
           <Box className="workbench-grid">
-            <Paper className="paper-panel" elevation={0}>
-              <Box sx={{ p: 2.5 }}>
-                <Stack spacing={2.5}>
-                  <Box>
-                    <Typography component="h2" variant="h5">
-                      レシートを追加
-                    </Typography>
-                    <Typography color="text.secondary" variant="body2">
-                      保存後は店名と金額だけ空にして、次の入力へ進みます。
-                    </Typography>
-                  </Box>
-
-                  <Alert severity="info" variant="outlined">
-                    前回の日付とカテゴリを引き継いで、次のレシートを続けて入力できます。
-                  </Alert>
-
-                  <Box className="week-day-grid" aria-label="週内の日付候補" role="list">
-                    {weekDays.map((day) => (
-                      <Box
-                        aria-label={`${day.label}曜日 ${day.date}${
-                          day.selected ? ' 選択中' : ''
-                        }`}
-                        className="week-day-button"
-                        key={day.label}
-                        role="listitem"
-                        sx={{
-                          border: '1px solid',
-                          borderColor: day.selected ? 'primary.main' : 'divider',
-                          borderRadius: 1,
-                          bgcolor: day.selected ? 'primary.main' : 'background.paper',
-                          color: day.selected ? 'primary.contrastText' : 'text.primary',
-                          px: 1,
-                          py: 1,
-                          textAlign: 'center',
-                        }}
-                      >
-                        <span>{day.label}</span>
-                        <small>{day.date}</small>
-                      </Box>
-                    ))}
-                  </Box>
-
-                  <TextField
-                    defaultValue="2026-05-11"
-                    fullWidth
-                    id="receipt-date"
-                    label="日付"
-                    name="date"
-                    slotProps={{
-                      inputLabel: { shrink: true },
-                      htmlInput: {
-                        max: '2026-05-17',
-                        min: '2026-05-11',
-                      },
-                    }}
-                    type="date"
-                  />
-                  <TextField
-                    autoComplete="organization"
-                    fullWidth
-                    id="receipt-shop-name"
-                    label="店舗名"
-                    name="shopName"
-                    placeholder="例: スーパー北浜"
-                  />
-                  <TextField
-                    fullWidth
-                    id="receipt-amount-yen"
-                    label="合計金額"
-                    name="amountYen"
-                    placeholder="例: 4280"
-                    slotProps={{
-                      htmlInput: {
-                        inputMode: 'numeric',
-                        pattern: '[0-9]*',
-                      },
-                    }}
-                  />
-
-                  <Stack spacing={1}>
-                    <Typography component="p" variant="body2" sx={{ fontWeight: 700 }}>
-                      カテゴリ
-                    </Typography>
-                    <Box className="category-grid" aria-label="カテゴリ候補" role="list">
-                      {categories.map((category) => (
-                        <Box
-                          aria-label={`${category.label}${
-                            category.selected ? ' 選択中' : ''
-                          }`}
-                          className="category-button"
-                          key={category.label}
-                          role="listitem"
-                          sx={
-                            category.selected
-                              ? {
-                                  border: '1px solid',
-                                  borderColor: 'primary.main',
-                                  borderRadius: 1,
-                                  bgcolor: 'primary.main',
-                                  color: 'primary.contrastText',
-                                  px: 1,
-                                  py: 0.75,
-                                  textAlign: 'center',
-                                }
-                              : {
-                                  border: '1px solid',
-                                  borderColor: category.color,
-                                  borderRadius: 1,
-                                  color: category.color,
-                                  px: 1,
-                                  py: 0.75,
-                                  textAlign: 'center',
-                                }
-                          }
-                        >
-                          {category.label}
-                        </Box>
-                      ))}
-                    </Box>
-                  </Stack>
-
-                  <TextField
-                    fullWidth
-                    id="receipt-memo"
-                    label="メモ"
-                    minRows={3}
-                    multiline
-                    name="memo"
-                    placeholder="任意"
-                  />
-
-                  <Divider />
-
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                    <Button className="primary-action" variant="contained">
-                      保存して次へ
-                    </Button>
-                    <Button variant="outlined">保存して完了</Button>
-                  </Stack>
-                </Stack>
-              </Box>
-            </Paper>
+            <ReceiptForm
+              weekStartDate={weekStartDate}
+              weekEndDate={weekEndDate}
+              categories={categories}
+            />
 
             <Stack spacing={2.5}>
               <Paper className="paper-panel" elevation={0}>
@@ -538,17 +432,17 @@ function KakeiboApp() {
                         今週の進捗
                       </Typography>
                       <Typography color="text.secondary" variant="body2">
-                        3 / 10件
+                        {receipts.length} 件
                       </Typography>
                     </Stack>
                     <LinearProgress
                       aria-label="今週の入力進捗"
-                      value={30}
+                      value={Math.min((receipts.length / 10) * 100, 100)}
                       variant="determinate"
                     />
                     <Box className="budget-strip">
                       <span>予算消化</span>
-                      <strong>36.8%</strong>
+                      <strong>--</strong>
                     </Box>
                   </Stack>
                 </Box>
@@ -561,21 +455,27 @@ function KakeiboApp() {
                       直近の入力
                     </Typography>
                     <Box className="receipt-list">
-                      {receipts.map((receipt) => (
-                        <Box className="receipt-row" key={receipt.id}>
-                          <Box>
+                      {receipts.length === 0 ? (
+                        <Typography color="text.secondary" variant="body2">
+                          まだレシートがありません
+                        </Typography>
+                      ) : (
+                        receipts.slice(0, 5).map((receipt) => (
+                          <Box className="receipt-row" key={receipt._id}>
+                            <Box>
+                              <Typography sx={{ fontWeight: 700 }}>
+                                {receipt.shopName}
+                              </Typography>
+                              <Typography color="text.secondary" variant="body2">
+                                {formatDateForDisplay(receipt.date)}
+                              </Typography>
+                            </Box>
                             <Typography sx={{ fontWeight: 700 }}>
-                              {receipt.store}
-                            </Typography>
-                            <Typography color="text.secondary" variant="body2">
-                              {receipt.date} / {receipt.category}
+                              {receipt.amountYen.toLocaleString()}円
                             </Typography>
                           </Box>
-                          <Typography sx={{ fontWeight: 700 }}>
-                            {receipt.amount}
-                          </Typography>
-                        </Box>
-                      ))}
+                        ))
+                      )}
                     </Box>
                     <Divider />
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
