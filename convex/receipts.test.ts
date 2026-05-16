@@ -8,6 +8,7 @@ import {
   deleteReceiptHandler,
   getReceiptsByDateHandler,
   getReceiptsByWeekHandler,
+  getWeekSummaryHandler,
   updateReceiptHandler,
 } from "./receipts";
 
@@ -566,5 +567,56 @@ describe("deleteReceipt", () => {
     ).rejects.toMatchObject({
       data: "Receipt does not belong to the current user",
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getWeekSummary テスト
+// ---------------------------------------------------------------------------
+
+describe("getWeekSummary", () => {
+  it("レシートが0件のとき: { count: 0, totalAmountYen: 0 } を返す", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createQueryCtx(identity, []);
+
+    const result = await getWeekSummaryHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result).toEqual({ count: 0, totalAmountYen: 0 });
+  });
+
+  it("複数レシートがあるとき: 件数と合計金額を正しく返す", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receipt1: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-001",
+      amountYen: 1500,
+    };
+    const receipt2: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-002",
+      amountYen: 800,
+    };
+    const docs = [receipt1, receipt2];
+    const ctx = createQueryCtx(identity, docs);
+
+    const result = await getWeekSummaryHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result).toEqual({ count: 2, totalAmountYen: 2300 });
+  });
+
+  it("未認証時: ConvexError が throw される", async () => {
+    const ctx = createQueryCtx(null);
+
+    await expect(
+      getWeekSummaryHandler(ctx, { weekStartDate: "2024-01-08" }),
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    await expect(
+      getWeekSummaryHandler(ctx, { weekStartDate: "2024-01-08" }),
+    ).rejects.toMatchObject({ data: "Not authenticated" });
   });
 });

@@ -250,3 +250,39 @@ export const deleteReceipt = mutation({
   },
   handler: deleteReceiptHandler,
 });
+
+// ---------------------------------------------------------------------------
+// getWeekSummary
+// ---------------------------------------------------------------------------
+
+type GetWeekSummaryArgs = {
+  weekStartDate: string;
+};
+
+/** getWeekSummary query の handler ロジック（テスト用に export） */
+export async function getWeekSummaryHandler(
+  ctx: QueryCtx,
+  args: GetWeekSummaryArgs,
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const receipts = await ctx.db
+    .query("receipts")
+    .withIndex("by_user_id_and_week_start_date", (q) =>
+      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    )
+    .order("desc")
+    .take(200);
+
+  const count = receipts.length;
+  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
+
+  return { count, totalAmountYen };
+}
+
+export const getWeekSummary = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getWeekSummaryHandler,
+});

@@ -1,0 +1,120 @@
+import {
+  Box,
+  Button,
+  Divider,
+  LinearProgress,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from '@mui/material'
+
+type Receipt = {
+  _id: string
+  shopName: string
+  date: string
+  amountYen: number
+}
+
+type WeekStatusPanelProps = {
+  receipts: Receipt[]
+  budgetAmountYen?: number
+  isLoading?: boolean
+}
+
+function formatDateForDisplay(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+export function WeekStatusPanel({ receipts, budgetAmountYen, isLoading = false }: WeekStatusPanelProps) {
+  const count = receipts.length
+  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0)
+  const progressValue = Math.min((count / 10) * 100, 100)
+
+  const budgetUsageRate =
+    budgetAmountYen !== undefined && budgetAmountYen > 0
+      ? Math.round((totalAmountYen / budgetAmountYen) * 100)
+      : undefined
+
+  const budgetLabel =
+    budgetAmountYen !== undefined
+      ? `${budgetUsageRate}% 消化（${totalAmountYen.toLocaleString()}円 / ${budgetAmountYen.toLocaleString()}円）`
+      : '予算未設定'
+
+  return (
+    <Stack spacing={2.5}>
+      {/* 今週の進捗 */}
+      <Paper className="paper-panel" elevation={0}>
+        <Box sx={{ p: 2.5 }}>
+          <Stack spacing={2}>
+            <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+              <Typography component="h2" variant="h6">
+                今週の進捗
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {count} 件
+              </Typography>
+            </Stack>
+            <LinearProgress
+              aria-label="今週の入力進捗"
+              value={progressValue}
+              variant="determinate"
+            />
+            <Box className="budget-strip">
+              <span>予算消化</span>
+              <strong>{budgetLabel}</strong>
+            </Box>
+          </Stack>
+        </Box>
+      </Paper>
+
+      {/* 直近の入力 */}
+      <Paper className="paper-panel" elevation={0}>
+        <Box sx={{ p: 2.5 }}>
+          <Stack spacing={2.5}>
+            <Typography component="h2" variant="h6">
+              直近の入力
+            </Typography>
+            <Box className="receipt-list">
+              {isLoading ? (
+                <>
+                  <Skeleton variant="text" height={40} />
+                  <Skeleton variant="text" height={40} />
+                  <Skeleton variant="text" height={40} />
+                </>
+              ) : count === 0 ? (
+                <Typography color="text.secondary" variant="body2">
+                  まだレシートがありません
+                </Typography>
+              ) : (
+                receipts.slice(0, 5).map((receipt) => (
+                  <Box className="receipt-row" key={receipt._id}>
+                    <Box>
+                      <Typography sx={{ fontWeight: 700 }}>
+                        {receipt.shopName}
+                      </Typography>
+                      <Typography color="text.secondary" variant="body2">
+                        {formatDateForDisplay(receipt.date)}
+                      </Typography>
+                    </Box>
+                    <Typography sx={{ fontWeight: 700 }}>
+                      {receipt.amountYen.toLocaleString()}円
+                    </Typography>
+                  </Box>
+                ))
+              )}
+            </Box>
+            <Divider />
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+              <Button variant="outlined">直前を複製</Button>
+              <Button color="secondary" variant="outlined">
+                直前を取り消す
+              </Button>
+            </Stack>
+          </Stack>
+        </Box>
+      </Paper>
+    </Stack>
+  )
+}
