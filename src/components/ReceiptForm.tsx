@@ -147,7 +147,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
                 return (
                   <Box
                     aria-label={`${day.label}曜日 ${day.date}${isSelected ? ' 選択中' : ''}`}
-                    aria-pressed={isSelected}
                     aria-selected={isSelected}
                     className="week-day-button"
                     key={day.isoDate}
