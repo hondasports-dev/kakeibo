@@ -4,28 +4,7 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireAuthenticatedUserId } from "./users";
 import type { Id } from "./_generated/dataModel";
-
-// ---------------------------------------------------------------------------
-// ユーティリティ
-// ---------------------------------------------------------------------------
-
-/**
- * 日付文字列（"YYYY-MM-DD"）から ISO 8601 準拠の週開始日（月曜日）を返す。
- * 例: "2024-01-10"（水曜）→ "2024-01-08"（月曜）
- */
-export function calculateWeekStartDate(dateStr: string): string {
-  const date = new Date(dateStr + "T00:00:00");
-  // getDay(): 0=日, 1=月, ..., 6=土
-  const dayOfWeek = date.getDay();
-  // 月曜始まりにするため: 月曜=0, 火曜=1, ..., 日曜=6
-  const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-  const monday = new Date(date);
-  monday.setDate(date.getDate() - daysFromMonday);
-  const y = monday.getFullYear();
-  const m = String(monday.getMonth() + 1).padStart(2, "0");
-  const d = String(monday.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
+import { calculateWeekStartDate } from "./utils";
 
 // ---------------------------------------------------------------------------
 // createReceipt
