@@ -87,6 +87,7 @@ export async function getReceiptsByWeekHandler(
     .withIndex("by_user_id_and_week_start_date", (q) =>
       q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
     )
+    .order("desc")
     .take(200);
 }
 

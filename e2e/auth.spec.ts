@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { clerk } from '@clerk/testing/playwright'
 
 /**
  * 認証フロー E2E テスト
@@ -31,9 +32,10 @@ test.describe('未ログイン状態', () => {
  */
 test.describe('ログアウト', () => {
   test('シナリオ4: ログアウトするとログイン画面に戻る', async ({ page }) => {
-    const { setupClerkTestingToken } = await import('@clerk/testing/playwright')
-    await setupClerkTestingToken({ page })
+    const email = process.env.E2E_CLERK_USER_EMAIL
+    if (!email) throw new Error('E2E_CLERK_USER_EMAIL is not set')
     await page.goto('/')
+    await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
     await expect(page.locator('text=今週のレシート入力')).toBeVisible()
 
     // ユーザーメニューを開いてログアウト

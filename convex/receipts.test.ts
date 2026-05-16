@@ -114,13 +114,15 @@ function createMutationCtx(
   });
 
   const takeMock = vi.fn().mockResolvedValue(opts.queryDocs ?? []);
+  const queryChain = { take: takeMock, order: vi.fn() };
+  queryChain.order.mockReturnValue(queryChain);
   const withIndexMock = vi.fn().mockImplementation(
     (_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
-      return { take: takeMock };
+      return queryChain;
     },
   );
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
@@ -150,13 +152,15 @@ function createQueryCtx(
   queryDocs: ReceiptDoc[] = [],
 ): QueryCtx {
   const takeMock = vi.fn().mockResolvedValue(queryDocs);
+  const queryChain = { take: takeMock, order: vi.fn() };
+  queryChain.order.mockReturnValue(queryChain);
   const withIndexMock = vi.fn().mockImplementation(
     (_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
-      return { take: takeMock };
+      return queryChain;
     },
   );
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
