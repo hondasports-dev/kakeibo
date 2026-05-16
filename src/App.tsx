@@ -13,8 +13,6 @@ import {
   Button,
   Chip,
   CircularProgress,
-  Divider,
-  LinearProgress,
   Menu,
   MenuItem,
   Paper,
@@ -25,6 +23,7 @@ import { useConvexAuth, useMutation, useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { useInitializeUser } from './hooks/useInitializeUser'
 import { ReceiptForm } from './components/ReceiptForm'
+import { WeekStatusPanel } from './components/WeekStatusPanel'
 import './App.css'
 
 const OAUTH_CALLBACK_PATH = '/sso-callback'
@@ -41,11 +40,6 @@ function getClerkErrorMessage(error: unknown, fallbackMessage: string) {
   )
 }
 
-const summaryItems = [
-  { label: '入力済み', value: '3件', helper: '目安 10件', tone: 'primary' },
-  { label: '今週の支出', value: '18,420円', helper: '予算 50,000円', tone: 'secondary' },
-  { label: '予算残り', value: '31,580円', helper: '63% 残り', tone: 'success' },
-] as const
 
 function App() {
   if (window.location.pathname === OAUTH_CALLBACK_PATH) {
@@ -283,11 +277,6 @@ function UserMenu() {
   )
 }
 
-function formatDateForDisplay(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
 function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
   const start = new Date(weekStartDate + 'T00:00:00')
   const end = new Date(weekEndDate + 'T00:00:00')
@@ -307,6 +296,7 @@ function KakeiboApp() {
     weekStartDate: string
     weekEndDate: string
     status: 'draft' | 'completed'
+    budgetAmountYen?: number
   } | null>(null)
   const [sessionError, setSessionError] = useState('')
 
@@ -331,6 +321,12 @@ function KakeiboApp() {
     api.receipts.getReceiptsByWeek,
     weekSession ? { weekStartDate: weekSession.weekStartDate } : 'skip',
   ) ?? []
+
+  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0)
+  const count = receipts.length
+  const budgetAmountYen = weekSession?.budgetAmountYen
+  const budgetRemaining =
+    budgetAmountYen !== undefined ? budgetAmountYen - totalAmountYen : undefined
 
   // ローディング中
   if (!weekSession && !sessionError) {
@@ -401,7 +397,35 @@ function KakeiboApp() {
           </Stack>
 
           <Box className="summary-grid">
-            {summaryItems.map((item) => (
+            {[
+              {
+                label: '入力済み',
+                value: `${count}件`,
+                helper: '目安 10件',
+                tone: 'primary' as const,
+              },
+              {
+                label: '今週の支出',
+                value: `${totalAmountYen.toLocaleString()}円`,
+                helper:
+                  budgetAmountYen !== undefined
+                    ? `予算 ${budgetAmountYen.toLocaleString()}円`
+                    : '予算未設定',
+                tone: 'secondary' as const,
+              },
+              {
+                label: '予算残り',
+                value:
+                  budgetRemaining !== undefined
+                    ? `${budgetRemaining.toLocaleString()}円`
+                    : '--',
+                helper:
+                  budgetRemaining !== undefined && budgetAmountYen
+                    ? `${Math.round((budgetRemaining / budgetAmountYen) * 100)}% 残り`
+                    : '',
+                tone: 'success' as const,
+              },
+            ].map((item) => (
               <Paper className="paper-panel" elevation={0} key={item.label}>
                 <Box sx={{ p: 2.5 }}>
                   <Stack spacing={1}>
@@ -423,71 +447,10 @@ function KakeiboApp() {
               categories={categories}
             />
 
-            <Stack spacing={2.5}>
-              <Paper className="paper-panel" elevation={0}>
-                <Box sx={{ p: 2.5 }}>
-                  <Stack spacing={2}>
-                    <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                      <Typography component="h2" variant="h6">
-                        今週の進捗
-                      </Typography>
-                      <Typography color="text.secondary" variant="body2">
-                        {receipts.length} 件
-                      </Typography>
-                    </Stack>
-                    <LinearProgress
-                      aria-label="今週の入力進捗"
-                      value={Math.min((receipts.length / 10) * 100, 100)}
-                      variant="determinate"
-                    />
-                    <Box className="budget-strip">
-                      <span>予算消化</span>
-                      <strong>--</strong>
-                    </Box>
-                  </Stack>
-                </Box>
-              </Paper>
-
-              <Paper className="paper-panel" elevation={0}>
-                <Box sx={{ p: 2.5 }}>
-                  <Stack spacing={2.5}>
-                    <Typography component="h2" variant="h6">
-                      直近の入力
-                    </Typography>
-                    <Box className="receipt-list">
-                      {receipts.length === 0 ? (
-                        <Typography color="text.secondary" variant="body2">
-                          まだレシートがありません
-                        </Typography>
-                      ) : (
-                        receipts.slice(0, 5).map((receipt) => (
-                          <Box className="receipt-row" key={receipt._id}>
-                            <Box>
-                              <Typography sx={{ fontWeight: 700 }}>
-                                {receipt.shopName}
-                              </Typography>
-                              <Typography color="text.secondary" variant="body2">
-                                {formatDateForDisplay(receipt.date)}
-                              </Typography>
-                            </Box>
-                            <Typography sx={{ fontWeight: 700 }}>
-                              {receipt.amountYen.toLocaleString()}円
-                            </Typography>
-                          </Box>
-                        ))
-                      )}
-                    </Box>
-                    <Divider />
-                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
-                      <Button variant="outlined">直前を複製</Button>
-                      <Button color="secondary" variant="outlined">
-                        直前を取り消す
-                      </Button>
-                    </Stack>
-                  </Stack>
-                </Box>
-              </Paper>
-            </Stack>
+            <WeekStatusPanel
+              receipts={receipts}
+              budgetAmountYen={weekSession.budgetAmountYen}
+            />
           </Box>
         </Stack>
       </Box>
