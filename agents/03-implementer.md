@@ -36,6 +36,15 @@
 - テスト不能な変更を避ける。
 - **Convex schema を変更した場合は、`docs/` 配下の関連ドキュメント（TECHNICAL_DESIGN.md 等）も必ず同じPRで更新する。**
 
+## パッケージマネージャー
+
+このプロジェクトは **pnpm** を使用しています。`npm` コマンドは使わないでください。
+
+- テスト: `pnpm test` または `pnpm test -- --run`
+- lint: `pnpm run lint`
+- ビルド: `pnpm run build`
+- Convex codegen: `pnpm exec convex codegen`（または `npx convex codegen`）
+
 ## ブランチ運用手順
 
 **重要：mainブランチに直接commitしないでください。必ず作業ブランチを作成してから実装してください。**
