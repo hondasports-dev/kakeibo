@@ -6,6 +6,7 @@ import { gotoAuthenticated } from './helpers/auth'
  * レシート入力フォーム E2E テスト（QA Agent 担当）
  *
  * Issue #13「保存して次へ入力フロー」の受け入れ確認と回帰確認を含む。
+ * Issue #14「今週の入力状況パネル」の受け入れ確認を含む。
  *
  * カバーするシナリオ:
  *   - シナリオ 2: ログイン後にメイン画面が表示される (P0 / smoke)
@@ -19,6 +20,10 @@ import { gotoAuthenticated } from './helpers/auth'
  *   - シナリオ 8: 金額が空で保存 → エラーが表示される (P1 / validation)
  *   - シナリオ 9: カテゴリ未選択で保存 → エラーが表示される (P1 / validation)
  *   - シナリオ 10: 金額に文字を入力して保存 → エラーが表示される (P1 / validation)
+ *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke)
+ *   - [Issue #14] 予算未設定時の表示が正しい (P0 / smoke)
+ *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件)
+ *   - [Issue #14] 保存後に直近の入力一覧にレシートが追加される (P0 / issue #14 完了条件)
  */
 
 test.describe('メイン画面の表示確認', () => {
@@ -224,5 +229,118 @@ test.describe('バリデーション（P1）', () => {
     // バリデーションエラーは MUI TextField の helperText（.MuiFormHelperText-root）として表示される
     // エラー発生時のみ DOM に追加されるため、toBeVisible で待機する
     await expect(page.locator('.MuiFormHelperText-root', { hasText: '金額は数字のみで入力してください' })).toBeVisible()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Issue #14: 今週の入力状況パネル（WeekStatusPanel）受け入れ確認
+// ---------------------------------------------------------------------------
+
+test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoAuthenticated(page)
+    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  test('[Issue #14] 入力状況パネルの各セクションが表示される', async ({ page }) => {
+    // サマリーグリッド（上段3カード）
+    await expect(page.locator('text=入力済み')).toBeVisible()
+    await expect(page.locator('text=今週の支出')).toBeVisible()
+    await expect(page.locator('text=予算残り')).toBeVisible()
+
+    // WeekStatusPanel（右カラム）
+    await expect(page.getByRole('heading', { name: '今週の進捗', level: 2 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '直近の入力', level: 2 })).toBeVisible()
+    await expect(page.getByRole('progressbar', { name: '今週の入力進捗' })).toBeVisible()
+  })
+
+  test('[Issue #14] 予算未設定時に "--" と "予算未設定" が表示される', async ({ page }) => {
+    // weekSession.budgetAmountYen が設定されていない場合の表示確認
+    // 予算残りカードは "--" を表示する
+    const budgetRemainingCard = page.locator('.summary-grid').locator('text=予算残り').locator('../..')
+    await expect(budgetRemainingCard.locator('text=--')).toBeVisible()
+
+    // 予算消化ラベルは "予算未設定" を表示する
+    await expect(page.locator('text=予算未設定')).toBeVisible()
+
+    // 今週の支出カードは "予算未設定" をヘルパーテキストとして表示する
+    const spendCard = page.locator('.summary-grid').locator('text=今週の支出').locator('../..')
+    await expect(spendCard.locator('text=予算未設定')).toBeVisible()
+  })
+
+  test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
+    // 直近の入力セクションで空状態メッセージが自然に表示されることを確認
+    // 注: 共有 Dev DB に当週データが存在する場合はこのテストはスキップする
+    const receiptRows = page.locator('[class*="receipt-row"]')
+    const emptyMessage = page.locator('text=まだレシートがありません')
+
+    const rowCount = await receiptRows.count()
+    if (rowCount === 0) {
+      await expect(emptyMessage).toBeVisible()
+    } else {
+      // データがある場合は空状態メッセージが非表示であることを確認
+      await expect(emptyMessage).not.toBeVisible()
+    }
+  })
+})
+
+test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完了条件）', () => {
+  test.beforeEach(async ({ page }) => {
+    const email = process.env.E2E_CLERK_USER_EMAIL
+    if (!email) throw new Error('E2E_CLERK_USER_EMAIL is not set')
+    await page.goto('/')
+    await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
+    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  test('[Issue #14] 保存後にサマリー件数がリアルタイム更新される', async ({ page }) => {
+    // 保存前の件数を取得
+    // サマリーカードの「入力済み」の値（例: "3件"）を取得する
+    const countCard = page.locator('.summary-grid').locator('text=入力済み').locator('../..')
+    const beforeCountText = await countCard.locator('h4, .MuiTypography-h4').textContent()
+    const beforeCount = parseInt(beforeCountText?.replace('件', '') ?? '0', 10)
+
+    // 保存前の合計支出を取得
+    const spendCard = page.locator('.summary-grid').locator('text=今週の支出').locator('../..')
+    const beforeSpendText = await spendCard.locator('h4, .MuiTypography-h4').textContent()
+    const beforeSpend = parseInt(beforeSpendText?.replace(/[^0-9]/g, '') ?? '0', 10)
+
+    // レシートを1件保存
+    await page.locator('input[name="shopName"]').fill('QAテスト店舗')
+    await page.locator('input[name="amountYen"]').fill('1234')
+    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
+    await page.getByRole('button', { name: '保存して次へ' }).click()
+
+    // 保存完了（店名クリアを待機）
+    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+
+    // 件数が +1 されていることを確認（Convex の reactivity によるリアルタイム更新）
+    await expect(countCard.locator('h4, .MuiTypography-h4')).toHaveText(`${beforeCount + 1}件`, {
+      timeout: 10_000,
+    })
+
+    // 合計支出が +1234 円されていることを確認
+    await expect(spendCard.locator('h4, .MuiTypography-h4')).toHaveText(
+      `${(beforeSpend + 1234).toLocaleString()}円`,
+      { timeout: 10_000 },
+    )
+  })
+
+  test('[Issue #14] 保存後に直近の入力一覧にレシートが表示される', async ({ page }) => {
+    const shopName = `QA直近確認_${Date.now()}`
+
+    await page.locator('input[name="shopName"]').fill(shopName)
+    await page.locator('input[name="amountYen"]').fill('999')
+    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
+    await page.getByRole('button', { name: '保存して次へ' }).click()
+
+    // 保存完了を待機
+    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+
+    // WeekStatusPanel の直近の入力一覧に保存したレシートが表示される
+    // 注: 一覧は最大5件表示。直近の入力が5件以内であれば確実に表示される。
+    const recentList = page.getByRole('heading', { name: '直近の入力' }).locator('../../..')
+    await expect(recentList.locator(`text=${shopName}`)).toBeVisible({ timeout: 10_000 })
+    await expect(recentList.locator('text=999円')).toBeVisible({ timeout: 10_000 })
   })
 })
