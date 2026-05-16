@@ -29,8 +29,12 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     /* 失敗時のみ trace 保存 */
     trace: 'on-first-retry',
-    /* Clerk 認証済み storageState（global setup で作成） */
-    storageState: 'playwright/.clerk/user.json',
+    /*
+     * storageState はここでは設定しない。
+     * @clerk/testing/playwright の認証は storageState ではなく
+     * setupClerkTestingToken({ page }) による Testing Token 方式を使う。
+     * 認証が必要な各テスト／beforeEach で setupClerkTestingToken を呼ぶこと。
+     */
     /*
      * Vercel Protection Bypass for Automation ヘッダー
      * GitHub Actions から PLAYWRIGHT_BYPASS_SECRET が渡された場合のみ有効になる。
@@ -43,10 +47,9 @@ export default defineConfig({
   },
   projects: [
     {
-      // global setup: Clerk 認証を事前実行して storageState を保存
+      // global setup: Clerk Testing Token を取得して process.env に設定
       name: 'setup',
       testMatch: /global-setup\.ts/,
-      use: { storageState: undefined },
     },
     {
       name: 'chromium',

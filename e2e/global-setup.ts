@@ -4,23 +4,14 @@ import { test as setup } from '@playwright/test'
 /**
  * Playwright グローバルセットアップ
  *
- * Clerk Testing Token を取得し、全テストで再利用できるようにする。
- * project-based setup として実行されるため、環境変数がテストワーカーに正しく伝播される。
+ * clerkSetup() を呼び出して CLERK_FAPI と CLERK_TESTING_TOKEN を process.env に設定する。
+ * これにより各テストで setupClerkTestingToken({ page }) が Clerk のボット検出をバイパスできる。
  *
- * 必要な環境変数（.env.local に設定）:
- *   CLERK_PUBLISHABLE_KEY=pk_test_...  ← VITE_CLERK_PUBLISHABLE_KEY と同じ値を設定
+ * ※ storageState（user.json）は作成しない。認証は Testing Token 方式で行う。
+ *
+ * 必要な環境変数（.env.local または GitHub Secrets）:
+ *   CLERK_PUBLISHABLE_KEY=pk_test_...  ← VITE_CLERK_PUBLISHABLE_KEY と同じ値
  *   CLERK_SECRET_KEY=sk_test_...
- *   E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
- *   E2E_CLERK_USER_PASSWORD=<secure-password>
- *
- * テストユーザー作成コマンド（初回のみ）:
- *   pnpm exec clerk users create \
- *     --instance dev \
- *     --email "codex+clerk_test@example.com" \
- *     --password "<secure-password>" \
- *     --first-name Codex \
- *     --last-name Test \
- *     --yes
  *
  * 詳細: docs/e2e-test-cases.md、docs/development-process.md「Codex 開発時の Clerk 認証」
  */
