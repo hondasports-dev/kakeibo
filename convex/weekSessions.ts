@@ -108,12 +108,17 @@ export async function completeWeekSessionHandler(
   }
 
   // status を completed に更新
+  // reviewMemo が undefined のとき patch に含めると既存フィールドが削除されるため、
+  // 値が指定されている場合のみ patch データに含める。
   const now = Date.now();
-  await ctx.db.patch(session._id, {
+  const patchData: { status: "completed"; updatedAt: number; reviewMemo?: string } = {
     status: "completed",
-    reviewMemo: args.reviewMemo,
     updatedAt: now,
-  });
+  };
+  if (args.reviewMemo !== undefined) {
+    patchData.reviewMemo = args.reviewMemo;
+  }
+  await ctx.db.patch(session._id, patchData);
 
   const updated = await ctx.db.get(session._id);
   if (updated === null) {
