@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation } from 'convex/react'
 import { api } from '../../convex/_generated/api'
 import type { Id } from '../../convex/_generated/dataModel'
@@ -9,6 +9,7 @@ import {
   CircularProgress,
   Divider,
   Paper,
+  Snackbar,
   Stack,
   TextField,
   Typography,
@@ -51,6 +52,7 @@ function generateWeekDays(weekStartDate: string, weekEndDate: string) {
 }
 
 export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptFormProps) {
+  const shopNameRef = useRef<HTMLInputElement>(null)
   const [formValues, setFormValues] = useState<{
     date: string
     shopName: string
@@ -67,6 +69,11 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   const [errors, setErrors] = useState<ReceiptFormErrors>({})
   const [status, setStatus] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle')
   const [apiError, setApiError] = useState('')
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean
+    severity: 'success' | 'error'
+    message: string
+  }>({ open: false, severity: 'success', message: '' })
 
   const createReceipt = useMutation(api.receipts.createReceipt)
 
@@ -80,8 +87,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     }
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const submitForm = async () => {
     const validation = validateReceiptForm(formValues)
     if (!validation.success) {
       setErrors(validation.errors)
@@ -100,15 +106,30 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
       // 保存成功 → 店名・金額・メモをクリア、日付・カテゴリを引き継ぐ
       setFormValues((prev) => ({ ...prev, shopName: '', amountYen: '', memo: '' }))
       setErrors({})
-      setStatus('success')
-      // 2秒後にsuccessをidleに戻す
-      setTimeout(() => setStatus('idle'), 2000)
+      setStatus('idle')
+      setSnackbar({ open: true, severity: 'success', message: 'レシートを保存しました' })
+      // 店名欄にフォーカスを戻す
+      shopNameRef.current?.focus()
     } catch (err) {
       setStatus('error')
-      setApiError(
-        err instanceof Error ? err.message : '保存に失敗しました。もう一度お試しください。',
-      )
+      const message =
+        err instanceof Error ? err.message : '保存に失敗しました。もう一度お試しください。'
+      setApiError(message)
+      setSnackbar({ open: true, severity: 'error', message })
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await submitForm()
+  }
+
+  const handleRetry = async () => {
+    await submitForm()
+  }
+
+  const handleSnackbarClose = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }))
   }
 
   return (
@@ -125,21 +146,24 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               </Typography>
             </Box>
 
-            {status === 'success' && (
-              <Alert severity="success" variant="outlined">
-                レシートを保存しました
-              </Alert>
-            )}
-
-            {status === 'error' && apiError && (
-              <Alert severity="error" variant="outlined">
+            {apiError && (
+              <Alert
+                severity="error"
+                variant="outlined"
+                action={
+                  <Button
+                    color="error"
+                    disabled={status === 'submitting'}
+                    onClick={handleRetry}
+                    size="small"
+                  >
+                    再試行
+                  </Button>
+                }
+              >
                 {apiError}
               </Alert>
             )}
-
-            <Alert severity="info" variant="outlined">
-              前回の日付とカテゴリを引き継いで、次のレシートを続けて入力できます。
-            </Alert>
 
             <Box className="week-day-grid" aria-label="週内の日付候補" role="listbox">
               {weekDays.map((day) => {
@@ -208,6 +232,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               fullWidth
               helperText={errors.shopName}
               id="receipt-shop-name"
+              inputRef={shopNameRef}
               label="店舗名"
               name="shopName"
               onChange={(e) => handleFieldChange('shopName', e.target.value)}
@@ -332,6 +357,22 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
           </Stack>
         </form>
       </Box>
+
+      <Snackbar
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        open={snackbar.open}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+          variant="filled"
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Paper>
   )
 }
