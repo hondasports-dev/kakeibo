@@ -19,6 +19,20 @@ Convex agent skills for common tasks can be installed by running
 残した方が明確または正確な場合はそのまま記述してください。
 コミットメッセージも日本語で記述してください。
 
+## パッケージマネージャー
+
+このプロジェクトのパッケージマネージャーは **pnpm** です。
+`npm` コマンドは使わず、必ず `pnpm` を使ってください。
+
+| 用途 | コマンド |
+|------|---------|
+| スクリプト実行 | `pnpm run <script>` または `pnpm <script>` |
+| テスト実行 | `pnpm test` |
+| lint | `pnpm run lint` |
+| ビルド | `pnpm run build` |
+| パッケージ追加 | `pnpm add <pkg>` |
+| Convex CLI | `pnpm exec convex <cmd>` または `npx convex <cmd>`（convex は例外として npx 可） |
+
 ## ドキュメント参照
 
 コードの実装、修正、レビューを行う前に、作業内容に関連するドキュメントが
