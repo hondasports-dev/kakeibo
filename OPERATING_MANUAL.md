@@ -6,7 +6,31 @@ Codexでは、まず `$kakeibo-virtual-company` を使って依頼を分解す�
 
 `agents/` 配下はCodexの実行時サブエージェントではなく、役割別プロンプト集である。必要な役割だけを読み、過剰な分業を避ける。
 
-## Codexでの使い方
+## Issue を1つ解決する場合（推奨）
+
+GitHub Issue番号を渡すだけで、仕様検討→TDD実装→コードレビュー→GitHub Actions E2E確認
+までを自動ループして解決する。
+
+```text
+/kakeibo-issue-delivery 21
+```
+
+内部フロー:
+
+1. **Tech Lead** が Issue を読み、仕様・実装タスク・テスト方針を確定する。
+2. **Implementer** がTDDサイクルで実装し、ブランチを作成してPRを出す。
+3. **Reviewer** が差分をレビューし、GitHubのPRにインラインコメントを投稿する。
+   - 指摘があれば Implementer へ差し戻す（最大3回）。
+4. **GitHub Actions** が自動でVercel PreviewにデプロイしてE2Eを実行する。
+5. **QA Agent** が GitHub MCP でE2E Checkの結果を確認する。
+   - E2Eテストコードの問題なら修正してpush → 再実行。
+   - 実装の問題なら Implementer へ差し戻す（最大2回）。
+6. すべての Check が通ったら完了報告を返す。
+
+ループ上限を超えた場合や環境起因のエラーは、自動的に中断してユーザーに報告する。
+詳細は `.agents/skills/kakeibo-issue-delivery/SKILL.md` を参照。
+
+## Devinでの使い方
 
 ### 企画から始める場合
 

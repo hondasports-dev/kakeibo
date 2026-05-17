@@ -41,26 +41,39 @@
 - 実行した検証
 - 未解決事項
 
-### 4. QA
-
-担当: QA Agent
-
-成果物:
-
-- 受け入れ確認
-- 回帰確認
-- 不具合一覧
-- リリース可否
-
-### 5. レビュー
+### 4. コードレビュー
 
 担当: Reviewer
 
 成果物:
 
-- 重大度順の指摘
+- 重大度順の指摘（GitHubのPRインラインコメントとして投稿）
 - 修正提案
-- 承認可否
+- 承認可否（`approve` / `request_changes`）
+
+### 5. GitHub Actions E2E（自動実行）
+
+担当: GitHub Actions（自動）／ QA Agent（結果確認）
+
+このフェーズはDevinが直接操作しない。PRのpushを契機にVercel Previewデプロイと
+E2Eが自動実行され、QA AgentがGitHub MCPで結果を確認する。
+
+```
+PR push
+  → Vercel Preview デプロイ（自動）
+    → .github/workflows/e2e.yml 起動（自動）
+      → Playwright E2E 実行（自動）
+        → GitHub Checks に結果記録（自動）
+          → QA Agent が GitHub MCP で結果を確認
+```
+
+QA Agentの確認手順と失敗時の対応は `agents/04-qa-agent.md` を参照。
+
+成果物:
+
+- E2E Checkの合否
+- 失敗時: 原因分類（テストコード問題 / 実装問題 / 環境起因）
+- E2Eテストコードを修正した場合: `docs/e2e-test-cases.md` の更新
 
 ### 6. リリース
 
@@ -80,3 +93,15 @@
 - 実装バグ: Implementer に戻す。
 - 仕様通り動かない: QA Agent から Implementer に戻す。
 - 品質やセキュリティの問題: Reviewer から Implementer または Tech Lead に戻す。
+- E2E失敗（テストコードの問題）: QA Agent が `e2e/` を修正してpush → E2E再実行。
+- E2E失敗（実装の問題）: QA Agent から Implementer に戻す。
+- E2E失敗（環境・インフラ起因）: 作業中断してユーザーに報告する。
+
+## ループ上限
+
+自動ループで解決できない場合は、ユーザーに状況を報告して判断を仰ぐ。
+
+| ループ | 上限 |
+|--------|------|
+| 実装 ↔ レビュー差し戻し | 3回 |
+| E2E失敗 → 修正の繰り返し | 2回 |
