@@ -369,9 +369,14 @@ test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
   })
 
   test('[Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される', async ({ page }) => {
-    // 保存前の WeekStatusPanel 件数を取得（"N 件" 形式）
+    // WeekStatusPanel の件数ロケーター（"N 件" 形式）
     const progressPanel = page.getByRole('heading', { name: '今週の進捗', level: 2 }).locator('../..')
     const countLocator = progressPanel.locator('p, .MuiTypography-body2').filter({ hasText: /^\d+ 件$/ })
+
+    // progressbar が表示されるまで待機し、Convex データロード完了を保証してから件数を読む
+    // （race condition 対策: ロード前に count を読むと 0 件と誤認する）
+    await expect(page.getByRole('progressbar', { name: '今週の入力進捗' })).toBeVisible()
+    await expect(countLocator).toBeVisible()
     const beforeCountText = await countLocator.textContent()
     const beforeCount = parseInt(beforeCountText?.replace(' 件', '') ?? '0', 10)
 
