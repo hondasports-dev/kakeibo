@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test'
 import { clerk } from '@clerk/testing/playwright'
 import { gotoAuthenticated } from './helpers/auth'
+import { cleanupTestReceipts } from './helpers/cleanup'
 
 /**
  * レシート入力フォーム E2E テスト（QA Agent 担当）
@@ -60,6 +61,11 @@ test.describe('レシート保存フロー（Issue #13 受け入れ確認）', (
     await page.goto('/')
     await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
+  test.afterEach(async () => {
+    await cleanupTestReceipts()
   })
 
   test('シナリオ5: 必須項目を入力して保存すると店名・金額がクリアされる', async ({ page }) => {
@@ -315,6 +321,11 @@ test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.goto('/')
     await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
+  test.afterEach(async () => {
+    await cleanupTestReceipts()
   })
 
   test('[Issue #14] 保存後にサマリー件数がリアルタイム更新される', async ({ page }) => {
