@@ -22,8 +22,11 @@ import { gotoAuthenticated } from './helpers/auth'
  *   - シナリオ 10: 金額に文字を入力して保存 → エラーが表示される (P1 / validation)
  *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke)
  *   - [Issue #14] 予算未設定時の表示が正しい (P0 / smoke)
+ *   - [Issue #14] 今週の進捗パネルに件数が表示される (P1 / smoke)
+ *   - [Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される (P1 / smoke)
  *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件)
  *   - [Issue #14] 保存後に直近の入力一覧にレシートが追加される (P0 / issue #14 完了条件)
+ *   - [Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される (P0 / issue #14 完了条件)
  */
 
 test.describe('メイン画面の表示確認', () => {
@@ -282,6 +285,20 @@ test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）'
       await expect(emptyMessage).not.toBeVisible()
     }
   })
+
+  test('[Issue #14] 今週の進捗パネルに件数（N 件）が表示される', async ({ page }) => {
+    // WeekStatusPanel の「今週の進捗」右上に "N 件" テキストが表示されることを確認
+    // 件数は共有 Dev DB の状態に依存するため、数値形式であることのみ確認する
+    const progressPanel = page.getByRole('heading', { name: '今週の進捗', level: 2 }).locator('../..')
+    const countText = progressPanel.locator('p, .MuiTypography-body2').filter({ hasText: /^\d+ 件$/ })
+    await expect(countText).toBeVisible()
+  })
+
+  test('[Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される', async ({ page }) => {
+    // WeekStatusPanel の下部アクションボタンが表示されていることを確認
+    await expect(page.getByRole('button', { name: '直前を複製' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '直前を取り消す' })).toBeVisible()
+  })
 })
 
 test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完了条件）', () => {
@@ -342,5 +359,26 @@ test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     const recentList = page.getByRole('heading', { name: '直近の入力' }).locator('../../..')
     await expect(recentList.locator(`text=${shopName}`)).toBeVisible({ timeout: 10_000 })
     await expect(recentList.locator('text=999円')).toBeVisible({ timeout: 10_000 })
+  })
+
+  test('[Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される', async ({ page }) => {
+    // 保存前の WeekStatusPanel 件数を取得（"N 件" 形式）
+    const progressPanel = page.getByRole('heading', { name: '今週の進捗', level: 2 }).locator('../..')
+    const countLocator = progressPanel.locator('p, .MuiTypography-body2').filter({ hasText: /^\d+ 件$/ })
+    const beforeCountText = await countLocator.textContent()
+    const beforeCount = parseInt(beforeCountText?.replace(' 件', '') ?? '0', 10)
+
+    // レシートを1件保存
+    const shopName = `QA進捗確認_${Date.now()}`
+    await page.locator('input[name="shopName"]').fill(shopName)
+    await page.locator('input[name="amountYen"]').fill('500')
+    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
+    await page.getByRole('button', { name: '保存して次へ' }).click()
+
+    // 保存完了を待機
+    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+
+    // WeekStatusPanel の件数が +1 されていることを確認（Convex reactivity）
+    await expect(countLocator).toHaveText(`${beforeCount + 1} 件`, { timeout: 10_000 })
   })
 })
