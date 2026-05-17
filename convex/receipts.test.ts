@@ -181,29 +181,44 @@ function createQueryCtx(
 }
 
 /**
- * QueryCtx の最小モックを生成する（db.get() サポート付き）。
- * getWeekSummaryWithCategories のように query + get を組み合わせる handler 用。
+ * QueryCtx の最小モックを生成する（receipts + categories の2クエリ対応）。
+ * getWeekSummaryWithCategories は receipts を take()、categories を collect() で取得する。
+ * query() の呼び出し順序（1回目=receipts、2回目=categories）を利用して
+ * それぞれ異なるデータを返す。
  */
-function createQueryCtxWithGet(
+function createQueryCtxForSummary(
   identity: UserIdentity | null,
-  queryDocs: ReceiptDoc[] = [],
-  getDocById: Record<string, CategoryDoc | null> = {},
+  receiptDocs: ReceiptDoc[] = [],
+  categoryDocs: CategoryDoc[] = [],
 ): QueryCtx {
-  const takeMock = vi.fn().mockResolvedValue(queryDocs);
-  const queryChain = { take: takeMock, order: vi.fn() };
-  queryChain.order.mockReturnValue(queryChain);
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
-      const q = {
-        eq: vi.fn().mockImplementation(() => q),
-      };
-      builder(q);
-      return queryChain;
-    },
-  );
-  const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
-  const getMock = vi.fn().mockImplementation(async (id: string) => {
-    return getDocById[id] ?? null;
+  let queryCallCount = 0;
+
+  const makeChain = (docs: unknown[], supportsCollect: boolean) => {
+    const collectMock = vi.fn().mockResolvedValue(docs);
+    const takeMock = vi.fn().mockResolvedValue(docs);
+    const chain: Record<string, unknown> = {
+      take: takeMock,
+      order: vi.fn(),
+    };
+    if (supportsCollect) {
+      chain.collect = collectMock;
+    }
+    (chain.order as ReturnType<typeof vi.fn>).mockReturnValue(chain);
+    const withIndexMock = vi.fn().mockImplementation(
+      (_indexName: string, builder: (q: unknown) => unknown) => {
+        const q = { eq: vi.fn().mockImplementation(() => q) };
+        builder(q);
+        return chain;
+      },
+    );
+    return { withIndex: withIndexMock };
+  };
+
+  const queryMock = vi.fn().mockImplementation(() => {
+    queryCallCount++;
+    // 1回目: receipts（take 用）、2回目: categories（collect 用）
+    if (queryCallCount === 1) return makeChain(receiptDocs, false);
+    return makeChain(categoryDocs, true);
   });
 
   return {
@@ -214,7 +229,6 @@ function createQueryCtxWithGet(
     },
     db: {
       query: queryMock,
-      get: getMock,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as QueryCtx;
@@ -669,7 +683,7 @@ describe("getWeekSummary", () => {
 describe("getWeekSummaryWithCategories", () => {
   it("レシートが0件のとき: 空の集計を返す", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createQueryCtxWithGet(identity, [], {});
+    const ctx = createQueryCtxForSummary(identity, [], []);
 
     const result = await getWeekSummaryWithCategoriesHandler(ctx, {
       weekStartDate: "2024-01-08",
@@ -698,10 +712,10 @@ describe("getWeekSummaryWithCategories", () => {
       amountYen: 800,
       categoryId: "cat-001",
     };
-    const ctx = createQueryCtxWithGet(
+    const ctx = createQueryCtxForSummary(
       identity,
       [receipt1, receipt2],
-      { "cat-001": sampleCategory },
+      [sampleCategory],
     );
 
     const result = await getWeekSummaryWithCategoriesHandler(ctx, {
@@ -746,10 +760,10 @@ describe("getWeekSummaryWithCategories", () => {
       amountYen: 3000,
       categoryId: "cat-002",
     };
-    const ctx = createQueryCtxWithGet(
+    const ctx = createQueryCtxForSummary(
       identity,
       [receipt1, receipt2],
-      { "cat-001": sampleCategory, "cat-002": category2 },
+      [sampleCategory, category2],
     );
 
     const result = await getWeekSummaryWithCategoriesHandler(ctx, {
@@ -774,10 +788,10 @@ describe("getWeekSummaryWithCategories", () => {
       categoryId: "cat-001",
       weekStartDate: "2024-01-08",
     };
-    const ctx = createQueryCtxWithGet(
+    const ctx = createQueryCtxForSummary(
       identity,
       [receipt1],
-      { "cat-001": sampleCategory },
+      [sampleCategory],
     );
 
     const result = await getWeekSummaryWithCategoriesHandler(ctx, {
@@ -789,7 +803,7 @@ describe("getWeekSummaryWithCategories", () => {
   });
 
   it("未認証時: ConvexError が throw される", async () => {
-    const ctx = createQueryCtxWithGet(null, [], {});
+    const ctx = createQueryCtxForSummary(null, [], []);
 
     await expect(
       getWeekSummaryWithCategoriesHandler(ctx, { weekStartDate: "2024-01-08" }),

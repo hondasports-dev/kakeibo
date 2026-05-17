@@ -328,18 +328,32 @@ export async function getWeekSummaryWithCategoriesHandler(
 ): Promise<WeekSummaryWithCategories> {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  const receipts = await ctx.db
-    .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
-    )
-    .order("desc")
-    .take(200);
+  // receipts と categories を並列取得（N+1 回避）
+  const [receipts, categories] = await Promise.all([
+    ctx.db
+      .query("receipts")
+      .withIndex("by_user_id_and_week_start_date", (q) =>
+        q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+      )
+      .order("desc")
+      .take(200),
+    ctx.db
+      .query("categories")
+      .withIndex("by_user_id_and_is_active_and_sort_order", (q) =>
+        q.eq("userId", userId).eq("isActive", true),
+      )
+      .collect(),
+  ]);
+
+  // カテゴリ情報を id → {name, color} の Map に変換
+  const categoryInfoMap = new Map(
+    categories.map((c) => [c._id as string, { name: c.name, color: c.color }]),
+  );
 
   const count = receipts.length;
   const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
 
-  // カテゴリ情報を取得してカテゴリ別集計を作成
+  // カテゴリ別集計 Map（ループ内で db アクセスしない）
   const categoryMap = new Map<
     string,
     { name: string; color: string; total: number; count: number }
@@ -349,18 +363,17 @@ export async function getWeekSummaryWithCategoriesHandler(
 
   for (const receipt of receipts) {
     const categoryIdStr = receipt.categoryId as string;
-    let catEntry = categoryMap.get(categoryIdStr);
+    const info = categoryInfoMap.get(categoryIdStr);
+    const name = info?.name ?? "不明";
+    const color = info?.color ?? "#999999";
 
+    const catEntry = categoryMap.get(categoryIdStr);
     if (catEntry === undefined) {
-      const category = await ctx.db.get(receipt.categoryId);
-      const name = category?.name ?? "不明";
-      const color = category?.color ?? "#999999";
-      catEntry = { name, color, total: 0, count: 0 };
-      categoryMap.set(categoryIdStr, catEntry);
+      categoryMap.set(categoryIdStr, { name, color, total: receipt.amountYen, count: 1 });
+    } else {
+      catEntry.total += receipt.amountYen;
+      catEntry.count += 1;
     }
-
-    catEntry.total += receipt.amountYen;
-    catEntry.count += 1;
 
     receiptsWithCategory.push({
       _id: receipt._id,
@@ -368,8 +381,8 @@ export async function getWeekSummaryWithCategoriesHandler(
       shopName: receipt.shopName,
       amountYen: receipt.amountYen,
       categoryId: categoryIdStr,
-      categoryName: catEntry.name,
-      categoryColor: catEntry.color,
+      categoryName: name,
+      categoryColor: color,
       memo: receipt.memo,
     });
   }
