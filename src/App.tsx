@@ -13,6 +13,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Menu,
   MenuItem,
   Paper,
@@ -24,6 +25,7 @@ import { api } from '../convex/_generated/api'
 import { useInitializeUser } from './hooks/useInitializeUser'
 import { ReceiptForm } from './components/ReceiptForm'
 import { WeekStatusPanel } from './components/WeekStatusPanel'
+import { WeeklySummaryPanel } from './components/WeeklySummaryPanel'
 import './App.css'
 
 const OAUTH_CALLBACK_PATH = '/sso-callback'
@@ -322,6 +324,35 @@ function KakeiboApp() {
     weekSession ? { weekStartDate: weekSession.weekStartDate } : 'skip',
   ) ?? []
 
+  // 前週の weekStartDate を計算（今週の月曜 - 7日）
+  const prevWeekStartDate = weekSession
+    ? (() => {
+        const d = new Date(weekSession.weekStartDate + 'T00:00:00')
+        d.setDate(d.getDate() - 7)
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const dy = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${dy}`
+      })()
+    : null
+
+  const prevWeekSummary = useQuery(
+    api.receipts.getWeekSummary,
+    prevWeekStartDate ? { weekStartDate: prevWeekStartDate } : 'skip',
+  )
+
+  const weeklySummary = useQuery(
+    api.receipts.getWeekSummaryWithCategories,
+    weekSession
+      ? {
+          weekStartDate: weekSession.weekStartDate,
+          prevWeekTotalAmountYen: prevWeekSummary?.totalAmountYen,
+        }
+      : 'skip',
+  )
+
+  const [showSummary, setShowSummary] = useState(false)
+
   const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0)
   const count = receipts.length
   const budgetAmountYen = weekSession?.budgetAmountYen
@@ -388,9 +419,10 @@ function KakeiboApp() {
               <Button
                 aria-label="週次サマリーを見る"
                 size="large"
-                variant="contained"
+                variant={showSummary ? 'outlined' : 'contained'}
+                onClick={() => setShowSummary((prev) => !prev)}
               >
-                週次サマリーを見る
+                {showSummary ? 'サマリーを閉じる' : '週次サマリーを見る'}
               </Button>
               <UserMenu />
             </Stack>
@@ -439,6 +471,18 @@ function KakeiboApp() {
               </Paper>
             ))}
           </Box>
+
+          <Collapse in={showSummary}>
+            <WeeklySummaryPanel
+              count={weeklySummary?.count ?? 0}
+              totalAmountYen={weeklySummary?.totalAmountYen ?? 0}
+              byCategory={weeklySummary?.byCategory ?? []}
+              prevWeekTotalAmountYen={weeklySummary?.prevWeekTotalAmountYen ?? null}
+              receipts={weeklySummary?.receipts ?? []}
+              budgetAmountYen={weekSession.budgetAmountYen}
+              isLoading={weeklySummary === undefined}
+            />
+          </Collapse>
 
           <Box className="workbench-grid">
             <ReceiptForm

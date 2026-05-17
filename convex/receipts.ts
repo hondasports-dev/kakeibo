@@ -288,6 +288,121 @@ export const getWeekSummary = query({
 });
 
 // ---------------------------------------------------------------------------
+// getWeekSummaryWithCategories
+// ---------------------------------------------------------------------------
+
+type CategorySummary = {
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+  totalAmountYen: number;
+  count: number;
+};
+
+type GetWeekSummaryWithCategoriesArgs = {
+  weekStartDate: string;
+  prevWeekTotalAmountYen?: number;
+};
+
+export type WeekSummaryWithCategories = {
+  count: number;
+  totalAmountYen: number;
+  byCategory: CategorySummary[];
+  prevWeekTotalAmountYen: number | null;
+  receipts: Array<{
+    _id: string;
+    date: string;
+    shopName: string;
+    amountYen: number;
+    categoryId: string;
+    categoryName: string;
+    categoryColor: string;
+    memo?: string;
+  }>;
+};
+
+/** getWeekSummaryWithCategories query の handler ロジック（テスト用に export） */
+export async function getWeekSummaryWithCategoriesHandler(
+  ctx: QueryCtx,
+  args: GetWeekSummaryWithCategoriesArgs,
+): Promise<WeekSummaryWithCategories> {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const receipts = await ctx.db
+    .query("receipts")
+    .withIndex("by_user_id_and_week_start_date", (q) =>
+      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    )
+    .order("desc")
+    .take(200);
+
+  const count = receipts.length;
+  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
+
+  // カテゴリ情報を取得してカテゴリ別集計を作成
+  const categoryMap = new Map<
+    string,
+    { name: string; color: string; total: number; count: number }
+  >();
+
+  const receiptsWithCategory: WeekSummaryWithCategories["receipts"] = [];
+
+  for (const receipt of receipts) {
+    const categoryIdStr = receipt.categoryId as string;
+    let catEntry = categoryMap.get(categoryIdStr);
+
+    if (catEntry === undefined) {
+      const category = await ctx.db.get(receipt.categoryId);
+      const name = category?.name ?? "不明";
+      const color = category?.color ?? "#999999";
+      catEntry = { name, color, total: 0, count: 0 };
+      categoryMap.set(categoryIdStr, catEntry);
+    }
+
+    catEntry.total += receipt.amountYen;
+    catEntry.count += 1;
+
+    receiptsWithCategory.push({
+      _id: receipt._id,
+      date: receipt.date,
+      shopName: receipt.shopName,
+      amountYen: receipt.amountYen,
+      categoryId: categoryIdStr,
+      categoryName: catEntry.name,
+      categoryColor: catEntry.color,
+      memo: receipt.memo,
+    });
+  }
+
+  // カテゴリ別集計を金額降順にソート
+  const byCategory: CategorySummary[] = Array.from(categoryMap.entries())
+    .map(([categoryId, data]) => ({
+      categoryId,
+      categoryName: data.name,
+      categoryColor: data.color,
+      totalAmountYen: data.total,
+      count: data.count,
+    }))
+    .sort((a, b) => b.totalAmountYen - a.totalAmountYen);
+
+  return {
+    count,
+    totalAmountYen,
+    byCategory,
+    prevWeekTotalAmountYen: args.prevWeekTotalAmountYen ?? null,
+    receipts: receiptsWithCategory,
+  };
+}
+
+export const getWeekSummaryWithCategories = query({
+  args: {
+    weekStartDate: v.string(),
+    prevWeekTotalAmountYen: v.optional(v.number()),
+  },
+  handler: getWeekSummaryWithCategoriesHandler,
+});
+
+// ---------------------------------------------------------------------------
 // deleteReceiptsByUser (internal mutation / E2E テストデータクリーンアップ専用)
 // ---------------------------------------------------------------------------
 
