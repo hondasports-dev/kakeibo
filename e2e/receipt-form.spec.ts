@@ -274,8 +274,15 @@ test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）'
   test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
     // 直近の入力セクションで空状態メッセージが自然に表示されることを確認
     // 注: 共有 Dev DB に当週データが存在する場合はこのテストはスキップする
+
+    // WeekStatusPanel の progressbar が表示されるまで待機し、
+    // Convex データのロード完了を保証してから件数を判定する（race condition 対策）
+    await expect(page.getByRole('progressbar', { name: '今週の入力進捗' })).toBeVisible()
+
+    // ロード完了後に receipt-row か空状態メッセージのいずれかが表示されるまで待機
     const receiptRows = page.locator('[class*="receipt-row"]')
     const emptyMessage = page.locator('text=まだレシートがありません')
+    await expect(receiptRows.or(emptyMessage).first()).toBeVisible()
 
     const rowCount = await receiptRows.count()
     if (rowCount === 0) {
