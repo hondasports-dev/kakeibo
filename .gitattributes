@@ -1,0 +1,19 @@
+# デフォルト: テキストファイルは LF に統一
+* text=auto eol=lf
+
+# Windows バッチファイルは CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# バイナリファイルは変換しない
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.otf binary
+*.zip binary
