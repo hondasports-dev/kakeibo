@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
-import { clerk } from '@clerk/testing/playwright'
-// import { gotoAuthenticated } from './helpers/auth'
+// import { clerk } from '@clerk/testing/playwright'
+import { gotoAuthenticated } from './helpers/auth'
 import { cleanupTestReceipts } from './helpers/cleanup'
 
 /**
@@ -412,10 +412,7 @@ import { cleanupTestReceipts } from './helpers/cleanup'
 
 test.describe('週次サマリーパネル（Issue #15 受け入れ確認）', () => {
   test.beforeEach(async ({ page }) => {
-    const email = process.env.E2E_CLERK_USER_EMAIL
-    if (!email) throw new Error('E2E_CLERK_USER_EMAIL is not set')
-    await page.goto('/')
-    await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
+    await gotoAuthenticated(page)
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
   })
 
