@@ -12,7 +12,10 @@ name: E2E
 #   CLERK_SECRET_KEY                 — Clerk Dev instance の sk_test_...
 #   E2E_CLERK_USER_EMAIL             — テストユーザーのメールアドレス
 #   E2E_CLERK_USER_PASSWORD          — テストユーザーのパスワード
-#   VITE_CONVEX_URL                  — Dev deployment の Convex URL
+#   VITE_CONVEX_URL                  — Dev deployment の Convex WebSocket URL
+#   VITE_CONVEX_SITE_URL             — Dev deployment の Convex HTTP URL (例: https://xxx.convex.site)
+#   E2E_CLEANUP_SECRET               — E2E クリーンアップ API 認証シークレット
+#   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
 #
 # 詳細: docs/development-process.md「E2E Preview 確認方針」
 #       docs/environment-variables.md「GitHub Actions Secrets に保存する項目」
@@ -79,6 +82,10 @@ jobs:
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
           # Convex Dev deployment URL
           VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+          # E2E テストデータクリーンアップ用
+          VITE_CONVEX_SITE_URL: ${{ secrets.VITE_CONVEX_SITE_URL }}
+          E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
+          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
 
       # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）
       - name: Upload test results on failure

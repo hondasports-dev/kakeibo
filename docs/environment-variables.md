@@ -27,7 +27,15 @@
 |--------|------|-------|------------|------------|----------|
 | `CONVEX_DEPLOYMENT` | ローカル開発用デプロイメント名 | ✅ | ❌ | ❌ | .env.local のみ |
 | `VITE_CONVEX_URL` | フロントエンド用Convex接続URL | ✅ | ✅ | ❌ | .env.local / Vercel Env |
+| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL | ✅ | ❌ | ❌ | .env.local / GitHub Actions Secret |
 | `CONVEX_DEPLOY_KEY` | VercelビルドからConvexへのデプロイ用キー | ❌ | ✅ | ✅ | Vercel Secrets のみ |
+
+### E2E テストクリーンアップ関連
+
+| 変数名 | 用途 | Local | CI | Secret扱い | 設定場所 |
+|--------|------|-------|-----|------------|----------|
+| `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅ | ✅ | ✅ | .env.local / GitHub Actions Secret / Convex Dashboard |
+| `E2E_CLERK_USER_ID` | テストユーザーの Clerk tokenIdentifier | ✅ | ✅ | ✅ | .env.local / GitHub Actions Secret |
 
 ## 環境ごとの設定方針
 
@@ -102,9 +110,15 @@ npx convex deploy --cmd 'pnpm run build'
 
 ### GitHub Actions Secretsに保存する項目
 
-- `VERCEL_AUTOMATION_BYPASS_SECRET` — E2E Playwright導入時に追加予定
-- `E2E_CLERK_USER_EMAIL` — E2E Playwright導入時に追加予定
-- `E2E_CLERK_USER_PASSWORD` — E2E Playwright導入時に追加予定（信頼できるブランチのみ）
+- `VERCEL_AUTOMATION_BYPASS_SECRET` — Vercel Protection Bypass for Automation
+- `CLERK_PUBLISHABLE_KEY` — Clerk Dev instance の公開鍵
+- `CLERK_SECRET_KEY` — Clerk Dev instance の秘密鍵
+- `E2E_CLERK_USER_EMAIL` — E2E テストユーザーのメールアドレス
+- `E2E_CLERK_USER_PASSWORD` — E2E テストユーザーのパスワード
+- `VITE_CONVEX_URL` — Dev deployment の Convex WebSocket URL
+- `VITE_CONVEX_SITE_URL` — Dev deployment の Convex HTTP URL（例: `https://xxx.convex.site`）
+- `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（Convex Dashboard の値と同一）
+- `E2E_CLERK_USER_ID` — テストユーザーの Clerk tokenIdentifier（`https://xxx.clerk.accounts.dev|user_xxx`）
 
 ### 重要ルール
 
@@ -118,6 +132,7 @@ npx convex deploy --cmd 'pnpm run build'
 Convex Dashboard (Deployment Settings > Environment Variables) に以下を設定：
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Clerk Frontend API URL (`https://xxxx.clerk.accounts.dev`)
+- `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（未設定時はエンドポイントが 503 を返すため本番誤操作を防止できる）
 
 > `CLERK_JWT_ISSUER_DOMAIN` はJWT issuerのドメインであり、公開情報に近い値のため
 > Secretsではなく通常のEnvironment Variableとして扱う。真のSecretは `CLERK_SECRET_KEY` のみ。

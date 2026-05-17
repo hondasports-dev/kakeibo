@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
@@ -285,4 +285,30 @@ export const getWeekSummary = query({
     weekStartDate: v.string(),
   },
   handler: getWeekSummaryHandler,
+});
+
+// ---------------------------------------------------------------------------
+// deleteReceiptsByUser (internal mutation / E2E テストデータクリーンアップ専用)
+// ---------------------------------------------------------------------------
+
+/**
+ * 指定ユーザーのレシートを全件削除する。
+ *
+ * この mutation は internalMutation として定義されており、外部クライアントから
+ * 直接呼び出せない。E2E テスト用の HTTP エンドポイント（convex/http.ts）経由でのみ呼び出す。
+ */
+export const deleteReceiptsByUser = internalMutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, { userId }) => {
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_user_id_and_week_start_date", (q) => q.eq("userId", userId))
+      .collect();
+
+    await Promise.all(receipts.map((r) => ctx.db.delete(r._id)));
+
+    return { deletedCount: receipts.length };
+  },
 });
