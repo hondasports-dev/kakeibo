@@ -1,6 +1,6 @@
 ---
 name: kakeibo-issue-delivery
-description: GitHub Issue番号を受け取り、仕様検討→TDD実装→コードレビュー→GitHub Actions E2E確認までを自動ループして1つのIssueを解決する。
+description: GitHub Issue番号を受け取り、Product Lead要件確認→Tech Lead仕様確定→TDD実装→コードレビュー→GitHub Actions E2E確認までを自動ループして1つのIssueを解決する。
 argument-hint: "<issue番号>"
 triggers:
   - user
@@ -8,8 +8,8 @@ triggers:
 
 # Kakeibo Issue Delivery
 
-このSkillは、1つのGitHub Issueを起点に、仕様検討からE2E確認までの開発サイクルを
-自動ループして解決する。
+このSkillは、1つのGitHub Issueを起点に、Product Lead要件確認からE2E確認までの
+開発サイクルを自動ループして解決する。
 
 ## 前提
 
@@ -21,21 +21,54 @@ triggers:
 
 | ループ | 上限 |
 |--------|------|
+| Product Lead要件確認の差し戻し | 2回まで |
 | 実装↔レビューの差し戻し | 3回まで |
 | E2E失敗→修正の繰り返し | 2回まで |
 | 上限超過時 | 作業を中断し、ユーザーに状況を報告して判断を仰ぐ |
 
 ---
 
-## フェーズ1: Issue読み込みと仕様確定
+## フェーズ0: Product Lead 要件確認
+
+担当ロール: Product Lead（`agents/01-product-lead.md` を参照）
+
+### 手順
+
+1. GitHub MCP で Issue #$ARGUMENTS の本文・コメント・ラベルをすべて取得する。
+2. `REQUIREMENTS.md` を読み、MVPスコープと既存方針を把握する。
+3. `agents/01-product-lead.md` の「既存IssueのProduct Leadレビュー」テンプレートに従い、
+   Issueの要件を評価する。
+
+### 成果物
+
+- **判定**: `approved` または `needs_discussion`
+- **要件サマリー**: 解く課題・ユーザー価値・完了条件の整理
+- **スコープ確認**: MVPスコープ内か、スコープ外要素が混入していないか
+- **曖昧な点・ユーザーへの確認事項**: `needs_discussion` の場合のみ
+- **Tech Lead への引き継ぎメモ**: `approved` の場合、フェーズ1へ渡す情報
+
+### 判定と次のアクション
+
+| 判定 | 次のアクション |
+|------|---------------|
+| `approved` | フェーズ1（Tech Lead）へ進む |
+| `needs_discussion` | 確認事項をユーザーに提示し、回答を待つ。回答後に再評価する |
+
+### 完了条件
+
+- `approved` 判定が出ており、フェーズ1に引き渡せる要件サマリーが存在する。
+
+---
+
+## フェーズ1: Tech Lead 仕様確定
 
 担当ロール: Tech Lead（`agents/02-tech-lead.md` を参照）
 
 ### 手順
 
-1. GitHub MCP で Issue #$ARGUMENTS の本文・コメント・ラベルをすべて取得する。
-2. `REQUIREMENTS.md`、`TECHNICAL_DESIGN.md`、`docs/development-process.md` を読む。
-3. `agents/02-tech-lead.md` の依頼テンプレートに従い、次の成果物をまとめる。
+1. `TECHNICAL_DESIGN.md`、`docs/development-process.md` を読む。
+2. フェーズ0の要件サマリーと Tech Lead への引き継ぎメモをもとに、
+   `agents/02-tech-lead.md` の依頼テンプレートに従い、次の成果物をまとめる。
 
 ### 成果物
 
@@ -73,7 +106,7 @@ triggers:
 ### 差し戻し時の動作
 
 - フェーズ3（レビュー）から差し戻されたら、指摘内容を確認し修正して再pushする。
-- フェーズ4（E2E）から差し戻されたら、実装の問題を修正して再pushする。
+- フェーズ5（E2E）から差し戻されたら、実装の問題を修正して再pushする。
 
 ### 完了条件
 
@@ -103,6 +136,7 @@ triggers:
 ### 完了条件
 
 - `approve` 判定が出ている。
+- **レビューで指摘されたすべての事項を修正済みである**（指摘の一部を見落とすことは許容されない）。
 
 ---
 
@@ -163,7 +197,8 @@ PRのpushをトリガーに自動で起動される。
 
 次のいずれかに該当した場合、作業を中断してユーザーに状況と判断を報告する。
 
+- Product Lead要件確認の差し戻しが2回を超えた。
 - 実装↔レビューの差し戻しが3回を超えた。
 - E2E失敗→修正が2回を超えた。
 - 環境・インフラ起因のエラーが解消できない。
-- フェーズ1の仕様確定で、Issueの情報だけでは判断できない重大な曖昧さがある。
+- フェーズ0またはフェーズ1で、Issueの情報だけでは判断できない重大な曖昧さがある。
