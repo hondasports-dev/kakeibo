@@ -472,7 +472,7 @@ function KakeiboApp() {
             ))}
           </Box>
 
-          <Collapse in={showSummary}>
+          <Collapse in={showSummary} unmountOnExit>
             <WeeklySummaryPanel
               count={weeklySummary?.count ?? 0}
               totalAmountYen={weeklySummary?.totalAmountYen ?? 0}
