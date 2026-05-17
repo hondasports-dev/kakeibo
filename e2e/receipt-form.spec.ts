@@ -405,3 +405,73 @@ test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await expect(countLocator).toHaveText(`${beforeCount + 1} 件`, { timeout: 10_000 })
   })
 })
+
+test.describe('週次サマリーパネル（Issue #15 受け入れ確認）', () => {
+  test.beforeEach(async ({ page }) => {
+    const email = process.env.E2E_CLERK_USER_EMAIL
+    if (!email) throw new Error('E2E_CLERK_USER_EMAIL is not set')
+    await page.goto('/')
+    await clerk.signIn({ page, signInParams: { strategy: 'email_code', identifier: email } })
+    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  test.afterEach(async () => {
+    await cleanupTestReceipts()
+  })
+
+  test('[Issue #15] 週次サマリーを見るボタンが表示される (P0 / smoke)', async ({ page }) => {
+    await expect(page.getByRole('button', { name: '週次サマリーを見る' })).toBeVisible()
+  })
+
+  test('[Issue #15] ボタンをクリックすると週次サマリーパネルが表示される (P0 / smoke)', async ({ page }) => {
+    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
+
+    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'カテゴリ別', level: 2 })).toBeVisible()
+    await expect(page.getByRole('heading', { name: '支出一覧', level: 2 })).toBeVisible()
+  })
+
+  test('[Issue #15] 空状態でレシート0件の表示が正しい (P0 / smoke)', async ({ page }) => {
+    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
+
+    // サマリーパネルが表示されること
+    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+
+    // 空状態メッセージが表示されること（カテゴリ別・支出一覧）
+    const emptyCategoryMsg = page.getByText('まだレシートがありません').first()
+    await expect(emptyCategoryMsg).toBeVisible()
+  })
+
+  test('[Issue #15] レシート保存後にサマリーがリアルタイム更新される (P0 / 完了条件)', async ({ page }) => {
+    // まずサマリーパネルを開く
+    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
+    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+
+    // レシートを1件保存
+    const shopName = `QAサマリーテスト_${Date.now()}`
+    await page.locator('input[name="shopName"]').fill(shopName)
+    await page.locator('input[name="amountYen"]').fill('1500')
+    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
+    await page.getByRole('button', { name: '保存して次へ' }).click()
+
+    // 保存完了を待機
+    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+
+    // サマリーパネルに店舗名が反映されていること
+    await expect(page.locator('.receipt-list').last()).toContainText(shopName, { timeout: 10_000 })
+  })
+
+  test('[Issue #15] 再度ボタンをクリックするとパネルが閉じる (P1)', async ({ page }) => {
+    const summaryButton = page.getByRole('button', { name: '週次サマリーを見る' })
+    await summaryButton.click()
+
+    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+
+    // ボタンラベルが変わること
+    await expect(page.getByRole('button', { name: 'サマリーを閉じる' })).toBeVisible()
+
+    // 再クリックで閉じること
+    await page.getByRole('button', { name: 'サマリーを閉じる' }).click()
+    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).not.toBeVisible()
+  })
+})
