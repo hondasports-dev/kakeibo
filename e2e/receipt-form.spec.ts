@@ -261,7 +261,7 @@ test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）'
     await expect(budgetRemainingCard.locator('text=--')).toBeVisible()
 
     // 予算消化ラベルは "予算未設定" を表示する
-    await expect(page.locator('text=予算未設定')).toBeVisible()
+    await expect(page.locator('.budget-strip').locator('text=予算未設定')).toBeVisible()
 
     // 今週の支出カードは "予算未設定" をヘルパーテキストとして表示する
     const spendCard = page.locator('.summary-grid').locator('text=今週の支出').locator('../..')
