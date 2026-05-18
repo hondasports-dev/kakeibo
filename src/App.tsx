@@ -24,6 +24,7 @@ import { useConvexAuth, useMutation, useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { useInitializeUser } from './hooks/useInitializeUser'
 import { ReceiptForm } from './components/ReceiptForm'
+import { ReviewMemoPanel } from './components/ReviewMemoPanel'
 import { WeekStatusPanel } from './components/WeekStatusPanel'
 import { WeeklySummaryPanel } from './components/WeeklySummaryPanel'
 import './App.css'
@@ -299,6 +300,7 @@ function KakeiboApp() {
     weekEndDate: string
     status: 'draft' | 'completed'
     budgetAmountYen?: number
+    reviewMemo?: string
   } | null>(null)
   const [sessionError, setSessionError] = useState('')
 
@@ -401,9 +403,17 @@ function KakeiboApp() {
             }}
           >
             <Box>
-              <Typography component="h1" variant="h4">
-                今週のレシート入力
-              </Typography>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+                <Typography component="h1" variant="h4">
+                  今週のレシート入力
+                </Typography>
+                <Chip
+                  color={weekSession.status === 'completed' ? 'success' : 'primary'}
+                  label={weekSession.status === 'completed' ? '完了済み' : '入力中'}
+                  size="small"
+                  variant={weekSession.status === 'completed' ? 'filled' : 'outlined'}
+                />
+              </Stack>
               <Typography color="text.secondary">
                 {formatWeekPeriod(weekStartDate, weekEndDate)}
               </Typography>
@@ -491,10 +501,17 @@ function KakeiboApp() {
               categories={categories}
             />
 
-            <WeekStatusPanel
-              receipts={receipts}
-              budgetAmountYen={weekSession.budgetAmountYen}
-            />
+            <Stack spacing={2.5}>
+              <ReviewMemoPanel
+                weekSession={weekSession}
+                onSessionUpdated={setWeekSession}
+                onShowSummary={() => setShowSummary(true)}
+              />
+              <WeekStatusPanel
+                receipts={receipts}
+                budgetAmountYen={weekSession.budgetAmountYen}
+              />
+            </Stack>
           </Box>
         </Stack>
       </Box>

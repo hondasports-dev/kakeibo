@@ -5,6 +5,7 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   getOrCreateCurrentWeekSessionHandler,
   getWeekSessionHandler,
+  updateReviewMemoHandler,
   completeWeekSessionHandler,
 } from "./weekSessions";
 
@@ -307,6 +308,132 @@ describe("getWeekSession", () => {
 
     await expect(
       getWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
+    ).rejects.toMatchObject({ data: "Not authenticated" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateReviewMemo テスト
+// ---------------------------------------------------------------------------
+
+describe("updateReviewMemo", () => {
+  it("振り返りメモが保存される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const updatedSession: WeekSessionDoc = {
+      ...sampleSession,
+      reviewMemo: "食費が多めだったので来週は作り置きを増やす",
+      updatedAt: 9999,
+    };
+
+    const ctx = createMutationCtx(identity, {
+      uniqueDoc: sampleSession,
+      getDocById: {
+        "session-001": sampleSession,
+      },
+      updatedDoc: updatedSession,
+    });
+
+    const result = await updateReviewMemoHandler(ctx, {
+      weekStartDate: "2024-01-08",
+      reviewMemo: "食費が多めだったので来週は作り置きを増やす",
+    });
+
+    expect(result).toEqual(updatedSession);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledOnce();
+    expect(dbPatch).toHaveBeenCalledWith(
+      "session-001",
+      expect.objectContaining({
+        reviewMemo: "食費が多めだったので来週は作り置きを増やす",
+        updatedAt: expect.any(Number),
+      }),
+    );
+    expect(dbPatch).not.toHaveBeenCalledWith(
+      "session-001",
+      expect.objectContaining({
+        status: expect.any(String),
+      }),
+    );
+  });
+
+  it("完了済みセッションでも status を維持したまま振り返りメモを再編集できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const completedSession: WeekSessionDoc = {
+      ...sampleSession,
+      status: "completed",
+      reviewMemo: "更新前メモ",
+    };
+    const updatedSession: WeekSessionDoc = {
+      ...completedSession,
+      reviewMemo: "更新後メモ",
+      updatedAt: 9999,
+    };
+
+    const ctx = createMutationCtx(identity, {
+      uniqueDoc: completedSession,
+      getDocById: {
+        "session-001": completedSession,
+      },
+      updatedDoc: updatedSession,
+    });
+
+    const result = await updateReviewMemoHandler(ctx, {
+      weekStartDate: "2024-01-08",
+      reviewMemo: "更新後メモ",
+    });
+
+    expect(result).toEqual(updatedSession);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "session-001",
+      expect.objectContaining({
+        reviewMemo: "更新後メモ",
+        updatedAt: expect.any(Number),
+      }),
+    );
+    expect(result.status).toBe("completed");
+  });
+
+  it("セッションが存在しない場合は ConvexError", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      uniqueDoc: null,
+    });
+
+    await expect(
+      updateReviewMemoHandler(ctx, {
+        weekStartDate: "2024-01-08",
+        reviewMemo: "メモ",
+      }),
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    await expect(
+      updateReviewMemoHandler(ctx, {
+        weekStartDate: "2024-01-08",
+        reviewMemo: "メモ",
+      }),
+    ).rejects.toMatchObject({ data: "Week session not found" });
+  });
+
+  it("未認証時: ConvexError が throw される", async () => {
+    const ctx = createMutationCtx(null);
+
+    await expect(
+      updateReviewMemoHandler(ctx, {
+        weekStartDate: "2024-01-08",
+        reviewMemo: "メモ",
+      }),
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    await expect(
+      updateReviewMemoHandler(ctx, {
+        weekStartDate: "2024-01-08",
+        reviewMemo: "メモ",
+      }),
     ).rejects.toMatchObject({ data: "Not authenticated" });
   });
 });
