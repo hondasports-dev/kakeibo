@@ -2,9 +2,11 @@
 
 ## 使い方
 
-Codexでは、まず `$kakeibo-virtual-company` を使って依頼を分解する。
+Codex / Devinでは、まず `$kakeibo-virtual-company` を使って依頼を分解する。
 
-`agents/` 配下はCodexの実行時サブエージェントではなく、役割別プロンプト集である。必要な役割だけを読み、過剰な分業を避ける。
+`agents/` 配下は役割別プロンプト集であり、それだけで実行時サブエージェントが常駐するわけではない。必要な役割だけを読み、過剰な分業を避ける。
+
+Codexで実行時サブエージェントを起動させたい場合は、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」と明記する。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 
 ## Issue を1つ解決する場合（推奨）
 
@@ -30,13 +32,15 @@ GitHub Issue番号を渡すだけで、仕様検討→TDD実装→コードレ�
 ループ上限を超えた場合や環境起因のエラーは、自動的に中断してユーザーに報告する。
 詳細は `.agents/skills/kakeibo-issue-delivery/SKILL.md` を参照。
 
-## Devinでの使い方
+## Codex / Devinでの使い方
 
 ### 企画から始める場合
 
 ```text
 $kakeibo-virtual-company を使って、
 このアプリ案を企画、設計、実装、QA、レビュー、リリースに分解して。
+Codexで作業する場合は、必要に応じてサブエージェントを起動してよい。
+Devinで作業する場合も、同じ役割分担で進めて。
 ```
 
 ### 市場調査から始める場合
@@ -45,6 +49,8 @@ $kakeibo-virtual-company を使って、
 $kakeibo-virtual-company と $research-current-market を使って、
 今作るべきアプリ案を調査して。
 ユーザーが承認するまで実装には進まないで。
+Codexで作業する場合は、ユーザー承認後に必要に応じてサブエージェントを起動してよい。
+Devinで作業する場合も、同じ役割分担で進めて。
 ```
 
 ### 実装だけ頼む場合
@@ -53,6 +59,8 @@ $kakeibo-virtual-company と $research-current-market を使って、
 $kakeibo-virtual-company を使って、
 次の設計に基づいて実装して。
 必要な役割は Implementer を中心にして。
+Codexで作業する場合は、担当範囲が分離できるときだけImplementerサブエージェントを起動してよい。
+Devinで作業する場合も、同じ役割分担で進めて。
 ```
 
 ### レビューだけ頼む場合
@@ -61,6 +69,8 @@ $kakeibo-virtual-company を使って、
 $kakeibo-virtual-company を使って、
 この差分をレビューして。
 必要な役割は Reviewer を中心にして。
+Codexで作業する場合は、必要に応じてReviewerサブエージェントを起動してよい。
+Devinで作業する場合も、同じ役割分担で進めて。
 ```
 
 ## 並列化の方針
@@ -94,4 +104,4 @@ Implementer: "pnpm test --run の実行に失敗しました。メインエー�
 
 ## 注意
 
-`agents/` ディレクトリは永続的な指示書であり、Codexの実行時サブエージェントそのものを常駐させるものではない。会話中に役割分担する場合は、`$kakeibo-virtual-company` から必要な指示書だけを参照する。
+`agents/` ディレクトリは永続的な指示書であり、実行時サブエージェントそのものを常駐させるものではない。会話中に役割分担する場合は、`$kakeibo-virtual-company` から必要な指示書だけを参照する。Codexでサブエージェントを起動したい場合は、依頼文で明示的に許可する。
