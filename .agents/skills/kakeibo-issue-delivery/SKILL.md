@@ -46,7 +46,7 @@ triggers:
 ### 手順
 
 1. GitHub MCP で Issue #$ARGUMENTS の本文・コメント・ラベルをすべて取得する。
-2. `REQUIREMENTS.md` を読み、MVPスコープと既存方針を把握する。
+2. `docs/requirements.md` を読み、MVPスコープと既存方針を把握する。
 3. `agents/01-product-lead.md` の「既存IssueのProduct Leadレビュー」テンプレートに従い、
    Issueの要件を評価する。
 
@@ -77,7 +77,7 @@ triggers:
 
 ### 手順
 
-1. `TECHNICAL_DESIGN.md`、`docs/development-process.md` を読む。
+1. `docs/technical-design.md`、`docs/development-process.md` を読む。
 2. フェーズ0の要件サマリーと Tech Lead への引き継ぎメモをもとに、
    `agents/02-tech-lead.md` の依頼テンプレートに従い、次の成果物をまとめる。
 

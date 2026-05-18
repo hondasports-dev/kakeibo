@@ -43,8 +43,19 @@ Convex agent skills for common tasks can be installed by running
 
 - 開発プロセス、Pull Request、レビュー、CI、GitHub 運用に関わる作業:
   - `docs/development-process.md`
-- 設計、仕様、技術判断に関わる作業:
-  - `docs/` 配下の関連ドキュメント
+- プロダクト要件に関わる作業:
+  - `docs/requirements.md`
+- 技術設計、認証、環境分離に関わる作業:
+  - `docs/technical-design.md`
+  - `docs/auth-guard.md`
+  - `docs/environment-variables.md`
+- UI/UX 設計に関わる作業:
+  - `docs/ui-ux-design.md`
+- 外部サービス・ツールセットアップに関わる作業:
+  - `docs/service-tooling-setup.md`
+- E2E テストに関わる作業:
+  - `docs/e2e-test-cases.md`
+  - `docs/qa-checklist.md`
 - Convex に関わる作業:
   - `convex/_generated/ai/guidelines.md`
-  - 必要に応じて `docs/` 配下の関連ドキュメント
+  - 必要に応じて `docs/technical-design.md` の該当セクション

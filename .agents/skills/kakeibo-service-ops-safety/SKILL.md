@@ -4,11 +4,11 @@ description: kakeiboリポジトリでClerk、Vercel、Convex、Chrome DevTools 
 ---
 # Kakeibo 外部サービス操作安全確認
 
-このSkillは、外部サービス操作を行う前の安全確認に使います。詳細なセットアップコマンド、検証チェックリスト、制限事項の正本は `SERVICE_TOOLING_SETUP.md` です。
+このSkillは、外部サービス操作を行う前の安全確認に使います。詳細なセットアップコマンド、検証チェックリスト、制限事項の正本は `docs/service-tooling-setup.md` です。
 
 ## 必須確認
 
-1. サービス設定を変更する前に、`SERVICE_TOOLING_SETUP.md` の関連セクションを読む。
+1. サービス設定を変更する前に、`docs/service-tooling-setup.md` の関連セクションを読む。
 2. `.env.local`、`.vercel/`、`.agents/`、`.pnpm-store/`、`.npmrc`、本番secret、APIキー、OAuth credentialsは、機密情報またはローカル状態として扱う。
 3. secret、token、秘密鍵、セッション情報、本番環境値、個人情報をチャットやログに出力しない。
 4. Convexコードを変更する場合は、先に `convex/_generated/ai/guidelines.md` を読む。

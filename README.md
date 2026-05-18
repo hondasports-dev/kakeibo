@@ -11,14 +11,26 @@ pnpm run dev -- --host 127.0.0.1
 
 ## 主要ドキュメント
 
+### 設計・仕様
+
 | 用途 | 参照先 |
 | --- | --- |
-| 現在の進捗、次アクション | `PROJECT_STATUS.md` |
-| プロダクト要件 | `REQUIREMENTS.md` |
-| 技術設計、認証、環境分離 | `TECHNICAL_DESIGN.md` |
-| UI/UX、MUI方針、入力フロー | `UI_UX_DESIGN.md` |
-| 外部サービス操作ツールのセットアップ | `SERVICE_TOOLING_SETUP.md` |
+| プロダクト要件 | `docs/requirements.md` |
+| 技術設計、認証、環境分離 | `docs/technical-design.md` |
+| UI/UX、MUI方針、入力フロー | `docs/ui-ux-design.md` |
+| 外部サービス操作ツールのセットアップ | `docs/service-tooling-setup.md` |
+
+### 開発プロセス・運用
+
+| 用途 | 参照先 |
+| --- | --- |
 | 開発プロセス、PR、CI、レビュー | `docs/development-process.md` |
+| 認証ガード設計 | `docs/auth-guard.md` |
+| 環境変数一覧 | `docs/environment-variables.md` |
+| E2Eテストケース | `docs/e2e-test-cases.md` |
+| QAチェックリスト | `docs/qa-checklist.md` |
+| エージェント運用マニュアル | `OPERATING_MANUAL.md` |
+| 仮想開発会社の構成 | `COMPANY.md` |
 
 ## Codexでの作業
 

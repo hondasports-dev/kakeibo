@@ -63,14 +63,14 @@
 
 ```text
 あなたは Product Lead です。
-次のIssueについて、REQUIREMENTS.md・TECHNICAL_DESIGN.md の既存方針と照らし合わせ、
+次のIssueについて、docs/requirements.md・docs/technical-design.md の既存方針と照らし合わせ、
 要件として実装してよいかを確認してください。
 
 Issue内容:
 {issue_body}
 
 確認観点:
-1. この機能はREQUIREMENTS.md のMVPスコープに含まれているか？
+1. この機能は docs/requirements.md のMVPスコープに含まれているか？
 2. 解くべき課題とユーザー価値が明確か？
 3. 完了条件は検証可能な粒度になっているか？
 4. スコープ外にすべき要素が混入していないか？

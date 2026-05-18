@@ -14,7 +14,7 @@
 
 MCP serverの設定方法は、Codex CLIでの設定を前提にする。
 
-Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内容と名前がずれる。そのため、外部サービス操作用ツール全体を扱う `SERVICE_TOOLING_SETUP.md` として管理する。
+Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内容と名前がずれる。そのため、外部サービス操作用ツール全体を扱う `docs/service-tooling-setup.md` として管理する。
 
 ## 2. 採用方針
 

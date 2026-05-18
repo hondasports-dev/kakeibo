@@ -4,7 +4,7 @@ description: kakeiboでChrome DevTools MCPを使い、ローカルまたはprevi
 ---
 # Kakeibo ブラウザ確認
 
-このリポジトリでは、Chrome DevTools MCPを主なブラウザ確認ツールとして使います。セットアップ詳細の正本は `SERVICE_TOOLING_SETUP.md` です。
+このリポジトリでは、Chrome DevTools MCPを主なブラウザ確認ツールとして使います。セットアップ詳細の正本は `docs/service-tooling-setup.md` です。
 
 ## 確認前
 

@@ -628,4 +628,4 @@ pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN 'https://xxxx.clerk.accounts.de
 - Playwright 公式ドキュメント: https://playwright.dev/docs/intro
 - Clerk Testing ドキュメント: https://clerk.com/docs/testing/overview
 - 開発プロセス: `docs/development-process.md`
-- 技術設計: `TECHNICAL_DESIGN.md`
+- 技術設計: `docs/technical-design.md`
