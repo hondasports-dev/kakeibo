@@ -417,7 +417,7 @@ function KakeiboApp() {
               }}
             >
               <Button
-                aria-label="週次サマリーを見る"
+                aria-label={showSummary ? 'サマリーを閉じる' : '週次サマリーを見る'}
                 size="large"
                 variant={showSummary ? 'outlined' : 'contained'}
                 onClick={() => setShowSummary((prev) => !prev)}
