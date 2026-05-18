@@ -447,6 +447,8 @@ test.describe('週次サマリーパネル（Issue #15 受け入れ確認）', (
     // まずサマリーパネルを開く
     await page.getByRole('button', { name: '週次サマリーを見る' }).click()
     await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+    // Convex クエリのロード完了を待機（Skeleton が消えて「合計支出」が表示されるまで）
+    await expect(page.getByText('合計支出')).toBeVisible({ timeout: 15_000 })
 
     // レシートを1件保存
     const shopName = `QAサマリーテスト_${Date.now()}`
