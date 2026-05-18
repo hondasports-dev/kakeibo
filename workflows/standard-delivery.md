@@ -4,6 +4,28 @@
 
 アプリ開発の依頼を、企画からリリースまで安定して進める。
 
+## Codex / Devin 共通の実行ルール
+
+- `agents/` 配下のファイルは、役割別の指示書として扱う。
+- Codexでは、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示した場合だけ、実行時サブエージェントへ委譲してよい。
+- Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
+- 実行時サブエージェントが利用できない環境では、メインエージェントが必要な役割指示書を読み、同じ順序で作業する。
+- Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
+- Implementer は、担当範囲が分離できる場合だけ複数に分ける。
+- QA Agent と Reviewer は、実装後に並列で実行してよい。
+- Release Manager は、QA と Reviewer の結果がそろってから使う。
+
+## 呼び出し方
+
+```text
+workflows/standard-delivery.md を使って進めて。
+
+Codexで作業する場合は、この依頼をサブエージェント起動の明示的な許可として扱い、
+必要に応じて Product Lead、Tech Lead、Implementer、QA Agent、Reviewer、Release Manager の
+サブエージェントを起動してよい。
+Devinで作業する場合も、同じ役割分担で進めて。
+```
+
 ## フロー
 
 ### 1. 企画と要件
@@ -55,7 +77,7 @@
 
 担当: GitHub Actions（自動）／ QA Agent（結果確認）
 
-このフェーズはDevinが直接操作しない。PRのpushを契機にVercel Previewデプロイと
+このフェーズはCodex / Devinが直接操作しない。PRのpushを契機にVercel Previewデプロイと
 E2Eが自動実行され、QA AgentがGitHub MCPで結果を確認する。
 
 ```

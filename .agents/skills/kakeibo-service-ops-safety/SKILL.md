@@ -6,6 +6,14 @@ description: kakeiboリポジトリでClerk、Vercel、Convex、Chrome DevTools 
 
 このSkillは、外部サービス操作を行う前の安全確認に使います。詳細なセットアップコマンド、検証チェックリスト、制限事項の正本は `docs/service-tooling-setup.md` です。
 
+## Codex / Devin 共通の委譲ルール
+
+- Codexで外部サービス操作をサブエージェントへ委譲する場合は、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示したときだけ行う。
+- Devinでは、同じ指示を外部サービス操作担当への委譲許可として扱う。
+- サブエージェントへ渡す場合も、このSkillの明示確認が必要な操作、禁止事項、secret保護ルールを必ず継承する。
+- production、secret、billing、domain、protected deployment URL に関わる操作は、サブエージェントに任せる前にメインエージェントが人間の明示確認を取る。
+- サブエージェントには、許可されたサービス、環境、実行してよいコマンド、報告すべきリスクを明示する。
+
 ## 必須確認
 
 1. サービス設定を変更する前に、`docs/service-tooling-setup.md` の関連セクションを読む。

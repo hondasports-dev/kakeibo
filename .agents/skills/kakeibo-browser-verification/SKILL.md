@@ -6,6 +6,14 @@ description: kakeiboでChrome DevTools MCPを使い、ローカルまたはprevi
 
 このリポジトリでは、Chrome DevTools MCPを主なブラウザ確認ツールとして使います。セットアップ詳細の正本は `docs/service-tooling-setup.md` です。
 
+## Codex / Devin 共通の委譲ルール
+
+- Codexでブラウザ確認をサブエージェントへ委譲する場合は、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示したときだけ行う。
+- Devinでは、同じ指示をブラウザ確認担当への委譲許可として扱う。
+- サブエージェントへ渡す場合も、このSkillと `kakeibo-service-ops-safety` の安全条件を必ず継承する。
+- 対象URL、viewport、確認するユーザーフロー、触ってよい環境を明示する。
+- secret、個人情報、本番管理画面、機密性の高いサービスダッシュボードを表示しているページは、サブエージェントにも開かせない。
+
 ## 確認前
 
 1. 対象環境を確認する。対象は local dev、Vercel Preview、Production のいずれか。
