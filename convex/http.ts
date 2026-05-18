@@ -9,7 +9,8 @@ const http = httpRouter();
 // ---------------------------------------------------------------------------
 //
 // E2E テスト専用のデータクリーンアップエンドポイント。
-// テストユーザーのレシートを全件削除して Dev DB のゴミを防ぐ。
+// テストユーザーのレシート削除と、必要に応じた週次セッション状態リセットを行い、
+// Dev DB のゴミや状態依存を防ぐ。
 //
 // セキュリティ:
 //   - X-E2E-Cleanup-Secret ヘッダーで認証する。
@@ -17,7 +18,11 @@ const http = httpRouter();
 //   - 環境変数 E2E_CLEANUP_SECRET が未設定の場合は 503 を返す（本番環境ガード）。
 //
 // リクエストボディ:
-//   { "userId": "<Clerk の tokenIdentifier>" }
+//   {
+//     "userId": "<Clerk の tokenIdentifier>",
+//     "resetWeekSession": true,
+//     "weekStartDate": "YYYY-MM-DD"
+//   }
 //
 // レスポンス:
 //   200: { "deletedCount": <削除件数> }
@@ -46,7 +51,11 @@ http.route({
       );
     }
 
-    const body = await req.json() as { userId?: string };
+    const body = await req.json() as {
+      userId?: string;
+      resetWeekSession?: boolean;
+      weekStartDate?: string;
+    };
     if (!body.userId) {
       return new Response(
         JSON.stringify({ error: "userId is required." }),
@@ -54,12 +63,27 @@ http.route({
       );
     }
 
-    const result = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
+    const receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
       userId: body.userId,
     });
 
+    let weekSession: { reset: boolean } | null = null;
+    if (body.resetWeekSession) {
+      if (!body.weekStartDate) {
+        return new Response(
+          JSON.stringify({ error: "weekStartDate is required when resetWeekSession is true." }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      weekSession = await ctx.runMutation(internal.weekSessions.resetWeekSessionForUser, {
+        userId: body.userId,
+        weekStartDate: body.weekStartDate,
+      });
+    }
+
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify({ receipts, weekSession }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }),

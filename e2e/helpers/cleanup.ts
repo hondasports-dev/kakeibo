@@ -31,9 +31,32 @@
  * CI 環境（process.env.CI === 'true'）では未設定の場合にエラーをスローする。
  */
 export async function cleanupTestReceipts(): Promise<void> {
+  await callCleanupEndpoint({ userId: getCleanupUserId() })
+}
+
+/**
+ * 指定週のテストユーザーの週次セッションを draft に戻し、振り返りメモをクリアする。
+ */
+export async function resetTestWeekSession(weekStartDate: string): Promise<void> {
+  await callCleanupEndpoint({
+    userId: getCleanupUserId(),
+    resetWeekSession: true,
+    weekStartDate,
+  })
+}
+
+function getCleanupUserId(): string | undefined {
+  return process.env.E2E_CLERK_USER_ID
+}
+
+async function callCleanupEndpoint(body: {
+  userId?: string
+  resetWeekSession?: boolean
+  weekStartDate?: string
+}): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL
   const secret = process.env.E2E_CLEANUP_SECRET
-  const userId = process.env.E2E_CLERK_USER_ID
+  const userId = body.userId
 
   if (!siteUrl || !secret || !userId) {
     if (process.env.CI) {
@@ -56,7 +79,7 @@ export async function cleanupTestReceipts(): Promise<void> {
       'Content-Type': 'application/json',
       'X-E2E-Cleanup-Secret': secret,
     },
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify(body),
   })
 
   if (!res.ok) {
@@ -64,8 +87,16 @@ export async function cleanupTestReceipts(): Promise<void> {
     throw new Error(`E2E クリーンアップに失敗しました: ${res.status} ${text}`)
   }
 
-  const data = await res.json() as { deletedCount: number }
-  if (data.deletedCount > 0) {
-    console.log(`[cleanup] ${data.deletedCount} 件のレシートを削除しました。`)
+  const data = await res.json() as {
+    receipts?: { deletedCount: number }
+    deletedCount?: number
+    weekSession?: { reset: boolean } | null
+  }
+  const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0
+  if (deletedCount > 0) {
+    console.log(`[cleanup] ${deletedCount} 件のレシートを削除しました。`)
+  }
+  if (data.weekSession?.reset) {
+    console.log('[cleanup] 週次セッションをリセットしました。')
   }
 }
