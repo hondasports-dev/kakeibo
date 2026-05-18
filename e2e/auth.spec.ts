@@ -1,5 +1,4 @@
 import { test, expect } from '@playwright/test'
-import { clerk } from '@clerk/testing/playwright'
 import { gotoAuthenticated } from './helpers/auth'
 
 /**
