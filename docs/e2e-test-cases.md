@@ -473,6 +473,60 @@ test('ネットワークエラー時にエラーアラートが表示される',
 
 ---
 
+### シナリオ 15: 振り返りメモ保存 → セッション完了 → 完了後もメモ更新方針が明確
+
+- **優先度**: P1
+- **カテゴリ**: regression（Issue #16 完了条件）
+- **前提条件**:
+  - ログイン済みの状態
+  - 週次セッションが表示されている
+  - E2E cleanup で対象週のセッションを `draft` に戻してから開始する
+- **手順**:
+  1. 「週次振り返り」セクションを確認
+  2. 振り返りメモを入力
+  3. 「メモを保存」をクリック
+  4. 「セッションを完了」をクリック
+  5. 完了後に振り返りメモを再編集し、「メモを更新」をクリック
+  6. ページをリロードする
+- **期待結果**:
+  - 振り返りメモを入力できる
+  - メモ保存の成功メッセージが表示される
+  - セッション完了の成功メッセージが表示される
+  - ヘッダーに「完了済み」状態が表示される
+  - 完了済み状態では「振り返りメモは完了後も再編集できます」という方針が表示される
+  - 完了後は「メモを更新」ボタンで振り返りメモを再編集できる
+  - リロード後も更新後のメモと「完了済み」状態が再表示される
+- **対応するコード**: `src/components/ReviewMemoPanel.tsx`、Convex `updateReviewMemo` / `completeWeekSession` mutation
+
+#### Playwright 参考実装
+
+```typescript
+test('[Issue #16] 振り返りメモ保存からセッション完了、完了後のメモ更新方針まで確認できる', async ({ page }) => {
+  await page.goto('http://localhost:5173')
+  await expect(page.getByRole('heading', { name: '週次振り返り', level: 2 })).toBeVisible()
+
+  const reviewMemoInput = page.getByLabel('振り返りメモ')
+  await reviewMemoInput.fill('食費が多かったので来週は作り置きを増やす')
+  await page.getByRole('button', { name: 'メモを保存' }).click()
+  await expect(page.getByText('振り返りメモを保存しました')).toBeVisible()
+
+  await page.getByRole('button', { name: 'セッションを完了' }).click()
+  await expect(page.getByText('今週の入力を完了しました')).toBeVisible()
+  await expect(page.getByText('完了済み')).toBeVisible()
+  await expect(page.getByText('振り返りメモは完了後も再編集できます')).toBeVisible()
+
+  await reviewMemoInput.fill('更新後メモ')
+  await page.getByRole('button', { name: 'メモを更新' }).click()
+  await expect(page.getByText('振り返りメモを更新しました')).toBeVisible()
+
+  await page.reload()
+  await expect(page.getByText('完了済み')).toBeVisible()
+  await expect(page.getByLabel('振り返りメモ')).toHaveValue('更新後メモ')
+})
+```
+
+---
+
 ## テスト実行方法
 
 ### ローカル開発環境での実行
@@ -563,6 +617,7 @@ jobs:
 - シナリオ 4: ログアウト
 - シナリオ 7〜10: バリデーションエラー
 - シナリオ 13: ユーザー分離
+- シナリオ 15: 振り返りメモ保存 → セッション完了 → 完了後もメモ更新方針が明確
 
 ### Phase 3: Edge Cases（P2）— Phase 2 が安定した後
 

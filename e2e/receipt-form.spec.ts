@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { gotoAuthenticated } from './helpers/auth'
-import { cleanupTestReceipts } from './helpers/cleanup'
+import { cleanupTestReceipts, resetTestWeekSession } from './helpers/cleanup'
 
 /**
  * レシート入力フォーム E2E テスト（QA Agent 担当）
@@ -27,7 +27,20 @@ import { cleanupTestReceipts } from './helpers/cleanup'
  *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件)
  *   - [Issue #14] 保存後に直近の入力一覧にレシートが追加される (P0 / issue #14 完了条件)
  *   - [Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される (P0 / issue #14 完了条件)
+ *   - [Issue #16] 振り返りメモを保存してセッションを完了できる (P0 / issue #16 完了条件)
+ *   - [Issue #16] 完了後もメモ再編集方針が表示され、メモを更新できる (P1 / regression)
  */
+
+function getCurrentWeekStartDate(): string {
+  const date = new Date()
+  const day = date.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  date.setDate(date.getDate() + diff)
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const dayOfMonth = String(date.getDate()).padStart(2, '0')
+  return `${year}-${month}-${dayOfMonth}`
+}
 
 test.describe('メイン画面の表示確認', () => {
   test('シナリオ2: ログイン済みでアクセスするとメイン画面が表示される', async ({ page }) => {
@@ -462,5 +475,53 @@ test.describe('週次サマリーパネル（Issue #15 受け入れ確認）', (
     // 再クリックで閉じること
     await page.getByRole('button', { name: 'サマリーを閉じる' }).click()
     await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).not.toBeVisible()
+  })
+})
+
+test.describe('振り返りメモとセッション完了（Issue #16 受け入れ確認）', () => {
+  test.beforeEach(async ({ page }) => {
+    await resetTestWeekSession(getCurrentWeekStartDate())
+    await gotoAuthenticated(page)
+    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  test.afterEach(async () => {
+    await resetTestWeekSession(getCurrentWeekStartDate())
+    await cleanupTestReceipts()
+  })
+
+  test('[Issue #16] 振り返りメモ保存からセッション完了、完了後のメモ更新方針まで確認できる', async ({ page }) => {
+    const reviewMemoInput = page.getByLabel('振り返りメモ')
+    const firstMemo = `E2E振り返りメモ_${Date.now()}`
+    const updatedMemo = `${firstMemo}_更新`
+
+    await expect(page.getByRole('heading', { name: '週次振り返り', level: 2 })).toBeVisible()
+    await expect(page.getByText('完了後もメモは再編集できます。')).toBeVisible()
+    await expect(page.getByText('入力中')).toBeVisible()
+
+    await reviewMemoInput.fill(firstMemo)
+    await page.getByRole('button', { name: 'メモを保存' }).click()
+    await expect(page.getByText('振り返りメモを保存しました')).toBeVisible()
+
+    await page.getByRole('button', { name: 'セッションを完了' }).click()
+    await expect(page.getByText('今週の入力を完了しました')).toBeVisible()
+    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+
+    await expect(page.getByText('完了済み', { exact: true })).toBeVisible()
+    await expect(
+      page.getByText('この週は完了済みです。振り返りメモは完了後も再編集できます。'),
+    ).toBeVisible()
+    await expect(page.getByRole('button', { name: 'メモを更新' })).toBeVisible()
+
+    await reviewMemoInput.fill(updatedMemo)
+    await page.getByRole('button', { name: 'メモを更新' }).click()
+
+    await expect(page.getByText('振り返りメモを更新しました')).toBeVisible()
+    await expect(reviewMemoInput).toHaveValue(updatedMemo)
+
+    await page.reload()
+    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+    await expect(page.getByText('完了済み', { exact: true })).toBeVisible()
+    await expect(page.getByLabel('振り返りメモ')).toHaveValue(updatedMemo)
   })
 })
