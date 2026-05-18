@@ -85,6 +85,48 @@ export const getWeekSession = query({
 });
 
 // ---------------------------------------------------------------------------
+// updateReviewMemo
+// ---------------------------------------------------------------------------
+
+/** updateReviewMemo mutation の handler ロジック（テスト用に export） */
+export async function updateReviewMemoHandler(
+  ctx: MutationCtx,
+  args: { weekStartDate: string; reviewMemo: string },
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const session = await ctx.db
+    .query("weekSessions")
+    .withIndex("by_user_id_and_week_start_date", (q) =>
+      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    )
+    .unique();
+
+  if (session === null) {
+    throw new ConvexError("Week session not found");
+  }
+
+  await ctx.db.patch(session._id, {
+    reviewMemo: args.reviewMemo,
+    updatedAt: Date.now(),
+  });
+
+  const updated = await ctx.db.get(session._id);
+  if (updated === null) {
+    throw new ConvexError("Failed to retrieve updated week session");
+  }
+  return updated;
+}
+
+export const updateReviewMemo = mutation({
+  args: {
+    weekStartDate: v.string(),
+    reviewMemo: v.string(),
+  },
+  handler: updateReviewMemoHandler,
+});
+
+// ---------------------------------------------------------------------------
 // completeWeekSession
 // ---------------------------------------------------------------------------
 
