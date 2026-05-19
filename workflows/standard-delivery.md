@@ -6,13 +6,14 @@
 
 ## Codex / Devin 共通の実行ルール
 
-- `agents/` 配下のファイルは、役割別の指示書として扱う。
+- `.agents/roles/` 配下のファイルは、役割別の指示書として扱う。
 - Codexでは、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示した場合だけ、実行時サブエージェントへ委譲してよい。
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 - 実行時サブエージェントが利用できない環境では、メインエージェントが必要な役割指示書を読み、同じ順序で作業する。
 - Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
 - Implementer は、担当範囲が分離できる場合だけ複数に分ける。
-- QA Agent と Reviewer は、実装後に並列で実行してよい。
+- QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
+- PR作成後の QA Agent と Reviewer は並列で実行してよい。
 - Release Manager は、QA と Reviewer の結果がそろってから使う。
 
 ## 呼び出し方
@@ -51,6 +52,24 @@ Devinで作業する場合も、同じ役割分担で進めて。
 - データ/API/画面設計
 - 実装タスク
 - テスト方針
+- E2E候補シナリオと QA Agent への引き継ぎメモ
+
+### 2.5. E2Eテスト設計レビュー
+
+担当: QA Agent
+
+Product Lead の完了条件と Tech Lead のテスト方針を照合し、実装前にE2Eで確認する範囲を確定する。
+詳細は `.agents/roles/04-qa-agent.md` の「E2Eテスト設計レビュー」を参照。
+
+成果物:
+
+- E2E追加要否（`required` / `not_required`）
+- 既存 `docs/e2e-test-cases.md` でカバーするシナリオ、または新規シナリオ案
+- 優先度（P0/P1/P2）とカテゴリ
+- Given / When / Then
+- テストデータ・cleanup要否
+- E2Eではなく単体・統合テスト・手動確認に回す項目
+- 判定（`approved` / `needs_revision` / `needs_discussion`）
 
 ### 3. 実装
 
@@ -60,6 +79,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 - コード変更
 - テスト追加
+- E2E追加が必要な場合は `e2e/` と `docs/e2e-test-cases.md` の更新
 - 実行した検証
 - 未解決事項
 
@@ -89,7 +109,7 @@ PR push
           → QA Agent が GitHub MCP で結果を確認
 ```
 
-QA Agentの確認手順と失敗時の対応は `agents/04-qa-agent.md` を参照。
+QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` を参照。
 
 成果物:
 
@@ -112,6 +132,8 @@ QA Agentの確認手順と失敗時の対応は `agents/04-qa-agent.md` を参�
 
 - 要件漏れ: Product Lead に戻す。
 - 設計破綻: Tech Lead に戻す。
+- E2Eテスト設計の不足: QA Agent から Tech Lead に戻す。
+- E2E化すべきか判断できない完了条件: QA Agent から Product Lead またはユーザー確認に戻す。
 - 実装バグ: Implementer に戻す。
 - 仕様通り動かない: QA Agent から Implementer に戻す。
 - 品質やセキュリティの問題: Reviewer から Implementer または Tech Lead に戻す。
@@ -125,5 +147,6 @@ QA Agentの確認手順と失敗時の対応は `agents/04-qa-agent.md` を参�
 
 | ループ | 上限 |
 |--------|------|
+| Tech Lead ↔ QA Agent テスト設計レビュー差し戻し | 2回 |
 | 実装 ↔ レビュー差し戻し | 3回 |
 | E2E失敗 → 修正の繰り返し | 2回 |

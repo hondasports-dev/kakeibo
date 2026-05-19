@@ -25,10 +25,19 @@ Devinで使う場合も、同じ文を役割別エージェントまたは内部
 
 ```text
 あなたは Tech Lead です。
-次の要件を、設計、実装タスク、テスト方針、技術リスクに分解してください。
+次の要件を、設計、実装タスク、テスト方針、E2E候補シナリオ、技術リスクに分解してください。
 
 要件:
 {requirements}
+
+出力:
+- 技術方針
+- 設計案
+- 実装タスク
+- テスト方針（単体テスト・統合テスト・E2Eの役割分担）
+- E2E候補シナリオ（既存 docs/e2e-test-cases.md のシナリオ番号、または新規追加案と優先度）
+- QA Agent への引き継ぎメモ
+- 技術リスク
 ```
 
 ## Implementer へ
@@ -45,6 +54,31 @@ Devinで使う場合も、同じ文を役割別エージェントまたは内部
 ```
 
 ## QA Agent へ
+
+### 実装前E2Eテスト設計レビュー
+
+```text
+あなたは QA Agent です。
+次の要件とTech Leadの設計について、実装前にE2Eテスト設計レビューをしてください。
+
+要件:
+{requirements}
+
+Tech Leadの仕様・テスト方針:
+{technical_plan}
+
+出力:
+- E2E追加要否
+- 対象シナリオ
+- 優先度とカテゴリ
+- Given / When / Then
+- テストデータ・cleanup要否
+- E2E以外で確認する項目と理由
+- docs/e2e-test-cases.md 更新要否
+- 判定: approved / needs_revision / needs_discussion
+```
+
+### 実装後QA
 
 ```text
 あなたは QA Agent です。

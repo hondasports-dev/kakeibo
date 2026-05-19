@@ -32,17 +32,17 @@ pnpm run dev -- --host 127.0.0.1
 | エージェント運用マニュアル | `OPERATING_MANUAL.md` |
 | 仮想開発会社の構成 | `COMPANY.md` |
 
-## Codexでの作業
+## Codex / Devinでの作業
 
-このリポジトリでは、Codex向けの共有Skillを `.agents/skills/kakeibo-*` に置きます。
+このリポジトリでは、Codex / Devin 向けの共有Skillを `.agents/skills/` に置きます。
 
 | Skill | 用途 |
 | --- | --- |
-| `$kakeibo-virtual-company` | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択 |
-| `$kakeibo-service-ops-safety` | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |
-| `$kakeibo-browser-verification` | Chrome DevTools MCPによる画面、Console、Network、DOM確認 |
+| `$virtual-company` | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択 |
+| `$service-ops-safety` | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |
+| `$browser-verification` | Chrome DevTools MCPによる画面、Console、Network、DOM確認 |
 
-`agents/` 配下はCodexの実行時サブエージェントではなく、役割別プロンプト集です。詳細な使い方は `OPERATING_MANUAL.md` と `COMPANY.md` を参照してください。
+`.agents/roles/` 配下は実行時サブエージェントではなく、Codex / Devin 共通の役割別プロンプト集です。詳細な使い方は `OPERATING_MANUAL.md` と `COMPANY.md` を参照してください。
 
 ## ローカル状態とsecret
 

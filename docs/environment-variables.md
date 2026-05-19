@@ -157,7 +157,7 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 ### E2E実行方針
 
 - Vercel Protection Bypassを使用 (`VERCEL_AUTOMATION_BYPASS_SECRET` はGitHub Actionsのみ)
-- QA Agentはworkflow起動と結果確認のみ担当
+- E2E実行フェーズでは、QA Agentはworkflow起動と結果確認のみ担当
 - trace、HAR、スクリーンショットの保存期間は1〜3日に限定
 - forkなど信頼できないPRではSecretを渡すE2Eを実行しない
 
@@ -194,5 +194,4 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - 環境変数を追加・削除する際は `.env.example` も必ず更新する
 - `.env.example` はすべての変数を含む（値はプレースホルダー）
 - `VITE_*` でない変数をフロントエンドで参照しない
-
 

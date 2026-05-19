@@ -1,8 +1,8 @@
 ---
-name: kakeibo-browser-verification
-description: kakeiboでChrome DevTools MCPを使い、ローカルまたはpreviewのUI挙動、Vite画面、Console issue、Network request、DOM状態、スクリーンショットを確認するときに使う。
+name: browser-verification
+description: このリポジトリでChrome DevTools MCPを使い、ローカルまたはpreviewのUI挙動、Vite画面、Console issue、Network request、DOM状態、スクリーンショットを確認するときに使う。
 ---
-# Kakeibo ブラウザ確認
+# ブラウザ確認
 
 このリポジトリでは、Chrome DevTools MCPを主なブラウザ確認ツールとして使います。セットアップ詳細の正本は `docs/service-tooling-setup.md` です。
 
@@ -10,7 +10,7 @@ description: kakeiboでChrome DevTools MCPを使い、ローカルまたはprevi
 
 - Codexでブラウザ確認をサブエージェントへ委譲する場合は、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示したときだけ行う。
 - Devinでは、同じ指示をブラウザ確認担当への委譲許可として扱う。
-- サブエージェントへ渡す場合も、このSkillと `kakeibo-service-ops-safety` の安全条件を必ず継承する。
+- サブエージェントへ渡す場合も、このSkillと `service-ops-safety` の安全条件を必ず継承する。
 - 対象URL、viewport、確認するユーザーフロー、触ってよい環境を明示する。
 - secret、個人情報、本番管理画面、機密性の高いサービスダッシュボードを表示しているページは、サブエージェントにも開かせない。
 

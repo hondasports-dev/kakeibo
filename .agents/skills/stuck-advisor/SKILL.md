@@ -1,12 +1,12 @@
 ---
-name: kakeibo-stuck-advisor
-description: 同じ問題で2回以上失敗してハマったときに呼び出す。シニアエンジニア視点で「今何が起きているか」を構造化し、別アプローチの仮説を複数提示する。kakeibo-issue-deliveryのE2E失敗ループや実装↔レビュー差し戻しループで上限に近づいたときに自動参照する。
+name: stuck-advisor
+description: 同じ問題で2回以上失敗してハマったときに呼び出す。シニアエンジニア視点で「今何が起きているか」を構造化し、別アプローチの仮説を複数提示する。issue-deliveryのE2E失敗ループや実装↔レビュー差し戻しループで上限に近づいたときに自動参照する。
 argument-hint: "<ハマっている問題の概要>"
 triggers:
   - model
 ---
 
-# Kakeibo Stuck Advisor
+# Stuck Advisor
 
 ハマったとき専用の「別視点アドバイザー」Skill。
 経験豊富なシニアエンジニアとして、**今の方針を一度手放して**状況を構造化し、
@@ -22,7 +22,7 @@ triggers:
 
 ## いつ呼ぶか（自動トリガー条件）
 
-次のいずれかに該当したら、`kakeibo-stuck-advisor` を invoke すること。
+次のいずれかに該当したら、`stuck-advisor` を invoke すること。
 
 | 状況 | 条件 |
 |------|------|

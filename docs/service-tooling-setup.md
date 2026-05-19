@@ -137,14 +137,26 @@ pnpm run dev -- --host 127.0.0.1
 *.pfx
 .vercel/
 .agents/*
+!.agents/roles/
+!.agents/roles/**
 !.agents/skills/
 .agents/skills/*
-!.agents/skills/kakeibo-*/
-!.agents/skills/kakeibo-*/**
+!.agents/skills/browser-verification/
+!.agents/skills/browser-verification/**
+!.agents/skills/issue-delivery/
+!.agents/skills/issue-delivery/**
+!.agents/skills/prompt-injection-guard/
+!.agents/skills/prompt-injection-guard/**
+!.agents/skills/service-ops-safety/
+!.agents/skills/service-ops-safety/**
+!.agents/skills/stuck-advisor/
+!.agents/skills/stuck-advisor/**
+!.agents/skills/virtual-company/
+!.agents/skills/virtual-company/**
 .pnpm-store/
 ```
 
-`.agents/` 配下の生成物はGit管理外にする。ただし、このリポジトリで共有するCodex Skillだけは `.agents/skills/kakeibo-*` としてGit管理する。
+`.agents/` 配下の生成物はGit管理外にする。ただし、このリポジトリで共有する役割定義とSkillだけは `.agents/roles/` と `.agents/skills/{browser-verification,issue-delivery,prompt-injection-guard,service-ops-safety,stuck-advisor,virtual-company}/` としてGit管理する。
 
 `skills-lock.json` はsecretを含まないスキルhash一覧である。Git管理するかどうかは、スキル再現性を重視するか、生成物を減らすかで別途判断する。
 

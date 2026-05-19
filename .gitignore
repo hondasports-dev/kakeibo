@@ -28,10 +28,22 @@ playwright/.clerk/
 # Service local state
 .vercel/
 .agents/*
+!.agents/roles/
+!.agents/roles/**
 !.agents/skills/
 .agents/skills/*
-!.agents/skills/kakeibo-*/
-!.agents/skills/kakeibo-*/**
+!.agents/skills/browser-verification/
+!.agents/skills/browser-verification/**
+!.agents/skills/issue-delivery/
+!.agents/skills/issue-delivery/**
+!.agents/skills/prompt-injection-guard/
+!.agents/skills/prompt-injection-guard/**
+!.agents/skills/service-ops-safety/
+!.agents/skills/service-ops-safety/**
+!.agents/skills/stuck-advisor/
+!.agents/skills/stuck-advisor/**
+!.agents/skills/virtual-company/
+!.agents/skills/virtual-company/**
 
 # Logs and OS files
 *.log

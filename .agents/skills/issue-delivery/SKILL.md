@@ -1,31 +1,32 @@
 ---
-name: kakeibo-issue-delivery
-description: GitHub Issue番号を受け取り、Product Lead要件確認→Tech Lead仕様確定→TDD実装→コードレビュー→GitHub Actions E2E確認までを自動ループして1つのIssueを解決する。
+name: issue-delivery
+description: GitHub Issue番号を受け取り、Product Lead要件確認→Tech Lead仕様確定→QA Agent E2E設計レビュー→TDD実装→コードレビュー→GitHub Actions E2E確認までを自動ループして1つのIssueを解決する。
 argument-hint: "<issue番号>"
 triggers:
   - user
 ---
 
-# Kakeibo Issue Delivery
+# Issue Delivery
 
 このSkillは、1つのGitHub Issueを起点に、Product Lead要件確認からE2E確認までの
 開発サイクルを自動ループして解決する。
 
 ## 前提
 
-- Issue番号を引数として受け取る（例: `/kakeibo-issue-delivery 21`）。
-- 作業前に `kakeibo-service-ops-safety` の確認事項を満たしていること。
+- Issue番号を引数として受け取る（例: `/issue-delivery 21`）。
+- 作業前に `service-ops-safety` の確認事項を満たしていること。
 - GitHub MCP が利用可能であること（E2E結果の確認に使用する）。
 
 ## Codex / Devin 共通の委譲ルール
 
-- `agents/` 配下のファイルは、役割別の指示書として扱う。
+- `.agents/roles/` 配下のファイルは、役割別の指示書として扱う。
 - Codexでは、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示した場合だけ、実行時サブエージェントへ委譲してよい。
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 - 実行時サブエージェントが利用できない環境では、メインエージェントが各フェーズの担当ロール指示書を読み、同じ順序で作業する。
 - サブエージェントへ委譲する場合は、担当フェーズ、編集してよいファイル、成果物、検証方法を明示する。
 - 複数のImplementerに同じファイルを編集させない。担当範囲が分離できない場合はメインエージェントまたは単一Implementerで進める。
-- QA Agent と Reviewer は、PR作成後に並列で実行してよい。
+- QA Agent は、実装前のE2Eテスト設計レビューと、PR作成後のE2E結果確認の2回使う。
+- PR作成後の QA Agent と Reviewer は並列で実行してよい。
 - サブエージェントには、他のエージェントやメインエージェントの変更を戻さないよう明記する。
 
 ## ループ上限
@@ -33,38 +34,40 @@ triggers:
 | ループ | 上限 |
 |--------|------|
 | Product Lead要件確認の差し戻し | 2回まで |
+| Tech Lead↔QA Agentテスト設計レビューの差し戻し | 2回まで |
 | 実装↔レビューの差し戻し | 3回まで |
 | E2E失敗→修正の繰り返し | 2回まで |
 | 上限超過時 | 作業を中断し、ユーザーに状況を報告して判断を仰ぐ |
 
 ## ハマったときの自動エスカレーション
 
-次のいずれかに該当したら、**次のアクションを決める前に** `kakeibo-stuck-advisor` を invoke すること。
+次のいずれかに該当したら、**次のアクションを決める前に** `stuck-advisor` を invoke すること。
 
 - 同じE2Eテストが **2回以上** 失敗した（修正→push→失敗の繰り返し）
 - 同じレビュー指摘で **2回以上** 差し戻された
 - ローカルで同じコマンド・手順を **2回試して** 同じ失敗結果になった
 
-`kakeibo-stuck-advisor` は状況を構造化し、今の方針とは独立した別アプローチ仮説を提示する。
+`stuck-advisor` は状況を構造化し、今の方針とは独立した別アプローチ仮説を提示する。
 提示された仮説の中から最もリスクが低い1つを選んで実行すること。
 
 ---
 
 ## フェーズ0: Product Lead 要件確認
 
-担当ロール: Product Lead（`agents/01-product-lead.md` を参照）
+担当ロール: Product Lead（`.agents/roles/01-product-lead.md` を参照）
 
 ### 手順
 
 1. GitHub MCP で Issue #$ARGUMENTS の本文・コメント・ラベルをすべて取得する。
 2. `docs/requirements.md` を読み、MVPスコープと既存方針を把握する。
-3. `agents/01-product-lead.md` の「既存IssueのProduct Leadレビュー」テンプレートに従い、
+3. `.agents/roles/01-product-lead.md` の「既存IssueのProduct Leadレビュー」テンプレートに従い、
    Issueの要件を評価する。
 
 ### 成果物
 
 - **判定**: `approved` または `needs_discussion`
 - **要件サマリー**: 解く課題・ユーザー価値・完了条件の整理
+- **E2E観点の初期メモ**: ユーザー価値をE2Eで確認すべき主要フローがあるか
 - **スコープ確認**: MVPスコープ内か、スコープ外要素が混入していないか
 - **曖昧な点・ユーザーへの確認事項**: `needs_discussion` の場合のみ
 - **Tech Lead への引き継ぎメモ**: `approved` の場合、フェーズ1へ渡す情報
@@ -84,45 +87,89 @@ triggers:
 
 ## フェーズ1: Tech Lead 仕様確定
 
-担当ロール: Tech Lead（`agents/02-tech-lead.md` を参照）
+担当ロール: Tech Lead（`.agents/roles/02-tech-lead.md` を参照）
 
 ### 手順
 
 1. `docs/technical-design.md`、`docs/development-process.md` を読む。
 2. フェーズ0の要件サマリーと Tech Lead への引き継ぎメモをもとに、
-   `agents/02-tech-lead.md` の依頼テンプレートに従い、次の成果物をまとめる。
+   `.agents/roles/02-tech-lead.md` の依頼テンプレートに従い、次の成果物をまとめる。
 
 ### 成果物
 
 - **仕様サマリー**: 解くべき課題・完了条件・スコープ外
 - **技術方針**: 変更するファイル・新規作成するファイル・影響範囲
 - **実装タスクリスト**: 順番付きの具体的なタスク（各タスクは独立してテスト可能な粒度）
-- **テスト方針**: 追加すべき単体テスト・E2Eシナリオの概要
+- **テスト方針**: 追加すべき単体テスト・統合テスト・E2Eシナリオの概要
+- **E2E候補シナリオ**: `docs/e2e-test-cases.md` の既存シナリオ番号、または新規追加案と優先度（P0/P1/P2）
+- **QA Agent への引き継ぎメモ**: E2Eで確認したい完了条件、E2Eではなく単体・統合テストで見る項目、テストデータ・cleanup要否
 - **技術リスク**: 懸念点と代替案
 
 ### 完了条件
 
-- 実装タスクリストが確定し、担当ロール（Implementer）に引き渡せる状態になっている。
+- 実装タスクリストとテスト方針が確定し、フェーズ1.5（QA Agent）に引き渡せる状態になっている。
+
+---
+
+## フェーズ1.5: QA Agent E2Eテスト設計レビュー
+
+担当ロール: QA Agent（`.agents/roles/04-qa-agent.md` を参照）
+
+このフェーズは、実装後にE2Eシナリオ漏れへ気づくことを避けるため、実装前に行う。
+Product Lead の完了条件と Tech Lead のテスト方針を照合し、E2Eで検証すべき範囲を確定する。
+
+### 手順
+
+1. フェーズ0の要件サマリー、フェーズ1の仕様サマリー・テスト方針・E2E候補シナリオを読む。
+2. `docs/e2e-test-cases.md` を読み、既存シナリオでカバーできるものと新規追加が必要なものを分ける。
+3. 主要フロー、異常系、境界値、UI、API、データ保存、権限、エラー表示、回帰リスクの観点で抜けを確認する。
+4. E2Eで検証する項目、単体・統合テストで検証する項目、手動確認に回す項目を分類する。
+5. Secret値を要求・表示せず、必要な場合は「GitHub Actions Secrets に設定済みであること」だけを前提条件にする。
+
+### 成果物
+
+- **判定**: `approved` / `needs_revision` / `needs_discussion`
+- **E2E追加要否**: `required` / `not_required`
+- **対象シナリオ**: 既存シナリオ番号、または新規シナリオ案
+- **優先度とカテゴリ**: P0/P1/P2、smoke / validation / regression / error-handling / permission
+- **Given / When / Then**: E2Eとして実装する場合の前提・操作・期待結果
+- **テストデータ・cleanup要否**: 週次セッションやユーザー分離など、事前準備と後片付けの要否
+- **E2E以外で確認する項目**: 単体・統合テスト・手動QAに回す理由
+- **`docs/e2e-test-cases.md` 更新要否**: 新規シナリオ追加時は `required`
+
+### 判定と次のアクション
+
+| 判定 | 次のアクション |
+|------|---------------|
+| `approved` | フェーズ2（TDD実装ループ）へ進む |
+| `needs_revision` | Tech Lead に戻し、テスト方針・E2E候補シナリオを修正する |
+| `needs_discussion` | ユーザーに確認事項を提示し、回答後に Product Lead または Tech Lead へ戻す |
+
+### 完了条件
+
+- QA Agent が `approved` 判定を出している。
+- E2E追加が必要な場合、実装前に対象シナリオ、優先度、期待結果、docs更新要否が明確になっている。
 
 ---
 
 ## フェーズ2: TDD実装ループ
 
-担当ロール: Implementer（`agents/03-implementer.md` を参照）
+担当ロール: Implementer（`.agents/roles/03-implementer.md` を参照）
 
 ### 手順
 
-1. `agents/03-implementer.md` のブランチ運用手順に従い、作業ブランチを作成する。
+1. `.agents/roles/03-implementer.md` のブランチ運用手順に従い、作業ブランチを作成する。
    - ブランチ名: `feature/issue-$ARGUMENTS-{短い説明}`
-2. フェーズ1の実装タスクリストを1タスクずつ、次のTDDサイクルで進める。
+2. フェーズ1の実装タスクリストとフェーズ1.5のE2Eテスト設計レビュー結果をもとに、1タスクずつ次のTDDサイクルで進める。
    a. **Red**: 失敗するテストを先に書く。
    b. **Green**: テストが通る最小限の実装をする。
    c. **Refactor**: コードを整理する（テストが通ったままであること）。
-3. 全タスク完了後、以下をすべてローカルで通す。
+3. フェーズ1.5で新規E2Eシナリオが `required` の場合は、`e2e/` のテスト追加と `docs/e2e-test-cases.md` の更新を同じPRに含める。
+4. 全タスク完了後、以下をすべてローカルで通す。
    - `pnpm test --run`
    - `pnpm run lint`
    - `pnpm run build`
-4. コミットして作業ブランチをpushし、PRを作成する。
+5. コミットして作業ブランチをpushし、PRを作成する。
    - PRには Issue #$ARGUMENTS へのリンクを含める。
 
 ### 差し戻し時の動作
@@ -140,11 +187,11 @@ triggers:
 
 ## フェーズ3: コードレビュー
 
-担当ロール: Reviewer（`agents/05-reviewer.md` を参照）
+担当ロール: Reviewer（`.agents/roles/05-reviewer.md` を参照）
 
 ### 手順
 
-1. `agents/05-reviewer.md` の判断基準に従い、PRの差分をレビューする。
+1. `.agents/roles/05-reviewer.md` の判断基準に従い、PRの差分をレビューする。
 2. 重大度順に指摘をまとめ、GitHub PRの該当コード行にインラインコメントを投稿する。
 3. 判定を返す。
 
@@ -179,7 +226,7 @@ PRのpushをトリガーに自動で起動される。
 
 ## フェーズ5: E2E結果確認ループ
 
-担当ロール: QA Agent（`agents/04-qa-agent.md` を参照）
+担当ロール: QA Agent（`.agents/roles/04-qa-agent.md` を参照）
 
 ### 手順
 
@@ -209,6 +256,7 @@ PRのpushをトリガーに自動で起動される。
 - 解決した Issue 番号と概要
 - 作成したPRのURL
 - 実装タスクの完了状況
+- QA Agent E2Eテスト設計レビューの判定と反映内容
 - 追加・更新したテストの一覧
 - E2Eテスト結果
 - 残るリスクや今後の課題（あれば）
@@ -220,7 +268,8 @@ PRのpushをトリガーに自動で起動される。
 次のいずれかに該当した場合、作業を中断してユーザーに状況と判断を報告する。
 
 - Product Lead要件確認の差し戻しが2回を超えた。
+- Tech Lead↔QA Agentテスト設計レビューの差し戻しが2回を超えた。
 - 実装↔レビューの差し戻しが3回を超えた。
 - E2E失敗→修正が2回を超えた。
 - 環境・インフラ起因のエラーが解消できない。
-- フェーズ0またはフェーズ1で、Issueの情報だけでは判断できない重大な曖昧さがある。
+- フェーズ0、フェーズ1、フェーズ1.5で、Issueの情報だけでは判断できない重大な曖昧さがある。

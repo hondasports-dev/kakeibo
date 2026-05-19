@@ -1,8 +1,8 @@
 ---
-name: kakeibo-service-ops-safety
-description: kakeiboリポジトリでClerk、Vercel、Convex、Chrome DevTools MCP、環境変数、本番デプロイ、secret、ドメイン、protected deployment URL、外部サービス操作ツールを扱う前に使う。
+name: service-ops-safety
+description: このリポジトリでClerk、Vercel、Convex、Chrome DevTools MCP、環境変数、本番デプロイ、secret、ドメイン、protected deployment URL、外部サービス操作ツールを扱う前に使う。
 ---
-# Kakeibo 外部サービス操作安全確認
+# 外部サービス操作安全確認
 
 このSkillは、外部サービス操作を行う前の安全確認に使います。詳細なセットアップコマンド、検証チェックリスト、制限事項の正本は `docs/service-tooling-setup.md` です。
 

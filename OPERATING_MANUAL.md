@@ -2,42 +2,47 @@
 
 ## 使い方
 
-Codex / Devinでは、まず `$kakeibo-virtual-company` を使って依頼を分解する。
+Codex / Devinでは、まず `$virtual-company` を使って依頼を分解する。
 
-`agents/` 配下は役割別プロンプト集であり、それだけで実行時サブエージェントが常駐するわけではない。必要な役割だけを読み、過剰な分業を避ける。
+`.agents/roles/` 配下は役割別プロンプト集であり、それだけで実行時サブエージェントが常駐するわけではない。必要な役割だけを読み、過剰な分業を避ける。
 
 Codexで実行時サブエージェントを起動させたい場合は、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」と明記する。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 
 ## Issue を1つ解決する場合（推奨）
 
-GitHub Issue番号を渡すだけで、仕様検討→TDD実装→コードレビュー→GitHub Actions E2E確認
+GitHub Issue番号を渡すだけで、仕様検討→E2Eテスト設計レビュー→TDD実装→コードレビュー→GitHub Actions E2E確認
 までを自動ループして解決する。
 
 ```text
-/kakeibo-issue-delivery 21
+/issue-delivery 21
 ```
 
 内部フロー:
 
-1. **Tech Lead** が Issue を読み、仕様・実装タスク・テスト方針を確定する。
-2. **Implementer** がTDDサイクルで実装し、ブランチを作成してPRを出す。
-3. **Reviewer** が差分をレビューし、GitHubのPRにインラインコメントを投稿する。
+1. **Product Lead** が Issue の要件、MVP範囲、検証可能な完了条件を確認する。
+2. **Tech Lead** が仕様・実装タスク・テスト方針・E2E候補シナリオを確定する。
+3. **QA Agent** が実装前にE2Eテスト設計をレビューする。
+   - 不足があれば Tech Lead へ差し戻す（最大2回）。
+   - 完了条件が曖昧なら Product Lead またはユーザー確認へ戻す。
+4. **Implementer** がTDDサイクルで実装し、ブランチを作成してPRを出す。
+   - 新規E2Eが必要な場合は `e2e/` と `docs/e2e-test-cases.md` を更新する。
+5. **Reviewer** が差分をレビューし、GitHubのPRにインラインコメントを投稿する。
    - 指摘があれば Implementer へ差し戻す（最大3回）。
-4. **GitHub Actions** が自動でVercel PreviewにデプロイしてE2Eを実行する。
-5. **QA Agent** が GitHub MCP でE2E Checkの結果を確認する。
+6. **GitHub Actions** が自動でVercel PreviewにデプロイしてE2Eを実行する。
+7. **QA Agent** が GitHub MCP でE2E Checkの結果を確認する。
    - E2Eテストコードの問題なら修正してpush → 再実行。
    - 実装の問題なら Implementer へ差し戻す（最大2回）。
-6. すべての Check が通ったら完了報告を返す。
+8. すべての Check が通ったら完了報告を返す。
 
 ループ上限を超えた場合や環境起因のエラーは、自動的に中断してユーザーに報告する。
-詳細は `.agents/skills/kakeibo-issue-delivery/SKILL.md` を参照。
+詳細は `.agents/skills/issue-delivery/SKILL.md` を参照。
 
 ## Codex / Devinでの使い方
 
 ### 企画から始める場合
 
 ```text
-$kakeibo-virtual-company を使って、
+$virtual-company を使って、
 このアプリ案を企画、設計、実装、QA、レビュー、リリースに分解して。
 Codexで作業する場合は、必要に応じてサブエージェントを起動してよい。
 Devinで作業する場合も、同じ役割分担で進めて。
@@ -46,7 +51,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 ### 市場調査から始める場合
 
 ```text
-$kakeibo-virtual-company と $research-current-market を使って、
+$virtual-company と $research-current-market を使って、
 今作るべきアプリ案を調査して。
 ユーザーが承認するまで実装には進まないで。
 Codexで作業する場合は、ユーザー承認後に必要に応じてサブエージェントを起動してよい。
@@ -56,7 +61,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 ### 実装だけ頼む場合
 
 ```text
-$kakeibo-virtual-company を使って、
+$virtual-company を使って、
 次の設計に基づいて実装して。
 必要な役割は Implementer を中心にして。
 Codexで作業する場合は、担当範囲が分離できるときだけImplementerサブエージェントを起動してよい。
@@ -66,7 +71,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 ### レビューだけ頼む場合
 
 ```text
-$kakeibo-virtual-company を使って、
+$virtual-company を使って、
 この差分をレビューして。
 必要な役割は Reviewer を中心にして。
 Codexで作業する場合は、必要に応じてReviewerサブエージェントを起動してよい。
@@ -77,7 +82,8 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 - Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
 - 実装タスクが分離できる場合だけ、Implementer を複数に分ける。
-- QA Agent と Reviewer は、実装後に並列で走らせてもよい。
+- QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
+- PR作成後の QA Agent と Reviewer は並列で走らせてもよい。
 - Release Manager は QA と Reviewer の結果がそろってから使う。
 
 ## サブエージェントがコマンドを実行できない場合の対処
@@ -104,4 +110,4 @@ Implementer: "pnpm test --run の実行に失敗しました。メインエー�
 
 ## 注意
 
-`agents/` ディレクトリは永続的な指示書であり、実行時サブエージェントそのものを常駐させるものではない。会話中に役割分担する場合は、`$kakeibo-virtual-company` から必要な指示書だけを参照する。Codexでサブエージェントを起動したい場合は、依頼文で明示的に許可する。
+`.agents/roles/` ディレクトリは永続的な指示書であり、実行時サブエージェントそのものを常駐させるものではない。会話中に役割分担する場合は、`$virtual-company` から必要な指示書だけを参照する。Codexでサブエージェントを起動したい場合は、依頼文で明示的に許可する。

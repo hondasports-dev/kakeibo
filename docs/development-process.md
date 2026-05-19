@@ -170,8 +170,8 @@ E2E 基盤はすぐには導入しませんが、将来的には Pull Request �
 基本方針:
 
 - Vercel Git Integration が作成した Preview Deployment の URL を対象にします。
-- E2E は GitHub Actions 上で実行し、Codex の QA Agent は workflow の起動、結果確認、
-  失敗内容の要約のみを担当します。
+- E2E は GitHub Actions 上で実行し、実行フェーズでは Codex の QA Agent は workflow の起動、
+  結果確認、失敗内容の要約のみを担当します。
 - QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
 - Vercel Authentication 付き Preview へのアクセスには、Vercel の
   Protection Bypass for Automation を使います。
