@@ -182,7 +182,6 @@ function createQueryCtx(
 
 /**
  * QueryCtx の最小モックを生成する（receipts + categories の2クエリ対応）。
- * getWeekSummaryWithCategories は receipts を take()、categories を collect() で取得する。
  * query() の呼び出し順序（1回目=receipts、2回目=categories）を利用して
  * それぞれ異なるデータを返す。
  */
@@ -195,7 +194,9 @@ function createQueryCtxForSummary(
 
   const makeChain = (docs: unknown[], supportsCollect: boolean) => {
     const collectMock = vi.fn().mockResolvedValue(docs);
-    const takeMock = vi.fn().mockResolvedValue(docs);
+    const takeMock = vi.fn().mockImplementation(async (limit?: number) => {
+      return typeof limit === "number" ? docs.slice(0, limit) : docs;
+    });
     const chain: Record<string, unknown> = {
       take: takeMock,
       order: vi.fn(),
@@ -206,9 +207,38 @@ function createQueryCtxForSummary(
     (chain.order as ReturnType<typeof vi.fn>).mockReturnValue(chain);
     const withIndexMock = vi.fn().mockImplementation(
       (_indexName: string, builder: (q: unknown) => unknown) => {
-        const q = { eq: vi.fn().mockImplementation(() => q) };
+        const filters: Record<string, unknown> = {};
+        const q = {
+          eq: vi.fn().mockImplementation((field: string, value: unknown) => {
+            filters[field] = value;
+            return q;
+          }),
+        };
         builder(q);
-        return chain;
+        const filteredDocs = docs.filter((doc) => {
+          if (typeof doc !== "object" || doc === null) {
+            return true;
+          }
+          return Object.entries(filters).every(([field, value]) => {
+            if (!(field in doc)) {
+              return true;
+            }
+            return (doc as Record<string, unknown>)[field] === value;
+          });
+        });
+        const filteredChain: Record<string, unknown> = {
+          take: vi.fn().mockImplementation(async (limit?: number) => {
+            return typeof limit === "number"
+              ? filteredDocs.slice(0, limit)
+              : filteredDocs;
+          }),
+          order: vi.fn(),
+        };
+        if (supportsCollect) {
+          filteredChain.collect = vi.fn().mockResolvedValue(filteredDocs);
+        }
+        (filteredChain.order as ReturnType<typeof vi.fn>).mockReturnValue(filteredChain);
+        return filteredChain;
       },
     );
     return { withIndex: withIndexMock };
@@ -229,6 +259,9 @@ function createQueryCtxForSummary(
     },
     db: {
       query: queryMock,
+      get: vi.fn().mockImplementation(async (id: string) => {
+        return categoryDocs.find((category) => category._id === id) ?? null;
+      }),
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as QueryCtx;
@@ -418,6 +451,27 @@ describe("createReceipt", () => {
       data: "Category does not belong to the current user",
     });
   });
+
+  it("無効化済みカテゴリを使用時: ConvexError が throw される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: {
+        "cat-001": { ...sampleCategory, isActive: false },
+      },
+    });
+
+    await expect(
+      createReceiptHandler(ctx, {
+        date: "2024-01-10",
+        shopName: "スーパー",
+        amountYen: 1500,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-001" as any,
+      }),
+    ).rejects.toMatchObject({
+      data: "Inactive category cannot be used for new receipts",
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -464,6 +518,7 @@ describe("getReceiptsByWeek", () => {
       getReceiptsByWeekHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toMatchObject({ data: "Not authenticated" });
   });
+
 });
 
 // ---------------------------------------------------------------------------
@@ -570,6 +625,74 @@ describe("updateReceipt", () => {
         shopName: "新しい店",
       }),
     ).rejects.toMatchObject({ data: "Not authenticated" });
+  });
+
+  it("無効化済みカテゴリへの変更は拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: {
+        "receipt-001": sampleReceipt,
+        "cat-inactive": {
+          ...sampleCategory,
+          _id: "cat-inactive",
+          isActive: false,
+        },
+      },
+    });
+
+    await expect(
+      updateReceiptHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        receiptId: "receipt-001" as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-inactive" as any,
+      }),
+    ).rejects.toMatchObject({
+      data: "Inactive category cannot be used for new receipts",
+    });
+  });
+
+  it("既存 receipt と同じ無効化済みカテゴリは保持したまま更新できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const inactiveCategory: CategoryDoc = {
+      ...sampleCategory,
+      isActive: false,
+    };
+    const receiptWithInactiveCategory: ReceiptDoc = {
+      ...sampleReceipt,
+      categoryId: "cat-001",
+    };
+    const updatedReceipt: ReceiptDoc = {
+      ...receiptWithInactiveCategory,
+      shopName: "更新後店舗",
+      updatedAt: 9999,
+    };
+    const ctx = createMutationCtx(identity, {
+      getDocById: {
+        "receipt-001": receiptWithInactiveCategory,
+        "cat-001": inactiveCategory,
+      },
+      updatedDoc: updatedReceipt,
+    });
+
+    const result = await updateReceiptHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      receiptId: "receipt-001" as any,
+      shopName: "更新後店舗",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-001" as any,
+    });
+
+    expect(result).toEqual(updatedReceipt);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "receipt-001",
+      expect.objectContaining({
+        shopName: "更新後店舗",
+        categoryId: "cat-001",
+      }),
+    );
   });
 });
 
@@ -800,6 +923,84 @@ describe("getWeekSummaryWithCategories", () => {
     });
 
     expect(result.prevWeekTotalAmountYen).toBe(5000);
+  });
+
+  it("無効化済みカテゴリを参照する既存レシートでもカテゴリ名と色を返す", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const inactiveCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-inactive",
+      name: "旧カテゴリ",
+      color: "#64748B",
+      isActive: false,
+    };
+    const receipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-inactive-category",
+      categoryId: "cat-inactive",
+    };
+    const ctx = createQueryCtxForSummary(identity, [receipt], [inactiveCategory]);
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.byCategory).toEqual([
+      {
+        categoryId: "cat-inactive",
+        categoryName: "旧カテゴリ",
+        categoryColor: "#64748B",
+        totalAmountYen: 1500,
+        count: 1,
+      },
+    ]);
+    expect(result.receipts[0]).toMatchObject({
+      categoryId: "cat-inactive",
+      categoryName: "旧カテゴリ",
+      categoryColor: "#64748B",
+    });
+  });
+
+  it("101件目以降のカテゴリを参照する既存レシートでもカテゴリ名と色を返す", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const targetCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-target-over-100",
+      name: "101件目カテゴリ",
+      color: "#0F766E",
+      sortOrder: 101,
+    };
+    const firstOneHundredCategories = Array.from({ length: 100 }, (_, index) => ({
+      ...sampleCategory,
+      _id: `cat-${String(index + 1).padStart(3, "0")}`,
+      name: `カテゴリ${index + 1}`,
+      sortOrder: index + 1,
+    }));
+    const receipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-over-100-category",
+      categoryId: "cat-target-over-100",
+    };
+    const ctx = createQueryCtxForSummary(
+      identity,
+      [receipt],
+      [...firstOneHundredCategories, targetCategory],
+    );
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.receipts[0]).toMatchObject({
+      categoryId: "cat-target-over-100",
+      categoryName: "101件目カテゴリ",
+      categoryColor: "#0F766E",
+    });
+    expect(result.byCategory[0]).toMatchObject({
+      categoryId: "cat-target-over-100",
+      categoryName: "101件目カテゴリ",
+      categoryColor: "#0F766E",
+    });
   });
 
   it("未認証時: ConvexError が throw される", async () => {

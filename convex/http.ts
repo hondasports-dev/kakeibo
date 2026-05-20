@@ -21,7 +21,8 @@ const http = httpRouter();
 //   {
 //     "userId": "<Clerk の tokenIdentifier>",
 //     "resetWeekSession": true,
-//     "weekStartDate": "YYYY-MM-DD"
+//     "weekStartDate": "YYYY-MM-DD",
+//     "deleteE2eCategories": true
 //   }
 //
 // レスポンス:
@@ -55,6 +56,7 @@ http.route({
       userId?: string;
       resetWeekSession?: boolean;
       weekStartDate?: string;
+      deleteE2eCategories?: boolean;
     };
     if (!body.userId) {
       return new Response(
@@ -82,8 +84,15 @@ http.route({
       });
     }
 
+    let categories: { deletedCount: number } | null = null;
+    if (body.deleteE2eCategories) {
+      categories = await ctx.runMutation(internal.categories.deleteE2eCategoriesByUser, {
+        userId: body.userId,
+      });
+    }
+
     return new Response(
-      JSON.stringify({ receipts, weekSession }),
+      JSON.stringify({ receipts, weekSession, categories }),
       { status: 200, headers: { "Content-Type": "application/json" } },
     );
   }),

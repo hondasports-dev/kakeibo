@@ -33,6 +33,9 @@ export async function createReceiptHandler(
   if (category.userId !== userId) {
     throw new ConvexError("Category does not belong to the current user");
   }
+  if (!category.isActive) {
+    throw new ConvexError("Inactive category cannot be used for new receipts");
+  }
 
   const now = Date.now();
   const weekStartDate = calculateWeekStartDate(args.date);
@@ -165,6 +168,12 @@ export async function updateReceiptHandler(
     }
     if (category.userId !== userId) {
       throw new ConvexError("Category does not belong to the current user");
+    }
+    if (
+      !category.isActive &&
+      (args.categoryId as string) !== (receipt.categoryId as string)
+    ) {
+      throw new ConvexError("Inactive category cannot be used for new receipts");
     }
   }
 
@@ -328,27 +337,32 @@ export async function getWeekSummaryWithCategoriesHandler(
 ): Promise<WeekSummaryWithCategories> {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  // receipts と categories を並列取得（N+1 回避）
-  const [receipts, categories] = await Promise.all([
-    ctx.db
-      .query("receipts")
-      .withIndex("by_user_id_and_week_start_date", (q) =>
-        q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
-      )
-      .order("desc")
-      .take(200),
-    ctx.db
-      .query("categories")
-      .withIndex("by_user_id_and_is_active_and_sort_order", (q) =>
-        q.eq("userId", userId).eq("isActive", true),
-      )
-      .collect(),
-  ]);
+  const receipts = await ctx.db
+    .query("receipts")
+    .withIndex("by_user_id_and_week_start_date", (q) =>
+      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    )
+    .order("desc")
+    .take(200);
+
+  const categoryIds = Array.from(
+    new Set(receipts.map((receipt) => receipt.categoryId)),
+  );
+  const categories = await Promise.all(
+    categoryIds.map((categoryId) => ctx.db.get(categoryId)),
+  );
 
   // カテゴリ情報を id → {name, color} の Map に変換
-  const categoryInfoMap = new Map(
-    categories.map((c) => [c._id as string, { name: c.name, color: c.color }]),
-  );
+  const categoryInfoMap = new Map<string, { name: string; color: string }>();
+  for (const category of categories) {
+    if (category === null || category.userId !== userId) {
+      continue;
+    }
+    categoryInfoMap.set(category._id as string, {
+      name: category.name,
+      color: category.color,
+    });
+  }
 
   const count = receipts.length;
   const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);

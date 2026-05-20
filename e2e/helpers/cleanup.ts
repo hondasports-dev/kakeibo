@@ -35,6 +35,16 @@ export async function cleanupTestReceipts(): Promise<void> {
 }
 
 /**
+ * テスト中に作成した E2E 専用カテゴリを削除する。
+ */
+export async function cleanupTestCategories(): Promise<void> {
+  await callCleanupEndpoint({
+    userId: getCleanupUserId(),
+    deleteE2eCategories: true,
+  })
+}
+
+/**
  * 指定週のテストユーザーの週次セッションを draft に戻し、振り返りメモをクリアする。
  */
 export async function resetTestWeekSession(weekStartDate: string): Promise<void> {
@@ -53,6 +63,7 @@ async function callCleanupEndpoint(body: {
   userId?: string
   resetWeekSession?: boolean
   weekStartDate?: string
+  deleteE2eCategories?: boolean
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL
   const secret = process.env.E2E_CLEANUP_SECRET
@@ -89,6 +100,7 @@ async function callCleanupEndpoint(body: {
 
   const data = await res.json() as {
     receipts?: { deletedCount: number }
+    categories?: { deletedCount: number } | null
     deletedCount?: number
     weekSession?: { reset: boolean } | null
   }
@@ -98,5 +110,8 @@ async function callCleanupEndpoint(body: {
   }
   if (data.weekSession?.reset) {
     console.log('[cleanup] 週次セッションをリセットしました。')
+  }
+  if (data.categories && data.categories.deletedCount > 0) {
+    console.log(`[cleanup] ${data.categories.deletedCount} 件のカテゴリを削除しました。`)
   }
 }

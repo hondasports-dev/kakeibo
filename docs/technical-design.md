@@ -227,6 +227,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | receipts | `by_user_id_and_shop_name` | 店名候補、カテゴリ推定 |
 | weekSessions | `by_user_id_and_week_start_date` | 指定ユーザー、指定週のセッション取得 |
 | categories | `by_user_id_and_is_active_and_sort_order` | 有効カテゴリの表示 |
+| categories | `by_user_id_and_sort_order` | カテゴリ設定画面、無効化済みカテゴリを含む履歴表示 |
 
 ## 10. Convex function設計
 
@@ -252,6 +253,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 ### 10.3 categories
 
 - `listActive()`
+- `listForSettings()`
 - `create(input)`
 - `update(id, input)`
 - `deactivate(id)`

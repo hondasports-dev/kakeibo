@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { gotoAuthenticated } from './helpers/auth'
-import { cleanupTestReceipts, resetTestWeekSession } from './helpers/cleanup'
+import { cleanupTestCategories, cleanupTestReceipts, resetTestWeekSession } from './helpers/cleanup'
 
 /**
  * レシート入力フォーム E2E テスト（QA Agent 担当）
@@ -75,6 +75,7 @@ test.describe('レシート保存フロー（Issue #13 受け入れ確認）', (
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
   test.afterEach(async () => {
     await cleanupTestReceipts()
+    await cleanupTestCategories()
   })
 
   test('シナリオ5: 必須項目を入力して保存すると店名・金額がクリアされる', async ({ page }) => {
@@ -244,6 +245,68 @@ test.describe('バリデーション（P1）', () => {
     // バリデーションエラーは MUI TextField の helperText（.MuiFormHelperText-root）として表示される
     // エラー発生時のみ DOM に追加されるため、toBeVisible で待機する
     await expect(page.locator('.MuiFormHelperText-root', { hasText: '金額は数字のみで入力してください' })).toBeVisible()
+  })
+})
+
+test.describe('[Issue #17] カテゴリ管理の反映確認（P1 / regression）', () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoAuthenticated(page)
+    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
+  })
+
+  test.afterEach(async () => {
+    await cleanupTestReceipts()
+  })
+
+  test('シナリオ16: 追加・編集・無効化が入力候補と既存表示に反映される', async ({ page }) => {
+    const stamp = Date.now()
+    const categoryName = `E2Eカテゴリ-${stamp}`
+    const updatedCategoryName = `${categoryName}-更新`
+    const shopName = `E2Eカテゴリ店舗-${stamp}`
+
+    await page.getByRole('button', { name: 'カテゴリ設定' }).click()
+    await expect(page.getByRole('heading', { name: 'カテゴリ設定' })).toBeVisible()
+
+    await page.getByLabel('新しいカテゴリ名').fill(categoryName)
+    await page.getByLabel('新しいカテゴリ色').fill('#2563eb')
+    await page.getByRole('button', { name: 'カテゴリを追加' }).click()
+    await expect(page.getByRole('listitem', { name: `カテゴリ ${categoryName}` })).toBeVisible()
+
+    await page.getByRole('button', { name: `${categoryName}を編集` }).click()
+    await page.getByLabel('カテゴリ名を編集').fill(updatedCategoryName)
+    await page.getByLabel('カテゴリ色を編集').fill('#0f766e')
+    await page.getByRole('button', { name: '変更を保存' }).click()
+    await expect(page.getByRole('listitem', { name: `カテゴリ ${updatedCategoryName}` })).toBeVisible()
+
+    await page.getByRole('button', { name: 'レシート入力' }).click()
+    const updatedCategoryOption = page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .filter({ hasText: updatedCategoryName })
+    await expect(updatedCategoryOption).toBeVisible()
+
+    await page.locator('input[name="shopName"]').fill(shopName)
+    await page.locator('input[name="amountYen"]').fill('3210')
+    await updatedCategoryOption.click()
+    await page.getByRole('button', { name: '保存して次へ' }).click()
+    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+
+    await page.getByRole('button', { name: 'カテゴリ設定' }).click()
+    await page.getByRole('button', { name: `${updatedCategoryName}を無効化` }).click()
+    await expect(
+      page
+        .getByRole('listitem', { name: `カテゴリ ${updatedCategoryName}` })
+        .getByText('無効', { exact: true }),
+    ).toBeVisible()
+
+    await page.getByRole('button', { name: 'レシート入力' }).click()
+    await expect(updatedCategoryOption).not.toBeVisible()
+
+    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
+    const weeklySummaryReceiptList = page.getByLabel('週次サマリーの支出一覧')
+    await expect(weeklySummaryReceiptList).toContainText(shopName, { timeout: 10_000 })
+    await expect(weeklySummaryReceiptList).toContainText(updatedCategoryName, {
+      timeout: 10_000,
+    })
   })
 })
 
