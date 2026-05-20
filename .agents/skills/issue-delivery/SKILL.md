@@ -30,30 +30,29 @@ triggers:
 - PR作成後の QA Agent と Reviewer は並列で実行してよい。
 - サブエージェントには、他のエージェントやメインエージェントの変更を戻さないよう明記する。
 
-## Codex custom subagent 運用
+## Codex subagent 指定（公式ドキュメント準拠）
 
-Codexでcustom subagentが利用できる環境では、`.codex/agents/` 配下のTOMLを優先する。
-`.agents/roles/*.md` は役割指示の正本として残し、custom subagentは起動時に対応する
-ロール指示書を読む。
+公式のsubagent仕様に合わせ、issue-delivery内での委譲指示は
+**「`<サブエージェント名>` サブエージェントを起動」** の形式に統一する。
 
-| フェーズ / 役割 | 優先するcustom subagent | 正本ロール指示書 | 権限境界 |
-|-----------------|--------------------------|------------------|----------|
-| Product Lead | メインエージェント | `.agents/roles/01-product-lead.md` | 要件判断のみ |
-| Tech Lead | メインエージェント | `.agents/roles/02-tech-lead.md` | 仕様確定のみ |
-| Code Explorer | `code_explorer` | `.agents/roles/02-tech-lead.md` | read-only、影響範囲調査のみ |
-| QA Agent | `qa_agent` | `.agents/roles/04-qa-agent.md` | read-only、E2E設計・結果確認 |
-| Reviewer | `reviewer` | `.agents/roles/05-reviewer.md` | read-only、コードレビュー |
-| Implementer | `implementer` | `.agents/roles/03-implementer.md` | 指定ファイルのみ編集可、commit/push/PR作成は禁止 |
-| Release Manager | メインエージェント | `.agents/roles/06-release-manager.md` | 最終確認・報告のみ |
+- 例: `qa_agent` サブエージェントを起動
+- 例: `reviewer` サブエージェントを起動
+- 例: `implementer` サブエージェントを起動
+
+運用ルール:
+
+- ロール指示の正本は引き続き `.agents/roles/*.md` とし、起動したサブエージェントに対応する
+  ロール指示書を読ませる。
+- 環境に存在しないサブエージェント名は起動しない。利用不可の場合のみ fallback を使う。
+- fallback の優先順位は `code_explorer -> explorer`、`implementer -> worker`、それ以外は
+  メインエージェント実行とする。
+- QA Agent / Reviewer の read-only 制約、Implementer の編集範囲制約、commit/push/PR作成禁止は
+  既存の権限ルールをそのまま適用する。
 
 fallback:
 
-- custom subagentが利用できない場合は、Codex built-inの `explorer`、`worker`、`default` を使い、
+- subagentが利用できない場合は、Codex built-inの `explorer`、`worker`、`default` を使い、
   依頼文で対応する `.agents/roles/*.md` を読むよう明示する。
-- `code_explorer` が使えない場合は `explorer` を使う。
-- `implementer` が使えない場合は `worker` を使う。ただし、担当ファイル、禁止操作、成果物を
-  親エージェントが明示する。
-- custom subagentもbuilt-in subagentも利用できない場合は、メインエージェントが同じ順序で処理する。
 
 権限ルール:
 
@@ -162,11 +161,12 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、E2E�
 
 ### 手順
 
-1. フェーズ0の要件サマリー、フェーズ1の仕様サマリー・テスト方針・E2E候補シナリオを読む。
-2. `docs/e2e-test-cases.md` を読み、既存シナリオでカバーできるものと新規追加が必要なものを分ける。
-3. 主要フロー、異常系、境界値、UI、API、データ保存、権限、エラー表示、回帰リスクの観点で抜けを確認する。
-4. E2Eで検証する項目、単体・統合テストで検証する項目、手動確認に回す項目を分類する。
-5. Secret値を要求・表示せず、必要な場合は「GitHub Actions Secrets に設定済みであること」だけを前提条件にする。
+1. `qa_agent` サブエージェントを起動する。
+2. フェーズ0の要件サマリー、フェーズ1の仕様サマリー・テスト方針・E2E候補シナリオを読む。
+3. `docs/e2e-test-cases.md` を読み、既存シナリオでカバーできるものと新規追加が必要なものを分ける。
+4. 主要フロー、異常系、境界値、UI、API、データ保存、権限、エラー表示、回帰リスクの観点で抜けを確認する。
+5. E2Eで検証する項目、単体・統合テストで検証する項目、手動確認に回す項目を分類する。
+6. Secret値を要求・表示せず、必要な場合は「GitHub Actions Secrets に設定済みであること」だけを前提条件にする。
 
 ### 成果物
 
@@ -200,21 +200,22 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、E2E�
 
 ### 手順
 
-1. `.agents/roles/03-implementer.md` のブランチ運用手順に従い、作業ブランチを作成する。
+1. `implementer` サブエージェントを起動する。
+2. `.agents/roles/03-implementer.md` のブランチ運用手順に従い、作業ブランチを作成する。
    - ブランチ名: `feature/issue-$ARGUMENTS-{短い説明}`
    - Codexで `implementer` subagentを使う場合も、ブランチ作成はメインエージェントが行う。
-2. `implementer` subagentへ委譲する場合は、担当ファイルまたはモジュール、編集してよい範囲、
+3. `implementer` subagentへ委譲する場合は、担当ファイルまたはモジュール、編集してよい範囲、
    実行してよい検証コマンド、禁止操作（branch作成、stage、commit、push、PR作成、deploy）を明示する。
-3. フェーズ1の実装タスクリストとフェーズ1.5のE2Eテスト設計レビュー結果をもとに、1タスクずつ次のTDDサイクルで進める。
+4. フェーズ1の実装タスクリストとフェーズ1.5のE2Eテスト設計レビュー結果をもとに、1タスクずつ次のTDDサイクルで進める。
    a. **Red**: 失敗するテストを先に書く。
    b. **Green**: テストが通る最小限の実装をする。
    c. **Refactor**: コードを整理する（テストが通ったままであること）。
-4. フェーズ1.5で新規E2Eシナリオが `required` の場合は、`e2e/` のテスト追加と `docs/e2e-test-cases.md` の更新を同じPRに含める。
-5. 全タスク完了後、メインエージェントが差分を確認し、以下をすべてローカルで通す。
+5. フェーズ1.5で新規E2Eシナリオが `required` の場合は、`e2e/` のテスト追加と `docs/e2e-test-cases.md` の更新を同じPRに含める。
+6. 全タスク完了後、メインエージェントが差分を確認し、以下をすべてローカルで通す。
    - `pnpm test --run`
    - `pnpm run lint`
    - `pnpm run build`
-6. メインエージェントがコミットして作業ブランチをpushし、PRを作成する。
+7. メインエージェントがコミットして作業ブランチをpushし、PRを作成する。
    - PRには Issue #$ARGUMENTS へのリンクを含める。
 
 ### 差し戻し時の動作
@@ -236,10 +237,11 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、E2E�
 
 ### 手順
 
-1. Codexでcustom subagentが利用できる場合は `reviewer` に read-only レビューを委譲する。
+1. `reviewer` サブエージェントを起動する。
+2. Codexでcustom subagentが利用できる場合は `reviewer` に read-only レビューを委譲する。
    利用できない場合は、`.agents/roles/05-reviewer.md` の判断基準に従い、PRの差分をレビューする。
-2. 重大度順に指摘をまとめ、GitHub PRの該当コード行にインラインコメントを投稿する。
-3. 判定を返す。
+3. 重大度順に指摘をまとめ、GitHub PRの該当コード行にインラインコメントを投稿する。
+4. 判定を返す。
 
 ### 判定と次のアクション
 
@@ -276,12 +278,13 @@ PRのpushをトリガーに自動で起動される。
 
 ### 手順
 
-1. Codexでcustom subagentが利用できる場合は `qa_agent` に read-only のE2E結果確認を委譲する。
+1. `qa_agent` サブエージェントを起動する。
+2. Codexでcustom subagentが利用できる場合は `qa_agent` に read-only のE2E結果確認を委譲する。
    利用できない場合は、メインエージェントが `.agents/roles/04-qa-agent.md` に従って確認する。
-2. GitHub MCP の `get_pull_request_checks` でPRのCheck状況を取得する。
-3. Check が `pending` / `queued` の場合は60秒待機して再確認する（最大20分）。
-4. Check が `success` の場合はフェーズ6へ進む。
-5. Check が `failure` の場合は、Artifactのログを取得して原因を分析する。
+3. GitHub MCP の `get_pull_request_checks` でPRのCheck状況を取得する。
+4. Check が `pending` / `queued` の場合は60秒待機して再確認する（最大20分）。
+5. Check が `success` の場合はフェーズ6へ進む。
+6. Check が `failure` の場合は、Artifactのログを取得して原因を分析する。
 
 ### 失敗時の原因分類と差し戻し先
 
