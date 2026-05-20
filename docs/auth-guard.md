@@ -91,13 +91,8 @@ function KakeiboApp() {
 
 ## 環境変数
 
-Convex dev deployment への `CLERK_JWT_ISSUER_DOMAIN` は CLI で設定します:
-
-```bash
-npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
-```
-
-詳細は `docs/environment-variables.md` を参照してください。
+`CLERK_JWT_ISSUER_DOMAIN` など Convex / Clerk 関連の環境変数の設定方法は
+`docs/environment-variables.md` を参照してください。
 
 ## 関連ファイル
 

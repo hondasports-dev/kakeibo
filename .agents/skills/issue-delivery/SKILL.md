@@ -215,6 +215,8 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、E2E�
    - `pnpm test --run`
    - `pnpm run lint`
    - `pnpm run build`
+   - `pnpm run e2e`（`.env.local` に E2E 用環境変数が設定済みの場合のみ。
+     未設定または実行失敗した場合は CI の E2E 結果に委ねてスキップしてよい）
 7. メインエージェントがコミットして作業ブランチをpushし、PRを作成する。
    - PRには Issue #$ARGUMENTS へのリンクを含める。
 

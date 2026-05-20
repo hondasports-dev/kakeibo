@@ -4,13 +4,7 @@
 
 ## 自動検証（CI）
 
-Pull Request ごとに GitHub Actions で自動確認する項目：
-
-```bash
-pnpm run lint      # 必須：ESLint（TypeScript/React hooks チェック）
-pnpm run build     # 必須：tsc -b + vite build（型エラー + ビルド成功）
-pnpm test --run    # 任意：vitest（現状5テスト、失敗してもブロックしない）
-```
+CI チェックの詳細は `docs/development-process.md`「CI とマージ条件」を参照してください。
 
 ## Clerk Restricted mode + Invitation 手動 QA
 

@@ -124,31 +124,18 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 `pnpm run test` は存在しますが、初期段階では必須にしません。テストスイートが安定し、
 意味のある品質担保として機能するようになってから必順チェックに昇格します。
 
-### 現状の検証コマンド結果（2026-05-15時点）
+### 現状の検証コマンド
 
-| コマンド | 結果 | 詳細 |
+| コマンド | CI 必須 | 詳細 |
 |---|---|---|
-| `pnpm run lint` | ✅ **PASS** | ESLintによるTypeScript/React hooksチェック。警告・エラーなし |
-| `pnpm run build` | ✅ **PASS** | tsc -b + vite build成功。チャンクサイズ警告あり（630KB） |
-| `pnpm test --run` | ✅ **PASS** | convex/users.test.tsの5テスト全合格 |
+| `pnpm run lint` | ✅ 必須 | ESLintによるTypeScript/React hooksチェック |
+| `pnpm run build` | ✅ 必須 | tsc -b + vite build。チャンクサイズ警告あり（許容） |
+| `pnpm test --run` | 任意 | vitest（92テスト）。失敗してもブロックしない |
+| `pnpm run e2e` | ✅ 必須（CI） | Playwright Chromium。Vercel Preview に対して自動実行 |
 
 **注意事項:**
-- `build`のチャンクサイズ警告はMaterial-UI全体がバンドルされているため。exit codeは0のため現状は許容
-- `test`は現状convex/users.tsの純粋関数のみを対象。フロントエンドのテストは未整備
-
-### `pnpm test` を必須にしない理由
-
-現時点でテストを必須チェックに含めない判断理由：
-
-1. **テスト対象が限定**: convex/users.tsの純粋関数のみ（5テスト）
-2. **フロントエンド未整備**: UIコンポーネントのユニットテストなし
-3. **結合テスト未整備**: Convex関数の結合テストなし
-4. **実用性**: 現状でもロジック変更の検出に十分価値あり
-
-**必須化の条件（将来見直し）:**
-- テストが15件以上になった
-- フロントエンドに意味のあるユニットテストが追加された
-- フレーキーなテストがない状態が2週間以上続いた
+- `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
+- `pnpm test` は現状 convex/ の純粋関数を対象。フロントエンドのユニットテストは未整備
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
 されている場合は、Issue を作成またはリンクし、理由を記録してから判断します。
@@ -162,34 +149,51 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 - force push を禁止する。
 - 保護対象の `main` ブランチ削除を禁止する。
 
-## E2E Preview 確認方針
+## E2E 確認方針
 
-E2E 基盤はすぐには導入しませんが、将来的には Pull Request ごとの Vercel Preview
-に対して GitHub Actions で Playwright などの E2E を実行します。
+Pull Request ごとに Vercel Preview に対して GitHub Actions で Playwright E2E を実行します。
+実装は `.github/workflows/e2e.yml` を参照してください。
 
-基本方針:
+### 基本方針
 
 - Vercel Git Integration が作成した Preview Deployment の URL を対象にします。
-- E2E は GitHub Actions 上で実行し、実行フェーズでは Codex の QA Agent は workflow の起動、
-  結果確認、失敗内容の要約のみを担当します。
+- E2E は GitHub Actions 上で実行し、QA Agent は結果確認と失敗内容の要約のみを担当します。
 - QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
 - Vercel Authentication 付き Preview へのアクセスには、Vercel の
   Protection Bypass for Automation を使います。
 - `VERCEL_AUTOMATION_BYPASS_SECRET` は GitHub Actions Secrets にのみ保存し、ログ、
   Pull Request コメント、チャット、ローカルファイルには出力しません。
-- Vercel MCP の一時共有 URL は、Codex での一時的な手動確認には利用できますが、
-  継続的な CI/E2E の認証手段にはしません。
 - fork など信頼できない Pull Request では、Secrets を渡す E2E は実行しません。
 - Playwright の trace、HAR、スクリーンショット、artifact には認証情報や cookie が
   含まれる可能性があるため、保存期間を短くし、必要最小限だけ保存します。
 
-初期導入時の想定:
+### ローカル E2E 実行
 
-- GitHub-hosted runner は `ubuntu-latest` を使います。
-- 最初は Chromium の smoke test から始めます。
-- 失敗時のみ trace または screenshot を保存します。
-- Artifact の retention は 1〜3 日程度にします。
-- 無料枠を消費するため、重い E2E は必須チェック化する前に実行時間を確認します。
+`.env.local` に E2E 用環境変数が設定済みの場合、ローカルでも E2E を実行できます。
+E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を自動起動します。
+
+```bash
+pnpm run e2e
+```
+
+E2E 用環境変数が未設定の場合はスキップしてよく、その場合は CI の E2E 結果に委ねます。
+
+### E2E テスト設計基準（issue-delivery QA Agent 向け）
+
+- Product Lead の完了条件と Tech Lead のテスト方針を照合する。
+- 既存テストでカバーできる場合は、新規 E2E を増やさず `e2e/` の該当ファイルを参照する。
+- 新規シナリオが必要な場合は、優先度（P0/P1/P2）、カテゴリ、Given / When / Then、テストデータ・cleanup 要否を決める。
+- E2E は、ユーザー価値に直結する主要導線、認証・権限、データ保存、重大な回帰リスクを優先する。
+- 細かいバリデーション分岐や境界値の大半は、単体テストまたは統合テストで確認する。
+- QA Agent に Secret 値を渡さない。必要な場合は GitHub Actions Secrets に設定済みであることだけを前提条件にする。
+
+### 実行環境
+
+- ブラウザ: Chromium
+- CI: GitHub Actions（ubuntu-latest）、`.github/workflows/e2e.yml`
+- ローカル: `http://localhost:5173`（`pnpm run dev` 自動起動）
+- Vercel Preview: `deployment_status` イベントで自動トリガー
+- 失敗時のみ trace / screenshot を保存（retention: 1 日）
 
 ## Codex 開発時の Clerk 認証
 
@@ -268,10 +272,10 @@ pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN 'https://xxxx.clerk.accounts.de
 pnpm run convex:dev
 ```
 
-将来 Playwright を導入する場合は、`@clerk/testing` で
-`E2E_CLERK_USER_EMAIL` のユーザーとしてログインし、`storageState` を
-`playwright/.clerk/user.json` に保存して再利用します。これにより、毎回 Clerk UI を
+Playwright E2E では `@clerk/testing` の `setupClerkTestingToken` を使い、
+`E2E_CLERK_USER_EMAIL` のユーザーとして認証します。これにより、毎回 Clerk UI を
 操作せずに、Clerk と Convex の実際の認証経路を通して確認できます。
+詳細は `e2e/helpers/` および `e2e/global-setup.ts` を参照してください。
 
 ## Definition of Done
 

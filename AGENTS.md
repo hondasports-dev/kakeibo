@@ -54,7 +54,7 @@ Convex agent skills for common tasks can be installed by running
 - 外部サービス・ツールセットアップに関わる作業:
   - `docs/service-tooling-setup.md`
 - E2E テストに関わる作業:
-  - `docs/e2e-test-cases.md`
+  - `docs/development-process.md`（「E2E 確認方針」セクション）
   - `docs/qa-checklist.md`
 - Convex に関わる作業:
   - `convex/_generated/ai/guidelines.md`
