@@ -116,13 +116,11 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 
 ## CI とマージ条件
 
-初期の必須チェックは次の2つです。
+必須チェックは次の3つです。
 
 - `pnpm run lint`
 - `pnpm run build`
-
-`pnpm run test` は存在しますが、初期段階では必須にしません。テストスイートが安定し、
-意味のある品質担保として機能するようになってから必順チェックに昇格します。
+- `pnpm test --run`
 
 ### 現状の検証コマンド
 
@@ -130,12 +128,12 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 |---|---|---|
 | `pnpm run lint` | ✅ 必須 | ESLintによるTypeScript/React hooksチェック |
 | `pnpm run build` | ✅ 必須 | tsc -b + vite build。チャンクサイズ警告あり（許容） |
-| `pnpm test --run` | 任意 | vitest（92テスト）。失敗してもブロックしない |
+| `pnpm test --run` | ✅ 必須 | vitest（92テスト）。convex/ の純粋関数と src/validation/ を対象 |
 | `pnpm run e2e` | ✅ 必須（CI） | Playwright Chromium。Vercel Preview に対して自動実行 |
 
 **注意事項:**
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
-- `pnpm test` は現状 convex/ の純粋関数を対象。フロントエンドのユニットテストは未整備
+- フロントエンドのコンポーネントテスト（Testing Library等）は将来の拡張とする
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
 されている場合は、Issue を作成またはリンクし、理由を記録してから判断します。
