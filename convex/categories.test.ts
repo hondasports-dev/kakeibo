@@ -3,8 +3,12 @@ import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
+  createCategoryHandler,
+  deactivateCategoryHandler,
+  listForSettingsHandler,
   seedDefaultCategoriesHandler,
   listActiveHandler,
+  updateCategoryHandler,
 } from "./categories";
 
 // ---------------------------------------------------------------------------
@@ -44,16 +48,27 @@ function createMutationCtx(
   existingDocs: CategoryDoc[] = [],
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-doc-id");
+  const patchMock = vi.fn().mockResolvedValue(undefined);
+  const getMock = vi.fn().mockImplementation(async (id: string) => {
+    return existingDocs.find((doc) => doc._id === id) ?? null;
+  });
 
   const withIndexMock = vi.fn().mockImplementation(
     (_indexName: string, builder: (q: unknown) => unknown) => {
       // builder: (q) => q.eq("userId", ...).eq("isActive", ...).eq("sortOrder", ...)
       // 各 eq の呼び出しで sortOrder の値をキャプチャし、unique() に紐付ける
+      let capturedUserId: string | null = null;
+      let capturedIsActive: boolean | null = null;
       let capturedSortOrder: number | null = null;
 
       const q = {
         eq: vi.fn().mockImplementation((_field: string, _value: unknown) => {
-          // 3番目の eq が sortOrder を指定する
+          if (_field === "userId") {
+            capturedUserId = _value as string;
+          }
+          if (_field === "isActive") {
+            capturedIsActive = _value as boolean;
+          }
           if (_field === "sortOrder") {
             capturedSortOrder = _value as number;
           }
@@ -65,16 +80,36 @@ function createMutationCtx(
       builder(q);
 
       // unique() は capturedSortOrder に対応するドキュメントを返す
-      const doc =
-        capturedSortOrder !== null
-          ? (existingDocs.find(
-              (d) => d.sortOrder === capturedSortOrder && d.isActive === true,
-            ) ?? null)
-          : null;
+      const docs = existingDocs.filter((d) => {
+        if (capturedUserId !== null && d.userId !== capturedUserId) return false;
+        if (capturedIsActive !== null && d.isActive !== capturedIsActive) return false;
+        if (capturedSortOrder !== null && d.sortOrder !== capturedSortOrder) return false;
+        return true;
+      });
 
-      return {
-        unique: vi.fn().mockResolvedValue(doc),
+      const chain: Record<string, unknown> = {
+        collect: vi.fn().mockResolvedValue(docs),
+        first: vi.fn().mockResolvedValue(docs[0] ?? null),
+        take: vi.fn().mockImplementation(async (limit?: number) => {
+          return typeof limit === "number" ? docs.slice(0, limit) : docs;
+        }),
+        unique: vi.fn().mockResolvedValue(docs[0] ?? null),
       };
+      chain.order = vi.fn().mockImplementation((direction?: "asc" | "desc") => {
+        const sortedDocs = [...docs].sort((a, b) => a.sortOrder - b.sortOrder);
+        const orderedDocs = direction === "desc" ? sortedDocs.reverse() : sortedDocs;
+        return {
+          collect: vi.fn().mockResolvedValue(orderedDocs),
+          first: vi.fn().mockResolvedValue(orderedDocs[0] ?? null),
+          take: vi.fn().mockImplementation(async (limit?: number) => {
+            return typeof limit === "number"
+              ? orderedDocs.slice(0, limit)
+              : orderedDocs;
+          }),
+          unique: vi.fn().mockResolvedValue(orderedDocs[0] ?? null),
+        };
+      });
+      return chain;
     },
   );
 
@@ -87,8 +122,10 @@ function createMutationCtx(
         .mockResolvedValue(identity),
     },
     db: {
+      get: getMock,
       query: queryMock,
       insert: insertMock,
+      patch: patchMock,
     },
     // TODO: MutationCtx の完全な型を満たす型安全なモックファクトリーへの置き換えを検討する
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +140,8 @@ function createQueryCtx(
   docs: CategoryDoc[] = [],
 ): QueryCtx {
   const collectMock = vi.fn().mockResolvedValue(docs);
-  const orderMock = vi.fn().mockReturnValue({ collect: collectMock });
+  const takeMock = vi.fn().mockResolvedValue(docs);
+  const orderMock = vi.fn().mockReturnValue({ collect: collectMock, take: takeMock });
 
   const withIndexMock = vi.fn().mockImplementation(
     (_indexName: string, builder: (q: unknown) => unknown) => {
@@ -111,7 +149,7 @@ function createQueryCtx(
         eq: vi.fn().mockImplementation(() => q), // self-referential chain
       };
       builder(q);
-      return { order: orderMock };
+      return { order: orderMock, take: takeMock };
     },
   );
 
@@ -245,6 +283,33 @@ describe("seedDefaultCategories", () => {
       }),
     );
   });
+
+  it("無効化済みカテゴリがある場合はデフォルトカテゴリを再作成しない", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-deactivated-default",
+    });
+
+    const existingDocs: CategoryDoc[] = [
+      { _id: "id-1", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "食費",   color: "#FF6B6B", isActive: false, sortOrder: 1, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-2", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "日用品", color: "#4ECDC4", isActive: true, sortOrder: 2, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-3", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "外食",   color: "#FFE66D", isActive: true, sortOrder: 3, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-4", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "交通",   color: "#95E1D3", isActive: true, sortOrder: 4, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-5", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "医療",   color: "#F38181", isActive: true, sortOrder: 5, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-6", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "娯楽",   color: "#AA96DA", isActive: true, sortOrder: 6, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-7", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "衣服",   color: "#FCBAD3", isActive: true, sortOrder: 7, createdAt: 1000, updatedAt: 1000 },
+      { _id: "id-8", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "その他", color: "#A8DADC", isActive: true, sortOrder: 8, createdAt: 1000, updatedAt: 1000 },
+    ];
+
+    const ctx = createMutationCtx(identity, existingDocs);
+
+    const result = await seedDefaultCategoriesHandler(ctx);
+
+    expect(result).toEqual({ created: 0, skipped: 8 });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -275,5 +340,169 @@ describe("listActive", () => {
     const result = await listActiveHandler(ctx);
 
     expect(result).toEqual(docs);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// listForSettings / create / update / deactivate テスト
+// ---------------------------------------------------------------------------
+
+describe("category management", () => {
+  const USER_ID = "https://issuer.example|category-user";
+  const OTHER_USER_ID = "https://issuer.example|other-user";
+
+  const activeCategory: CategoryDoc = {
+    _id: "cat-active",
+    _creationTime: 1000,
+    userId: USER_ID,
+    name: "食費",
+    color: "#FF6B6B",
+    isActive: true,
+    sortOrder: 1,
+    createdAt: 1000,
+    updatedAt: 1000,
+  };
+
+  const inactiveCategory: CategoryDoc = {
+    ...activeCategory,
+    _id: "cat-inactive",
+    name: "旧カテゴリ",
+    color: "#64748B",
+    isActive: false,
+    sortOrder: 2,
+  };
+
+  it("listForSettings は inactive を含むカテゴリ一覧を返す", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const docs = [activeCategory, inactiveCategory];
+    const ctx = createQueryCtx(identity, docs);
+
+    const result = await listForSettingsHandler(ctx);
+
+    expect(result).toEqual(docs);
+  });
+
+  it("createCategory は既存最大 sortOrder の次でカテゴリを作成する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, [activeCategory, inactiveCategory]);
+
+    await createCategoryHandler(ctx, {
+      name: "ペット用品",
+      color: "#2563EB",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "categories",
+      expect.objectContaining({
+        userId: USER_ID,
+        name: "ペット用品",
+        color: "#2563EB",
+        isActive: true,
+        sortOrder: 3,
+      }),
+    );
+  });
+
+  it("createCategory はカテゴリが100件以上ある場合は拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const existingDocs: CategoryDoc[] = Array.from({ length: 100 }, (_, index) => ({
+      ...activeCategory,
+      _id: `cat-${index + 1}`,
+      name: `カテゴリ${index + 1}`,
+      sortOrder: index + 1,
+    }));
+    const ctx = createMutationCtx(identity, existingDocs);
+
+    await expect(
+      createCategoryHandler(ctx, {
+        name: "上限超過",
+        color: "#2563EB",
+      }),
+    ).rejects.toMatchObject({
+      data: "Category limit reached",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
+  it("updateCategory は所有カテゴリの名前と色を更新する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, [activeCategory]);
+
+    await updateCategoryHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-active" as any,
+      name: "食料品",
+      color: "#0F766E",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "cat-active",
+      expect.objectContaining({
+        name: "食料品",
+        color: "#0F766E",
+        updatedAt: expect.any(Number),
+      }),
+    );
+  });
+
+  it("deactivateCategory は所有カテゴリを無効化する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, [activeCategory]);
+
+    await deactivateCategoryHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-active" as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "cat-active",
+      expect.objectContaining({
+        isActive: false,
+        updatedAt: expect.any(Number),
+      }),
+    );
+  });
+
+  it("他ユーザーのカテゴリ更新は拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, [
+      { ...activeCategory, _id: "cat-other", userId: OTHER_USER_ID },
+    ]);
+
+    await expect(
+      updateCategoryHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-other" as any,
+        name: "変更不可",
+        color: "#0F766E",
+      }),
+    ).rejects.toMatchObject({
+      data: "Category does not belong to the current user",
+    });
+  });
+
+  it("他ユーザーのカテゴリ無効化は拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, [
+      { ...activeCategory, _id: "cat-other", userId: OTHER_USER_ID },
+    ]);
+
+    await expect(
+      deactivateCategoryHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-other" as any,
+      }),
+    ).rejects.toMatchObject({
+      data: "Category does not belong to the current user",
+    });
   });
 });

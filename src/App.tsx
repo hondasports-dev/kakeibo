@@ -23,6 +23,7 @@ import {
 import { useConvexAuth, useMutation, useQuery } from 'convex/react'
 import { api } from '../convex/_generated/api'
 import { useInitializeUser } from './hooks/useInitializeUser'
+import { CategorySettingsPanel } from './components/CategorySettingsPanel'
 import { ReceiptForm } from './components/ReceiptForm'
 import { ReviewMemoPanel } from './components/ReviewMemoPanel'
 import { WeekStatusPanel } from './components/WeekStatusPanel'
@@ -354,6 +355,7 @@ function KakeiboApp() {
   )
 
   const [showSummary, setShowSummary] = useState(false)
+  const [activeView, setActiveView] = useState<'input' | 'categories'>('input')
 
   const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0)
   const count = receipts.length
@@ -427,6 +429,22 @@ function KakeiboApp() {
               }}
             >
               <Button
+                color={activeView === 'input' ? 'primary' : 'secondary'}
+                size="large"
+                variant={activeView === 'input' ? 'contained' : 'outlined'}
+                onClick={() => setActiveView('input')}
+              >
+                レシート入力
+              </Button>
+              <Button
+                color={activeView === 'categories' ? 'primary' : 'secondary'}
+                size="large"
+                variant={activeView === 'categories' ? 'contained' : 'outlined'}
+                onClick={() => setActiveView('categories')}
+              >
+                カテゴリ設定
+              </Button>
+              <Button
                 aria-label={showSummary ? 'サマリーを閉じる' : '週次サマリーを見る'}
                 size="large"
                 variant={showSummary ? 'outlined' : 'contained'}
@@ -494,25 +512,29 @@ function KakeiboApp() {
             />
           </Collapse>
 
-          <Box className="workbench-grid">
-            <ReceiptForm
-              weekStartDate={weekStartDate}
-              weekEndDate={weekEndDate}
-              categories={categories}
-            />
+          {activeView === 'categories' ? (
+            <CategorySettingsPanel />
+          ) : (
+            <Box className="workbench-grid">
+              <ReceiptForm
+                weekStartDate={weekStartDate}
+                weekEndDate={weekEndDate}
+                categories={categories}
+              />
 
-            <Stack spacing={2.5}>
-              <ReviewMemoPanel
-                weekSession={weekSession}
-                onSessionUpdated={setWeekSession}
-                onShowSummary={() => setShowSummary(true)}
-              />
-              <WeekStatusPanel
-                receipts={receipts}
-                budgetAmountYen={weekSession.budgetAmountYen}
-              />
-            </Stack>
-          </Box>
+              <Stack spacing={2.5}>
+                <ReviewMemoPanel
+                  weekSession={weekSession}
+                  onSessionUpdated={setWeekSession}
+                  onShowSummary={() => setShowSummary(true)}
+                />
+                <WeekStatusPanel
+                  receipts={receipts}
+                  budgetAmountYen={weekSession.budgetAmountYen}
+                />
+              </Stack>
+            </Box>
+          )}
         </Stack>
       </Box>
     </Box>

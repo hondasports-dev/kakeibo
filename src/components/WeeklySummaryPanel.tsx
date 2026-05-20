@@ -243,7 +243,7 @@ export function WeeklySummaryPanel({
               </Typography>
             </Stack>
 
-            <Box className="receipt-list">
+            <Box aria-label="週次サマリーの支出一覧" className="receipt-list">
               {isLoading ? (
                 <>
                   <Skeleton variant="text" height={40} />

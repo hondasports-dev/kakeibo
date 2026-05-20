@@ -78,6 +78,11 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   const createReceipt = useMutation(api.receipts.createReceipt)
 
   const weekDays = generateWeekDays(weekStartDate, weekEndDate)
+  const firstCategoryId = categories[0]?._id ?? ''
+  const selectedCategoryId =
+    formValues.categoryId !== '' && categories.some((category) => category._id === formValues.categoryId)
+      ? formValues.categoryId
+      : firstCategoryId
 
   const handleFieldChange = (field: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [field]: value }))
@@ -88,7 +93,10 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   }
 
   const submitForm = async () => {
-    const validation = validateReceiptForm(formValues)
+    const validation = validateReceiptForm({
+      ...formValues,
+      categoryId: selectedCategoryId,
+    })
     if (!validation.success) {
       setErrors(validation.errors)
       return
@@ -268,7 +276,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               )}
               <Box className="category-grid" aria-label="カテゴリ候補" role="listbox">
                 {categories.map((category) => {
-                  const isSelected = formValues.categoryId === category._id
+                  const isSelected = selectedCategoryId === category._id
                   return (
                     <Box
                       aria-label={`${category.name}${isSelected ? ' 選択中' : ''}`}

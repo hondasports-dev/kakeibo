@@ -57,5 +57,5 @@ export default defineSchema({
     "userId",
     "isActive",
     "sortOrder",
-  ]),
+  ]).index("by_user_id_and_sort_order", ["userId", "sortOrder"]),
 });
