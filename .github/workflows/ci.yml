@@ -29,3 +29,6 @@ jobs:
       - name: Build
         # VITE_* 環境変数はランタイムチェックのみで、vite build 自体は未設定でも通る
         run: pnpm run build
+
+      - name: Test
+        run: pnpm test --run
