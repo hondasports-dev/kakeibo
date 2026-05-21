@@ -27,7 +27,6 @@ pnpm run dev -- --host 127.0.0.1
 | 開発プロセス、PR、CI、レビュー | `docs/development-process.md` |
 | 認証ガード設計 | `docs/auth-guard.md` |
 | 環境変数一覧 | `docs/environment-variables.md` |
-| E2Eテストケース | `docs/e2e-test-cases.md` |
 | QAチェックリスト | `docs/qa-checklist.md` |
 | エージェント運用マニュアル | `OPERATING_MANUAL.md` |
 | 仮想開発会社の構成 | `COMPANY.md` |

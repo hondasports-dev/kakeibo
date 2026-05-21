@@ -129,7 +129,7 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 | `pnpm run lint` | ✅ 必須 | ESLintによるTypeScript/React hooksチェック |
 | `pnpm run build` | ✅ 必須 | tsc -b + vite build。チャンクサイズ警告あり（許容） |
 | `pnpm test --run` | ✅ 必須 | vitest（92テスト）。convex/ の純粋関数と src/validation/ を対象 |
-| `pnpm run e2e` | ✅ 必須（CI） | Playwright Chromium。Vercel Preview に対して自動実行 |
+| `pnpm run e2e:smoke --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
 
 **注意事項:**
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
@@ -149,29 +149,31 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 
 ## E2E 確認方針
 
-Pull Request ごとに Vercel Preview に対して GitHub Actions で Playwright E2E を実行します。
+Pull Request ごとに Vercel Preview に対して GitHub Actions で Playwright smoke E2E を実行します。
 実装は `.github/workflows/e2e.yml` を参照してください。
 
 ### 基本方針
 
 - Vercel Git Integration が作成した Preview Deployment の URL を対象にします。
-- E2E は GitHub Actions 上で実行し、QA Agent は結果確認と失敗内容の要約のみを担当します。
+- smoke E2E は GitHub Actions 上で実行し、QA Agent は結果確認と失敗内容の要約のみを担当します。
 - QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
 - Vercel Authentication 付き Preview へのアクセスには、Vercel の
   Protection Bypass for Automation を使います。
 - `VERCEL_AUTOMATION_BYPASS_SECRET` は GitHub Actions Secrets にのみ保存し、ログ、
   Pull Request コメント、チャット、ローカルファイルには出力しません。
 - fork など信頼できない Pull Request では、Secrets を渡す E2E は実行しません。
+- workflow は deployment の発生元が同一リポジトリの PR または branch であることを確認し、
+  判定できない場合は Secrets 付き E2E を実行しません。
 - Playwright の trace、HAR、スクリーンショット、artifact には認証情報や cookie が
   含まれる可能性があるため、保存期間を短くし、必要最小限だけ保存します。
 
 ### ローカル E2E 実行
 
-`.env.local` に E2E 用環境変数が設定済みの場合、ローカルでも E2E を実行できます。
+`.env.local` に E2E 用環境変数が設定済みの場合、ローカルでも smoke E2E を実行できます。
 E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を自動起動します。
 
 ```bash
-pnpm run e2e
+pnpm run e2e:smoke --project=chromium
 ```
 
 E2E 用環境変数が未設定の場合はスキップしてよく、その場合は CI の E2E 結果に委ねます。
@@ -190,7 +192,7 @@ E2E 用環境変数が未設定の場合はスキップしてよく、その場�
 - ブラウザ: Chromium
 - CI: GitHub Actions（ubuntu-latest）、`.github/workflows/e2e.yml`
 - ローカル: `http://localhost:5173`（`pnpm run dev` 自動起動）
-- Vercel Preview: `deployment_status` イベントで自動トリガー
+- Vercel Preview: `deployment_status` イベントで smoke E2E を自動トリガー
 - 失敗時のみ trace / screenshot を保存（retention: 1 日）
 
 ## Codex 開発時の Clerk 認証
