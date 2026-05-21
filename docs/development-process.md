@@ -15,9 +15,27 @@
 ## ブランチ運用
 
 - `main` は保護対象のデフォルトブランチとする。
-- 作業ブランチは最新の `main` から作成する。
+- 作業ブランチは、ローカルの `main` を最新化してから `git worktree` で作成する。
 - `main` へ直接 push しない。
 - ブランチ名は読みやすければよく、厳密な命名規則は設けない。
+
+作業開始時は、通常の checkout で `main` を最新化します。
+
+```bash
+git checkout main
+git pull
+```
+
+その後、作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
+作業ごとのディレクトリを分けます。
+
+```bash
+git worktree add ../kakeibo-worktrees/<branch-name> -b <branch-name>
+cd ../kakeibo-worktrees/<branch-name>
+```
+
+`git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
+リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
 
 推奨例:
 
@@ -99,6 +117,10 @@ Pull Request は短時間でレビューできる大きさに保ちます。目�
 
 レビューコメントでは、懸念の理由を書きます。可能であれば、具体的な代替案も
 提示します。
+
+Pull Request に付いたレビュー指摘は、マージ前にすべて対応します。対応とは、
+指摘内容を反映して修正すること、または修正しない理由を明記して reviewer と合意することを
+指します。未対応の指摘や未解決の conversation が残っている状態ではマージしません。
 
 ## CODEOWNERS
 
