@@ -43,7 +43,7 @@ function getCurrentWeekStartDate(): string {
 }
 
 test.describe('メイン画面の表示確認', () => {
-  test('シナリオ2: ログイン済みでアクセスするとメイン画面が表示される', async ({ page }) => {
+  test('@smoke シナリオ2: ログイン済みでアクセスするとメイン画面が表示される', async ({ page }) => {
     await gotoAuthenticated(page)
 
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
@@ -55,7 +55,7 @@ test.describe('メイン画面の表示確認', () => {
     await expect(page.getByRole('heading', { name: 'レシートを追加' })).toBeVisible()
   })
 
-  test('シナリオ3: ページリロードしてもログイン状態が維持される', async ({ page }) => {
+  test('@smoke シナリオ3: ページリロードしてもログイン状態が維持される', async ({ page }) => {
     await gotoAuthenticated(page)
     await expect(page.locator('text=今週のレシート入力')).toBeVisible()
 
@@ -78,7 +78,7 @@ test.describe('レシート保存フロー（Issue #13 受け入れ確認）', (
     await cleanupTestCategories()
   })
 
-  test('シナリオ5: 必須項目を入力して保存すると店名・金額がクリアされる', async ({ page }) => {
+  test('@smoke シナリオ5: 必須項目を入力して保存すると店名・金額がクリアされる', async ({ page }) => {
     const shopNameInput = page.locator('input[name="shopName"]')
     const amountInput = page.locator('input[name="amountYen"]')
 
@@ -320,7 +320,7 @@ test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）'
     await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
   })
 
-  test('[Issue #14] 入力状況パネルの各セクションが表示される', async ({ page }) => {
+  test('@smoke [Issue #14] 入力状況パネルの各セクションが表示される', async ({ page }) => {
     // サマリーグリッド（上段3カード）
     await expect(page.locator('text=入力済み')).toBeVisible()
     await expect(page.locator('text=今週の支出')).toBeVisible()
@@ -482,11 +482,11 @@ test.describe('週次サマリーパネル（Issue #15 受け入れ確認）', (
     await cleanupTestReceipts()
   })
 
-  test('[Issue #15] 週次サマリーを見るボタンが表示される (P0 / smoke)', async ({ page }) => {
+  test('@smoke [Issue #15] 週次サマリーを見るボタンが表示される (P0 / smoke)', async ({ page }) => {
     await expect(page.getByRole('button', { name: '週次サマリーを見る' })).toBeVisible()
   })
 
-  test('[Issue #15] ボタンをクリックすると週次サマリーパネルが表示される (P0 / smoke)', async ({ page }) => {
+  test('@smoke [Issue #15] ボタンをクリックすると週次サマリーパネルが表示される (P0 / smoke)', async ({ page }) => {
     await page.getByRole('button', { name: '週次サマリーを見る' }).click()
 
     await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()

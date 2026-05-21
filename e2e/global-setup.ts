@@ -13,7 +13,7 @@ import { test as setup } from '@playwright/test'
  *   CLERK_PUBLISHABLE_KEY=pk_test_...  ← VITE_CLERK_PUBLISHABLE_KEY と同じ値
  *   CLERK_SECRET_KEY=sk_test_...
  *
- * 詳細: docs/e2e-test-cases.md、docs/development-process.md「Codex 開発時の Clerk 認証」
+ * 詳細: docs/development-process.md「Codex 開発時の Clerk 認証」
  */
 
 // Setup は serial で実行（並列実行による競合を防ぐ）
