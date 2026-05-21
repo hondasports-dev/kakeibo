@@ -73,6 +73,20 @@ Issue には次の内容を書きます。
 runtime 依存関係の更新では、Issue が不要な場合でも Pull Request に確認内容を
 記載します。
 
+### Issue の要件確認（Product Lead 3エージェント並列評価）
+
+`issue-delivery` Skill を使って Issue を処理する場合、フェーズ0（Product Lead 要件確認）では
+**3人の Product Lead エージェントを並列で起動**して要件を評価します。
+
+| エージェント | 担当観点 |
+|---|---|
+| PL-A | ユーザー価値・解く課題・ペルソナ |
+| PL-B | MVPスコープ・フィーチャークリープ検出 |
+| PL-C | 完了条件の検証可能性・受け入れ基準の粒度 |
+
+3エージェントの評価を統合して `approved` / `needs_discussion` の最終判定を出します。
+詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
+
 ## Pull Request 運用
 
 `main` への変更は、必ず Pull Request を経由します。
