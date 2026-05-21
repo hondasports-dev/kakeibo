@@ -164,12 +164,12 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 |---|---|---|
 | `pnpm run lint` | ✅ 必須 | ESLintによるTypeScript/React hooksチェック |
 | `pnpm run build` | ✅ 必須 | tsc -b + vite build。チャンクサイズ警告あり（許容） |
-| `pnpm test --run` | ✅ 必須 | vitest（92テスト）。convex/ の純粋関数と src/validation/ を対象 |
+| `pnpm test --run` | ✅ 必須 | vitest。convex/ の純粋関数と src/validation/ を対象 |
 | `pnpm run e2e:smoke --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
 
 **注意事項:**
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
-- フロントエンドのコンポーネントテスト（Testing Library等）は将来の拡張とする
+- フロントエンドのコンポーネントテスト（Testing Library等）は M2 以降に別 Issue で対応予定
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
 されている場合は、Issue を作成またはリンクし、理由を記録してから判断します。
@@ -391,7 +391,6 @@ label は最小構成から始めます。
 
 プロセスを一定期間運用した後、次の項目を見直します。
 
-- `pnpm run test` を必須 CI にする。
 - CODEOWNERS の範囲を `convex/` と `.github/` 以外にも広げる。
 - 計画管理に GitHub Projects を導入する。
 - coverage 閾値を設定する。
