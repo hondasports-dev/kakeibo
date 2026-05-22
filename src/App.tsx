@@ -347,7 +347,8 @@ function KakeiboApp() {
       );
 
       if (pathWeekStartDate === null) {
-        setSelectedSummaryWeekStartDate((current) => current ?? weekSession.weekStartDate);
+        setSelectedSummaryWeekStartDate(weekSession.weekStartDate);
+        setShowSummary(false);
         return;
       }
 
@@ -605,7 +606,7 @@ function KakeiboApp() {
                 <ReviewMemoPanel
                   weekSession={weekSession}
                   onSessionUpdated={setWeekSession}
-                  onShowSummary={() => setShowSummary(true)}
+                  onShowSummary={() => navigateToSummaryWeek(weekStartDate)}
                 />
                 <WeekStatusPanel
                   receipts={receipts}

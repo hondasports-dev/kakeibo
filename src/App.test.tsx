@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "./test/render";
 import App from "./App";
@@ -201,6 +202,50 @@ describe("App weekly summary navigation", () => {
     // Then: 今週のURLへ置き換えられる
     await waitFor(() => {
       expect(window.location.pathname).toBe("/weeks/2026-05-18");
+    });
+  });
+
+  it("週次サマリーURLからルートへ戻るとサマリーを閉じる", async () => {
+    // Given: 週次サマリーURLで表示している
+    setupSignedInApp();
+    window.history.pushState({}, "", "/weeks/2026-05-18");
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeInTheDocument();
+    });
+
+    // When: ブラウザBack相当でルートURLへ戻る
+    window.history.pushState({}, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+
+    // Then: URLに合わせて週次サマリーが閉じる
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("heading", { name: "週次サマリー", level: 2 }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("振り返りパネルからサマリーを開くと今週の週次サマリーURLへ遷移する", async () => {
+    // Given: 過去週サマリーを閉じた後の入力画面を表示している
+    const user = userEvent.setup();
+    setupSignedInApp();
+    window.history.pushState({}, "", "/weeks/2026-05-11");
+    renderWithProviders(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "サマリーを閉じる" })).toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: "サマリーを閉じる" }));
+
+    // When: 今週の振り返りパネルからセッションを完了する
+    await user.click(screen.getByRole("button", { name: "セッションを完了" }));
+
+    // Then: 今週の週次サマリーURLへ遷移してサマリーを表示する
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/weeks/2026-05-18");
+      expect(screen.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeInTheDocument();
     });
   });
 });
