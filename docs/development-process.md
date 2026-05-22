@@ -87,6 +87,29 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 3エージェントの評価を統合して `approved` / `needs_discussion` の最終判定を出します。
 詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
 
+UI/UXを変更するIssueでは、Product Leadとの要件定義フェーズで
+**Optional UX/UI Designer エージェントも起動**し、Product Lead 3エージェントの評価と
+並行して議論させます。
+
+UI/UX変更に含める範囲:
+
+- 画面構成、ナビゲーション、ユーザーフローの変更
+- 入力フォーム、主要操作、情報設計、状態表示の変更
+- レスポンシブ、空状態、エラー状態、ローディング状態の変更
+- 見た目の調整であっても、操作効率や可読性に影響する変更
+
+Optional UX/UI Designer は `.agents/roles/optional-ux-ui-designer.md` と
+`docs/ui-ux-design.md` を参照し、次の観点を確認します。
+
+- Product Lead の要件が、既存のUI/UX方針と矛盾しないか
+- ユーザーフロー、画面構成、UI状態に抜けがないか
+- 実装前に具体化すべきUX上の曖昧さがないか
+- Tech Lead と QA Agent に渡すべきUI/UX上の注意点
+
+Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能なUI完了条件を指摘した場合、
+最終判定は `needs_discussion` とし、ユーザー確認または要件の具体化を行ってから
+フェーズ1（Tech Lead）へ進みます。
+
 ## Pull Request 運用
 
 `main` への変更は、必ず Pull Request を経由します。

@@ -190,3 +190,29 @@ Issue内容:
 - **合意した要件サマリー**: 解く課題・ユーザー価値・完了条件
 - **曖昧な点・ユーザーへの確認事項**: `needs_discussion` の場合のみ
 - **Tech Lead への引き継ぎメモ**: `approved` の場合
+
+### UI/UX変更時の Optional UX/UI Designer 連携
+
+Issue が UI/UX を変更する場合、Product Lead の要件定義フェーズで
+`.agents/roles/optional-ux-ui-designer.md` の Optional UX/UI Designer も起動し、
+3人の Product Lead と並行して議論させる。
+
+UI/UX変更に含める範囲:
+
+- 画面構成、ナビゲーション、ユーザーフローの変更
+- 入力フォーム、主要操作、情報設計、状態表示の変更
+- レスポンシブ、空状態、エラー状態、ローディング状態の変更
+- 見た目の調整であっても、操作効率や可読性に影響する変更
+
+Product Lead はユーザー価値、MVPスコープ、完了条件を評価し、
+Optional UX/UI Designer は `docs/ui-ux-design.md` と既存UI方針に照らして、
+ユーザーフロー、画面構成、UI状態、実装上の注意を評価する。
+
+Designer の評価は、3 Product Lead の評価と同じく統合判定に含める。
+Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能なUI完了条件を指摘した場合、
+最終判定は `needs_discussion` とする。
+
+統合後の出力には、UI/UX変更時のみ次を追加する:
+
+- **UX/UI Designer 評価サマリー**: ユーザーフロー、画面構成、UI状態、懸念点
+- **UI/UX引き継ぎメモ**: Tech Lead と QA Agent に渡す実装・確認上の注意
