@@ -78,11 +78,11 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 `issue-delivery` Skill を使って Issue を処理する場合、フェーズ0（Product Lead 要件確認）では
 **3人の Product Lead エージェントを並列で起動**して要件を評価します。
 
-| エージェント | 担当観点 |
-|---|---|
-| PL-A | ユーザー価値・解く課題・ペルソナ |
-| PL-B | MVPスコープ・フィーチャークリープ検出 |
-| PL-C | 完了条件の検証可能性・受け入れ基準の粒度 |
+| エージェント | 担当観点                                 |
+| ------------ | ---------------------------------------- |
+| PL-A         | ユーザー価値・解く課題・ペルソナ         |
+| PL-B         | MVPスコープ・フィーチャークリープ検出    |
+| PL-C         | 完了条件の検証可能性・受け入れ基準の粒度 |
 
 3エージェントの評価を統合して `approved` / `needs_discussion` の最終判定を出します。
 詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
@@ -160,14 +160,15 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 
 ### 現状の検証コマンド
 
-| コマンド | CI 必須 | 詳細 |
-|---|---|---|
-| `pnpm run lint` | ✅ 必須 | ESLintによるTypeScript/React hooksチェック |
-| `pnpm run build` | ✅ 必須 | tsc -b + vite build。チャンクサイズ警告あり（許容） |
-| `pnpm test --run` | ✅ 必須 | vitest。convex/ の純粋関数と src/validation/ を対象 |
+| コマンド                                | CI 必須       | 詳細                                                       |
+| --------------------------------------- | ------------- | ---------------------------------------------------------- |
+| `pnpm run lint`                         | ✅ 必須       | ESLintによるTypeScript/React hooksチェック                 |
+| `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
+| `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数と src/validation/ を対象        |
 | `pnpm run e2e:smoke --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
 
 **注意事項:**
+
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
 - フロントエンドのコンポーネントテスト（Testing Library等）は M2 以降に別 Issue を立てて対応する
 

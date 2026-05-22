@@ -1,52 +1,44 @@
-import {
-  Box,
-  Divider,
-  LinearProgress,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-} from '@mui/material'
+import { Box, Divider, LinearProgress, Paper, Skeleton, Stack, Typography } from "@mui/material";
 
 type CategorySummary = {
-  categoryId: string
-  categoryName: string
-  categoryColor: string
-  totalAmountYen: number
-  count: number
-}
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+  totalAmountYen: number;
+  count: number;
+};
 
 type ReceiptItem = {
-  _id: string
-  date: string
-  shopName: string
-  amountYen: number
-  categoryId: string
-  categoryName: string
-  categoryColor: string
-  memo?: string
-}
+  _id: string;
+  date: string;
+  shopName: string;
+  amountYen: number;
+  categoryId: string;
+  categoryName: string;
+  categoryColor: string;
+  memo?: string;
+};
 
 type WeeklySummaryPanelProps = {
-  count: number
-  totalAmountYen: number
-  byCategory: CategorySummary[]
-  prevWeekTotalAmountYen: number | null
-  receipts: ReceiptItem[]
-  budgetAmountYen?: number
-  isLoading?: boolean
-}
+  count: number;
+  totalAmountYen: number;
+  byCategory: CategorySummary[];
+  prevWeekTotalAmountYen: number | null;
+  receipts: ReceiptItem[];
+  budgetAmountYen?: number;
+  isLoading?: boolean;
+};
 
 function formatDateForDisplay(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}`
+  const d = new Date(isoDate + "T00:00:00");
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
 function formatDiff(current: number, prev: number): string {
-  const diff = current - prev
-  if (diff === 0) return '±0円'
-  const sign = diff > 0 ? '+' : ''
-  return `${sign}${diff.toLocaleString()}円`
+  const diff = current - prev;
+  if (diff === 0) return "±0円";
+  const sign = diff > 0 ? "+" : "";
+  return `${sign}${diff.toLocaleString()}円`;
 }
 
 export function WeeklySummaryPanel({
@@ -61,10 +53,10 @@ export function WeeklySummaryPanel({
   const budgetUsageRate =
     budgetAmountYen !== undefined && budgetAmountYen > 0
       ? Math.round((totalAmountYen / budgetAmountYen) * 100)
-      : undefined
+      : undefined;
 
   const budgetRemaining =
-    budgetAmountYen !== undefined ? budgetAmountYen - totalAmountYen : undefined
+    budgetAmountYen !== undefined ? budgetAmountYen - totalAmountYen : undefined;
 
   return (
     <Stack spacing={2.5}>
@@ -84,13 +76,14 @@ export function WeeklySummaryPanel({
               </>
             ) : (
               <>
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <Stack
+                  direction="row"
+                  sx={{ justifyContent: "space-between", alignItems: "baseline" }}
+                >
                   <Typography color="text.secondary" variant="body2">
                     合計支出
                   </Typography>
-                  <Typography variant="h5">
-                    {totalAmountYen.toLocaleString()}円
-                  </Typography>
+                  <Typography variant="h5">{totalAmountYen.toLocaleString()}円</Typography>
                 </Stack>
 
                 {budgetAmountYen !== undefined && (
@@ -101,17 +94,16 @@ export function WeeklySummaryPanel({
                       variant="determinate"
                       color={
                         (budgetUsageRate ?? 0) >= 100
-                          ? 'error'
+                          ? "error"
                           : (budgetUsageRate ?? 0) >= 80
-                            ? 'warning'
-                            : 'primary'
+                            ? "warning"
+                            : "primary"
                       }
                     />
                     <Box className="budget-strip">
                       <span>予算</span>
                       <strong>
-                        {budgetAmountYen.toLocaleString()}円 中{' '}
-                        {budgetUsageRate}% 消化
+                        {budgetAmountYen.toLocaleString()}円 中 {budgetUsageRate}% 消化
                         {budgetRemaining !== undefined && (
                           <> （残り {budgetRemaining.toLocaleString()}円）</>
                         )}
@@ -128,7 +120,7 @@ export function WeeklySummaryPanel({
                 )}
 
                 {prevWeekTotalAmountYen !== null && (
-                  <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
                     <Typography color="text.secondary" variant="body2">
                       前週比
                     </Typography>
@@ -138,10 +130,10 @@ export function WeeklySummaryPanel({
                         fontWeight: 700,
                         color:
                           totalAmountYen > prevWeekTotalAmountYen
-                            ? 'error.main'
+                            ? "error.main"
                             : totalAmountYen < prevWeekTotalAmountYen
-                              ? 'success.main'
-                              : 'text.secondary',
+                              ? "success.main"
+                              : "text.secondary",
                       }}
                     >
                       {formatDiff(totalAmountYen, prevWeekTotalAmountYen)}
@@ -186,14 +178,14 @@ export function WeeklySummaryPanel({
                   <Stack key={cat.categoryId} spacing={0.5}>
                     <Stack
                       direction="row"
-                      sx={{ justifyContent: 'space-between', alignItems: 'center' }}
+                      sx={{ justifyContent: "space-between", alignItems: "center" }}
                     >
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <Box
                           sx={{
                             width: 10,
                             height: 10,
-                            borderRadius: '50%',
+                            borderRadius: "50%",
                             backgroundColor: cat.categoryColor,
                             flexShrink: 0,
                           }}
@@ -215,8 +207,8 @@ export function WeeklySummaryPanel({
                         sx={{
                           height: 4,
                           borderRadius: 2,
-                          backgroundColor: 'rgba(0,0,0,0.06)',
-                          '& .MuiLinearProgress-bar': {
+                          backgroundColor: "rgba(0,0,0,0.06)",
+                          "& .MuiLinearProgress-bar": {
                             backgroundColor: cat.categoryColor,
                           },
                         }}
@@ -234,7 +226,7 @@ export function WeeklySummaryPanel({
       <Paper className="paper-panel" elevation={0}>
         <Box sx={{ p: 2.5 }}>
           <Stack spacing={2}>
-            <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography component="h2" variant="h6">
                 支出一覧
               </Typography>
@@ -258,19 +250,17 @@ export function WeeklySummaryPanel({
                 receipts.map((receipt) => (
                   <Box className="receipt-row" key={receipt._id}>
                     <Box>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                         <Box
                           sx={{
                             width: 8,
                             height: 8,
-                            borderRadius: '50%',
+                            borderRadius: "50%",
                             backgroundColor: receipt.categoryColor,
                             flexShrink: 0,
                           }}
                         />
-                        <Typography sx={{ fontWeight: 700 }}>
-                          {receipt.shopName}
-                        </Typography>
+                        <Typography sx={{ fontWeight: 700 }}>{receipt.shopName}</Typography>
                       </Stack>
                       <Stack direction="row" spacing={1}>
                         <Typography color="text.secondary" variant="body2">
@@ -293,5 +283,5 @@ export function WeeklySummaryPanel({
         </Box>
       </Paper>
     </Stack>
-  )
+  );
 }

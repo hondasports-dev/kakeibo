@@ -1,5 +1,5 @@
-import { test, expect } from '@playwright/test'
-import { gotoAuthenticated } from './helpers/auth'
+import { test, expect } from "@playwright/test";
+import { gotoAuthenticated } from "./helpers/auth";
 
 /**
  * 認証フロー E2E テスト
@@ -37,18 +37,20 @@ import { gotoAuthenticated } from './helpers/auth'
  * ログアウトテスト
  * gotoAuthenticated でログイン状態を作り、ログアウト後の状態を確認する。
  */
-test.describe('ログアウト', () => {
-  test('シナリオ4: ログアウトするとログイン画面に戻る', async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.locator('text=今週のレシート入力')).toBeVisible()
+test.describe("ログアウト", () => {
+  test("シナリオ4: ログアウトするとログイン画面に戻る", async ({ page }) => {
+    await gotoAuthenticated(page);
+    await expect(page.locator("text=今週のレシート入力")).toBeVisible();
 
     // ユーザーメニューを開いてログアウト
-    await page.locator('[class*="user-menu-button"]').click()
-    await page.waitForSelector('[role="menu"]')
-    await page.getByRole('menuitem', { name: 'ログアウト' }).click()
+    await page.locator('[class*="user-menu-button"]').click();
+    await page.waitForSelector('[role="menu"]');
+    await page.getByRole("menuitem", { name: "ログアウト" }).click();
 
     // ログイン画面に戻ることを確認
-    await expect(page.getByRole('heading', { name: '家計簿にログイン' })).toBeVisible({ timeout: 15_000 })
-    await expect(page.getByRole('button', { name: 'Googleでログイン' })).toBeVisible()
-  })
-})
+    await expect(page.getByRole("heading", { name: "家計簿にログイン" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("button", { name: "Googleでログイン" })).toBeVisible();
+  });
+});

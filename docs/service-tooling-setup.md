@@ -18,13 +18,13 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 
 ## 2. 採用方針
 
-| ツール | 採用 | 主な用途 | 状態 |
-| --- | ---: | --- | --- |
-| Clerk CLI | 採用 | Clerk初期化、app連携、env取得、設定差分管理、API確認 | authenticated / app linked |
-| Vercel MCP | 採用 | Vercel docs検索、project/deployment/log確認 | configured / OAuth completed |
-| Convex MCP | 採用 | Convex deployment、tables、logs、env確認 | configured |
-| Chrome DevTools MCP | 採用 | ローカル画面表示、Console/Network/DOM確認、ブラウザ動作確認 | installed / configured / verified |
-| Clerk MCP | 補助採用 | Clerk SDK snippets、実装パターン確認 | documented / optional |
+| ツール              |     採用 | 主な用途                                                    | 状態                              |
+| ------------------- | -------: | ----------------------------------------------------------- | --------------------------------- |
+| Clerk CLI           |     採用 | Clerk初期化、app連携、env取得、設定差分管理、API確認        | authenticated / app linked        |
+| Vercel MCP          |     採用 | Vercel docs検索、project/deployment/log確認                 | configured / OAuth completed      |
+| Convex MCP          |     採用 | Convex deployment、tables、logs、env確認                    | configured                        |
+| Chrome DevTools MCP |     採用 | ローカル画面表示、Console/Network/DOM確認、ブラウザ動作確認 | installed / configured / verified |
+| Clerk MCP           | 補助採用 | Clerk SDK snippets、実装パターン確認                        | documented / optional             |
 
 初期セットアップでは、Clerk CLI、Vercel MCP、Convex MCP、Chrome DevTools MCPを優先する。Clerk MCPは、認証実装の調査やコード例確認に限定する。
 
@@ -32,20 +32,20 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 
 2026-05-12時点では、主要な外部サービスの初期接続は完了している。アプリ実装へ進む前の確認事項として、Google OAuth、Clerk + Convex連携、Vercel env登録方針が残っている。
 
-| 項目 | 状態 | 次に必要な作業 |
-| --- | --- | --- |
-| `pnpm` | 完了 | なし |
-| Vite + React + TypeScript | 雛形作成済み | サービス連携完了後に本実装へ進む |
-| Chrome DevTools MCP | 設定済み、ローカル画面確認済み | 必要に応じてブラウザ確認に使う |
-| Clerk CLI | ログイン済み | Google OAuthのDevelopment設定を確認する |
-| Clerk application | `kakeibo` を新規作成してリンク済み | Production instanceをいつ作るか決める |
-| Clerk env | `.env.local` に取得済み | secretをGit管理外に保つ |
-| Convex CLI | project/dev deployment作成済み | schema実装前に設計を再確認する |
-| Convex MCP | Codexへ登録済み | 次回Codexセッションでtools表示を確認する |
-| Convex AI files | インストール済み | Convex実装時は `convex/_generated/ai/guidelines.md` を先に読む |
-| Vercel CLI | ログイン済み、projectリンク済み、GitHub repository連携済み | env登録方針を確定する |
-| Vercel MCP | OAuth完了、project取得確認済み | deployment/log確認はdeploy後に行う |
-| `.gitignore` | secret/local state除外済み | 新しいsecret系ファイルを追加した場合は都度確認する |
+| 項目                      | 状態                                                       | 次に必要な作業                                                 |
+| ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------- |
+| `pnpm`                    | 完了                                                       | なし                                                           |
+| Vite + React + TypeScript | 雛形作成済み                                               | サービス連携完了後に本実装へ進む                               |
+| Chrome DevTools MCP       | 設定済み、ローカル画面確認済み                             | 必要に応じてブラウザ確認に使う                                 |
+| Clerk CLI                 | ログイン済み                                               | Google OAuthのDevelopment設定を確認する                        |
+| Clerk application         | `kakeibo` を新規作成してリンク済み                         | Production instanceをいつ作るか決める                          |
+| Clerk env                 | `.env.local` に取得済み                                    | secretをGit管理外に保つ                                        |
+| Convex CLI                | project/dev deployment作成済み                             | schema実装前に設計を再確認する                                 |
+| Convex MCP                | Codexへ登録済み                                            | 次回Codexセッションでtools表示を確認する                       |
+| Convex AI files           | インストール済み                                           | Convex実装時は `convex/_generated/ai/guidelines.md` を先に読む |
+| Vercel CLI                | ログイン済み、projectリンク済み、GitHub repository連携済み | env登録方針を確定する                                          |
+| Vercel MCP                | OAuth完了、project取得確認済み                             | deployment/log確認はdeploy後に行う                             |
+| `.gitignore`              | secret/local state除外済み                                 | 新しいsecret系ファイルを追加した場合は都度確認する             |
 
 この状態では、主要サービスの初期接続は完了している。ただし、Google OAuthとClerk + Convex連携は未完了であるため、認証・DB連携を含むアプリ実装へ進む前に確認する。
 
@@ -181,11 +181,11 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 
 無料枠前提では、以下の対応にする。
 
-| 用途 | Vercel | Clerk | Convex |
-| --- | --- | --- | --- |
-| local dev | local `.env.local` | Development instance `pk_test_*` | dev deployment |
-| preview PR | Vercel Preview `*.vercel.app` URL | 原則Development instance | dev deployment、必要時preview deployment |
-| production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*` | production deployment |
+| 用途       | Vercel                               | Clerk                            | Convex                                   |
+| ---------- | ------------------------------------ | -------------------------------- | ---------------------------------------- |
+| local dev  | local `.env.local`                   | Development instance `pk_test_*` | dev deployment                           |
+| preview PR | Vercel Preview `*.vercel.app` URL    | 原則Development instance         | dev deployment、必要時preview deployment |
+| production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*`  | production deployment                    |
 
 注意:
 

@@ -53,8 +53,9 @@ function createMutationCtx(
     return existingDocs.find((doc) => doc._id === id) ?? null;
   });
 
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
+  const withIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       // builder: (q) => q.eq("userId", ...).eq("isActive", ...).eq("sortOrder", ...)
       // 各 eq の呼び出しで sortOrder の値をキャプチャし、unique() に紐付ける
       let capturedUserId: string | null = null;
@@ -102,24 +103,19 @@ function createMutationCtx(
           collect: vi.fn().mockResolvedValue(orderedDocs),
           first: vi.fn().mockResolvedValue(orderedDocs[0] ?? null),
           take: vi.fn().mockImplementation(async (limit?: number) => {
-            return typeof limit === "number"
-              ? orderedDocs.slice(0, limit)
-              : orderedDocs;
+            return typeof limit === "number" ? orderedDocs.slice(0, limit) : orderedDocs;
           }),
           unique: vi.fn().mockResolvedValue(orderedDocs[0] ?? null),
         };
       });
       return chain;
-    },
-  );
+    });
 
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       get: getMock,
@@ -135,31 +131,26 @@ function createMutationCtx(
 /**
  * listActiveHandler が必要とする QueryCtx の最小モックを生成する。
  */
-function createQueryCtx(
-  identity: UserIdentity | null,
-  docs: CategoryDoc[] = [],
-): QueryCtx {
+function createQueryCtx(identity: UserIdentity | null, docs: CategoryDoc[] = []): QueryCtx {
   const collectMock = vi.fn().mockResolvedValue(docs);
   const takeMock = vi.fn().mockResolvedValue(docs);
   const orderMock = vi.fn().mockReturnValue({ collect: collectMock, take: takeMock });
 
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
+  const withIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q), // self-referential chain
       };
       builder(q);
       return { order: orderMock, take: takeMock };
-    },
-  );
+    });
 
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       query: queryMock,
@@ -176,9 +167,7 @@ describe("seedDefaultCategories", () => {
   it("未認証時は ConvexError を throw する", async () => {
     const ctx = createMutationCtx(null);
 
-    await expect(seedDefaultCategoriesHandler(ctx)).rejects.toBeInstanceOf(
-      ConvexError,
-    );
+    await expect(seedDefaultCategoriesHandler(ctx)).rejects.toBeInstanceOf(ConvexError);
     await expect(seedDefaultCategoriesHandler(ctx)).rejects.toMatchObject({
       data: "Not authenticated",
     });
@@ -221,14 +210,94 @@ describe("seedDefaultCategories", () => {
 
     // 8 件全て既存として渡す
     const existingDocs: CategoryDoc[] = [
-      { _id: "id-1", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "食費",   color: "#FF6B6B", isActive: true, sortOrder: 1, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-2", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "日用品", color: "#4ECDC4", isActive: true, sortOrder: 2, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-3", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "外食",   color: "#FFE66D", isActive: true, sortOrder: 3, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-4", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "交通",   color: "#95E1D3", isActive: true, sortOrder: 4, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-5", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "医療",   color: "#F38181", isActive: true, sortOrder: 5, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-6", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "娯楽",   color: "#AA96DA", isActive: true, sortOrder: 6, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-7", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "衣服",   color: "#FCBAD3", isActive: true, sortOrder: 7, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-8", _creationTime: 1000, userId: "https://issuer.example|user-second-login", name: "その他", color: "#A8DADC", isActive: true, sortOrder: 8, createdAt: 1000, updatedAt: 1000 },
+      {
+        _id: "id-1",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "食費",
+        color: "#FF6B6B",
+        isActive: true,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-2",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "日用品",
+        color: "#4ECDC4",
+        isActive: true,
+        sortOrder: 2,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-3",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "外食",
+        color: "#FFE66D",
+        isActive: true,
+        sortOrder: 3,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-4",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "交通",
+        color: "#95E1D3",
+        isActive: true,
+        sortOrder: 4,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-5",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "医療",
+        color: "#F38181",
+        isActive: true,
+        sortOrder: 5,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-6",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "娯楽",
+        color: "#AA96DA",
+        isActive: true,
+        sortOrder: 6,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-7",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "衣服",
+        color: "#FCBAD3",
+        isActive: true,
+        sortOrder: 7,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-8",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-second-login",
+        name: "その他",
+        color: "#A8DADC",
+        isActive: true,
+        sortOrder: 8,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ];
 
     const ctx = createMutationCtx(identity, existingDocs);
@@ -252,14 +321,94 @@ describe("seedDefaultCategories", () => {
 
     // user-A のカテゴリのみ既存として用意
     const existingDocsForUserA: CategoryDoc[] = [
-      { _id: "id-1", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "食費",   color: "#FF6B6B", isActive: true, sortOrder: 1, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-2", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "日用品", color: "#4ECDC4", isActive: true, sortOrder: 2, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-3", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "外食",   color: "#FFE66D", isActive: true, sortOrder: 3, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-4", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "交通",   color: "#95E1D3", isActive: true, sortOrder: 4, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-5", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "医療",   color: "#F38181", isActive: true, sortOrder: 5, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-6", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "娯楽",   color: "#AA96DA", isActive: true, sortOrder: 6, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-7", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "衣服",   color: "#FCBAD3", isActive: true, sortOrder: 7, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-8", _creationTime: 1000, userId: "https://issuer.example|user-A", name: "その他", color: "#A8DADC", isActive: true, sortOrder: 8, createdAt: 1000, updatedAt: 1000 },
+      {
+        _id: "id-1",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "食費",
+        color: "#FF6B6B",
+        isActive: true,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-2",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "日用品",
+        color: "#4ECDC4",
+        isActive: true,
+        sortOrder: 2,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-3",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "外食",
+        color: "#FFE66D",
+        isActive: true,
+        sortOrder: 3,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-4",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "交通",
+        color: "#95E1D3",
+        isActive: true,
+        sortOrder: 4,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-5",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "医療",
+        color: "#F38181",
+        isActive: true,
+        sortOrder: 5,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-6",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "娯楽",
+        color: "#AA96DA",
+        isActive: true,
+        sortOrder: 6,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-7",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "衣服",
+        color: "#FCBAD3",
+        isActive: true,
+        sortOrder: 7,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-8",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-A",
+        name: "その他",
+        color: "#A8DADC",
+        isActive: true,
+        sortOrder: 8,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ];
 
     // user-A は全件既存 → skipped: 8
@@ -290,14 +439,94 @@ describe("seedDefaultCategories", () => {
     });
 
     const existingDocs: CategoryDoc[] = [
-      { _id: "id-1", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "食費",   color: "#FF6B6B", isActive: false, sortOrder: 1, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-2", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "日用品", color: "#4ECDC4", isActive: true, sortOrder: 2, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-3", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "外食",   color: "#FFE66D", isActive: true, sortOrder: 3, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-4", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "交通",   color: "#95E1D3", isActive: true, sortOrder: 4, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-5", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "医療",   color: "#F38181", isActive: true, sortOrder: 5, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-6", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "娯楽",   color: "#AA96DA", isActive: true, sortOrder: 6, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-7", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "衣服",   color: "#FCBAD3", isActive: true, sortOrder: 7, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-8", _creationTime: 1000, userId: "https://issuer.example|user-deactivated-default", name: "その他", color: "#A8DADC", isActive: true, sortOrder: 8, createdAt: 1000, updatedAt: 1000 },
+      {
+        _id: "id-1",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "食費",
+        color: "#FF6B6B",
+        isActive: false,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-2",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "日用品",
+        color: "#4ECDC4",
+        isActive: true,
+        sortOrder: 2,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-3",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "外食",
+        color: "#FFE66D",
+        isActive: true,
+        sortOrder: 3,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-4",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "交通",
+        color: "#95E1D3",
+        isActive: true,
+        sortOrder: 4,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-5",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "医療",
+        color: "#F38181",
+        isActive: true,
+        sortOrder: 5,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-6",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "娯楽",
+        color: "#AA96DA",
+        isActive: true,
+        sortOrder: 6,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-7",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "衣服",
+        color: "#FCBAD3",
+        isActive: true,
+        sortOrder: 7,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-8",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-deactivated-default",
+        name: "その他",
+        color: "#A8DADC",
+        isActive: true,
+        sortOrder: 8,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ];
 
     const ctx = createMutationCtx(identity, existingDocs);
@@ -332,8 +561,28 @@ describe("listActive", () => {
     });
 
     const docs: CategoryDoc[] = [
-      { _id: "id-1", _creationTime: 1000, userId: "https://issuer.example|user-list", name: "食費",   color: "#FF6B6B", isActive: true, sortOrder: 1, createdAt: 1000, updatedAt: 1000 },
-      { _id: "id-2", _creationTime: 1000, userId: "https://issuer.example|user-list", name: "日用品", color: "#4ECDC4", isActive: true, sortOrder: 2, createdAt: 1000, updatedAt: 1000 },
+      {
+        _id: "id-1",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-list",
+        name: "食費",
+        color: "#FF6B6B",
+        isActive: true,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "id-2",
+        _creationTime: 1000,
+        userId: "https://issuer.example|user-list",
+        name: "日用品",
+        color: "#4ECDC4",
+        isActive: true,
+        sortOrder: 2,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
     ];
 
     const ctx = createQueryCtx(identity, docs);

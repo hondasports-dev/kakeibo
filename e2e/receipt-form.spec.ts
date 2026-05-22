@@ -1,6 +1,10 @@
-import { test, expect } from '@playwright/test'
-import { gotoAuthenticated } from './helpers/auth'
-import { cleanupTestCategories, cleanupTestReceipts, resetTestWeekSession } from './helpers/cleanup'
+import { test, expect } from "@playwright/test";
+import { gotoAuthenticated } from "./helpers/auth";
+import {
+  cleanupTestCategories,
+  cleanupTestReceipts,
+  resetTestWeekSession,
+} from "./helpers/cleanup";
 
 /**
  * レシート入力フォーム E2E テスト（QA Agent 担当）
@@ -32,319 +36,348 @@ import { cleanupTestCategories, cleanupTestReceipts, resetTestWeekSession } from
  */
 
 function getCurrentWeekStartDate(): string {
-  const date = new Date()
-  const day = date.getDay()
-  const diff = day === 0 ? -6 : 1 - day
-  date.setDate(date.getDate() + diff)
-  const year = date.getFullYear()
-  const month = String(date.getMonth() + 1).padStart(2, '0')
-  const dayOfMonth = String(date.getDate()).padStart(2, '0')
-  return `${year}-${month}-${dayOfMonth}`
+  const date = new Date();
+  const day = date.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  date.setDate(date.getDate() + diff);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${dayOfMonth}`;
 }
 
-test.describe('メイン画面の表示確認', () => {
-  test('@smoke シナリオ2: ログイン済みでアクセスするとメイン画面が表示される', async ({ page }) => {
-    await gotoAuthenticated(page)
+test.describe("メイン画面の表示確認", () => {
+  test("@smoke シナリオ2: ログイン済みでアクセスするとメイン画面が表示される", async ({ page }) => {
+    await gotoAuthenticated(page);
 
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-    await expect(page.locator('[class*="user-menu-button"]')).toBeVisible()
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+    await expect(page.locator('[class*="user-menu-button"]')).toBeVisible();
     // サマリーカード
-    await expect(page.locator('text=入力済み')).toBeVisible()
-    await expect(page.locator('text=今週の支出')).toBeVisible()
+    await expect(page.locator("text=入力済み")).toBeVisible();
+    await expect(page.locator("text=今週の支出")).toBeVisible();
     // レシート追加フォーム
-    await expect(page.getByRole('heading', { name: 'レシートを追加' })).toBeVisible()
-  })
+    await expect(page.getByRole("heading", { name: "レシートを追加" })).toBeVisible();
+  });
 
-  test('@smoke シナリオ3: ページリロードしてもログイン状態が維持される', async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.locator('text=今週のレシート入力')).toBeVisible()
+  test("@smoke シナリオ3: ページリロードしてもログイン状態が維持される", async ({ page }) => {
+    await gotoAuthenticated(page);
+    await expect(page.locator("text=今週のレシート入力")).toBeVisible();
 
-    await page.reload()
+    await page.reload();
 
-    await expect(page.locator('text=今週のレシート入力')).toBeVisible()
-    await expect(page.locator('[class*="user-menu-button"]')).toBeVisible()
-  })
-})
+    await expect(page.locator("text=今週のレシート入力")).toBeVisible();
+    await expect(page.locator('[class*="user-menu-button"]')).toBeVisible();
+  });
+});
 
-test.describe('レシート保存フロー（Issue #13 受け入れ確認）', () => {
+test.describe("レシート保存フロー（Issue #13 受け入れ確認）", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
   test.afterEach(async () => {
-    await cleanupTestReceipts()
-    await cleanupTestCategories()
-  })
+    await cleanupTestReceipts();
+    await cleanupTestCategories();
+  });
 
-  test('@smoke シナリオ5: 必須項目を入力して保存すると店名・金額がクリアされる', async ({ page }) => {
-    const shopNameInput = page.locator('input[name="shopName"]')
-    const amountInput = page.locator('input[name="amountYen"]')
+  test("@smoke シナリオ5: 必須項目を入力して保存すると店名・金額がクリアされる", async ({
+    page,
+  }) => {
+    const shopNameInput = page.locator('input[name="shopName"]');
+    const amountInput = page.locator('input[name="amountYen"]');
 
-    await shopNameInput.fill('スーパー北浜')
-    await amountInput.fill('4280')
+    await shopNameInput.fill("スーパー北浜");
+    await amountInput.fill("4280");
     // カテゴリを選択（最初のカテゴリボタンをクリック）
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
 
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // Snackbar で成功通知が出ることを確認（Issue #13）
-    await expect(page.getByRole('alert').filter({ hasText: 'レシートを保存しました' })).toBeVisible()
+    await expect(
+      page.getByRole("alert").filter({ hasText: "レシートを保存しました" }),
+    ).toBeVisible();
 
     // 店名・金額がクリアされることを確認
-    await expect(shopNameInput).toHaveValue('')
-    await expect(amountInput).toHaveValue('')
-  })
+    await expect(shopNameInput).toHaveValue("");
+    await expect(amountInput).toHaveValue("");
+  });
 
-  test('[Issue #13] 保存成功後に店名欄にフォーカスが移動する', async ({ page }) => {
-    const shopNameInput = page.locator('input[name="shopName"]')
+  test("[Issue #13] 保存成功後に店名欄にフォーカスが移動する", async ({ page }) => {
+    const shopNameInput = page.locator('input[name="shopName"]');
 
-    await shopNameInput.fill('テストショップ')
-    await page.locator('input[name="amountYen"]').fill('1000')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    await shopNameInput.fill("テストショップ");
+    await page.locator('input[name="amountYen"]').fill("1000");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // 保存完了後に店名入力欄がフォーカスされていることを確認
-    await expect(shopNameInput).toHaveValue('')
-    await expect(shopNameInput).toBeFocused()
-  })
+    await expect(shopNameInput).toHaveValue("");
+    await expect(shopNameInput).toBeFocused();
+  });
 
-  test('[Issue #13] 日付とカテゴリが保存後も引き継がれる', async ({ page }) => {
-    const dateInput = page.locator('input[name="date"]')
+  test("[Issue #13] 日付とカテゴリが保存後も引き継がれる", async ({ page }) => {
+    const dateInput = page.locator('input[name="date"]');
 
     // 現在の日付を取得して設定
-    const currentDate = await dateInput.inputValue()
+    const currentDate = await dateInput.inputValue();
 
-    await page.locator('input[name="shopName"]').fill('テスト店舗')
-    await page.locator('input[name="amountYen"]').fill('500')
+    await page.locator('input[name="shopName"]').fill("テスト店舗");
+    await page.locator('input[name="amountYen"]').fill("500");
     // 最初のカテゴリを選択して選択状態を記録
     const firstCategory = page
       .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
-      .first()
-    await firstCategory.click()
+      .first();
+    await firstCategory.click();
 
-    await page.getByRole('button', { name: '保存して次へ' }).click()
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('')
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("");
 
     // 日付が引き継がれている
-    await expect(dateInput).toHaveValue(currentDate)
+    await expect(dateInput).toHaveValue(currentDate);
     // カテゴリが引き継がれている（aria-selected="true" のオプションが存在する）
     await expect(
       page.locator('[role="listbox"][aria-label="カテゴリ候補"] [aria-selected="true"]'),
-    ).toBeVisible()
-  })
+    ).toBeVisible();
+  });
 
-  test('[Issue #13] 5件連続入力して操作が止まらない', async ({ page }) => {
-    const shopNameInput = page.locator('input[name="shopName"]')
-    const amountInput = page.locator('input[name="amountYen"]')
+  test("[Issue #13] 5件連続入力して操作が止まらない", async ({ page }) => {
+    const shopNameInput = page.locator('input[name="shopName"]');
+    const amountInput = page.locator('input[name="amountYen"]');
     const firstCategory = page
       .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
-      .first()
-    const submitButton = page.getByRole('button', { name: '保存して次へ' })
+      .first();
+    const submitButton = page.getByRole("button", { name: "保存して次へ" });
 
-    const shops = ['店舗A', '店舗B', '店舗C', '店舗D', '店舗E']
-    const amounts = ['100', '200', '300', '400', '500']
+    const shops = ["店舗A", "店舗B", "店舗C", "店舗D", "店舗E"];
+    const amounts = ["100", "200", "300", "400", "500"];
 
     for (let i = 0; i < 5; i++) {
-      await shopNameInput.fill(shops[i])
-      await amountInput.fill(amounts[i])
+      await shopNameInput.fill(shops[i]);
+      await amountInput.fill(amounts[i]);
       // 初回のみカテゴリを選択（以降は引き継ぎ）
       if (i === 0) {
-        await firstCategory.click()
+        await firstCategory.click();
       }
-      await submitButton.click()
+      await submitButton.click();
 
       // 保存成功を確認（Snackbar または入力欄のクリア）
-      await expect(shopNameInput).toHaveValue('', { timeout: 10_000 })
+      await expect(shopNameInput).toHaveValue("", { timeout: 10_000 });
       // エラーが表示されていないことを確認
-      await expect(page.locator('input[name="shopName"]').locator('../..')).not.toHaveAttribute(
-        'data-error',
-        'true',
-      )
+      await expect(page.locator('input[name="shopName"]').locator("../..")).not.toHaveAttribute(
+        "data-error",
+        "true",
+      );
     }
 
     // 5件入力後もフォームが使用可能であることを確認
-    await expect(submitButton).toBeEnabled()
-    await expect(shopNameInput).toBeFocused()
-  })
+    await expect(submitButton).toBeEnabled();
+    await expect(shopNameInput).toBeFocused();
+  });
 
-  test('シナリオ6: 保存後にレシート一覧に追加される', async ({ page }) => {
+  test("シナリオ6: 保存後にレシート一覧に追加される", async ({ page }) => {
     // 1件目を保存
-    await page.locator('input[name="shopName"]').fill('スーパー北浜')
-    await page.locator('input[name="amountYen"]').fill('4280')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await page.locator('input[name="shopName"]').fill("スーパー北浜");
+    await page.locator('input[name="amountYen"]').fill("4280");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
     // 2件目を保存
-    await page.locator('input[name="shopName"]').fill('ドラッグストア')
-    await page.locator('input[name="amountYen"]').fill('1540')
-    await page.getByRole('button', { name: '保存して次へ' }).click()
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await page.locator('input[name="shopName"]').fill("ドラッグストア");
+    await page.locator('input[name="amountYen"]').fill("1540");
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
     // レシート一覧に追加されていることを確認（表示順は問わない）
     // 注: 一覧は新着順（getReceiptsByWeek .order("desc")）で表示されるが、
     //     E2E テストは共有 Dev DB を使うため既存データが存在する場合がある。
     //     「ドラッグストアが一覧内に存在する」ことと「件数が2件以上」を確認する。
-    const receiptList = page.locator('[class*="receipt-row"]')
-    await expect(receiptList.filter({ hasText: 'ドラッグストア' }).first()).toBeVisible()
-    expect(await receiptList.count()).toBeGreaterThanOrEqual(2)
-  })
-})
+    const receiptList = page.locator('[class*="receipt-row"]');
+    await expect(receiptList.filter({ hasText: "ドラッグストア" }).first()).toBeVisible();
+    expect(await receiptList.count()).toBeGreaterThanOrEqual(2);
+  });
+});
 
-test.describe('バリデーション（P1）', () => {
+test.describe("バリデーション（P1）", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
-  test('シナリオ7: 店舗名が空で保存するとエラーが表示される', async ({ page }) => {
-    await page.locator('input[name="amountYen"]').fill('4280')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+  test("シナリオ7: 店舗名が空で保存するとエラーが表示される", async ({ page }) => {
+    await page.locator('input[name="amountYen"]').fill("4280");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // MUI TextField の helperText にエラーが表示される
-    await expect(page.locator('text=店舗名は必須です')).toBeVisible()
-  })
+    await expect(page.locator("text=店舗名は必須です")).toBeVisible();
+  });
 
-  test('シナリオ8: 金額が空で保存するとエラーが表示される', async ({ page }) => {
-    await page.locator('input[name="shopName"]').fill('スーパー北浜')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+  test("シナリオ8: 金額が空で保存するとエラーが表示される", async ({ page }) => {
+    await page.locator('input[name="shopName"]').fill("スーパー北浜");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
-    await expect(page.locator('text=金額は必須です')).toBeVisible()
-  })
+    await expect(page.locator("text=金額は必須です")).toBeVisible();
+  });
 
-  test('シナリオ9: カテゴリ未選択で保存するとエラーが表示される', async ({ page }) => {
+  test("シナリオ9: カテゴリ未選択で保存するとエラーが表示される", async ({ page }) => {
     // カテゴリが初期状態で選択されている場合、選択を解除する必要がある。
     // このアプリでは categories[0] がデフォルト選択になっているため、
     // 未選択テストは categoryId を '' の状態（formValues初期化時）でのみ発生する。
     // → categories が空配列の場合のみ未選択状態になるため、テストはバリデーションルール確認として実施。
-    await page.locator('input[name="shopName"]').fill('スーパー北浜')
-    await page.locator('input[name="amountYen"]').fill('4280')
+    await page.locator('input[name="shopName"]').fill("スーパー北浜");
+    await page.locator('input[name="amountYen"]').fill("4280");
     // カテゴリを選択してから同じボタンを再クリックして解除は非対応のため、
     // 初回ロード時（カテゴリ未選択）のケースをテストする
     // Note: categories[0] がデフォルト選択のため、本テストは現状の実装では常に通過する可能性がある。
     // フォームの初期状態依存のため、将来的な仕様変更時に再確認が必要。
-    await expect(page.getByRole('button', { name: '保存して次へ' })).toBeVisible()
+    await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
     // カテゴリなしでのサブミットは現状デフォルト選択あるため、
     // エラーテキストの確認のみ実施
-    await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible()
-  })
+    await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible();
+  });
 
-  test('シナリオ10: 金額に文字を入力して保存するとエラーが表示される', async ({ page }) => {
-    await page.locator('input[name="shopName"]').fill('スーパー北浜')
+  test("シナリオ10: 金額に文字を入力して保存するとエラーが表示される", async ({ page }) => {
+    await page.locator('input[name="shopName"]').fill("スーパー北浜");
     // fill 後に値が反映されたことを確認してからカテゴリ選択・保存へ進む
-    const amountInput = page.locator('input[name="amountYen"]')
-    await amountInput.fill('abc')
-    await expect(amountInput).toHaveValue('abc')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    const amountInput = page.locator('input[name="amountYen"]');
+    await amountInput.fill("abc");
+    await expect(amountInput).toHaveValue("abc");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // バリデーションエラーは MUI TextField の helperText（.MuiFormHelperText-root）として表示される
     // エラー発生時のみ DOM に追加されるため、toBeVisible で待機する
-    await expect(page.locator('.MuiFormHelperText-root', { hasText: '金額は数字のみで入力してください' })).toBeVisible()
-  })
-})
+    await expect(
+      page.locator(".MuiFormHelperText-root", { hasText: "金額は数字のみで入力してください" }),
+    ).toBeVisible();
+  });
+});
 
-test.describe('[Issue #17] カテゴリ管理の反映確認（P1 / regression）', () => {
+test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression）", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
   test.afterEach(async () => {
-    await cleanupTestReceipts()
-  })
+    await cleanupTestReceipts();
+  });
 
-  test('シナリオ16: 追加・編集・無効化が入力候補と既存表示に反映される', async ({ page }) => {
-    const stamp = Date.now()
-    const categoryName = `E2Eカテゴリ-${stamp}`
-    const updatedCategoryName = `${categoryName}-更新`
-    const shopName = `E2Eカテゴリ店舗-${stamp}`
+  test("シナリオ16: 追加・編集・無効化が入力候補と既存表示に反映される", async ({ page }) => {
+    const stamp = Date.now();
+    const categoryName = `E2Eカテゴリ-${stamp}`;
+    const updatedCategoryName = `${categoryName}-更新`;
+    const shopName = `E2Eカテゴリ店舗-${stamp}`;
 
-    await page.getByRole('button', { name: 'カテゴリ設定' }).click()
-    await expect(page.getByRole('heading', { name: 'カテゴリ設定' })).toBeVisible()
+    await page.getByRole("button", { name: "カテゴリ設定" }).click();
+    await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
 
-    await page.getByLabel('新しいカテゴリ名').fill(categoryName)
-    await page.getByLabel('新しいカテゴリ色').fill('#2563eb')
-    await page.getByRole('button', { name: 'カテゴリを追加' }).click()
-    await expect(page.getByRole('listitem', { name: `カテゴリ ${categoryName}` })).toBeVisible()
+    await page.getByLabel("新しいカテゴリ名").fill(categoryName);
+    await page.getByLabel("新しいカテゴリ色").fill("#2563eb");
+    await page.getByRole("button", { name: "カテゴリを追加" }).click();
+    await expect(page.getByRole("listitem", { name: `カテゴリ ${categoryName}` })).toBeVisible();
 
-    await page.getByRole('button', { name: `${categoryName}を編集` }).click()
-    await page.getByLabel('カテゴリ名を編集').fill(updatedCategoryName)
-    await page.getByLabel('カテゴリ色を編集').fill('#0f766e')
-    await page.getByRole('button', { name: '変更を保存' }).click()
-    await expect(page.getByRole('listitem', { name: `カテゴリ ${updatedCategoryName}` })).toBeVisible()
+    await page.getByRole("button", { name: `${categoryName}を編集` }).click();
+    await page.getByLabel("カテゴリ名を編集").fill(updatedCategoryName);
+    await page.getByLabel("カテゴリ色を編集").fill("#0f766e");
+    await page.getByRole("button", { name: "変更を保存" }).click();
+    await expect(
+      page.getByRole("listitem", { name: `カテゴリ ${updatedCategoryName}` }),
+    ).toBeVisible();
 
-    await page.getByRole('button', { name: 'レシート入力' }).click()
+    await page.getByRole("button", { name: "レシート入力" }).click();
     const updatedCategoryOption = page
       .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
-      .filter({ hasText: updatedCategoryName })
-    await expect(updatedCategoryOption).toBeVisible()
+      .filter({ hasText: updatedCategoryName });
+    await expect(updatedCategoryOption).toBeVisible();
 
-    await page.locator('input[name="shopName"]').fill(shopName)
-    await page.locator('input[name="amountYen"]').fill('3210')
-    await updatedCategoryOption.click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await page.locator('input[name="shopName"]').fill(shopName);
+    await page.locator('input[name="amountYen"]').fill("3210");
+    await updatedCategoryOption.click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
-    await page.getByRole('button', { name: 'カテゴリ設定' }).click()
-    await page.getByRole('button', { name: `${updatedCategoryName}を無効化` }).click()
+    await page.getByRole("button", { name: "カテゴリ設定" }).click();
+    await page.getByRole("button", { name: `${updatedCategoryName}を無効化` }).click();
     await expect(
       page
-        .getByRole('listitem', { name: `カテゴリ ${updatedCategoryName}` })
-        .getByText('無効', { exact: true }),
-    ).toBeVisible()
+        .getByRole("listitem", { name: `カテゴリ ${updatedCategoryName}` })
+        .getByText("無効", { exact: true }),
+    ).toBeVisible();
 
-    await page.getByRole('button', { name: 'レシート入力' }).click()
-    await expect(updatedCategoryOption).not.toBeVisible()
+    await page.getByRole("button", { name: "レシート入力" }).click();
+    await expect(updatedCategoryOption).not.toBeVisible();
 
-    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
-    const weeklySummaryReceiptList = page.getByLabel('週次サマリーの支出一覧')
-    await expect(weeklySummaryReceiptList).toContainText(shopName, { timeout: 10_000 })
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+    const weeklySummaryReceiptList = page.getByLabel("週次サマリーの支出一覧");
+    await expect(weeklySummaryReceiptList).toContainText(shopName, { timeout: 10_000 });
     await expect(weeklySummaryReceiptList).toContainText(updatedCategoryName, {
       timeout: 10_000,
-    })
-  })
-})
+    });
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Issue #14: 今週の入力状況パネル（WeekStatusPanel）受け入れ確認
 // ---------------------------------------------------------------------------
 
-test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）', () => {
+test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
-  test('@smoke [Issue #14] 入力状況パネルの各セクションが表示される', async ({ page }) => {
+  test("@smoke [Issue #14] 入力状況パネルの各セクションが表示される", async ({ page }) => {
     // サマリーグリッド（上段3カード）
-    await expect(page.locator('text=入力済み')).toBeVisible()
-    await expect(page.locator('text=今週の支出')).toBeVisible()
-    await expect(page.locator('text=予算残り')).toBeVisible()
+    await expect(page.locator("text=入力済み")).toBeVisible();
+    await expect(page.locator("text=今週の支出")).toBeVisible();
+    await expect(page.locator("text=予算残り")).toBeVisible();
 
     // WeekStatusPanel（右カラム）
-    await expect(page.getByRole('heading', { name: '今週の進捗', level: 2 })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '直近の入力', level: 2 })).toBeVisible()
-    await expect(page.getByRole('progressbar', { name: '今週の入力進捗' })).toBeVisible()
-  })
+    await expect(page.getByRole("heading", { name: "今週の進捗", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "直近の入力", level: 2 })).toBeVisible();
+    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
+  });
 
   test('[Issue #14] 予算未設定時に "--" と "予算未設定" が表示される', async ({ page }) => {
     // weekSession.budgetAmountYen が設定されていない場合の表示確認
     // 予算残りカードは "--" を表示する
-    const budgetRemainingCard = page.locator('.summary-grid').locator('text=予算残り').locator('../..')
-    await expect(budgetRemainingCard.locator('text=--')).toBeVisible()
+    const budgetRemainingCard = page
+      .locator(".summary-grid")
+      .locator("text=予算残り")
+      .locator("../..");
+    await expect(budgetRemainingCard.locator("text=--")).toBeVisible();
 
     // 予算消化ラベルは "予算未設定" を表示する
-    await expect(page.locator('.budget-strip').locator('text=予算未設定')).toBeVisible()
+    await expect(page.locator(".budget-strip").locator("text=予算未設定")).toBeVisible();
 
     // 今週の支出カードは "予算未設定" をヘルパーテキストとして表示する
-    const spendCard = page.locator('.summary-grid').locator('text=今週の支出').locator('../..')
-    await expect(spendCard.locator('text=予算未設定')).toBeVisible()
-  })
+    const spendCard = page.locator(".summary-grid").locator("text=今週の支出").locator("../..");
+    await expect(spendCard.locator("text=予算未設定")).toBeVisible();
+  });
 
   test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
     // 直近の入力セクションで空状態メッセージが自然に表示されることを確認
@@ -352,239 +385,267 @@ test.describe('[Issue #14] 入力状況パネルの表示確認（P0 / smoke）'
 
     // WeekStatusPanel の progressbar が表示されるまで待機し、
     // Convex データのロード完了を保証してから件数を判定する（race condition 対策）
-    await expect(page.getByRole('progressbar', { name: '今週の入力進捗' })).toBeVisible()
+    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
 
     // ロード完了後に receipt-row か空状態メッセージのいずれかが表示されるまで待機
-    const receiptRows = page.locator('[class*="receipt-row"]')
-    const emptyMessage = page.locator('text=まだレシートがありません')
-    await expect(receiptRows.or(emptyMessage).first()).toBeVisible()
+    const receiptRows = page.locator('[class*="receipt-row"]');
+    const emptyMessage = page.locator("text=まだレシートがありません");
+    await expect(receiptRows.or(emptyMessage).first()).toBeVisible();
 
-    const rowCount = await receiptRows.count()
+    const rowCount = await receiptRows.count();
     if (rowCount === 0) {
-      await expect(emptyMessage).toBeVisible()
+      await expect(emptyMessage).toBeVisible();
     } else {
       // データがある場合は空状態メッセージが非表示であることを確認
-      await expect(emptyMessage).not.toBeVisible()
+      await expect(emptyMessage).not.toBeVisible();
     }
-  })
+  });
 
-  test('[Issue #14] 今週の進捗パネルに件数（N 件）が表示される', async ({ page }) => {
+  test("[Issue #14] 今週の進捗パネルに件数（N 件）が表示される", async ({ page }) => {
     // WeekStatusPanel の「今週の進捗」右上に "N 件" テキストが表示されることを確認
     // 件数は共有 Dev DB の状態に依存するため、数値形式であることのみ確認する
-    const progressPanel = page.getByRole('heading', { name: '今週の進捗', level: 2 }).locator('../..')
-    const countText = progressPanel.locator('p, .MuiTypography-body2').filter({ hasText: /^\d+ 件$/ })
-    await expect(countText).toBeVisible()
-  })
+    const progressPanel = page
+      .getByRole("heading", { name: "今週の進捗", level: 2 })
+      .locator("../..");
+    const countText = progressPanel
+      .locator("p, .MuiTypography-body2")
+      .filter({ hasText: /^\d+ 件$/ });
+    await expect(countText).toBeVisible();
+  });
 
-  test('[Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される', async ({ page }) => {
+  test("[Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される", async ({ page }) => {
     // WeekStatusPanel の下部アクションボタンが表示されていることを確認
-    await expect(page.getByRole('button', { name: '直前を複製' })).toBeVisible()
-    await expect(page.getByRole('button', { name: '直前を取り消す' })).toBeVisible()
-  })
-})
+    await expect(page.getByRole("button", { name: "直前を複製" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "直前を取り消す" })).toBeVisible();
+  });
+});
 
-test.describe('[Issue #14] 保存後のリアルタイム更新確認（P0 / 完了条件）', () => {
+test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完了条件）", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
   test.afterEach(async () => {
-    await cleanupTestReceipts()
-  })
+    await cleanupTestReceipts();
+  });
 
-  test('[Issue #14] 保存後にサマリー件数がリアルタイム更新される', async ({ page }) => {
+  test("[Issue #14] 保存後にサマリー件数がリアルタイム更新される", async ({ page }) => {
     // 保存前の件数を取得
     // サマリーカードの「入力済み」の値（例: "3件"）を取得する
-    const countCard = page.locator('.summary-grid').locator('text=入力済み').locator('../..')
-    const beforeCountText = await countCard.locator('h4, .MuiTypography-h4').textContent()
-    const beforeCount = parseInt(beforeCountText?.replace('件', '') ?? '0', 10)
+    const countCard = page.locator(".summary-grid").locator("text=入力済み").locator("../..");
+    const beforeCountText = await countCard.locator("h4, .MuiTypography-h4").textContent();
+    const beforeCount = parseInt(beforeCountText?.replace("件", "") ?? "0", 10);
 
     // 保存前の合計支出を取得
-    const spendCard = page.locator('.summary-grid').locator('text=今週の支出').locator('../..')
-    const beforeSpendText = await spendCard.locator('h4, .MuiTypography-h4').textContent()
-    const beforeSpend = parseInt(beforeSpendText?.replace(/[^0-9]/g, '') ?? '0', 10)
+    const spendCard = page.locator(".summary-grid").locator("text=今週の支出").locator("../..");
+    const beforeSpendText = await spendCard.locator("h4, .MuiTypography-h4").textContent();
+    const beforeSpend = parseInt(beforeSpendText?.replace(/[^0-9]/g, "") ?? "0", 10);
 
     // レシートを1件保存
-    await page.locator('input[name="shopName"]').fill('QAテスト店舗')
-    await page.locator('input[name="amountYen"]').fill('1234')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    await page.locator('input[name="shopName"]').fill("QAテスト店舗");
+    await page.locator('input[name="amountYen"]').fill("1234");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // 保存完了（店名クリアを待機）
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
     // 件数が +1 されていることを確認（Convex の reactivity によるリアルタイム更新）
-    await expect(countCard.locator('h4, .MuiTypography-h4')).toHaveText(`${beforeCount + 1}件`, {
+    await expect(countCard.locator("h4, .MuiTypography-h4")).toHaveText(`${beforeCount + 1}件`, {
       timeout: 10_000,
-    })
+    });
 
     // 合計支出が +1234 円されていることを確認
-    await expect(spendCard.locator('h4, .MuiTypography-h4')).toHaveText(
+    await expect(spendCard.locator("h4, .MuiTypography-h4")).toHaveText(
       `${(beforeSpend + 1234).toLocaleString()}円`,
       { timeout: 10_000 },
-    )
-  })
+    );
+  });
 
-  test('[Issue #14] 保存後に直近の入力一覧にレシートが表示される', async ({ page }) => {
-    const shopName = `QA直近確認_${Date.now()}`
+  test("[Issue #14] 保存後に直近の入力一覧にレシートが表示される", async ({ page }) => {
+    const shopName = `QA直近確認_${Date.now()}`;
 
-    await page.locator('input[name="shopName"]').fill(shopName)
-    await page.locator('input[name="amountYen"]').fill('999')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    await page.locator('input[name="shopName"]').fill(shopName);
+    await page.locator('input[name="amountYen"]').fill("999");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // 保存完了を待機
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
     // WeekStatusPanel の直近の入力一覧に保存したレシートが表示される
     // 注: 一覧は最大5件表示。直近の入力が5件以内であれば確実に表示される。
-    const recentList = page.getByRole('heading', { name: '直近の入力' }).locator('../../..')
-    await expect(recentList.locator(`text=${shopName}`)).toBeVisible({ timeout: 10_000 })
-    await expect(recentList.locator('text=999円')).toBeVisible({ timeout: 10_000 })
-  })
+    const recentList = page.getByRole("heading", { name: "直近の入力" }).locator("../../..");
+    await expect(recentList.locator(`text=${shopName}`)).toBeVisible({ timeout: 10_000 });
+    await expect(recentList.locator("text=999円")).toBeVisible({ timeout: 10_000 });
+  });
 
-  test('[Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される', async ({ page }) => {
+  test("[Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される", async ({
+    page,
+  }) => {
     // WeekStatusPanel の件数ロケーター（"N 件" 形式）
-    const progressPanel = page.getByRole('heading', { name: '今週の進捗', level: 2 }).locator('../..')
-    const countLocator = progressPanel.locator('p, .MuiTypography-body2').filter({ hasText: /^\d+ 件$/ })
+    const progressPanel = page
+      .getByRole("heading", { name: "今週の進捗", level: 2 })
+      .locator("../..");
+    const countLocator = progressPanel
+      .locator("p, .MuiTypography-body2")
+      .filter({ hasText: /^\d+ 件$/ });
 
     // progressbar が表示されるまで待機し、Convex データロード完了を保証してから件数を読む
     // （race condition 対策: ロード前に count を読むと 0 件と誤認する）
-    await expect(page.getByRole('progressbar', { name: '今週の入力進捗' })).toBeVisible()
-    await expect(countLocator).toBeVisible()
-    const beforeCountText = await countLocator.textContent()
-    const beforeCount = parseInt(beforeCountText?.replace(' 件', '') ?? '0', 10)
+    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
+    await expect(countLocator).toBeVisible();
+    const beforeCountText = await countLocator.textContent();
+    const beforeCount = parseInt(beforeCountText?.replace(" 件", "") ?? "0", 10);
 
     // レシートを1件保存
-    const shopName = `QA進捗確認_${Date.now()}`
-    await page.locator('input[name="shopName"]').fill(shopName)
-    await page.locator('input[name="amountYen"]').fill('500')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    const shopName = `QA進捗確認_${Date.now()}`;
+    await page.locator('input[name="shopName"]').fill(shopName);
+    await page.locator('input[name="amountYen"]').fill("500");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // 保存完了を待機
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
     // WeekStatusPanel の件数が +1 されていることを確認（Convex reactivity）
-    await expect(countLocator).toHaveText(`${beforeCount + 1} 件`, { timeout: 10_000 })
-  })
-})
+    await expect(countLocator).toHaveText(`${beforeCount + 1} 件`, { timeout: 10_000 });
+  });
+});
 
-test.describe('週次サマリーパネル（Issue #15 受け入れ確認）', () => {
+test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", () => {
   test.beforeEach(async ({ page }) => {
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
   test.afterEach(async () => {
-    await cleanupTestReceipts()
-  })
+    await cleanupTestReceipts();
+  });
 
-  test('@smoke [Issue #15] 週次サマリーを見るボタンが表示される (P0 / smoke)', async ({ page }) => {
-    await expect(page.getByRole('button', { name: '週次サマリーを見る' })).toBeVisible()
-  })
+  test("@smoke [Issue #15] 週次サマリーを見るボタンが表示される (P0 / smoke)", async ({ page }) => {
+    await expect(page.getByRole("button", { name: "週次サマリーを見る" })).toBeVisible();
+  });
 
-  test('@smoke [Issue #15] ボタンをクリックすると週次サマリーパネルが表示される (P0 / smoke)', async ({ page }) => {
-    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
+  test("@smoke [Issue #15] ボタンをクリックすると週次サマリーパネルが表示される (P0 / smoke)", async ({
+    page,
+  }) => {
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
 
-    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'カテゴリ別', level: 2 })).toBeVisible()
-    await expect(page.getByRole('heading', { name: '支出一覧', level: 2 })).toBeVisible()
-  })
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "カテゴリ別", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "支出一覧", level: 2 })).toBeVisible();
+  });
 
-  test('[Issue #15] 空状態でレシート0件の表示が正しい (P0 / smoke)', async ({ page }) => {
-    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
+  test("[Issue #15] 空状態でレシート0件の表示が正しい (P0 / smoke)", async ({ page }) => {
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
 
     // サマリーパネルが表示されること
-    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
 
     // 空状態メッセージが表示されること（カテゴリ別・支出一覧）
-    const emptyCategoryMsg = page.getByText('まだレシートがありません').first()
-    await expect(emptyCategoryMsg).toBeVisible()
-  })
+    const emptyCategoryMsg = page.getByText("まだレシートがありません").first();
+    await expect(emptyCategoryMsg).toBeVisible();
+  });
 
-  test('[Issue #15] レシート保存後にサマリーがリアルタイム更新される (P0 / 完了条件)', async ({ page }) => {
+  test("[Issue #15] レシート保存後にサマリーがリアルタイム更新される (P0 / 完了条件)", async ({
+    page,
+  }) => {
     // まずサマリーパネルを開く
-    await page.getByRole('button', { name: '週次サマリーを見る' }).click()
-    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
     // Convex クエリのロード完了を待機（Skeleton が消えて「合計支出」が表示されるまで）
-    await expect(page.getByText('合計支出')).toBeVisible({ timeout: 15_000 })
+    await expect(page.getByText("合計支出")).toBeVisible({ timeout: 15_000 });
 
     // レシートを1件保存
-    const shopName = `QAサマリーテスト_${Date.now()}`
-    await page.locator('input[name="shopName"]').fill(shopName)
-    await page.locator('input[name="amountYen"]').fill('1500')
-    await page.locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]').first().click()
-    await page.getByRole('button', { name: '保存して次へ' }).click()
+    const shopName = `QAサマリーテスト_${Date.now()}`;
+    await page.locator('input[name="shopName"]').fill(shopName);
+    await page.locator('input[name="amountYen"]').fill("1500");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
 
     // 保存完了を待機
-    await expect(page.locator('input[name="shopName"]')).toHaveValue('', { timeout: 10_000 })
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
     // サマリーパネルに店舗名が反映されていること
-    await expect(page.locator('.receipt-list').last()).toContainText(shopName, { timeout: 10_000 })
-  })
+    await expect(page.locator(".receipt-list").last()).toContainText(shopName, { timeout: 10_000 });
+  });
 
-  test('[Issue #15] 再度ボタンをクリックするとパネルが閉じる (P1)', async ({ page }) => {
-    const summaryButton = page.getByRole('button', { name: '週次サマリーを見る' })
-    await summaryButton.click()
+  test("[Issue #15] 再度ボタンをクリックするとパネルが閉じる (P1)", async ({ page }) => {
+    const summaryButton = page.getByRole("button", { name: "週次サマリーを見る" });
+    await summaryButton.click();
 
-    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
 
     // ボタンラベルが変わること
-    await expect(page.getByRole('button', { name: 'サマリーを閉じる' })).toBeVisible()
+    await expect(page.getByRole("button", { name: "サマリーを閉じる" })).toBeVisible();
 
     // 再クリックで閉じること
-    await page.getByRole('button', { name: 'サマリーを閉じる' }).click()
-    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).not.toBeVisible()
-  })
-})
+    await page.getByRole("button", { name: "サマリーを閉じる" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).not.toBeVisible();
+  });
+});
 
-test.describe('振り返りメモとセッション完了（Issue #16 受け入れ確認）', () => {
+test.describe("振り返りメモとセッション完了（Issue #16 受け入れ確認）", () => {
   test.beforeEach(async ({ page }) => {
-    await resetTestWeekSession(getCurrentWeekStartDate())
-    await gotoAuthenticated(page)
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-  })
+    await resetTestWeekSession(getCurrentWeekStartDate());
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
 
   test.afterEach(async () => {
-    await resetTestWeekSession(getCurrentWeekStartDate())
-    await cleanupTestReceipts()
-  })
+    await resetTestWeekSession(getCurrentWeekStartDate());
+    await cleanupTestReceipts();
+  });
 
-  test('[Issue #16] 振り返りメモ保存からセッション完了、完了後のメモ更新方針まで確認できる', async ({ page }) => {
-    const reviewMemoInput = page.getByLabel('振り返りメモ')
-    const firstMemo = `E2E振り返りメモ_${Date.now()}`
-    const updatedMemo = `${firstMemo}_更新`
+  test("[Issue #16] 振り返りメモ保存からセッション完了、完了後のメモ更新方針まで確認できる", async ({
+    page,
+  }) => {
+    const reviewMemoInput = page.getByLabel("振り返りメモ");
+    const firstMemo = `E2E振り返りメモ_${Date.now()}`;
+    const updatedMemo = `${firstMemo}_更新`;
 
-    await expect(page.getByRole('heading', { name: '週次振り返り', level: 2 })).toBeVisible()
-    await expect(page.getByText('完了後もメモは再編集できます。')).toBeVisible()
-    await expect(page.getByText('入力中')).toBeVisible()
+    await expect(page.getByRole("heading", { name: "週次振り返り", level: 2 })).toBeVisible();
+    await expect(page.getByText("完了後もメモは再編集できます。")).toBeVisible();
+    await expect(page.getByText("入力中")).toBeVisible();
 
-    await reviewMemoInput.fill(firstMemo)
-    await page.getByRole('button', { name: 'メモを保存' }).click()
-    await expect(page.getByText('振り返りメモを保存しました')).toBeVisible()
+    await reviewMemoInput.fill(firstMemo);
+    await page.getByRole("button", { name: "メモを保存" }).click();
+    await expect(page.getByText("振り返りメモを保存しました")).toBeVisible();
 
-    await page.getByRole('button', { name: 'セッションを完了' }).click()
-    await expect(page.getByText('今週の入力を完了しました')).toBeVisible()
-    await expect(page.getByRole('heading', { name: '週次サマリー', level: 2 })).toBeVisible()
+    await page.getByRole("button", { name: "セッションを完了" }).click();
+    await expect(page.getByText("今週の入力を完了しました")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
 
-    await expect(page.getByText('完了済み', { exact: true })).toBeVisible()
+    await expect(page.getByText("完了済み", { exact: true })).toBeVisible();
     await expect(
-      page.getByText('この週は完了済みです。振り返りメモは完了後も再編集できます。'),
-    ).toBeVisible()
-    await expect(page.getByRole('button', { name: 'メモを更新' })).toBeVisible()
+      page.getByText("この週は完了済みです。振り返りメモは完了後も再編集できます。"),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "メモを更新" })).toBeVisible();
 
-    await reviewMemoInput.fill(updatedMemo)
-    await page.getByRole('button', { name: 'メモを更新' }).click()
+    await reviewMemoInput.fill(updatedMemo);
+    await page.getByRole("button", { name: "メモを更新" }).click();
 
-    await expect(page.getByText('振り返りメモを更新しました')).toBeVisible()
-    await expect(reviewMemoInput).toHaveValue(updatedMemo)
+    await expect(page.getByText("振り返りメモを更新しました")).toBeVisible();
+    await expect(reviewMemoInput).toHaveValue(updatedMemo);
 
-    await page.reload()
-    await expect(page.getByRole('heading', { name: '今週のレシート入力' })).toBeVisible()
-    await expect(page.getByText('完了済み', { exact: true })).toBeVisible()
-    await expect(page.getByLabel('振り返りメモ')).toHaveValue(updatedMemo)
-  })
-})
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+    await expect(page.getByText("完了済み", { exact: true })).toBeVisible();
+    await expect(page.getByLabel("振り返りメモ")).toHaveValue(updatedMemo);
+  });
+});

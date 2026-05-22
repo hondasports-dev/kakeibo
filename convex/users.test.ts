@@ -2,11 +2,7 @@ import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { MutationCtx } from "./_generated/server";
-import {
-  getAuthStateFromIdentity,
-  requireAuthenticatedUserId,
-  upsertUserHandler,
-} from "./users";
+import { getAuthStateFromIdentity, requireAuthenticatedUserId, upsertUserHandler } from "./users";
 
 type AuthContext = Parameters<typeof requireAuthenticatedUserId>[0];
 
@@ -22,24 +18,20 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
 function createAuthContext(identity: UserIdentity | null): AuthContext {
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
   };
 }
 
 describe("requireAuthenticatedUserId", () => {
   it("throws ConvexError when the request is unauthenticated", async () => {
-    await expect(
-      requireAuthenticatedUserId(createAuthContext(null)),
-    ).rejects.toMatchObject({
+    await expect(requireAuthenticatedUserId(createAuthContext(null))).rejects.toMatchObject({
       data: "Not authenticated",
     });
 
-    await expect(
-      requireAuthenticatedUserId(createAuthContext(null)),
-    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(requireAuthenticatedUserId(createAuthContext(null))).rejects.toBeInstanceOf(
+      ConvexError,
+    );
   });
 
   it("returns identity.tokenIdentifier for an authenticated request", async () => {
@@ -47,9 +39,9 @@ describe("requireAuthenticatedUserId", () => {
       tokenIdentifier: "https://issuer.example|user_123",
     });
 
-    await expect(
-      requireAuthenticatedUserId(createAuthContext(identity)),
-    ).resolves.toBe("https://issuer.example|user_123");
+    await expect(requireAuthenticatedUserId(createAuthContext(identity))).resolves.toBe(
+      "https://issuer.example|user_123",
+    );
   });
 
   it("does not use subject when tokenIdentifier is present", async () => {
@@ -58,9 +50,9 @@ describe("requireAuthenticatedUserId", () => {
       subject: "subject-only-user-id",
     });
 
-    await expect(
-      requireAuthenticatedUserId(createAuthContext(identity)),
-    ).resolves.toBe("https://issuer.example|canonical-user-id");
+    await expect(requireAuthenticatedUserId(createAuthContext(identity))).resolves.toBe(
+      "https://issuer.example|canonical-user-id",
+    );
   });
 });
 
@@ -118,9 +110,7 @@ function createMutationCtx(
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       query: queryMock,
@@ -229,9 +219,7 @@ describe("upsertUser", () => {
     const insertedDoc = dbInsert.mock.calls[0][1] as { userId: string };
 
     // userId は tokenIdentifier であること
-    expect(insertedDoc.userId).toBe(
-      "https://issuer.example|clerk-canonical-id",
-    );
+    expect(insertedDoc.userId).toBe("https://issuer.example|clerk-canonical-id");
     // Clerk の生 user_xxx 形式の subject は使われていないこと
     expect(insertedDoc.userId).not.toBe("user_clerk_raw_id");
   });

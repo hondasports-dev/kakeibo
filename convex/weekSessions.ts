@@ -63,10 +63,7 @@ export const getOrCreateCurrentWeekSession = mutation({
 // ---------------------------------------------------------------------------
 
 /** getWeekSession query の handler ロジック（テスト用に export） */
-export async function getWeekSessionHandler(
-  ctx: QueryCtx,
-  args: { weekStartDate: string },
-) {
+export async function getWeekSessionHandler(ctx: QueryCtx, args: { weekStartDate: string }) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   const session = await ctx.db

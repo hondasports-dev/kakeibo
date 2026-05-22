@@ -97,22 +97,20 @@ function createMutationCtx(
   const uniqueResult = opts.uniqueDoc !== undefined ? opts.uniqueDoc : null;
   const uniqueMock = vi.fn().mockResolvedValue(uniqueResult);
 
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
+  const withIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
       return { unique: uniqueMock };
-    },
-  );
+    });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       get: getMock,
@@ -138,22 +136,20 @@ function createQueryCtx(
   const uniqueResult = opts.uniqueDoc !== undefined ? opts.uniqueDoc : null;
   const uniqueMock = vi.fn().mockResolvedValue(uniqueResult);
 
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
+  const withIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
       return { unique: uniqueMock };
-    },
-  );
+    });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       query: queryMock,
@@ -247,13 +243,11 @@ describe("getOrCreateCurrentWeekSession", () => {
   it("未認証時: ConvexError が throw される", async () => {
     const ctx = createMutationCtx(null);
 
-    await expect(
-      getOrCreateCurrentWeekSessionHandler(ctx),
-    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(getOrCreateCurrentWeekSessionHandler(ctx)).rejects.toBeInstanceOf(ConvexError);
 
-    await expect(
-      getOrCreateCurrentWeekSessionHandler(ctx),
-    ).rejects.toMatchObject({ data: "Not authenticated" });
+    await expect(getOrCreateCurrentWeekSessionHandler(ctx)).rejects.toMatchObject({
+      data: "Not authenticated",
+    });
   });
 });
 
@@ -293,9 +287,7 @@ describe("getWeekSession", () => {
       weekStartDate: "2024-01-08",
     });
 
-    expect(result).not.toEqual(
-      expect.objectContaining({ userId: USER_ID }),
-    );
+    expect(result).not.toEqual(expect.objectContaining({ userId: USER_ID }));
     expect(result).toBeNull();
   });
 
@@ -306,9 +298,9 @@ describe("getWeekSession", () => {
       getWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toBeInstanceOf(ConvexError);
 
-    await expect(
-      getWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
-    ).rejects.toMatchObject({ data: "Not authenticated" });
+    await expect(getWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" })).rejects.toMatchObject(
+      { data: "Not authenticated" },
+    );
   });
 });
 

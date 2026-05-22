@@ -46,23 +46,23 @@ http.route({
     // 認証チェック
     const clientSecret = req.headers.get("X-E2E-Cleanup-Secret");
     if (clientSecret !== secret) {
-      return new Response(
-        JSON.stringify({ error: "Unauthorized." }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "Unauthorized." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
-    const body = await req.json() as {
+    const body = (await req.json()) as {
       userId?: string;
       resetWeekSession?: boolean;
       weekStartDate?: string;
       deleteE2eCategories?: boolean;
     };
     if (!body.userId) {
-      return new Response(
-        JSON.stringify({ error: "userId is required." }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
-      );
+      return new Response(JSON.stringify({ error: "userId is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
     }
 
     const receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
@@ -91,10 +91,10 @@ http.route({
       });
     }
 
-    return new Response(
-      JSON.stringify({ receipts, weekSession, categories }),
-      { status: 200, headers: { "Content-Type": "application/json" } },
-    );
+    return new Response(JSON.stringify({ receipts, weekSession, categories }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }),
 });
 

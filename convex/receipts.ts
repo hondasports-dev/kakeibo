@@ -19,10 +19,7 @@ type CreateReceiptArgs = {
 };
 
 /** createReceipt mutation の handler ロジック（テスト用に export） */
-export async function createReceiptHandler(
-  ctx: MutationCtx,
-  args: CreateReceiptArgs,
-) {
+export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   // categoryId の所有権チェック
@@ -79,10 +76,7 @@ type GetReceiptsByWeekArgs = {
 };
 
 /** getReceiptsByWeek query の handler ロジック（テスト用に export） */
-export async function getReceiptsByWeekHandler(
-  ctx: QueryCtx,
-  args: GetReceiptsByWeekArgs,
-) {
+export async function getReceiptsByWeekHandler(ctx: QueryCtx, args: GetReceiptsByWeekArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   return await ctx.db
@@ -110,17 +104,12 @@ type GetReceiptsByDateArgs = {
 };
 
 /** getReceiptsByDate query の handler ロジック（テスト用に export） */
-export async function getReceiptsByDateHandler(
-  ctx: QueryCtx,
-  args: GetReceiptsByDateArgs,
-) {
+export async function getReceiptsByDateHandler(ctx: QueryCtx, args: GetReceiptsByDateArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   return await ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_date", (q) =>
-      q.eq("userId", userId).eq("date", args.date),
-    )
+    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", args.date))
     .take(50);
 }
 
@@ -145,10 +134,7 @@ type UpdateReceiptArgs = {
 };
 
 /** updateReceipt mutation の handler ロジック（テスト用に export） */
-export async function updateReceiptHandler(
-  ctx: MutationCtx,
-  args: UpdateReceiptArgs,
-) {
+export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceiptArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   // receipt の所有権チェック
@@ -169,10 +155,7 @@ export async function updateReceiptHandler(
     if (category.userId !== userId) {
       throw new ConvexError("Category does not belong to the current user");
     }
-    if (
-      !category.isActive &&
-      (args.categoryId as string) !== (receipt.categoryId as string)
-    ) {
+    if (!category.isActive && (args.categoryId as string) !== (receipt.categoryId as string)) {
       throw new ConvexError("Inactive category cannot be used for new receipts");
     }
   }
@@ -235,10 +218,7 @@ type DeleteReceiptArgs = {
 };
 
 /** deleteReceipt mutation の handler ロジック（テスト用に export） */
-export async function deleteReceiptHandler(
-  ctx: MutationCtx,
-  args: DeleteReceiptArgs,
-) {
+export async function deleteReceiptHandler(ctx: MutationCtx, args: DeleteReceiptArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   // receipt の所有権チェック
@@ -269,10 +249,7 @@ type GetWeekSummaryArgs = {
 };
 
 /** getWeekSummary query の handler ロジック（テスト用に export） */
-export async function getWeekSummaryHandler(
-  ctx: QueryCtx,
-  args: GetWeekSummaryArgs,
-) {
+export async function getWeekSummaryHandler(ctx: QueryCtx, args: GetWeekSummaryArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
   const receipts = await ctx.db
@@ -345,12 +322,8 @@ export async function getWeekSummaryWithCategoriesHandler(
     .order("desc")
     .take(200);
 
-  const categoryIds = Array.from(
-    new Set(receipts.map((receipt) => receipt.categoryId)),
-  );
-  const categories = await Promise.all(
-    categoryIds.map((categoryId) => ctx.db.get(categoryId)),
-  );
+  const categoryIds = Array.from(new Set(receipts.map((receipt) => receipt.categoryId)));
+  const categories = await Promise.all(categoryIds.map((categoryId) => ctx.db.get(categoryId)));
 
   // カテゴリ情報を id → {name, color} の Map に変換
   const categoryInfoMap = new Map<string, { name: string; color: string }>();

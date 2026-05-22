@@ -50,9 +50,7 @@ export type AuthState =
       userId: string;
     };
 
-export function getAuthStateFromIdentity(
-  identity: UserIdentity | null,
-): AuthState {
+export function getAuthStateFromIdentity(identity: UserIdentity | null): AuthState {
   if (identity === null) {
     return {
       isAuthenticated: false,

@@ -7,40 +7,44 @@ import {
   Skeleton,
   Stack,
   Typography,
-} from '@mui/material'
+} from "@mui/material";
 
 type Receipt = {
-  _id: string
-  shopName: string
-  date: string
-  amountYen: number
-}
+  _id: string;
+  shopName: string;
+  date: string;
+  amountYen: number;
+};
 
 type WeekStatusPanelProps = {
-  receipts: Receipt[]
-  budgetAmountYen?: number
-  isLoading?: boolean
-}
+  receipts: Receipt[];
+  budgetAmountYen?: number;
+  isLoading?: boolean;
+};
 
 function formatDateForDisplay(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}`
+  const d = new Date(isoDate + "T00:00:00");
+  return `${d.getMonth() + 1}/${d.getDate()}`;
 }
 
-export function WeekStatusPanel({ receipts, budgetAmountYen, isLoading = false }: WeekStatusPanelProps) {
-  const count = receipts.length
-  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0)
-  const progressValue = Math.min((count / 10) * 100, 100)
+export function WeekStatusPanel({
+  receipts,
+  budgetAmountYen,
+  isLoading = false,
+}: WeekStatusPanelProps) {
+  const count = receipts.length;
+  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
+  const progressValue = Math.min((count / 10) * 100, 100);
 
   const budgetUsageRate =
     budgetAmountYen !== undefined && budgetAmountYen > 0
       ? Math.round((totalAmountYen / budgetAmountYen) * 100)
-      : undefined
+      : undefined;
 
   const budgetLabel =
     budgetAmountYen !== undefined
       ? `${budgetUsageRate}% 消化（${totalAmountYen.toLocaleString()}円 / ${budgetAmountYen.toLocaleString()}円）`
-      : '予算未設定'
+      : "予算未設定";
 
   return (
     <Stack spacing={2.5}>
@@ -48,7 +52,7 @@ export function WeekStatusPanel({ receipts, budgetAmountYen, isLoading = false }
       <Paper className="paper-panel" elevation={0}>
         <Box sx={{ p: 2.5 }}>
           <Stack spacing={2}>
-            <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
+            <Stack direction="row" sx={{ justifyContent: "space-between" }}>
               <Typography component="h2" variant="h6">
                 今週の進捗
               </Typography>
@@ -91,9 +95,7 @@ export function WeekStatusPanel({ receipts, budgetAmountYen, isLoading = false }
                 receipts.slice(0, 5).map((receipt) => (
                   <Box className="receipt-row" key={receipt._id}>
                     <Box>
-                      <Typography sx={{ fontWeight: 700 }}>
-                        {receipt.shopName}
-                      </Typography>
+                      <Typography sx={{ fontWeight: 700 }}>{receipt.shopName}</Typography>
                       <Typography color="text.secondary" variant="body2">
                         {formatDateForDisplay(receipt.date)}
                       </Typography>
@@ -106,7 +108,7 @@ export function WeekStatusPanel({ receipts, budgetAmountYen, isLoading = false }
               )}
             </Box>
             <Divider />
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <Button variant="outlined">直前を複製</Button>
               <Button color="secondary" variant="outlined">
                 直前を取り消す
@@ -116,5 +118,5 @@ export function WeekStatusPanel({ receipts, budgetAmountYen, isLoading = false }
         </Box>
       </Paper>
     </Stack>
-  )
+  );
 }

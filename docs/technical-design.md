@@ -10,17 +10,17 @@ Honoは初期構成には含めない。Convexはquery、mutation、action、HTT
 
 ## 2. 推奨技術スタック
 
-| 領域 | 採用 | 理由 |
-|---|---|---|
-| フロントエンド | Vite + React + TypeScript | Convex Reactと相性がよく、SPAを軽く構築できるため |
-| ルーティング | React Router | 複数画面を明確に分けやすいため |
-| UIライブラリ | MUI | 利用実績が大きく、フォーム、テーブル、ダッシュボード系画面に強いため |
-| レイアウトCSS | Tailwind CSS | 画面骨格、余白、レスポンシブ、表示切替を素早く実装するため。MUIコンポーネントの見た目制御には使いすぎない |
-| 認証 | Clerk Google OAuth | Googleアカウントで素早く開始でき、Convex連携も用意されているため |
-| バックエンド/DB | Convex | Reactから型安全にquery/mutationを呼べ、リアクティブ同期が標準で使えるため |
-| 入力バリデーション | Valibot | 軽量でTypeScriptとの相性がよく、ユーザー希望にも合うため |
-| テスト | Vitest + Testing Library + Playwright | ロジック、UI、主要フローを段階的に検証できるため |
-| ホスティング | Vercel | Vite SPAの配信、Preview/Production環境、MCP連携を単純に扱えるため |
+| 領域               | 採用                                  | 理由                                                                                                      |
+| ------------------ | ------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| フロントエンド     | Vite + React + TypeScript             | Convex Reactと相性がよく、SPAを軽く構築できるため                                                         |
+| ルーティング       | React Router                          | 複数画面を明確に分けやすいため                                                                            |
+| UIライブラリ       | MUI                                   | 利用実績が大きく、フォーム、テーブル、ダッシュボード系画面に強いため                                      |
+| レイアウトCSS      | Tailwind CSS                          | 画面骨格、余白、レスポンシブ、表示切替を素早く実装するため。MUIコンポーネントの見た目制御には使いすぎない |
+| 認証               | Clerk Google OAuth                    | Googleアカウントで素早く開始でき、Convex連携も用意されているため                                          |
+| バックエンド/DB    | Convex                                | Reactから型安全にquery/mutationを呼べ、リアクティブ同期が標準で使えるため                                 |
+| 入力バリデーション | Valibot                               | 軽量でTypeScriptとの相性がよく、ユーザー希望にも合うため                                                  |
+| テスト             | Vitest + Testing Library + Playwright | ロジック、UI、主要フローを段階的に検証できるため                                                          |
+| ホスティング       | Vercel                                | Vite SPAの配信、Preview/Production環境、MCP連携を単純に扱えるため                                         |
 
 ## 3. SupabaseではなくConvexを選ぶ理由
 
@@ -102,11 +102,11 @@ convex/
 
 MUIとTailwind CSSは併用するが、責務を分ける。
 
-| 対象 | 担当 |
-|---|---|
-| MUI theme | 色、Typography、角丸、影、コンポーネント標準スタイル |
-| MUI `sx` | MUIコンポーネント単位の微調整、状態依存、theme参照が必要なスタイル |
-| MUI `styled` | 再利用する独自コンポーネントや複雑なスタイル |
+| 対象         | 担当                                                                       |
+| ------------ | -------------------------------------------------------------------------- |
+| MUI theme    | 色、Typography、角丸、影、コンポーネント標準スタイル                       |
+| MUI `sx`     | MUIコンポーネント単位の微調整、状態依存、theme参照が必要なスタイル         |
+| MUI `styled` | 再利用する独自コンポーネントや複雑なスタイル                               |
 | Tailwind CSS | ページ全体のflex/grid、gap、padding、responsive、表示/非表示、外側ラッパー |
 
 Tailwind CSSはレイアウト用途に限定する。`Button`、`TextField`、`Chip`、`Alert`、`Snackbar`、`Table` などのMUIコンポーネントの色、サイズ、角丸、状態表現はMUI themeを正とする。
@@ -155,79 +155,79 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 ## 7. 画面とルーティング
 
-| パス | 画面 | 目的 |
-|---|---|---|
-| `/sign-in` | サインイン | ClerkでGoogleログインする |
-| `/` | ダッシュボード | 今週の支出、予算差分、入力状態を確認する |
-| `/weeks/current/input` | 今週のレシート入力 | レシートを連続入力する |
-| `/weeks/:weekStartDate` | 週次サマリー | 指定週の集計、支出一覧を確認する |
-| `/weeks/:weekStartDate/review` | 週次振り返り | 振り返りメモを保存する |
-| `/categories` | カテゴリ設定 | カテゴリの追加、変更、無効化を行う |
-| `/export` | エクスポート | 指定週または全期間のCSVを出力する |
-| `/settings` | 設定 | 認証状態、バックアップ、基本設定を確認する |
+| パス                           | 画面               | 目的                                       |
+| ------------------------------ | ------------------ | ------------------------------------------ |
+| `/sign-in`                     | サインイン         | ClerkでGoogleログインする                  |
+| `/`                            | ダッシュボード     | 今週の支出、予算差分、入力状態を確認する   |
+| `/weeks/current/input`         | 今週のレシート入力 | レシートを連続入力する                     |
+| `/weeks/:weekStartDate`        | 週次サマリー       | 指定週の集計、支出一覧を確認する           |
+| `/weeks/:weekStartDate/review` | 週次振り返り       | 振り返りメモを保存する                     |
+| `/categories`                  | カテゴリ設定       | カテゴリの追加、変更、無効化を行う         |
+| `/export`                      | エクスポート       | 指定週または全期間のCSVを出力する          |
+| `/settings`                    | 設定               | 認証状態、バックアップ、基本設定を確認する |
 
 ## 8. データ設計
 
 ### 8.1 users
 
-| 項目 | 型 | 説明 |
-|---|---|---|
-| userId | string | `UserIdentity.tokenIdentifier` |
-| displayName | string | 表示名 |
-| email | string (optional) | メールアドレス |
-| createdAt | number | 作成日時 |
-| updatedAt | number | 更新日時 |
+| 項目        | 型                | 説明                           |
+| ----------- | ----------------- | ------------------------------ |
+| userId      | string            | `UserIdentity.tokenIdentifier` |
+| displayName | string            | 表示名                         |
+| email       | string (optional) | メールアドレス                 |
+| createdAt   | number            | 作成日時                       |
+| updatedAt   | number            | 更新日時                       |
 
 ### 8.2 receipts
 
-| 項目 | 型 | 説明 |
-|---|---|---|
-| userId | string | `UserIdentity.tokenIdentifier` |
-| date | string | 支出日。`YYYY-MM-DD` |
-| shopName | string | 店名 |
-| amountYen | number | 金額。日本円の整数 |
-| categoryId | Id<"categories"> | カテゴリID |
-| memo | string (optional) | 任意メモ |
-| weekStartDate | string | 所属週の開始日。`YYYY-MM-DD` |
-| createdAt | number | 作成日時 |
-| updatedAt | number | 更新日時 |
+| 項目          | 型                | 説明                           |
+| ------------- | ----------------- | ------------------------------ |
+| userId        | string            | `UserIdentity.tokenIdentifier` |
+| date          | string            | 支出日。`YYYY-MM-DD`           |
+| shopName      | string            | 店名                           |
+| amountYen     | number            | 金額。日本円の整数             |
+| categoryId    | Id<"categories">  | カテゴリID                     |
+| memo          | string (optional) | 任意メモ                       |
+| weekStartDate | string            | 所属週の開始日。`YYYY-MM-DD`   |
+| createdAt     | number            | 作成日時                       |
+| updatedAt     | number            | 更新日時                       |
 
 ### 8.3 weekSessions
 
-| 項目 | 型 | 説明 |
-|---|---|---|
-| userId | string | `UserIdentity.tokenIdentifier` |
-| weekStartDate | string | 週開始日 |
-| weekEndDate | string | 週終了日 |
-| budgetAmountYen | number (optional) | 週次予算 |
-| reviewMemo | string (optional) | 振り返りメモ |
-| status | `draft` / `completed` | セッション状態 |
-| createdAt | number | 作成日時 |
-| updatedAt | number | 更新日時 |
+| 項目            | 型                    | 説明                           |
+| --------------- | --------------------- | ------------------------------ |
+| userId          | string                | `UserIdentity.tokenIdentifier` |
+| weekStartDate   | string                | 週開始日                       |
+| weekEndDate     | string                | 週終了日                       |
+| budgetAmountYen | number (optional)     | 週次予算                       |
+| reviewMemo      | string (optional)     | 振り返りメモ                   |
+| status          | `draft` / `completed` | セッション状態                 |
+| createdAt       | number                | 作成日時                       |
+| updatedAt       | number                | 更新日時                       |
 
 ### 8.4 categories
 
-| 項目 | 型 | 説明 |
-|---|---|---|
-| userId | string | `UserIdentity.tokenIdentifier` |
-| name | string | カテゴリ名 |
-| color | string | 表示色 |
-| isActive | boolean | 新規入力で利用可能か |
-| sortOrder | number | 表示順 |
-| createdAt | number | 作成日時 |
-| updatedAt | number | 更新日時 |
+| 項目      | 型      | 説明                           |
+| --------- | ------- | ------------------------------ |
+| userId    | string  | `UserIdentity.tokenIdentifier` |
+| name      | string  | カテゴリ名                     |
+| color     | string  | 表示色                         |
+| isActive  | boolean | 新規入力で利用可能か           |
+| sortOrder | number  | 表示順                         |
+| createdAt | number  | 作成日時                       |
+| updatedAt | number  | 更新日時                       |
 
 ## 9. Convex index設計
 
-| テーブル | index | 用途 |
-|---|---|---|
-| users | `by_token_identifier` | `UserIdentity.tokenIdentifier`からユーザーを取得 |
-| receipts | `by_user_id_and_week_start_date` | 指定ユーザー、指定週の支出取得 |
-| receipts | `by_user_id_and_date` | 指定ユーザー、期間指定の支出取得 |
-| receipts | `by_user_id_and_shop_name` | 店名候補、カテゴリ推定 |
-| weekSessions | `by_user_id_and_week_start_date` | 指定ユーザー、指定週のセッション取得 |
-| categories | `by_user_id_and_is_active_and_sort_order` | 有効カテゴリの表示 |
-| categories | `by_user_id_and_sort_order` | カテゴリ設定画面、無効化済みカテゴリを含む履歴表示 |
+| テーブル     | index                                     | 用途                                               |
+| ------------ | ----------------------------------------- | -------------------------------------------------- |
+| users        | `by_token_identifier`                     | `UserIdentity.tokenIdentifier`からユーザーを取得   |
+| receipts     | `by_user_id_and_week_start_date`          | 指定ユーザー、指定週の支出取得                     |
+| receipts     | `by_user_id_and_date`                     | 指定ユーザー、期間指定の支出取得                   |
+| receipts     | `by_user_id_and_shop_name`                | 店名候補、カテゴリ推定                             |
+| weekSessions | `by_user_id_and_week_start_date`          | 指定ユーザー、指定週のセッション取得               |
+| categories   | `by_user_id_and_is_active_and_sort_order` | 有効カテゴリの表示                                 |
+| categories   | `by_user_id_and_sort_order`               | カテゴリ設定画面、無効化済みカテゴリを含む履歴表示 |
 
 ## 10. Convex function設計
 
@@ -272,14 +272,14 @@ CSV生成はクライアント側でも可能だが、Convex側で生成する�
 
 Convexにも引数validatorがあるため、Valibotだけに依存しない。フロントではValibot、Convex functionではConvex validatorsと認可チェックを併用する。
 
-| 対象 | ルール |
-|---|---|
-| 店名 | 空文字不可。前後の空白は除去 |
-| 金額 | 1円以上の整数 |
-| カテゴリ | 有効なカテゴリIDのみ |
-| 日付 | `YYYY-MM-DD` として扱える値 |
-| メモ | 任意。上限文字数を設ける |
-| 週次予算 | 未入力または1円以上の整数 |
+| 対象     | ルール                       |
+| -------- | ---------------------------- |
+| 店名     | 空文字不可。前後の空白は除去 |
+| 金額     | 1円以上の整数                |
+| カテゴリ | 有効なカテゴリIDのみ         |
+| 日付     | `YYYY-MM-DD` として扱える値  |
+| メモ     | 任意。上限文字数を設ける     |
+| 週次予算 | 未入力または1円以上の整数    |
 
 ## 12. 主要ロジック
 
@@ -345,15 +345,15 @@ DEV/PreviewはVercel Preview DeploymentのURLを使い、PRODはVercel Productio
 
 DEVとPRODの2環境を分けて構築する。
 
-| 領域 | DEV | PROD |
-|---|---|---|
-| フロントエンド | Vercel Preview URL、またはlocalhost | Vercel Production URL |
-| URL | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo.vercel.app` などのProduction URL |
-| Clerk | Development instance | Production instance |
-| Clerk認証方式 | Google OAuth | Google OAuth |
-| Convex | dev deployment | production deployment |
-| データ | テストデータ | 実ユーザーデータ |
-| 環境変数 | `.env.local`、Vercel Preview env | Vercel Production env |
+| 領域           | DEV                                              | PROD                                              |
+| -------------- | ------------------------------------------------ | ------------------------------------------------- |
+| フロントエンド | Vercel Preview URL、またはlocalhost              | Vercel Production URL                             |
+| URL            | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo.vercel.app` などのProduction URL |
+| Clerk          | Development instance                             | Production instance                               |
+| Clerk認証方式  | Google OAuth                                     | Google OAuth                                      |
+| Convex         | dev deployment                                   | production deployment                             |
+| データ         | テストデータ                                     | 実ユーザーデータ                                  |
+| 環境変数       | `.env.local`、Vercel Preview env                 | Vercel Production env                             |
 
 ### 15.1 環境分離方針
 
@@ -472,14 +472,14 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 ## 18. リスクとトレードオフ
 
-| リスク | 内容 | 対策 |
-|---|---|---|
-| ベンダー依存 | ConvexのDB/Functionsに依存する | データモデルを単純に保ち、CSV/JSONエクスポートを用意する |
-| SQL分析がしづらい | Postgresほど自由なSQL分析ができない | MVPでは不要。必要になれば外部分析基盤へのexportを検討する |
-| オフライン入力なし | 通信不安定時に入力できない | MVPではエラー表示と再試行を優先し、将来オフライン対応を検討する |
-| 認可漏れ | 他ユーザーのデータが見えると致命的 | 全query/mutationで `userId` を必ず確認し、テストする |
-| Hono追加時の複雑化 | API層が増えて責務が曖昧になる | Convexで足りない要件が出るまで追加しない |
-| 環境混在 | DEVのClerkやConvexがPRODに混ざる | Clerk application、Convex deployment、環境変数を明確に分離する |
+| リスク             | 内容                                | 対策                                                            |
+| ------------------ | ----------------------------------- | --------------------------------------------------------------- |
+| ベンダー依存       | ConvexのDB/Functionsに依存する      | データモデルを単純に保ち、CSV/JSONエクスポートを用意する        |
+| SQL分析がしづらい  | Postgresほど自由なSQL分析ができない | MVPでは不要。必要になれば外部分析基盤へのexportを検討する       |
+| オフライン入力なし | 通信不安定時に入力できない          | MVPではエラー表示と再試行を優先し、将来オフライン対応を検討する |
+| 認可漏れ           | 他ユーザーのデータが見えると致命的  | 全query/mutationで `userId` を必ず確認し、テストする            |
+| Hono追加時の複雑化 | API層が増えて責務が曖昧になる       | Convexで足りない要件が出るまで追加しない                        |
+| 環境混在           | DEVのClerkやConvexがPRODに混ざる    | Clerk application、Convex deployment、環境変数を明確に分離する  |
 
 ## 19. 実装前に決めたこと
 

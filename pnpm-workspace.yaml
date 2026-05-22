@@ -1,5 +1,5 @@
 ignoreScripts: true
 
 allowBuilds:
-  '@clerk/shared': true
+  "@clerk/shared": true
   esbuild: true

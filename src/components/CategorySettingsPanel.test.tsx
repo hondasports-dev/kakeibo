@@ -1,17 +1,17 @@
-import { screen, waitFor } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { Id } from '../../convex/_generated/dataModel'
-import { renderWithProviders } from '../test/render'
-import { CategorySettingsPanel } from './CategorySettingsPanel'
+import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Id } from "../../convex/_generated/dataModel";
+import { renderWithProviders } from "../test/render";
+import { CategorySettingsPanel } from "./CategorySettingsPanel";
 
 type Category = {
-  _id: Id<'categories'>
-  name: string
-  color: string
-  isActive: boolean
-  sortOrder: number
-}
+  _id: Id<"categories">;
+  name: string;
+  color: string;
+  isActive: boolean;
+  sortOrder: number;
+};
 
 const {
   createCategoryMock,
@@ -25,126 +25,126 @@ const {
   updateCategoryMock: vi.fn(),
   useMutationMock: vi.fn(),
   useQueryMock: vi.fn(),
-}))
+}));
 
-vi.mock('../../convex/_generated/api', () => ({
+vi.mock("../../convex/_generated/api", () => ({
   api: {
     categories: {
-      createCategory: 'categories.createCategory',
-      deactivateCategory: 'categories.deactivateCategory',
-      listForSettings: 'categories.listForSettings',
-      updateCategory: 'categories.updateCategory',
+      createCategory: "categories.createCategory",
+      deactivateCategory: "categories.deactivateCategory",
+      listForSettings: "categories.listForSettings",
+      updateCategory: "categories.updateCategory",
     },
   },
-}))
+}));
 
-vi.mock('convex/react', () => ({
+vi.mock("convex/react", () => ({
   useMutation: useMutationMock,
   useQuery: useQueryMock,
-}))
+}));
 
 const categories: Category[] = [
   {
-    _id: 'cat-food' as Id<'categories'>,
-    name: '食費',
-    color: '#2563EB',
+    _id: "cat-food" as Id<"categories">,
+    name: "食費",
+    color: "#2563EB",
     isActive: true,
     sortOrder: 10,
   },
   {
-    _id: 'cat-old' as Id<'categories'>,
-    name: '旧カテゴリ',
-    color: '#64748B',
+    _id: "cat-old" as Id<"categories">,
+    name: "旧カテゴリ",
+    color: "#64748B",
     isActive: false,
     sortOrder: 20,
   },
-]
+];
 
-describe('CategorySettingsPanel', () => {
+describe("CategorySettingsPanel", () => {
   beforeEach(() => {
-    useQueryMock.mockReset()
-    useMutationMock.mockReset()
-    createCategoryMock.mockReset()
-    updateCategoryMock.mockReset()
-    deactivateCategoryMock.mockReset()
-    createCategoryMock.mockResolvedValue(undefined)
-    updateCategoryMock.mockResolvedValue(undefined)
-    deactivateCategoryMock.mockResolvedValue(undefined)
-    useQueryMock.mockReturnValue(categories)
+    useQueryMock.mockReset();
+    useMutationMock.mockReset();
+    createCategoryMock.mockReset();
+    updateCategoryMock.mockReset();
+    deactivateCategoryMock.mockReset();
+    createCategoryMock.mockResolvedValue(undefined);
+    updateCategoryMock.mockResolvedValue(undefined);
+    deactivateCategoryMock.mockResolvedValue(undefined);
+    useQueryMock.mockReturnValue(categories);
     useMutationMock.mockImplementation((reference: string) => {
-      if (reference === 'categories.createCategory') return createCategoryMock
-      if (reference === 'categories.updateCategory') return updateCategoryMock
-      if (reference === 'categories.deactivateCategory') return deactivateCategoryMock
-      throw new Error(`Unexpected mutation reference: ${reference}`)
-    })
-  })
+      if (reference === "categories.createCategory") return createCategoryMock;
+      if (reference === "categories.updateCategory") return updateCategoryMock;
+      if (reference === "categories.deactivateCategory") return deactivateCategoryMock;
+      throw new Error(`Unexpected mutation reference: ${reference}`);
+    });
+  });
 
-  it('カテゴリ取得中は読み込み状態を表示する', () => {
+  it("カテゴリ取得中は読み込み状態を表示する", () => {
     // Given: カテゴリ一覧のqueryがまだ完了していない
-    useQueryMock.mockReturnValue(undefined)
+    useQueryMock.mockReturnValue(undefined);
 
     // When: カテゴリ設定を表示する
-    renderWithProviders(<CategorySettingsPanel />)
+    renderWithProviders(<CategorySettingsPanel />);
 
     // Then: 読み込み中の状態が表示される
-    expect(screen.getByText('カテゴリを読み込んでいます。')).toBeInTheDocument()
-  })
+    expect(screen.getByText("カテゴリを読み込んでいます。")).toBeInTheDocument();
+  });
 
-  it('カテゴリを追加でき、入力欄を初期状態に戻す', async () => {
+  it("カテゴリを追加でき、入力欄を初期状態に戻す", async () => {
     // Given: 既存カテゴリが読み込まれている
-    const user = userEvent.setup()
-    renderWithProviders(<CategorySettingsPanel />)
+    const user = userEvent.setup();
+    renderWithProviders(<CategorySettingsPanel />);
 
     // When: 新しいカテゴリ名を入力して追加する
-    await user.type(screen.getByLabelText('新しいカテゴリ名'), '交通')
-    await user.click(screen.getByRole('button', { name: 'カテゴリを追加' }))
+    await user.type(screen.getByLabelText("新しいカテゴリ名"), "交通");
+    await user.click(screen.getByRole("button", { name: "カテゴリを追加" }));
 
     // Then: 作成mutationが呼ばれ、カテゴリ名の入力欄が空になる
     await waitFor(() => {
       expect(createCategoryMock).toHaveBeenCalledWith({
-        name: '交通',
-        color: '#2563EB',
-      })
-    })
-    expect(screen.getByLabelText('新しいカテゴリ名')).toHaveValue('')
-    expect(screen.getByText('カテゴリを追加しました')).toBeInTheDocument()
-  })
+        name: "交通",
+        color: "#2563EB",
+      });
+    });
+    expect(screen.getByLabelText("新しいカテゴリ名")).toHaveValue("");
+    expect(screen.getByText("カテゴリを追加しました")).toBeInTheDocument();
+  });
 
-  it('カテゴリ名を編集して保存できる', async () => {
+  it("カテゴリ名を編集して保存できる", async () => {
     // Given: 既存カテゴリが編集可能な状態で表示されている
-    const user = userEvent.setup()
-    renderWithProviders(<CategorySettingsPanel />)
+    const user = userEvent.setup();
+    renderWithProviders(<CategorySettingsPanel />);
 
     // When: カテゴリ名を変更して保存する
-    await user.click(screen.getByRole('button', { name: '食費を編集' }))
-    const editName = screen.getByLabelText('カテゴリ名を編集')
-    await user.clear(editName)
-    await user.type(editName, 'スーパー')
-    await user.click(screen.getByRole('button', { name: '変更を保存' }))
+    await user.click(screen.getByRole("button", { name: "食費を編集" }));
+    const editName = screen.getByLabelText("カテゴリ名を編集");
+    await user.clear(editName);
+    await user.type(editName, "スーパー");
+    await user.click(screen.getByRole("button", { name: "変更を保存" }));
 
     // Then: 更新mutationに編集後の値が渡る
     await waitFor(() => {
       expect(updateCategoryMock).toHaveBeenCalledWith({
-        categoryId: 'cat-food',
-        name: 'スーパー',
-        color: '#2563EB',
-      })
-    })
-    expect(screen.getByText('カテゴリを更新しました')).toBeInTheDocument()
-  })
+        categoryId: "cat-food",
+        name: "スーパー",
+        color: "#2563EB",
+      });
+    });
+    expect(screen.getByText("カテゴリを更新しました")).toBeInTheDocument();
+  });
 
-  it('有効カテゴリを無効化し、無効カテゴリのボタンは押せない', async () => {
+  it("有効カテゴリを無効化し、無効カテゴリのボタンは押せない", async () => {
     // Given: 有効カテゴリと無効カテゴリが一覧にある
-    const user = userEvent.setup()
-    renderWithProviders(<CategorySettingsPanel />)
+    const user = userEvent.setup();
+    renderWithProviders(<CategorySettingsPanel />);
 
     // When: 有効カテゴリの無効化ボタンを押す
-    await user.click(screen.getByRole('button', { name: '食費を無効化' }))
+    await user.click(screen.getByRole("button", { name: "食費を無効化" }));
 
     // Then: 対象IDで無効化mutationが呼ばれ、無効カテゴリは操作不可のまま
     await waitFor(() => {
-      expect(deactivateCategoryMock).toHaveBeenCalledWith({ categoryId: 'cat-food' })
-    })
-    expect(screen.getByRole('button', { name: '旧カテゴリを無効化' })).toBeDisabled()
-  })
-})
+      expect(deactivateCategoryMock).toHaveBeenCalledWith({ categoryId: "cat-food" });
+    });
+    expect(screen.getByRole("button", { name: "旧カテゴリを無効化" })).toBeDisabled();
+  });
+});
