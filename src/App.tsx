@@ -373,8 +373,7 @@ function KakeiboApp() {
       weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
     ) ?? [];
 
-  const summaryWeekStartDate =
-    selectedSummaryWeekStartDate ?? weekSession?.weekStartDate ?? null;
+  const summaryWeekStartDate = selectedSummaryWeekStartDate ?? weekSession?.weekStartDate ?? null;
 
   const summaryWeekSession = useQuery(
     api.weekSessions.getWeekSession,
@@ -437,7 +436,9 @@ function KakeiboApp() {
 
   const navigateToSummaryWeek = (nextWeekStartDate: string) => {
     const normalized = normalizeWeekStartDate(nextWeekStartDate) ?? weekStartDate;
-    const targetWeekStartDate = isFutureWeek(normalized, weekStartDate) ? weekStartDate : normalized;
+    const targetWeekStartDate = isFutureWeek(normalized, weekStartDate)
+      ? weekStartDate
+      : normalized;
 
     setSelectedSummaryWeekStartDate(targetWeekStartDate);
     setShowSummary(true);
