@@ -88,11 +88,7 @@ function createMutationCtx(
 
   const getMock = vi.fn().mockImplementation(async (id: string) => {
     // insert が完了した後の get は insertedDoc を返す
-    if (
-      id === "new-receipt-id" &&
-      insertCalled &&
-      insertedDoc !== null
-    ) {
+    if (id === "new-receipt-id" && insertCalled && insertedDoc !== null) {
       return insertedDoc;
     }
     // patch が完了した後の get は updatedDoc を返す
@@ -118,22 +114,20 @@ function createMutationCtx(
   const takeMock = vi.fn().mockResolvedValue(opts.queryDocs ?? []);
   const queryChain = { take: takeMock, order: vi.fn() };
   queryChain.order.mockReturnValue(queryChain);
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
+  const withIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
       return queryChain;
-    },
-  );
+    });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       get: getMock,
@@ -149,29 +143,24 @@ function createMutationCtx(
 /**
  * QueryCtx の最小モックを生成する。
  */
-function createQueryCtx(
-  identity: UserIdentity | null,
-  queryDocs: ReceiptDoc[] = [],
-): QueryCtx {
+function createQueryCtx(identity: UserIdentity | null, queryDocs: ReceiptDoc[] = []): QueryCtx {
   const takeMock = vi.fn().mockResolvedValue(queryDocs);
   const queryChain = { take: takeMock, order: vi.fn() };
   queryChain.order.mockReturnValue(queryChain);
-  const withIndexMock = vi.fn().mockImplementation(
-    (_indexName: string, builder: (q: unknown) => unknown) => {
+  const withIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
       return queryChain;
-    },
-  );
+    });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       query: queryMock,
@@ -205,8 +194,9 @@ function createQueryCtxForSummary(
       chain.collect = collectMock;
     }
     (chain.order as ReturnType<typeof vi.fn>).mockReturnValue(chain);
-    const withIndexMock = vi.fn().mockImplementation(
-      (_indexName: string, builder: (q: unknown) => unknown) => {
+    const withIndexMock = vi
+      .fn()
+      .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
         const filters: Record<string, unknown> = {};
         const q = {
           eq: vi.fn().mockImplementation((field: string, value: unknown) => {
@@ -228,9 +218,7 @@ function createQueryCtxForSummary(
         });
         const filteredChain: Record<string, unknown> = {
           take: vi.fn().mockImplementation(async (limit?: number) => {
-            return typeof limit === "number"
-              ? filteredDocs.slice(0, limit)
-              : filteredDocs;
+            return typeof limit === "number" ? filteredDocs.slice(0, limit) : filteredDocs;
           }),
           order: vi.fn(),
         };
@@ -239,8 +227,7 @@ function createQueryCtxForSummary(
         }
         (filteredChain.order as ReturnType<typeof vi.fn>).mockReturnValue(filteredChain);
         return filteredChain;
-      },
-    );
+      });
     return { withIndex: withIndexMock };
   };
 
@@ -253,9 +240,7 @@ function createQueryCtxForSummary(
 
   return {
     auth: {
-      getUserIdentity: vi
-        .fn<() => Promise<UserIdentity | null>>()
-        .mockResolvedValue(identity),
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
       query: queryMock,
@@ -501,9 +486,7 @@ describe("getReceiptsByWeek", () => {
     });
 
     // USER_ID のレシートは含まれない
-    expect(result).not.toContainEqual(
-      expect.objectContaining({ userId: USER_ID }),
-    );
+    expect(result).not.toContainEqual(expect.objectContaining({ userId: USER_ID }));
     expect(result).toHaveLength(0);
   });
 
@@ -518,7 +501,6 @@ describe("getReceiptsByWeek", () => {
       getReceiptsByWeekHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toMatchObject({ data: "Not authenticated" });
   });
-
 });
 
 // ---------------------------------------------------------------------------
@@ -793,9 +775,9 @@ describe("getWeekSummary", () => {
       getWeekSummaryHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toBeInstanceOf(ConvexError);
 
-    await expect(
-      getWeekSummaryHandler(ctx, { weekStartDate: "2024-01-08" }),
-    ).rejects.toMatchObject({ data: "Not authenticated" });
+    await expect(getWeekSummaryHandler(ctx, { weekStartDate: "2024-01-08" })).rejects.toMatchObject(
+      { data: "Not authenticated" },
+    );
   });
 });
 
@@ -835,11 +817,7 @@ describe("getWeekSummaryWithCategories", () => {
       amountYen: 800,
       categoryId: "cat-001",
     };
-    const ctx = createQueryCtxForSummary(
-      identity,
-      [receipt1, receipt2],
-      [sampleCategory],
-    );
+    const ctx = createQueryCtxForSummary(identity, [receipt1, receipt2], [sampleCategory]);
 
     const result = await getWeekSummaryWithCategoriesHandler(ctx, {
       weekStartDate: "2024-01-08",
@@ -911,11 +889,7 @@ describe("getWeekSummaryWithCategories", () => {
       categoryId: "cat-001",
       weekStartDate: "2024-01-08",
     };
-    const ctx = createQueryCtxForSummary(
-      identity,
-      [receipt1],
-      [sampleCategory],
-    );
+    const ctx = createQueryCtxForSummary(identity, [receipt1], [sampleCategory]);
 
     const result = await getWeekSummaryWithCategoriesHandler(ctx, {
       weekStartDate: "2024-01-08",

@@ -13,29 +13,29 @@
 
 ### Clerk認証関連
 
-| 変数名 | 用途 | Local | Production | Secret扱い | 設定場所 |
-|--------|------|-------|------------|------------|----------|
-| `VITE_CLERK_PUBLISHABLE_KEY` | フロントエンド用公開鍵 | ✅ | ✅ | ❌ | .env.local / Vercel Env |
-| `CLERK_SECRET_KEY` | サーバー用秘密鍵 | ✅ | ✅ | ✅ | .env.local / Vercel Secrets |
-| `CLERK_JWT_ISSUER_DOMAIN` | Convex認証用JWT issuerドメイン | ✅ | ✅ | ❌ | Convex Dashboard (CLI) / Vercel Env |
-| `E2E_CLERK_USER_EMAIL` | E2Eテスト用メール | ✅ | ❌ | ✅ | .env.local のみ |
-| `E2E_CLERK_USER_PASSWORD` | E2Eテスト用パスワード | ✅ | ❌ | ✅ | .env.local のみ |
+| 変数名                       | 用途                           | Local | Production | Secret扱い | 設定場所                            |
+| ---------------------------- | ------------------------------ | ----- | ---------- | ---------- | ----------------------------------- |
+| `VITE_CLERK_PUBLISHABLE_KEY` | フロントエンド用公開鍵         | ✅    | ✅         | ❌         | .env.local / Vercel Env             |
+| `CLERK_SECRET_KEY`           | サーバー用秘密鍵               | ✅    | ✅         | ✅         | .env.local / Vercel Secrets         |
+| `CLERK_JWT_ISSUER_DOMAIN`    | Convex認証用JWT issuerドメイン | ✅    | ✅         | ❌         | Convex Dashboard (CLI) / Vercel Env |
+| `E2E_CLERK_USER_EMAIL`       | E2Eテスト用メール              | ✅    | ❌         | ✅         | .env.local のみ                     |
+| `E2E_CLERK_USER_PASSWORD`    | E2Eテスト用パスワード          | ✅    | ❌         | ✅         | .env.local のみ                     |
 
 ### Convex関連
 
-| 変数名 | 用途 | Local | Production | Secret扱い | 設定場所 |
-|--------|------|-------|------------|------------|----------|
-| `CONVEX_DEPLOYMENT` | ローカル開発用デプロイメント名 | ✅ | ❌ | ❌ | .env.local のみ |
-| `VITE_CONVEX_URL` | フロントエンド用Convex接続URL | ✅ | ✅ | ❌ | .env.local / Vercel Env |
-| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL | ✅ | ❌ | ❌ | .env.local / GitHub Actions Secret |
-| `CONVEX_DEPLOY_KEY` | VercelビルドからConvexへのデプロイ用キー | ❌ | ✅ | ✅ | Vercel Secrets のみ |
+| 変数名                 | 用途                                     | Local | Production | Secret扱い | 設定場所                           |
+| ---------------------- | ---------------------------------------- | ----- | ---------- | ---------- | ---------------------------------- |
+| `CONVEX_DEPLOYMENT`    | ローカル開発用デプロイメント名           | ✅    | ❌         | ❌         | .env.local のみ                    |
+| `VITE_CONVEX_URL`      | フロントエンド用Convex接続URL            | ✅    | ✅         | ❌         | .env.local / Vercel Env            |
+| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ❌         | ❌         | .env.local / GitHub Actions Secret |
+| `CONVEX_DEPLOY_KEY`    | VercelビルドからConvexへのデプロイ用キー | ❌    | ✅         | ✅         | Vercel Secrets のみ                |
 
 ### E2E テストクリーンアップ関連
 
-| 変数名 | 用途 | Local | CI | Secret扱い | 設定場所 |
-|--------|------|-------|-----|------------|----------|
-| `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅ | ✅ | ✅ | .env.local / GitHub Actions Secret / Convex Dashboard |
-| `E2E_CLERK_USER_ID` | テストユーザーの Clerk tokenIdentifier | ✅ | ✅ | ✅ | .env.local / GitHub Actions Secret |
+| 変数名               | 用途                                      | Local | CI  | Secret扱い | 設定場所                                              |
+| -------------------- | ----------------------------------------- | ----- | --- | ---------- | ----------------------------------------------------- |
+| `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
+| `E2E_CLERK_USER_ID`  | テストユーザーの Clerk tokenIdentifier    | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret                    |
 
 ## 環境ごとの設定方針
 
@@ -69,22 +69,25 @@ npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.c
 Vercel DashboardのEnvironment Variablesに設定する。
 
 **Environment Variables (非秘匿)**:
+
 - `VITE_CLERK_PUBLISHABLE_KEY` — Clerk Production instanceの公開鍵 (`pk_live_*`)
 - `VITE_CONVEX_URL` — ProductionのConvex URL
 
 **Secrets (秘匿)**:
+
 - `CLERK_SECRET_KEY` — Clerk Production instanceの秘密鍵 (`sk_live_*`)
 - `CONVEX_DEPLOY_KEY` — ConvexのProduction deploy key (Convex Dashboard > Deployment Settings > Generate Production Deploy Key)
 
 **Convex Dashboardに設定**:
+
 - `CLERK_JWT_ISSUER_DOMAIN` — Convex側の認証設定 (`npx convex env set CLERK_JWT_ISSUER_DOMAIN <value>`)
 
 ### Clerk instanceの使い分け
 
-| 環境 | Clerk instance | キーの形式 |
-|------|---------------|-----------|
-| Local | Development instance | `pk_test_*` / `sk_test_*` |
-| Production | Production instance | `pk_live_*` / `sk_live_*` |
+| 環境       | Clerk instance       | キーの形式                |
+| ---------- | -------------------- | ------------------------- |
+| Local      | Development instance | `pk_test_*` / `sk_test_*` |
+| Production | Production instance  | `pk_live_*` / `sk_live_*` |
 
 > Production環境には必ずProduction instanceのキーを使うこと。
 > Development instanceのキー (`pk_test_*`) を本番環境に設定しない。
@@ -96,6 +99,7 @@ Vercel と GitHub を連携している場合、Convexのデプロイは **Verce
 lint/build の CI チェックや将来の E2E 実行には GitHub Actions を使用する。
 
 **Vercel Build Commandの設定:**
+
 ```
 npx convex deploy --cmd 'pnpm run build'
 ```
@@ -194,4 +198,3 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - 環境変数を追加・削除する際は `.env.example` も必ず更新する
 - `.env.example` はすべての変数を含む（値はプレースホルダー）
 - `VITE_*` でない変数をフロントエンドで参照しない
-

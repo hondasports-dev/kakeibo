@@ -1,11 +1,11 @@
-import { defineConfig, devices } from '@playwright/test'
+import { defineConfig, devices } from "@playwright/test";
 
 /**
  * E2E テスト設定
  * Clerk 認証セットアップ手順: docs/development-process.md「Codex 開発時の Clerk 認証」
  */
 export default defineConfig({
-  testDir: './e2e',
+  testDir: "./e2e",
   /* 全テストの最大タイムアウト（API 遅延対応） */
   timeout: 30_000,
   /* expect() のタイムアウト */
@@ -17,17 +17,14 @@ export default defineConfig({
   /* CI 環境では並列実行しない（認証状態の競合回避） */
   workers: process.env.CI ? 1 : undefined,
   /* 失敗時のみスクリーンショット・trace を保存（認証情報が含まれる可能性があるため短期保持） */
-  reporter: [
-    ['html', { open: 'never' }],
-    ['list'],
-  ],
+  reporter: [["html", { open: "never" }], ["list"]],
   use: {
     /* テスト対象 URL。環境変数 E2E_BASE_URL が設定されていれば Vercel Preview を対象にする */
-    baseURL: process.env.E2E_BASE_URL ?? 'http://localhost:5173',
+    baseURL: process.env.E2E_BASE_URL ?? "http://localhost:5173",
     /* 失敗時のみスクリーンショット保存 */
-    screenshot: 'only-on-failure',
+    screenshot: "only-on-failure",
     /* 失敗時のみ trace 保存 */
-    trace: 'on-first-retry',
+    trace: "on-first-retry",
     /*
      * storageState はここでは設定しない。
      * @clerk/testing/playwright の認証は storageState ではなく
@@ -41,28 +38,28 @@ export default defineConfig({
      * 詳細: docs/development-process.md「E2E 確認方針」
      */
     extraHTTPHeaders: process.env.PLAYWRIGHT_BYPASS_SECRET
-      ? { 'x-vercel-protection-bypass': process.env.PLAYWRIGHT_BYPASS_SECRET }
+      ? { "x-vercel-protection-bypass": process.env.PLAYWRIGHT_BYPASS_SECRET }
       : undefined,
   },
   projects: [
     {
       // global setup: Clerk Testing Token を取得して process.env に設定
-      name: 'setup',
+      name: "setup",
       testMatch: /global-setup\.ts/,
     },
     {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-      dependencies: ['setup'],
+      name: "chromium",
+      use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
     },
   ],
   /* ローカル実行時は vite dev サーバーを自動起動 */
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: 'pnpm run dev',
-        url: 'http://localhost:5173',
+        command: "pnpm run dev",
+        url: "http://localhost:5173",
         reuseExistingServer: !process.env.CI,
         timeout: 60_000,
       },
-})
+});

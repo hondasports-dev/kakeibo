@@ -31,7 +31,7 @@
  * CI 環境（process.env.CI === 'true'）では未設定の場合にエラーをスローする。
  */
 export async function cleanupTestReceipts(): Promise<void> {
-  await callCleanupEndpoint({ userId: getCleanupUserId() })
+  await callCleanupEndpoint({ userId: getCleanupUserId() });
 }
 
 /**
@@ -41,7 +41,7 @@ export async function cleanupTestCategories(): Promise<void> {
   await callCleanupEndpoint({
     userId: getCleanupUserId(),
     deleteE2eCategories: true,
-  })
+  });
 }
 
 /**
@@ -52,66 +52,66 @@ export async function resetTestWeekSession(weekStartDate: string): Promise<void>
     userId: getCleanupUserId(),
     resetWeekSession: true,
     weekStartDate,
-  })
+  });
 }
 
 function getCleanupUserId(): string | undefined {
-  return process.env.E2E_CLERK_USER_ID
+  return process.env.E2E_CLERK_USER_ID;
 }
 
 async function callCleanupEndpoint(body: {
-  userId?: string
-  resetWeekSession?: boolean
-  weekStartDate?: string
-  deleteE2eCategories?: boolean
+  userId?: string;
+  resetWeekSession?: boolean;
+  weekStartDate?: string;
+  deleteE2eCategories?: boolean;
 }): Promise<void> {
-  const siteUrl = process.env.VITE_CONVEX_SITE_URL
-  const secret = process.env.E2E_CLEANUP_SECRET
-  const userId = body.userId
+  const siteUrl = process.env.VITE_CONVEX_SITE_URL;
+  const secret = process.env.E2E_CLEANUP_SECRET;
+  const userId = body.userId;
 
   if (!siteUrl || !secret || !userId) {
     if (process.env.CI) {
       throw new Error(
-        'E2E クリーンアップに必要な環境変数が未設定です。' +
-        'VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET, E2E_CLERK_USER_ID を設定してください。',
-      )
+        "E2E クリーンアップに必要な環境変数が未設定です。" +
+          "VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET, E2E_CLERK_USER_ID を設定してください。",
+      );
     }
     // ローカルでは警告のみ（未設定でもテストは続行できる）
     console.warn(
-      '[cleanup] VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_ID が未設定のため' +
-      'クリーンアップをスキップします。',
-    )
-    return
+      "[cleanup] VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_ID が未設定のため" +
+        "クリーンアップをスキップします。",
+    );
+    return;
   }
 
   const res = await fetch(`${siteUrl}/e2e/cleanup`, {
-    method: 'POST',
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'X-E2E-Cleanup-Secret': secret,
+      "Content-Type": "application/json",
+      "X-E2E-Cleanup-Secret": secret,
     },
     body: JSON.stringify(body),
-  })
+  });
 
   if (!res.ok) {
-    const text = await res.text()
-    throw new Error(`E2E クリーンアップに失敗しました: ${res.status} ${text}`)
+    const text = await res.text();
+    throw new Error(`E2E クリーンアップに失敗しました: ${res.status} ${text}`);
   }
 
-  const data = await res.json() as {
-    receipts?: { deletedCount: number }
-    categories?: { deletedCount: number } | null
-    deletedCount?: number
-    weekSession?: { reset: boolean } | null
-  }
-  const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0
+  const data = (await res.json()) as {
+    receipts?: { deletedCount: number };
+    categories?: { deletedCount: number } | null;
+    deletedCount?: number;
+    weekSession?: { reset: boolean } | null;
+  };
+  const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {
-    console.log(`[cleanup] ${deletedCount} 件のレシートを削除しました。`)
+    console.log(`[cleanup] ${deletedCount} 件のレシートを削除しました。`);
   }
   if (data.weekSession?.reset) {
-    console.log('[cleanup] 週次セッションをリセットしました。')
+    console.log("[cleanup] 週次セッションをリセットしました。");
   }
   if (data.categories && data.categories.deletedCount > 0) {
-    console.log(`[cleanup] ${data.categories.deletedCount} 件のカテゴリを削除しました。`)
+    console.log(`[cleanup] ${data.categories.deletedCount} 件のカテゴリを削除しました。`);
   }
 }

@@ -1,6 +1,6 @@
-import { useState } from 'react'
-import { useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
+import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 import {
   Alert,
   Box,
@@ -11,81 +11,81 @@ import {
   Stack,
   TextField,
   Typography,
-} from '@mui/material'
+} from "@mui/material";
 
 type WeekSession = {
-  weekStartDate: string
-  weekEndDate: string
-  status: 'draft' | 'completed'
-  budgetAmountYen?: number
-  reviewMemo?: string
-}
+  weekStartDate: string;
+  weekEndDate: string;
+  status: "draft" | "completed";
+  budgetAmountYen?: number;
+  reviewMemo?: string;
+};
 
 type ReviewMemoPanelProps = {
-  weekSession: WeekSession
-  onSessionUpdated: (weekSession: WeekSession) => void
-  onShowSummary: () => void
-}
+  weekSession: WeekSession;
+  onSessionUpdated: (weekSession: WeekSession) => void;
+  onShowSummary: () => void;
+};
 
 export function ReviewMemoPanel({
   weekSession,
   onSessionUpdated,
   onShowSummary,
 }: ReviewMemoPanelProps) {
-  const updateReviewMemo = useMutation(api.weekSessions.updateReviewMemo)
-  const completeWeekSession = useMutation(api.weekSessions.completeWeekSession)
-  const [reviewMemo, setReviewMemo] = useState(weekSession.reviewMemo ?? '')
-  const [status, setStatus] = useState<'idle' | 'saving' | 'completing'>('idle')
-  const [error, setError] = useState('')
-  const [snackbarMessage, setSnackbarMessage] = useState('')
+  const updateReviewMemo = useMutation(api.weekSessions.updateReviewMemo);
+  const completeWeekSession = useMutation(api.weekSessions.completeWeekSession);
+  const [reviewMemo, setReviewMemo] = useState(weekSession.reviewMemo ?? "");
+  const [status, setStatus] = useState<"idle" | "saving" | "completing">("idle");
+  const [error, setError] = useState("");
+  const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  const isCompleted = weekSession.status === 'completed'
-  const isBusy = status !== 'idle'
+  const isCompleted = weekSession.status === "completed";
+  const isBusy = status !== "idle";
 
   const handleSave = async () => {
-    setStatus('saving')
-    setError('')
+    setStatus("saving");
+    setError("");
 
     try {
       const updatedSession = await updateReviewMemo({
         weekStartDate: weekSession.weekStartDate,
         reviewMemo,
-      })
-      onSessionUpdated(updatedSession)
-      setSnackbarMessage(isCompleted ? '振り返りメモを更新しました' : '振り返りメモを保存しました')
+      });
+      onSessionUpdated(updatedSession);
+      setSnackbarMessage(isCompleted ? "振り返りメモを更新しました" : "振り返りメモを保存しました");
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
           ? caughtError.message
-          : '振り返りメモを保存できませんでした。もう一度お試しください。'
-      setError(message)
+          : "振り返りメモを保存できませんでした。もう一度お試しください。";
+      setError(message);
     } finally {
-      setStatus('idle')
+      setStatus("idle");
     }
-  }
+  };
 
   const handleComplete = async () => {
-    setStatus('completing')
-    setError('')
+    setStatus("completing");
+    setError("");
 
     try {
       const updatedSession = await completeWeekSession({
         weekStartDate: weekSession.weekStartDate,
         reviewMemo,
-      })
-      onSessionUpdated(updatedSession)
-      setSnackbarMessage('今週の入力を完了しました')
-      onShowSummary()
+      });
+      onSessionUpdated(updatedSession);
+      setSnackbarMessage("今週の入力を完了しました");
+      onShowSummary();
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
           ? caughtError.message
-          : 'セッションを完了できませんでした。もう一度お試しください。'
-      setError(message)
+          : "セッションを完了できませんでした。もう一度お試しください。";
+      setError(message);
     } finally {
-      setStatus('idle')
+      setStatus("idle");
     }
-  }
+  };
 
   return (
     <Paper className="paper-panel" elevation={0}>
@@ -100,10 +100,10 @@ export function ReviewMemoPanel({
             </Typography>
           </Box>
 
-          <Alert severity={isCompleted ? 'success' : 'info'} variant="outlined">
+          <Alert severity={isCompleted ? "success" : "info"} variant="outlined">
             {isCompleted
-              ? 'この週は完了済みです。振り返りメモは完了後も再編集できます。'
-              : 'メモを保存してからセッションを完了できます。完了後もメモは再編集できます。'}
+              ? "この週は完了済みです。振り返りメモは完了後も再編集できます。"
+              : "メモを保存してからセッションを完了できます。完了後もメモは再編集できます。"}
           </Alert>
 
           {error ? (
@@ -124,14 +124,14 @@ export function ReviewMemoPanel({
             value={reviewMemo}
           />
 
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
             <Button
               disabled={isBusy}
               onClick={handleSave}
-              startIcon={status === 'saving' ? <CircularProgress size={16} /> : undefined}
+              startIcon={status === "saving" ? <CircularProgress size={16} /> : undefined}
               variant="outlined"
             >
-              {status === 'saving' ? '保存中...' : isCompleted ? 'メモを更新' : 'メモを保存'}
+              {status === "saving" ? "保存中..." : isCompleted ? "メモを更新" : "メモを保存"}
             </Button>
             {isCompleted ? (
               <Button disabled={isBusy} onClick={onShowSummary} variant="contained">
@@ -141,10 +141,10 @@ export function ReviewMemoPanel({
               <Button
                 disabled={isBusy}
                 onClick={handleComplete}
-                startIcon={status === 'completing' ? <CircularProgress size={16} /> : undefined}
+                startIcon={status === "completing" ? <CircularProgress size={16} /> : undefined}
                 variant="contained"
               >
-                {status === 'completing' ? '完了中...' : 'セッションを完了'}
+                {status === "completing" ? "完了中..." : "セッションを完了"}
               </Button>
             )}
           </Stack>
@@ -152,12 +152,12 @@ export function ReviewMemoPanel({
       </Box>
 
       <Snackbar
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         autoHideDuration={3000}
-        onClose={() => setSnackbarMessage('')}
+        onClose={() => setSnackbarMessage("")}
         open={!!snackbarMessage}
         message={snackbarMessage}
       />
     </Paper>
-  )
+  );
 }

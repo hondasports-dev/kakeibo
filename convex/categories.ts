@@ -5,13 +5,13 @@ import type { Id } from "./_generated/dataModel";
 import { requireAuthenticatedUserId } from "./users";
 
 const DEFAULT_CATEGORIES = [
-  { name: "食費",   color: "#FF6B6B", sortOrder: 1 },
+  { name: "食費", color: "#FF6B6B", sortOrder: 1 },
   { name: "日用品", color: "#4ECDC4", sortOrder: 2 },
-  { name: "外食",   color: "#FFE66D", sortOrder: 3 },
-  { name: "交通",   color: "#95E1D3", sortOrder: 4 },
-  { name: "医療",   color: "#F38181", sortOrder: 5 },
-  { name: "娯楽",   color: "#AA96DA", sortOrder: 6 },
-  { name: "衣服",   color: "#FCBAD3", sortOrder: 7 },
+  { name: "外食", color: "#FFE66D", sortOrder: 3 },
+  { name: "交通", color: "#95E1D3", sortOrder: 4 },
+  { name: "医療", color: "#F38181", sortOrder: 5 },
+  { name: "娯楽", color: "#AA96DA", sortOrder: 6 },
+  { name: "衣服", color: "#FCBAD3", sortOrder: 7 },
   { name: "その他", color: "#A8DADC", sortOrder: 8 },
 ] as const;
 
@@ -121,10 +121,7 @@ type CreateCategoryArgs = {
 };
 
 /** createCategory mutation の handler ロジック（テスト用に export） */
-export async function createCategoryHandler(
-  ctx: MutationCtx,
-  args: CreateCategoryArgs,
-) {
+export async function createCategoryHandler(ctx: MutationCtx, args: CreateCategoryArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
   const name = normalizeCategoryName(args.name);
   const color = normalizeCategoryColor(args.color);
@@ -137,8 +134,7 @@ export async function createCategoryHandler(
     throw new ConvexError("Category limit reached");
   }
 
-  const sortOrder =
-    existing.reduce((max, category) => Math.max(max, category.sortOrder), 0) + 1;
+  const sortOrder = existing.reduce((max, category) => Math.max(max, category.sortOrder), 0) + 1;
   const now = Date.now();
 
   const categoryId = await ctx.db.insert("categories", {
@@ -161,10 +157,7 @@ type UpdateCategoryArgs = {
 };
 
 /** updateCategory mutation の handler ロジック（テスト用に export） */
-export async function updateCategoryHandler(
-  ctx: MutationCtx,
-  args: UpdateCategoryArgs,
-) {
+export async function updateCategoryHandler(ctx: MutationCtx, args: UpdateCategoryArgs) {
   await getOwnedCategory(ctx, args.categoryId);
   const name = normalizeCategoryName(args.name);
   const color = normalizeCategoryColor(args.color);
@@ -183,10 +176,7 @@ type DeactivateCategoryArgs = {
 };
 
 /** deactivateCategory mutation の handler ロジック（テスト用に export） */
-export async function deactivateCategoryHandler(
-  ctx: MutationCtx,
-  args: DeactivateCategoryArgs,
-) {
+export async function deactivateCategoryHandler(ctx: MutationCtx, args: DeactivateCategoryArgs) {
   await getOwnedCategory(ctx, args.categoryId);
 
   await ctx.db.patch(args.categoryId, {

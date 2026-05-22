@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react'
-import { useConvexAuth, useMutation } from 'convex/react'
-import { api } from '../../convex/_generated/api'
+import { useEffect, useRef } from "react";
+import { useConvexAuth, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
 
 /**
  * Convex 認証確立後に users テーブルを upsert し、デフォルトカテゴリを seed するフック。
@@ -16,26 +16,26 @@ import { api } from '../../convex/_generated/api'
  * - エラーは console.error に記録し、UI をブロックしない。
  */
 export function useInitializeUser() {
-  const { isAuthenticated } = useConvexAuth()
-  const upsertUser = useMutation(api.users.upsertUser)
-  const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories)
-  const hasInitialized = useRef(false)
+  const { isAuthenticated } = useConvexAuth();
+  const upsertUser = useMutation(api.users.upsertUser);
+  const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!isAuthenticated || hasInitialized.current) {
-      return
+      return;
     }
 
-    hasInitialized.current = true
+    hasInitialized.current = true;
 
     upsertUser()
       .then(() => seedDefaultCategories())
       .then(() => {
-        hasInitialized.current = true
+        hasInitialized.current = true;
       })
       .catch((err: unknown) => {
-        hasInitialized.current = false // リトライ許可
-        console.error('[useInitializeUser] initialization failed:', err)
-      })
-  }, [isAuthenticated, upsertUser, seedDefaultCategories])
+        hasInitialized.current = false; // リトライ許可
+        console.error("[useInitializeUser] initialization failed:", err);
+      });
+  }, [isAuthenticated, upsertUser, seedDefaultCategories]);
 }

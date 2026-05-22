@@ -13,13 +13,13 @@ Convex 側では必ず `ctx.auth.getUserIdentity()` を使い、
 
 ### 基本ルール
 
-| ルール | 詳細 |
-|---|---|
-| 認証確認 | すべての query / mutation で `ctx.auth.getUserIdentity()` を呼ぶ |
-| 未認証拒否 | `identity === null` の場合は `ConvexError("Not authenticated")` をスローする |
-| 認可キー | `identity.tokenIdentifier` を優先する（`subject` は使わない） |
-| userId の解決 | クライアント引数を信用せず、サーバー側で `identity.tokenIdentifier` から解決する |
-| データ所有者分離 | receipt / category / weekSession などの家計データは `userId` で所有者を分離する |
+| ルール           | 詳細                                                                             |
+| ---------------- | -------------------------------------------------------------------------------- |
+| 認証確認         | すべての query / mutation で `ctx.auth.getUserIdentity()` を呼ぶ                 |
+| 未認証拒否       | `identity === null` の場合は `ConvexError("Not authenticated")` をスローする     |
+| 認可キー         | `identity.tokenIdentifier` を優先する（`subject` は使わない）                    |
+| userId の解決    | クライアント引数を信用せず、サーバー側で `identity.tokenIdentifier` から解決する |
+| データ所有者分離 | receipt / category / weekSession などの家計データは `userId` で所有者を分離する  |
 
 ### 共通ヘルパー（`convex/users.ts`）
 
@@ -96,11 +96,11 @@ function KakeiboApp() {
 
 ## 関連ファイル
 
-| ファイル | 役割 |
-|---|---|
-| `convex/auth.config.ts` | Convex の JWT issuer 設定（CLERK_JWT_ISSUER_DOMAIN を参照） |
-| `convex/schema.ts` | users テーブル定義（`by_token_identifier` インデックス） |
-| `convex/users.ts` | 認証ヘルパー・upsertUser mutation |
-| `src/main.tsx` | ClerkProvider + ConvexProviderWithClerk の Provider 構成 |
-| `src/App.tsx` | 認証状態ガード（AuthenticatedApp）と KakeiboApp での初期化呼び出し |
-| `src/hooks/useInitializeUser.ts` | ログイン後の users upsert フック |
+| ファイル                         | 役割                                                               |
+| -------------------------------- | ------------------------------------------------------------------ |
+| `convex/auth.config.ts`          | Convex の JWT issuer 設定（CLERK_JWT_ISSUER_DOMAIN を参照）        |
+| `convex/schema.ts`               | users テーブル定義（`by_token_identifier` インデックス）           |
+| `convex/users.ts`                | 認証ヘルパー・upsertUser mutation                                  |
+| `src/main.tsx`                   | ClerkProvider + ConvexProviderWithClerk の Provider 構成           |
+| `src/App.tsx`                    | 認証状態ガード（AuthenticatedApp）と KakeiboApp での初期化呼び出し |
+| `src/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |

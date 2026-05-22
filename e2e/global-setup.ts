@@ -1,5 +1,5 @@
-import { clerkSetup } from '@clerk/testing/playwright'
-import { test as setup } from '@playwright/test'
+import { clerkSetup } from "@clerk/testing/playwright";
+import { test as setup } from "@playwright/test";
 
 /**
  * Playwright グローバルセットアップ
@@ -17,8 +17,8 @@ import { test as setup } from '@playwright/test'
  */
 
 // Setup は serial で実行（並列実行による競合を防ぐ）
-setup.describe.configure({ mode: 'serial' })
+setup.describe.configure({ mode: "serial" });
 
-setup('global setup', async () => {
-  await clerkSetup()
-})
+setup("global setup", async () => {
+  await clerkSetup();
+});

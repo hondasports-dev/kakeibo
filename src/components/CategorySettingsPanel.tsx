@@ -1,7 +1,7 @@
-import { type FormEvent, useState } from 'react'
-import { useMutation, useQuery } from 'convex/react'
-import { api } from '../../convex/_generated/api'
-import type { Id } from '../../convex/_generated/dataModel'
+import { type FormEvent, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 import {
   Alert,
   Box,
@@ -14,91 +14,91 @@ import {
   Stack,
   TextField,
   Typography,
-} from '@mui/material'
+} from "@mui/material";
 
 type Category = {
-  _id: Id<'categories'>
-  name: string
-  color: string
-  isActive: boolean
-  sortOrder: number
-}
+  _id: Id<"categories">;
+  name: string;
+  color: string;
+  isActive: boolean;
+  sortOrder: number;
+};
 
-const DEFAULT_NEW_COLOR = '#2563EB'
+const DEFAULT_NEW_COLOR = "#2563EB";
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback
+  return error instanceof Error ? error.message : fallback;
 }
 
 export function CategorySettingsPanel() {
-  const categories = useQuery(api.categories.listForSettings) as Category[] | undefined
-  const createCategory = useMutation(api.categories.createCategory)
-  const updateCategory = useMutation(api.categories.updateCategory)
-  const deactivateCategory = useMutation(api.categories.deactivateCategory)
+  const categories = useQuery(api.categories.listForSettings) as Category[] | undefined;
+  const createCategory = useMutation(api.categories.createCategory);
+  const updateCategory = useMutation(api.categories.updateCategory);
+  const deactivateCategory = useMutation(api.categories.deactivateCategory);
 
-  const [newName, setNewName] = useState('')
-  const [newColor, setNewColor] = useState(DEFAULT_NEW_COLOR)
-  const [editingId, setEditingId] = useState<Id<'categories'> | null>(null)
-  const [editName, setEditName] = useState('')
-  const [editColor, setEditColor] = useState(DEFAULT_NEW_COLOR)
-  const [status, setStatus] = useState<'idle' | 'saving'>('idle')
-  const [error, setError] = useState('')
-  const [snackbar, setSnackbar] = useState('')
+  const [newName, setNewName] = useState("");
+  const [newColor, setNewColor] = useState(DEFAULT_NEW_COLOR);
+  const [editingId, setEditingId] = useState<Id<"categories"> | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editColor, setEditColor] = useState(DEFAULT_NEW_COLOR);
+  const [status, setStatus] = useState<"idle" | "saving">("idle");
+  const [error, setError] = useState("");
+  const [snackbar, setSnackbar] = useState("");
 
   const beginEdit = (category: Category) => {
-    setEditingId(category._id)
-    setEditName(category.name)
-    setEditColor(category.color)
-    setError('')
-  }
+    setEditingId(category._id);
+    setEditName(category.name);
+    setEditColor(category.color);
+    setError("");
+  };
 
   const handleCreate = async (event: FormEvent) => {
-    event.preventDefault()
-    setStatus('saving')
-    setError('')
+    event.preventDefault();
+    setStatus("saving");
+    setError("");
     try {
-      await createCategory({ name: newName, color: newColor })
-      setNewName('')
-      setNewColor(DEFAULT_NEW_COLOR)
-      setSnackbar('カテゴリを追加しました')
+      await createCategory({ name: newName, color: newColor });
+      setNewName("");
+      setNewColor(DEFAULT_NEW_COLOR);
+      setSnackbar("カテゴリを追加しました");
     } catch (caughtError) {
-      setError(getErrorMessage(caughtError, 'カテゴリを追加できませんでした。'))
+      setError(getErrorMessage(caughtError, "カテゴリを追加できませんでした。"));
     } finally {
-      setStatus('idle')
+      setStatus("idle");
     }
-  }
+  };
 
   const handleUpdate = async () => {
-    if (editingId === null) return
-    setStatus('saving')
-    setError('')
+    if (editingId === null) return;
+    setStatus("saving");
+    setError("");
     try {
       await updateCategory({
         categoryId: editingId,
         name: editName,
         color: editColor,
-      })
-      setEditingId(null)
-      setSnackbar('カテゴリを更新しました')
+      });
+      setEditingId(null);
+      setSnackbar("カテゴリを更新しました");
     } catch (caughtError) {
-      setError(getErrorMessage(caughtError, 'カテゴリを更新できませんでした。'))
+      setError(getErrorMessage(caughtError, "カテゴリを更新できませんでした。"));
     } finally {
-      setStatus('idle')
+      setStatus("idle");
     }
-  }
+  };
 
-  const handleDeactivate = async (categoryId: Id<'categories'>) => {
-    setStatus('saving')
-    setError('')
+  const handleDeactivate = async (categoryId: Id<"categories">) => {
+    setStatus("saving");
+    setError("");
     try {
-      await deactivateCategory({ categoryId })
-      setSnackbar('カテゴリを無効化しました')
+      await deactivateCategory({ categoryId });
+      setSnackbar("カテゴリを無効化しました");
     } catch (caughtError) {
-      setError(getErrorMessage(caughtError, 'カテゴリを無効化できませんでした。'))
+      setError(getErrorMessage(caughtError, "カテゴリを無効化できませんでした。"));
     } finally {
-      setStatus('idle')
+      setStatus("idle");
     }
-  }
+  };
 
   return (
     <Paper className="paper-panel" elevation={0}>
@@ -120,7 +120,7 @@ export function CategorySettingsPanel() {
           ) : null}
 
           <Box component="form" onSubmit={handleCreate}>
-            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
                 fullWidth
                 label="新しいカテゴリ名"
@@ -133,11 +133,11 @@ export function CategorySettingsPanel() {
                 slotProps={{ inputLabel: { shrink: true } }}
                 type="color"
                 value={newColor}
-                sx={{ width: { xs: '100%', sm: 160 } }}
+                sx={{ width: { xs: "100%", sm: 160 } }}
               />
               <Button
-                disabled={status === 'saving'}
-                startIcon={status === 'saving' ? <CircularProgress size={16} /> : undefined}
+                disabled={status === "saving"}
+                startIcon={status === "saving" ? <CircularProgress size={16} /> : undefined}
                 type="submit"
                 variant="contained"
               >
@@ -149,7 +149,7 @@ export function CategorySettingsPanel() {
           <Divider />
 
           {categories === undefined ? (
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <CircularProgress size={20} />
               <Typography color="text.secondary" variant="body2">
                 カテゴリを読み込んでいます。
@@ -158,7 +158,7 @@ export function CategorySettingsPanel() {
           ) : (
             <Box component="ul" className="category-settings-list">
               {categories.map((category) => {
-                const isEditing = editingId === category._id
+                const isEditing = editingId === category._id;
                 return (
                   <Box
                     aria-label={`カテゴリ ${category.name}`}
@@ -168,9 +168,9 @@ export function CategorySettingsPanel() {
                   >
                     {isEditing ? (
                       <Stack
-                        direction={{ xs: 'column', md: 'row' }}
+                        direction={{ xs: "column", md: "row" }}
                         spacing={1.5}
-                        sx={{ alignItems: { xs: 'stretch', md: 'center' }, width: '100%' }}
+                        sx={{ alignItems: { xs: "stretch", md: "center" }, width: "100%" }}
                       >
                         <TextField
                           fullWidth
@@ -184,13 +184,17 @@ export function CategorySettingsPanel() {
                           slotProps={{ inputLabel: { shrink: true } }}
                           type="color"
                           value={editColor}
-                          sx={{ width: { xs: '100%', md: 160 } }}
+                          sx={{ width: { xs: "100%", md: 160 } }}
                         />
-                        <Button disabled={status === 'saving'} onClick={handleUpdate} variant="contained">
+                        <Button
+                          disabled={status === "saving"}
+                          onClick={handleUpdate}
+                          variant="contained"
+                        >
                           変更を保存
                         </Button>
                         <Button
-                          disabled={status === 'saving'}
+                          disabled={status === "saving"}
                           onClick={() => setEditingId(null)}
                           variant="outlined"
                         >
@@ -199,12 +203,16 @@ export function CategorySettingsPanel() {
                       </Stack>
                     ) : (
                       <>
-                        <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+                        <Stack
+                          direction="row"
+                          spacing={1.5}
+                          sx={{ alignItems: "center", minWidth: 0 }}
+                        >
                           <Box
                             aria-hidden="true"
                             sx={{
                               bgcolor: category.color,
-                              borderRadius: '50%',
+                              borderRadius: "50%",
                               flexShrink: 0,
                               height: 14,
                               width: 14,
@@ -219,16 +227,16 @@ export function CategorySettingsPanel() {
                             </Typography>
                           </Box>
                           <Chip
-                            color={category.isActive ? 'success' : 'secondary'}
-                            label={category.isActive ? '有効' : '無効'}
+                            color={category.isActive ? "success" : "secondary"}
+                            label={category.isActive ? "有効" : "無効"}
                             size="small"
-                            variant={category.isActive ? 'outlined' : 'filled'}
+                            variant={category.isActive ? "outlined" : "filled"}
                           />
                         </Stack>
-                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
                           <Button
                             aria-label={`${category.name}を編集`}
-                            disabled={status === 'saving'}
+                            disabled={status === "saving"}
                             onClick={() => beginEdit(category)}
                             size="small"
                             variant="outlined"
@@ -238,7 +246,7 @@ export function CategorySettingsPanel() {
                           <Button
                             aria-label={`${category.name}を無効化`}
                             color="error"
-                            disabled={status === 'saving' || !category.isActive}
+                            disabled={status === "saving" || !category.isActive}
                             onClick={() => handleDeactivate(category._id)}
                             size="small"
                             variant="outlined"
@@ -249,7 +257,7 @@ export function CategorySettingsPanel() {
                       </>
                     )}
                   </Box>
-                )
+                );
               })}
             </Box>
           )}
@@ -257,15 +265,15 @@ export function CategorySettingsPanel() {
       </Box>
 
       <Snackbar
-        anchorOrigin={{ horizontal: 'center', vertical: 'bottom' }}
+        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
         autoHideDuration={3000}
-        onClose={() => setSnackbar('')}
-        open={snackbar !== ''}
+        onClose={() => setSnackbar("")}
+        open={snackbar !== ""}
       >
-        <Alert onClose={() => setSnackbar('')} severity="success" variant="filled">
+        <Alert onClose={() => setSnackbar("")} severity="success" variant="filled">
           {snackbar}
         </Alert>
       </Snackbar>
     </Paper>
-  )
+  );
 }

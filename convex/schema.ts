@@ -53,9 +53,7 @@ export default defineSchema({
     sortOrder: v.number(),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user_id_and_is_active_and_sort_order", [
-    "userId",
-    "isActive",
-    "sortOrder",
-  ]).index("by_user_id_and_sort_order", ["userId", "sortOrder"]),
+  })
+    .index("by_user_id_and_is_active_and_sort_order", ["userId", "isActive", "sortOrder"])
+    .index("by_user_id_and_sort_order", ["userId", "sortOrder"]),
 });
