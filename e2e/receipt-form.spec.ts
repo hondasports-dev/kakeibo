@@ -33,6 +33,8 @@ import {
  *   - [Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される (P0 / issue #14 完了条件)
  *   - [Issue #16] 振り返りメモを保存してセッションを完了できる (P0 / issue #16 完了条件)
  *   - [Issue #16] 完了後もメモ再編集方針が表示され、メモを更新できる (P1 / regression)
+ *   - [Issue #45] 週次サマリーを前後週ナビゲーションで切り替えられる (P0 / regression)
+ *   - [Issue #45] 未来週URLは今週の週次サマリーへ正規化される (P0 / error-handling)
  */
 
 function getCurrentWeekStartDate(): string {
@@ -40,6 +42,15 @@ function getCurrentWeekStartDate(): string {
   const day = date.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   date.setDate(date.getDate() + diff);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const dayOfMonth = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${dayOfMonth}`;
+}
+
+function addWeeks(weekStartDate: string, weeks: number): string {
+  const date = new Date(`${weekStartDate}T00:00:00`);
+  date.setDate(date.getDate() + weeks * 7);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const dayOfMonth = String(date.getDate()).padStart(2, "0");
@@ -597,6 +608,37 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     // 再クリックで閉じること
     await page.getByRole("button", { name: "サマリーを閉じる" }).click();
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).not.toBeVisible();
+  });
+
+  test("@smoke [Issue #45] 週次サマリーを前後週ナビゲーションで切り替えられる", async ({
+    page,
+  }) => {
+    const currentWeekStartDate = getCurrentWeekStartDate();
+    const previousWeekStartDate = addWeeks(currentWeekStartDate, -1);
+
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`));
+    await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+
+    await page.getByRole("button", { name: "前の週へ" }).click();
+
+    await expect(page).toHaveURL(new RegExp(`/weeks/${previousWeekStartDate}$`));
+    await expect(page.getByRole("button", { name: "次の週へ" })).toBeEnabled();
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+    await expect(page.getByText("この週の振り返りメモはまだありません")).toBeVisible();
+  });
+
+  test("@smoke [Issue #45] 未来週URLは今週の週次サマリーへ正規化される", async ({ page }) => {
+    const currentWeekStartDate = getCurrentWeekStartDate();
+    const futureWeekStartDate = addWeeks(currentWeekStartDate, 1);
+
+    await page.goto(`/weeks/${futureWeekStartDate}`);
+
+    await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`));
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+    await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
   });
 });
 

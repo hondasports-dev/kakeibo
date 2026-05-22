@@ -1,17 +1,25 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "./test/render";
 import App from "./App";
 
-const { useAuthMock, useClerkMock, useConvexAuthMock, useSignInMock, useUserMock } = vi.hoisted(
-  () => ({
-    useAuthMock: vi.fn(),
-    useClerkMock: vi.fn(),
-    useConvexAuthMock: vi.fn(),
-    useSignInMock: vi.fn(),
-    useUserMock: vi.fn(),
-  }),
-);
+const {
+  useAuthMock,
+  useClerkMock,
+  useConvexAuthMock,
+  useMutationMock,
+  useQueryMock,
+  useSignInMock,
+  useUserMock,
+} = vi.hoisted(() => ({
+  useAuthMock: vi.fn(),
+  useClerkMock: vi.fn(),
+  useConvexAuthMock: vi.fn(),
+  useMutationMock: vi.fn(),
+  useQueryMock: vi.fn(),
+  useSignInMock: vi.fn(),
+  useUserMock: vi.fn(),
+}));
 
 vi.mock("@clerk/react", () => ({
   AuthenticateWithRedirectCallback: () => <div>OAuth callback mock</div>,
@@ -26,9 +34,33 @@ vi.mock("@clerk/react/legacy", () => ({
 
 vi.mock("convex/react", () => ({
   useConvexAuth: useConvexAuthMock,
-  useMutation: vi.fn(),
-  useQuery: vi.fn(),
+  useMutation: useMutationMock,
+  useQuery: useQueryMock,
 }));
+
+const currentWeekSession = {
+  weekStartDate: "2026-05-18",
+  weekEndDate: "2026-05-24",
+  status: "draft" as const,
+};
+
+function setupSignedInApp() {
+  const getOrCreateSession = vi.fn().mockResolvedValue(currentWeekSession);
+
+  useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true });
+  useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: true });
+  useMutationMock.mockReset();
+  useMutationMock.mockReturnValue(getOrCreateSession);
+  useQueryMock.mockReset();
+  useQueryMock.mockImplementation((_fn: unknown, args: unknown) => {
+    if (args === "skip") {
+      return undefined;
+    }
+    return [];
+  });
+
+  return { getOrCreateSession };
+}
 
 describe("App authentication states", () => {
   beforeEach(() => {
@@ -37,6 +69,8 @@ describe("App authentication states", () => {
     useConvexAuthMock.mockReset();
     useSignInMock.mockReset();
     useClerkMock.mockReset();
+    useMutationMock.mockReset();
+    useQueryMock.mockReset();
     useUserMock.mockReset();
     useSignInMock.mockReturnValue({
       isLoaded: true,
@@ -112,5 +146,61 @@ describe("App authentication states", () => {
     // Then: callback専用画面が表示される
     expect(screen.getByRole("heading", { name: "Googleログインを処理中" })).toBeInTheDocument();
     expect(screen.getByText("OAuth callback mock")).toBeInTheDocument();
+  });
+});
+
+describe("App weekly summary navigation", () => {
+  beforeEach(() => {
+    window.history.pushState({}, "", "/");
+    useSignInMock.mockReturnValue({
+      isLoaded: true,
+      signIn: {
+        authenticateWithRedirect: vi.fn(),
+      },
+    });
+    useClerkMock.mockReturnValue({
+      openUserProfile: vi.fn(),
+      signOut: vi.fn(),
+    });
+    useUserMock.mockReturnValue({ user: null });
+  });
+
+  it("/weeks/:weekStartDate の日付を週開始日に正規化し、サマリー取得に使う", async () => {
+    // Given: 週の途中の日付を含む週次サマリーURLで表示している
+    setupSignedInApp();
+    window.history.pushState({}, "", "/weeks/2026-05-14");
+
+    // When: アプリを表示する
+    renderWithProviders(<App />);
+
+    // Then: URL由来の日付が週開始日に正規化され、サマリー取得に使われる
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/weeks/2026-05-11");
+      expect(
+        useQueryMock.mock.calls.some(([, args]) => {
+          return (
+            typeof args === "object" &&
+            args !== null &&
+            "weekStartDate" in args &&
+            args.weekStartDate === "2026-05-11" &&
+            "prevWeekTotalAmountYen" in args
+          );
+        }),
+      ).toBe(true);
+    });
+  });
+
+  it("未来週URLは今週の週次サマリーURLへ正規化する", async () => {
+    // Given: 今週より後の週次サマリーURLで表示している
+    setupSignedInApp();
+    window.history.pushState({}, "", "/weeks/2026-05-25");
+
+    // When: アプリを表示する
+    renderWithProviders(<App />);
+
+    // Then: 今週のURLへ置き換えられる
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/weeks/2026-05-18");
+    });
   });
 });
