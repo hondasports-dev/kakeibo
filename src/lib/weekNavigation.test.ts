@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  addWeeks,
-  getWeekEndDate,
-  isFutureWeek,
-  normalizeWeekStartDate,
-} from "./weekNavigation";
+import { addWeeks, getWeekEndDate, isFutureWeek, normalizeWeekStartDate } from "./weekNavigation";
 
 describe("weekNavigation", () => {
   it("日付文字列を月曜始まりの週開始日に正規化する", () => {
