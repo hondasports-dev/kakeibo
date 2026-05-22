@@ -81,4 +81,23 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.getAllByText("食費")).toHaveLength(2);
     expect(screen.getAllByText("日用品")).toHaveLength(2);
   });
+
+  it("振り返りメモがある場合はサマリー内に表示する", () => {
+    // Given: 選択週の振り返りメモが保存されている
+    renderWithProviders(
+      <WeeklySummaryPanel
+        count={0}
+        totalAmountYen={0}
+        byCategory={[]}
+        prevWeekTotalAmountYen={null}
+        receipts={[]}
+        reviewMemo="外食が多かったので、来週は作り置きを増やす"
+      />,
+    );
+
+    // When: 週次サマリーを確認する
+    // Then: 振り返りメモが表示される
+    expect(screen.getByRole("heading", { name: "振り返りメモ" })).toBeInTheDocument();
+    expect(screen.getByText("外食が多かったので、来週は作り置きを増やす")).toBeInTheDocument();
+  });
 });

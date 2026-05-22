@@ -22,10 +22,18 @@ import { CategorySettingsPanel } from "./components/CategorySettingsPanel";
 import { ReceiptForm } from "./components/ReceiptForm";
 import { ReviewMemoPanel } from "./components/ReviewMemoPanel";
 import { WeekStatusPanel } from "./components/WeekStatusPanel";
+import { WeekNavigator } from "./components/WeekNavigator";
 import { WeeklySummaryPanel } from "./components/WeeklySummaryPanel";
+import {
+  addWeeks,
+  getWeekEndDate,
+  isFutureWeek,
+  normalizeWeekStartDate,
+} from "./lib/weekNavigation";
 import "./App.css";
 
 const OAUTH_CALLBACK_PATH = "/sso-callback";
+const WEEK_SUMMARY_PATH_PATTERN = /^\/weeks\/([^/]+)$/;
 
 function getClerkErrorMessage(error: unknown, fallbackMessage: string) {
   const clerkError = error as {
@@ -276,6 +284,23 @@ function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
   return `${sy}年${sm}月${sd}日 - ${em}月${ed}日`;
 }
 
+function getSummaryWeekStartDateFromPath(
+  pathname: string,
+  currentWeekStartDate: string,
+): string | null {
+  const match = WEEK_SUMMARY_PATH_PATTERN.exec(pathname);
+  if (match === null) {
+    return null;
+  }
+
+  const normalized = normalizeWeekStartDate(match[1]);
+  if (normalized === null || isFutureWeek(normalized, currentWeekStartDate)) {
+    return currentWeekStartDate;
+  }
+
+  return normalized;
+}
+
 function KakeiboApp() {
   useInitializeUser();
 
@@ -288,6 +313,11 @@ function KakeiboApp() {
     reviewMemo?: string;
   } | null>(null);
   const [sessionError, setSessionError] = useState("");
+  const [selectedSummaryWeekStartDate, setSelectedSummaryWeekStartDate] = useState<string | null>(
+    null,
+  );
+  const [showSummary, setShowSummary] = useState(false);
+  const [activeView, setActiveView] = useState<"input" | "categories">("input");
 
   // getOrCreateCurrentWeekSession は副作用を持つ mutation のため useQuery ではなく useMutation を使用。
   // useEffect + useCallback でマウント時に一度だけ実行し、結果を local state に保持する。
@@ -305,6 +335,36 @@ function KakeiboApp() {
     initSession();
   }, [initSession]);
 
+  useEffect(() => {
+    if (weekSession === null) {
+      return;
+    }
+
+    const syncSummaryWeekFromLocation = () => {
+      const pathWeekStartDate = getSummaryWeekStartDateFromPath(
+        window.location.pathname,
+        weekSession.weekStartDate,
+      );
+
+      if (pathWeekStartDate === null) {
+        setSelectedSummaryWeekStartDate((current) => current ?? weekSession.weekStartDate);
+        return;
+      }
+
+      setSelectedSummaryWeekStartDate(pathWeekStartDate);
+      setShowSummary(true);
+
+      const expectedPath = `/weeks/${pathWeekStartDate}`;
+      if (window.location.pathname !== expectedPath) {
+        window.history.replaceState({}, "", expectedPath);
+      }
+    };
+
+    syncSummaryWeekFromLocation();
+    window.addEventListener("popstate", syncSummaryWeekFromLocation);
+    return () => window.removeEventListener("popstate", syncSummaryWeekFromLocation);
+  }, [weekSession]);
+
   const categories = useQuery(api.categories.listActive) ?? [];
   const receipts =
     useQuery(
@@ -312,17 +372,15 @@ function KakeiboApp() {
       weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
     ) ?? [];
 
-  // 前週の weekStartDate を計算（今週の月曜 - 7日）
-  const prevWeekStartDate = weekSession
-    ? (() => {
-        const d = new Date(weekSession.weekStartDate + "T00:00:00");
-        d.setDate(d.getDate() - 7);
-        const y = d.getFullYear();
-        const m = String(d.getMonth() + 1).padStart(2, "0");
-        const dy = String(d.getDate()).padStart(2, "0");
-        return `${y}-${m}-${dy}`;
-      })()
-    : null;
+  const summaryWeekStartDate =
+    selectedSummaryWeekStartDate ?? weekSession?.weekStartDate ?? null;
+
+  const summaryWeekSession = useQuery(
+    api.weekSessions.getWeekSession,
+    showSummary && summaryWeekStartDate ? { weekStartDate: summaryWeekStartDate } : "skip",
+  );
+
+  const prevWeekStartDate = summaryWeekStartDate ? addWeeks(summaryWeekStartDate, -1) : null;
 
   const prevWeekSummary = useQuery(
     api.receipts.getWeekSummary,
@@ -331,16 +389,13 @@ function KakeiboApp() {
 
   const weeklySummary = useQuery(
     api.receipts.getWeekSummaryWithCategories,
-    weekSession
+    summaryWeekStartDate
       ? {
-          weekStartDate: weekSession.weekStartDate,
+          weekStartDate: summaryWeekStartDate,
           prevWeekTotalAmountYen: prevWeekSummary?.totalAmountYen,
         }
       : "skip",
   );
-
-  const [showSummary, setShowSummary] = useState(false);
-  const [activeView, setActiveView] = useState<"input" | "categories">("input");
 
   const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
   const count = receipts.length;
@@ -376,6 +431,29 @@ function KakeiboApp() {
   }
 
   const { weekStartDate, weekEndDate } = weekSession;
+  const summaryWeekEndDate = getWeekEndDate(summaryWeekStartDate ?? weekStartDate);
+  const isCurrentSummaryWeek = (summaryWeekStartDate ?? weekStartDate) === weekStartDate;
+
+  const navigateToSummaryWeek = (nextWeekStartDate: string) => {
+    const normalized = normalizeWeekStartDate(nextWeekStartDate) ?? weekStartDate;
+    const targetWeekStartDate = isFutureWeek(normalized, weekStartDate) ? weekStartDate : normalized;
+
+    setSelectedSummaryWeekStartDate(targetWeekStartDate);
+    setShowSummary(true);
+    window.history.pushState({}, "", `/weeks/${targetWeekStartDate}`);
+  };
+
+  const handleToggleSummary = () => {
+    if (showSummary) {
+      setShowSummary(false);
+      if (WEEK_SUMMARY_PATH_PATTERN.test(window.location.pathname)) {
+        window.history.pushState({}, "", "/");
+      }
+      return;
+    }
+
+    navigateToSummaryWeek(weekStartDate);
+  };
 
   return (
     <Box className="app-shell">
@@ -433,7 +511,7 @@ function KakeiboApp() {
                 aria-label={showSummary ? "サマリーを閉じる" : "週次サマリーを見る"}
                 size="large"
                 variant={showSummary ? "outlined" : "contained"}
-                onClick={() => setShowSummary((prev) => !prev)}
+                onClick={handleToggleSummary}
               >
                 {showSummary ? "サマリーを閉じる" : "週次サマリーを見る"}
               </Button>
@@ -484,15 +562,33 @@ function KakeiboApp() {
           </Box>
 
           <Collapse in={showSummary} unmountOnExit>
-            <WeeklySummaryPanel
-              count={weeklySummary?.count ?? 0}
-              totalAmountYen={weeklySummary?.totalAmountYen ?? 0}
-              byCategory={weeklySummary?.byCategory ?? []}
-              prevWeekTotalAmountYen={weeklySummary?.prevWeekTotalAmountYen ?? null}
-              receipts={weeklySummary?.receipts ?? []}
-              budgetAmountYen={weekSession.budgetAmountYen}
-              isLoading={weeklySummary === undefined}
-            />
+            <Stack spacing={2.5}>
+              <WeekNavigator
+                weekStartDate={summaryWeekStartDate ?? weekStartDate}
+                weekEndDate={summaryWeekEndDate}
+                isCurrentWeek={isCurrentSummaryWeek}
+                onPreviousWeek={() =>
+                  navigateToSummaryWeek(addWeeks(summaryWeekStartDate ?? weekStartDate, -1))
+                }
+                onNextWeek={() =>
+                  navigateToSummaryWeek(addWeeks(summaryWeekStartDate ?? weekStartDate, 1))
+                }
+              />
+              <WeeklySummaryPanel
+                count={weeklySummary?.count ?? 0}
+                totalAmountYen={weeklySummary?.totalAmountYen ?? 0}
+                byCategory={weeklySummary?.byCategory ?? []}
+                prevWeekTotalAmountYen={weeklySummary?.prevWeekTotalAmountYen ?? null}
+                receipts={weeklySummary?.receipts ?? []}
+                budgetAmountYen={
+                  isCurrentSummaryWeek
+                    ? weekSession.budgetAmountYen
+                    : (summaryWeekSession?.budgetAmountYen ?? undefined)
+                }
+                reviewMemo={summaryWeekSession?.reviewMemo ?? null}
+                isLoading={weeklySummary === undefined}
+              />
+            </Stack>
           </Collapse>
 
           {activeView === "categories" ? (
