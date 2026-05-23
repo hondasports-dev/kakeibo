@@ -56,10 +56,10 @@
   "lint-staged": {
     "*.{ts,tsx}": [
       "oxlint",
-      "oxfmt"
+      "oxfmt --check"
     ],
     "*.{json,md,css}": [
-      "oxfmt"
+      "oxfmt --check"
     ]
   },
   "packageManager": "pnpm@11.1.2",
