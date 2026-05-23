@@ -635,13 +635,20 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
 
     await page.getByRole("button", { name: "週次サマリーを見る" }).click();
 
-    await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`));
-    await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
-    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
-    // getFourWeeksSummary クエリのロード完了を待つ（UIが安定してからクリック）
-    await expect(page.getByRole("heading", { name: "週別支出推移" })).toBeVisible({
+    await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`), {
       timeout: 15_000,
     });
+    // Collapse 展開完了を待機（週次サマリー heading が見えれば展開済み）
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible({
+      timeout: 15_000,
+    });
+    // getFourWeeksSummary クエリロード完了を待機（グラフかプレースホルダーのどちらかが出るまで）
+    await expect(
+      page
+        .getByRole("img", { name: "週別支出推移グラフ" })
+        .or(page.getByText("2週以上のデータが揃うとグラフが表示されます")),
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
 
     await page.getByRole("button", { name: "前の週へ" }).click();
 
@@ -814,21 +821,12 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
 
     // Then: グラフまたはプレースホルダーが表示されること
     // （データが少ない場合はプレースホルダー、2週以上ある場合はグラフ）
-    // getFourWeeksSummary クエリのロード完了を待つため「週別支出推移」heading が出るまで待機する
-    await expect(page.getByRole("heading", { name: "週別支出推移" })).toBeVisible({
-      timeout: 15_000,
-    });
-
-    const hasChart = await page
-      .getByRole("img", { name: "週別支出推移グラフ" })
-      .isVisible()
-      .catch(() => false);
-    const hasPlaceholder = await page
-      .getByText("2週以上のデータが揃うとグラフが表示されます")
-      .isVisible()
-      .catch(() => false);
-
-    expect(hasChart || hasPlaceholder).toBe(true);
+    // Skeleton（ロード中）が消えてデータが出るまで待機する
+    await expect(
+      page
+        .getByRole("img", { name: "週別支出推移グラフ" })
+        .or(page.getByText("2週以上のデータが揃うとグラフが表示されます")),
+    ).toBeVisible({ timeout: 20_000 });
   });
 
   test("[Issue #47] ダッシュボード（入力画面）にグラフが表示されない", async ({ page }) => {

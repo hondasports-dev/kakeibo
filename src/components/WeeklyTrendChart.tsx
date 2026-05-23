@@ -19,7 +19,11 @@ function formatWeekLabel(weekStartDate: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}〜`;
 }
 
-export function WeeklyTrendChart({ weeks = [], weekCount = 0, isLoading = false }: WeeklyTrendChartProps) {
+export function WeeklyTrendChart({
+  weeks = [],
+  weekCount = 0,
+  isLoading = false,
+}: WeeklyTrendChartProps) {
   const theme = useTheme();
 
   if (isLoading) {
