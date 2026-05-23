@@ -332,6 +332,55 @@ PR をマージします。
 - Vercel Preview: `deployment_status` イベントで smoke E2E を自動トリガー
 - 失敗時のみ trace / screenshot を保存（retention: 1 日）
 
+### Vercel Preview と Convex subscription の挙動差異（重要）
+
+**Vercel Preview（本番ビルド）は、ローカル Vite dev より Convex subscription の
+更新反映が遅い。** この差異を考慮せずに E2E を書くと、ローカルでは通るが CI
+（Vercel Preview 対象）では flaky になる。
+
+**NG パターン（避ける）**
+
+```ts
+// mutation 後にダイアログを閉じてから subscription の更新を確認しようとする
+await page.keyboard.press('Escape'); // ← ダイアログを閉じる
+await expect(残金カード).toHaveText('...'); // ← この時点では更新が間に合わないことがある
+```
+
+**OK パターン（推奨）**
+
+```ts
+// mutation 成功直後、UI 操作（ダイアログを閉じる等）を挟む前に subscription の更新を確認する
+// ダイアログが開いたままでも、DOM の別要素は参照できる
+await expect(残金カード).toHaveText('...'); // ← mutation 直後にアサート
+await page.keyboard.press('Escape');         // ← 確認してからダイアログを閉じる
+```
+
+**ルール**
+
+1. mutation の結果を subscription 経由で確認するアサートは、mutation 直後（不要な UI
+   操作を挟む前）に配置する。
+2. Vercel Preview 対象の timeout は余裕を持って設定する（例: `20_000ms`）。
+   ローカル（Vite dev）との応答速度差を前提に設計する。
+3. ダイアログ・モーダルが開いている状態でも DOM の他の要素は参照できる。
+   「ダイアログを閉じてから確認」とせず、確認できる最早のタイミングでアサートする。
+
+### Convex 関数追加 PR の dev deployment 反映
+
+新規の Convex 関数（query/mutation/action）を追加した PR を E2E で確認する際は、
+**その関数が dev deployment に反映されていることを事前に確認する。**
+
+E2E の実行対象（Vercel Preview）は dev Convex deployment を向いているため、
+Convex 側の関数が未デプロイだと `FunctionNotFound` エラーになる。
+
+```bash
+# feature branch の Convex 関数を dev deployment に反映する
+npx convex dev --once
+```
+
+worktree 環境では、mainのworktree と dev deployment が共有される場合がある。
+branch 切り替え後は必ず `npx convex dev --once` を実行して、使用中の関数が
+dev に揃っていることを確認する。
+
 ## Codex 開発時の Clerk 認証
 
 Codex で画面確認や将来の E2E を行う場合は、Clerk Development instance 上の

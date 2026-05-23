@@ -28,7 +28,7 @@
 | `CONVEX_DEPLOYMENT`    | ローカル開発用デプロイメント名           | ✅    | ❌         | ❌         | .env.local のみ                    |
 | `VITE_CONVEX_URL`      | フロントエンド用Convex接続URL            | ✅    | ✅         | ❌         | .env.local / Vercel Env            |
 | `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ❌         | ❌         | .env.local / GitHub Actions Secret |
-| `CONVEX_DEPLOY_KEY`    | VercelビルドからConvexへのデプロイ用キー | ❌    | ✅         | ✅         | Vercel Secrets のみ                |
+| `CONVEX_DEPLOY_KEY`    | VercelビルドからConvexへのデプロイ用キー（現状未使用） | ❌    | ❌         | ✅         | 将来的に Vercel Secrets へ         |
 
 ### E2E テストクリーンアップ関連
 
@@ -76,7 +76,7 @@ Vercel DashboardのEnvironment Variablesに設定する。
 **Secrets (秘匿)**:
 
 - `CLERK_SECRET_KEY` — Clerk Production instanceの秘密鍵 (`sk_live_*`)
-- `CONVEX_DEPLOY_KEY` — ConvexのProduction deploy key (Convex Dashboard > Deployment Settings > Generate Production Deploy Key)
+- `CONVEX_DEPLOY_KEY` — ConvexのProduction deploy key（**現状未設定・未使用**。将来的に `npx convex deploy` をビルドコマンドに組み込む場合に必要）
 
 **Convex Dashboardに設定**:
 
@@ -94,23 +94,38 @@ Vercel DashboardのEnvironment Variablesに設定する。
 
 ## Vercel ビルドとConvexデプロイの仕組み
 
-Vercel と GitHub を連携している場合、Convexのデプロイは **Vercelのビルドコマンド経由**で行われる。
-**Convex のデプロイに関しては** GitHub Actions は使用しない（Vercelビルド経由のため）。
-lint/build の CI チェックや将来の E2E 実行には GitHub Actions を使用する。
+**現在の実態（2026-05 確認済み）**
 
-**Vercel Build Commandの設定:**
+Vercel のビルドコマンドは **`pnpm run build`（`tsc -b && vite build`）のみ**で、
+`npx convex deploy` は実行されていない。そのため `CONVEX_DEPLOY_KEY` は
+Vercel に設定されておらず、Vercel ビルドから Convex への関数デプロイは行われない。
 
-```
-npx convex deploy --cmd 'pnpm run build'
-```
+Convex 関数のデプロイは、ローカル開発者が `npx convex dev --once` または
+`npx convex dev` を手動で実行することで dev deployment に反映する。
 
-`npx convex deploy` が `CONVEX_DEPLOY_KEY` を読み込み、ConvexのProductionデプロイメントに
-関数をpushした上でフロントエンドをビルドする。`CONVEX_DEPLOY_KEY` はVercelのSecretsに
-設定するだけでよく、GitHub Actions Secretsには不要。
+**Vercel Preview 環境の Convex 接続先**
+
+Vercel Preview は `VITE_CONVEX_URL` で dev deployment（`hardy-mockingbird-708.convex.cloud`）
+を向いている。つまり、Preview も本番も同じ dev deployment を共有している状態。
+
+この構成の含意:
+
+- Convex 関数を追加・変更した PR では、E2E 実行前に `npx convex dev --once` で
+  dev deployment に反映する必要がある。反映前に E2E を実行すると `FunctionNotFound`
+  エラーが発生する。
+- `VITE_CONVEX_SITE_URL`（Convex HTTP エンドポイント）は Production 環境のみに設定されており、
+  Preview 環境には未設定。E2E cleanup は GitHub Actions Secrets から値を受け取るため問題なし。
+
+**将来的な改善候補**（現時点では未実施）
+
+Production に `npx convex deploy --cmd 'pnpm run build'` を導入する場合は:
+- `CONVEX_DEPLOY_KEY` を Vercel Secrets に追加する
+- Production Convex deployment に対して deploy key を発行する（Convex Dashboard）
 
 ## GitHub Actionsでの扱い
 
-現状、GitHub ActionsからConvexへの直接デプロイは行わない（Vercelビルド経由のため）。
+現状、GitHub ActionsからConvexへの直接デプロイは行わない。
+Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
 
 ### GitHub Actions Secretsに保存する項目
 
