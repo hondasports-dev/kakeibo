@@ -613,7 +613,11 @@ function KakeiboApp() {
                 }
                 reviewMemo={summaryWeekSession?.reviewMemo ?? null}
                 isLoading={weeklySummary === undefined}
-                weeklyTrendData={weeklyTrendData ?? undefined}
+                weeklyTrendData={
+                  showSummary && summaryWeekStartDate
+                    ? weeklyTrendData // undefined（ロード中）または FourWeeksSummaryData
+                    : null // skip 中 → セクション非表示
+                }
               />
             </Stack>
           </Collapse>
