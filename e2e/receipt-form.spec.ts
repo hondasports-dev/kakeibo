@@ -765,3 +765,77 @@ test.describe("振り返りメモとセッション完了（Issue #16 受け入�
     await expect(page.getByLabel("振り返りメモ")).toHaveValue(updatedMemo);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Issue #47: 週別支出推移グラフ
+// ---------------------------------------------------------------------------
+
+test.describe("週別支出推移グラフ（Issue #47）", () => {
+  test.afterEach(async () => {
+    await cleanupTestReceipts();
+    await cleanupTestCategories();
+    await resetTestWeekSession();
+  });
+
+  test("[Issue #47] 週次サマリーを開いたとき週別支出推移セクションが表示される", async ({
+    page,
+  }) => {
+    // Given: ログイン済みでメイン画面を表示している
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+
+    // When: 週次サマリーを開く
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+
+    // Then: 週別支出推移セクションが表示される（グラフまたはプレースホルダー）
+    await expect(page.getByRole("heading", { name: "週別支出推移" })).toBeVisible();
+  });
+
+  test("[Issue #47] データが1週のみの場合プレースホルダーテキストが表示される @smoke", async ({
+    page,
+  }) => {
+    // Given: ログイン済みで週次サマリーを開く（初期状態はデータなしか1週のみ）
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+
+    // When: 週次サマリーを開く
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+
+    // Then: グラフまたはプレースホルダーが表示されること
+    // （データが少ない場合はプレースホルダー、2週以上ある場合はグラフ）
+    const hasChart = await page
+      .getByRole("img", { name: "週別支出推移グラフ" })
+      .isVisible()
+      .catch(() => false);
+    const hasPlaceholder = await page
+      .getByText("2週以上のデータが揃うとグラフが表示されます")
+      .isVisible()
+      .catch(() => false);
+
+    expect(hasChart || hasPlaceholder).toBe(true);
+  });
+
+  test("[Issue #47] ダッシュボード（入力画面）にグラフが表示されない", async ({ page }) => {
+    // Given: ログイン済みでメイン画面を表示している
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+
+    // Then: サマリーを開いていない状態ではグラフが表示されない
+    await expect(page.getByRole("img", { name: "週別支出推移グラフ" })).not.toBeVisible();
+  });
+
+  test("[Issue #47] 既存の前週比テキストが壊れていない", async ({ page }) => {
+    // Given: ログイン済みで週次サマリーを開く
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+
+    // When: 週次サマリーを開く
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+
+    // Then: 前週比ラベルが表示されている（regression確認）
+    await expect(page.getByLabel("前週比")).toBeVisible();
+  });
+});

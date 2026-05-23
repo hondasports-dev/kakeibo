@@ -1,5 +1,7 @@
 import { Box, Divider, LinearProgress, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import type { FourWeeksSummaryData } from "../../convex/receipts";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
+import { WeeklyTrendChart } from "./WeeklyTrendChart";
 
 type CategorySummary = {
   categoryId: string;
@@ -29,6 +31,8 @@ type WeeklySummaryPanelProps = {
   budgetAmountYen?: number;
   reviewMemo?: string | null;
   isLoading?: boolean;
+  /** 直近4週の支出推移データ。undefined の場合はグラフセクション自体を非表示にする */
+  weeklyTrendData?: FourWeeksSummaryData;
 };
 
 function formatDateForDisplay(isoDate: string): string {
@@ -45,6 +49,7 @@ export function WeeklySummaryPanel({
   budgetAmountYen,
   reviewMemo,
   isLoading = false,
+  weeklyTrendData,
 }: WeeklySummaryPanelProps) {
   const budgetUsageRate =
     budgetAmountYen !== undefined && budgetAmountYen > 0
@@ -124,6 +129,11 @@ export function WeeklySummaryPanel({
           </Stack>
         </Box>
       </Paper>
+
+      {/* 週別支出推移グラフ */}
+      {weeklyTrendData !== undefined && (
+        <WeeklyTrendChart weeks={weeklyTrendData.weeks} weekCount={weeklyTrendData.weekCount} />
+      )}
 
       {/* カテゴリ別支出 */}
       <Paper className="paper-panel" elevation={0}>

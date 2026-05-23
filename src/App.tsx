@@ -391,6 +391,11 @@ function KakeiboApp() {
     summaryWeekStartDate ? { weekStartDate: summaryWeekStartDate } : "skip",
   );
 
+  const weeklyTrendData = useQuery(
+    api.receipts.getFourWeeksSummary,
+    showSummary && summaryWeekStartDate ? { weekStartDate: summaryWeekStartDate } : "skip",
+  );
+
   const totalAmountYen =
     currentWeekSummary?.totalAmountYen ?? receipts.reduce((sum, r) => sum + r.amountYen, 0);
   const count = currentWeekSummary?.count ?? receipts.length;
@@ -608,6 +613,7 @@ function KakeiboApp() {
                 }
                 reviewMemo={summaryWeekSession?.reviewMemo ?? null}
                 isLoading={weeklySummary === undefined}
+                weeklyTrendData={weeklyTrendData ?? undefined}
               />
             </Stack>
           </Collapse>
