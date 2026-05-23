@@ -23,7 +23,8 @@ import {
  *   - シナリオ 7: 店舗名が空で保存 → エラーが表示される (P1 / validation)
  *   - シナリオ 8: 金額が空で保存 → エラーが表示される (P1 / validation)
  *   - シナリオ 9: カテゴリ未選択で保存 → エラーが表示される (P1 / validation)
- *   - シナリオ 10: 金額に文字を入力して保存 → エラーが表示される (P1 / validation)
+ *   - シナリオ 10: 金額に文字を入力しても入力フィールドに反映されない (P1 / validation)
+ *   - [Issue #51] シナリオ 11: 金額に数字を入力すると3桁カンマ区切りで表示される (P1 / validation)
  *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke)
  *   - [Issue #14] 予算未設定時の表示が正しい (P0 / smoke)
  *   - [Issue #14] 今週の進捗パネルに件数が表示される (P1 / smoke)
@@ -267,23 +268,28 @@ test.describe("バリデーション（P1）", () => {
     await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible();
   });
 
-  test("シナリオ10: 金額に文字を入力して保存するとエラーが表示される", async ({ page }) => {
-    await page.locator('input[name="shopName"]').fill("スーパー北浜");
-    // fill 後に値が反映されたことを確認してからカテゴリ選択・保存へ進む
+  test("シナリオ10: 金額に文字を入力しても入力フィールドに反映されない", async ({ page }) => {
+    // Issue #51: 英字・記号はクライアント側で除去されるため入力できない
     const amountInput = page.locator('input[name="amountYen"]');
     await amountInput.fill("abc");
-    await expect(amountInput).toHaveValue("abc");
-    await page
-      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
-      .first()
-      .click();
-    await page.getByRole("button", { name: "保存して次へ" }).click();
 
-    // バリデーションエラーは MUI TextField の helperText（.MuiFormHelperText-root）として表示される
-    // エラー発生時のみ DOM に追加されるため、toBeVisible で待機する
-    await expect(
-      page.locator(".MuiFormHelperText-root", { hasText: "金額は数字のみで入力してください" }),
-    ).toBeVisible();
+    // 英字はクライアント側で除去されるためフィールドは空のまま
+    await expect(amountInput).toHaveValue("");
+  });
+
+  test("[Issue #51] シナリオ11: 金額に数字を入力すると3桁カンマ区切りで表示される", async ({
+    page,
+  }) => {
+    const amountInput = page.locator('input[name="amountYen"]');
+
+    // When: 7桁の金額を入力する
+    await amountInput.fill("1234567");
+
+    // Then: 3桁カンマ区切りで表示される
+    await expect(amountInput).toHaveValue("1,234,567");
+
+    // And: inputmode="numeric" 属性が正しく設定されている（スマートフォン数字キーボード）
+    await expect(amountInput).toHaveAttribute("inputmode", "numeric");
   });
 });
 
