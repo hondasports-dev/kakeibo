@@ -8,6 +8,8 @@ export default defineSchema({
     userId: v.string(),
     displayName: v.string(),
     email: v.optional(v.string()),
+    // monthlyIncome は月収入（円）。未設定の場合は optional で保持しない。
+    monthlyIncome: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

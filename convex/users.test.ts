@@ -1,8 +1,14 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { MutationCtx } from "./_generated/server";
-import { getAuthStateFromIdentity, requireAuthenticatedUserId, upsertUserHandler } from "./users";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
+import {
+  getAuthStateFromIdentity,
+  getUserProfileHandler,
+  requireAuthenticatedUserId,
+  updateMonthlyIncomeHandler,
+  upsertUserHandler,
+} from "./users";
 
 type AuthContext = Parameters<typeof requireAuthenticatedUserId>[0];
 
@@ -89,6 +95,7 @@ type Doc = {
   userId: string;
   displayName: string;
   email?: string;
+  monthlyIncome?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -266,5 +273,222 @@ describe("upsertUser", () => {
 
     expect(insertedDoc.displayName).toBe("ユーザー");
     expect(insertedDoc.email).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getUserProfile / updateMonthlyIncome テスト用ヘルパー
+// ---------------------------------------------------------------------------
+
+/**
+ * getUserProfileHandler が必要とする QueryCtx の最小モックを生成する。
+ */
+function createQueryCtxForUsers(
+  identity: UserIdentity | null,
+  existingDoc: Doc | null = null,
+): QueryCtx {
+  const uniqueMock = vi.fn().mockResolvedValue(existingDoc);
+  const withIndexMock = vi.fn().mockReturnValue({ unique: uniqueMock });
+  const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
+
+  return {
+    auth: {
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
+    },
+    db: {
+      query: queryMock,
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any as QueryCtx;
+}
+
+/**
+ * updateMonthlyIncomeHandler が必要とする MutationCtx の最小モックを生成する。
+ * existingDoc が null のとき user が存在しない場合、Doc のとき更新対象がある場合を再現する。
+ */
+function createMutationCtxForUpdate(
+  identity: UserIdentity | null,
+  existingDoc: Doc | null = null,
+): MutationCtx {
+  const patchMock = vi.fn().mockResolvedValue(undefined);
+
+  const uniqueMock = vi.fn().mockResolvedValue(existingDoc);
+  const withIndexMock = vi.fn().mockReturnValue({ unique: uniqueMock });
+  const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
+
+  // patch 後の get は existingDoc と同じ doc を返す（updatedDoc として使用）
+  const getMock = vi.fn().mockImplementation(async (_id: string) => existingDoc);
+
+  return {
+    auth: {
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
+    },
+    db: {
+      query: queryMock,
+      patch: patchMock,
+      get: getMock,
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any as MutationCtx;
+}
+
+// ---------------------------------------------------------------------------
+// getUserProfile テスト
+// ---------------------------------------------------------------------------
+
+describe("getUserProfile", () => {
+  it("未認証時は ConvexError を throw する", async () => {
+    const ctx = createQueryCtxForUsers(null);
+
+    await expect(getUserProfileHandler(ctx)).rejects.toBeInstanceOf(ConvexError);
+    await expect(getUserProfileHandler(ctx)).rejects.toMatchObject({
+      data: "Not authenticated",
+    });
+  });
+
+  it("userが存在する場合に monthlyIncome を返す", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-with-income",
+    });
+    const existingDoc: Doc = {
+      _id: "doc-001",
+      _creationTime: 1000,
+      userId: "https://issuer.example|user-with-income",
+      displayName: "テストユーザー",
+      monthlyIncome: 300000,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createQueryCtxForUsers(identity, existingDoc);
+
+    const result = await getUserProfileHandler(ctx);
+
+    expect(result).toEqual({ monthlyIncome: 300000 });
+  });
+
+  it("monthlyIncome が未設定の場合は null を返す", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-no-income",
+    });
+    const existingDoc: Doc = {
+      _id: "doc-002",
+      _creationTime: 1000,
+      userId: "https://issuer.example|user-no-income",
+      displayName: "テストユーザー",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createQueryCtxForUsers(identity, existingDoc);
+
+    const result = await getUserProfileHandler(ctx);
+
+    expect(result).toEqual({ monthlyIncome: null });
+  });
+
+  it("userが存在しない場合は undefined を返す", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-not-found",
+    });
+    const ctx = createQueryCtxForUsers(identity, null);
+
+    const result = await getUserProfileHandler(ctx);
+
+    expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateMonthlyIncome テスト
+// ---------------------------------------------------------------------------
+
+const BASE_DOC: Doc = {
+  _id: "doc-001",
+  _creationTime: 1000,
+  userId: "https://issuer.example|user-001",
+  displayName: "テストユーザー",
+  createdAt: 1000,
+  updatedAt: 1000,
+};
+
+describe("updateMonthlyIncome", () => {
+  it("未認証時は ConvexError を throw する", async () => {
+    const ctx = createMutationCtxForUpdate(null);
+
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100000 })).rejects.toBeInstanceOf(
+      ConvexError,
+    );
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100000 })).rejects.toMatchObject({
+      data: "Not authenticated",
+    });
+  });
+
+  it("正の整数を保存できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await updateMonthlyIncomeHandler(ctx, { monthlyIncome: 300000 });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patchCalls = (ctx.db as any).patch.mock.calls;
+    expect(patchCalls[0][0]).toBe("doc-001");
+    expect(patchCalls[0][1]).toMatchObject({ monthlyIncome: 300000 });
+  });
+
+  it("0を保存できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await updateMonthlyIncomeHandler(ctx, { monthlyIncome: 0 });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patchCalls = (ctx.db as any).patch.mock.calls;
+    expect(patchCalls[0][1]).toMatchObject({ monthlyIncome: 0 });
+  });
+
+  it("nullで monthlyIncome を削除（undefined にパッチ）できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await updateMonthlyIncomeHandler(ctx, { monthlyIncome: null });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patchCalls = (ctx.db as any).patch.mock.calls;
+    expect(patchCalls[0][1]).toMatchObject({ monthlyIncome: undefined });
+  });
+
+  it("負の値で ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: -1 })).rejects.toBeInstanceOf(
+      ConvexError,
+    );
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: -1 })).rejects.toMatchObject({
+      data: "月収入は0以上の整数で入力してください",
+    });
+  });
+
+  it("非整数で ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100.5 })).rejects.toBeInstanceOf(
+      ConvexError,
+    );
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100.5 })).rejects.toMatchObject({
+      data: "月収入は0以上の整数で入力してください",
+    });
+  });
+
+  it("userが見つからない場合は ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-ghost" });
+    const ctx = createMutationCtxForUpdate(identity, null);
+
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100000 })).rejects.toBeInstanceOf(
+      ConvexError,
+    );
+    await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100000 })).rejects.toMatchObject({
+      data: "User not found",
+    });
   });
 });

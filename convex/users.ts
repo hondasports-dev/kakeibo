@@ -1,7 +1,7 @@
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { UserIdentity } from "convex/server";
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 type AuthContext = Pick<QueryCtx, "auth">;
 
@@ -82,4 +82,88 @@ export async function requireAuthenticatedUserId(ctx: AuthContext) {
 export const upsertUser = mutation({
   args: {},
   handler: upsertUserHandler,
+});
+
+// ---------------------------------------------------------------------------
+// getUserProfile
+// ---------------------------------------------------------------------------
+
+/** getUserProfile query の handler ロジック（テスト用に export） */
+export async function getUserProfileHandler(ctx: QueryCtx) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+    .unique();
+
+  if (user === null) {
+    return undefined;
+  }
+
+  return {
+    monthlyIncome: user.monthlyIncome ?? null,
+  };
+}
+
+export const getUserProfile = query({
+  args: {},
+  handler: getUserProfileHandler,
+});
+
+// ---------------------------------------------------------------------------
+// updateMonthlyIncome
+// ---------------------------------------------------------------------------
+
+/** updateMonthlyIncome mutation の handler ロジック（テスト用に export） */
+export async function updateMonthlyIncomeHandler(
+  ctx: MutationCtx,
+  args: { monthlyIncome: number | null },
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  if (args.monthlyIncome !== null) {
+    if (args.monthlyIncome < 0 || !Number.isInteger(args.monthlyIncome)) {
+      throw new ConvexError("月収入は0以上の整数で入力してください");
+    }
+  }
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+    .unique();
+
+  if (user === null) {
+    throw new ConvexError("User not found");
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(user._id, {
+    monthlyIncome: args.monthlyIncome ?? undefined,
+    updatedAt: now,
+  });
+}
+
+export const updateMonthlyIncome = mutation({
+  args: {
+    monthlyIncome: v.union(v.null(), v.number()),
+  },
+  handler: updateMonthlyIncomeHandler,
+});
+
+// ---------------------------------------------------------------------------
+// clearUserMonthlyIncome (internal / E2E テストデータクリーンアップ専用)
+// ---------------------------------------------------------------------------
+
+export const clearUserMonthlyIncome = internalMutation({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+      .unique();
+    if (user === null) return { cleared: false };
+    await ctx.db.patch(user._id, { monthlyIncome: undefined, updatedAt: Date.now() });
+    return { cleared: true };
+  },
 });

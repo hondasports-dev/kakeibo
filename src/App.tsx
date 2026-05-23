@@ -9,6 +9,8 @@ import {
   Chip,
   CircularProgress,
   Collapse,
+  Dialog,
+  DialogContent,
   Menu,
   MenuItem,
   Paper,
@@ -19,6 +21,7 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import { useInitializeUser } from "./hooks/useInitializeUser";
 import { CategorySettingsPanel } from "./components/CategorySettingsPanel";
+import { UserSettingsPanel } from "./components/UserSettingsPanel";
 import { ReceiptForm } from "./components/ReceiptForm";
 import { ReviewMemoPanel } from "./components/ReviewMemoPanel";
 import { WeekStatusPanel } from "./components/WeekStatusPanel";
@@ -195,7 +198,7 @@ function SignedOutScreen() {
   );
 }
 
-function UserMenu() {
+function UserMenu({ onOpenUserSettings }: { onOpenUserSettings: () => void }) {
   const { openUserProfile, signOut } = useClerk();
   const { user } = useUser();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -211,6 +214,11 @@ function UserMenu() {
   const handleOpenProfile = () => {
     handleClose();
     openUserProfile();
+  };
+
+  const handleOpenUserSettings = () => {
+    handleClose();
+    onOpenUserSettings();
   };
 
   const handleSignOut = async () => {
@@ -266,6 +274,9 @@ function UserMenu() {
         <MenuItem disabled={isSigningOut} onClick={handleOpenProfile}>
           アカウント設定
         </MenuItem>
+        <MenuItem disabled={isSigningOut} onClick={handleOpenUserSettings}>
+          ユーザー設定
+        </MenuItem>
         <MenuItem disabled={isSigningOut} onClick={handleSignOut}>
           ログアウト
         </MenuItem>
@@ -319,6 +330,7 @@ function KakeiboApp() {
   );
   const [showSummary, setShowSummary] = useState(false);
   const [activeView, setActiveView] = useState<"input" | "categories">("input");
+  const [showUserSettings, setShowUserSettings] = useState(false);
 
   // getOrCreateCurrentWeekSession は副作用を持つ mutation のため useQuery ではなく useMutation を使用。
   // useEffect + useCallback でマウント時に一度だけ実行し、結果を local state に保持する。
@@ -389,6 +401,13 @@ function KakeiboApp() {
   const weeklySummary = useQuery(
     api.receipts.getWeekSummaryWithCategories,
     summaryWeekStartDate ? { weekStartDate: summaryWeekStartDate } : "skip",
+  );
+
+  const now = new Date();
+  const currentMonthStartDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const monthlyExpensesSummary = useQuery(
+    api.receipts.getMonthlyExpensesSummary,
+    weekSession ? { monthStartDate: currentMonthStartDate } : "skip",
   );
 
   const weeklyTrendData = useQuery(
@@ -517,7 +536,7 @@ function KakeiboApp() {
               >
                 {showSummary ? "サマリーを閉じる" : "週次サマリーを見る"}
               </Button>
-              <UserMenu />
+              <UserMenu onOpenUserSettings={() => setShowUserSettings(true)} />
             </Stack>
           </Stack>
 
@@ -565,6 +584,22 @@ function KakeiboApp() {
                     ? `${Math.round((budgetRemaining / budgetAmountYen) * 100)}% 残り`
                     : "",
                 tone: "success" as const,
+              },
+              {
+                label: "今月の残金",
+                value:
+                  monthlyExpensesSummary?.remainingBalanceYen != null
+                    ? `${monthlyExpensesSummary.remainingBalanceYen.toLocaleString()}円`
+                    : "--",
+                helper:
+                  monthlyExpensesSummary?.monthlyIncome != null
+                    ? `月収入 ${monthlyExpensesSummary.monthlyIncome.toLocaleString()}円`
+                    : "収入を設定すると残金が確認できます",
+                tone:
+                  monthlyExpensesSummary?.remainingBalanceYen != null &&
+                  monthlyExpensesSummary.remainingBalanceYen < 0
+                    ? ("error" as const)
+                    : ("default" as const),
               },
             ].map((item) => (
               <Paper className="paper-panel" elevation={0} key={item.label}>
@@ -650,6 +685,17 @@ function KakeiboApp() {
           )}
         </Stack>
       </Box>
+
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        onClose={() => setShowUserSettings(false)}
+        open={showUserSettings}
+      >
+        <DialogContent>
+          <UserSettingsPanel />
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }

@@ -59,11 +59,22 @@ function getCleanupUserId(): string | undefined {
   return process.env.E2E_CLERK_USER_ID;
 }
 
+/**
+ * テストユーザーの月収入設定をクリアする。
+ */
+export async function cleanupUserMonthlyIncome(): Promise<void> {
+  await callCleanupEndpoint({
+    userId: getCleanupUserId(),
+    clearMonthlyIncome: true,
+  });
+}
+
 async function callCleanupEndpoint(body: {
   userId?: string;
   resetWeekSession?: boolean;
   weekStartDate?: string;
   deleteE2eCategories?: boolean;
+  clearMonthlyIncome?: boolean;
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
@@ -103,6 +114,7 @@ async function callCleanupEndpoint(body: {
     categories?: { deletedCount: number } | null;
     deletedCount?: number;
     weekSession?: { reset: boolean } | null;
+    monthlyIncome?: { cleared: boolean } | null;
   };
   const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {

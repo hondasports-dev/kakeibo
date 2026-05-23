@@ -496,3 +496,60 @@ export const deleteReceiptsByUser = internalMutation({
     return { deletedCount: receipts.length };
   },
 });
+
+// ---------------------------------------------------------------------------
+// getMonthlyExpensesSummary
+// ---------------------------------------------------------------------------
+
+export type MonthlyExpensesSummary = {
+  totalExpensesYen: number;
+  monthlyIncome: number | null;
+  remainingBalanceYen: number | null;
+};
+
+type GetMonthlyExpensesSummaryArgs = {
+  monthStartDate: string;
+};
+
+/** getMonthlyExpensesSummary query の handler ロジック（テスト用に export） */
+export async function getMonthlyExpensesSummaryHandler(
+  ctx: QueryCtx,
+  args: GetMonthlyExpensesSummaryArgs,
+): Promise<MonthlyExpensesSummary> {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  // 当月に属する全レシートを集計する
+  // by_user_id_and_week_start_date インデックスで userId のみ絞り込み、
+  // weekStartDate.startsWith(monthStartDate) でフィルタリングする
+  const allReceipts = await ctx.db
+    .query("receipts")
+    .withIndex("by_user_id_and_week_start_date", (q) => q.eq("userId", userId))
+    .collect();
+
+  const monthlyReceipts = allReceipts.filter((r) =>
+    r.weekStartDate.startsWith(args.monthStartDate),
+  );
+  const totalExpensesYen = monthlyReceipts.reduce((sum, r) => sum + r.amountYen, 0);
+
+  // users テーブルから monthlyIncome を取得する
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+    .unique();
+
+  const monthlyIncome = user?.monthlyIncome ?? null;
+  const remainingBalanceYen = monthlyIncome !== null ? monthlyIncome - totalExpensesYen : null;
+
+  return {
+    totalExpensesYen,
+    monthlyIncome,
+    remainingBalanceYen,
+  };
+}
+
+export const getMonthlyExpensesSummary = query({
+  args: {
+    monthStartDate: v.string(),
+  },
+  handler: getMonthlyExpensesSummaryHandler,
+});
