@@ -61,7 +61,9 @@ describe("WeeklyTrendChart", () => {
 
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
-    expect(screen.queryByText("2週以上のデータが揃うとグラフが表示されます")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("2週以上のデータが揃うとグラフが表示されます"),
+    ).not.toBeInTheDocument();
   });
 
   it("金額が0円の週でもグラフが表示される（0円バーとして）", () => {
