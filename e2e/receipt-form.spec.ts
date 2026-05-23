@@ -77,7 +77,7 @@ test.describe("メイン画面の表示確認", () => {
     await expect(page.locator('[class*="user-menu-button"]')).toBeVisible();
     // サマリーカード
     await expect(page.locator("text=入力済み")).toBeVisible();
-    await expect(page.locator("text=今週の支出")).toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
     // レシート追加フォーム
     await expect(page.getByRole("heading", { name: "レシートを追加" })).toBeVisible();
   });
@@ -381,7 +381,7 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
   test("@smoke [Issue #14] 入力状況パネルの各セクションが表示される", async ({ page }) => {
     // サマリーグリッド（上段3カード）
     await expect(page.locator("text=入力済み")).toBeVisible();
-    await expect(page.locator("text=今週の支出")).toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
     await expect(page.locator("text=予算残り")).toBeVisible();
 
     // WeekStatusPanel（右カラム）
