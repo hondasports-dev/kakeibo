@@ -265,9 +265,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
                 },
               }}
               value={
-                formValues.amountYen
-                  ? Number(formValues.amountYen).toLocaleString("ja-JP")
-                  : ""
+                formValues.amountYen ? Number(formValues.amountYen).toLocaleString("ja-JP") : ""
               }
             />
 
