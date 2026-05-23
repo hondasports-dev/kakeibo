@@ -38,7 +38,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     // BottomNavigationが表示されることを確認
-    const bottomNav = page.getByRole("navigation", { name: "navigation" });
+    const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).toBeVisible();
 
     // 4つのタブが表示されることを確認
@@ -65,7 +65,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await page.setViewportSize({ width: 1280, height: 800 });
 
     // BottomNavigationが非表示またはDOMに存在しないことを確認
-    const bottomNav = page.getByRole("navigation", { name: "navigation" });
+    const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).not.toBeVisible();
 
     // Drawerが表示されることを確認
@@ -180,7 +180,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.locator('input[name="amountYen"]')).toBeVisible();
 
     // BottomNavigationも引き続き表示されていることを確認
-    await expect(page.getByRole("navigation", { name: "navigation" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "ボトムナビゲーション" })).toBeVisible();
   });
 
   test("@smoke @navigation シナリオN-10: 既存のURL構造が維持されている", async ({
@@ -188,7 +188,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
   }) => {
     // 各URLに直接アクセスして404にならないことを確認
     await gotoAuthenticated(page, "/");
-    await expect(page.getByText("今週のレシート入力")).toBeVisible();
+    await expect(page.getByText("今週のダッシュボード")).toBeVisible();
 
     await gotoAuthenticated(page, "/weeks/current/input");
     await expect(page.locator('input[name="shopName"]')).toBeVisible();

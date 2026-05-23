@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import {
   Alert,
   Box,
@@ -15,14 +14,7 @@ import { api } from "../../convex/_generated/api";
 import { ReceiptForm } from "../components/ReceiptForm";
 import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
 import { WeekStatusPanel } from "../components/WeekStatusPanel";
-
-type WeekSession = {
-  weekStartDate: string;
-  weekEndDate: string;
-  status: "draft" | "completed";
-  budgetAmountYen?: number;
-  reviewMemo?: string;
-};
+import { useWeekSession } from "../hooks/useWeekSession";
 
 function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
   const start = new Date(weekStartDate + "T00:00:00");
@@ -40,23 +32,7 @@ export function InputPage() {
   const isPC = useMediaQuery(theme.breakpoints.up("md"));
   const navigate = useNavigate();
 
-  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateCurrentWeekSession);
-  const [weekSession, setWeekSession] = useState<WeekSession | null>(null);
-  const [sessionError, setSessionError] = useState("");
-
-  // getOrCreateCurrentWeekSession は副作用を持つ mutation のため useQuery ではなく useMutation を使用。
-  const initSession = useCallback(() => {
-    getOrCreateSession()
-      .then(setWeekSession)
-      .catch((err: unknown) => {
-        console.error("週次セッション初期化失敗:", err);
-        setSessionError("週次セッションの初期化に失敗しました。ページをリロードしてください。");
-      });
-  }, [getOrCreateSession]);
-
-  useEffect(() => {
-    initSession();
-  }, [initSession]);
+  const { weekSession, setWeekSession, sessionError } = useWeekSession();
 
   const categories = useQuery(api.categories.listActive) ?? [];
   const receipts =

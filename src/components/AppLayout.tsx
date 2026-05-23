@@ -222,7 +222,7 @@ export function AppLayout() {
 
       {!isPC && (
         <Paper
-          aria-label="navigation"
+          aria-label="ボトムナビゲーション"
           component="nav"
           sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1200 }}
           elevation={3}

@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import {
   Alert,
   Box,
@@ -12,35 +11,11 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../convex/_generated/api";
-
-type WeekSession = {
-  weekStartDate: string;
-  weekEndDate: string;
-  status: "draft" | "completed";
-  budgetAmountYen?: number;
-  reviewMemo?: string;
-};
+import { useWeekSession } from "../hooks/useWeekSession";
 
 export function DashboardPage() {
-  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateCurrentWeekSession);
-  const [weekSession, setWeekSession] = useState<WeekSession | null>(null);
-  const [sessionError, setSessionError] = useState("");
+  const { weekSession, sessionError } = useWeekSession();
   const navigate = useNavigate();
-
-  // getOrCreateCurrentWeekSession は副作用を持つ mutation のため useQuery ではなく useMutation を使用。
-  // useEffect + useCallback でマウント時に一度だけ実行し、結果を local state に保持する。
-  const initSession = useCallback(() => {
-    getOrCreateSession()
-      .then(setWeekSession)
-      .catch((err: unknown) => {
-        console.error("週次セッション初期化失敗:", err);
-        setSessionError("週次セッションの初期化に失敗しました。ページをリロードしてください。");
-      });
-  }, [getOrCreateSession]);
-
-  useEffect(() => {
-    initSession();
-  }, [initSession]);
 
   const currentWeekSummary = useQuery(
     api.receipts.getWeekSummary,
