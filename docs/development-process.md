@@ -75,6 +75,27 @@ Issue には次の内容を書きます。
 runtime 依存関係の更新では、Issue が不要な場合でも Pull Request に確認内容を
 記載します。
 
+### Issue タスク台帳
+
+`issue-delivery` Skill で Issue を処理する場合、Issue は人間と Codex / Devin の
+共通の作業台帳として扱います。作業開始時に Issue 本文へタスクリストを追加できる場合は
+本文を更新し、本文更新ができない場合は「Issue Delivery タスク台帳」コメントを投稿します。
+
+台帳には少なくとも次を含めます。
+
+- Product Lead 要件確認
+- Tech Lead 仕様確定
+- QA Agent E2E テスト設計レビュー
+- TDD 実装タスク
+- コードレビュー対応
+- ローカル検証
+- GitHub Actions / E2E 結果確認
+- PR マージと完了報告
+
+各フェーズの開始・完了・差し戻しは Issue コメントに残します。差し戻しが発生した場合も
+作業を止めず、タスク台帳を更新して該当フェーズへ戻ります。これにより、途中から人間が
+確認しても、エージェントが再開しても、現在位置と未完了タスクを Issue から追跡できます。
+
 ### Issue の要件確認（Product Lead 3エージェント並列評価）
 
 `issue-delivery` Skill を使って Issue を処理する場合、フェーズ0（Product Lead 要件確認）では
@@ -147,6 +168,25 @@ Pull Request には次の内容を書きます。
 - 関連 Issue がある場合はそのリンク
 - UI 変更がある場合は、必要に応じてスクリーンショット
 - 関連する場合は Convex/Auth への影響
+
+`issue-delivery` Skill で作成する Pull Request では、PR 本文または PR コメントに
+終了条件タスクを置きます。PR はこのタスクがすべて完了してからマージします。
+
+終了条件タスク:
+
+- [ ] 関連 Issue がリンクされている
+- [ ] 要件定義結果が Issue に記録されている
+- [ ] 実装タスクがすべて完了している
+- [ ] TDD のテスト追加または更新が含まれている
+- [ ] `pnpm test --run` がローカルで成功している
+- [ ] `pnpm run lint` がローカルで成功している
+- [ ] `pnpm run build` がローカルで成功している
+- [ ] `pnpm run e2e --project=chromium` がローカルで成功している
+- [ ] GitHub Actions の全 check が成功している
+- [ ] Reviewer の指摘がすべて解決済み
+- [ ] QA Agent の E2E 結果確認が `success`
+- [ ] 未解決の conversation がない
+- [ ] マージ後の Issue 完了報告内容が準備済み
 
 Pull Request は短時間でレビューできる大きさに保ちます。目安として、可能な限り
 差分は 300 行以内にします。500 行を超える場合は、分割するか、1つの Pull Request
@@ -262,6 +302,18 @@ pnpm run e2e:smoke --project=chromium
 ```
 
 E2E 用環境変数が未設定の場合はスキップしてよく、その場合は CI の E2E 結果に委ねます。
+
+`issue-delivery` Skill で PR マージまで全自動運用する場合は、ローカル E2E を CI 任せに
+しません。PR 作成前および差し戻し修正後に、ローカルで全 E2E を完走します。
+
+```bash
+pnpm run e2e --project=chromium
+```
+
+環境変数不足、Clerk/Convex/Vercel の一時的な問題などでローカル E2E が実行不能な場合は、
+先へ進まず、Issue と PR に実行不能理由、必要な設定、再実行条件を記録して判断します。
+GitHub Actions についても、E2E だけでなく全 check が完了し、すべて `success` になってから
+PR をマージします。
 
 ### E2E テスト設計基準（issue-delivery QA Agent 向け）
 
