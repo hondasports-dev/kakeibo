@@ -422,6 +422,56 @@ export const getWeekSummaryWithCategories = query({
 });
 
 // ---------------------------------------------------------------------------
+// getFourWeeksSummary
+// ---------------------------------------------------------------------------
+
+export type FourWeeksSummaryData = {
+  /** 直近4週分の集計データ。古い順（昇順）で返す */
+  weeks: Array<{
+    weekStartDate: string;
+    totalAmountYen: number;
+  }>;
+  /** データが存在する週の数（グラフ表示判定に使用） */
+  weekCount: number;
+};
+
+type GetFourWeeksSummaryArgs = {
+  weekStartDate: string;
+};
+
+/** getFourWeeksSummary query の handler ロジック（テスト用に export） */
+export async function getFourWeeksSummaryHandler(
+  ctx: QueryCtx,
+  args: GetFourWeeksSummaryArgs,
+): Promise<FourWeeksSummaryData> {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  // 基準週から3週前まで4週分を降順で収集し、最後に昇順に反転する
+  const descWeeks: Array<{ weekStartDate: string; totalAmountYen: number }> = [];
+
+  for (let i = 0; i < 4; i++) {
+    const targetWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -i);
+    const receipts = await getReceiptsForWeek(ctx, userId, targetWeekStartDate);
+    const { totalAmountYen } = summarizeReceipts(receipts);
+    descWeeks.push({ weekStartDate: targetWeekStartDate, totalAmountYen });
+  }
+
+  // 古い順（昇順）に並べ替え
+  const weeks = descWeeks.reverse();
+
+  const weekCount = weeks.filter((w) => w.totalAmountYen > 0).length;
+
+  return { weeks, weekCount };
+}
+
+export const getFourWeeksSummary = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getFourWeeksSummaryHandler,
+});
+
+// ---------------------------------------------------------------------------
 // deleteReceiptsByUser (internal mutation / E2E テストデータクリーンアップ専用)
 // ---------------------------------------------------------------------------
 
