@@ -253,14 +253,22 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               id="receipt-amount-yen"
               label="合計金額"
               name="amountYen"
-              onChange={(e) => handleFieldChange("amountYen", e.target.value)}
-              placeholder="例: 4280"
+              onChange={(e) => {
+                // 数字以外を除去してから保持（カンマも除去して内部値は常に数字のみ）
+                const digits = e.target.value.replace(/[^\d]/g, "");
+                handleFieldChange("amountYen", digits);
+              }}
+              placeholder="例: 4,280"
               slotProps={{
                 htmlInput: {
                   inputMode: "numeric",
                 },
               }}
-              value={formValues.amountYen}
+              value={
+                formValues.amountYen
+                  ? Number(formValues.amountYen).toLocaleString("ja-JP")
+                  : ""
+              }
             />
 
             <Stack spacing={1}>
