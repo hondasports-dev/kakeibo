@@ -86,8 +86,7 @@ export function DashboardPage() {
             },
             {
               label: "予算残り",
-              value:
-                budgetRemaining !== undefined ? `${budgetRemaining.toLocaleString()}円` : "--",
+              value: budgetRemaining !== undefined ? `${budgetRemaining.toLocaleString()}円` : "--",
               helper:
                 budgetRemaining !== undefined && budgetAmountYen
                   ? `${Math.round((budgetRemaining / budgetAmountYen) * 100)}% 残り`
@@ -136,12 +135,7 @@ export function DashboardPage() {
               今週のサマリーを見る
             </Button>
           ) : (
-            <Button
-              component={Link}
-              to="/weeks/current/input"
-              variant="contained"
-              size="large"
-            >
+            <Button component={Link} to="/weeks/current/input" variant="contained" size="large">
               入力を再開
             </Button>
           )}

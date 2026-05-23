@@ -1,15 +1,7 @@
 import { useState } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/react";
 import { useSignIn } from "@clerk/react/legacy";
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { useInitializeUser } from "./hooks/useInitializeUser";

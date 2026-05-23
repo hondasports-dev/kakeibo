@@ -135,16 +135,12 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.getByText("今週のサマリー")).toBeVisible();
   });
 
-  test("@navigation シナリオN-7: SummaryPageに週次サマリーが表示される", async ({
-    page,
-  }) => {
+  test("@navigation シナリオN-7: SummaryPageに週次サマリーが表示される", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
 
     // 「合計」または「支出合計」的なテキストが表示されることを確認
-    await expect(
-      page.getByText("合計").or(page.getByText("支出合計")),
-    ).toBeVisible();
+    await expect(page.getByText("合計").or(page.getByText("支出合計"))).toBeVisible();
 
     // WeekNavigator（前の週/次の週ボタン）が表示されることを確認
     await expect(page.getByRole("button", { name: /前の週/ })).toBeVisible();
@@ -159,15 +155,13 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     // 「振り返り」「レビュー」「完了」などのボタンまたはリンクが存在することを確認
     await expect(
-      page.getByRole("button", { name: /振り返り|レビュー|完了/ }).or(
-        page.getByRole("link", { name: /振り返り|レビュー|完了/ }),
-      ),
+      page
+        .getByRole("button", { name: /振り返り|レビュー|完了/ })
+        .or(page.getByRole("link", { name: /振り返り|レビュー|完了/ })),
     ).toBeVisible();
   });
 
-  test("@smoke @navigation シナリオN-9: SPで入力フローを一通り完走できる", async ({
-    page,
-  }) => {
+  test("@smoke @navigation シナリオN-9: SPで入力フローを一通り完走できる", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
@@ -183,9 +177,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.getByRole("navigation", { name: "ボトムナビゲーション" })).toBeVisible();
   });
 
-  test("@smoke @navigation シナリオN-10: 既存のURL構造が維持されている", async ({
-    page,
-  }) => {
+  test("@smoke @navigation シナリオN-10: 既存のURL構造が維持されている", async ({ page }) => {
     // 各URLに直接アクセスして404にならないことを確認
     await gotoAuthenticated(page, "/");
     await expect(page.getByText("今週のダッシュボード")).toBeVisible();

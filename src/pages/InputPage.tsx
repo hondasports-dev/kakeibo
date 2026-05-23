@@ -108,10 +108,7 @@ export function InputPage() {
                 onSessionUpdated={setWeekSession}
                 onShowSummary={() => navigate(`/weeks/${weekStartDate}`)}
               />
-              <WeekStatusPanel
-                receipts={receipts}
-                budgetAmountYen={weekSession.budgetAmountYen}
-              />
+              <WeekStatusPanel receipts={receipts} budgetAmountYen={weekSession.budgetAmountYen} />
             </Stack>
           )}
         </Box>

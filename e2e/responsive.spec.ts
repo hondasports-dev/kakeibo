@@ -35,7 +35,7 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     // await expect(page).toHaveURL("/categories");
     // await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
     // await expect(page.locator('[class*="category-settings-row"]').first()).toBeVisible();
-    
+
     // 設定画面が表示されることを確認
     await expect(page.getByText("設定")).toBeVisible();
   });

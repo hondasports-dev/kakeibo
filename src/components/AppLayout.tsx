@@ -148,8 +148,7 @@ export function AppLayout() {
     if (path === "/weeks/current/input") return location.pathname === "/weeks/current/input";
     if (path.startsWith("/weeks/"))
       return (
-        location.pathname.startsWith("/weeks/") &&
-        location.pathname !== "/weeks/current/input"
+        location.pathname.startsWith("/weeks/") && location.pathname !== "/weeks/current/input"
       );
     return location.pathname === path;
   };
