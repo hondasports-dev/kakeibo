@@ -4,11 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { UserSettingsPanel } from "./UserSettingsPanel";
 
-const {
-  updateMonthlyIncomeMock,
-  useMutationMock,
-  useQueryMock,
-} = vi.hoisted(() => ({
+const { updateMonthlyIncomeMock, useMutationMock, useQueryMock } = vi.hoisted(() => ({
   updateMonthlyIncomeMock: vi.fn(),
   useMutationMock: vi.fn(),
   useQueryMock: vi.fn(),

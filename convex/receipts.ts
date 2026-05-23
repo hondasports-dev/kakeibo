@@ -538,8 +538,7 @@ export async function getMonthlyExpensesSummaryHandler(
     .unique();
 
   const monthlyIncome = user?.monthlyIncome ?? null;
-  const remainingBalanceYen =
-    monthlyIncome !== null ? monthlyIncome - totalExpensesYen : null;
+  const remainingBalanceYen = monthlyIncome !== null ? monthlyIncome - totalExpensesYen : null;
 
   return {
     totalExpensesYen,

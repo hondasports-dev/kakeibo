@@ -115,11 +115,7 @@ export function UserSettingsPanel() {
             >
               保存
             </Button>
-            <Button
-              disabled={status === "saving"}
-              onClick={handleClear}
-              variant="outlined"
-            >
+            <Button disabled={status === "saving"} onClick={handleClear} variant="outlined">
               クリア（未設定に戻す）
             </Button>
           </Stack>
