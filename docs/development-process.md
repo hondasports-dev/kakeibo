@@ -36,6 +36,8 @@ cd ../kakeibo-worktrees/<branch-name>
 
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
+`issue-delivery` Skill や Implementer ロールで作業開始時に作成する作業ブランチも、
+この `git worktree` 手順に従います。
 
 推奨例:
 

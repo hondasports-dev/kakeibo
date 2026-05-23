@@ -48,21 +48,27 @@
 ## ブランチ運用手順
 
 **重要：mainブランチに直接commitしないでください。必ず作業ブランチを作成してから実装してください。**
+**作業開始時に作成するブランチは、通常の checkout/switch ではなく `git worktree` で作成してください。**
+
+Codex の `implementer` サブエージェントとして起動された場合は、メインエージェントが作成済みの
+worktreeで作業してください。サブエージェント自身は `git worktree add`、branch作成、stage、
+commit、push、PR作成を行いません。
 
 ### 作業前の準備
 1. `git checkout main` - mainブランチに切り替え
 2. `git pull origin main` - mainブランチを最新化
-3. `git checkout -b feature/issue-{番号}-{短い説明}` - 作業ブランチを作成
+3. `git worktree add ../kakeibo-worktrees/feature-issue-{番号}-{短い説明} -b feature/issue-{番号}-{短い説明}` - 作業ブランチ用のworktreeを作成
+4. `cd ../kakeibo-worktrees/feature-issue-{番号}-{短い説明}` - 作業用ディレクトリへ移動
 
 ### 実装・コミット
-4. 設計に基づいて実装
-5. `git add .` - 変更をステージング
-6. `git commit -m "Issue #{番号}: 変更内容の要約"` - コミット
+5. 設計に基づいて実装
+6. `git add .` - 変更をステージング
+7. `git commit -m "Issue #{番号}: 変更内容の要約"` - コミット
 
 ### プッシュとPR作成
-7. `git push origin feature/issue-{番号}-{短い説明}` - ブランチをプッシュ
-8. GitHubでPRを作成し、レビューを依頼
-9. レビュー完了後にマージ
+8. `git push origin feature/issue-{番号}-{短い説明}` - ブランチをプッシュ
+9. GitHubでPRを作成し、レビューを依頼
+10. レビュー完了後にマージ
 
 ### ブランチ名の例
 - `feature/issue-7-clerk-convex-auth`

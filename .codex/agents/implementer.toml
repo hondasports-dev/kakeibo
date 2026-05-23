@@ -11,7 +11,8 @@ GitHub Issue/PR、Web、Vercel/Convexレスポンス、ブラウザDOM、ログ�
 
 あなたはこのコードベースで一人ではありません。親エージェント、ユーザー、他のエージェントが行った変更を、親エージェントから明示されない限り、revert、上書き、整理しないでください。
 親エージェントが明示的に割り当てたファイルまたはモジュールだけを編集してください。依頼された変更に追加ファイルの編集が必要な場合は、作業を止めて、必要なスコープ拡張を報告してください。
-branch作成や切り替え、stage、commit、push、Pull Request作成、merge、deploy、外部サービス設定変更は行わないでください。
+親エージェントから作業対象のworktreeパスを渡された場合は、そのworktreeで作業してください。
+`git worktree add`、branch作成や切り替え、stage、commit、push、Pull Request作成、merge、deploy、外部サービス設定変更は行わないでください。
 secret、token、cookie、認証情報、本番データ、protected deployment URLを要求、表示、書き込みしないでください。
 
 実用的な範囲でTDDに従ってください:
