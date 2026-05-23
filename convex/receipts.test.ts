@@ -6,6 +6,7 @@ import { calculateWeekStartDate } from "./utils";
 import {
   createReceiptHandler,
   deleteReceiptHandler,
+  getMonthlyExpensesSummaryHandler,
   getReceiptsByDateHandler,
   getReceiptsByWeekHandler,
   getWeekSummaryHandler,
@@ -1208,5 +1209,220 @@ describe("getFourWeeksSummaryHandler", () => {
     await expect(
       getFourWeeksSummaryHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toMatchObject({ data: "Not authenticated" });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getMonthlyExpensesSummary テスト用ヘルパー
+// ---------------------------------------------------------------------------
+
+type UserDoc = {
+  _id: string;
+  _creationTime: number;
+  userId: string;
+  displayName: string;
+  email?: string;
+  monthlyIncome?: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+/**
+ * getMonthlyExpensesSummaryHandler が必要とする QueryCtx の最小モックを生成する。
+ * receipts テーブルと users テーブルの2つをクエリする。
+ * receipts は by_user_id_and_week_start_date インデックス + collect()
+ * users は by_token_identifier インデックス + unique()
+ */
+function createQueryCtxForMonthlySummary(
+  identity: UserIdentity | null,
+  receiptDocs: ReceiptDoc[] = [],
+  userDoc: UserDoc | null = null,
+): QueryCtx {
+  const queryMock = vi.fn().mockImplementation((tableName: string) => {
+    if (tableName === "receipts") {
+      // receipts: withIndex → collect() で全件返す
+      const withIndexMock = vi
+        .fn()
+        .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+          const filters: Record<string, unknown> = {};
+          const q = {
+            eq: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] = value;
+              return q;
+            }),
+          };
+          builder(q);
+          const filteredDocs = receiptDocs.filter((doc) =>
+            Object.entries(filters).every(([field, value]) => {
+              if (!(field in doc)) return true;
+              return (doc as Record<string, unknown>)[field] === value;
+            }),
+          );
+          return {
+            collect: vi.fn().mockResolvedValue(filteredDocs),
+            order: vi.fn().mockReturnThis(),
+          };
+        });
+      return { withIndex: withIndexMock };
+    } else {
+      // users: withIndex → unique() でuserDocを返す
+      const withIndexMock = vi.fn().mockReturnValue({
+        unique: vi.fn().mockResolvedValue(userDoc),
+      });
+      return { withIndex: withIndexMock };
+    }
+  });
+
+  return {
+    auth: {
+      getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
+    },
+    db: {
+      query: queryMock,
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any as QueryCtx;
+}
+
+// ---------------------------------------------------------------------------
+// getMonthlyExpensesSummary テスト
+// ---------------------------------------------------------------------------
+
+describe("getMonthlyExpensesSummary", () => {
+  it("未認証時: ConvexError が throw される", async () => {
+    const ctx = createQueryCtxForMonthlySummary(null, [], null);
+
+    await expect(
+      getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" }),
+    ).rejects.toBeInstanceOf(ConvexError);
+
+    await expect(
+      getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" }),
+    ).rejects.toMatchObject({ data: "Not authenticated" });
+  });
+
+  it("当月に属する週のレシートのみ集計される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r-jan-1",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-10",
+        shopName: "スーパーA",
+        amountYen: 1000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08", // 2024-01 に属する
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "r-jan-2",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-20",
+        shopName: "コンビニB",
+        amountYen: 500,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-15", // 2024-01 に属する
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const ctx = createQueryCtxForMonthlySummary(identity, receiptDocs, null);
+
+    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
+
+    expect(result.totalExpensesYen).toBe(1500);
+    expect(result.monthlyIncome).toBeNull();
+    expect(result.remainingBalanceYen).toBeNull();
+  });
+
+  it("別月のレシートは含まれない", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r-jan",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-10",
+        shopName: "スーパーA",
+        amountYen: 1000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08", // 2024-01
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "r-feb",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-02-05",
+        shopName: "コンビニB",
+        amountYen: 2000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-02-05", // 2024-02 → 除外
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const ctx = createQueryCtxForMonthlySummary(identity, receiptDocs, null);
+
+    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
+
+    expect(result.totalExpensesYen).toBe(1000); // janのみ
+  });
+
+  it("monthlyIncome が設定されている場合の残金計算", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r-1",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-10",
+        shopName: "スーパー",
+        amountYen: 50000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const userDoc: UserDoc = {
+      _id: "user-001",
+      _creationTime: 1000,
+      userId: USER_ID,
+      displayName: "テストユーザー",
+      monthlyIncome: 300000,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createQueryCtxForMonthlySummary(identity, receiptDocs, userDoc);
+
+    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
+
+    expect(result.totalExpensesYen).toBe(50000);
+    expect(result.monthlyIncome).toBe(300000);
+    expect(result.remainingBalanceYen).toBe(250000);
+  });
+
+  it("monthlyIncome が null の場合は remainingBalance も null", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const userDoc: UserDoc = {
+      _id: "user-001",
+      _creationTime: 1000,
+      userId: USER_ID,
+      displayName: "テストユーザー",
+      // monthlyIncome なし
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createQueryCtxForMonthlySummary(identity, [], userDoc);
+
+    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
+
+    expect(result.monthlyIncome).toBeNull();
+    expect(result.remainingBalanceYen).toBeNull();
   });
 });

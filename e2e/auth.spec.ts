@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
+import { clickUserMenuItem } from "./helpers/ui";
 
 /**
  * 認証フロー E2E テスト
@@ -43,9 +44,7 @@ test.describe("ログアウト", () => {
     await expect(page.locator("text=今週のレシート入力")).toBeVisible();
 
     // ユーザーメニューを開いてログアウト
-    await page.locator('[class*="user-menu-button"]').click();
-    await page.waitForSelector('[role="menu"]');
-    await page.getByRole("menuitem", { name: "ログアウト" }).click();
+    await clickUserMenuItem(page, "ログアウト");
 
     // ログイン画面に戻ることを確認
     await expect(page.getByRole("heading", { name: "家計簿にログイン" })).toBeVisible({

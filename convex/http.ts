@@ -57,6 +57,7 @@ http.route({
       resetWeekSession?: boolean;
       weekStartDate?: string;
       deleteE2eCategories?: boolean;
+      clearMonthlyIncome?: boolean;
     };
     if (!body.userId) {
       return new Response(JSON.stringify({ error: "userId is required." }), {
@@ -91,7 +92,14 @@ http.route({
       });
     }
 
-    return new Response(JSON.stringify({ receipts, weekSession, categories }), {
+    let monthlyIncome: { cleared: boolean } | null = null;
+    if (body.clearMonthlyIncome) {
+      monthlyIncome = await ctx.runMutation(internal.users.clearUserMonthlyIncome, {
+        userId: body.userId,
+      });
+    }
+
+    return new Response(JSON.stringify({ receipts, weekSession, categories, monthlyIncome }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
