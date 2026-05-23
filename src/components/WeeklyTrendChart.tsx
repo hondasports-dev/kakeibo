@@ -1,4 +1,4 @@
-import { Box, Paper, Typography } from "@mui/material";
+import { Box, Paper, Skeleton, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 
 type WeekData = {
@@ -10,6 +10,8 @@ type WeeklyTrendChartProps = {
   weeks?: WeekData[];
   /** データが存在する週の数。2未満の場合はプレースホルダーを表示する */
   weekCount?: number;
+  /** true の場合は Skeleton を表示する（クエリロード中） */
+  isLoading?: boolean;
 };
 
 function formatWeekLabel(weekStartDate: string): string {
@@ -17,8 +19,21 @@ function formatWeekLabel(weekStartDate: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}〜`;
 }
 
-export function WeeklyTrendChart({ weeks = [], weekCount = 0 }: WeeklyTrendChartProps) {
+export function WeeklyTrendChart({ weeks = [], weekCount = 0, isLoading = false }: WeeklyTrendChartProps) {
   const theme = useTheme();
+
+  if (isLoading) {
+    return (
+      <Paper className="paper-panel" elevation={0}>
+        <Box sx={{ p: 2.5 }}>
+          <Typography component="h2" sx={{ mb: 1.5 }} variant="h6">
+            週別支出推移
+          </Typography>
+          <Skeleton variant="rectangular" height={168} />
+        </Box>
+      </Paper>
+    );
+  }
 
   if (weekCount < 2) {
     return (

@@ -56,6 +56,14 @@ describe("WeeklyTrendChart", () => {
     expect(screen.getByText("2週以上のデータが揃うとグラフが表示されます")).toBeInTheDocument();
   });
 
+  it("isLoading が true のとき週別支出推移 heading と Skeleton が表示される", () => {
+    renderWithProviders(<WeeklyTrendChart isLoading />);
+
+    expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
+    expect(screen.queryByText("2週以上のデータが揃うとグラフが表示されます")).not.toBeInTheDocument();
+  });
+
   it("金額が0円の週でもグラフが表示される（0円バーとして）", () => {
     const weeksWithZero = [
       { weekStartDate: "2024-01-01", totalAmountYen: 0 },

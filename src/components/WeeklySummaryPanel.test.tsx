@@ -131,7 +131,7 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
   });
 
-  it("weeklyTrendDataがundefinedのときグラフセクションが表示されない", () => {
+  it("weeklyTrendDataがnullのときグラフセクションが表示されない（クエリskip中）", () => {
     renderWithProviders(
       <WeeklySummaryPanel
         count={0}
@@ -139,10 +139,26 @@ describe("WeeklySummaryPanel", () => {
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[]}
+        weeklyTrendData={null}
       />,
     );
 
     expect(screen.queryByRole("heading", { name: "週別支出推移" })).not.toBeInTheDocument();
+  });
+
+  it("weeklyTrendDataがundefinedのときSkeletonつきでグラフセクションが表示される（ロード中）", () => {
+    renderWithProviders(
+      <WeeklySummaryPanel
+        count={0}
+        totalAmountYen={0}
+        byCategory={[]}
+        prevWeekTotalAmountYen={null}
+        receipts={[]}
+        weeklyTrendData={undefined}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
   });
 
   it("振り返りメモがある場合はサマリー内に表示する", () => {

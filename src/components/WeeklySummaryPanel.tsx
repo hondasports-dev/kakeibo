@@ -31,8 +31,13 @@ type WeeklySummaryPanelProps = {
   budgetAmountYen?: number;
   reviewMemo?: string | null;
   isLoading?: boolean;
-  /** 直近4週の支出推移データ。undefined の場合はグラフセクション自体を非表示にする */
-  weeklyTrendData?: FourWeeksSummaryData;
+  /**
+   * 直近4週の支出推移データ。
+   * - `FourWeeksSummaryData`: データ取得済み（グラフまたはプレースホルダー表示）
+   * - `undefined`: ロード中（Skeleton 表示）
+   * - prop 自体を渡さない: 非表示（Convex クエリが skip 状態のとき）
+   */
+  weeklyTrendData?: FourWeeksSummaryData | null;
 };
 
 function formatDateForDisplay(isoDate: string): string {
@@ -130,9 +135,17 @@ export function WeeklySummaryPanel({
         </Box>
       </Paper>
 
-      {/* 週別支出推移グラフ */}
-      {weeklyTrendData !== undefined && (
-        <WeeklyTrendChart weeks={weeklyTrendData.weeks} weekCount={weeklyTrendData.weekCount} />
+      {/* 週別支出推移グラフ
+           - null    : クエリ skip 中（サマリーを閉じている）→ セクション自体を非表示
+           - undefined: ロード中 → isLoading で Skeleton を表示
+           - データあり: グラフまたはプレースホルダーを表示
+      */}
+      {weeklyTrendData !== null && (
+        <WeeklyTrendChart
+          weeks={weeklyTrendData?.weeks}
+          weekCount={weeklyTrendData?.weekCount}
+          isLoading={weeklyTrendData === undefined}
+        />
       )}
 
       {/* カテゴリ別支出 */}

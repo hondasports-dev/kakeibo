@@ -638,6 +638,10 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`));
     await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+    // getFourWeeksSummary クエリのロード完了を待つ（UIが安定してからクリック）
+    await expect(page.getByRole("heading", { name: "週別支出推移" })).toBeVisible({
+      timeout: 15_000,
+    });
 
     await page.getByRole("button", { name: "前の週へ" }).click();
 
@@ -653,8 +657,13 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
 
     await page.goto(`/weeks/${futureWeekStartDate}`);
 
-    await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`));
-    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+    // weekSession の初期化完了 + URL 正規化を待つ
+    await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`), {
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
   });
 });
@@ -774,7 +783,7 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
   test.afterEach(async () => {
     await cleanupTestReceipts();
     await cleanupTestCategories();
-    await resetTestWeekSession();
+    await resetTestWeekSession(getCurrentWeekStartDate());
   });
 
   test("[Issue #47] 週次サマリーを開いたとき週別支出推移セクションが表示される", async ({
