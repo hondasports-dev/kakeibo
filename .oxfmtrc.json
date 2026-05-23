@@ -5,6 +5,7 @@
     ".agents/**",
     "workflows/**",
     "convex/_generated/**",
-    "node_modules/**"
+    "node_modules/**",
+    "**/*.md"
   ]
 }
