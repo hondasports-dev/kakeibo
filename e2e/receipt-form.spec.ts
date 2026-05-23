@@ -382,9 +382,9 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     await expect(page).toHaveURL("/settings");
     await page.getByRole("button", { name: `${updatedCategoryName}を無効化` }).click();
     // 無効化後: ボタンが disabled になること（設定画面では無効カテゴリも表示される）
-    await expect(
-      page.getByRole("button", { name: `${updatedCategoryName}を無効化` }),
-    ).toBeDisabled({ timeout: 15_000 });
+    await expect(page.getByRole("button", { name: `${updatedCategoryName}を無効化` })).toBeDisabled(
+      { timeout: 15_000 },
+    );
 
     // 入力画面でカテゴリ候補から消えていることを確認
     await page.getByRole("link", { name: "入力", exact: true }).click();
@@ -772,7 +772,9 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     // Issue #49: WeeklySummaryPanel の前週比は合計セクションの1箇所のみ
     await expect(page.getByLabel("前週比").filter({ hasText: "-720円" })).toHaveCount(1);
     // 前週の 7,000円 はカテゴリ別支出・支出一覧には表示されない（グラフバーラベルを除く）
-    const categorySection = page.getByRole("heading", { name: "カテゴリ別", level: 2 }).locator("../../..");
+    const categorySection = page
+      .getByRole("heading", { name: "カテゴリ別", level: 2 })
+      .locator("../../..");
     await expect(categorySection.getByText("7,000円")).toHaveCount(0);
     const receiptListSection = page.getByLabel("週次サマリーの支出一覧");
     await expect(receiptListSection.getByText("7,000円")).toHaveCount(0);
