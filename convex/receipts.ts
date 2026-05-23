@@ -4,7 +4,7 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireAuthenticatedUserId } from "./users";
 import type { Id } from "./_generated/dataModel";
-import { calculateWeekStartDate } from "./utils";
+import { calculateRelativeWeekStartDate, calculateWeekStartDate } from "./utils";
 
 // ---------------------------------------------------------------------------
 // createReceipt
@@ -248,22 +248,45 @@ type GetWeekSummaryArgs = {
   weekStartDate: string;
 };
 
+async function getReceiptsForWeek(ctx: QueryCtx, userId: string, weekStartDate: string) {
+  const receipts = [];
+  const query = ctx.db
+    .query("receipts")
+    .withIndex("by_user_id_and_week_start_date", (q) =>
+      q.eq("userId", userId).eq("weekStartDate", weekStartDate),
+    )
+    .order("desc");
+
+  for await (const receipt of query) {
+    receipts.push(receipt);
+  }
+
+  return receipts;
+}
+
+function summarizeReceipts(receipts: Array<{ amountYen: number }>) {
+  const count = receipts.length;
+  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
+  return { count, totalAmountYen };
+}
+
 /** getWeekSummary query の handler ロジック（テスト用に export） */
 export async function getWeekSummaryHandler(ctx: QueryCtx, args: GetWeekSummaryArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  const receipts = await ctx.db
-    .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
-    )
-    .order("desc")
-    .take(200);
+  const receipts = await getReceiptsForWeek(ctx, userId, args.weekStartDate);
+  const prevWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -1);
+  const prevWeekReceipts = await getReceiptsForWeek(ctx, userId, prevWeekStartDate);
 
-  const count = receipts.length;
-  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
+  const { count, totalAmountYen } = summarizeReceipts(receipts);
+  const prevWeekSummary = summarizeReceipts(prevWeekReceipts);
 
-  return { count, totalAmountYen };
+  return {
+    count,
+    totalAmountYen,
+    prevWeekReceiptCount: prevWeekSummary.count,
+    prevWeekTotalAmountYen: prevWeekSummary.count > 0 ? prevWeekSummary.totalAmountYen : null,
+  };
 }
 
 export const getWeekSummary = query({
@@ -287,13 +310,13 @@ type CategorySummary = {
 
 type GetWeekSummaryWithCategoriesArgs = {
   weekStartDate: string;
-  prevWeekTotalAmountYen?: number;
 };
 
 export type WeekSummaryWithCategories = {
   count: number;
   totalAmountYen: number;
   byCategory: CategorySummary[];
+  prevWeekReceiptCount: number;
   prevWeekTotalAmountYen: number | null;
   receipts: Array<{
     _id: string;
@@ -314,13 +337,9 @@ export async function getWeekSummaryWithCategoriesHandler(
 ): Promise<WeekSummaryWithCategories> {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  const receipts = await ctx.db
-    .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
-    )
-    .order("desc")
-    .take(200);
+  const receipts = await getReceiptsForWeek(ctx, userId, args.weekStartDate);
+  const prevWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -1);
+  const prevWeekReceipts = await getReceiptsForWeek(ctx, userId, prevWeekStartDate);
 
   const categoryIds = Array.from(new Set(receipts.map((receipt) => receipt.categoryId)));
   const categories = await Promise.all(categoryIds.map((categoryId) => ctx.db.get(categoryId)));
@@ -337,8 +356,8 @@ export async function getWeekSummaryWithCategoriesHandler(
     });
   }
 
-  const count = receipts.length;
-  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
+  const { count, totalAmountYen } = summarizeReceipts(receipts);
+  const prevWeekSummary = summarizeReceipts(prevWeekReceipts);
 
   // カテゴリ別集計 Map（ループ内で db アクセスしない）
   const categoryMap = new Map<
@@ -389,7 +408,8 @@ export async function getWeekSummaryWithCategoriesHandler(
     count,
     totalAmountYen,
     byCategory,
-    prevWeekTotalAmountYen: args.prevWeekTotalAmountYen ?? null,
+    prevWeekReceiptCount: prevWeekSummary.count,
+    prevWeekTotalAmountYen: prevWeekSummary.count > 0 ? prevWeekSummary.totalAmountYen : null,
     receipts: receiptsWithCategory,
   };
 }
@@ -397,7 +417,6 @@ export async function getWeekSummaryWithCategoriesHandler(
 export const getWeekSummaryWithCategories = query({
   args: {
     weekStartDate: v.string(),
-    prevWeekTotalAmountYen: v.optional(v.number()),
   },
   handler: getWeekSummaryWithCategoriesHandler,
 });

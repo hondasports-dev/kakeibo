@@ -25,3 +25,16 @@ export function calculateWeekEndDate(weekStartDate: string): string {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+
+/**
+ * 週開始日を基準に、指定週数だけ移動した週開始日を返す。
+ * 例: ("2024-01-08", -1) → "2024-01-01"
+ */
+export function calculateRelativeWeekStartDate(weekStartDate: string, weeks: number): string {
+  const date = new Date(weekStartDate + "T00:00:00Z");
+  date.setDate(date.getDate() + weeks * 7);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}

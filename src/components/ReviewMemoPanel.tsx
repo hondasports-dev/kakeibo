@@ -12,6 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { PreviousWeekComparison } from "./PreviousWeekComparison";
 
 type WeekSession = {
   weekStartDate: string;
@@ -23,12 +24,18 @@ type WeekSession = {
 
 type ReviewMemoPanelProps = {
   weekSession: WeekSession;
+  totalAmountYen: number;
+  prevWeekTotalAmountYen: number | null;
+  isSummaryLoading?: boolean;
   onSessionUpdated: (weekSession: WeekSession) => void;
   onShowSummary: () => void;
 };
 
 export function ReviewMemoPanel({
   weekSession,
+  totalAmountYen,
+  prevWeekTotalAmountYen,
+  isSummaryLoading = false,
   onSessionUpdated,
   onShowSummary,
 }: ReviewMemoPanelProps) {
@@ -98,6 +105,19 @@ export function ReviewMemoPanel({
             <Typography color="text.secondary" variant="body2">
               今週の気づきや、来週の買い方メモを残します。
             </Typography>
+          </Box>
+
+          <Box className="budget-strip">
+            <span>今週の支出</span>
+            <Stack spacing={0.75} sx={{ alignItems: "flex-end" }}>
+              <strong>{totalAmountYen.toLocaleString()}円</strong>
+              <PreviousWeekComparison
+                currentTotalAmountYen={totalAmountYen}
+                isLoading={isSummaryLoading}
+                prevWeekTotalAmountYen={prevWeekTotalAmountYen}
+                size="caption"
+              />
+            </Stack>
           </Box>
 
           <Alert severity={isCompleted ? "success" : "info"} variant="outlined">

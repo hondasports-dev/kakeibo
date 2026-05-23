@@ -184,7 +184,7 @@ describe("App weekly summary navigation", () => {
             args !== null &&
             "weekStartDate" in args &&
             args.weekStartDate === "2026-05-11" &&
-            "prevWeekTotalAmountYen" in args
+            !("prevWeekTotalAmountYen" in args)
           );
         }),
       ).toBe(true);
