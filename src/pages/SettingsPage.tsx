@@ -1,4 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
+import { CategorySettingsPanel } from "../components/CategorySettingsPanel";
 import { UserSettingsPanel } from "../components/UserSettingsPanel";
 
 export function SettingsPage() {
@@ -9,6 +10,7 @@ export function SettingsPage() {
           設定
         </Typography>
         <UserSettingsPanel />
+        <CategorySettingsPanel />
       </Stack>
     </Box>
   );

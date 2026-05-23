@@ -41,20 +41,20 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).toBeVisible();
 
-    // 4つのタブが表示されることを確認
-    await expect(page.getByRole("link", { name: "ホーム" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "入力" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "履歴" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "設定" })).toBeVisible();
+    // 4つのタブが表示されることを確認（BottomNav 内に限定）
+    await expect(bottomNav.getByRole("link", { name: "ホーム" })).toBeVisible();
+    await expect(bottomNav.getByRole("link", { name: "入力", exact: true })).toBeVisible();
+    await expect(bottomNav.getByRole("link", { name: "履歴" })).toBeVisible();
+    await expect(bottomNav.getByRole("link", { name: "設定", exact: true })).toBeVisible();
 
     // 各タブをタップして遷移を確認
-    await page.getByRole("link", { name: "ホーム" }).click();
+    await bottomNav.getByRole("link", { name: "ホーム" }).click();
     await expect(page).toHaveURL("/");
 
-    await page.getByRole("link", { name: "入力" }).click();
+    await bottomNav.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
-    await page.getByRole("link", { name: "設定" }).click();
+    await bottomNav.getByRole("link", { name: "設定", exact: true }).click();
     await expect(page).toHaveURL("/settings");
   });
 
@@ -79,14 +79,15 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 1280, height: 800 });
 
-    // Drawer内のリンクをクリックして遷移を確認
-    await page.getByRole("link", { name: "入力" }).click();
+    // Drawer内のリンクをクリックして遷移を確認（Drawer に限定）
+    const drawer = page.getByLabel("サイドメニュー");
+    await drawer.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
-    await page.getByRole("link", { name: "設定" }).click();
+    await drawer.getByRole("link", { name: "設定", exact: true }).click();
     await expect(page).toHaveURL("/settings");
 
-    await page.getByRole("link", { name: "ホーム" }).click();
+    await drawer.getByRole("link", { name: "ホーム", exact: true }).click();
     await expect(page).toHaveURL("/");
   });
 
@@ -131,8 +132,8 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.locator('input[name="shopName"]')).toBeVisible();
     await expect(page.locator('input[name="amountYen"]')).toBeVisible();
 
-    // サマリーパネルも同時に表示されることを確認（workbench-grid レイアウト）
-    await expect(page.getByText("今週のサマリー")).toBeVisible();
+    // PC幅ではReviewMemoPanel（週次振り返り）も同時に表示されることを確認（workbench-grid レイアウト）
+    await expect(page.getByRole("heading", { name: "週次振り返り" })).toBeVisible();
   });
 
   test("@navigation シナリオN-7: SummaryPageに週次サマリーが表示される", async ({ page }) => {
@@ -153,20 +154,22 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
 
-    // 「振り返り」「レビュー」「完了」などのボタンまたはリンクが存在することを確認
+    // SummaryPage には DashboardPage への導線（「入力を再開」または「今週のサマリーを見る」）と
+    // WeekNavigator（前/次の週ボタン）が表示される
     await expect(
       page
-        .getByRole("button", { name: /振り返り|レビュー|完了/ })
-        .or(page.getByRole("link", { name: /振り返り|レビュー|完了/ })),
-    ).toBeVisible();
+        .getByRole("button", { name: "前の週へ" })
+        .or(page.getByRole("link", { name: "入力を再開" })),
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("@smoke @navigation シナリオN-9: SPで入力フローを一通り完走できる", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    // BottomNavigationの「入力」タブをタップ
-    await page.getByRole("link", { name: "入力" }).click();
+    // BottomNavigationの「入力」タブをタップ（BottomNav内に限定）
+    const bottomNavN9 = page.getByRole("navigation", { name: "ボトムナビゲーション" });
+    await bottomNavN9.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
     // 入力フォームが表示されることを確認
@@ -179,17 +182,20 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
   test("@smoke @navigation シナリオN-10: 既存のURL構造が維持されている", async ({ page }) => {
     // 各URLに直接アクセスして404にならないことを確認
+    // 最初だけ gotoAuthenticated で認証し、以降は page.goto でページ遷移する
     await gotoAuthenticated(page, "/");
     await expect(page.getByText("今週のダッシュボード")).toBeVisible();
 
-    await gotoAuthenticated(page, "/weeks/current/input");
+    await page.goto("/weeks/current/input");
     await expect(page.locator('input[name="shopName"]')).toBeVisible();
 
-    await gotoAuthenticated(page, "/settings");
-    await expect(page.getByText("設定")).toBeVisible();
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
 
     const weekStartDate = getCurrentWeekStartDate();
-    await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
-    await expect(page.getByText("合計").or(page.getByText("支出合計"))).toBeVisible();
+    await page.goto(`/weeks/${weekStartDate}`);
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
   });
 });

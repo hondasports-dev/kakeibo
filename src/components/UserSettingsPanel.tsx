@@ -30,9 +30,9 @@ export function UserSettingsPanel() {
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
 
-  // profile が更新されたら入力値も同期する（初回ロード時）
+  // profile の初回ロード時のみ入力値を同期する（ユーザーが編集中の値を上書きしないため）
   const [lastSyncedIncome, setLastSyncedIncome] = useState<number | null | undefined>(undefined);
-  if (lastSyncedIncome !== currentMonthlyIncome && profile !== undefined) {
+  if (lastSyncedIncome === undefined && profile !== undefined) {
     setLastSyncedIncome(currentMonthlyIncome);
     setInputValue(currentMonthlyIncome !== null ? currentMonthlyIncome : "");
   }
@@ -50,6 +50,9 @@ export function UserSettingsPanel() {
     setError("");
     try {
       await updateMonthlyIncome({ monthlyIncome: value });
+      // 保存成功後は入力値を保存した値に確定し、profile ロードによる上書きを防ぐ
+      setLastSyncedIncome(value);
+      setInputValue(value !== null ? value : "");
       setSnackbar("月収入を保存しました");
     } catch (caughtError) {
       setError(getErrorMessage(caughtError, "月収入を保存できませんでした。"));
@@ -108,14 +111,18 @@ export function UserSettingsPanel() {
 
           <Stack direction="row" spacing={1.5}>
             <Button
-              disabled={status === "saving"}
+              disabled={status === "saving" || profile === undefined}
               onClick={handleSave}
               startIcon={status === "saving" ? <CircularProgress size={16} /> : undefined}
               variant="contained"
             >
               保存
             </Button>
-            <Button disabled={status === "saving"} onClick={handleClear} variant="outlined">
+            <Button
+              disabled={status === "saving" || profile === undefined}
+              onClick={handleClear}
+              variant="outlined"
+            >
               クリア（未設定に戻す）
             </Button>
           </Stack>

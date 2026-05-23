@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
@@ -32,6 +33,13 @@ export function SummaryPage() {
 
   const weekEndDate = getWeekEndDate(weekStartDate);
   const isCurrentWeek = weekStartDate === currentWeekStartDate;
+
+  // 未来週・不正値 URL は今週の URL に正規化してリダイレクト
+  useEffect(() => {
+    if (rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
+      navigate(`/weeks/${weekStartDate}`, { replace: true });
+    }
+  }, [rawWeekStartDate, weekStartDate, navigate]);
 
   const summaryWeekSession = useQuery(api.weekSessions.getWeekSession, { weekStartDate });
   const weeklySummary = useQuery(api.receipts.getWeekSummaryWithCategories, { weekStartDate });

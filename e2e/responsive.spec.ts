@@ -29,14 +29,7 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await page.getByRole("link", { name: "設定" }).click();
     await expect(page).toHaveURL("/settings");
 
-    // TODO: カテゴリ設定ページが /categories に実装されたら更新
-    // 現時点では /settings に遷移することを確認するまでとする
-    // await page.getByRole("link", { name: "カテゴリ設定" }).click();
-    // await expect(page).toHaveURL("/categories");
-    // await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
-    // await expect(page.locator('[class*="category-settings-row"]').first()).toBeVisible();
-
-    // 設定画面が表示されることを確認
-    await expect(page.getByText("設定")).toBeVisible();
+    // 設定画面の見出しが表示されることを確認
+    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
   });
 });
