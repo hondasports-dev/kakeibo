@@ -805,6 +805,11 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
 
     // Then: グラフまたはプレースホルダーが表示されること
     // （データが少ない場合はプレースホルダー、2週以上ある場合はグラフ）
+    // getFourWeeksSummary クエリのロード完了を待つため「週別支出推移」heading が出るまで待機する
+    await expect(page.getByRole("heading", { name: "週別支出推移" })).toBeVisible({
+      timeout: 15_000,
+    });
+
     const hasChart = await page
       .getByRole("img", { name: "週別支出推移グラフ" })
       .isVisible()
