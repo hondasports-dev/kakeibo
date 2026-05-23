@@ -2,6 +2,24 @@
   min-height: 100svh;
 }
 
+/* AppLayout styles */
+.app-layout {
+  display: flex;
+  min-height: 100svh;
+}
+
+.app-layout-main {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 56px; /* BottomNavigation の高さ分 */
+}
+
+@media (min-width: 900px) {
+  .app-layout-main {
+    padding-bottom: 0;
+  }
+}
+
 .app-shell {
   min-height: 100svh;
   background:

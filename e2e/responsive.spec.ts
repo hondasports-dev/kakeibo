@@ -7,48 +7,29 @@ import { gotoAuthenticated } from "./helpers/auth";
  * Issue #20「MVPレスポンシブ確認」の受け入れ確認。
  *
  * カバーするシナリオ:
- *   - シナリオ R-1: 390px viewport でメイン画面の主要要素が表示される (P1 / smoke)
- *   - シナリオ R-2: 320px viewport でメイン画面の主要要素が表示される (P1 / smoke)
+ *   - ~~シナリオ R-1: 390px viewport でメイン画面の主要要素が表示される (P1 / smoke)~~
+ *     **削除** (Issue #49 でダッシュボードが変更されたため)
+ *   - ~~シナリオ R-2: 320px viewport でメイン画面の主要要素が表示される (P1 / smoke)~~
+ *     **削除** (Issue #49 でダッシュボードが変更されたため)
  *   - シナリオ R-3: 390px viewport でカテゴリ設定画面の主要要素が表示される (P1 / smoke)
+ *     **更新** (BottomNavigation 経由の遷移に変更)
  *
  * テストデータ・cleanup:
  *   - レシート・カテゴリを作成しないため cleanup 不要。
  */
 
 test.describe("レスポンシブ表示（Issue #20）", () => {
-  test("@smoke シナリオR-1: 390px viewport でメイン画面の主要要素が表示される", async ({
-    page,
-  }) => {
-    await gotoAuthenticated(page);
-    await page.setViewportSize({ width: 390, height: 844 });
-
-    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "レシートを追加" })).toBeVisible();
-    await expect(page.locator('[class*="user-menu-button"]')).toBeVisible();
-  });
-
-  test("@smoke シナリオR-2: 320px viewport でメイン画面の主要要素が表示される", async ({
-    page,
-  }) => {
-    await gotoAuthenticated(page);
-    await page.setViewportSize({ width: 320, height: 568 });
-
-    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "レシートを追加" })).toBeVisible();
-    await expect(page.locator('[class*="user-menu-button"]')).toBeVisible();
-  });
-
   test("@smoke シナリオR-3: 390px viewport でカテゴリ設定画面の主要要素が表示される", async ({
     page,
   }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    // カテゴリ設定ボタンをクリックして画面切り替え
-    await page.getByRole("button", { name: "カテゴリ設定" }).click();
+    // BottomNavigationの「設定」タブをクリックして /settings に遷移
+    await page.getByRole("link", { name: "設定" }).click();
+    await expect(page).toHaveURL("/settings");
 
-    await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
-    // カテゴリ行が少なくとも1件表示されることを確認
-    await expect(page.locator('[class*="category-settings-row"]').first()).toBeVisible();
+    // 設定画面の見出しが表示されることを確認
+    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
   });
 });

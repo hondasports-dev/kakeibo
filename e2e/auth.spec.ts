@@ -41,7 +41,7 @@ import { clickUserMenuItem } from "./helpers/ui";
 test.describe("ログアウト", () => {
   test("シナリオ4: ログアウトするとログイン画面に戻る", async ({ page }) => {
     await gotoAuthenticated(page);
-    await expect(page.locator("text=今週のレシート入力")).toBeVisible();
+    await expect(page.locator("text=今週のダッシュボード")).toBeVisible();
 
     // ユーザーメニューを開いてログアウト
     await clickUserMenuItem(page, "ログアウト");

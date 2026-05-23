@@ -13,6 +13,11 @@ import { clickUserMenuItem } from "./helpers/ui";
  *   - @smoke 月収入を設定すると残金が表示される (P0)
  */
 
+test.beforeEach(async () => {
+  // 各テストを独立させるため、事前に月収入をクリアしておく
+  await cleanupUserMonthlyIncome();
+});
+
 test.afterEach(async () => {
   await cleanupTestReceipts();
   await cleanupUserMonthlyIncome();
@@ -35,25 +40,31 @@ test("@smoke 月収入を設定すると残金が表示される", async ({ page
   await page.locator('[class*="user-menu-button"]').waitFor({ state: "visible", timeout: 15_000 });
 
   // When: ユーザーメニューを開いて「ユーザー設定」をクリック
+  // Issue #49: 「ユーザー設定」は /settings ページに遷移する
   await clickUserMenuItem(page, "ユーザー設定");
+  await expect(page).toHaveURL("/settings");
 
   // And: 月収入を入力して保存する
-  await page.getByLabel("月収入（円）").fill("300000");
-  await page.getByRole("button", { name: "保存" }).click();
+  const monthlyIncomeInput = page.getByLabel("月収入（円）");
+  const saveButton = page.getByRole("button", { name: "保存" });
+
+  // profile のロード完了を待つ（ロード中は保存ボタンが disabled）
+  await expect(saveButton).toBeEnabled({ timeout: 10_000 });
+
+  await monthlyIncomeInput.fill("300000");
+  await expect(monthlyIncomeInput).toHaveValue("300000");
+  await saveButton.click();
 
   // Then: 保存完了のSnackbarが表示される
   await expect(page.locator("text=月収入を保存しました")).toBeVisible();
 
+  // ダッシュボードに戻って残金を確認する
+  await page.getByRole("link", { name: "ホーム" }).click();
+  await expect(page).toHaveURL("/");
+
   // Then: ダッシュボードに残金が表示される（「円」を含む）
-  // ダイアログを閉じる前に確認する（Convex subscription はダイアログが開いていても更新される）
   // Convex subscription の更新を待つため timeout を長めに設定する
   await expect(
     page.locator(".summary-grid").locator("text=今月の残金").locator("..").locator(".."),
   ).toContainText("円", { timeout: 20_000 });
-
-  // And: ダイアログを閉じる
-  await page.keyboard.press("Escape");
-
-  // ダイアログが完全に閉じるのを待機（Dialog の [role="dialog"] が消えるまで）
-  await page.locator('[role="dialog"]').waitFor({ state: "hidden", timeout: 5_000 });
 });
