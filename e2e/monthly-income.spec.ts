@@ -44,11 +44,16 @@ test("@smoke 月収入を設定すると残金が表示される", async ({ page
   // Then: 保存完了のSnackbarが表示される
   await expect(page.locator("text=月収入を保存しました")).toBeVisible();
 
+  // Then: ダッシュボードに残金が表示される（「円」を含む）
+  // ダイアログを閉じる前に確認する（Convex subscription はダイアログが開いていても更新される）
+  // Convex subscription の更新を待つため timeout を長めに設定する
+  await expect(
+    page.locator(".summary-grid").locator("text=今月の残金").locator("..").locator(".."),
+  ).toContainText("円", { timeout: 20_000 });
+
   // And: ダイアログを閉じる
   await page.keyboard.press("Escape");
 
-  // Then: ダッシュボードに残金が表示される（「円」を含む）
-  await expect(
-    page.locator(".summary-grid").locator("text=今月の残金").locator("..").locator(".."),
-  ).toContainText("円");
+  // ダイアログが完全に閉じるのを待機（Dialog の [role="dialog"] が消えるまで）
+  await page.locator('[role="dialog"]').waitFor({ state: "hidden", timeout: 5_000 });
 });
