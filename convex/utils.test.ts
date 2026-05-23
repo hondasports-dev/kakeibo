@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { calculateWeekStartDate, calculateWeekEndDate } from "./utils";
+import {
+  calculateWeekStartDate,
+  calculateWeekEndDate,
+  calculateRelativeWeekStartDate,
+} from "./utils";
 
 describe("calculateWeekStartDate", () => {
   // 月曜日 → その日
@@ -30,5 +34,15 @@ describe("calculateWeekEndDate", () => {
   });
   it("月をまたぐ週終了日を正しく計算する", () => {
     expect(calculateWeekEndDate("2024-01-29")).toBe("2024-02-04");
+  });
+});
+
+describe("calculateRelativeWeekStartDate", () => {
+  it("前週の週開始日を返す", () => {
+    expect(calculateRelativeWeekStartDate("2024-01-08", -1)).toBe("2024-01-01");
+  });
+
+  it("月をまたぐ次週の週開始日を返す", () => {
+    expect(calculateRelativeWeekStartDate("2024-01-29", 1)).toBe("2024-02-05");
   });
 });

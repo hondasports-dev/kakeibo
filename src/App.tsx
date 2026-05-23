@@ -24,6 +24,7 @@ import { ReviewMemoPanel } from "./components/ReviewMemoPanel";
 import { WeekStatusPanel } from "./components/WeekStatusPanel";
 import { WeekNavigator } from "./components/WeekNavigator";
 import { WeeklySummaryPanel } from "./components/WeeklySummaryPanel";
+import { PreviousWeekComparison } from "./components/PreviousWeekComparison";
 import {
   addWeeks,
   getWeekEndDate,
@@ -373,6 +374,11 @@ function KakeiboApp() {
       weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
     ) ?? [];
 
+  const currentWeekSummary = useQuery(
+    api.receipts.getWeekSummary,
+    weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
+  );
+
   const summaryWeekStartDate = selectedSummaryWeekStartDate ?? weekSession?.weekStartDate ?? null;
 
   const summaryWeekSession = useQuery(
@@ -380,25 +386,14 @@ function KakeiboApp() {
     showSummary && summaryWeekStartDate ? { weekStartDate: summaryWeekStartDate } : "skip",
   );
 
-  const prevWeekStartDate = summaryWeekStartDate ? addWeeks(summaryWeekStartDate, -1) : null;
-
-  const prevWeekSummary = useQuery(
-    api.receipts.getWeekSummary,
-    prevWeekStartDate ? { weekStartDate: prevWeekStartDate } : "skip",
-  );
-
   const weeklySummary = useQuery(
     api.receipts.getWeekSummaryWithCategories,
-    summaryWeekStartDate
-      ? {
-          weekStartDate: summaryWeekStartDate,
-          prevWeekTotalAmountYen: prevWeekSummary?.totalAmountYen,
-        }
-      : "skip",
+    summaryWeekStartDate ? { weekStartDate: summaryWeekStartDate } : "skip",
   );
 
-  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
-  const count = receipts.length;
+  const totalAmountYen =
+    currentWeekSummary?.totalAmountYen ?? receipts.reduce((sum, r) => sum + r.amountYen, 0);
+  const count = currentWeekSummary?.count ?? receipts.length;
   const budgetAmountYen = weekSession?.budgetAmountYen;
   const budgetRemaining =
     budgetAmountYen !== undefined ? budgetAmountYen - totalAmountYen : undefined;
@@ -533,9 +528,27 @@ function KakeiboApp() {
                 label: "今週の支出",
                 value: `${totalAmountYen.toLocaleString()}円`,
                 helper:
-                  budgetAmountYen !== undefined
-                    ? `予算 ${budgetAmountYen.toLocaleString()}円`
-                    : "予算未設定",
+                  budgetAmountYen !== undefined ? (
+                    <Stack spacing={0.75}>
+                      <span>予算 {budgetAmountYen.toLocaleString()}円</span>
+                      <PreviousWeekComparison
+                        currentTotalAmountYen={totalAmountYen}
+                        isLoading={currentWeekSummary === undefined}
+                        prevWeekTotalAmountYen={currentWeekSummary?.prevWeekTotalAmountYen ?? null}
+                        size="caption"
+                      />
+                    </Stack>
+                  ) : (
+                    <Stack spacing={0.75}>
+                      <span>予算未設定</span>
+                      <PreviousWeekComparison
+                        currentTotalAmountYen={totalAmountYen}
+                        isLoading={currentWeekSummary === undefined}
+                        prevWeekTotalAmountYen={currentWeekSummary?.prevWeekTotalAmountYen ?? null}
+                        size="caption"
+                      />
+                    </Stack>
+                  ),
                 tone: "secondary" as const,
               },
               {
@@ -554,9 +567,15 @@ function KakeiboApp() {
                   <Stack spacing={1}>
                     <Chip color={item.tone} label={item.label} size="small" />
                     <Typography variant="h4">{item.value}</Typography>
-                    <Typography color="text.secondary" variant="body2">
-                      {item.helper}
-                    </Typography>
+                    {typeof item.helper === "string" ? (
+                      <Typography color="text.secondary" variant="body2">
+                        {item.helper}
+                      </Typography>
+                    ) : (
+                      <Box color="text.secondary" sx={{ fontSize: "0.875rem" }}>
+                        {item.helper}
+                      </Box>
+                    )}
                   </Stack>
                 </Box>
               </Paper>
@@ -606,6 +625,9 @@ function KakeiboApp() {
               <Stack spacing={2.5}>
                 <ReviewMemoPanel
                   weekSession={weekSession}
+                  totalAmountYen={totalAmountYen}
+                  prevWeekTotalAmountYen={currentWeekSummary?.prevWeekTotalAmountYen ?? null}
+                  isSummaryLoading={currentWeekSummary === undefined}
                   onSessionUpdated={setWeekSession}
                   onShowSummary={() => navigateToSummaryWeek(weekStartDate)}
                 />

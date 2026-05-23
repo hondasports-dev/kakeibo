@@ -1,4 +1,5 @@
 import { Box, Divider, LinearProgress, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { PreviousWeekComparison } from "./PreviousWeekComparison";
 
 type CategorySummary = {
   categoryId: string;
@@ -33,13 +34,6 @@ type WeeklySummaryPanelProps = {
 function formatDateForDisplay(isoDate: string): string {
   const d = new Date(isoDate + "T00:00:00");
   return `${d.getMonth() + 1}/${d.getDate()}`;
-}
-
-function formatDiff(current: number, prev: number): string {
-  const diff = current - prev;
-  if (diff === 0) return "±0円";
-  const sign = diff > 0 ? "+" : "";
-  return `${sign}${diff.toLocaleString()}円`;
 }
 
 export function WeeklySummaryPanel({
@@ -121,35 +115,10 @@ export function WeeklySummaryPanel({
                   </Box>
                 )}
 
-                {prevWeekTotalAmountYen !== null && (
-                  <Stack direction="row" sx={{ justifyContent: "space-between" }}>
-                    <Typography color="text.secondary" variant="body2">
-                      前週比
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontWeight: 700,
-                        color:
-                          totalAmountYen > prevWeekTotalAmountYen
-                            ? "error.main"
-                            : totalAmountYen < prevWeekTotalAmountYen
-                              ? "success.main"
-                              : "text.secondary",
-                      }}
-                    >
-                      {formatDiff(totalAmountYen, prevWeekTotalAmountYen)}
-                      <Typography
-                        component="span"
-                        color="text.secondary"
-                        variant="caption"
-                        sx={{ ml: 0.5 }}
-                      >
-                        （前週 {prevWeekTotalAmountYen.toLocaleString()}円）
-                      </Typography>
-                    </Typography>
-                  </Stack>
-                )}
+                <PreviousWeekComparison
+                  currentTotalAmountYen={totalAmountYen}
+                  prevWeekTotalAmountYen={prevWeekTotalAmountYen}
+                />
               </>
             )}
           </Stack>

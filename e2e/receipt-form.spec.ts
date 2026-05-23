@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
   cleanupTestCategories,
@@ -36,6 +36,7 @@ import {
  *   - [Issue #16] 完了後もメモ再編集方針が表示され、メモを更新できる (P1 / regression)
  *   - [Issue #45] 週次サマリーを前後週ナビゲーションで切り替えられる (P0 / regression)
  *   - [Issue #45] 未来週URLは今週の週次サマリーへ正規化される (P0 / error-handling)
+ *   - [Issue #46] ダッシュボード・振り返り・週次サマリーに前週比が表示される (P1 / regression)
  */
 
 function getCurrentWeekStartDate(): string {
@@ -56,6 +57,16 @@ function addWeeks(weekStartDate: string, weeks: number): string {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const dayOfMonth = String(date.getDate()).padStart(2, "0");
   return `${year}-${month}-${dayOfMonth}`;
+}
+
+async function setDateInputValue(dateInput: Locator, value: string) {
+  await dateInput.evaluate((element, nextValue) => {
+    const input = element as HTMLInputElement;
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
+    valueSetter?.call(input, nextValue);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  }, value);
 }
 
 test.describe("メイン画面の表示確認", () => {
@@ -645,6 +656,63 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await expect(page).toHaveURL(new RegExp(`/weeks/${currentWeekStartDate}$`));
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
     await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
+  });
+});
+
+test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
+  test.beforeEach(async () => {
+    await cleanupTestReceipts();
+  });
+
+  test.afterEach(async () => {
+    await cleanupTestReceipts();
+  });
+
+  test("ダッシュボード・振り返り・週次サマリーに前週との差額だけが表示される", async ({ page }) => {
+    const currentWeekStartDate = getCurrentWeekStartDate();
+    const previousWeekStartDate = addWeeks(currentWeekStartDate, -1);
+
+    await gotoAuthenticated(page);
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+
+    const dateInput = page.locator('input[name="date"]');
+    const shopNameInput = page.locator('input[name="shopName"]');
+    const amountInput = page.locator('input[name="amountYen"]');
+    const firstCategory = page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first();
+    const submitButton = page.getByRole("button", { name: "保存して次へ" });
+
+    await setDateInputValue(dateInput, previousWeekStartDate);
+    await expect(dateInput).toHaveValue(previousWeekStartDate);
+    await shopNameInput.fill("前週比較用ストア");
+    await amountInput.fill("7000");
+    await firstCategory.click();
+    await submitButton.click();
+    await expect(shopNameInput).toHaveValue("", { timeout: 10_000 });
+
+    await setDateInputValue(dateInput, currentWeekStartDate);
+    await expect(dateInput).toHaveValue(currentWeekStartDate);
+    await shopNameInput.fill("今週比較用ストア");
+    await amountInput.fill("6280");
+    await submitButton.click();
+    await expect(shopNameInput).toHaveValue("", { timeout: 10_000 });
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+
+    const spendCard = page.locator(".summary-grid").locator("text=今週の支出").locator("../..");
+    await expect(spendCard.getByLabel("前週比")).toContainText("-720円", { timeout: 10_000 });
+
+    const reviewPanel = page
+      .getByRole("heading", { name: "週次振り返り", level: 2 })
+      .locator("../../..");
+    await expect(reviewPanel.getByLabel("前週比")).toContainText("-720円");
+
+    await page.getByRole("button", { name: "週次サマリーを見る" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeVisible();
+    await expect(page.getByLabel("前週比").filter({ hasText: "-720円" })).toHaveCount(3);
+    await expect(page.getByText("7,000円")).toHaveCount(0);
   });
 });
 
