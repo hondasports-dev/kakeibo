@@ -30,6 +30,18 @@
 | `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ❌         | ❌         | .env.local / GitHub Actions Secret |
 | `CONVEX_DEPLOY_KEY`    | VercelビルドからConvexへのデプロイ用キー（現状未使用） | ❌    | ❌         | ✅         | 将来的に Vercel Secrets へ         |
 
+### OpenAI / レシート画像抽出関連
+
+| 変数名                          | 用途                                          | Local | Production | Secret扱い | 設定場所                    |
+| ------------------------------- | --------------------------------------------- | ----- | ---------- | ---------- | --------------------------- |
+| `OPENAI_API_KEY`                | OpenAI API 認証キー                           | ❌    | ✅         | ✅         | Convex Dashboard (CLI)      |
+| `RECEIPT_IMAGE_EXTRACTOR_MODE`  | OpenAI 呼び出しの切り替え（`mock` / `real`）  | ✅    | ✅         | ❌         | Convex Dashboard (CLI)      |
+| `APP_ENV`                       | real mode の許可判定（`development` / `preview` / `production`） | ✅ | ✅ | ❌ | Convex Dashboard (CLI) |
+
+> `OPENAI_API_KEY` は Convex Action 内（サーバー側）でのみ使用する。フロントエンドには渡さない。
+> ローカル・PR・Preview・CI では `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、OpenAI API を呼ばない。
+> `real` mode は `APP_ENV=production` のときのみ許可する。
+
 ### E2E テストクリーンアップ関連
 
 | 変数名               | 用途                                      | Local | CI  | Secret扱い | 設定場所                                              |
@@ -152,6 +164,22 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Clerk Frontend API URL (`https://xxxx.clerk.accounts.dev`)
 - `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（未設定時はエンドポイントが 503 を返すため本番誤操作を防止できる）
+- `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（ローカル・dev deployment）/ `real`（production deployment のみ）
+- `APP_ENV` — `development`（ローカル・dev deployment）/ `production`（production deployment のみ）
+- `OPENAI_API_KEY` — OpenAI API 認証キー（production deployment のみ設定。dev deployment には設定しない）
+
+CLI での設定例:
+
+```bash
+# ローカル / dev deployment（mock mode）
+pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
+pnpm exec convex env set APP_ENV development
+
+# production deployment（real mode）
+pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE real
+pnpm exec convex env set APP_ENV production
+pnpm exec convex env set OPENAI_API_KEY sk-...
+```
 
 > `CLERK_JWT_ISSUER_DOMAIN` はJWT issuerのドメインであり、公開情報に近い値のため
 > Secretsではなく通常のEnvironment Variableとして扱う。真のSecretは `CLERK_SECRET_KEY` のみ。
@@ -167,6 +195,7 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - `E2E_CLERK_USER_PASSWORD`
 - `VERCEL_AUTOMATION_BYPASS_SECRET`（E2E導入後も渡さない）
 - `CONVEX_DEPLOY_KEY`
+- `OPENAI_API_KEY`
 
 ### 渡しても良い公開情報
 
