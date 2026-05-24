@@ -39,7 +39,7 @@ jobs:
     steps:
       - name: Verify trusted deployment source
         id: trust
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const deployment = context.payload.deployment
@@ -105,10 +105,10 @@ jobs:
           # trust判定で検証したcommitをcheckoutし、Preview URLとE2Eコードのずれを避ける
           ref: ${{ steps.trust.outputs.checkout_ref }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.trust.outputs.trusted == 'true'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         if: steps.trust.outputs.trusted == 'true'
         with:
           node-version: 22
