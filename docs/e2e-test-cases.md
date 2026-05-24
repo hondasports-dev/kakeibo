@@ -4,6 +4,7 @@
 
 | 日付 | Issue | 内容 |
 |------|-------|------|
+| 2026-05-24 | #65 | レシート画像抽出 Convex Action 連携シナリオ I65-1〜I65-5 追加 |
 | 2026-05-24 | #64 | レシート画像アップロードUI シナリオ I64-1 追加 |
 | 2025-01-23 | #49 | ナビゲーション E2E シナリオ N-1〜N-10 追加 |
 | 2025-01-23 | #49 | responsive.spec.ts R-1/R-2 削除、R-3 更新 |
@@ -30,6 +31,16 @@
 | ID | シナリオ | 優先度 | カテゴリ | ファイル |
 |----|---------|--------|---------|---------|
 | I64-1 | 画像アップロードUIが手入力保存フローを妨げない | P1 | regression | receipt-form.spec.ts |
+
+### Issue #65: レシート画像抽出 Convex Action 連携 (receipt-image-extraction.spec.ts)
+
+| ID | シナリオ | 優先度 | カテゴリ | ファイル |
+|----|---------|--------|---------|---------|
+| I65-1 | mock mode で画像から shopName/date/amountYen 候補を抽出しフォームに反映する | P0 | smoke | receipt-image-extraction.spec.ts |
+| I65-2 | OPENAI_API_KEY がフロントエンド HTML、同一 origin JS、localStorage、ブラウザリクエストに露出しない | P0 | security | receipt-image-extraction.spec.ts |
+| I65-3 | 抽出エラー時に手入力フォールバック導線が表示され、手入力保存できる | P1 | error-handling | receipt-image-extraction.spec.ts |
+| I65-4 | 画像以外のファイルを選択するとエラーを表示し、抽出を開始できない | P1 | validation | receipt-image-extraction.spec.ts |
+| I65-5 | 画像入力セクションが ReceiptForm に統合され、未選択時は読み取りを開始できない | P0 | smoke | receipt-image-extraction.spec.ts |
 
 ### 既存シナリオ (responsive.spec.ts)
 
@@ -148,6 +159,55 @@
 - 読み取り未接続UIが表示されても保存フローは妨げられない
 - 保存成功通知が表示され、既存どおり店名・金額がクリアされる
 - 画像はDB保存やフォーム自動反映をしない
+
+### Issue #65: レシート画像抽出 Convex Action 連携
+
+#### シナリオ I65-1: mock mode で画像から shopName/date/amountYen 候補を抽出しフォームに反映する (P0/smoke)
+
+**Given:** ユーザーがログイン済み状態で /weeks/current/input を開く
+**When:**
+1. 合成 JPEG 画像を `画像から入力` セクションで選択する
+2. `読み取る` を押す
+**Then:**
+- mock mode の固定結果として `shopName` に `サンプルストア` が反映される
+- `amountYen` に `1,234` が反映される
+- `date` に当日が反映される
+- この期待値により、E2E 対象の Convex dev deployment が mock mode であることも検証する
+
+#### シナリオ I65-2: OPENAI_API_KEY がフロントエンドに露出しない (P0/security)
+
+**Given:** ユーザーがログイン済み状態で /weeks/current/input を開く
+**Then:**
+- HTML に `OPENAI_API_KEY` や `sk-` 形式の secret が含まれない
+- 同一 origin の JavaScript bundle に `OPENAI_API_KEY` や `sk-` 形式の secret が含まれない
+- localStorage とブラウザ発の request URL / postData に secret が含まれない
+
+#### シナリオ I65-3: 抽出エラー時に手入力フォールバック導線が表示され、手入力保存できる (P1/error-handling)
+
+**Given:** ユーザーがログイン済み状態で /weeks/current/input を開く
+**When:**
+1. 合成 JPEG 画像を選択する
+2. リサイズ後 Data URL が上限超過になる状態で `読み取る` を押す
+3. 店舗名、金額、カテゴリを手入力して `保存して次へ` を押す
+**Then:**
+- エラーと `手入力でも保存できます。` が表示される
+- 手入力保存が成功し、店名・金額がクリアされる
+
+#### シナリオ I65-4: 画像以外のファイルを拒否する (P1/validation)
+
+**Given:** ユーザーがログイン済み状態で /weeks/current/input を開く
+**When:** `text/plain` の合成ファイルを選択する
+**Then:**
+- `画像ファイルを選択してください。` が表示される
+- `読み取る` は無効のまま
+
+#### シナリオ I65-5: 画像入力セクションが ReceiptForm に統合されている (P0/smoke)
+
+**Given:** ユーザーがログイン済み状態で /weeks/current/input を開く
+**Then:**
+- `画像から入力` セクションが表示される
+- `画像を選択` ボタンが表示される
+- 画像未選択時の `読み取る` は無効である
 
 ### 既存シナリオ
 

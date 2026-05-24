@@ -1,4 +1,3 @@
-import { Buffer } from "node:buffer";
 import { test, expect, type Locator } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
@@ -6,6 +5,7 @@ import {
   cleanupTestReceipts,
   resetTestWeekSession,
 } from "./helpers/cleanup";
+import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
  * レシート入力フォーム E2E テスト（QA Agent 担当）
@@ -223,29 +223,24 @@ test.describe("レシート保存フロー（Issue #13 受け入れ確認）", (
 
   test("[Issue #64] I64-1: 画像アップロードUIが手入力保存フローを妨げない", async ({ page }) => {
     const imageInput = page.getByLabel("レシート画像を選択");
-    const testImage = {
-      name: "receipt-upload.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADElEQVR42mP8z8BQDwAFgwJ/lHk3NwAAAABJRU5ErkJggg==",
-        "base64",
-      ),
-    };
+    const testImage = await createSyntheticReceiptImage(page, "receipt-upload.jpg");
 
     await imageInput.setInputFiles(testImage);
 
     await expect(page.getByRole("img", { name: "選択したレシート画像のプレビュー" })).toBeVisible();
-    await expect(page.getByText("receipt-upload.png")).toBeVisible();
+    await expect(page.getByText("receipt-upload.jpg")).toBeVisible();
     await expect(page.getByRole("button", { name: "読み取る" })).toBeEnabled();
 
     await page.getByRole("button", { name: "選択画像を削除" }).click();
-    await expect(page.getByText("receipt-upload.png")).toHaveCount(0);
+    await expect(page.getByText("receipt-upload.jpg")).toHaveCount(0);
     await expect(page.getByRole("button", { name: "読み取る" })).toBeDisabled();
 
     await imageInput.setInputFiles(testImage);
     await page.getByRole("button", { name: "読み取る" }).click();
-    await expect(page.getByRole("button", { name: "解析中..." })).toBeDisabled();
-    await expect(page.getByText("現在、画像の読み取り機能は準備中です。")).toBeVisible();
+    await expect(page.locator('input[name="shopName"]')).toHaveValue("サンプルストア", {
+      timeout: 15_000,
+    });
+    await expect(page.locator('input[name="amountYen"]')).toHaveValue(/1[,，]?234/);
 
     await page.locator('input[name="shopName"]').fill("画像確認スーパー");
     await page.locator('input[name="amountYen"]').fill("980");
