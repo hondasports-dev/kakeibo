@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -122,5 +122,86 @@ describe("ReceiptForm", () => {
     expect(screen.getByLabelText("メモ")).toHaveValue("");
     expect(screen.getByRole("option", { name: "日用品 選択中" })).toBeInTheDocument();
     expect(screen.getByText("レシートを保存しました")).toBeInTheDocument();
+  });
+
+  it("画像未選択時は読み取りを開始できない", () => {
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+
+    expect(screen.getByRole("heading", { name: "画像から入力" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "読み取る" })).toBeDisabled();
+    expect(
+      screen.getByText("画像は保存されません。確認用の一時プレビューです。"),
+    ).toBeInTheDocument();
+  });
+
+  it("画像を選択するとプレビューとファイル名を表示し、削除で未選択状態に戻る", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+
+    expect(
+      screen.getByRole("img", { name: "選択したレシート画像のプレビュー" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("receipt-sample.png")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "読み取る" })).toBeEnabled();
+
+    await user.click(screen.getByRole("button", { name: "選択画像を削除" }));
+
+    expect(
+      screen.queryByRole("img", { name: "選択したレシート画像のプレビュー" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("receipt-sample.png")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "読み取る" })).toBeDisabled();
+  });
+
+  it("画像以外のファイルはプレビューせず読み取りを開始できない", () => {
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const input = screen.getByLabelText("レシート画像を選択") as HTMLInputElement;
+    const file = new File(["not image"], "receipt.txt", { type: "text/plain" });
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(screen.getByText("画像ファイルを選択してください。")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("img", { name: "選択したレシート画像のプレビュー" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "読み取る" })).toBeDisabled();
+    expect(input).toHaveValue("");
+  });
+
+  it("読み取り未接続の失敗UIが出ても手入力の保存を妨げない", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect(screen.getByRole("button", { name: "解析中..." })).toBeDisabled();
+    expect(await screen.findByText("現在、画像の読み取り機能は準備中です。")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("店舗名"), "画像確認スーパー");
+    await user.type(screen.getByLabelText("合計金額"), "980");
+    await user.click(screen.getByRole("button", { name: "保存して次へ" }));
+
+    await waitFor(() => {
+      expect(createReceiptMock).toHaveBeenCalledWith({
+        date: "2026-05-18",
+        shopName: "画像確認スーパー",
+        amountYen: 980,
+        categoryId: "cat-food",
+        memo: undefined,
+      });
+    });
   });
 });
