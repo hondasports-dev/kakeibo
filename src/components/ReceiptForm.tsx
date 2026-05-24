@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { validateReceiptForm, type ReceiptFormErrors } from "../validation/receipt";
+import { ReceiptImageExtractor, type ExtractedReceiptFields } from "./ReceiptImageExtractor";
 
 interface ReceiptFormProps {
   weekStartDate: string;
@@ -50,9 +51,6 @@ function generateWeekDays(weekStartDate: string, weekEndDate: string) {
 
 export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptFormProps) {
   const shopNameRef = useRef<HTMLInputElement>(null);
-  const imageInputRef = useRef<HTMLInputElement>(null);
-  const previewCanvasRef = useRef<HTMLCanvasElement>(null);
-  const parseTimerRef = useRef<number | null>(null);
   const [formValues, setFormValues] = useState<{
     date: string;
     shopName: string;
@@ -69,11 +67,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   const [errors, setErrors] = useState<ReceiptFormErrors>({});
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [apiError, setApiError] = useState("");
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  const [imageParseStatus, setImageParseStatus] = useState<"idle" | "ready" | "parsing" | "error">(
-    "idle",
-  );
-  const [imageParseMessage, setImageParseMessage] = useState("");
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     severity: "success" | "error";
@@ -81,66 +74,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   }>({ open: false, severity: "success", message: "" });
 
   const createReceipt = useMutation(api.receipts.createReceipt);
-
-  useEffect(() => {
-    return () => {
-      if (parseTimerRef.current !== null) {
-        window.clearTimeout(parseTimerRef.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!selectedImageFile || !previewCanvasRef.current) {
-      return;
-    }
-
-    let isCancelled = false;
-    const canvas = previewCanvasRef.current;
-    if (typeof createImageBitmap !== "function") {
-      return;
-    }
-
-    const context = canvas.getContext("2d");
-    if (!context) {
-      return;
-    }
-
-    const drawPreview = async () => {
-      try {
-        const bitmap = await createImageBitmap(selectedImageFile);
-        if (isCancelled) {
-          bitmap.close();
-          return;
-        }
-
-        const maxWidth = 640;
-        const maxHeight = 360;
-        const scale = Math.min(maxWidth / bitmap.width, maxHeight / bitmap.height, 1);
-        const width = Math.max(1, Math.round(bitmap.width * scale));
-        const height = Math.max(1, Math.round(bitmap.height * scale));
-
-        canvas.width = width;
-        canvas.height = height;
-        context.clearRect(0, 0, width, height);
-        context.drawImage(bitmap, 0, 0, width, height);
-        bitmap.close();
-      } catch {
-        if (!isCancelled) {
-          setImageParseStatus("error");
-          setImageParseMessage(
-            "画像プレビューを表示できませんでした。別の画像を選択してください。",
-          );
-        }
-      }
-    };
-
-    void drawPreview();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [selectedImageFile]);
 
   const weekDays = generateWeekDays(weekStartDate, weekEndDate);
   const firstCategoryId = categories[0]?._id ?? "";
@@ -158,47 +91,17 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     }
   };
 
-  const clearSelectedImage = () => {
-    if (parseTimerRef.current !== null) {
-      window.clearTimeout(parseTimerRef.current);
-      parseTimerRef.current = null;
-    }
-    setSelectedImageFile(null);
-    setImageParseStatus("idle");
-    setImageParseMessage("");
-    if (imageInputRef.current) {
-      imageInputRef.current.value = "";
-    }
-  };
-
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    if (!file) {
-      return;
-    }
-    if (!file.type.startsWith("image/")) {
-      setSelectedImageFile(null);
-      setImageParseStatus("error");
-      setImageParseMessage("画像ファイルを選択してください。");
-      event.target.value = "";
-      return;
-    }
-    setSelectedImageFile(file);
-    setImageParseStatus("ready");
-    setImageParseMessage("");
-  };
-
-  const handleMockImageParse = () => {
-    if (!selectedImageFile || imageParseStatus === "parsing") {
-      return;
-    }
-    setImageParseStatus("parsing");
-    setImageParseMessage("");
-    parseTimerRef.current = window.setTimeout(() => {
-      setImageParseStatus("error");
-      setImageParseMessage("現在、画像の読み取り機能は準備中です。");
-      parseTimerRef.current = null;
-    }, 300);
+  const handleExtracted = (fields: ExtractedReceiptFields) => {
+    setFormValues((prev) => ({
+      ...prev,
+      shopName: fields.shopName,
+      // weekStartDate〜weekEndDate 範囲内であれば日付を反映、範囲外は無視
+      date: fields.date >= weekStartDate && fields.date <= weekEndDate ? fields.date : prev.date,
+      // amountYen は文字列として保持（カンマ区切り表示のため）
+      amountYen: fields.amountYen > 0 ? String(fields.amountYen) : prev.amountYen,
+    }));
+    // 反映されたフィールドのバリデーションエラーをクリア
+    setErrors((prev) => ({ ...prev, shopName: undefined, amountYen: undefined }));
   };
 
   const submitForm = async () => {
@@ -282,96 +185,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               </Alert>
             )}
 
-            <Box
-              aria-labelledby="receipt-image-upload-heading"
-              className="receipt-image-upload"
-              component="section"
-            >
-              <Stack spacing={1.5}>
-                <Box>
-                  <Typography
-                    component="h3"
-                    id="receipt-image-upload-heading"
-                    variant="subtitle1"
-                    sx={{ fontWeight: 700 }}
-                  >
-                    画像から入力
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    画像は保存されません。確認用の一時プレビューです。
-                  </Typography>
-                </Box>
-
-                {imageParseMessage && (
-                  <Alert severity="info" variant="outlined">
-                    {imageParseMessage}
-                  </Alert>
-                )}
-
-                {selectedImageFile ? (
-                  <Stack spacing={1.5}>
-                    <Box className="receipt-image-preview">
-                      <canvas
-                        aria-label="選択したレシート画像のプレビュー"
-                        height={360}
-                        ref={previewCanvasRef}
-                        role="img"
-                        width={640}
-                      />
-                    </Box>
-                    <Stack spacing={1} sx={{ minWidth: 0 }}>
-                      <Typography className="receipt-image-file-name" variant="body2">
-                        {selectedImageFile.name}
-                      </Typography>
-                      <Button
-                        color="error"
-                        disabled={imageParseStatus === "parsing"}
-                        onClick={clearSelectedImage}
-                        type="button"
-                        variant="text"
-                        sx={{ alignSelf: "flex-start" }}
-                      >
-                        選択画像を削除
-                      </Button>
-                    </Stack>
-                  </Stack>
-                ) : (
-                  <Typography color="text.secondary" variant="body2">
-                    レシート画像を選ぶと、ここにプレビューを表示します。
-                  </Typography>
-                )}
-
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                  <Button
-                    onClick={() => imageInputRef.current?.click()}
-                    type="button"
-                    variant="outlined"
-                  >
-                    画像を選択
-                    <input
-                      accept="image/*"
-                      aria-label="レシート画像を選択"
-                      className="visually-hidden-file-input"
-                      onChange={handleImageChange}
-                      ref={imageInputRef}
-                      tabIndex={-1}
-                      type="file"
-                    />
-                  </Button>
-                  <Button
-                    disabled={!selectedImageFile || imageParseStatus === "parsing"}
-                    onClick={handleMockImageParse}
-                    startIcon={
-                      imageParseStatus === "parsing" ? <CircularProgress size={16} /> : undefined
-                    }
-                    type="button"
-                    variant="outlined"
-                  >
-                    {imageParseStatus === "parsing" ? "解析中..." : "読み取る"}
-                  </Button>
-                </Stack>
-              </Stack>
-            </Box>
+            <ReceiptImageExtractor onExtracted={handleExtracted} />
 
             <Box className="week-day-grid" aria-label="週内の日付候補" role="listbox">
               {weekDays.map((day) => {

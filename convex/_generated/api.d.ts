@@ -10,6 +10,7 @@
 
 import type * as categories from "../categories.js";
 import type * as http from "../http.js";
+import type * as receiptImageExtraction from "../receiptImageExtraction.js";
 import type * as receipts from "../receipts.js";
 import type * as users from "../users.js";
 import type * as utils from "../utils.js";
@@ -24,6 +25,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   http: typeof http;
+  receiptImageExtraction: typeof receiptImageExtraction;
   receipts: typeof receipts;
   users: typeof users;
   utils: typeof utils;

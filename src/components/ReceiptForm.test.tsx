@@ -5,8 +5,9 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { renderWithProviders } from "../test/render";
 import { ReceiptForm } from "./ReceiptForm";
 
-const { createReceiptMock } = vi.hoisted(() => ({
+const { createReceiptMock, extractReceiptFieldsMock } = vi.hoisted(() => ({
   createReceiptMock: vi.fn(),
+  extractReceiptFieldsMock: vi.fn(),
 }));
 
 vi.mock("../../convex/_generated/api", () => ({
@@ -14,11 +15,15 @@ vi.mock("../../convex/_generated/api", () => ({
     receipts: {
       createReceipt: "receipts.createReceipt",
     },
+    receiptImageExtraction: {
+      extractReceiptFields: "receiptImageExtraction.extractReceiptFields",
+    },
   },
 }));
 
 vi.mock("convex/react", () => ({
   useMutation: () => createReceiptMock,
+  useAction: () => extractReceiptFieldsMock,
 }));
 
 const categories = [
@@ -30,6 +35,18 @@ describe("ReceiptForm", () => {
   beforeEach(() => {
     createReceiptMock.mockReset();
     createReceiptMock.mockResolvedValue(undefined);
+    extractReceiptFieldsMock.mockReset();
+    extractReceiptFieldsMock.mockResolvedValue({
+      shopName: "サンプルストア",
+      date: "2026-05-18",
+      amountYen: 1234,
+      confidence: {
+        shopName: 0.95,
+        date: 0.98,
+        amountYen: 0.98,
+      },
+      warnings: [],
+    });
   });
 
   it("未入力の店舗名と金額は保存せず、バリデーションエラーを表示する", async () => {
@@ -178,6 +195,9 @@ describe("ReceiptForm", () => {
   });
 
   it("読み取り未接続の失敗UIが出ても手入力の保存を妨げない", async () => {
+    // extractReceiptFields がエラーを返すシナリオ（API 未接続 / 失敗）
+    extractReceiptFieldsMock.mockRejectedValue(new Error("画像の読み取りに失敗しました"));
+
     const user = userEvent.setup();
     renderWithProviders(
       <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
@@ -187,9 +207,10 @@ describe("ReceiptForm", () => {
     await user.upload(screen.getByLabelText("レシート画像を選択"), file);
     await user.click(screen.getByRole("button", { name: "読み取る" }));
 
-    expect(screen.getByRole("button", { name: "解析中..." })).toBeDisabled();
-    expect(await screen.findByText("現在、画像の読み取り機能は準備中です。")).toBeInTheDocument();
+    // 失敗後はエラーメッセージが表示される
+    expect(await screen.findByText("画像の読み取りに失敗しました")).toBeInTheDocument();
 
+    // 手入力で保存できる
     await user.type(screen.getByLabelText("店舗名"), "画像確認スーパー");
     await user.type(screen.getByLabelText("合計金額"), "980");
     await user.click(screen.getByRole("button", { name: "保存して次へ" }));
@@ -203,5 +224,29 @@ describe("ReceiptForm", () => {
         memo: undefined,
       });
     });
+  });
+
+  it("リサイズ後の Data URL が大きすぎる場合は Action を呼ばずに手入力導線を表示する", async () => {
+    const toDataUrlMock = vi
+      .spyOn(HTMLCanvasElement.prototype, "toDataURL")
+      .mockReturnValue("data:image/jpeg;base64," + "A".repeat(900_001));
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["large dummy image"], "large-receipt.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect(
+      await screen.findByText(
+        "画像サイズが大きすぎます。別の画像を選択するか、手入力してください。",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("手入力でも保存できます。")).toBeInTheDocument();
+    expect(extractReceiptFieldsMock).not.toHaveBeenCalled();
+
+    toDataUrlMock.mockRestore();
   });
 });
