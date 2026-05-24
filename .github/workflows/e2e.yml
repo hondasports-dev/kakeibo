@@ -105,7 +105,7 @@ jobs:
           # trust判定で検証したcommitをcheckoutし、Preview URLとE2Eコードのずれを避ける
           ref: ${{ steps.trust.outputs.checkout_ref }}
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         if: steps.trust.outputs.trusted == 'true'
 
       - uses: actions/setup-node@v4
