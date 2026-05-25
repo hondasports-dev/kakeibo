@@ -92,16 +92,33 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
   };
 
   const handleExtracted = (fields: ExtractedReceiptFields) => {
+    const extractedDateIsOutsideWeek =
+      fields.date && (fields.date < weekStartDate || fields.date > weekEndDate);
+
+    if (extractedDateIsOutsideWeek) {
+      setErrors((prev) => ({
+        ...prev,
+        date: "読み取った日付はこの週の範囲外です。確認して手入力してください。",
+      }));
+      return;
+    }
+
     setFormValues((prev) => ({
       ...prev,
-      shopName: fields.shopName,
+      ...(fields.shopName ? { shopName: fields.shopName } : {}),
       // weekStartDate〜weekEndDate 範囲内であれば日付を反映、範囲外は無視
-      date: fields.date >= weekStartDate && fields.date <= weekEndDate ? fields.date : prev.date,
+      date: fields.date ? fields.date : prev.date,
       // amountYen は文字列として保持（カンマ区切り表示のため）
-      amountYen: fields.amountYen > 0 ? String(fields.amountYen) : prev.amountYen,
+      amountYen:
+        fields.amountYen && fields.amountYen > 0 ? String(fields.amountYen) : prev.amountYen,
     }));
     // 反映されたフィールドのバリデーションエラーをクリア
-    setErrors((prev) => ({ ...prev, shopName: undefined, amountYen: undefined }));
+    setErrors((prev) => ({
+      ...prev,
+      ...(fields.shopName ? { shopName: undefined } : {}),
+      ...(fields.amountYen ? { amountYen: undefined } : {}),
+      ...(fields.date ? { date: undefined } : {}),
+    }));
   };
 
   const submitForm = async () => {

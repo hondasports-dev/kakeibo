@@ -248,5 +248,99 @@ describe("ReceiptForm", () => {
     expect(extractReceiptFieldsMock).not.toHaveBeenCalled();
 
     toDataUrlMock.mockRestore();
+    HTMLCanvasElement.prototype.toDataURL = vi
+      .fn()
+      .mockReturnValue("data:image/jpeg;base64,mockBase64Data");
+  });
+
+  it("confidence が低い抽出項目は要確認として扱い、自動反映しない", async () => {
+    extractReceiptFieldsMock.mockResolvedValueOnce({
+      shopName: "サンプルストア",
+      date: "2026/05/23",
+      amountYen: "￥1,234",
+      confidence: {
+        shopName: 0.95,
+        date: 0.4,
+        amountYen: 0.95,
+      },
+      warnings: [],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect(await screen.findByText("日付は要確認です")).toBeInTheDocument();
+    expect(screen.getByLabelText("店舗名")).toHaveValue("サンプルストア");
+    expect(screen.getByLabelText("合計金額")).toHaveValue("1,234");
+    expect(screen.getByLabelText("日付")).toHaveValue("2026-05-18");
+  });
+
+  it("warnings がある抽出結果は既存入力を上書きせず要確認を表示する", async () => {
+    extractReceiptFieldsMock.mockResolvedValueOnce({
+      shopName: "警告つきストア",
+      date: "2026/05/23",
+      amountYen: "￥1,234",
+      confidence: {
+        shopName: 0.95,
+        date: 0.95,
+        amountYen: 0.95,
+      },
+      warnings: ["合計金額候補が複数あります"],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.type(screen.getByLabelText("店舗名"), "既存ストア");
+    await user.type(screen.getByLabelText("合計金額"), "500");
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect(await screen.findByText("要確認の項目があります")).toBeInTheDocument();
+    expect(screen.getByText("合計金額候補が複数あります")).toBeInTheDocument();
+    expect(screen.getByLabelText("店舗名")).toHaveValue("既存ストア");
+    expect(screen.getByLabelText("合計金額")).toHaveValue("500");
+    expect(screen.getByLabelText("日付")).toHaveValue("2026-05-18");
+  });
+
+  it("週外の日付を含む抽出結果は既存入力を上書きせず日付確認エラーを表示する", async () => {
+    extractReceiptFieldsMock.mockResolvedValueOnce({
+      shopName: "翌週ストア",
+      date: "2026/05/25",
+      amountYen: "￥1,234",
+      confidence: {
+        shopName: 0.95,
+        date: 0.95,
+        amountYen: 0.95,
+      },
+      warnings: [],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.type(screen.getByLabelText("店舗名"), "既存ストア");
+    await user.type(screen.getByLabelText("合計金額"), "500");
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect(
+      await screen.findByText("読み取った日付はこの週の範囲外です。確認して手入力してください。"),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("店舗名")).toHaveValue("既存ストア");
+    expect(screen.getByLabelText("合計金額")).toHaveValue("500");
+    expect(screen.getByLabelText("日付")).toHaveValue("2026-05-18");
   });
 });

@@ -2,16 +2,16 @@ import { useRef, useState, useEffect } from "react";
 import { useAction } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
+import {
+  normalizeReceiptExtraction,
+  type NormalizedReceiptFields,
+} from "../validation/receiptExtraction";
 
 // ---------------------------------------------------------------------------
 // 型定義
 // ---------------------------------------------------------------------------
 
-export type ExtractedReceiptFields = {
-  shopName: string;
-  date: string;
-  amountYen: number;
-};
+export type ExtractedReceiptFields = NormalizedReceiptFields;
 
 interface ReceiptImageExtractorProps {
   /** 抽出成功時に呼ばれるコールバック */
@@ -86,6 +86,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [parseStatus, setParseStatus] = useState<"idle" | "ready" | "parsing" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
+  const [noticeMessages, setNoticeMessages] = useState<string[]>([]);
 
   const extractReceiptFields = useAction(api.receiptImageExtraction.extractReceiptFields);
 
@@ -137,10 +138,13 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
     };
   }, [selectedFile]);
 
-  const clearSelectedImage = () => {
+  const clearSelectedImage = (options: { keepNotice?: boolean } = {}) => {
     setSelectedFile(null);
     setParseStatus("idle");
     setErrorMessage("");
+    if (!options.keepNotice) {
+      setNoticeMessages([]);
+    }
     if (imageInputRef.current) {
       imageInputRef.current.value = "";
     }
@@ -161,6 +165,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
     setSelectedFile(file);
     setParseStatus("ready");
     setErrorMessage("");
+    setNoticeMessages([]);
   };
 
   const handleExtract = async () => {
@@ -172,14 +177,11 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
 
     try {
       const imageDataUrl = await resizeImageToDataUrl(selectedFile);
-      const result = await extractReceiptFields({ imageDataUrl });
-      onExtracted({
-        shopName: result.shopName,
-        date: result.date,
-        amountYen: result.amountYen,
-      });
+      const result = normalizeReceiptExtraction(await extractReceiptFields({ imageDataUrl }));
+      onExtracted(result.fields);
+      setNoticeMessages([...new Set(result.issueMessages)]);
       // 抽出成功後は選択状態をリセット
-      clearSelectedImage();
+      clearSelectedImage({ keepNotice: result.issueMessages.length > 0 });
     } catch (err) {
       setParseStatus("error");
       const message =
@@ -216,7 +218,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
             severity="error"
             variant="outlined"
             action={
-              <Button color="error" onClick={clearSelectedImage} size="small" type="button">
+              <Button color="error" onClick={() => clearSelectedImage()} size="small" type="button">
                 クリア
               </Button>
             }
@@ -227,6 +229,31 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
                 手入力でも保存できます。
               </Typography>
             )}
+          </Alert>
+        )}
+
+        {noticeMessages.length > 0 && (
+          <Alert
+            severity="warning"
+            variant="outlined"
+            action={
+              <Button
+                color="warning"
+                onClick={() => setNoticeMessages([])}
+                size="small"
+                type="button"
+              >
+                閉じる
+              </Button>
+            }
+          >
+            <Stack spacing={0.5}>
+              {noticeMessages.map((message) => (
+                <Typography component="span" key={message} variant="body2">
+                  {message}
+                </Typography>
+              ))}
+            </Stack>
           </Alert>
         )}
 
@@ -248,7 +275,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
               <Button
                 color="error"
                 disabled={parseStatus === "parsing"}
-                onClick={clearSelectedImage}
+                onClick={() => clearSelectedImage()}
                 type="button"
                 variant="text"
                 sx={{ alignSelf: "flex-start" }}
