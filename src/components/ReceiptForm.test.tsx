@@ -36,6 +36,9 @@ describe("ReceiptForm", () => {
     createReceiptMock.mockReset();
     createReceiptMock.mockResolvedValue(undefined);
     extractReceiptFieldsMock.mockReset();
+    HTMLCanvasElement.prototype.toDataURL = vi
+      .fn()
+      .mockReturnValue("data:image/jpeg;base64,mockBase64Data");
     extractReceiptFieldsMock.mockResolvedValue({
       shopName: "サンプルストア",
       date: "2026-05-18",
@@ -227,9 +230,9 @@ describe("ReceiptForm", () => {
   });
 
   it("リサイズ後の Data URL が大きすぎる場合は Action を呼ばずに手入力導線を表示する", async () => {
-    const toDataUrlMock = vi
-      .spyOn(HTMLCanvasElement.prototype, "toDataURL")
-      .mockReturnValue("data:image/jpeg;base64," + "A".repeat(900_001));
+    vi.mocked(HTMLCanvasElement.prototype.toDataURL).mockReturnValue(
+      "data:image/jpeg;base64," + "A".repeat(900_001),
+    );
     const user = userEvent.setup();
     renderWithProviders(
       <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
@@ -246,11 +249,6 @@ describe("ReceiptForm", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("手入力でも保存できます。")).toBeInTheDocument();
     expect(extractReceiptFieldsMock).not.toHaveBeenCalled();
-
-    toDataUrlMock.mockRestore();
-    HTMLCanvasElement.prototype.toDataURL = vi
-      .fn()
-      .mockReturnValue("data:image/jpeg;base64,mockBase64Data");
   });
 
   it("confidence が低い抽出項目は要確認として扱い、自動反映しない", async () => {

@@ -60,6 +60,8 @@ describe("normalizeReceiptExtraction", () => {
     "2026/02/30",
     "2026/13/01",
     "5/23",
+    "2026/05/230",
+    "12026/05/23",
     "2026/05/23 2026/05/24",
     "2026/05/23〜2026/05/24",
   ])("不正または曖昧な日付 %s は自動反映しない", (date) => {
@@ -124,7 +126,9 @@ describe("normalizeReceiptExtraction", () => {
     expect(result.fieldStatuses.shopName.status).toBe("needs_confirmation");
     expect(result.fieldStatuses.date.status).toBe("needs_confirmation");
     expect(result.fieldStatuses.amountYen.status).toBe("needs_confirmation");
+    expect(result.warnings).toEqual(["合計金額候補が複数あります"]);
     expect(result.issueMessages).toContain("要確認の項目があります");
+    expect(result.issueMessages).toContain("合計金額候補が複数あります");
   });
 
   it("rejected の項目別理由を issueMessages に含める", () => {
