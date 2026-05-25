@@ -205,9 +205,9 @@ function normalizeExtractedDate(
 function findDateCandidates(value: string): Array<{ year: number; month: number; day: number }> {
   const candidates: Array<{ year: number; month: number; day: number }> = [];
   const patterns = [
-    /(\d{4})[/-](\d{1,2})[/-](\d{1,2})/g,
-    /(\d{4})\.(\d{1,2})\.(\d{1,2})/g,
-    /(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日/g,
+    /(?<!\d)(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?!\d)/g,
+    /(?<!\d)(\d{4})\.(\d{1,2})\.(\d{1,2})(?!\d)/g,
+    /(?<!\d)(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日(?!\d)/g,
   ];
 
   for (const pattern of patterns) {
