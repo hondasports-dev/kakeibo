@@ -420,6 +420,95 @@ describe("ReceiptForm", () => {
     expect(screen.getByLabelText("日付")).toHaveValue("2026-05-18");
   });
 
+  it("抽出 applied フィールドがフォームに反映されると AI候補 helperText を表示する", async () => {
+    // 全フィールド applied (confidence 高め)
+    extractReceiptFieldsMock.mockResolvedValueOnce({
+      shopName: "サンプルストア",
+      date: "2026-05-20",
+      amountYen: 1234,
+      confidence: { shopName: 0.95, date: 0.95, amountYen: 0.95 },
+      warnings: [],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    // 抽出値がフォームに反映される
+    expect(await screen.findByDisplayValue("サンプルストア")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("1,234")).toBeInTheDocument();
+
+    // AI候補 helperText が表示される
+    expect(screen.getAllByText("AI候補").length).toBeGreaterThan(0);
+  });
+
+  it("AI候補 helperText は保存後にリセットされる", async () => {
+    extractReceiptFieldsMock.mockResolvedValueOnce({
+      shopName: "サンプルストア",
+      date: "2026-05-20",
+      amountYen: 1234,
+      confidence: { shopName: 0.95, date: 0.95, amountYen: 0.95 },
+      warnings: [],
+    });
+    createReceiptMock.mockResolvedValue(undefined);
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect((await screen.findAllByText("AI候補")).length).toBeGreaterThan(0);
+
+    // 保存する
+    await user.click(screen.getByRole("button", { name: "保存して次へ" }));
+
+    await waitFor(() => {
+      expect(createReceiptMock).toHaveBeenCalled();
+    });
+
+    // AI候補 helperText が全て消える
+    expect(screen.queryAllByText("AI候補")).toHaveLength(0);
+  });
+
+  it("AI候補 helperText はユーザーが手動編集すると消える", async () => {
+    extractReceiptFieldsMock.mockResolvedValueOnce({
+      shopName: "サンプルストア",
+      date: "2026-05-20",
+      amountYen: 1234,
+      confidence: { shopName: 0.95, date: 0.95, amountYen: 0.95 },
+      warnings: [],
+    });
+
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect((await screen.findAllByText("AI候補")).length).toBeGreaterThan(0);
+
+    // 店舗名を手動編集する
+    const shopNameInput = screen.getByLabelText("店舗名");
+    await user.clear(shopNameInput);
+    await user.type(shopNameInput, "手入力ストア");
+
+    // 店舗名フィールドの AI候補 helperText が消える
+    const shopNameField = shopNameInput.closest(".MuiFormControl-root");
+    expect(shopNameField).not.toHaveTextContent("AI候補");
+  });
+
   it("週外の日付を含む抽出結果は既存入力を上書きせず日付確認エラーを表示する", async () => {
     extractReceiptFieldsMock.mockResolvedValueOnce({
       shopName: "翌週ストア",
