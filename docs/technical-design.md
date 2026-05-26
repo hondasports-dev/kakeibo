@@ -175,6 +175,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | userId      | string            | `UserIdentity.tokenIdentifier` |
 | displayName | string            | 表示名                         |
 | email       | string (optional) | メールアドレス                 |
+| receiptImageExternalApiConsentAcceptedAt | number (optional) | レシート画像を外部APIへ送信することへの承認時刻 |
 | createdAt   | number            | 作成日時                       |
 | updatedAt   | number            | 更新日時                       |
 
@@ -266,6 +267,15 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 CSV生成はクライアント側でも可能だが、Convex側で生成すると将来の形式変更やバックアップ拡張をサーバー側に寄せやすい。MVPでは実装コストを見て、クライアント生成でもよい。
 
+### 10.5 receipt image consent
+
+- `users.getReceiptImageConsent()`
+- `users.acceptReceiptImageExternalApiConsent()`
+
+レシート画像入力PoCでは、画像を外部APIへ送信する前にユーザー単位の同意状態を確認する。同意状態は `users.receiptImageExternalApiConsentAcceptedAt` に承認時刻として保存する。
+
+この同意は画像送信の可否判定だけに使い、receipt 保存の認可やユーザー識別には使わない。認可は従来どおり `ctx.auth.getUserIdentity()` から得た `tokenIdentifier` を基準にする。
+
 ## 11. Valibotバリデーション
 
 フォーム入力とConvex mutation引数の前処理でValibotを使う。
@@ -331,7 +341,25 @@ CSVは指定週または全期間の支出を対象に生成する。
 - `-`
 - `@`
 
-## 14. ホスティング
+## 14. レシート画像入力PoC設計
+
+初回PoCでは、ブラウザで選択したレシート画像をクライアント側でリサイズし、Convex Action から OpenAI Vision 対応 API へ送信して `shopName` / `date` / `amountYen` の候補を返す。
+
+### 14.1 プライバシーと保存方針
+
+- 画像を外部APIへ送信する前に、初回同意ダイアログでユーザー確認を行う。
+- 同意が保存されていない場合は、Convex Action を呼ばず、画像データも送信しない。
+- 画像は Convex Storage や `receipts` テーブルへ保存しない。
+- 抽出結果はフォーム候補であり、自動保存しない。
+- ユーザーが `保存して次へ` を押した時点で、既存の `receipts.createReceipt` を使って通常の receipt として保存する。
+
+### 14.2 失敗時と拒否時
+
+- 同意拒否時は画像送信を行わず、同じレシート入力フォームで手入力に戻す。
+- 抽出失敗時はエラーと手入力可能な案内を表示し、入力済みフォーム値を壊さない。
+- 開発、Preview、CI では `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、通常検証で実 OpenAI API を呼ばない。
+
+## 15. ホスティング
 
 Vite SPAはVercelで配信する。
 
@@ -341,7 +369,7 @@ DEV/PreviewはVercel Preview DeploymentのURLを使い、PRODはVercel Productio
 
 将来、独自ドメインやCloudflare Workers固有の処理が必要になった場合に、ドメイン移行やHono追加を検討する。
 
-## 15. 環境設計
+## 16. 環境設計
 
 DEVとPRODの2環境を分けて構築する。
 
@@ -355,7 +383,7 @@ DEVとPRODの2環境を分けて構築する。
 | データ         | テストデータ                                     | 実ユーザーデータ                                  |
 | 環境変数       | `.env.local`、Vercel Preview env                 | Vercel Production env                             |
 
-### 15.1 環境分離方針
+### 16.1 環境分離方針
 
 - DEVとPRODでClerk instanceを分ける
 - DEVとPRODでConvex deploymentを分ける
@@ -365,7 +393,7 @@ DEVとPRODの2環境を分けて構築する。
 - DEVデータをPRODへ手動投入しない
 - PRODの環境変数をローカル開発に流用しない
 
-### 15.2 必要な環境変数
+### 16.2 必要な環境変数
 
 フロントエンド:
 
@@ -388,7 +416,7 @@ CLERK_JWT_ISSUER_DOMAIN=
 
 VercelにはPreview / Productionの環境変数を分けて登録する。Production secretをローカル開発へ流用しない。
 
-### 15.3 デプロイ方針
+### 16.3 デプロイ方針
 
 - `main` ブランチをPRODに紐づける
 - PRまたは開発ブランチをpreview/DEVに紐づける
@@ -396,7 +424,7 @@ VercelにはPreview / Productionの環境変数を分けて登録する。Produc
 - Clerk設定変更もまずDEVで確認する
 - PROD反映前に、Googleログイン、主要CRUD、CSV出力を確認する
 
-### 15.4 データ移行方針
+### 16.4 データ移行方針
 
 MVPでは自動migrationを最小限にする。Convex schema変更時は、以下を確認する。
 
@@ -404,9 +432,9 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - 必須項目追加で既存データが壊れないか
 - query/mutationの認可条件が維持されているか
 
-## 16. テスト方針
+## 17. テスト方針
 
-### 16.1 Unit test
+### 17.1 Unit test
 
 - 週開始日、週終了日の計算
 - Valibot schema
@@ -416,22 +444,23 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - CSV生成
 - CSVインジェクション対策
 
-### 16.2 Component test
+### 17.2 Component test
 
 - レシート入力フォーム
 - カテゴリ選択
 - 週次サマリー表示
 - 振り返りメモ
 
-### 16.3 Convex function test
+### 17.3 Convex function test
 
 - 未認証時にquery/mutationが拒否される
 - 他ユーザーのデータが取得・更新できない
 - 初期カテゴリseed
 - 週次セッション作成と再開
 - レシート作成、更新、削除
+- レシート画像外部API送信の同意状態取得と承認保存
 
-### 16.4 E2E test
+### 17.4 E2E test
 
 主要フロー:
 
@@ -444,7 +473,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 スマートフォン幅でも同じ主要フローが完了できることを確認する。
 
-## 17. 実装タスク分解
+## 18. 実装タスク分解
 
 1. Vite + React + TypeScriptの初期構築（完了）
 2. Clerk CLI、Convex CLI、Vercel CLI/MCP、Convex MCP、Chrome DevTools MCPの初期接続（完了）
@@ -470,7 +499,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 22. E2E test
 23. レスポンシブ確認
 
-## 18. リスクとトレードオフ
+## 19. リスクとトレードオフ
 
 | リスク             | 内容                                | 対策                                                            |
 | ------------------ | ----------------------------------- | --------------------------------------------------------------- |
@@ -481,7 +510,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 | Hono追加時の複雑化 | API層が増えて責務が曖昧になる       | Convexで足りない要件が出るまで追加しない                        |
 | 環境混在           | DEVのClerkやConvexがPRODに混ざる    | Clerk application、Convex deployment、環境変数を明確に分離する  |
 
-## 19. 実装前に決めたこと
+## 20. 実装前に決めたこと
 
 - MUIは標準Material Design感を抑えた独自テーマにする
 - Tailwind CSSはレイアウト用途に限定して採用する

@@ -4,8 +4,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   getAuthStateFromIdentity,
+  getReceiptImageConsentHandler,
   getUserProfileHandler,
   requireAuthenticatedUserId,
+  acceptReceiptImageExternalApiConsentHandler,
   updateMonthlyIncomeHandler,
   upsertUserHandler,
 } from "./users";
@@ -96,6 +98,7 @@ type Doc = {
   displayName: string;
   email?: string;
   monthlyIncome?: number;
+  receiptImageExternalApiConsentAcceptedAt?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -394,6 +397,77 @@ describe("getUserProfile", () => {
     const result = await getUserProfileHandler(ctx);
 
     expect(result).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// receipt image external API consent テスト
+// ---------------------------------------------------------------------------
+
+describe("receipt image external API consent", () => {
+  it("未認証時は同意状態を取得できない", async () => {
+    const ctx = createQueryCtxForUsers(null);
+
+    await expect(getReceiptImageConsentHandler(ctx)).rejects.toBeInstanceOf(ConvexError);
+    await expect(getReceiptImageConsentHandler(ctx)).rejects.toMatchObject({
+      data: "Not authenticated",
+    });
+  });
+
+  it("同意済み時は acceptedAt を返す", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-consented",
+    });
+    const existingDoc: Doc = {
+      _id: "doc-consented",
+      _creationTime: 1000,
+      userId: "https://issuer.example|user-consented",
+      displayName: "同意済みユーザー",
+      receiptImageExternalApiConsentAcceptedAt: 1234567890,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createQueryCtxForUsers(identity, existingDoc);
+
+    await expect(getReceiptImageConsentHandler(ctx)).resolves.toEqual({
+      hasAcceptedExternalApiConsent: true,
+      acceptedAt: 1234567890,
+    });
+  });
+
+  it("未同意時は false と null を返す", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-not-consented",
+    });
+    const existingDoc: Doc = {
+      _id: "doc-not-consented",
+      _creationTime: 1000,
+      userId: "https://issuer.example|user-not-consented",
+      displayName: "未同意ユーザー",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createQueryCtxForUsers(identity, existingDoc);
+
+    await expect(getReceiptImageConsentHandler(ctx)).resolves.toEqual({
+      hasAcceptedExternalApiConsent: false,
+      acceptedAt: null,
+    });
+  });
+
+  it("同意を承認すると users に承認時刻を保存する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await acceptReceiptImageExternalApiConsentHandler(ctx);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patchCalls = (ctx.db as any).patch.mock.calls;
+    expect(patchCalls[0][0]).toBe("doc-001");
+    expect(patchCalls[0][1]).toMatchObject({
+      receiptImageExternalApiConsentAcceptedAt: expect.any(Number),
+      updatedAt: expect.any(Number),
+    });
   });
 });
 

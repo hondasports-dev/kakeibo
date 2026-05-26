@@ -112,6 +112,59 @@ export const getUserProfile = query({
 });
 
 // ---------------------------------------------------------------------------
+// getReceiptImageConsent
+// ---------------------------------------------------------------------------
+
+export async function getReceiptImageConsentHandler(ctx: QueryCtx) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+    .unique();
+
+  const acceptedAt = user?.receiptImageExternalApiConsentAcceptedAt ?? null;
+
+  return {
+    hasAcceptedExternalApiConsent: acceptedAt !== null,
+    acceptedAt,
+  };
+}
+
+export const getReceiptImageConsent = query({
+  args: {},
+  handler: getReceiptImageConsentHandler,
+});
+
+// ---------------------------------------------------------------------------
+// acceptReceiptImageExternalApiConsent
+// ---------------------------------------------------------------------------
+
+export async function acceptReceiptImageExternalApiConsentHandler(ctx: MutationCtx) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+    .unique();
+
+  if (user === null) {
+    throw new ConvexError("User not found");
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(user._id, {
+    receiptImageExternalApiConsentAcceptedAt: user.receiptImageExternalApiConsentAcceptedAt ?? now,
+    updatedAt: now,
+  });
+}
+
+export const acceptReceiptImageExternalApiConsent = mutation({
+  args: {},
+  handler: acceptReceiptImageExternalApiConsentHandler,
+});
+
+// ---------------------------------------------------------------------------
 // updateMonthlyIncome
 // ---------------------------------------------------------------------------
 

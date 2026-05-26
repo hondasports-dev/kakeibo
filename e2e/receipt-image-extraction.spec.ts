@@ -2,6 +2,7 @@ import { Buffer } from "node:buffer";
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
 import { cleanupTestReceipts } from "./helpers/cleanup";
+import { acceptReceiptImageExternalApiConsentIfVisible } from "./helpers/receiptImageConsent";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
@@ -82,6 +83,8 @@ test("I-1: mock モードで画像からレシート候補を抽出し入力フ�
 
   // 読み取るボタンをクリック
   await extractButton.click();
+  await acceptReceiptImageExternalApiConsentIfVisible(page);
+
   // mock mode では「サンプルストア」が店名フィールドに反映される
   const shopNameField = page.getByLabel("店舗名");
   await expect(shopNameField).toHaveValue("サンプルストア", { timeout: 15000 });
@@ -189,6 +192,7 @@ test("I-3: 抽出エラー時にエラーメッセージと手入力保存への
     };
   });
   await page.getByRole("button", { name: "読み取る" }).click();
+  await acceptReceiptImageExternalApiConsentIfVisible(page);
 
   // エラーメッセージが表示される（クリアボタン付き）
   await expect(page.getByRole("button", { name: "クリア" })).toBeVisible({ timeout: 15000 });
