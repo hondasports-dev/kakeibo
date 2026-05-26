@@ -52,6 +52,7 @@ jobs:
             let commitSha = shaFromDeployment || (looksLikeSha ? ref : undefined)
             let sameRepoBranch = false
             let reason = 'deployment source could not be verified'
+            let docsOnly = false
 
             if (ref && !looksLikeSha) {
               try {
@@ -82,6 +83,20 @@ jobs:
               if (sameRepoPr) {
                 trusted = true
                 reason = `same-repository PR #${sameRepoPr.number}`
+
+                const files = await github.paginate(github.rest.pulls.listFiles, {
+                  owner,
+                  repo,
+                  pull_number: sameRepoPr.number,
+                  per_page: 100,
+                })
+                docsOnly =
+                  files.length > 0 &&
+                  files.every((file) => file.filename.toLowerCase().endsWith('.md'))
+                if (docsOnly) {
+                  trusted = false
+                  reason = `docs-only PR #${sameRepoPr.number}`
+                }
               } else if (forkPr) {
                 reason = `fork PR #${forkPr.number} from ${forkPr.head.repo?.full_name}`
               } else if (sameRepoBranch) {
@@ -90,11 +105,14 @@ jobs:
             }
 
             core.setOutput('trusted', trusted ? 'true' : 'false')
+            core.setOutput('docs_only', docsOnly ? 'true' : 'false')
             core.setOutput('checkout_ref', commitSha || ref)
             core.setOutput('reason', reason)
 
             if (trusted) {
               core.info(`Trusted deployment source: ${reason}`)
+            } else if (docsOnly) {
+              core.notice(`Skipping E2E for Markdown-only changes: ${reason}`)
             } else {
               core.notice(`Skipping secrets-backed E2E: ${reason}`)
             }

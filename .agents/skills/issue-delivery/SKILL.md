@@ -155,6 +155,8 @@ pnpm run e2e -- --project=chromium
 
 検証を実行できない場合は、理由、未確認リスク、代替確認を明記する。成功していない検証を成功と書かない。
 
+Markdownのみの変更では、GitHub Actions / E2E を必須にしない。`git diff --check` を実行し、PR本文やIssueコメントには「MarkdownのみのためActions/E2E不要」と明記する。
+
 検証失敗が環境設定や起動手順の不足に起因する場合は、同じ失敗を繰り返さないために、必要な設定・起動手順・不足している依存を短く記録する。secret 値は記録しない。
 
 ## Reviewer / QA 確認
@@ -181,6 +183,8 @@ PR本文またはコメントに最低限これを入れる。
 - [ ] GitHub Actions 全 check 成功
 - [ ] Issue 完了報告準備済み
 ```
+
+Markdownのみの変更では、GitHub Actions / E2E の終了条件は `git diff --check` に置き換える。
 
 GitHub Actions / E2E が失敗したら原因を分類する。
 
@@ -228,6 +232,7 @@ GitHub Actions / E2E が失敗したら原因を分類する。
 - Multi-role ゲート結果が記録または要約されている。
 - 必要なローカル検証を実行し、結果を把握している。
 - Reviewer / QA の未解決指摘がない。
-- GitHub Actions / E2E の結果を確認している。
+- Markdown以外を含む場合は GitHub Actions / E2E の結果を確認している。
+- Markdownのみの場合は `git diff --check` を確認している。
 - PR マージまたは未マージ理由が明確。
 - Issue に最終報告を残している、または残せない理由を説明できる。

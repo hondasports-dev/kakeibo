@@ -188,6 +188,9 @@ Pull Request には次の内容を書きます。
 - [ ] 未解決の conversation がない
 - [ ] マージ後の Issue 完了報告内容が準備済み
 
+Markdown のみを変更する Pull Request では、ローカル検証と GitHub Actions / E2E の
+終了条件を `git diff --check` などの Markdown 差分確認に置き換えてよいです。
+
 Pull Request は短時間でレビューできる大きさに保ちます。目安として、可能な限り
 差分は 300 行以内にします。500 行を超える場合は、分割するか、1つの Pull Request
 にまとめる理由を書きます。
@@ -201,7 +204,7 @@ Pull Request は短時間でレビューできる大きさに保ちます。目�
 次の条件をすべて満たす小さく低リスクな変更は、自己マージしてもかまいません。
 
 - ドキュメント、typo、formatting、小さな設定修正である。
-- CI が通っている。
+- CI が通っている、または Markdown のみの変更で CI 対象外である。
 - Convex、Clerk、認可、データ構造、デプロイ挙動に影響しない。
 
 ただし、`convex/`、`.github/`、`CODEOWNERS` 配下の変更は、小さな変更であっても
@@ -245,6 +248,11 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 - `pnpm run lint`
 - `pnpm run build`
 - `pnpm test --run`
+
+Markdown のみを変更する Pull Request / push では、GitHub Actions の CI を実行しません。
+`.github/workflows/ci.yml` は `**/*.md` のみの変更を `paths-ignore` で除外します。
+Vercel Preview 由来の E2E も、関連 Pull Request の変更ファイルが Markdown のみなら
+E2E 本体へ進みません。
 
 ### 現状の検証コマンド
 
@@ -314,6 +322,8 @@ pnpm run e2e --project=chromium
 先へ進まず、Issue と PR に実行不能理由、必要な設定、再実行条件を記録して判断します。
 GitHub Actions についても、E2E だけでなく全 check が完了し、すべて `success` になってから
 PR をマージします。
+
+ただし Markdown のみの変更では、GitHub Actions / E2E の成功確認は不要です。
 
 ### E2E テスト設計基準（issue-delivery QA Agent 向け）
 
