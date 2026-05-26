@@ -11,7 +11,7 @@
 - UI、API、データ保存、権限、エラー表示を確認する。
 - 回帰リスクを洗い出す。
 - E2Eで確認すべき項目と、単体・統合テスト・手動QAで確認すべき項目を切り分ける。
-- 新しいE2Eシナリオを追加する場合は、`docs/e2e-test-cases.md` の更新要否を明確にする。
+- 新しいE2Eシナリオを追加する場合は、既存の `e2e/` テストと `docs/development-process.md` のE2E方針に照らして必要性を明確にする。
 - 不具合を再現可能な形で報告する。
 
 ## 入力
@@ -48,7 +48,7 @@ Issue Delivery では、Tech Lead の仕様確定後・Implementer の実装前�
 ### 確認手順
 
 1. Product Lead の完了条件と Tech Lead のテスト方針を照合する。
-2. `docs/e2e-test-cases.md` を参照し、既存シナリオでカバーできるか確認する。
+2. 既存の `e2e/` テストと `docs/development-process.md` のE2E方針を確認し、既存シナリオでカバーできるか判断する。
 3. 主要フロー、異常系、境界値、UI、API、データ保存、権限、エラー表示、回帰リスクの抜けを確認する。
 4. E2Eで検証する項目、単体・統合テストで検証する項目、手動確認に回す項目を分類する。
 5. 新しいE2Eシナリオが必要な場合は、優先度（P0/P1/P2）、カテゴリ、Given / When / Then、テストデータ・cleanup要否を決める。
@@ -64,12 +64,11 @@ Issue Delivery では、Tech Lead の仕様確定後・Implementer の実装前�
 ### 出力
 
 - E2E追加要否: `required` / `not_required`
-- 対象シナリオ: 既存 `docs/e2e-test-cases.md` のシナリオ番号、または新規シナリオ案
+- 対象シナリオ: 既存 `e2e/` テスト名、または新規シナリオ案
 - 優先度とカテゴリ: P0/P1/P2、smoke / validation / regression / error-handling / permission
 - Given / When / Then
 - テストデータ・cleanup要否
 - E2E以外で確認する項目と理由
-- `docs/e2e-test-cases.md` 更新要否
 - 判定: `approved` / `needs_revision` / `needs_discussion`
 
 ## GitHub Actions E2E 結果確認
@@ -94,9 +93,9 @@ QA Agentは直接テストを実行せず、GitHub MCPを使ってCheckの結果
 
 ### E2Eテストコード修正の方針
 
-- 既存テストケースは `docs/e2e-test-cases.md` を参照する。
+- 既存テストケースは `e2e/` 配下と `docs/development-process.md` のE2E方針を参照する。
 - ロケーターを変更する場合は、仕様変更ではなくDOM変更に起因するか確認する。
-- 新しいシナリオを追加した場合は `docs/e2e-test-cases.md` も合わせて更新する。
+- 新しいシナリオを追加した場合は、PR本文またはIssueコメントに追加理由と対象導線を記録する。
 - 修正後は `e2e/` ディレクトリのみを変更してpushする（実装コードは触らない）。
 
 ## 依頼テンプレート
@@ -115,12 +114,11 @@ Tech Leadの仕様・テスト方針:
 
 出力:
 - E2E追加要否: required / not_required
-- 対象シナリオ（既存 docs/e2e-test-cases.md のシナリオ番号、または新規シナリオ案）
+- 対象シナリオ（既存 e2e/ のテスト名、または新規シナリオ案）
 - 優先度とカテゴリ
 - Given / When / Then
 - テストデータ・cleanup要否
 - E2E以外で確認する項目と理由
-- docs/e2e-test-cases.md 更新要否
 - 判定: approved / needs_revision / needs_discussion
 ```
 

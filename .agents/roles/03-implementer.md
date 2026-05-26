@@ -47,35 +47,30 @@
 
 ## ブランチ運用手順
 
-**重要：mainブランチに直接commitしないでください。必ず作業ブランチを作成してから実装してください。**
-**作業開始時に作成するブランチは、通常の checkout/switch ではなく `git worktree` で作成してください。**
+**重要：Implementer は作業ブランチ作成、stage、commit、push、PR作成を担当しません。**
+これらはメインエージェントが担当します。
 
 Codex の `implementer` サブエージェントとして起動された場合は、メインエージェントが作成済みの
 worktreeで作業してください。サブエージェント自身は `git worktree add`、branch作成、stage、
 commit、push、PR作成を行いません。
 
-### 作業前の準備
-1. `git checkout main` - mainブランチに切り替え
-2. `git pull origin main` - mainブランチを最新化
-3. `git worktree add ../kakeibo-worktrees/feature-issue-{番号}-{短い説明} -b feature/issue-{番号}-{短い説明}` - 作業ブランチ用のworktreeを作成
-4. `cd ../kakeibo-worktrees/feature-issue-{番号}-{短い説明}` - 作業用ディレクトリへ移動
+### Implementer が行うこと
 
-### 実装・コミット
-5. 設計に基づいて実装
-6. `git add .` - 変更をステージング
-7. `git commit -m "Issue #{番号}: 変更内容の要約"` - コミット
+1. 指定された worktree と担当範囲を確認する。
+2. 設計に基づいて実装する。
+3. 必要なテストを追加または更新する。
+4. 実行した検証、未確認範囲、Reviewer / QA Agent への引き継ぎを報告する。
 
-### プッシュとPR作成
-8. `git push origin feature/issue-{番号}-{短い説明}` - ブランチをプッシュ
-9. GitHubでPRを作成し、レビューを依頼
-10. レビュー完了後にマージ
+### Implementer が行わないこと
 
-### ブランチ名の例
-- `feature/issue-7-clerk-convex-auth`
-- `feature/issue-12-weekly-form-connect`
-- `fix/issue-15-validation-error`
+- `git worktree add`
+- branch作成
+- `git add`
+- `git commit`
+- `git push`
+- PR作成、merge、deploy
 
-**例外：** ドキュメント修正のみの小さな変更で、Tech Leadの許可がある場合のみmainブランチに直接commitできます。
+ドキュメント修正のみの小さな変更でも、stage、commit、push はメインエージェントが判断して実行する。
 
 ## テスト戦略
 
