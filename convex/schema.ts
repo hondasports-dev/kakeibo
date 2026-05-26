@@ -10,6 +10,8 @@ export default defineSchema({
     email: v.optional(v.string()),
     // monthlyIncome は月収入（円）。未設定の場合は optional で保持しない。
     monthlyIncome: v.optional(v.number()),
+    // レシート画像を外部APIへ送信することへのユーザー承認時刻。
+    receiptImageExternalApiConsentAcceptedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

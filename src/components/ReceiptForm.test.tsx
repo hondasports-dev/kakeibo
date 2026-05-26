@@ -5,15 +5,26 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { renderWithProviders } from "../test/render";
 import { ReceiptForm } from "./ReceiptForm";
 
-const { createReceiptMock, extractReceiptFieldsMock } = vi.hoisted(() => ({
+const {
+  createReceiptMock,
+  extractReceiptFieldsMock,
+  acceptReceiptImageConsentMock,
+  receiptImageConsentQueryMock,
+} = vi.hoisted(() => ({
   createReceiptMock: vi.fn(),
   extractReceiptFieldsMock: vi.fn(),
+  acceptReceiptImageConsentMock: vi.fn(),
+  receiptImageConsentQueryMock: vi.fn(),
 }));
 
 vi.mock("../../convex/_generated/api", () => ({
   api: {
     receipts: {
       createReceipt: "receipts.createReceipt",
+    },
+    users: {
+      acceptReceiptImageExternalApiConsent: "users.acceptReceiptImageExternalApiConsent",
+      getReceiptImageConsent: "users.getReceiptImageConsent",
     },
     receiptImageExtraction: {
       extractReceiptFields: "receiptImageExtraction.extractReceiptFields",
@@ -22,8 +33,14 @@ vi.mock("../../convex/_generated/api", () => ({
 }));
 
 vi.mock("convex/react", () => ({
-  useMutation: () => createReceiptMock,
+  useMutation: (functionRef: string) => {
+    if (functionRef === "users.acceptReceiptImageExternalApiConsent") {
+      return acceptReceiptImageConsentMock;
+    }
+    return createReceiptMock;
+  },
   useAction: () => extractReceiptFieldsMock,
+  useQuery: () => receiptImageConsentQueryMock(),
 }));
 
 const categories = [
@@ -36,6 +53,13 @@ describe("ReceiptForm", () => {
     createReceiptMock.mockReset();
     createReceiptMock.mockResolvedValue(undefined);
     extractReceiptFieldsMock.mockReset();
+    acceptReceiptImageConsentMock.mockReset();
+    acceptReceiptImageConsentMock.mockResolvedValue(undefined);
+    receiptImageConsentQueryMock.mockReset();
+    receiptImageConsentQueryMock.mockReturnValue({
+      hasAcceptedExternalApiConsent: true,
+      acceptedAt: 1234567890,
+    });
     HTMLCanvasElement.prototype.toDataURL = vi
       .fn()
       .mockReturnValue("data:image/jpeg;base64,mockBase64Data");
@@ -223,6 +247,92 @@ describe("ReceiptForm", () => {
         date: "2026-05-18",
         shopName: "画像確認スーパー",
         amountYen: 980,
+        categoryId: "cat-food",
+        memo: undefined,
+      });
+    });
+  });
+
+  it("外部API送信に未同意の場合、読み取り前に同意ダイアログを表示し Action を呼ばない", async () => {
+    receiptImageConsentQueryMock.mockReturnValue({
+      hasAcceptedExternalApiConsent: false,
+      acceptedAt: null,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+
+    expect(
+      await screen.findByRole("dialog", { name: "画像の外部API送信に同意しますか" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "レシート画像を解析するため、画像データを外部APIへ送信します。画像は長期保存しません。",
+      ),
+    ).toBeInTheDocument();
+    expect(extractReceiptFieldsMock).not.toHaveBeenCalled();
+    expect(acceptReceiptImageConsentMock).not.toHaveBeenCalled();
+  });
+
+  it("外部API送信に同意すると Convex に保存してから読み取りを実行する", async () => {
+    receiptImageConsentQueryMock.mockReturnValue({
+      hasAcceptedExternalApiConsent: false,
+      acceptedAt: null,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+    await user.click(await screen.findByRole("button", { name: "同意して読み取る" }));
+
+    await waitFor(() => {
+      expect(acceptReceiptImageConsentMock).toHaveBeenCalledOnce();
+      expect(extractReceiptFieldsMock).toHaveBeenCalledWith({
+        imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
+      });
+    });
+    expect(screen.getByLabelText("店舗名")).toHaveValue("サンプルストア");
+  });
+
+  it("外部API送信を拒否すると画像送信せず手入力に戻れる", async () => {
+    receiptImageConsentQueryMock.mockReturnValue({
+      hasAcceptedExternalApiConsent: false,
+      acceptedAt: null,
+    });
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    const file = new File(["dummy image"], "receipt-sample.png", { type: "image/png" });
+
+    await user.upload(screen.getByLabelText("レシート画像を選択"), file);
+    await user.click(screen.getByRole("button", { name: "読み取る" }));
+    await user.click(await screen.findByRole("button", { name: "手入力する" }));
+
+    expect(extractReceiptFieldsMock).not.toHaveBeenCalled();
+    expect(acceptReceiptImageConsentMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("店舗名"), "同意なしスーパー");
+    await user.type(screen.getByLabelText("合計金額"), "880");
+    await user.click(screen.getByRole("button", { name: "保存して次へ" }));
+
+    await waitFor(() => {
+      expect(createReceiptMock).toHaveBeenCalledWith({
+        date: "2026-05-18",
+        shopName: "同意なしスーパー",
+        amountYen: 880,
         categoryId: "cat-food",
         memo: undefined,
       });

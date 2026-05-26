@@ -1,7 +1,18 @@
 import { useRef, useState, useEffect } from "react";
-import { useAction } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
-import { Alert, Box, Button, CircularProgress, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Typography,
+} from "@mui/material";
 import {
   normalizeReceiptExtraction,
   type NormalizedReceiptFields,
@@ -87,8 +98,17 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
   const [parseStatus, setParseStatus] = useState<"idle" | "ready" | "parsing" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [noticeMessages, setNoticeMessages] = useState<string[]>([]);
+  const [consentDialogOpen, setConsentDialogOpen] = useState(false);
+  const [consentStatus, setConsentStatus] = useState<"idle" | "saving">("idle");
 
   const extractReceiptFields = useAction(api.receiptImageExtraction.extractReceiptFields);
+  const acceptReceiptImageExternalApiConsent = useMutation(
+    api.users.acceptReceiptImageExternalApiConsent,
+  );
+  const receiptImageConsent = useQuery(api.users.getReceiptImageConsent);
+
+  const consentIsLoading = receiptImageConsent === undefined;
+  const hasAcceptedExternalApiConsent = receiptImageConsent?.hasAcceptedExternalApiConsent === true;
 
   // 画像プレビュー描画
   useEffect(() => {
@@ -168,7 +188,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
     setNoticeMessages([]);
   };
 
-  const handleExtract = async () => {
+  const runExtraction = async () => {
     if (!selectedFile || parseStatus === "parsing") {
       return;
     }
@@ -192,6 +212,46 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
     }
   };
 
+  const handleExtract = async () => {
+    if (!selectedFile || parseStatus === "parsing" || consentIsLoading) {
+      return;
+    }
+
+    if (!hasAcceptedExternalApiConsent) {
+      setConsentDialogOpen(true);
+      return;
+    }
+
+    await runExtraction();
+  };
+
+  const handleAcceptAndExtract = async () => {
+    if (!selectedFile || consentStatus === "saving") {
+      return;
+    }
+
+    setConsentStatus("saving");
+    setErrorMessage("");
+    try {
+      await acceptReceiptImageExternalApiConsent();
+      setConsentDialogOpen(false);
+      await runExtraction();
+    } catch (err) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : "同意状態を保存できませんでした。手入力をお試しください。";
+      setErrorMessage(message);
+    } finally {
+      setConsentStatus("idle");
+    }
+  };
+
+  const handleDeclineConsent = () => {
+    setConsentDialogOpen(false);
+    clearSelectedImage();
+  };
+
   return (
     <Box
       aria-labelledby="receipt-image-upload-heading"
@@ -210,6 +270,9 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
           </Typography>
           <Typography color="text.secondary" variant="body2">
             画像は保存されません。確認用の一時プレビューです。
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            読み取り時はレシート画像を外部APIへ送信します。抽出結果は自動保存されません。
           </Typography>
         </Box>
 
@@ -304,7 +367,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
             />
           </Button>
           <Button
-            disabled={!selectedFile || parseStatus === "parsing"}
+            disabled={!selectedFile || parseStatus === "parsing" || consentIsLoading}
             onClick={() => void handleExtract()}
             startIcon={parseStatus === "parsing" ? <CircularProgress size={16} /> : undefined}
             type="button"
@@ -314,6 +377,43 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
           </Button>
         </Stack>
       </Stack>
+
+      <Dialog
+        aria-labelledby="receipt-image-consent-dialog-title"
+        onClose={() => setConsentDialogOpen(false)}
+        open={consentDialogOpen}
+      >
+        <DialogTitle id="receipt-image-consent-dialog-title">
+          画像の外部API送信に同意しますか
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1.5}>
+            <Typography variant="body2">
+              レシート画像を解析するため、画像データを外部APIへ送信します。画像は長期保存しません。
+            </Typography>
+            <Typography variant="body2">
+              読み取った店名・日付・金額はフォーム候補として反映されますが、自動保存はされません。
+            </Typography>
+            <Typography variant="body2">
+              同意しない場合や読み取りに失敗した場合も、この画面で手入力できます。
+            </Typography>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDeclineConsent} type="button">
+            手入力する
+          </Button>
+          <Button
+            disabled={consentStatus === "saving"}
+            onClick={() => void handleAcceptAndExtract()}
+            startIcon={consentStatus === "saving" ? <CircularProgress size={16} /> : undefined}
+            type="button"
+            variant="contained"
+          >
+            {consentStatus === "saving" ? "保存中..." : "同意して読み取る"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

@@ -5,6 +5,7 @@ import {
   cleanupTestReceipts,
   resetTestWeekSession,
 } from "./helpers/cleanup";
+import { acceptReceiptImageExternalApiConsentIfVisible } from "./helpers/receiptImageConsent";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
@@ -237,6 +238,7 @@ test.describe("レシート保存フロー（Issue #13 受け入れ確認）", (
 
     await imageInput.setInputFiles(testImage);
     await page.getByRole("button", { name: "読み取る" }).click();
+    await acceptReceiptImageExternalApiConsentIfVisible(page);
     await expect(page.locator('input[name="shopName"]')).toHaveValue("サンプルストア", {
       timeout: 15_000,
     });
