@@ -19,13 +19,16 @@ GitHub Issue番号を渡すだけで、仕様検討→E2Eテスト設計レビ�
 
 内部フロー:
 
-1. **Product Lead** が Issue の要件、MVP範囲、検証可能な完了条件を確認する。
+1. **Product Lead A/B/C** が Issue のユーザー価値、MVP範囲、検証可能な完了条件を確認する。
+   - UI/UX変更を含む場合は **UX/UI Designer** も同じゲートで確認する。
+   - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
 2. **Tech Lead** が仕様・実装タスク・テスト方針・E2E候補シナリオを確定する。
 3. **QA Agent** が実装前にE2Eテスト設計をレビューする。
    - 不足があれば Tech Lead へ差し戻す（最大2回）。
    - 完了条件が曖昧なら Product Lead またはユーザー確認へ戻す。
-4. **Implementer** がTDDサイクルで実装し、ブランチを作成してPRを出す。
-   - 新規E2Eが必要な場合は `e2e/` と `docs/e2e-test-cases.md` を更新する。
+4. **Implementer** がTDDサイクルで実装する。
+   - Codex の Implementer サブエージェントは実装だけを担当し、branch作成、stage、commit、push、PR作成はメインエージェントが行う。
+   - 新規E2Eが必要な場合は `e2e/` に追加し、追加理由と対象導線をPR本文またはIssueコメントに記録する。
 5. **Reviewer** が差分をレビューし、GitHubのPRにインラインコメントを投稿する。
    - 指摘があれば Implementer へ差し戻す（最大3回）。
 6. **GitHub Actions** が自動でVercel PreviewにデプロイしてE2Eを実行する。
@@ -80,7 +83,9 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 ## 並列化の方針
 
-- Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
+- Product Lead A/B/C は並列で評価してよい。
+- UI/UX変更を含む場合は UX/UI Designer も Product Lead と並列で評価してよい。
+- Tech Lead は、Product Lead / UX/UI Designer の統合判定が `approved` になってから進める。
 - 実装タスクが分離できる場合だけ、Implementer を複数に分ける。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
 - PR作成後の QA Agent と Reviewer は並列で走らせてもよい。
