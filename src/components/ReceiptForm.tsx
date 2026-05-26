@@ -15,7 +15,8 @@ import {
   Typography,
 } from "@mui/material";
 import { validateReceiptForm, type ReceiptFormErrors } from "../validation/receipt";
-import { ReceiptImageExtractor, type ExtractedReceiptFields } from "./ReceiptImageExtractor";
+import { ReceiptImageExtractor, type ExtractedReceiptResult } from "./ReceiptImageExtractor";
+import type { NormalizedReceiptExtraction } from "../validation/receiptExtraction";
 
 interface ReceiptFormProps {
   weekStartDate: string;
@@ -65,6 +66,9 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     memo: "",
   });
   const [errors, setErrors] = useState<ReceiptFormErrors>({});
+  const [aiFieldStatuses, setAiFieldStatuses] = useState<
+    NormalizedReceiptExtraction["fieldStatuses"] | null
+  >(null);
   const [status, setStatus] = useState<"idle" | "submitting" | "success" | "error">("idle");
   const [apiError, setApiError] = useState("");
   const [snackbar, setSnackbar] = useState<{
@@ -89,9 +93,15 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     if (errors[field as keyof typeof errors]) {
       setErrors((prev) => ({ ...prev, [field]: undefined }));
     }
+    // フィールド手動編集時に AI候補 状態をクリア
+    if (aiFieldStatuses && field in aiFieldStatuses) {
+      setAiFieldStatuses((prev) =>
+        prev ? { ...prev, [field]: { ...prev[field as keyof typeof prev], status: "rejected" } } : null,
+      );
+    }
   };
 
-  const handleExtracted = (fields: ExtractedReceiptFields) => {
+  const handleExtracted = ({ fields, fieldStatuses }: ExtractedReceiptResult) => {
     const extractedDateIsOutsideWeek =
       fields.date && (fields.date < weekStartDate || fields.date > weekEndDate);
 
@@ -119,6 +129,8 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
       ...(fields.amountYen ? { amountYen: undefined } : {}),
       ...(fields.date ? { date: undefined } : {}),
     }));
+    // AI候補フィールドのステータスを保存（applied フィールドのみハイライト対象）
+    setAiFieldStatuses(fieldStatuses);
   };
 
   const submitForm = async () => {
@@ -143,6 +155,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
       // 保存成功 → 店名・金額・メモをクリア、日付・カテゴリを引き継ぐ
       setFormValues((prev) => ({ ...prev, shopName: "", amountYen: "", memo: "" }));
       setErrors({});
+      setAiFieldStatuses(null);
       setStatus("idle");
       setSnackbar({ open: true, severity: "success", message: "レシートを保存しました" });
       // 店名欄にフォーカスを戻す
@@ -249,7 +262,10 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
             <TextField
               error={!!errors.date}
               fullWidth
-              helperText={errors.date}
+              helperText={
+                errors.date ||
+                (aiFieldStatuses?.date.status === "applied" ? "AI候補" : undefined)
+              }
               id="receipt-date"
               label="日付"
               name="date"
@@ -269,7 +285,10 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               autoComplete="organization"
               error={!!errors.shopName}
               fullWidth
-              helperText={errors.shopName}
+              helperText={
+                errors.shopName ||
+                (aiFieldStatuses?.shopName.status === "applied" ? "AI候補" : undefined)
+              }
               id="receipt-shop-name"
               inputRef={shopNameRef}
               label="店舗名"
@@ -282,7 +301,10 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
             <TextField
               error={!!errors.amountYen}
               fullWidth
-              helperText={errors.amountYen}
+              helperText={
+                errors.amountYen ||
+                (aiFieldStatuses?.amountYen.status === "applied" ? "AI候補" : undefined)
+              }
               id="receipt-amount-yen"
               label="合計金額"
               name="amountYen"
