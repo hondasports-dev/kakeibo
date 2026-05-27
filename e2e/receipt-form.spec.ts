@@ -445,6 +445,10 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
   });
 
+  test.afterEach(async () => {
+    await cleanupTestReceipts();
+  });
+
   test("@smoke [Issue #14] 入力状況パネルの各セクションが表示される", async ({ page }) => {
     // WeekStatusPanel（PC の右カラム）
     await expect(page.getByRole("heading", { name: "今週の進捗", level: 2 })).toBeVisible();
