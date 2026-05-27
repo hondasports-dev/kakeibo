@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "../../convex/_generated/dataModel";
@@ -505,8 +505,8 @@ describe("ReceiptForm", () => {
     await user.type(shopNameInput, "手入力ストア");
 
     // 店舗名フィールドの AI候補 helperText が消える
-    const shopNameField = shopNameInput.closest(".MuiFormControl-root");
-    expect(shopNameField).not.toHaveTextContent("AI候補");
+    const shopNameField = screen.getByTestId("shop-name-field");
+    expect(within(shopNameField).queryByText("AI候補")).not.toBeInTheDocument();
   });
 
   it("週外の日付を含む抽出結果は既存入力を上書きせず日付確認エラーを表示する", async () => {

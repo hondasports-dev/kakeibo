@@ -96,7 +96,15 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     // フィールド手動編集時に AI候補 状態をクリア
     if (aiFieldStatuses && field in aiFieldStatuses) {
       setAiFieldStatuses((prev) =>
-        prev ? { ...prev, [field]: { ...prev[field as keyof typeof prev], status: "rejected" } } : null,
+        prev
+          ? {
+              ...prev,
+              [field]: {
+                ...prev[field as keyof typeof prev],
+                status: "rejected",
+              },
+            }
+          : null,
       );
     }
   };
@@ -263,8 +271,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               error={!!errors.date}
               fullWidth
               helperText={
-                errors.date ||
-                (aiFieldStatuses?.date.status === "applied" ? "AI候補" : undefined)
+                errors.date || (aiFieldStatuses?.date.status === "applied" ? "AI候補" : undefined)
               }
               id="receipt-date"
               label="日付"
@@ -283,6 +290,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
 
             <TextField
               autoComplete="organization"
+              data-testid="shop-name-field"
               error={!!errors.shopName}
               fullWidth
               helperText={
