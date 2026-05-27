@@ -15,7 +15,7 @@
 ## ブランチ運用
 
 - `main` は保護対象のデフォルトブランチとする。
-- 作業ブランチは、ローカルの `main` を最新化してから `git worktree` で作成する。
+- コード変更を含む作業ブランチは、ローカルの `main` を最新化してから原則 `git worktree` で作成する。
 - `main` へ直接 push しない。
 - ブランチ名は読みやすければよく、厳密な命名規則は設けない。
 
@@ -26,7 +26,7 @@ git checkout main
 git pull
 ```
 
-その後、作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
+その後、コード変更を含む作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
 作業ごとのディレクトリを分けます。
 
 ```bash
@@ -36,8 +36,10 @@ cd ../kakeibo-worktrees/<branch-name>
 
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
-`issue-delivery` Skill や Implementer ロールで作業開始時に作成する作業ブランチも、
-この `git worktree` 手順に従います。
+`issue-delivery` Skill や Implementer ロールで作業ブランチを作成する場合も、
+この `git worktree` 手順に従います。ただし、ドキュメントのみの改善、マージ後の
+`main` 最新化、またはユーザーが既存PRへ混ぜるよう明示した修正では、新しい
+`git worktree` を機械的に作成しません。
 
 推奨例:
 
@@ -80,6 +82,9 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 `issue-delivery` Skill で Issue を処理する場合、Issue は人間と Codex / Devin の
 共通の作業台帳として扱います。作業開始時に Issue 本文へタスクリストを追加できる場合は
 本文を更新し、本文更新ができない場合は「Issue Delivery タスク台帳」コメントを投稿します。
+ただし、一時作業メモとして `e2e-test-case.md`、`implementation-plan.md`、
+`delivery-notes.md` のようなファイルは作りません。検討内容は Issue コメント、
+PR本文、または既存docsへ集約します。
 
 台帳には少なくとも次を含めます。
 
@@ -96,22 +101,24 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 作業を止めず、タスク台帳を更新して該当フェーズへ戻ります。これにより、途中から人間が
 確認しても、エージェントが再開しても、現在位置と未完了タスクを Issue から追跡できます。
 
-### Issue の要件確認（Product Lead 3エージェント並列評価）
+### Issue の要件確認（プロダクトリード3エージェント並列評価）
 
 `issue-delivery` Skill を使って Issue を処理する場合、フェーズ0（Product Lead 要件確認）では
-**3人の Product Lead エージェントを並列で起動**して要件を評価します。
+**3人のプロダクトリードサブエージェントを並列で起動**して要件を評価します。
+Codexでサブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探し、
+`multi_agent_v1.spawn_agent` が使える場合は次の固定名をプロンプトに含めて起動します。
 
 | エージェント | 担当観点                                 |
 | ------------ | ---------------------------------------- |
-| PL-A         | ユーザー価値・解く課題・ペルソナ         |
-| PL-B         | MVPスコープ・フィーチャークリープ検出    |
-| PL-C         | 完了条件の検証可能性・受け入れ基準の粒度 |
+| プロダクトリードA サブエージェント | ユーザー価値・解く課題・ペルソナ |
+| プロダクトリードB サブエージェント | 最小スコープ・スコープ肥大化検出 |
+| プロダクトリードC サブエージェント | 完了条件の検証可能性・受け入れ基準の粒度 |
 
 3エージェントの評価を統合して `approved` / `needs_discussion` の最終判定を出します。
 詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
 
 UI/UXを変更するIssueでは、Product Leadとの要件定義フェーズで
-**Optional UX/UI Designer エージェントも起動**し、Product Lead 3エージェントの評価と
+**UX/UIデザイナー サブエージェントも起動**し、Product Lead 3エージェントの評価と
 並行して議論させます。
 
 UI/UX変更に含める範囲:
@@ -168,6 +175,7 @@ Pull Request には次の内容を書きます。
 - 関連 Issue がある場合はそのリンク
 - UI 変更がある場合は、必要に応じてスクリーンショット
 - 関連する場合は Convex/Auth への影響
+- 追加または更新したテスト、E2Eを追加しない場合はその理由
 
 `issue-delivery` Skill で作成する Pull Request では、PR 本文または PR コメントに
 終了条件タスクを置きます。PR はこのタスクがすべて完了してからマージします。
@@ -181,8 +189,8 @@ Pull Request には次の内容を書きます。
 - [ ] `pnpm test --run` がローカルで成功している
 - [ ] `pnpm run lint` がローカルで成功している
 - [ ] `pnpm run build` がローカルで成功している
-- [ ] `pnpm run e2e --project=chromium` がローカルで成功している
-- [ ] GitHub Actions の全 check が成功している
+- [ ] `pnpm run e2e -- --project=chromium` がローカルで成功している
+- [ ] GitHub Actions の全チェックが成功している
 - [ ] Reviewer の指摘がすべて解決済み
 - [ ] QA Agent の E2E 結果確認が `success`
 - [ ] 未解決の conversation がない
@@ -261,7 +269,7 @@ E2E 本体へ進みません。
 | `pnpm run lint`                         | ✅ 必須       | ESLintによるTypeScript/React hooksチェック                 |
 | `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
 | `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数と src/validation/ を対象        |
-| `pnpm run e2e:smoke --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
+| `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
 
 **注意事項:**
 
@@ -306,21 +314,23 @@ Pull Request ごとに Vercel Preview に対して GitHub Actions で Playwright
 E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を自動起動します。
 
 ```bash
-pnpm run e2e:smoke --project=chromium
+pnpm run e2e:smoke -- --project=chromium
 ```
 
 E2E 用環境変数が未設定の場合はスキップしてよく、その場合は CI の E2E 結果に委ねます。
 
 `issue-delivery` Skill で PR マージまで全自動運用する場合は、ローカル E2E を CI 任せに
-しません。PR 作成前および差し戻し修正後に、ローカルで全 E2E を完走します。
+しません。PR 作成前および差し戻し修正後に、ローカルで必要な E2E を完走します。
+広い導線や認証・データ保存に触る変更では全 E2E を実行し、変更が限定的なら
+該当 spec または smoke E2E に絞ってよいです。
 
 ```bash
-pnpm run e2e --project=chromium
+pnpm run e2e -- --project=chromium
 ```
 
 環境変数不足、Clerk/Convex/Vercel の一時的な問題などでローカル E2E が実行不能な場合は、
 先へ進まず、Issue と PR に実行不能理由、必要な設定、再実行条件を記録して判断します。
-GitHub Actions についても、E2E だけでなく全 check が完了し、すべて `success` になってから
+GitHub Actions についても、E2E だけでなく全チェックが完了し、すべて `success` になってから
 PR をマージします。
 
 ただし Markdown のみの変更では、GitHub Actions / E2E の成功確認は不要です。
@@ -330,6 +340,8 @@ PR をマージします。
 - Product Lead の完了条件と Tech Lead のテスト方針を照合する。
 - 既存テストでカバーできる場合は、新規 E2E を増やさず `e2e/` の該当ファイルを参照する。
 - 新規シナリオが必要な場合は、優先度（P0/P1/P2）、カテゴリ、Given / When / Then、テストデータ・cleanup 要否を決める。
+- テストケース判断のためだけに `e2e-test-case.md` のような一時ファイルを作らない。要件、コード、既存テストを読んで判断する。
+- 恒久的なシナリオ台帳を更新する必要がある場合だけ、`docs/e2e-test-cases.md` を最小差分で更新する。
 - E2E は、ユーザー価値に直結する主要導線、認証・権限、データ保存、重大な回帰リスクを優先する。
 - 細かいバリデーション分岐や境界値の大半は、単体テストまたは統合テストで確認する。
 - QA Agent に Secret 値を渡さない。必要な場合は GitHub Actions Secrets に設定済みであることだけを前提条件にする。
@@ -555,10 +567,10 @@ Hotfix も Pull Request を経由します。
 - Pull Request の差分はできるだけ小さくする。
 - 必須 CI を実行する。
 - レビュー後、速やかにマージする。
-- マージ後、原因、影響、再発防止の follow-up を Issue または Pull Request に記録する。
+- マージ後、原因、影響、再発防止の後続対応を Issue または Pull Request に記録する。
 
 緊急 hotfix 時に、必須 CI が無関係な環境要因でブロックされている場合のみ、
-Tech Lead はリスク、手動確認内容、follow-up Issue を記録したうえでマージを承認できます。
+Tech Lead はリスク、手動確認内容、後続 Issue を記録したうえでマージを承認できます。
 
 Hotfix を通常のレビュー回避手段として使ってはいけません。
 
@@ -566,7 +578,7 @@ Hotfix を通常のレビュー回避手段として使ってはいけません�
 
 初期段階では、厳密な GitHub Projects 運用は必須にしません。
 
-まずは Issue と Pull Request を作業の source of truth とします。複数の作業を横断して
+まずは Issue と Pull Request を作業の正本とします。複数の作業を横断して
 計画する必要が出てきたら、GitHub Project を導入します。
 
 Project を導入する場合は、次のシンプルな status flow から始めます。

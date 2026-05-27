@@ -440,8 +440,13 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async ({ page }) => {
+    await cleanupTestReceipts();
     await gotoAuthenticated(page, "/weeks/current/input");
     await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
+  });
+
+  test.afterEach(async () => {
+    await cleanupTestReceipts();
   });
 
   test("@smoke [Issue #14] 入力状況パネルの各セクションが表示される", async ({ page }) => {
@@ -513,6 +518,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async ({ page }) => {
+    await cleanupTestReceipts();
     await gotoAuthenticated(page, "/weeks/current/input");
     await expect(page.getByRole("heading", { name: "今週のレシート入力" })).toBeVisible();
   });

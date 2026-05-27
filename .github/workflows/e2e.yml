@@ -177,7 +177,7 @@ jobs:
       # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）
       - name: Upload test results on failure
         if: failure() && steps.trust.outputs.trusted == 'true'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-${{ github.run_id }}
           path: |

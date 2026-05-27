@@ -1,4 +1,5 @@
 import { Button, Stack, Typography } from "@mui/material";
+import { formatWeekPeriod } from "../lib/weekNavigation";
 
 type WeekNavigatorProps = {
   weekStartDate: string;
@@ -7,15 +8,6 @@ type WeekNavigatorProps = {
   onPreviousWeek: () => void;
   onNextWeek: () => void;
 };
-
-function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
-  const start = new Date(`${weekStartDate}T00:00:00`);
-  const end = new Date(`${weekEndDate}T00:00:00`);
-
-  return `${start.getFullYear()}年${start.getMonth() + 1}月${start.getDate()}日 - ${
-    end.getMonth() + 1
-  }月${end.getDate()}日`;
-}
 
 export function WeekNavigator({
   weekStartDate,

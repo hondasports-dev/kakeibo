@@ -77,8 +77,8 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.0)(tsx@4.21.0)(yaml@2.9.0))
       chrome-devtools-mcp:
-        specifier: ^0.25.0
-        version: 0.25.0
+        specifier: ^1.1.0
+        version: 1.1.0
       clerk:
         specifier: ^1.1.1
         version: 1.1.1
@@ -1662,8 +1662,8 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chrome-devtools-mcp@0.25.0:
-    resolution: {integrity: sha512-A6Zh3iH+O7lvjhUOQNxbxMy6KJhKnMtVKb+37oy4QcnDp7JEJYKkeqtsw4hFXJG5ISfNTVlaWxKsKLxRdJAAUA==}
+  chrome-devtools-mcp@1.1.0:
+    resolution: {integrity: sha512-oxRGj24Wr1uhL4jVQFcxbiHjxcvOAiDPpjGQGsMylsiwfyjw0C5RGbPl5PCEw9FQlhBZ39djMh9cuJwG0TOzZQ==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
     hasBin: true
 
@@ -4565,7 +4565,7 @@ snapshots:
 
   chownr@3.0.0: {}
 
-  chrome-devtools-mcp@0.25.0: {}
+  chrome-devtools-mcp@1.1.0: {}
 
   cjs-module-lexer@1.2.3: {}
 

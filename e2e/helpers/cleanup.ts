@@ -56,7 +56,7 @@ export async function resetTestWeekSession(weekStartDate: string): Promise<void>
 }
 
 function getCleanupUserId(): string | undefined {
-  return process.env.E2E_CLERK_USER_ID;
+  return process.env.E2E_CLERK_USER_ID?.trim().replace(/^["']+|["']+$/g, "");
 }
 
 /**
