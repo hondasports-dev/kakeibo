@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import {
   normalizeReceiptExtraction,
+  type NormalizedReceiptExtraction,
   type NormalizedReceiptFields,
 } from "../validation/receiptExtraction";
 
@@ -23,10 +24,11 @@ import {
 // ---------------------------------------------------------------------------
 
 export type ExtractedReceiptFields = NormalizedReceiptFields;
+export type ExtractedReceiptResult = Pick<NormalizedReceiptExtraction, "fields" | "fieldStatuses">;
 
 interface ReceiptImageExtractorProps {
   /** 抽出成功時に呼ばれるコールバック */
-  onExtracted: (fields: ExtractedReceiptFields) => void;
+  onExtracted: (result: ExtractedReceiptResult) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -198,7 +200,7 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
     try {
       const imageDataUrl = await resizeImageToDataUrl(selectedFile);
       const result = normalizeReceiptExtraction(await extractReceiptFields({ imageDataUrl }));
-      onExtracted(result.fields);
+      onExtracted({ fields: result.fields, fieldStatuses: result.fieldStatuses });
       setNoticeMessages([...new Set(result.issueMessages)]);
       // 抽出成功後は選択状態をリセット
       clearSelectedImage({ keepNotice: result.issueMessages.length > 0 });

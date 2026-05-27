@@ -15,17 +15,7 @@ import { ReceiptForm } from "../components/ReceiptForm";
 import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
 import { WeekStatusPanel } from "../components/WeekStatusPanel";
 import { useWeekSession } from "../hooks/useWeekSession";
-
-function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
-  const start = new Date(weekStartDate + "T00:00:00");
-  const end = new Date(weekEndDate + "T00:00:00");
-  const sy = start.getFullYear();
-  const sm = start.getMonth() + 1;
-  const sd = start.getDate();
-  const em = end.getMonth() + 1;
-  const ed = end.getDate();
-  return `${sy}年${sm}月${sd}日 - ${em}月${ed}日`;
-}
+import { formatWeekPeriod } from "../lib/weekNavigation";
 
 export function InputPage() {
   const theme = useTheme();

@@ -80,6 +80,8 @@ commit、push、PR作成を行いません。
 ### 1. テスト観点表（等価分割・境界値）
 
 テスト作業を開始する前に、必ず Markdown 形式のテスト観点表を提示する。
+これは会話、PR本文、またはIssueコメントへ記録するための表であり、
+`e2e-test-case.md` や `implementation-plan.md` のような一時ファイルとして作成しない。
 
 | Case ID | Input / Precondition | Perspective (Equivalence / Boundary) | Expected Result | Notes |
 |---------|----------------------|--------------------------------------|-----------------|-------|
