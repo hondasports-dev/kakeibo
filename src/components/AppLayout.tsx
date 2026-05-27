@@ -21,22 +21,10 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { normalizeWeekStartDate } from "../lib/weekNavigation";
+import { getCurrentWeekStartDate } from "../lib/weekNavigation";
+import { getClerkErrorMessage } from "../lib/clerkError";
 
 const DRAWER_WIDTH = 220;
-
-function getClerkErrorMessage(error: unknown, fallbackMessage: string) {
-  const clerkError = error as {
-    errors?: Array<{ longMessage?: string; message?: string }>;
-  };
-  return clerkError.errors?.[0]?.longMessage ?? clerkError.errors?.[0]?.message ?? fallbackMessage;
-}
-
-function getCurrentWeekStartDate(): string {
-  const now = new Date();
-  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return normalizeWeekStartDate(iso) ?? iso;
-}
 
 function UserMenu() {
   const { openUserProfile, signOut } = useClerk();

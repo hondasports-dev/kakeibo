@@ -2,6 +2,7 @@ import { Box, Divider, LinearProgress, Paper, Skeleton, Stack, Typography } from
 import type { FourWeeksSummaryData } from "../../convex/receipts";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
+import { formatDateForDisplay } from "../lib/dateFormat";
 
 type CategorySummary = {
   categoryId: string;
@@ -39,11 +40,6 @@ type WeeklySummaryPanelProps = {
    */
   weeklyTrendData?: FourWeeksSummaryData | null;
 };
-
-function formatDateForDisplay(isoDate: string): string {
-  const d = new Date(isoDate + "T00:00:00");
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
 
 export function WeeklySummaryPanel({
   count,

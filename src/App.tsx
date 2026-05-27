@@ -6,16 +6,10 @@ import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { useInitializeUser } from "./hooks/useInitializeUser";
 import { router } from "./router";
+import { getClerkErrorMessage } from "./lib/clerkError";
 import "./App.css";
 
 const OAUTH_CALLBACK_PATH = "/sso-callback";
-
-function getClerkErrorMessage(error: unknown, fallbackMessage: string) {
-  const clerkError = error as {
-    errors?: Array<{ longMessage?: string; message?: string }>;
-  };
-  return clerkError.errors?.[0]?.longMessage ?? clerkError.errors?.[0]?.message ?? fallbackMessage;
-}
 
 function App() {
   if (window.location.pathname === OAUTH_CALLBACK_PATH) {
