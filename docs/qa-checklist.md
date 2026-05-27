@@ -6,6 +6,29 @@
 
 CI チェックの詳細は `docs/development-process.md`「CI とマージ条件」を参照してください。
 
+### ローカル確認コマンド
+
+変更内容に応じて、次を選択して実行します。
+
+```bash
+pnpm test --run
+pnpm run lint
+pnpm run build
+pnpm run e2e:smoke -- --project=chromium
+pnpm run e2e -- --project=chromium
+```
+
+`issue-delivery` でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
+ローカルで必要なE2Eを実行します。環境変数不足や外部サービス要因で実行できない場合は、
+成功扱いにせず、IssueまたはPRに未実行理由、未確認リスク、再実行条件を記録します。
+
+### テストケース判断
+
+- E2E・ユニットテストの追加要否は、要件、実装コード、既存テストを読んで判断します。
+- 判断のためだけに `e2e-test-case.md` のような一時ファイルは作りません。
+- 恒久的なE2Eシナリオ台帳を更新する必要がある場合だけ、`docs/e2e-test-cases.md` を最小差分で更新します。
+- 細かい入力バリデーションや境界値はユニットテストを優先し、E2Eは主要導線、認証・権限、データ保存、重大な回帰リスクへ絞ります。
+
 ## Clerk Restricted mode + Invitation 手動 QA
 
 Clerk Dashboard で Restricted mode を有効にした状態での公開範囲検証です。
