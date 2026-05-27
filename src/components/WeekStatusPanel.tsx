@@ -8,6 +8,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { formatDateForDisplay } from "../lib/dateFormat";
 
 type Receipt = {
   _id: string;
@@ -21,11 +22,6 @@ type WeekStatusPanelProps = {
   budgetAmountYen?: number;
   isLoading?: boolean;
 };
-
-function formatDateForDisplay(isoDate: string): string {
-  const d = new Date(isoDate + "T00:00:00");
-  return `${d.getMonth() + 1}/${d.getDate()}`;
-}
 
 export function WeekStatusPanel({
   receipts,

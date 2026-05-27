@@ -55,3 +55,56 @@ export function getWeekEndDate(weekStartDate: string): string {
 export function isFutureWeek(weekStartDate: string, currentWeekStartDate: string): boolean {
   return weekStartDate > currentWeekStartDate;
 }
+
+/**
+ * 現在日付（ローカルタイム）から月曜始まりの週開始日を計算する。
+ */
+export function getCurrentWeekStartDate(): string {
+  const now = new Date();
+  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  return normalizeWeekStartDate(iso) ?? iso;
+}
+
+/**
+ * weekStartDate から weekEndDate までの日付リストを生成する。
+ */
+export function generateWeekDays(
+  weekStartDate: string,
+  weekEndDate: string,
+): Array<{ label: string; date: string; isoDate: string }> {
+  const dayLabels = ["日", "月", "火", "水", "木", "金", "土"];
+  const days: Array<{ label: string; date: string; isoDate: string }> = [];
+  const start = new Date(weekStartDate + "T00:00:00");
+  const end = new Date(weekEndDate + "T00:00:00");
+
+  const current = new Date(start);
+  while (current <= end) {
+    const m = current.getMonth() + 1;
+    const d = current.getDate();
+    const y = current.getFullYear();
+    const mm = String(m).padStart(2, "0");
+    const dd = String(d).padStart(2, "0");
+    days.push({
+      label: dayLabels[current.getDay()],
+      date: `${m}/${d}`,
+      isoDate: `${y}-${mm}-${dd}`,
+    });
+    current.setDate(current.getDate() + 1);
+  }
+  return days;
+}
+
+/**
+ * 週の開始日と終了日を日本語形式の文字列にフォーマットする。
+ * 例: "2026年5月18日 - 5月24日"
+ */
+export function formatWeekPeriod(weekStartDate: string, weekEndDate: string): string {
+  const start = new Date(weekStartDate + "T00:00:00");
+  const end = new Date(weekEndDate + "T00:00:00");
+  const sy = start.getFullYear();
+  const sm = start.getMonth() + 1;
+  const sd = start.getDate();
+  const em = end.getMonth() + 1;
+  const ed = end.getDate();
+  return `${sy}年${sm}月${sd}日 - ${em}月${ed}日`;
+}

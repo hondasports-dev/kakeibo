@@ -13,14 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
-
-type WeekSession = {
-  weekStartDate: string;
-  weekEndDate: string;
-  status: "draft" | "completed";
-  budgetAmountYen?: number;
-  reviewMemo?: string;
-};
+import type { WeekSession } from "../hooks/useWeekSession";
 
 type ReviewMemoPanelProps = {
   weekSession: WeekSession;
