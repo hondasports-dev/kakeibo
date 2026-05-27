@@ -1,9 +1,14 @@
 # E2Eテストケース一覧
 
+このドキュメントは恒久的に残す主要E2Eシナリオの台帳です。最新の実行可能なテスト定義は
+`e2e/`、`src/**/*.test.*`、`convex/**/*.test.ts` を正本とし、テストケース判断のためだけに
+`e2e-test-case.md` のような一時ファイルは作りません。
+
 ## 更新履歴
 
 | 日付 | Issue | 内容 |
 |------|-------|------|
+| 2026-05-27 | - | 現在のE2E実装に合わせ、認証・基本表示・月収入シナリオと運用方針を追加 |
 | 2026-05-26 | #63 | 画像外部API送信の同意・拒否フォールバック方針を追加 |
 | 2026-05-24 | #65 | レシート画像抽出 Convex Action 連携シナリオ I65-1〜I65-5 追加 |
 | 2026-05-24 | #64 | レシート画像アップロードUI シナリオ I64-1 追加 |
@@ -11,6 +16,22 @@
 | 2025-01-23 | #49 | responsive.spec.ts R-1/R-2 削除、R-3 更新 |
 
 ## シナリオ一覧
+
+### 認証・基本表示 (auth.spec.ts / receipt-form.spec.ts)
+
+| ID | シナリオ | 優先度 | カテゴリ | ファイル |
+|----|---------|--------|---------|---------|
+| A-4 | ログアウトするとログイン画面に戻る | P0 | auth | auth.spec.ts |
+| B-2 | ログイン済みでアクセスするとダッシュボードが表示される | P0 | smoke | receipt-form.spec.ts |
+| B-3 | ページリロードしてもログイン状態が維持される | P0 | smoke | receipt-form.spec.ts |
+| B-5 | 必須項目を入力して保存すると店名・金額がクリアされる | P0 | smoke | receipt-form.spec.ts |
+
+### 月収入と残金表示 (monthly-income.spec.ts)
+
+| ID | シナリオ | 優先度 | カテゴリ | ファイル |
+|----|---------|--------|---------|---------|
+| M-1 | 月収入未設定時に残金プロンプトが表示される | P0 | smoke | monthly-income.spec.ts |
+| M-2 | 月収入を設定すると残金が表示される | P0 | smoke | monthly-income.spec.ts |
 
 ### Issue #49: UIの機能整理 (navigation.spec.ts)
 
@@ -45,11 +66,11 @@
 
 | ID | シナリオ | 優先度 | カテゴリ | ファイル |
 |----|---------|--------|---------|---------|
-| I65-1 | mock mode で画像から shopName/date/amountYen 候補を抽出しフォームに反映する | P0 | smoke | receipt-image-extraction.spec.ts |
-| I65-2 | OPENAI_API_KEY がフロントエンド HTML、同一 origin JS、localStorage、ブラウザリクエストに露出しない | P0 | security | receipt-image-extraction.spec.ts |
-| I65-3 | 抽出エラー時に手入力フォールバック導線が表示され、手入力保存できる | P1 | error-handling | receipt-image-extraction.spec.ts |
-| I65-4 | 画像以外のファイルを選択するとエラーを表示し、抽出を開始できない | P1 | validation | receipt-image-extraction.spec.ts |
-| I65-5 | 画像入力セクションが ReceiptForm に統合され、未選択時は読み取りを開始できない | P0 | smoke | receipt-image-extraction.spec.ts |
+| I65-1 | mock mode で画像から shopName/date/amountYen 候補を抽出しフォームに反映する | P0 | smoke | receipt-image-extraction.spec.ts（実装名 I-1） |
+| I65-2 | OPENAI_API_KEY がフロントエンド HTML、同一 origin JS、localStorage、ブラウザリクエストに露出しない | P0 | security | receipt-image-extraction.spec.ts（実装名 I-2） |
+| I65-3 | 抽出エラー時に手入力フォールバック導線が表示され、手入力保存できる | P1 | error-handling | receipt-image-extraction.spec.ts（実装名 I-3） |
+| I65-4 | 画像以外のファイルを選択するとエラーを表示し、抽出を開始できない | P1 | validation | receipt-image-extraction.spec.ts（実装名 I-4） |
+| I65-5 | 画像入力セクションが ReceiptForm に統合され、未選択時は読み取りを開始できない | P0 | smoke | receipt-image-extraction.spec.ts（実装名 I-5） |
 
 ### 既存シナリオ (responsive.spec.ts)
 
@@ -62,6 +83,57 @@
 ---
 
 ## 詳細シナリオ
+
+### 認証・基本表示
+
+#### シナリオ A-4: ログアウトするとログイン画面に戻る (P0/auth)
+
+**Given:** ユーザーがログイン済み状態でアプリを開く
+**When:** ログアウト操作を行う
+**Then:**
+- ログイン画面に戻る
+- 認証済みユーザー向けの主要画面が表示されない
+
+#### シナリオ B-2: ログイン済みでアクセスするとダッシュボードが表示される (P0/smoke)
+
+**Given:** ユーザーがログイン済み状態で `/` を開く
+**Then:**
+- ダッシュボードの主要UIが表示される
+- Vite overlay や認証エラーが表示されない
+
+#### シナリオ B-3: ページリロードしてもログイン状態が維持される (P0/smoke)
+
+**Given:** ユーザーがログイン済み状態でアプリを開く
+**When:** ページをリロードする
+**Then:**
+- ログイン済み状態が維持される
+- ダッシュボードの主要UIが再表示される
+
+#### シナリオ B-5: 必須項目を入力して保存すると店名・金額がクリアされる (P0/smoke)
+
+**Given:** ユーザーがログイン済み状態で入力画面を開く
+**When:** 店名、金額、カテゴリなどの必須項目を入力して保存する
+**Then:**
+- 保存成功後、連続入力しやすいように店名・金額がクリアされる
+- 保存操作後も入力画面を継続利用できる
+
+### 月収入と残金表示
+
+#### シナリオ M-1: 月収入未設定時に残金プロンプトが表示される (P0/smoke)
+
+**Given:** ユーザーがログイン済みで、月収入が未設定
+**When:** ダッシュボードを開く
+**Then:**
+- 月収入設定を促す表示が出る
+- 残金は確定値として表示されない
+
+#### シナリオ M-2: 月収入を設定すると残金が表示される (P0/smoke)
+
+**Given:** ユーザーがログイン済みで、月収入を設定できる状態
+**When:** 月収入を設定する
+**Then:**
+- 月収入が保存される
+- 当月支出を差し引いた残金が表示される
 
 ### Issue #49: UIの機能整理
 
