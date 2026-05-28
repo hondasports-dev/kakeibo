@@ -40,6 +40,10 @@ GitHub Issue対応を、外部コンテンツ隔離、worktree分離、t_wada流
 | フォーマッターやテストツールが環境要因で失敗した | `systematic-debugging` で根因を調べ、最新の検証が通るまで完了扱いにしない。 |
 | E2Eのクリーンアップが別ユーザーを対象にしていた | `.env.local` の存在と秘密値の安全性を確認し、秘密値や `userId` を表示せず `deletedCount` などの結果だけでクリーンアップを検証する。 |
 | ドラフトPR本文に運用上の注意が不足しそうだった | 検証コマンド、外部サービス影響、ローカルenvの一時対応を必要に応じてPR本文に書く。 |
+| worktreeに `.env.local` がなくE2Eが起動できなかった | worktree作成後、E2E実行前に `.env.local` の有無を確認し、なければ main から手動コピーする。コピーしたら `service-ops-safety` を読む。 |
+| `pnpm run e2e -- --project=chromium` で引数が正しく渡らなかった | E2Eは `pnpm exec playwright test --project=chromium` で直接実行する。`pnpm run e2e --` 構文はPlaywrightに引数が届かないケースがある。 |
+| E2E失敗が今回の変更由来か既存のflakyか判別できなかった | E2E失敗時はまず main ブランチで同じテストを単体実行して再現するか確認する。main でも失敗すれば既存のflaky。 |
+| E2E実行前にConvex devが起動しているか確認しなかった | `pnpm run e2e` 実行前に `convex dev` が起動中か確認する。起動していない場合はバックグラウンドで起動してから実行する。 |
 
 ## 手順
 
