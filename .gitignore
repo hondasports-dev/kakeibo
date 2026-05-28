@@ -36,6 +36,8 @@ playwright/.clerk/
 !.agents/skills/browser-verification/**
 !.agents/skills/issue-delivery/
 !.agents/skills/issue-delivery/**
+!.agents/skills/issue-tdd-workflow/
+!.agents/skills/issue-tdd-workflow/**
 !.agents/skills/prompt-injection-guard/
 !.agents/skills/prompt-injection-guard/**
 !.agents/skills/service-ops-safety/
