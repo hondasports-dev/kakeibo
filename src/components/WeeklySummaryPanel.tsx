@@ -15,7 +15,9 @@ type CategorySummary = {
 type ReceiptItem = {
   _id: string;
   date: string;
-  shopName: string;
+  type?: "expense" | "income";
+  shopName?: string;
+  bankName?: string;
   amountYen: number;
   categoryId: string;
   categoryName: string;
@@ -272,7 +274,9 @@ export function WeeklySummaryPanel({
                             flexShrink: 0,
                           }}
                         />
-                        <Typography sx={{ fontWeight: 700 }}>{receipt.shopName}</Typography>
+                        <Typography sx={{ fontWeight: 700 }}>
+                          {receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? "")}
+                        </Typography>
                       </Stack>
                       <Stack direction="row" spacing={1}>
                         <Typography color="text.secondary" variant="body2">

@@ -23,7 +23,12 @@ export default defineSchema({
   receipts: defineTable({
     userId: v.string(),
     date: v.string(),
-    shopName: v.string(),
+    // type は支出(expense) / 収入(income) を区別する。既存レコードとの後方互換のため optional とする。
+    type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
+    // shopName は支出の場合に使用する。後方互換のため optional とする。
+    shopName: v.optional(v.string()),
+    // bankName は収入の場合に使用する。
+    bankName: v.optional(v.string()),
     amountYen: v.number(),
     categoryId: v.id("categories"),
     // memo は任意入力のため optional とする。

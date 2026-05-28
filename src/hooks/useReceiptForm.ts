@@ -6,13 +6,25 @@ import { validateReceiptForm, type ReceiptFormErrors } from "../validation/recei
 import type { ExtractedReceiptResult } from "../components/ReceiptImageExtractor";
 import type { NormalizedReceiptExtraction } from "../validation/receiptExtraction";
 
-type ReceiptFormValues = {
+type ExpenseFormValues = {
+  type: "expense";
   date: string;
   shopName: string;
   amountYen: string;
   categoryId: Id<"categories"> | "";
   memo: string;
 };
+
+type IncomeFormValues = {
+  type: "income";
+  date: string;
+  bankName: string;
+  amountYen: string;
+  categoryId: Id<"categories"> | "";
+  memo: string;
+};
+
+type ReceiptFormValues = ExpenseFormValues | IncomeFormValues;
 
 type UseReceiptFormArgs = {
   weekStartDate: string;
@@ -22,7 +34,10 @@ type UseReceiptFormArgs = {
 
 export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseReceiptFormArgs) {
   const shopNameRef = useRef<HTMLInputElement>(null);
+  const bankNameRef = useRef<HTMLInputElement>(null);
+
   const [formValues, setFormValues] = useState<ReceiptFormValues>({
+    type: "expense",
     date: weekStartDate,
     shopName: "",
     amountYen: "",
@@ -49,6 +64,22 @@ export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseRe
     categories.some((category) => category._id === formValues.categoryId)
       ? formValues.categoryId
       : firstCategoryId;
+
+  const handleTypeChange = (newType: "expense" | "income") => {
+    const base = {
+      date: formValues.date,
+      amountYen: formValues.amountYen,
+      categoryId: formValues.categoryId,
+      memo: formValues.memo,
+    };
+    if (newType === "income") {
+      setFormValues({ type: "income", bankName: "", ...base });
+    } else {
+      setFormValues({ type: "expense", shopName: "", ...base });
+    }
+    setErrors({});
+    setAiFieldStatuses(null);
+  };
 
   const handleFieldChange = (field: string, value: string) => {
     setFormValues((prev) => ({ ...prev, [field]: value }));
@@ -86,7 +117,7 @@ export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseRe
 
     setFormValues((prev) => ({
       ...prev,
-      ...(fields.shopName ? { shopName: fields.shopName } : {}),
+      ...(prev.type === "expense" && fields.shopName ? { shopName: fields.shopName } : {}),
       // weekStartDate〜weekEndDate 範囲内であれば日付を反映、範囲外は無視
       date: fields.date ? fields.date : prev.date,
       // amountYen は文字列として保持（カンマ区切り表示のため）
@@ -116,21 +147,37 @@ export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseRe
     setStatus("submitting");
     setApiError("");
     try {
-      await createReceipt({
-        date: validation.data.date,
-        shopName: validation.data.shopName,
-        amountYen: validation.data.amountYen,
-        categoryId: validation.data.categoryId as Id<"categories">, // バリデーション済みの categoryId
-        memo: validation.data.memo,
-      });
-      // 保存成功 → 店名・金額・メモをクリア、日付・カテゴリを引き継ぐ
-      setFormValues((prev) => ({ ...prev, shopName: "", amountYen: "", memo: "" }));
+      if (validation.data.type === "income") {
+        await createReceipt({
+          type: "income",
+          date: validation.data.date,
+          bankName: validation.data.bankName,
+          amountYen: validation.data.amountYen,
+          categoryId: validation.data.categoryId as Id<"categories">,
+          memo: validation.data.memo,
+        });
+      } else {
+        await createReceipt({
+          type: "expense",
+          date: validation.data.date,
+          shopName: validation.data.shopName,
+          amountYen: validation.data.amountYen,
+          categoryId: validation.data.categoryId as Id<"categories">,
+          memo: validation.data.memo,
+        });
+      }
+      // 保存成功 → 名前系・金額・メモをクリア、日付・カテゴリを引き継ぐ
+      if (formValues.type === "income") {
+        setFormValues((prev) => ({ ...prev, bankName: "", amountYen: "", memo: "" }));
+        bankNameRef.current?.focus();
+      } else {
+        setFormValues((prev) => ({ ...prev, shopName: "", amountYen: "", memo: "" }));
+        shopNameRef.current?.focus();
+      }
       setErrors({});
       setAiFieldStatuses(null);
       setStatus("idle");
       setSnackbar({ open: true, severity: "success", message: "レシートを保存しました" });
-      // 店名欄にフォーカスを戻す
-      shopNameRef.current?.focus();
     } catch (err) {
       setStatus("error");
       const message =
@@ -155,6 +202,7 @@ export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseRe
 
   return {
     shopNameRef,
+    bankNameRef,
     formValues,
     errors,
     aiFieldStatuses,
@@ -162,6 +210,7 @@ export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseRe
     apiError,
     snackbar,
     selectedCategoryId,
+    handleTypeChange,
     handleFieldChange,
     handleExtracted,
     handleSubmit,

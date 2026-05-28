@@ -59,6 +59,52 @@ export const getOrCreateCurrentWeekSession = mutation({
 });
 
 // ---------------------------------------------------------------------------
+// getOrCreateWeekSession（任意週対応）
+// ---------------------------------------------------------------------------
+
+/** getOrCreateWeekSession mutation の handler ロジック（テスト用に export） */
+export async function getOrCreateWeekSessionHandler(
+  ctx: MutationCtx,
+  args: { weekStartDate: string },
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  const weekEndDate = calculateWeekEndDate(args.weekStartDate);
+
+  const existing = await ctx.db
+    .query("weekSessions")
+    .withIndex("by_user_id_and_week_start_date", (q) =>
+      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    )
+    .unique();
+
+  if (existing !== null) {
+    return existing;
+  }
+
+  const now = Date.now();
+  const sessionId = await ctx.db.insert("weekSessions", {
+    userId,
+    weekStartDate: args.weekStartDate,
+    weekEndDate,
+    status: "draft",
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const session = await ctx.db.get(sessionId);
+  if (session === null) {
+    throw new ConvexError("Failed to retrieve created week session");
+  }
+  return session;
+}
+
+export const getOrCreateWeekSession = mutation({
+  args: { weekStartDate: v.string() },
+  handler: getOrCreateWeekSessionHandler,
+});
+
+// ---------------------------------------------------------------------------
 // getWeekSession
 // ---------------------------------------------------------------------------
 

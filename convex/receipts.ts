@@ -10,13 +10,23 @@ import { calculateRelativeWeekStartDate, calculateWeekStartDate } from "./utils"
 // createReceipt
 // ---------------------------------------------------------------------------
 
-type CreateReceiptArgs = {
-  date: string;
-  shopName: string;
-  amountYen: number;
-  categoryId: Id<"categories">;
-  memo?: string;
-};
+type CreateReceiptArgs =
+  | {
+      type?: "expense";
+      date: string;
+      shopName: string;
+      amountYen: number;
+      categoryId: Id<"categories">;
+      memo?: string;
+    }
+  | {
+      type: "income";
+      date: string;
+      bankName: string;
+      amountYen: number;
+      categoryId: Id<"categories">;
+      memo?: string;
+    };
 
 /** createReceipt mutation の handler ロジック（テスト用に export） */
 export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
@@ -40,7 +50,9 @@ export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceipt
   const receiptId = await ctx.db.insert("receipts", {
     userId,
     date: args.date,
-    shopName: args.shopName,
+    type: args.type,
+    shopName: args.type === "income" ? undefined : args.shopName,
+    bankName: args.type === "income" ? args.bankName : undefined,
     amountYen: args.amountYen,
     categoryId: args.categoryId,
     memo: args.memo,
@@ -59,7 +71,9 @@ export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceipt
 export const createReceipt = mutation({
   args: {
     date: v.string(),
-    shopName: v.string(),
+    type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
+    shopName: v.optional(v.string()),
+    bankName: v.optional(v.string()),
     amountYen: v.number(),
     categoryId: v.id("categories"),
     memo: v.optional(v.string()),
@@ -321,7 +335,9 @@ export type WeekSummaryWithCategories = {
   receipts: Array<{
     _id: string;
     date: string;
-    shopName: string;
+    type?: "expense" | "income";
+    shopName?: string;
+    bankName?: string;
     amountYen: number;
     categoryId: string;
     categoryName: string;
@@ -384,7 +400,9 @@ export async function getWeekSummaryWithCategoriesHandler(
     receiptsWithCategory.push({
       _id: receipt._id,
       date: receipt.date,
+      type: receipt.type,
       shopName: receipt.shopName,
+      bankName: receipt.bankName,
       amountYen: receipt.amountYen,
       categoryId: categoryIdStr,
       categoryName: name,

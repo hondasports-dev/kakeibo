@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   getOrCreateCurrentWeekSessionHandler,
+  getOrCreateWeekSessionHandler,
   getWeekSessionHandler,
   updateReviewMemoHandler,
   completeWeekSessionHandler,
@@ -562,3 +563,50 @@ describe("completeWeekSession - 他ユーザーのセッション", () => {
 // ここで参照することでimportが無駄にならないよう型チェックを通す
 const _typecheck: WeekSessionDoc = otherUserSession;
 void _typecheck;
+
+// ---------------------------------------------------------------------------
+// getOrCreateWeekSession テスト（任意週対応）
+// ---------------------------------------------------------------------------
+
+describe("getOrCreateWeekSession", () => {
+  it("指定週の新規セッションが draft 状態で作成される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const createdSession: WeekSessionDoc = {
+      _id: "new-session-id",
+      _creationTime: 1000,
+      userId: USER_ID,
+      weekStartDate: "2024-01-01",
+      weekEndDate: "2024-01-07",
+      status: "draft",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createMutationCtx(identity, { uniqueDoc: null, insertedDoc: createdSession });
+
+    const result = await getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-01" });
+
+    expect(result.weekStartDate).toBe("2024-01-01");
+    expect(result.weekEndDate).toBe("2024-01-07");
+    expect(result.status).toBe("draft");
+    expect(result.userId).toBe(USER_ID);
+  });
+
+  it("指定週の既存セッションがある場合は新規作成せずそのまま返す（冪等性）", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, { uniqueDoc: sampleSession });
+
+    const result = await getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" });
+
+    expect(result).toEqual(sampleSession);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).not.toHaveBeenCalled();
+  });
+
+  it("未認証時: ConvexError が throw される", async () => {
+    const ctx = createMutationCtx(null);
+    await expect(
+      getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+});
