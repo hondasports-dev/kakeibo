@@ -24,7 +24,9 @@ type ReceiptDoc = {
   _creationTime: number;
   userId: string;
   date: string;
-  shopName: string;
+  type?: "expense" | "income";
+  shopName?: string;
+  bankName?: string;
   amountYen: number;
   categoryId: string;
   memo?: string;
@@ -481,6 +483,54 @@ describe("createReceipt", () => {
     ).rejects.toMatchObject({
       data: "Inactive category cannot be used for new receipts",
     });
+  });
+
+  it("収入: bankName で receipt が作成されて返される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const createdReceipt: ReceiptDoc = {
+      _id: "new-receipt-id",
+      _creationTime: 1000,
+      userId: USER_ID,
+      date: "2024-01-10",
+      type: "income",
+      bankName: "三菱UFJ銀行",
+      amountYen: 200000,
+      categoryId: "cat-001",
+      weekStartDate: "2024-01-08",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+      insertedDoc: createdReceipt,
+    });
+
+    const result = await createReceiptHandler(ctx, {
+      type: "income",
+      date: "2024-01-10",
+      bankName: "三菱UFJ銀行",
+      amountYen: 200000,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-001" as any,
+    });
+
+    expect(result).toEqual(createdReceipt);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "receipts",
+      expect.objectContaining({
+        userId: USER_ID,
+        date: "2024-01-10",
+        type: "income",
+        bankName: "三菱UFJ銀行",
+        amountYen: 200000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+      }),
+    );
   });
 });
 

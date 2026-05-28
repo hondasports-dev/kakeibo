@@ -3,6 +3,7 @@ import { validateReceiptForm } from "./receipt";
 
 describe("validateReceiptForm", () => {
   const validInput = {
+    type: "expense" as const,
     date: "2026-05-12",
     shopName: "スーパー北浜",
     amountYen: "4280",
@@ -10,15 +11,65 @@ describe("validateReceiptForm", () => {
     memo: "特売日",
   };
 
-  it("全フィールド正常 → success: true", () => {
+  const validIncomeInput = {
+    type: "income" as const,
+    date: "2026-05-12",
+    bankName: "三菱UFJ銀行",
+    amountYen: "200000",
+    categoryId: "abc123",
+    memo: "給与",
+  };
+
+  it("支出: 全フィールド正常 → success: true", () => {
     const result = validateReceiptForm(validInput);
     expect(result.success).toBe(true);
-    if (result.success) {
+    if (result.success && result.data.type === "expense") {
+      expect(result.data.type).toBe("expense");
       expect(result.data.date).toBe("2026-05-12");
       expect(result.data.shopName).toBe("スーパー北浜");
       expect(result.data.amountYen).toBe(4280);
       expect(result.data.categoryId).toBe("abc123");
       expect(result.data.memo).toBe("特売日");
+    }
+  });
+
+  it("収入: 全フィールド正常 → success: true", () => {
+    const result = validateReceiptForm(validIncomeInput);
+    expect(result.success).toBe(true);
+    if (result.success && result.data.type === "income") {
+      expect(result.data.type).toBe("income");
+      expect(result.data.date).toBe("2026-05-12");
+      expect(result.data.bankName).toBe("三菱UFJ銀行");
+      expect(result.data.amountYen).toBe(200000);
+      expect(result.data.categoryId).toBe("abc123");
+      expect(result.data.memo).toBe("給与");
+    }
+  });
+
+  it("収入: bankName 空 → success: false, errors.bankName あり", () => {
+    const result = validateReceiptForm({ ...validIncomeInput, bankName: "" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.bankName).toBeDefined();
+    }
+  });
+
+  it("収入: shopName なし → success: true（収入には店名不要）", () => {
+    const result = validateReceiptForm(validIncomeInput);
+    expect(result.success).toBe(true);
+  });
+
+  it("支出: bankName なし → success: true（支出には銀行名不要）", () => {
+    const result = validateReceiptForm(validInput);
+    expect(result.success).toBe(true);
+  });
+
+  it("type なし → success: false, errors.type あり", () => {
+    const { type: _type, ...withoutType } = validInput; // eslint-disable-line @typescript-eslint/no-unused-vars
+    const result = validateReceiptForm(withoutType);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.errors.type).toBeDefined();
     }
   });
 

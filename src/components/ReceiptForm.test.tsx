@@ -153,13 +153,15 @@ describe("ReceiptForm", () => {
 
     // Then: Convex mutationに正規化された値が渡り、連続入力用の状態に戻る
     await waitFor(() => {
-      expect(createReceiptMock).toHaveBeenCalledWith({
-        date: "2026-05-18",
-        shopName: "スーパー北浜",
-        amountYen: 4280,
-        categoryId: "cat-daily",
-        memo: "特売日",
-      });
+      expect(createReceiptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: "2026-05-18",
+          shopName: "スーパー北浜",
+          amountYen: 4280,
+          categoryId: "cat-daily",
+          memo: "特売日",
+        }),
+      );
     });
     expect(screen.getByLabelText("店舗名")).toHaveValue("");
     expect(screen.getByLabelText("合計金額")).toHaveValue("");
@@ -243,13 +245,14 @@ describe("ReceiptForm", () => {
     await user.click(screen.getByRole("button", { name: "保存して次へ" }));
 
     await waitFor(() => {
-      expect(createReceiptMock).toHaveBeenCalledWith({
-        date: "2026-05-18",
-        shopName: "画像確認スーパー",
-        amountYen: 980,
-        categoryId: "cat-food",
-        memo: undefined,
-      });
+      expect(createReceiptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: "2026-05-18",
+          shopName: "画像確認スーパー",
+          amountYen: 980,
+          categoryId: "cat-food",
+        }),
+      );
     });
   });
 
@@ -329,13 +332,14 @@ describe("ReceiptForm", () => {
     await user.click(screen.getByRole("button", { name: "保存して次へ" }));
 
     await waitFor(() => {
-      expect(createReceiptMock).toHaveBeenCalledWith({
-        date: "2026-05-18",
-        shopName: "同意なしスーパー",
-        amountYen: 880,
-        categoryId: "cat-food",
-        memo: undefined,
-      });
+      expect(createReceiptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          date: "2026-05-18",
+          shopName: "同意なしスーパー",
+          amountYen: 880,
+          categoryId: "cat-food",
+        }),
+      );
     });
   });
 
@@ -539,5 +543,64 @@ describe("ReceiptForm", () => {
     expect(screen.getByLabelText("店舗名")).toHaveValue("既存ストア");
     expect(screen.getByLabelText("合計金額")).toHaveValue("500");
     expect(screen.getByLabelText("日付")).toHaveValue("2026-05-18");
+  });
+
+  it("収入タブに切り替えると銀行名フィールドが表示され、店舗名フィールドが非表示になる", async () => {
+    // Given: フォームが表示されている（デフォルトは支出）
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+
+    // When: 収入タブをクリックする
+    await user.click(screen.getByRole("tab", { name: "収入" }));
+
+    // Then: 銀行名フィールドが表示され、店舗名フィールドが非表示になる
+    expect(screen.getByLabelText("銀行名")).toBeInTheDocument();
+    expect(screen.queryByLabelText("店舗名")).not.toBeInTheDocument();
+  });
+
+  it("収入: 銀行名・金額・カテゴリを入力して保存するとAPIに type:income で渡す", async () => {
+    // Given: 収入タブに切り替え済み
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    await user.click(screen.getByRole("tab", { name: "収入" }));
+
+    // When: 銀行名、金額、カテゴリを入力して保存する
+    await user.type(screen.getByLabelText("銀行名"), "三菱UFJ銀行");
+    await user.type(screen.getByLabelText("合計金額"), "200000");
+    await user.click(screen.getByRole("button", { name: "保存して次へ" }));
+
+    // Then: type:income で bankName が渡る
+    await waitFor(() => {
+      expect(createReceiptMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "income",
+          bankName: "三菱UFJ銀行",
+          amountYen: 200000,
+          categoryId: "cat-food",
+        }),
+      );
+    });
+    expect(screen.getByLabelText("銀行名")).toHaveValue("");
+    expect(screen.getByLabelText("合計金額")).toHaveValue("");
+  });
+
+  it("収入: 銀行名が空のまま保存しようとするとエラーを表示する", async () => {
+    // Given: 収入タブに切り替え済み
+    const user = userEvent.setup();
+    renderWithProviders(
+      <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
+    );
+    await user.click(screen.getByRole("tab", { name: "収入" }));
+
+    // When: 銀行名を入力せずに保存ボタンをクリックする
+    await user.click(screen.getByRole("button", { name: "保存して次へ" }));
+
+    // Then: 銀行名エラーが表示され、APIは呼ばれない
+    expect(await screen.findByText("銀行名は必須です")).toBeInTheDocument();
+    expect(createReceiptMock).not.toHaveBeenCalled();
   });
 });

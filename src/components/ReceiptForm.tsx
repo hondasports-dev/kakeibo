@@ -8,6 +8,8 @@ import {
   Paper,
   Snackbar,
   Stack,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -24,6 +26,7 @@ interface ReceiptFormProps {
 export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptFormProps) {
   const {
     shopNameRef,
+    bankNameRef,
     formValues,
     errors,
     aiFieldStatuses,
@@ -31,6 +34,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     apiError,
     snackbar,
     selectedCategoryId,
+    handleTypeChange,
     handleFieldChange,
     handleExtracted,
     handleSubmit,
@@ -47,12 +51,21 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
           <Stack spacing={2.5}>
             <Box>
               <Typography component="h2" variant="h5">
-                レシートを追加
+                入力
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                保存後は店名と金額だけ空にして、次の入力へ進みます。
+                保存後は名前と金額だけ空にして、次の入力へ進みます。
               </Typography>
             </Box>
+
+            <Tabs
+              aria-label="支出・収入切り替え"
+              value={formValues.type}
+              onChange={(_e, newValue: "expense" | "income") => handleTypeChange(newValue)}
+            >
+              <Tab label="支出" value="expense" />
+              <Tab label="収入" value="income" />
+            </Tabs>
 
             {apiError && (
               <Alert
@@ -73,7 +86,9 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               </Alert>
             )}
 
-            <ReceiptImageExtractor onExtracted={handleExtracted} />
+            {formValues.type === "expense" && (
+              <ReceiptImageExtractor onExtracted={handleExtracted} />
+            )}
 
             <Box className="week-day-grid" aria-label="週内の日付候補" role="listbox">
               {weekDays.map((day) => {
@@ -138,23 +153,38 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               value={formValues.date}
             />
 
-            <TextField
-              autoComplete="organization"
-              data-testid="shop-name-field"
-              error={!!errors.shopName}
-              fullWidth
-              helperText={
-                errors.shopName ||
-                (aiFieldStatuses?.shopName.status === "applied" ? "AI候補" : undefined)
-              }
-              id="receipt-shop-name"
-              inputRef={shopNameRef}
-              label="店舗名"
-              name="shopName"
-              onChange={(e) => handleFieldChange("shopName", e.target.value)}
-              placeholder="例: スーパー北浜"
-              value={formValues.shopName}
-            />
+            {formValues.type === "expense" ? (
+              <TextField
+                autoComplete="organization"
+                data-testid="shop-name-field"
+                error={!!errors.shopName}
+                fullWidth
+                helperText={
+                  errors.shopName ||
+                  (aiFieldStatuses?.shopName.status === "applied" ? "AI候補" : undefined)
+                }
+                id="receipt-shop-name"
+                inputRef={shopNameRef}
+                label="店舗名"
+                name="shopName"
+                onChange={(e) => handleFieldChange("shopName", e.target.value)}
+                placeholder="例: スーパー北浜"
+                value={formValues.shopName}
+              />
+            ) : (
+              <TextField
+                error={!!errors.bankName}
+                fullWidth
+                helperText={errors.bankName}
+                id="receipt-bank-name"
+                inputRef={bankNameRef}
+                label="銀行名"
+                name="bankName"
+                onChange={(e) => handleFieldChange("bankName", e.target.value)}
+                placeholder="例: 三菱UFJ銀行"
+                value={formValues.bankName}
+              />
+            )}
 
             <TextField
               error={!!errors.amountYen}
