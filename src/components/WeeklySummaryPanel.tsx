@@ -139,7 +139,6 @@ export function WeeklySummaryPanel({
       {weeklyTrendData !== null && (
         <WeeklyTrendChart
           weeks={weeklyTrendData?.weeks}
-          weekCount={weeklyTrendData?.weekCount}
           isLoading={weeklyTrendData === undefined}
         />
       )}
