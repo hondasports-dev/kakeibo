@@ -72,13 +72,14 @@ export function WeeklyTrendChart({ weeks = [], isLoading = false }: WeeklyTrendC
         <Typography component="h2" sx={{ mb: 1.5 }} variant="h6">
           週別支出推移
         </Typography>
-        <Box sx={{ overflowX: "auto" }}>
+        <Box>
           <svg
             aria-label="週別支出推移グラフ"
-            height={totalSvgHeight}
+            height="auto"
             role="img"
             style={{ display: "block" }}
-            width={svgWidth}
+            viewBox={`0 0 ${svgWidth} ${totalSvgHeight}`}
+            width="100%"
           >
             {/* バーと金額ラベル */}
             {weeks.map((week, idx) => {

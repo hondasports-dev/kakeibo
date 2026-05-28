@@ -89,4 +89,13 @@ describe("WeeklyTrendChart", () => {
     expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
     expect(screen.getByText("0円")).toBeInTheDocument();
   });
+
+  it("SVG がレスポンシブ対応: viewBox が設定され width が 100% である", () => {
+    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} />);
+
+    const svg = screen.getByRole("img", { name: "週別支出推移グラフ" });
+    expect(svg).toHaveAttribute("viewBox");
+    expect(svg).toHaveAttribute("width", "100%");
+    expect(svg).toHaveAttribute("height", "auto");
+  });
 });
