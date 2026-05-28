@@ -11,8 +11,8 @@ const baseWeeks = [
 ];
 
 describe("WeeklyTrendChart", () => {
-  it("weekCount が 2 以上のとき SVG グラフが表示される", () => {
-    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} weekCount={4} />);
+  it("支出がある週が2週以上あるとき SVG グラフが表示される", () => {
+    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} />);
 
     expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
     // ヘッダーが表示される
@@ -20,7 +20,7 @@ describe("WeeklyTrendChart", () => {
   });
 
   it("各バーに金額ラベルが表示される", () => {
-    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} weekCount={4} />);
+    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} />);
 
     expect(screen.getByText("3,000円")).toBeInTheDocument();
     expect(screen.getByText("5,000円")).toBeInTheDocument();
@@ -29,7 +29,7 @@ describe("WeeklyTrendChart", () => {
   });
 
   it("各バーに週開始日のX軸ラベルが表示される", () => {
-    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} weekCount={4} />);
+    renderWithProviders(<WeeklyTrendChart weeks={baseWeeks} />);
 
     // 月/日 形式で表示される（例: 1/8〜, 1/15〜）
     expect(screen.getByText("1/8〜")).toBeInTheDocument();
@@ -38,22 +38,33 @@ describe("WeeklyTrendChart", () => {
     expect(screen.getByText("1/29〜")).toBeInTheDocument();
   });
 
-  it("weekCount が 1 以下のときプレースホルダーテキストが表示される", () => {
+  it("支出がある週が1週以下のときプレースホルダーテキストが表示される", () => {
     renderWithProviders(
-      <WeeklyTrendChart
-        weeks={[{ weekStartDate: "2024-01-08", totalAmountYen: 1000 }]}
-        weekCount={1}
-      />,
+      <WeeklyTrendChart weeks={[{ weekStartDate: "2024-01-08", totalAmountYen: 1000 }]} />,
     );
 
     expect(screen.getByText("2週以上のデータが揃うとグラフが表示されます")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
   });
 
-  it("weekCount が 0 のときプレースホルダーテキストが表示される", () => {
-    renderWithProviders(<WeeklyTrendChart weeks={[]} weekCount={0} />);
+  it("支出がある週が0のときプレースホルダーテキストが表示される", () => {
+    renderWithProviders(<WeeklyTrendChart weeks={[]} />);
 
     expect(screen.getByText("2週以上のデータが揃うとグラフが表示されます")).toBeInTheDocument();
+  });
+
+  it("0円の週を支出がある週として数えない", () => {
+    const weeksWithOnePaidWeek = [
+      { weekStartDate: "2024-01-01", totalAmountYen: 0 },
+      { weekStartDate: "2024-01-08", totalAmountYen: 5000 },
+      { weekStartDate: "2024-01-15", totalAmountYen: 0 },
+      { weekStartDate: "2024-01-22", totalAmountYen: 0 },
+    ];
+
+    renderWithProviders(<WeeklyTrendChart weeks={weeksWithOnePaidWeek} />);
+
+    expect(screen.getByText("2週以上のデータが揃うとグラフが表示されます")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
   });
 
   it("isLoading が true のとき週別支出推移 heading と Skeleton が表示される", () => {
@@ -73,7 +84,7 @@ describe("WeeklyTrendChart", () => {
       { weekStartDate: "2024-01-15", totalAmountYen: 3000 },
       { weekStartDate: "2024-01-22", totalAmountYen: 2000 },
     ];
-    renderWithProviders(<WeeklyTrendChart weeks={weeksWithZero} weekCount={3} />);
+    renderWithProviders(<WeeklyTrendChart weeks={weeksWithZero} />);
 
     expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
     expect(screen.getByText("0円")).toBeInTheDocument();

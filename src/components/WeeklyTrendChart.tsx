@@ -8,8 +8,6 @@ type WeekData = {
 
 type WeeklyTrendChartProps = {
   weeks?: WeekData[];
-  /** データが存在する週の数。2未満の場合はプレースホルダーを表示する */
-  weekCount?: number;
   /** true の場合は Skeleton を表示する（クエリロード中） */
   isLoading?: boolean;
 };
@@ -19,12 +17,9 @@ function formatWeekLabel(weekStartDate: string): string {
   return `${d.getMonth() + 1}/${d.getDate()}〜`;
 }
 
-export function WeeklyTrendChart({
-  weeks = [],
-  weekCount = 0,
-  isLoading = false,
-}: WeeklyTrendChartProps) {
+export function WeeklyTrendChart({ weeks = [], isLoading = false }: WeeklyTrendChartProps) {
   const theme = useTheme();
+  const weekCount = weeks.filter((w) => w.totalAmountYen > 0).length;
 
   if (isLoading) {
     return (
