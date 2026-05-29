@@ -1006,10 +1006,7 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await expect(page.getByRole("tab", { name: "支出" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
     // 初期状態は支出タブが selected
-    await expect(page.getByRole("tab", { name: "支出" })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
+    await expect(page.getByRole("tab", { name: "支出" })).toHaveAttribute("aria-selected", "true");
   });
 
   test("@smoke [Issue #77] 支出タブでは店名フィールドが表示される", async ({ page }) => {

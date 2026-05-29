@@ -1,11 +1,5 @@
 import { useQuery } from "convex/react";
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { api } from "../../convex/_generated/api";
 import { ReceiptForm } from "../components/ReceiptForm";
 import { WeekNavigator } from "../components/WeekNavigator";
