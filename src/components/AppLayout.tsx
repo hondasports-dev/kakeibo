@@ -29,7 +29,6 @@ const DRAWER_WIDTH = 220;
 function UserMenu() {
   const { openUserProfile, signOut } = useClerk();
   const { user } = useUser();
-  const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [signOutError, setSignOutError] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
@@ -41,11 +40,6 @@ function UserMenu() {
   const handleOpenProfile = () => {
     handleClose();
     openUserProfile();
-  };
-
-  const handleOpenUserSettings = () => {
-    handleClose();
-    navigate("/settings");
   };
 
   const handleSignOut = async () => {
@@ -97,9 +91,6 @@ function UserMenu() {
         <MenuItem disabled={isSigningOut} onClick={handleOpenProfile}>
           アカウント設定
         </MenuItem>
-        <MenuItem disabled={isSigningOut} onClick={handleOpenUserSettings}>
-          ユーザー設定
-        </MenuItem>
         <MenuItem disabled={isSigningOut} onClick={handleSignOut}>
           ログアウト
         </MenuItem>
@@ -120,14 +111,14 @@ export function AppLayout() {
     { label: "ホーム", path: "/" },
     { label: "入力", path: "/weeks/current/input" },
     { label: "履歴", path: `/weeks/${currentWeekStartDate}` },
-    { label: "設定", path: "/settings" },
+    { label: "カテゴリ", path: "/categories" },
   ];
 
   const getBottomNavValue = () => {
     if (location.pathname === "/") return 0;
     if (location.pathname === "/weeks/current/input") return 1;
     if (location.pathname.startsWith("/weeks/")) return 2;
-    if (location.pathname === "/settings") return 3;
+    if (location.pathname === "/categories") return 3;
     return 0;
   };
 
