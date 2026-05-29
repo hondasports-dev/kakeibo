@@ -32,7 +32,6 @@ type WeeklySummaryPanelProps = {
   prevWeekTotalAmountYen: number | null;
   receipts: ReceiptItem[];
   budgetAmountYen?: number;
-  reviewMemo?: string | null;
   isLoading?: boolean;
   /**
    * 直近4週の支出推移データ。
@@ -50,7 +49,6 @@ export function WeeklySummaryPanel({
   prevWeekTotalAmountYen,
   receipts,
   budgetAmountYen,
-  reviewMemo,
   isLoading = false,
   weeklyTrendData,
 }: WeeklySummaryPanelProps) {
@@ -208,29 +206,6 @@ export function WeeklySummaryPanel({
                   </Stack>
                 ))}
               </Stack>
-            )}
-          </Stack>
-        </Box>
-      </Paper>
-
-      {/* 振り返りメモ */}
-      <Paper className="paper-panel" elevation={0}>
-        <Box sx={{ p: 2.5 }}>
-          <Stack spacing={2}>
-            <Typography component="h2" variant="h6">
-              振り返りメモ
-            </Typography>
-            {isLoading ? (
-              <>
-                <Skeleton variant="text" height={28} />
-                <Skeleton variant="text" height={28} />
-              </>
-            ) : reviewMemo ? (
-              <Typography sx={{ whiteSpace: "pre-wrap" }}>{reviewMemo}</Typography>
-            ) : (
-              <Typography color="text.secondary" variant="body2">
-                この週の振り返りメモはまだありません
-              </Typography>
             )}
           </Stack>
         </Box>
