@@ -10,21 +10,31 @@ import {
   Button,
   Divider,
   Drawer,
+  IconButton,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Menu,
   MenuItem,
   Paper,
   Toolbar,
+  Tooltip,
   Typography,
   useMediaQuery,
 } from "@mui/material";
+import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
+import CategoryIcon from "@mui/icons-material/Category";
+import HomeIcon from "@mui/icons-material/Home";
+import EditIcon from "@mui/icons-material/Edit";
+import HistoryIcon from "@mui/icons-material/History";
 import { useTheme } from "@mui/material/styles";
 import { getCurrentWeekStartDate } from "../lib/weekNavigation";
 import { getClerkErrorMessage } from "../lib/clerkError";
 
 const DRAWER_WIDTH = 220;
+const DRAWER_WIDTH_MINI = 56;
 
 function UserMenu() {
   const { openUserProfile, signOut } = useClerk();
@@ -104,14 +114,15 @@ export function AppLayout() {
   const isPC = useMediaQuery(theme.breakpoints.up("md"));
   const location = useLocation();
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const currentWeekStartDate = getCurrentWeekStartDate();
 
   const navItems = [
-    { label: "ホーム", path: "/" },
-    { label: "入力", path: "/weeks/current/input" },
-    { label: "履歴", path: `/weeks/${currentWeekStartDate}` },
-    { label: "カテゴリ", path: "/categories" },
+    { label: "ホーム", path: "/", icon: <HomeIcon /> },
+    { label: "入力", path: "/weeks/current/input", icon: <EditIcon /> },
+    { label: "履歴", path: `/weeks/${currentWeekStartDate}`, icon: <HistoryIcon /> },
+    { label: "カテゴリ", path: "/categories", icon: <CategoryIcon /> },
   ];
 
   const getBottomNavValue = () => {
@@ -132,6 +143,8 @@ export function AppLayout() {
     return location.pathname === path;
   };
 
+  const drawerWidth = sidebarOpen ? DRAWER_WIDTH : DRAWER_WIDTH_MINI;
+
   return (
     <Box className="app-layout">
       {isPC && (
@@ -139,36 +152,69 @@ export function AppLayout() {
           aria-label="サイドメニュー"
           variant="permanent"
           sx={{
-            width: DRAWER_WIDTH,
+            width: drawerWidth,
             flexShrink: 0,
             "& .MuiDrawer-paper": {
-              width: DRAWER_WIDTH,
+              width: drawerWidth,
               boxSizing: "border-box",
+              overflowX: "hidden",
+              transition: theme.transitions.create("width", {
+                easing: theme.transitions.easing.sharp,
+                duration: sidebarOpen
+                  ? theme.transitions.duration.enteringScreen
+                  : theme.transitions.duration.leavingScreen,
+              }),
             },
           }}
         >
-          <Toolbar>
-            <Typography
-              component={Link}
-              to="/"
-              variant="h6"
-              sx={{ textDecoration: "none", color: "inherit", fontWeight: 700 }}
+          <Toolbar
+            sx={{
+              justifyContent: sidebarOpen ? "space-between" : "center",
+              px: sidebarOpen ? 2 : 0,
+            }}
+          >
+            {sidebarOpen && (
+              <Typography
+                component={Link}
+                to="/"
+                variant="h6"
+                sx={{ textDecoration: "none", color: "inherit", fontWeight: 700 }}
+              >
+                家計簿
+              </Typography>
+            )}
+            <IconButton
+              aria-label={sidebarOpen ? "サイドバーを閉じる" : "サイドバーを開く"}
+              onClick={() => setSidebarOpen((prev) => !prev)}
+              size="small"
             >
-              家計簿
-            </Typography>
+              {sidebarOpen ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+            </IconButton>
           </Toolbar>
           <Divider />
           <List>
             {navItems.map((item) => (
-              <ListItemButton
+              <Tooltip
                 key={item.path}
-                selected={isNavItemSelected(item.path)}
-                onClick={() => navigate(item.path)}
-                component={Link}
-                to={item.path}
+                title={sidebarOpen ? "" : item.label}
+                placement="right"
+                arrow
               >
-                <ListItemText primary={item.label} />
-              </ListItemButton>
+                <ListItemButton
+                  selected={isNavItemSelected(item.path)}
+                  onClick={() => navigate(item.path)}
+                  component={Link}
+                  to={item.path}
+                  sx={{ justifyContent: sidebarOpen ? "flex-start" : "center", px: 1.5 }}
+                >
+                  <ListItemIcon
+                    sx={{ minWidth: 0, mr: sidebarOpen ? 1.5 : 0, justifyContent: "center" }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  {sidebarOpen && <ListItemText primary={item.label} />}
+                </ListItemButton>
+              </Tooltip>
             ))}
           </List>
         </Drawer>
