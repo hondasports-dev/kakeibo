@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
@@ -40,6 +40,17 @@ export function ReviewMemoPanel({
   const [status, setStatus] = useState<"idle" | "saving" | "completing">("idle");
   const [error, setError] = useState("");
   const [snackbarMessage, setSnackbarMessage] = useState("");
+
+  // SummaryPage では summaryWeekSession が useQuery で非同期に更新されるため、
+  // initialReviewMemo が変わったときはローカル state に反映する。
+  // ユーザーが編集中でない（status === "idle"）場合のみ上書きする。
+  useEffect(() => {
+    if (status === "idle") {
+      setReviewMemo(initialReviewMemo ?? "");
+    }
+    // status は依存に含めない（編集中の上書きを防ぐため）
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialReviewMemo]);
 
   const isCompleted = weekStatus === "completed";
   const isBusy = status !== "idle";
