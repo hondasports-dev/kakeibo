@@ -44,6 +44,9 @@ GitHub Issue対応を、外部コンテンツ隔離、worktree分離、t_wada流
 | `pnpm run e2e -- --project=chromium` で引数が正しく渡らなかった | E2Eは `pnpm exec playwright test --project=chromium` で直接実行する。`pnpm run e2e --` 構文はPlaywrightに引数が届かないケースがある。 |
 | E2E失敗が今回の変更由来か既存のflakyか判別できなかった | E2E失敗時はまず main ブランチで同じテストを単体実行して再現するか確認する。main でも失敗すれば既存のflaky。 |
 | E2E実行前にConvex devが起動しているか確認しなかった | `pnpm run e2e` 実行前に `convex dev` が起動中か確認する。起動していない場合はバックグラウンドで起動してから実行する。 |
+| GitHub Actions E2E の失敗原因を把握せず再pushした | `gh run view <run_id> --log-failed` でエラーメッセージ・ロケーターを特定してから修正する。 |
+| Playwright `.or()` ロケーターが複数要素にマッチして strict mode violation になった | `.or()` の末尾に `.first()` を追加して1件に限定する。CI環境ではローカルと異なるデータ状態が残るため常に考慮する。 |
+| PRにコードレビューを実施せずpushした | push前にコード全体をレビューし、型安全性・ロジックの漏れ・重複・初期値問題を確認してから push する。 |
 
 ## 手順
 
@@ -87,8 +90,22 @@ GitHub Issue対応を、外部コンテンツ隔離、worktree分離、t_wada流
      - `pnpm run lint`
      - `pnpm run build`
      - 整形変更やフォーマッター運用がある場合は `pnpm run format:check`
-     - ユーザーが全E2Eを求めた場合、またはユーザー導線に触れた場合は `pnpm run e2e -- --project=chromium`
+     - ユーザーが全E2Eを求めた場合、またはユーザー導線に触れた場合は `pnpm exec playwright test --project=chromium`
    - 全E2Eが実行できない場合は、成功扱いにしない。障害、実行したコマンド、再実行条件を報告する。
+
+7a. **コードレビューを行う**
+   - push前に変更全体を自己レビューする。確認観点:
+     - 型安全性の漏れ（optional フィールドの未チェック、discriminated union の抜け）
+     - ロジックの重複（同じ処理が複数箇所にあれば共通化できるか）
+     - 非同期更新に対する初期値問題（`useState` の初期値が後から更新されないか）
+     - テストで未カバーのエラーパス
+   - 指摘があれば修正してから push する。
+
+7b. **GitHub Actions 失敗時のループ対応**
+   - push後に CI が失敗したら、`gh run view <run_id> --log-failed` でエラー内容を確認する。
+   - エラーメッセージ・失敗テスト名・ロケーターを特定してから修正する。原因を理解せず再pushしない。
+   - 修正 → `pnpm test --run` → `pnpm run format:check` → push の順で再試行する。
+   - CI が Green になるまで 7b を繰り返す。
 
 8. **意図を持って公開する**
    - Issueに属するファイルだけをステージングする。
