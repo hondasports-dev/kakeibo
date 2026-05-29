@@ -389,10 +389,10 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     const updatedCategoryName = `${categoryName}-更新`;
     const shopName = `E2Eカテゴリ店舗-${stamp}`;
 
-    // Issue #49: カテゴリ設定は BottomNav「設定」タブ → /settings へ遷移
-    // SettingsPage には CategorySettingsPanel が直接表示される
-    await page.getByRole("link", { name: "設定" }).click();
-    await expect(page).toHaveURL("/settings");
+    // カテゴリ設定は BottomNav「カテゴリ」タブ → /categories へ遷移
+    // CategoriesPage には CategorySettingsPanel が直接表示される
+    await page.getByRole("link", { name: "カテゴリ" }).click();
+    await expect(page).toHaveURL("/categories");
     await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
 
     await page.getByLabel("新しいカテゴリ名").fill(categoryName);
@@ -423,10 +423,10 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     await page.getByRole("button", { name: "保存して次へ" }).click();
     await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
-    // 無効化（設定に戻る）
-    // SettingsPage には CategorySettingsPanel が直接表示される
-    await page.getByRole("link", { name: "設定" }).click();
-    await expect(page).toHaveURL("/settings");
+    // 無効化（カテゴリ設定に戻る）
+    // CategoriesPage には CategorySettingsPanel が直接表示される
+    await page.getByRole("link", { name: "カテゴリ" }).click();
+    await expect(page).toHaveURL("/categories");
     await page.getByRole("button", { name: `${updatedCategoryName}を無効化` }).click();
     // 無効化後: ボタンが disabled になること（設定画面では無効カテゴリも表示される）
     await expect(page.getByRole("button", { name: `${updatedCategoryName}を無効化` })).toBeDisabled(

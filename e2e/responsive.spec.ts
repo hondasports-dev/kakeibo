@@ -25,11 +25,11 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    // BottomNavigationの「設定」タブをクリックして /settings に遷移
-    await page.getByRole("link", { name: "設定" }).click();
-    await expect(page).toHaveURL("/settings");
+    // BottomNavigationの「カテゴリ」タブをクリックして /categories に遷移
+    await page.getByRole("link", { name: "カテゴリ" }).click();
+    await expect(page).toHaveURL("/categories");
 
-    // 設定画面の見出しが表示されることを確認
-    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+    // カテゴリ設定画面の見出しが表示されることを確認
+    await expect(page.getByRole("heading", { name: "カテゴリ設定", level: 1 })).toBeVisible();
   });
 });
