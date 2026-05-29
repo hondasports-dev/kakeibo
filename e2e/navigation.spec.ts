@@ -91,6 +91,77 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page).toHaveURL("/");
   });
 
+  test("@smoke @sidebar シナリオN-3.1: PC幅でサイドバーをChevronLeftボタンで閉じられる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const drawer = page.getByLabel("サイドメニュー");
+
+    // 初期状態で「サイドバーを閉じる」ボタンが存在することを確認
+    const closeButton = drawer.getByRole("button", { name: "サイドバーを閉じる" });
+    await expect(closeButton).toBeVisible();
+
+    // ナビラベルが表示されていることを確認
+    await expect(drawer.getByText("ホーム")).toBeVisible();
+    await expect(drawer.getByText("入力")).toBeVisible();
+
+    // 閉じるボタンをクリック
+    await closeButton.click();
+
+    // ナビラベルが非表示になることを確認（DOMから削除される）
+    await expect(drawer.getByText("ホーム")).not.toBeVisible();
+    await expect(drawer.getByText("入力")).not.toBeVisible();
+
+    // 「サイドバーを開く」ボタンが表示されることを確認
+    const openButton = drawer.getByRole("button", { name: "サイドバーを開く" });
+    await expect(openButton).toBeVisible();
+  });
+
+  test("@smoke @sidebar シナリオN-3.2: PC幅でサイドバーをChevronRightボタンで再度開ける", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const drawer = page.getByLabel("サイドメニュー");
+
+    // まず閉じる
+    const closeButton = drawer.getByRole("button", { name: "サイドバーを閉じる" });
+    await closeButton.click();
+
+    // 開くボタンをクリック
+    const openButton = drawer.getByRole("button", { name: "サイドバーを開く" });
+    await openButton.click();
+
+    // ナビラベルが再表示されることを確認
+    await expect(drawer.getByText("ホーム")).toBeVisible();
+    await expect(drawer.getByText("入力")).toBeVisible();
+
+    // 閉じるボタンが戻ることを確認
+    await expect(closeButton).toBeVisible();
+  });
+
+  test("@sidebar シナリオN-3.3: サイドバー閉じた状態でもアイコン付きナビで遷移できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize({ width: 1280, height: 800 });
+
+    const drawer = page.getByLabel("サイドメニュー");
+
+    // サイドバーを閉じる
+    await drawer.getByRole("button", { name: "サイドバーを閉じる" }).click();
+
+    // アイコン付きのナビ項目をクリックして遷移を確認
+    await drawer.getByRole("link", { name: "入力", exact: true }).click();
+    await expect(page).toHaveURL("/weeks/current/input");
+
+    await drawer.getByRole("link", { name: "設定", exact: true }).click();
+    await expect(page).toHaveURL("/settings");
+  });
+
   test("@navigation シナリオN-4: ダッシュボードにカテゴリ別内訳・前週比カードが表示されない", async ({
     page,
   }) => {
