@@ -13,33 +13,35 @@ import {
   Typography,
 } from "@mui/material";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
-import type { WeekSession } from "../hooks/useWeekSession";
 
 type ReviewMemoPanelProps = {
-  weekSession: WeekSession;
+  weekStartDate: string;
+  weekStatus: "draft" | "completed";
+  reviewMemo?: string | null;
   totalAmountYen: number;
   prevWeekTotalAmountYen: number | null;
   isSummaryLoading?: boolean;
-  onSessionUpdated: (weekSession: WeekSession) => void;
-  onShowSummary: () => void;
+  /** セッション完了後に呼ばれるコールバック（省略可）。SummaryPage では不要 */
+  onComplete?: () => void;
 };
 
 export function ReviewMemoPanel({
-  weekSession,
+  weekStartDate,
+  weekStatus,
+  reviewMemo: initialReviewMemo,
   totalAmountYen,
   prevWeekTotalAmountYen,
   isSummaryLoading = false,
-  onSessionUpdated,
-  onShowSummary,
+  onComplete,
 }: ReviewMemoPanelProps) {
   const updateReviewMemo = useMutation(api.weekSessions.updateReviewMemo);
   const completeWeekSession = useMutation(api.weekSessions.completeWeekSession);
-  const [reviewMemo, setReviewMemo] = useState(weekSession.reviewMemo ?? "");
+  const [reviewMemo, setReviewMemo] = useState(initialReviewMemo ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "completing">("idle");
   const [error, setError] = useState("");
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
-  const isCompleted = weekSession.status === "completed";
+  const isCompleted = weekStatus === "completed";
   const isBusy = status !== "idle";
 
   const handleSave = async () => {
@@ -47,11 +49,10 @@ export function ReviewMemoPanel({
     setError("");
 
     try {
-      const updatedSession = await updateReviewMemo({
-        weekStartDate: weekSession.weekStartDate,
+      await updateReviewMemo({
+        weekStartDate,
         reviewMemo,
       });
-      onSessionUpdated(updatedSession);
       setSnackbarMessage(isCompleted ? "振り返りメモを更新しました" : "振り返りメモを保存しました");
     } catch (caughtError) {
       const message =
@@ -69,13 +70,12 @@ export function ReviewMemoPanel({
     setError("");
 
     try {
-      const updatedSession = await completeWeekSession({
-        weekStartDate: weekSession.weekStartDate,
+      await completeWeekSession({
+        weekStartDate,
         reviewMemo,
       });
-      onSessionUpdated(updatedSession);
       setSnackbarMessage("今週の入力を完了しました");
-      onShowSummary();
+      onComplete?.();
     } catch (caughtError) {
       const message =
         caughtError instanceof Error
@@ -147,9 +147,11 @@ export function ReviewMemoPanel({
               {status === "saving" ? "保存中..." : isCompleted ? "メモを更新" : "メモを保存"}
             </Button>
             {isCompleted ? (
-              <Button disabled={isBusy} onClick={onShowSummary} variant="contained">
-                週次サマリーを見る
-              </Button>
+              onComplete ? (
+                <Button disabled={isBusy} onClick={onComplete} variant="contained">
+                  週次サマリーを見る
+                </Button>
+              ) : null
             ) : (
               <Button
                 disabled={isBusy}

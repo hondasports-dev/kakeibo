@@ -122,7 +122,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(summary).not.toBeVisible();
   });
 
-  test("@navigation シナリオN-6: PC幅でInputPageを開くと左右2ペインレイアウトになる", async ({
+  test("@navigation シナリオN-6: PC幅でInputPageを開くと入力フォームとWeekNavigatorが表示される", async ({
     page,
   }) => {
     await gotoAuthenticated(page, "/weeks/current/input");
@@ -132,8 +132,10 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.locator('input[name="shopName"]')).toBeVisible();
     await expect(page.locator('input[name="amountYen"]')).toBeVisible();
 
-    // PC幅ではReviewMemoPanel（週次振り返り）も同時に表示されることを確認（workbench-grid レイアウト）
-    await expect(page.getByRole("heading", { name: "週次振り返り" })).toBeVisible();
+    // Issue #77: ReviewMemoPanel は InputPage から SummaryPage に移動した
+    // PC幅では WeekNavigator（前の週/次の週ボタン）と入力フォームが表示される
+    await expect(page.getByRole("button", { name: /前の週/ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /次の週/ })).toBeVisible();
   });
 
   test("@navigation シナリオN-7: SummaryPageに週次サマリーが表示される", async ({ page }) => {

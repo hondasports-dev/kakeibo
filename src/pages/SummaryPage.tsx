@@ -1,10 +1,11 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { useMutation, useQuery } from "convex/react";
+import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../convex/_generated/api";
 import { WeekNavigator } from "../components/WeekNavigator";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
+import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
 import {
   addWeeks,
   getCurrentWeekStartDate,
@@ -39,6 +40,15 @@ export function SummaryPage() {
   const summaryWeekSession = useQuery(api.weekSessions.getWeekSession, { weekStartDate });
   const weeklySummary = useQuery(api.receipts.getWeekSummaryWithCategories, { weekStartDate });
   const weeklyTrendData = useQuery(api.receipts.getFourWeeksSummary, { weekStartDate });
+
+  // 今週のサマリーページでセッションが未作成の場合は自動作成する
+  // （InputPage を経由せず SummaryPage に直接アクセスした場合に ReviewMemoPanel が機能するように）
+  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateWeekSession);
+  useEffect(() => {
+    if (isCurrentWeek && summaryWeekSession === null) {
+      getOrCreateSession({ weekStartDate }).catch(console.error);
+    }
+  }, [isCurrentWeek, summaryWeekSession, weekStartDate, getOrCreateSession]);
 
   const navigateToWeek = (newWeekStartDate: string) => {
     const norm = normalizeWeekStartDate(newWeekStartDate) ?? currentWeekStartDate;
@@ -89,10 +99,34 @@ export function SummaryPage() {
           prevWeekTotalAmountYen={weeklySummary.prevWeekTotalAmountYen ?? null}
           receipts={weeklySummary.receipts}
           budgetAmountYen={summaryWeekSession?.budgetAmountYen ?? undefined}
-          reviewMemo={summaryWeekSession?.reviewMemo ?? null}
           isLoading={false}
           weeklyTrendData={weeklyTrendData ?? null}
         />
+
+        {summaryWeekSession !== undefined &&
+          (summaryWeekSession === null && !isCurrentWeek ? (
+            // 過去週でセッションが未作成の場合はプレースホルダーを表示
+            <Paper className="paper-panel" elevation={0}>
+              <Box sx={{ p: 2.5 }}>
+                <Stack spacing={1}>
+                  <Typography component="h2" variant="h5">
+                    週次振り返り
+                  </Typography>
+                  <Typography color="text.secondary" variant="body2">
+                    この週の振り返りメモはまだありません
+                  </Typography>
+                </Stack>
+              </Box>
+            </Paper>
+          ) : (
+            <ReviewMemoPanel
+              weekStartDate={weekStartDate}
+              weekStatus={summaryWeekSession?.status ?? "draft"}
+              reviewMemo={summaryWeekSession?.reviewMemo ?? null}
+              totalAmountYen={weeklySummary.totalAmountYen}
+              prevWeekTotalAmountYen={weeklySummary.prevWeekTotalAmountYen ?? null}
+            />
+          ))}
       </Stack>
     </Box>
   );
