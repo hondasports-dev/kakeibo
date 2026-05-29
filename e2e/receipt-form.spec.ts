@@ -641,11 +641,13 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
       timeout: 15_000,
     });
     // セッション状態により「メモを保存」「セッションを完了」「メモを更新」のいずれかが表示される
+    // .first() で strict mode violation（複数ボタン同時表示時）を回避
     await expect(
       page
         .getByRole("button", { name: "セッションを完了" })
         .or(page.getByRole("button", { name: "メモを保存" }))
-        .or(page.getByRole("button", { name: "メモを更新" })),
+        .or(page.getByRole("button", { name: "メモを更新" }))
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
   });
 
