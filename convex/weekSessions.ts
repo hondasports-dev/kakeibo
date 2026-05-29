@@ -11,46 +11,15 @@ import { calculateWeekStartDate, calculateWeekEndDate } from "./utils";
 
 /** getOrCreateCurrentWeekSession mutation の handler ロジック（テスト用に export） */
 export async function getOrCreateCurrentWeekSessionHandler(ctx: MutationCtx) {
-  const userId = await requireAuthenticatedUserId(ctx);
-
-  // 今日の日付を Date.now() から計算
+  // 今日の日付を Date.now() から計算して今週の weekStartDate を求め、汎用 handler に委譲する
   const today = new Date(Date.now());
   const y = today.getFullYear();
   const m = String(today.getMonth() + 1).padStart(2, "0");
   const d = String(today.getDate()).padStart(2, "0");
   const todayStr = `${y}-${m}-${d}`;
-
   const weekStartDate = calculateWeekStartDate(todayStr);
-  const weekEndDate = calculateWeekEndDate(weekStartDate);
 
-  // withIndex で userId + weekStartDate で検索、.unique() で取得
-  const existing = await ctx.db
-    .query("weekSessions")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", weekStartDate),
-    )
-    .unique();
-
-  if (existing !== null) {
-    return existing;
-  }
-
-  // 既存なし → status:"draft" で insert して返す
-  const now = Date.now();
-  const sessionId = await ctx.db.insert("weekSessions", {
-    userId,
-    weekStartDate,
-    weekEndDate,
-    status: "draft",
-    createdAt: now,
-    updatedAt: now,
-  });
-
-  const session = await ctx.db.get(sessionId);
-  if (session === null) {
-    throw new ConvexError("Failed to retrieve created week session");
-  }
-  return session;
+  return getOrCreateWeekSessionHandler(ctx, { weekStartDate });
 }
 
 export const getOrCreateCurrentWeekSession = mutation({

@@ -532,6 +532,42 @@ describe("createReceipt", () => {
       }),
     );
   });
+
+  it("支出: shopName が空の場合 ConvexError が throw される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+    });
+
+    await expect(
+      createReceiptHandler(ctx, {
+        type: "expense",
+        date: "2024-01-10",
+        shopName: "",
+        amountYen: 1500,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-001" as any,
+      } as Parameters<typeof createReceiptHandler>[1]),
+    ).rejects.toMatchObject({ data: "shopName is required for expense receipts" });
+  });
+
+  it("収入: bankName が空の場合 ConvexError が throw される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+    });
+
+    await expect(
+      createReceiptHandler(ctx, {
+        type: "income",
+        date: "2024-01-10",
+        bankName: "",
+        amountYen: 200000,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-001" as any,
+      }),
+    ).rejects.toMatchObject({ data: "bankName is required for income receipts" });
+  });
 });
 
 // ---------------------------------------------------------------------------

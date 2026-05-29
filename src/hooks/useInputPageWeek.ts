@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import {
@@ -23,7 +23,8 @@ export type InputPageWeekSession = {
 export function useInputPageWeek() {
   const getOrCreateSession = useMutation(api.weekSessions.getOrCreateWeekSession);
 
-  const currentWeekStartDate = getCurrentWeekStartDate();
+  // マウント時点の今週開始日を固定する（毎レンダーで再計算しないよう useMemo を使う）
+  const currentWeekStartDate = useMemo(() => getCurrentWeekStartDate(), []);
   const [weekStartDate, setWeekStartDate] = useState(currentWeekStartDate);
   const weekEndDate = getWeekEndDate(weekStartDate);
 

@@ -32,6 +32,15 @@ type CreateReceiptArgs =
 export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
+  // type に応じた必須フィールドのチェック
+  // Convex args では shopName/bankName が optional のため、handler 内でバリデーションする
+  if (args.type !== "income" && !args.shopName) {
+    throw new ConvexError("shopName is required for expense receipts");
+  }
+  if (args.type === "income" && !args.bankName) {
+    throw new ConvexError("bankName is required for income receipts");
+  }
+
   // categoryId の所有権チェック
   const category = await ctx.db.get(args.categoryId);
   if (category === null) {
