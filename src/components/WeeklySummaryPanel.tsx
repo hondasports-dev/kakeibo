@@ -250,7 +250,9 @@ export function WeeklySummaryPanel({
                           }}
                         />
                         <Typography sx={{ fontWeight: 700 }}>
-                          {receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? "")}
+                          {receipt.type === "income"
+                            ? (receipt.bankName ?? "")
+                            : (receipt.shopName ?? "")}
                         </Typography>
                       </Stack>
                       <Stack direction="row" spacing={1}>
