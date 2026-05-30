@@ -20,9 +20,13 @@ describe("WeeklySummaryPanel", () => {
     // When: 週次サマリーを確認する
     // Then: 空状態と予算未設定が表示される
     // AnimatedCounter導入後はテキストがspanに分かれるため、aria-live属性で確認（複数あるのでgetAllByText）
-    expect(screen.getAllByText((content, element) => {
-      return element?.parentElement?.getAttribute("aria-live") === "polite" && content.includes("0");
-    }).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText((content, element) => {
+        return (
+          element?.parentElement?.getAttribute("aria-live") === "polite" && content.includes("0")
+        );
+      }).length,
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("未設定")).toBeInTheDocument();
     expect(screen.getAllByText("まだレシートがありません")).toHaveLength(2);
   });
@@ -78,9 +82,11 @@ describe("WeeklySummaryPanel", () => {
     // Then: 合計・予算・カテゴリ別・支出一覧が表示される
     // 合計支出ラベルとアニメーションコンテナの存在を確認
     expect(screen.getByText("合計支出")).toBeInTheDocument();
-    expect(screen.getAllByText((_content, element) => {
-      return element?.parentElement?.getAttribute("aria-live") === "polite";
-    }).length).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.getAllByText((_content, element) => {
+        return element?.parentElement?.getAttribute("aria-live") === "polite";
+      }).length,
+    ).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/中 63% 消化/)).toBeInTheDocument();
     expect(screen.getByText("-720円")).toBeInTheDocument();
     expect(screen.getByText("スーパー北浜")).toBeInTheDocument();

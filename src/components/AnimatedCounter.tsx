@@ -21,16 +21,18 @@ export function AnimatedCounter({
     duration: duration * 1000,
   });
 
-  const display = useTransform(spring, (current) =>
-    Math.round(current).toLocaleString("ja-JP"),
-  );
+  const display = useTransform(spring, (current) => Math.round(current).toLocaleString("ja-JP"));
 
   useEffect(() => {
     spring.set(value);
   }, [spring, value]);
 
   return (
-    <span aria-live="polite" aria-atomic="true">
+    <span
+      aria-live="polite"
+      aria-atomic="true"
+      data-value={`${prefix}${value.toLocaleString("ja-JP")}${suffix}`}
+    >
       {prefix}
       <motion.span>{display}</motion.span>
       {suffix}
