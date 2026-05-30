@@ -29,7 +29,7 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await page.getByRole("link", { name: "カテゴリ" }).click();
     await expect(page).toHaveURL("/categories");
 
-    // カテゴリ設定画面の見出しが表示されることを確認
-    await expect(page.getByRole("heading", { name: "カテゴリ設定", level: 1 })).toBeVisible();
+    // カテゴリ管理画面の見出しが表示されることを確認
+    await expect(page.getByRole("heading", { name: "カテゴリ管理", level: 1 })).toBeVisible();
   });
 });

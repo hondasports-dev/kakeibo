@@ -6,7 +6,7 @@ export function CategoriesPage() {
     <Box className="app-main">
       <Stack spacing={3}>
         <Typography component="h1" variant="h5">
-          カテゴリ設定
+          カテゴリ管理
         </Typography>
         <CategorySettingsPanel />
       </Stack>

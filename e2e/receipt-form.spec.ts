@@ -393,7 +393,7 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     // CategoriesPage には CategorySettingsPanel が直接表示される
     await page.getByRole("link", { name: "カテゴリ" }).click();
     await expect(page).toHaveURL("/categories");
-    await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "カテゴリ管理" })).toBeVisible();
 
     await page.getByLabel("新しいカテゴリ名").fill(categoryName);
     await page.getByLabel("新しいカテゴリ色").fill("#2563eb");
