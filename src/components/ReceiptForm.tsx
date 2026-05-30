@@ -3,7 +3,6 @@ import {
   Alert,
   Box,
   Button,
-  CircularProgress,
   Divider,
   Paper,
   Snackbar,
@@ -16,6 +15,7 @@ import {
 import { ReceiptImageExtractor } from "./ReceiptImageExtractor";
 import { generateWeekDays } from "../lib/weekNavigation";
 import { useReceiptForm } from "../hooks/useReceiptForm";
+import { AnimatedButton } from "./AnimatedButton";
 
 interface ReceiptFormProps {
   weekStartDate: string;
@@ -298,15 +298,15 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
             <Divider />
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <Button
+              <AnimatedButton
                 className="primary-action"
-                disabled={status === "submitting"}
-                startIcon={status === "submitting" ? <CircularProgress size={16} /> : undefined}
+                fullWidth
+                loading={status === "submitting"}
                 type="submit"
                 variant="contained"
               >
                 {status === "submitting" ? "保存中..." : "保存して次へ"}
-              </Button>
+              </AnimatedButton>
             </Stack>
           </Stack>
         </form>
