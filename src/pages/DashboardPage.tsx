@@ -102,7 +102,7 @@ export function DashboardPage() {
               helper:
                 monthlyExpensesSummary?.monthlyIncome != null
                   ? `月収入 ${monthlyExpensesSummary.monthlyIncome.toLocaleString()}円`
-                  : "収入を設定すると残金が確認できます",
+                  : "",
               tone:
                 monthlyExpensesSummary?.remainingBalanceYen != null &&
                 monthlyExpensesSummary.remainingBalanceYen < 0
