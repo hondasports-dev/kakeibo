@@ -524,6 +524,25 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
 test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完了条件）", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
+  const readAnimatedCounterValue = async (locator: Locator) => {
+    const value = await locator.getAttribute("data-value");
+    return parseInt(value?.replace(/[^0-9]/g, "") ?? "0", 10);
+  };
+
+  const waitForStableAnimatedCounterValue = async (locator: Locator) => {
+    let previousValue: number | null = null;
+    let stableReads = 0;
+
+    await expect(async () => {
+      const currentValue = await readAnimatedCounterValue(locator);
+      stableReads = previousValue === currentValue ? stableReads + 1 : 0;
+      previousValue = currentValue;
+      expect(stableReads).toBeGreaterThanOrEqual(2);
+    }).toPass({ timeout: 15_000 });
+
+    return previousValue ?? 0;
+  };
+
   test.beforeEach(async ({ page }) => {
     await cleanupTestReceipts();
     await gotoAuthenticated(page, "/weeks/current/input");
@@ -535,22 +554,21 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await cleanupTestReceipts();
   });
 
-  // TODO: Issue #14 テストの再有効化 - データクリーンアップ機構実装後に.skipを解除
-  // 理由: テスト間でデータが蓄積されるため、厳密なテストにはデータクリーンアップが必要
-  // 関連: data-cleanupメカニズム導入Issue作成予定
-  test.skip("[Issue #14] 保存後にサマリー件数がリアルタイム更新される", async ({ page }) => {
+  test("[Issue #14] 保存後にサマリー件数がリアルタイム更新される", async ({ page }) => {
     // DashboardPage の summary-grid で今週の支出を確認するためホームへ
     await page.getByRole("link", { name: "ホーム" }).click();
     await expect(page).toHaveURL("/");
 
-    const spendCard = page.locator(".summary-grid").locator("text=今週の支出").locator("../..");
+    const summaryCards = page.locator(".summary-grid .paper-panel");
+    await expect(summaryCards).toHaveCount(3);
+    const spendCard = summaryCards.nth(0);
     // AnimatedCounter導入により数値と単位が別要素になるため、data-value属性で検証
     // テスト間でデータが残る可能性があるため、値の「変化」を検証（before/after比較）
-    // セレクタ: summary-grid内の「今週の支出」カードのdata-value属性を持つ要素
+    // セレクタ: summary-grid の1枚目は「今週の支出」カード
+    await expect(spendCard.getByText("今週の支出", { exact: true })).toBeVisible();
     const animatedCounter = spendCard.locator("[data-value]").first();
     await animatedCounter.waitFor({ state: "visible" });
-    const beforeSpendText = await animatedCounter.getAttribute("data-value");
-    const beforeSpend = parseInt(beforeSpendText?.replace(/[^0-9]/g, "") ?? "0", 10);
+    const beforeSpend = await waitForStableAnimatedCounterValue(animatedCounter);
 
     // 入力画面でレシートを1件保存
     await page.getByRole("link", { name: "入力", exact: true }).click();
@@ -575,8 +593,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     const afterCounter = spendCard.locator("[data-value]").first();
     // Convexリアルタイム更新完了を待機（data-valueが更新されるまで）
     await expect(async () => {
-      const value = await afterCounter.getAttribute("data-value");
-      const numericValue = parseInt(value?.replace(/[^0-9]/g, "") ?? "0", 10);
+      const numericValue = await readAnimatedCounterValue(afterCounter);
       // beforeSpend + 1234円になってるか検証
       expect(numericValue).toBe(beforeSpend + 1234);
     }).toPass({ timeout: 15_000 });

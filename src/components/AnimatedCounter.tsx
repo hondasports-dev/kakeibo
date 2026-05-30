@@ -30,10 +30,8 @@ export function AnimatedCounter({
   duration = 0.5,
 }: AnimatedCounterProps) {
   const spring = useSpring(0, {
-    mass: 1,
-    stiffness: 75,
-    damping: 15,
-    duration: duration * 1000,
+    duration,
+    bounce: 0,
   });
 
   const display = useTransform(spring, (current) => Math.round(current).toLocaleString("ja-JP"));

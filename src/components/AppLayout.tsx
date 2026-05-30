@@ -29,6 +29,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import HomeIcon from "@mui/icons-material/Home";
 import EditIcon from "@mui/icons-material/Edit";
 import HistoryIcon from "@mui/icons-material/History";
+import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
 import { getCurrentWeekStartDate } from "../lib/weekNavigation";
 import { getClerkErrorMessage } from "../lib/clerkError";
@@ -241,9 +242,11 @@ export function AppLayout() {
         </Box>
 
         <Box component="main" sx={{ flex: 1 }}>
-          <PageTransition>
-            <Outlet />
-          </PageTransition>
+          <AnimatePresence mode="wait">
+            <PageTransition key={location.pathname}>
+              <Outlet />
+            </PageTransition>
+          </AnimatePresence>
         </Box>
       </Box>
 

@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { WeeklySummaryPanel } from "./WeeklySummaryPanel";
@@ -31,7 +31,7 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.getAllByText("まだレシートがありません")).toHaveLength(2);
   });
 
-  it("複数レシートの合計、カテゴリ別、前週比、支出一覧を表示する", () => {
+  it("複数レシートの合計、カテゴリ別、前週比、支出一覧を表示する", async () => {
     // Given: カテゴリ別に集計済みのレシートがある
     renderWithProviders(
       <WeeklySummaryPanel
@@ -87,6 +87,17 @@ describe("WeeklySummaryPanel", () => {
         return element?.parentElement?.getAttribute("aria-live") === "polite";
       }).length,
     ).toBeGreaterThanOrEqual(1);
+    await waitFor(() => {
+      expect(
+        screen.getByText((_content, element) => {
+          return (
+            element?.getAttribute("aria-live") === "polite" &&
+            element.textContent?.includes("6,280円") === true
+          );
+        }),
+      ).toBeInTheDocument();
+    });
+    expect(screen.getByText(/10,000円 中 63% 消化/)).toBeInTheDocument();
     expect(screen.getByText(/中 63% 消化/)).toBeInTheDocument();
     expect(screen.getByText("-720円")).toBeInTheDocument();
     expect(screen.getByText("スーパー北浜")).toBeInTheDocument();
