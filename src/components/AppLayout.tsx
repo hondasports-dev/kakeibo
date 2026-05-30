@@ -32,6 +32,7 @@ import HistoryIcon from "@mui/icons-material/History";
 import { useTheme } from "@mui/material/styles";
 import { getCurrentWeekStartDate } from "../lib/weekNavigation";
 import { getClerkErrorMessage } from "../lib/clerkError";
+import { PageTransition } from "./PageTransition";
 
 const DRAWER_WIDTH = 220;
 const DRAWER_WIDTH_MINI = 56;
@@ -240,7 +241,9 @@ export function AppLayout() {
         </Box>
 
         <Box component="main" sx={{ flex: 1 }}>
-          <Outlet />
+          <PageTransition>
+            <Outlet />
+          </PageTransition>
         </Box>
       </Box>
 

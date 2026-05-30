@@ -3,6 +3,7 @@ import type { FourWeeksSummaryData } from "../../convex/receipts";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
 import { formatDateForDisplay } from "../lib/dateFormat";
+import { AnimatedCounter } from "./AnimatedCounter";
 
 type CategorySummary = {
   categoryId: string;
@@ -85,7 +86,9 @@ export function WeeklySummaryPanel({
                   <Typography color="text.secondary" variant="body2">
                     合計支出
                   </Typography>
-                  <Typography variant="h5">{totalAmountYen.toLocaleString()}円</Typography>
+                  <Typography variant="h5">
+                    <AnimatedCounter value={totalAmountYen} suffix="円" />
+                  </Typography>
                 </Stack>
 
                 {budgetAmountYen !== undefined && (
@@ -181,11 +184,11 @@ export function WeeklySummaryPanel({
                         />
                         <Typography variant="body2">{cat.categoryName}</Typography>
                         <Typography color="text.secondary" variant="caption">
-                          {cat.count}件
+                          <AnimatedCounter value={cat.count} suffix="件" />
                         </Typography>
                       </Stack>
                       <Typography sx={{ fontWeight: 700 }} variant="body2">
-                        {cat.totalAmountYen.toLocaleString()}円
+                        <AnimatedCounter value={cat.totalAmountYen} suffix="円" />
                       </Typography>
                     </Stack>
                     {totalAmountYen > 0 && (
@@ -220,7 +223,7 @@ export function WeeklySummaryPanel({
                 支出一覧
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                {count}件
+                <AnimatedCounter value={count} suffix="件" />
               </Typography>
             </Stack>
 
