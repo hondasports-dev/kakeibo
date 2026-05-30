@@ -1,13 +1,28 @@
 import { motion, useSpring, useTransform } from "framer-motion";
 import { useEffect } from "react";
 
+/**
+ * AnimatedCounter コンポーネントのプロパティ
+ */
 interface AnimatedCounterProps {
+  /** 表示する数値 */
   value: number;
+  /** 数値の前に表示する接頭辞（例: "¥"） */
   prefix?: string;
+  /** 数値の後に表示する接尾辞（例: "円"） */
   suffix?: string;
+  /** アニメーションの持続時間（秒） */
   duration?: number;
 }
 
+/**
+ * 数値が変更されたときにスプリングアニメーションで変化を表示するコンポーネント
+ *
+ * @example
+ * ```tsx
+ * <AnimatedCounter value={1234} suffix="円" />
+ * ```
+ */
 export function AnimatedCounter({
   value,
   prefix = "",
