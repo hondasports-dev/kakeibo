@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import { api } from "../../convex/_generated/api";
 import { useWeekSession } from "../hooks/useWeekSession";
+import { AnimatedCounter } from "../components/AnimatedCounter";
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
@@ -77,7 +78,7 @@ export function DashboardPage() {
           {[
             {
               label: "今週の支出",
-              value: `${totalAmountYen.toLocaleString()}円`,
+              value: <AnimatedCounter value={totalAmountYen} suffix="円" />,
               helper:
                 budgetAmountYen !== undefined
                   ? `予算 ${budgetAmountYen.toLocaleString()}円`
@@ -86,7 +87,7 @@ export function DashboardPage() {
             },
             {
               label: "予算残り",
-              value: budgetRemaining !== undefined ? `${budgetRemaining.toLocaleString()}円` : "--",
+              value: budgetRemaining !== undefined ? <AnimatedCounter value={budgetRemaining} suffix="円" /> : "--",
               helper:
                 budgetRemaining !== undefined && budgetAmountYen
                   ? `${Math.round((budgetRemaining / budgetAmountYen) * 100)}% 残り`
@@ -97,7 +98,7 @@ export function DashboardPage() {
               label: "今月の残金",
               value:
                 monthlyExpensesSummary?.remainingBalanceYen != null
-                  ? `${monthlyExpensesSummary.remainingBalanceYen.toLocaleString()}円`
+                  ? <AnimatedCounter value={monthlyExpensesSummary.remainingBalanceYen} suffix="円" />
                   : "--",
               helper:
                 monthlyExpensesSummary?.monthlyIncome != null
