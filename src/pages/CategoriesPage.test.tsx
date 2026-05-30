@@ -32,12 +32,12 @@ describe("CategoriesPage", () => {
     useMutationMock.mockReturnValue(vi.fn());
   });
 
-  it("h1 見出し「カテゴリ設定」が表示される", () => {
+  it("h1 見出し「カテゴリ管理」が表示される", () => {
     // Given / When: CategoriesPage を表示する
     renderWithProviders(<CategoriesPage />);
 
-    // Then: ページ h1 見出しとして「カテゴリ設定」が表示される
-    expect(screen.getByRole("heading", { name: "カテゴリ設定", level: 1 })).toBeInTheDocument();
+    // Then: ページ h1 見出しとして「カテゴリ管理」が表示される
+    expect(screen.getByRole("heading", { name: "カテゴリ管理", level: 1 })).toBeInTheDocument();
   });
 
   it("CategorySettingsPanel が含まれている", () => {
