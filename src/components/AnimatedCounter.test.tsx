@@ -7,7 +7,10 @@ describe("AnimatedCounter", () => {
     render(<AnimatedCounter value={1234} />);
 
     const container = screen.getByText((_content, element) => {
-      return element?.tagName.toLowerCase() === "span" && element?.parentElement?.getAttribute("aria-live") === "polite";
+      return (
+        element?.tagName.toLowerCase() === "span" &&
+        element?.parentElement?.getAttribute("aria-live") === "polite"
+      );
     });
     expect(container).toBeInTheDocument();
   });

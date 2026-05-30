@@ -87,7 +87,12 @@ export function DashboardPage() {
             },
             {
               label: "予算残り",
-              value: budgetRemaining !== undefined ? <AnimatedCounter value={budgetRemaining} suffix="円" /> : "--",
+              value:
+                budgetRemaining !== undefined ? (
+                  <AnimatedCounter value={budgetRemaining} suffix="円" />
+                ) : (
+                  "--"
+                ),
               helper:
                 budgetRemaining !== undefined && budgetAmountYen
                   ? `${Math.round((budgetRemaining / budgetAmountYen) * 100)}% 残り`
@@ -97,9 +102,11 @@ export function DashboardPage() {
             {
               label: "今月の残金",
               value:
-                monthlyExpensesSummary?.remainingBalanceYen != null
-                  ? <AnimatedCounter value={monthlyExpensesSummary.remainingBalanceYen} suffix="円" />
-                  : "--",
+                monthlyExpensesSummary?.remainingBalanceYen != null ? (
+                  <AnimatedCounter value={monthlyExpensesSummary.remainingBalanceYen} suffix="円" />
+                ) : (
+                  "--"
+                ),
               helper:
                 monthlyExpensesSummary?.monthlyIncome != null
                   ? `月収入 ${monthlyExpensesSummary.monthlyIncome.toLocaleString()}円`
