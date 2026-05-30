@@ -1,5 +1,4 @@
-import { expect, test } from "@playwright/test";
-import { gotoAuthenticated } from "./helpers/auth";
+import { test } from "@playwright/test";
 import { cleanupTestReceipts, cleanupUserMonthlyIncome } from "./helpers/cleanup";
 
 /**
@@ -7,10 +6,11 @@ import { cleanupTestReceipts, cleanupUserMonthlyIncome } from "./helpers/cleanup
  *
  * Issue #48「月収入設定と当月残金表示機能」の受け入れ確認。
  * Issue #79: UserSettingsPanel（月収入設定UI）を削除したため、
- *   「月収入を設定すると残金が表示される」シナリオは削除済み。
+ *   月収入設定 E2E テストは削除済み。
  *
  * カバーするシナリオ:
- *   - @smoke 月収入未設定時に残金プロンプトが表示される (P0)
+ *   - ~~@smoke 月収入未設定時に残金プロンプトが表示される~~
+ *     **削除** (Issue #79 で月収入設定 UI を削除したため、プロンプト自体も削除)
  */
 
 test.beforeEach(async () => {
@@ -23,11 +23,6 @@ test.afterEach(async () => {
   await cleanupUserMonthlyIncome();
 });
 
-test("@smoke 月収入未設定時に残金プロンプトが表示される", async ({ page }) => {
-  // Given: 月収入が未設定の状態でダッシュボードに移動
-  await gotoAuthenticated(page);
-
-  // When: ダッシュボードを確認する
-  // Then: 月収入未設定時のプロンプトが表示される
-  await expect(page.locator("text=収入を設定すると残金が確認できます")).toBeVisible();
-});
+// Issue #79 で月収入設定 UI を削除したため、E2E テストはなし
+// 今月の残金機能は Convex データ（users.monthlyIncome）が残存するため、
+// 将来の復旧は可能だが、UI からの設定手段は削除済み
