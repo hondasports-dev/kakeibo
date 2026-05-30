@@ -535,6 +535,9 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await cleanupTestReceipts();
   });
 
+  // TODO: Issue #14 テストの再有効化 - データクリーンアップ機構実装後に.skipを解除
+  // 理由: テスト間でデータが蓄積されるため、厳密なテストにはデータクリーンアップが必要
+  // 関連: data-cleanupメカニズム導入Issue作成予定
   test.skip("[Issue #14] 保存後にサマリー件数がリアルタイム更新される", async ({ page }) => {
     // DashboardPage の summary-grid で今週の支出を確認するためホームへ
     await page.getByRole("link", { name: "ホーム" }).click();
@@ -854,9 +857,10 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
       .getByRole("heading", { name: "カテゴリ別", level: 2 })
       .locator("../../..");
     // AnimatedCounter導入により「7,000」と「円」が別要素になるため、部分一致で検索
-    await expect(categorySection.getByText(/7,000/)).toHaveCount(0);
+    // 単語境界\bを使って「17,000」などに誤マッチしないよう堅牢化 (CodeRabbit指摘対応)
+    await expect(categorySection.getByText(/\b7,000\b/)).toHaveCount(0);
     const receiptListSection = page.getByLabel("週次サマリーの支出一覧");
-    await expect(receiptListSection.getByText(/7,000/)).toHaveCount(0);
+    await expect(receiptListSection.getByText(/\b7,000\b/)).toHaveCount(0);
   });
 });
 
