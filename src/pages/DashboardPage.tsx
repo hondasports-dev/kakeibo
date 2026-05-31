@@ -23,13 +23,6 @@ export function DashboardPage() {
     weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
   );
 
-  const now = new Date();
-  const currentMonthStartDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const monthlyExpensesSummary = useQuery(
-    api.receipts.getMonthlyExpensesSummary,
-    weekSession ? { monthStartDate: currentMonthStartDate } : "skip",
-  );
-
   if (!weekSession && !sessionError) {
     return (
       <Box className="app-main">
@@ -72,44 +65,16 @@ export function DashboardPage() {
         </Box>
 
         <Box className="summary-grid">
-          {[
-            {
-              label: "今週の支出",
-              value: <AnimatedCounter value={totalAmountYen} suffix="円" />,
-              helper: "",
-              tone: "secondary" as const,
-            },
-            {
-              label: "今月の残金",
-              value:
-                monthlyExpensesSummary?.remainingBalanceYen != null ? (
-                  <AnimatedCounter value={monthlyExpensesSummary.remainingBalanceYen} suffix="円" />
-                ) : (
-                  "--"
-                ),
-              helper:
-                monthlyExpensesSummary?.monthlyIncome != null
-                  ? `月収入 ${monthlyExpensesSummary.monthlyIncome.toLocaleString()}円`
-                  : "",
-              tone:
-                monthlyExpensesSummary?.remainingBalanceYen != null &&
-                monthlyExpensesSummary.remainingBalanceYen < 0
-                  ? ("error" as const)
-                  : ("default" as const),
-            },
-          ].map((item) => (
-            <Paper className="paper-panel" elevation={0} key={item.label}>
-              <Box sx={{ p: 2.5 }}>
-                <Stack spacing={1}>
-                  <Chip color={item.tone} label={item.label} size="small" />
-                  <Typography variant="h4">{item.value}</Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    {item.helper}
-                  </Typography>
-                </Stack>
-              </Box>
-            </Paper>
-          ))}
+          <Paper className="paper-panel" elevation={0}>
+            <Box sx={{ p: 2.5 }}>
+              <Stack spacing={1}>
+                <Chip color="secondary" label="今週の支出" size="small" />
+                <Typography variant="h4">
+                  <AnimatedCounter value={totalAmountYen} suffix="円" />
+                </Typography>
+              </Stack>
+            </Box>
+          </Paper>
         </Box>
 
         <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>

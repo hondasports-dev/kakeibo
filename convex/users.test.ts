@@ -9,6 +9,7 @@ import {
   requireAuthenticatedUserId,
   acceptReceiptImageExternalApiConsentHandler,
   updateMonthlyIncomeHandler,
+  updateWeeklyDaysHandler,
   upsertUserHandler,
 } from "./users";
 
@@ -98,6 +99,8 @@ type Doc = {
   displayName: string;
   email?: string;
   monthlyIncome?: number;
+  weeklyStartDay?: number;
+  weeklyEndDay?: number;
   receiptImageExternalApiConsentAcceptedAt?: number;
   createdAt: number;
   updatedAt: number;
@@ -366,7 +369,7 @@ describe("getUserProfile", () => {
 
     const result = await getUserProfileHandler(ctx);
 
-    expect(result).toEqual({ monthlyIncome: 300000 });
+    expect(result).toEqual({ monthlyIncome: 300000, weeklyStartDay: 1, weeklyEndDay: 0 });
   });
 
   it("monthlyIncome が未設定の場合は null を返す", async () => {
@@ -385,7 +388,7 @@ describe("getUserProfile", () => {
 
     const result = await getUserProfileHandler(ctx);
 
-    expect(result).toEqual({ monthlyIncome: null });
+    expect(result).toEqual({ monthlyIncome: null, weeklyStartDay: 1, weeklyEndDay: 0 });
   });
 
   it("userが存在しない場合は undefined を返す", async () => {
@@ -562,6 +565,122 @@ describe("updateMonthlyIncome", () => {
       ConvexError,
     );
     await expect(updateMonthlyIncomeHandler(ctx, { monthlyIncome: 100000 })).rejects.toMatchObject({
+      data: "User not found",
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// updateWeeklyDays テスト
+// ---------------------------------------------------------------------------
+
+describe("updateWeeklyDays", () => {
+  it("未認証時は ConvexError を throw する", async () => {
+    const ctx = createMutationCtxForUpdate(null);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 0 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 0 }),
+    ).rejects.toMatchObject({
+      data: "Not authenticated",
+    });
+  });
+
+  it("0〜6の整数を保存できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await updateWeeklyDaysHandler(ctx, { weeklyStartDay: 2, weeklyEndDay: 1 });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patchCalls = (ctx.db as any).patch.mock.calls;
+    expect(patchCalls[0][0]).toBe("doc-001");
+    expect(patchCalls[0][1]).toMatchObject({
+      weeklyStartDay: 2,
+      weeklyEndDay: 1,
+    });
+  });
+
+  it("weeklyStartDay が負の値の場合は ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: -1, weeklyEndDay: 0 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: -1, weeklyEndDay: 0 }),
+    ).rejects.toMatchObject({
+      data: "週の開始曜日は0〜6の整数で入力してください",
+    });
+  });
+
+  it("weeklyStartDay が7以上の場合は ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 7, weeklyEndDay: 0 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 7, weeklyEndDay: 0 }),
+    ).rejects.toMatchObject({
+      data: "週の開始曜日は0〜6の整数で入力してください",
+    });
+  });
+
+  it("weeklyEndDay が負の値の場合は ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: -1 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: -1 }),
+    ).rejects.toMatchObject({
+      data: "週の終了曜日は0〜6の整数で入力してください",
+    });
+  });
+
+  it("weeklyEndDay が7以上の場合は ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 7 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 7 }),
+    ).rejects.toMatchObject({
+      data: "週の終了曜日は0〜6の整数で入力してください",
+    });
+  });
+
+  it("非整数で ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
+    const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1.5, weeklyEndDay: 0 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 2.5 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("userが見つからない場合は ConvexError を throw する", async () => {
+    const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-ghost" });
+    const ctx = createMutationCtxForUpdate(identity, null);
+
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 0 }),
+    ).rejects.toBeInstanceOf(ConvexError);
+    await expect(
+      updateWeeklyDaysHandler(ctx, { weeklyStartDay: 1, weeklyEndDay: 0 }),
+    ).rejects.toMatchObject({
       data: "User not found",
     });
   });

@@ -10,6 +10,10 @@ export default defineSchema({
     email: v.optional(v.string()),
     // monthlyIncome は月収入（円）。未設定の場合は optional で保持しない。
     monthlyIncome: v.optional(v.number()),
+    // 週の開始曜日（0=日曜, 1=月曜, ..., 6=土曜）。未設定の場合は月曜(1)をデフォルトとする。
+    weeklyStartDay: v.optional(v.number()),
+    // 週の終了曜日（0=日曜, 1=月曜, ..., 6=土曜）。未設定の場合は日曜(0)をデフォルトとする。
+    weeklyEndDay: v.optional(v.number()),
     // レシート画像を外部APIへ送信することへのユーザー承認時刻。
     receiptImageExternalApiConsentAcceptedAt: v.optional(v.number()),
     createdAt: v.number(),

@@ -40,7 +40,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).toBeVisible();
 
-    for (const label of ["入力", "履歴", "カテゴリ"]) {
+    for (const label of ["入力", "履歴", "設定"]) {
       const item = bottomNav.getByRole("link", { name: label, exact: true });
       await expect(item).toBeVisible();
       await expect(item.locator("svg")).toBeVisible();
@@ -81,7 +81,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(bottomNav.getByRole("link", { name: "ホーム" })).toBeVisible();
     await expect(bottomNav.getByRole("link", { name: "入力", exact: true })).toBeVisible();
     await expect(bottomNav.getByRole("link", { name: "履歴" })).toBeVisible();
-    await expect(bottomNav.getByRole("link", { name: "カテゴリ", exact: true })).toBeVisible();
+    await expect(bottomNav.getByRole("link", { name: "設定", exact: true })).toBeVisible();
 
     // 各タブをタップして遷移を確認
     await bottomNav.getByRole("link", { name: "ホーム" }).click();
@@ -90,8 +90,8 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await bottomNav.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
-    await bottomNav.getByRole("link", { name: "カテゴリ", exact: true }).click();
-    await expect(page).toHaveURL("/categories");
+    await bottomNav.getByRole("link", { name: "設定", exact: true }).click();
+    await expect(page).toHaveURL("/settings");
   });
 
   test("@smoke @navigation シナリオN-2: PC幅でBottomNavigationが非表示になり、Drawerが表示される", async ({
@@ -120,8 +120,8 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await drawer.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
-    await drawer.getByRole("link", { name: "カテゴリ", exact: true }).click();
-    await expect(page).toHaveURL("/categories");
+    await drawer.getByRole("link", { name: "設定", exact: true }).click();
+    await expect(page).toHaveURL("/settings");
 
     await drawer.getByRole("link", { name: "ホーム", exact: true }).click();
     await expect(page).toHaveURL("/");
@@ -194,8 +194,8 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await drawer.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
-    await drawer.getByRole("link", { name: "カテゴリ", exact: true }).click();
-    await expect(page).toHaveURL("/categories");
+    await drawer.getByRole("link", { name: "設定", exact: true }).click();
+    await expect(page).toHaveURL("/settings");
   });
 
   test("@navigation シナリオN-4: ダッシュボードにカテゴリ別内訳・前週比カードが表示されない", async ({
@@ -298,8 +298,8 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await page.goto("/weeks/current/input");
     await expect(page.locator('input[name="shopName"]')).toBeVisible();
 
-    await page.goto("/categories");
-    await expect(page.getByRole("heading", { name: "カテゴリ管理", level: 1 })).toBeVisible();
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
 
     const weekStartDate = getCurrentWeekStartDate();
     await page.goto(`/weeks/${weekStartDate}`);

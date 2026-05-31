@@ -15,7 +15,7 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  * Issue #14「今週の入力状況パネル」の受け入れ確認を含む。
  *
  * Issue #49 UIリファクタリングにより、画面構成が変更された:
- *   - ダッシュボード (/) : summary-grid（今週の支出・今月の残金）
+ *   - ダッシュボード (/) : summary-grid（今週の支出）
  *   - 入力画面 (/weeks/current/input) : ReceiptForm + WeekStatusPanel (PC only)
  *   - 週次サマリー (/weeks/YYYY-MM-DD) : WeeklySummaryPanel + WeekNavigator
  *
@@ -90,7 +90,6 @@ test.describe("メイン画面の表示確認", () => {
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
     // summary-grid の主要カード
     await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=今月の残金")).toBeVisible();
     await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
     await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
