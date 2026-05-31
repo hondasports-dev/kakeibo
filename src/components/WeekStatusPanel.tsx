@@ -19,7 +19,6 @@ type Receipt = {
 
 type WeekStatusPanelProps = {
   receipts: Receipt[];
-  budgetAmountYen?: number;
   isLoading?: boolean;
 };
 

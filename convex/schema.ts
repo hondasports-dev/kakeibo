@@ -45,8 +45,6 @@ export default defineSchema({
     userId: v.string(),
     weekStartDate: v.string(),
     weekEndDate: v.string(),
-    // budgetAmountYen は週次セッション作成時点では未設定でもよいため optional とする。
-    budgetAmountYen: v.optional(v.number()),
     // reviewMemo は週次セッション完了時のみ入力するため optional とする。
     reviewMemo: v.optional(v.string()),
     status: v.union(v.literal("draft"), v.literal("completed")),

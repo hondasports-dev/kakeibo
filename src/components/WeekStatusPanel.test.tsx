@@ -4,10 +4,9 @@ import { renderWithProviders } from "../test/render";
 import { WeekStatusPanel } from "./WeekStatusPanel";
 
 describe("WeekStatusPanel", () => {
-  it("入力進捗と直近入力を表示し、予算情報は表示しない", () => {
+  it("入力進捗と直近入力を表示する", () => {
     renderWithProviders(
       <WeekStatusPanel
-        budgetAmountYen={10000}
         receipts={[
           {
             _id: "receipt-1",
