@@ -20,7 +20,6 @@ type WeekSessionDoc = {
   userId: string;
   weekStartDate: string;
   weekEndDate: string;
-  budgetAmountYen?: number;
   reviewMemo?: string;
   status: "draft" | "completed";
   createdAt: number;

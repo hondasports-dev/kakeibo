@@ -12,7 +12,6 @@ export type InputPageWeekSession = {
   weekStartDate: string;
   weekEndDate: string;
   status: "draft" | "completed";
-  budgetAmountYen?: number;
   reviewMemo?: string;
 };
 

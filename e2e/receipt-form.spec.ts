@@ -15,7 +15,7 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  * Issue #14「今週の入力状況パネル」の受け入れ確認を含む。
  *
  * Issue #49 UIリファクタリングにより、画面構成が変更された:
- *   - ダッシュボード (/) : summary-grid（今週の支出・今月の残金）
+ *   - ダッシュボード (/) : summary-grid（今週の支出）
  *   - 入力画面 (/weeks/current/input) : ReceiptForm + WeekStatusPanel (PC only)
  *   - 週次サマリー (/weeks/YYYY-MM-DD) : WeeklySummaryPanel + WeekNavigator
  *
@@ -91,8 +91,6 @@ test.describe("メイン画面の表示確認", () => {
     // summary-grid の主要カード
     await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
     await expect(page.locator(".summary-grid").locator("text=今月の残金")).toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
 
   test("@smoke シナリオ3: ページリロードしてもログイン状態が維持される", async ({ page }) => {
@@ -467,15 +465,6 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
     await expect(page.locator('[role="listbox"][aria-label="週内の日付候補"]')).toBeVisible();
     await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible();
-  });
-
-  test("[Issue #83] ダッシュボードに予算表示が出ない", async ({ page }) => {
-    await page.getByRole("link", { name: "ホーム" }).click();
-    await expect(page).toHaveURL("/");
-
-    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
 
   test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
