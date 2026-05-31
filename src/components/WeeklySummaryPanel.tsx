@@ -1,8 +1,21 @@
-import { Box, Divider, LinearProgress, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import type { FourWeeksSummaryData } from "../../convex/receipts";
+import {
+  Box,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  LinearProgress,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
+import { useState } from "react";
+import type { DailySpendingTrendData } from "../../convex/receipts";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
 import { formatDateForDisplay } from "../lib/dateFormat";
+import { addDays, addWeeks } from "../lib/weekNavigation";
 import { AnimatedCounter } from "./AnimatedCounter";
 
 type CategorySummary = {
@@ -26,21 +39,55 @@ type ReceiptItem = {
   memo?: string;
 };
 
+function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {
+  return (
+    <Box className="receipt-row" key={receipt._id}>
+      <Box>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+          <Box
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: receipt.categoryColor,
+              flexShrink: 0,
+            }}
+          />
+          <Typography sx={{ fontWeight: 700 }}>
+            {receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? "")}
+          </Typography>
+        </Stack>
+        <Stack direction="row" spacing={1}>
+          <Typography color="text.secondary" variant="body2">
+            {formatDateForDisplay(receipt.date)}
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            {receipt.categoryName}
+          </Typography>
+        </Stack>
+      </Box>
+      <Typography sx={{ fontWeight: 700 }}>{receipt.amountYen.toLocaleString()}円</Typography>
+    </Box>
+  );
+}
+
 type WeeklySummaryPanelProps = {
   count: number;
   totalAmountYen: number;
   byCategory: CategorySummary[];
   prevWeekTotalAmountYen: number | null;
   receipts: ReceiptItem[];
+  prevWeekReceipts?: ReceiptItem[];
   budgetAmountYen?: number;
   isLoading?: boolean;
+  weekStartDate: string;
   /**
-   * 直近4週の支出推移データ。
-   * - `FourWeeksSummaryData`: データ取得済み（グラフまたはプレースホルダー表示）
+   * 今週と前週の日別支出推移データ。
+   * - `DailySpendingTrendData`: データ取得済み（グラフまたはプレースホルダー表示）
    * - `undefined`: ロード中（Skeleton 表示）
    * - prop 自体を渡さない: 非表示（Convex クエリが skip 状態のとき）
    */
-  weeklyTrendData?: FourWeeksSummaryData | null;
+  dailySpendingTrend?: DailySpendingTrendData | null;
 };
 
 export function WeeklySummaryPanel({
@@ -49,10 +96,42 @@ export function WeeklySummaryPanel({
   byCategory,
   prevWeekTotalAmountYen,
   receipts,
+  prevWeekReceipts = [],
   budgetAmountYen,
   isLoading = false,
-  weeklyTrendData,
+  weekStartDate,
+  dailySpendingTrend,
 }: WeeklySummaryPanelProps) {
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const handlePointClick = (date: string) => {
+    setSelectedDate(date);
+    setDialogOpen(true);
+  };
+
+  const handleClose = () => {
+    setDialogOpen(false);
+    setSelectedDate(null);
+  };
+
+  const previousWeekStart = addWeeks(weekStartDate, -1);
+  const dayOffset = selectedDate
+    ? Math.round(
+        (new Date(selectedDate + "T00:00:00Z").getTime() -
+          new Date(weekStartDate + "T00:00:00Z").getTime()) /
+          (1000 * 60 * 60 * 24),
+      )
+    : 0;
+  const previousDate = selectedDate ? addDays(previousWeekStart, dayOffset) : null;
+
+  const currentDayReceipts = selectedDate ? receipts.filter((r) => r.date === selectedDate) : [];
+  const previousDayReceipts = previousDate
+    ? prevWeekReceipts.filter((r) => r.date === previousDate)
+    : [];
+
+  const currentDayTotal = currentDayReceipts.reduce((sum, r) => sum + r.amountYen, 0);
+  const previousDayTotal = previousDayReceipts.reduce((sum, r) => sum + r.amountYen, 0);
   const budgetUsageRate =
     budgetAmountYen !== undefined && budgetAmountYen > 0
       ? Math.round((totalAmountYen / budgetAmountYen) * 100)
@@ -139,10 +218,12 @@ export function WeeklySummaryPanel({
            - undefined: ロード中 → isLoading で Skeleton を表示
            - データあり: グラフまたはプレースホルダーを表示
       */}
-      {weeklyTrendData !== null && (
+      {dailySpendingTrend !== null && (
         <WeeklyTrendChart
-          weeks={weeklyTrendData?.weeks}
-          isLoading={weeklyTrendData === undefined}
+          currentWeek={dailySpendingTrend?.currentWeek}
+          previousWeek={dailySpendingTrend?.previousWeek}
+          isLoading={dailySpendingTrend === undefined}
+          onPointClick={handlePointClick}
         />
       )}
 
@@ -239,45 +320,65 @@ export function WeeklySummaryPanel({
                   まだレシートがありません
                 </Typography>
               ) : (
-                receipts.map((receipt) => (
-                  <Box className="receipt-row" key={receipt._id}>
-                    <Box>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                        <Box
-                          sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            backgroundColor: receipt.categoryColor,
-                            flexShrink: 0,
-                          }}
-                        />
-                        <Typography sx={{ fontWeight: 700 }}>
-                          {receipt.type === "income"
-                            ? (receipt.bankName ?? "")
-                            : (receipt.shopName ?? "")}
-                        </Typography>
-                      </Stack>
-                      <Stack direction="row" spacing={1}>
-                        <Typography color="text.secondary" variant="body2">
-                          {formatDateForDisplay(receipt.date)}
-                        </Typography>
-                        <Typography color="text.secondary" variant="body2">
-                          {receipt.categoryName}
-                        </Typography>
-                      </Stack>
-                    </Box>
-                    <Typography sx={{ fontWeight: 700 }}>
-                      {receipt.amountYen.toLocaleString()}円
-                    </Typography>
-                  </Box>
-                ))
+                receipts.map((receipt) => <ReceiptRow key={receipt._id} receipt={receipt} />)
               )}
             </Box>
             <Divider />
           </Stack>
         </Box>
       </Paper>
+
+      {/* 日別入出金比較モーダル */}
+      <Dialog open={dialogOpen} onClose={handleClose} fullWidth maxWidth="md">
+        <DialogTitle>
+          {selectedDate ? `${formatDateForDisplay(selectedDate)} の入出金比較` : "入出金比較"}
+        </DialogTitle>
+        <DialogContent>
+          <Stack direction={{ xs: "column", md: "row" }} divider={<Divider flexItem />} spacing={3}>
+            {/* 前週 */}
+            <Box sx={{ flex: 1 }}>
+              <Typography gutterBottom variant="subtitle1">
+                前週（{previousDate ? formatDateForDisplay(previousDate) : ""}）
+              </Typography>
+              <Typography variant="h6">
+                <AnimatedCounter value={previousDayTotal} suffix="円" />
+              </Typography>
+              <Box className="receipt-list" sx={{ mt: 1 }}>
+                {previousDayReceipts.length === 0 ? (
+                  <Typography color="text.secondary" variant="body2">
+                    レシートがありません
+                  </Typography>
+                ) : (
+                  previousDayReceipts.map((receipt) => (
+                    <ReceiptRow key={receipt._id} receipt={receipt} />
+                  ))
+                )}
+              </Box>
+            </Box>
+
+            {/* 今週 */}
+            <Box sx={{ flex: 1 }}>
+              <Typography gutterBottom variant="subtitle1">
+                今週（{selectedDate ? formatDateForDisplay(selectedDate) : ""}）
+              </Typography>
+              <Typography variant="h6">
+                <AnimatedCounter value={currentDayTotal} suffix="円" />
+              </Typography>
+              <Box className="receipt-list" sx={{ mt: 1 }}>
+                {currentDayReceipts.length === 0 ? (
+                  <Typography color="text.secondary" variant="body2">
+                    レシートがありません
+                  </Typography>
+                ) : (
+                  currentDayReceipts.map((receipt) => (
+                    <ReceiptRow key={receipt._id} receipt={receipt} />
+                  ))
+                )}
+              </Box>
+            </Box>
+          </Stack>
+        </DialogContent>
+      </Dialog>
     </Stack>
   );
 }

@@ -499,6 +499,72 @@ export const getFourWeeksSummary = query({
 });
 
 // ---------------------------------------------------------------------------
+// getDailySpendingTrend
+// ---------------------------------------------------------------------------
+
+export type DailySpendingTrendData = {
+  currentWeek: Array<{
+    date: string;
+    totalAmountYen: number;
+  }>;
+  previousWeek: Array<{
+    date: string;
+    totalAmountYen: number;
+  }>;
+};
+
+type GetDailySpendingTrendArgs = {
+  weekStartDate: string;
+};
+
+/** getDailySpendingTrend query の handler ロジック（テスト用に export） */
+export async function getDailySpendingTrendHandler(
+  ctx: QueryCtx,
+  args: GetDailySpendingTrendArgs,
+): Promise<DailySpendingTrendData> {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  function addDays(dateStr: string, days: number): string {
+    const date = new Date(dateStr + "T00:00:00Z");
+    date.setDate(date.getDate() + days);
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  async function getTotalForDate(targetDate: string): Promise<number> {
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", targetDate))
+      .take(200);
+    return receipts.reduce((sum, r) => sum + r.amountYen, 0);
+  }
+
+  const currentWeekStart = args.weekStartDate;
+  const previousWeekStart = calculateRelativeWeekStartDate(args.weekStartDate, -1);
+
+  const currentWeek: DailySpendingTrendData["currentWeek"] = [];
+  const previousWeek: DailySpendingTrendData["previousWeek"] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const currentDate = addDays(currentWeekStart, i);
+    const previousDate = addDays(previousWeekStart, i);
+    currentWeek.push({ date: currentDate, totalAmountYen: await getTotalForDate(currentDate) });
+    previousWeek.push({ date: previousDate, totalAmountYen: await getTotalForDate(previousDate) });
+  }
+
+  return { currentWeek, previousWeek };
+}
+
+export const getDailySpendingTrend = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getDailySpendingTrendHandler,
+});
+
+// ---------------------------------------------------------------------------
 // deleteReceiptsByUser (internal mutation / E2E テストデータクリーンアップ専用)
 // ---------------------------------------------------------------------------
 
