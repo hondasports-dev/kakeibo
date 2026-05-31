@@ -78,7 +78,6 @@ type WeeklySummaryPanelProps = {
   prevWeekTotalAmountYen: number | null;
   receipts: ReceiptItem[];
   prevWeekReceipts?: ReceiptItem[];
-  budgetAmountYen?: number;
   isLoading?: boolean;
   weekStartDate: string;
   /**
@@ -97,7 +96,6 @@ export function WeeklySummaryPanel({
   prevWeekTotalAmountYen,
   receipts,
   prevWeekReceipts = [],
-  budgetAmountYen,
   isLoading = false,
   weekStartDate,
   dailySpendingTrend,
@@ -132,17 +130,10 @@ export function WeeklySummaryPanel({
 
   const currentDayTotal = currentDayReceipts.reduce((sum, r) => sum + r.amountYen, 0);
   const previousDayTotal = previousDayReceipts.reduce((sum, r) => sum + r.amountYen, 0);
-  const budgetUsageRate =
-    budgetAmountYen !== undefined && budgetAmountYen > 0
-      ? Math.round((totalAmountYen / budgetAmountYen) * 100)
-      : undefined;
-
-  const budgetRemaining =
-    budgetAmountYen !== undefined ? budgetAmountYen - totalAmountYen : undefined;
 
   return (
     <Stack spacing={2.5}>
-      {/* 合計・予算サマリー */}
+      {/* 合計サマリー */}
       <Paper className="paper-panel" elevation={0}>
         <Box sx={{ p: 2.5 }}>
           <Stack spacing={2}>
@@ -169,39 +160,6 @@ export function WeeklySummaryPanel({
                     <AnimatedCounter value={totalAmountYen} suffix="円" />
                   </Typography>
                 </Stack>
-
-                {budgetAmountYen !== undefined && (
-                  <>
-                    <LinearProgress
-                      aria-label="予算消化率"
-                      value={Math.min(budgetUsageRate ?? 0, 100)}
-                      variant="determinate"
-                      color={
-                        (budgetUsageRate ?? 0) >= 100
-                          ? "error"
-                          : (budgetUsageRate ?? 0) >= 80
-                            ? "warning"
-                            : "primary"
-                      }
-                    />
-                    <Box className="budget-strip">
-                      <span>予算</span>
-                      <strong>
-                        {budgetAmountYen.toLocaleString()}円 中 {budgetUsageRate}% 消化
-                        {budgetRemaining !== undefined && (
-                          <> （残り {budgetRemaining.toLocaleString()}円）</>
-                        )}
-                      </strong>
-                    </Box>
-                  </>
-                )}
-
-                {budgetAmountYen === undefined && (
-                  <Box className="budget-strip">
-                    <span>予算</span>
-                    <strong>未設定</strong>
-                  </Box>
-                )}
 
                 <PreviousWeekComparison
                   currentTotalAmountYen={totalAmountYen}

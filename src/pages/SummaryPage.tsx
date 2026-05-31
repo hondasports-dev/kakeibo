@@ -103,7 +103,6 @@ export function SummaryPage() {
           prevWeekTotalAmountYen={weeklySummary.prevWeekTotalAmountYen ?? null}
           receipts={weeklySummary.receipts}
           prevWeekReceipts={prevWeekSummary?.receipts ?? []}
-          budgetAmountYen={summaryWeekSession?.budgetAmountYen ?? undefined}
           isLoading={false}
           weekStartDate={weekStartDate}
           dailySpendingTrend={dailySpendingTrend ?? null}

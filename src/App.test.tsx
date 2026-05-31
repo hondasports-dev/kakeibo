@@ -183,6 +183,8 @@ describe("App route rendering", () => {
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "今週のダッシュボード" })).toBeInTheDocument();
     });
+    expect(screen.queryByText("予算残り")).not.toBeInTheDocument();
+    expect(screen.queryByText("予算未設定")).not.toBeInTheDocument();
   });
 
   it("入力リンクから入力画面へ遷移できる", async () => {

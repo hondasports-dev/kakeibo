@@ -93,5 +93,16 @@ describe("AppLayout サイドバー開閉", () => {
       expect(screen.queryByRole("button", { name: "サイドバーを閉じる" })).not.toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "サイドバーを開く" })).not.toBeInTheDocument();
     });
+
+    it("ボトムナビゲーションの各項目にラベルとアイコンが表示される", () => {
+      renderWithProviders(<AppLayout />);
+
+      const bottomNavigation = screen.getByLabelText("ボトムナビゲーション");
+      for (const label of ["ホーム", "入力", "履歴", "カテゴリ"]) {
+        const link = screen.getByRole("link", { name: label });
+        expect(bottomNavigation).toContainElement(link);
+        expect(link.querySelector("svg")).toBeInTheDocument();
+      }
+    });
   });
 });

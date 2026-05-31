@@ -5,7 +5,7 @@ import { WeeklySummaryPanel } from "./WeeklySummaryPanel";
 import type { DailySpendingTrendData } from "../../convex/receipts";
 
 describe("WeeklySummaryPanel", () => {
-  it("レシート0件では空状態と予算未設定を表示する", () => {
+  it("レシート0件では空状態を表示し、予算情報は表示しない", () => {
     // Given: 今週のレシートがまだ登録されていない
     renderWithProviders(
       <WeeklySummaryPanel
@@ -19,7 +19,7 @@ describe("WeeklySummaryPanel", () => {
     );
 
     // When: 週次サマリーを確認する
-    // Then: 空状態と予算未設定が表示される
+    // Then: 空状態が表示され、予算情報は表示されない
     // AnimatedCounter導入後はテキストがspanに分かれるため、aria-live属性で確認（複数あるのでgetAllByText）
     expect(
       screen.getAllByText((content, element) => {
@@ -28,7 +28,8 @@ describe("WeeklySummaryPanel", () => {
         );
       }).length,
     ).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("未設定")).toBeInTheDocument();
+    expect(screen.queryByText("未設定")).not.toBeInTheDocument();
+    expect(screen.queryByText("予算")).not.toBeInTheDocument();
     expect(screen.getAllByText("まだレシートがありません")).toHaveLength(2);
   });
 
@@ -38,7 +39,6 @@ describe("WeeklySummaryPanel", () => {
       <WeeklySummaryPanel
         count={2}
         totalAmountYen={6280}
-        budgetAmountYen={10000}
         byCategory={[
           {
             categoryId: "cat-food",
@@ -81,7 +81,7 @@ describe("WeeklySummaryPanel", () => {
     );
 
     // When: 週次サマリーを確認する
-    // Then: 合計・予算・カテゴリ別・支出一覧が表示される
+    // Then: 合計・カテゴリ別・支出一覧が表示され、予算情報は表示されない
     // 合計支出ラベルとアニメーションコンテナの存在を確認
     expect(screen.getByText("合計支出")).toBeInTheDocument();
     expect(
@@ -99,8 +99,9 @@ describe("WeeklySummaryPanel", () => {
         }),
       ).toBeInTheDocument();
     });
-    expect(screen.getByText(/10,000円 中 63% 消化/)).toBeInTheDocument();
-    expect(screen.getByText(/中 63% 消化/)).toBeInTheDocument();
+    expect(screen.queryByText(/10,000円 中 63% 消化/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/中 63% 消化/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("予算消化率")).not.toBeInTheDocument();
     expect(screen.getByText("-720円")).toBeInTheDocument();
     expect(screen.getByText("スーパー北浜")).toBeInTheDocument();
     expect(screen.getByText("ドラッグストア南")).toBeInTheDocument();

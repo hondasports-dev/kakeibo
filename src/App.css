@@ -11,7 +11,7 @@
 .app-layout-main {
   flex: 1;
   min-width: 0;
-  padding-bottom: var(--size-bottom-nav-height); /* BottomNavigation の高さ分 */
+  padding-bottom: calc(var(--size-bottom-nav-height) + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 900px) {
