@@ -33,7 +33,6 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  *   - シナリオ 10: 金額に文字を入力しても入力フィールドに反映されない (P1 / validation)
  *   - [Issue #51] シナリオ 11: 金額に数字を入力すると3桁カンマ区切りで表示される (P1 / validation)
  *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke) ※PC幅のみ
- *   - [Issue #83] 予算表示が出ない (P0 / smoke) ※DashboardPage
  *   - [Issue #14] 今週の進捗パネルに件数が表示される (P1 / smoke) ※PC幅のみ
  *   - [Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される (P1 / smoke) ※PC幅のみ
  *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件) ※DashboardPage
