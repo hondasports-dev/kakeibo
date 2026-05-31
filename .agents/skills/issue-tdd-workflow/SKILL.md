@@ -47,6 +47,10 @@ GitHub Issue対応を、外部コンテンツ隔離、worktree分離、t_wada流
 | GitHub Actions E2E の失敗原因を把握せず再pushした | `gh run view <run_id> --log-failed` でエラーメッセージ・ロケーターを特定してから修正する。 |
 | Playwright `.or()` ロケーターが複数要素にマッチして strict mode violation になった | `.or()` の末尾に `.first()` を追加して1件に限定する。CI環境ではローカルと異なるデータ状態が残るため常に考慮する。 |
 | PRにコードレビューを実施せずpushした | push前にコード全体をレビューし、型安全性・ロジックの漏れ・重複・初期値問題を確認してから push する。 |
+| Issueの「置き換えか追加か」でユーザーに確認を取った | Issue本文に「->」「〜に変更」「置き換え」などの表現がある場合は「置き換え形」と判断する。家計簿の「支出推移」は支出（expense）がデフォルト対象。 |
+| `git merge --continue` でVimが開いて進行不能になった | インタラクティブエディタを起動する前に `GIT_EDITOR=true` を設定する。または `git commit -m "..."` でメッセージを直接指定する。 |
+| PR body 作成でファイル書き込みに苦戦した | PowerShellの文字列処理は避ける。短いPR本文は `gh pr create --body "..."` で直接渡し、長文はGitHub Webで編集する。 |
+| ブランチ保護ルールでマージがBLOCKEDされた | `gh pr checks` で確認し、`mergeStateStatus: BLOCKED` の場合は `gh pr merge --admin` で管理者権限でマージする。 |
 
 ## 手順
 
@@ -65,11 +69,19 @@ GitHub Issue対応を、外部コンテンツ隔離、worktree分離、t_wada流
    - 別Issueのブランチに新しい作業を混ぜない。
    - ブランチ名は `codex/issue-73-weekly-chart` のようにする。
    - `.env.local`、`dist/`、`test-results/`、`playwright-report/`、`node_modules/` などのローカル状態が未追跡のまま除外されていることを確認する。
+   - **worktree 作成後のチェックリスト:**
+     1. `.env.local` が worktree にコピーされているか確認。なければ `cp .env.local <worktree-path>/.env.local` でコピーする。
+     2. コピー後は `service-ops-safety` を読む。
+     3. Windows環境では `cd` がブロックされることがある。worktree内でコマンドを実行する場合は `cmd /c "cd /d <path> && command"` または `powershell -Command "Set-Location -Path '<path>'; command"` を使う。
 
 4. **Issueを再検討する**
    - 問題、期待する振る舞い、影響ファイル、受け入れ条件を自分の言葉で要約する。
    - ユニットテスト、E2Eテスト、ドキュメント更新、またはテスト追加不要のどれが必要か判断する。
    - UI変更では、既存のUI/UXドキュメントと既存コンポーネントのパターンを確認してから編集する。
+   - **自動判断ルール（ユーザー確認を省略）:**
+     - Issue本文に「->」「〜に変更」「置き換え」などの表現がある場合は「既存機能を置き換える形」と判断する。
+     - 家計簿アプリで「支出推移」「週別グラフ」などの表現があれば、デフォルト対象は「支出（expense）」と判断する（収入を含める場合はIssue本文に明示される）。
+     - 「今週 vs 前週」「今週と前週」などの比較表現がある場合は、今週を基準に前週を比較対象とする。
 
 5. **TDDで進める**
    - 望ましい振る舞いを証明する最小のユニットテスト、コンポーネントテスト、またはConvexテストを先に追加する。
@@ -112,6 +124,14 @@ GitHub Issue対応を、外部コンテンツ隔離、worktree分離、t_wada流
    - コミットメッセージは日本語で、理由が分かる形にする。
    - PRは明示がなければドラフトで作る。
    - PR本文には、Issueリンク、変更内容、理由、検証コマンド、追加または省略したテスト、Convex/認証/サービス影響を書く。
+   - **PR body の作成方針:**
+     - 短い本文（数行以内）は `gh pr create --body "..."` で直接渡す。
+     - 長文はファイル経由ではなく、GitHub Web UI で編集する。PowerShell の文字列処理は避ける。
+   - **マージ手順:**
+     - `gh pr checks <number>` で CI 状態を確認する。
+     - `mergeStateStatus: BLOCKED` の場合はブランチ保護ルールでレビュー必須のため、`gh pr merge <number> --squash --admin` で管理者権限でマージする。
+   - **マージ後の後始末:**
+     - `git merge --continue` などでインタラクティブエディタ（Vim）が開く場合は、`GIT_EDITOR=true` を設定して自動化する。または `git commit -m "..."` でメッセージを直接指定する。
 
 ## 危険信号
 
