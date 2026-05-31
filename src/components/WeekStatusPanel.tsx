@@ -23,24 +23,9 @@ type WeekStatusPanelProps = {
   isLoading?: boolean;
 };
 
-export function WeekStatusPanel({
-  receipts,
-  budgetAmountYen,
-  isLoading = false,
-}: WeekStatusPanelProps) {
+export function WeekStatusPanel({ receipts, isLoading = false }: WeekStatusPanelProps) {
   const count = receipts.length;
-  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
   const progressValue = Math.min((count / 10) * 100, 100);
-
-  const budgetUsageRate =
-    budgetAmountYen !== undefined && budgetAmountYen > 0
-      ? Math.round((totalAmountYen / budgetAmountYen) * 100)
-      : undefined;
-
-  const budgetLabel =
-    budgetAmountYen !== undefined
-      ? `${budgetUsageRate}% 消化（${totalAmountYen.toLocaleString()}円 / ${budgetAmountYen.toLocaleString()}円）`
-      : "予算未設定";
 
   return (
     <Stack spacing={2.5}>
@@ -61,10 +46,6 @@ export function WeekStatusPanel({
               value={progressValue}
               variant="determinate"
             />
-            <Box className="budget-strip">
-              <span>予算消化</span>
-              <strong>{budgetLabel}</strong>
-            </Box>
           </Stack>
         </Box>
       </Paper>

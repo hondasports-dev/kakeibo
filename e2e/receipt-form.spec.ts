@@ -15,7 +15,7 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  * Issue #14「今週の入力状況パネル」の受け入れ確認を含む。
  *
  * Issue #49 UIリファクタリングにより、画面構成が変更された:
- *   - ダッシュボード (/) : summary-grid（今週の支出・予算残り・今月の残金）
+ *   - ダッシュボード (/) : summary-grid（今週の支出・今月の残金）
  *   - 入力画面 (/weeks/current/input) : ReceiptForm + WeekStatusPanel (PC only)
  *   - 週次サマリー (/weeks/YYYY-MM-DD) : WeeklySummaryPanel + WeekNavigator
  *
@@ -33,7 +33,7 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  *   - シナリオ 10: 金額に文字を入力しても入力フィールドに反映されない (P1 / validation)
  *   - [Issue #51] シナリオ 11: 金額に数字を入力すると3桁カンマ区切りで表示される (P1 / validation)
  *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke) ※PC幅のみ
- *   - [Issue #14] 予算未設定時の表示が正しい (P0 / smoke) ※DashboardPage
+ *   - [Issue #83] 予算表示が出ない (P0 / smoke) ※DashboardPage
  *   - [Issue #14] 今週の進捗パネルに件数が表示される (P1 / smoke) ※PC幅のみ
  *   - [Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される (P1 / smoke) ※PC幅のみ
  *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件) ※DashboardPage
@@ -88,10 +88,11 @@ test.describe("メイン画面の表示確認", () => {
 
     // Issue #49: ダッシュボードに変更
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
-    // summary-grid の3カード
+    // summary-grid の主要カード
     await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算残り")).toBeVisible();
     await expect(page.locator(".summary-grid").locator("text=今月の残金")).toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
 
   test("@smoke シナリオ3: ページリロードしてもログイン状態が維持される", async ({ page }) => {
@@ -468,20 +469,13 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible();
   });
 
-  test('[Issue #14] 予算未設定時に "--" と "予算未設定" が表示される', async ({ page }) => {
-    // DashboardPage の summary-grid で予算残りカードを確認
+  test("[Issue #83] ダッシュボードに予算表示が出ない", async ({ page }) => {
     await page.getByRole("link", { name: "ホーム" }).click();
     await expect(page).toHaveURL("/");
 
-    const budgetRemainingCard = page
-      .locator(".summary-grid")
-      .locator("text=予算残り")
-      .locator("../..");
-    await expect(budgetRemainingCard.locator("text=--")).toBeVisible();
-
-    // 今週の支出カードは "予算未設定" をヘルパーテキストとして表示する
-    const spendCard = page.locator(".summary-grid").locator("text=今週の支出").locator("../..");
-    await expect(spendCard.locator("text=予算未設定")).toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
+    await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
 
   test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
