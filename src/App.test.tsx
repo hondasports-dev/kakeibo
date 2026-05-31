@@ -3,9 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "./test/render";
 import App from "./App";
+import { router } from "./router";
 
 const {
   useAuthMock,
+  useActionMock,
   useClerkMock,
   useConvexAuthMock,
   useMutationMock,
@@ -13,6 +15,7 @@ const {
   useSignInMock,
   useUserMock,
 } = vi.hoisted(() => ({
+  useActionMock: vi.fn(),
   useAuthMock: vi.fn(),
   useClerkMock: vi.fn(),
   useConvexAuthMock: vi.fn(),
@@ -34,6 +37,7 @@ vi.mock("@clerk/react/legacy", () => ({
 }));
 
 vi.mock("convex/react", () => ({
+  useAction: useActionMock,
   useConvexAuth: useConvexAuthMock,
   useMutation: useMutationMock,
   useQuery: useQueryMock,
@@ -50,6 +54,8 @@ function setupSignedInApp() {
 
   useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true });
   useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: true });
+  useActionMock.mockReset();
+  useActionMock.mockReturnValue(vi.fn());
   useMutationMock.mockReset();
   useMutationMock.mockReturnValue(getOrCreateSession);
   useQueryMock.mockReset();
@@ -150,11 +156,9 @@ describe("App authentication states", () => {
   });
 });
 
-// Issue #49: React Router 移行により window.history / popstate ベースのテストは無効化。
-// 各ページのルーティング確認は navigation.spec.ts (E2E) で行う。
-describe.skip("App weekly summary navigation", () => {
-  beforeEach(() => {
-    window.history.pushState({}, "", "/");
+describe("App route rendering", () => {
+  beforeEach(async () => {
+    await router.navigate("/");
     useSignInMock.mockReturnValue({
       isLoaded: true,
       signIn: {
@@ -168,86 +172,48 @@ describe.skip("App weekly summary navigation", () => {
     useUserMock.mockReturnValue({ user: null });
   });
 
-  it("/weeks/:weekStartDate の日付を週開始日に正規化し、サマリー取得に使う", async () => {
-    // Given: 週の途中の日付を含む週次サマリーURLで表示している
+  it("ルートURLではダッシュボードを表示する", async () => {
+    // Given: ログイン済みでルートURLを表示している
     setupSignedInApp();
-    window.history.pushState({}, "", "/weeks/2026-05-14");
 
     // When: アプリを表示する
     renderWithProviders(<App />);
 
-    // Then: URL由来の日付が週開始日に正規化され、サマリー取得に使われる
+    // Then: ダッシュボードが表示される
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/weeks/2026-05-11");
-      expect(
-        useQueryMock.mock.calls.some(([, args]) => {
-          return (
-            typeof args === "object" &&
-            args !== null &&
-            "weekStartDate" in args &&
-            args.weekStartDate === "2026-05-11" &&
-            !("prevWeekTotalAmountYen" in args)
-          );
-        }),
-      ).toBe(true);
+      expect(screen.getByRole("heading", { name: "今週のダッシュボード" })).toBeInTheDocument();
     });
   });
 
-  it("未来週URLは今週の週次サマリーURLへ正規化する", async () => {
-    // Given: 今週より後の週次サマリーURLで表示している
-    setupSignedInApp();
-    window.history.pushState({}, "", "/weeks/2026-05-25");
-
-    // When: アプリを表示する
-    renderWithProviders(<App />);
-
-    // Then: 今週のURLへ置き換えられる
-    await waitFor(() => {
-      expect(window.location.pathname).toBe("/weeks/2026-05-18");
-    });
-  });
-
-  it("週次サマリーURLからルートへ戻るとサマリーを閉じる", async () => {
-    // Given: 週次サマリーURLで表示している
-    setupSignedInApp();
-    window.history.pushState({}, "", "/weeks/2026-05-18");
-    renderWithProviders(<App />);
-
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeInTheDocument();
-    });
-
-    // When: ブラウザBack相当でルートURLへ戻る
-    window.history.pushState({}, "", "/");
-    window.dispatchEvent(new PopStateEvent("popstate"));
-
-    // Then: URLに合わせて週次サマリーが閉じる
-    await waitFor(() => {
-      expect(
-        screen.queryByRole("heading", { name: "週次サマリー", level: 2 }),
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  it("振り返りパネルからサマリーを開くと今週の週次サマリーURLへ遷移する", async () => {
-    // Given: 過去週サマリーを閉じた後の入力画面を表示している
+  it("入力リンクから入力画面へ遷移できる", async () => {
+    // Given: ログイン済みでアプリを表示している
     const user = userEvent.setup();
     setupSignedInApp();
-    window.history.pushState({}, "", "/weeks/2026-05-11");
     renderWithProviders(<App />);
+    await screen.findByRole("heading", { name: "今週のダッシュボード" });
 
+    // When: 入力リンクを選ぶ
+    await user.click(screen.getByRole("link", { name: "入力" }));
+
+    // Then: 入力フォームが表示される
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "サマリーを閉じる" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "入力" })).toBeInTheDocument();
     });
-    await user.click(screen.getByRole("button", { name: "サマリーを閉じる" }));
+  });
 
-    // When: 今週の振り返りパネルからセッションを完了する
-    await user.click(screen.getByRole("button", { name: "セッションを完了" }));
+  it("カテゴリリンクからカテゴリ管理へ遷移できる", async () => {
+    // Given: ログイン済みでアプリを表示している
+    const user = userEvent.setup();
+    setupSignedInApp();
+    renderWithProviders(<App />);
+    await screen.findByRole("heading", { name: "今週のダッシュボード" });
 
-    // Then: 今週の週次サマリーURLへ遷移してサマリーを表示する
+    // When: カテゴリリンクを選ぶ
+    await user.click(screen.getByRole("link", { name: "カテゴリ" }));
+
+    // Then: カテゴリ管理が表示される
     await waitFor(() => {
-      expect(window.location.pathname).toBe("/weeks/2026-05-18");
-      expect(screen.getByRole("heading", { name: "週次サマリー", level: 2 })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "カテゴリ管理" })).toBeInTheDocument();
     });
   });
 });

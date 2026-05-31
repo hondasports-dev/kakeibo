@@ -110,6 +110,26 @@ describe("CategorySettingsPanel", () => {
     expect(screen.getByText("カテゴリを追加しました")).toBeInTheDocument();
   });
 
+  it("E2Eから安定して参照できる入力名を公開する", async () => {
+    // Given: カテゴリ設定を表示する
+    const user = userEvent.setup();
+    renderWithProviders(<CategorySettingsPanel />);
+
+    // Then: Playwright がラベル描画に依存せず入力欄を参照できる
+    expect(screen.getByRole("textbox", { name: "新しいカテゴリ名" })).toHaveAttribute(
+      "name",
+      "newCategoryName",
+    );
+    expect(screen.getByLabelText("新しいカテゴリ色")).toHaveAttribute("name", "newCategoryColor");
+
+    await user.click(screen.getByRole("button", { name: "食費を編集" }));
+    expect(screen.getByRole("textbox", { name: "カテゴリ名を編集" })).toHaveAttribute(
+      "name",
+      "editCategoryName",
+    );
+    expect(screen.getByLabelText("カテゴリ色を編集")).toHaveAttribute("name", "editCategoryColor");
+  });
+
   it("カテゴリ名を編集して保存できる", async () => {
     // Given: 既存カテゴリが編集可能な状態で表示されている
     const user = userEvent.setup();

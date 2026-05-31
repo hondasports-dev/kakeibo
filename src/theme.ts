@@ -1,82 +1,119 @@
 import { createTheme } from "@mui/material/styles";
+import { designTokens, rootCssVariables } from "./designTokens";
 
 export const theme = createTheme({
+  spacing: 8,
   palette: {
     mode: "light",
-    primary: {
-      main: "#0f766e",
-      dark: "#115e59",
-      light: "#ccfbf1",
-      contrastText: "#ffffff",
-    },
-    secondary: {
-      main: "#475569",
-      dark: "#334155",
-      light: "#e2e8f0",
-      contrastText: "#ffffff",
-    },
-    success: {
-      main: "#15803d",
-    },
-    warning: {
-      main: "#b45309",
-    },
-    error: {
-      main: "#b91c1c",
-    },
+    primary: designTokens.color.primary,
+    secondary: designTokens.color.secondary,
+    success: designTokens.color.success,
+    warning: designTokens.color.warning,
+    error: designTokens.color.error,
     background: {
-      default: "#f6f7f4",
-      paper: "#ffffff",
+      default: designTokens.color.surface.canvas,
+      paper: designTokens.color.surface.panel,
     },
     text: {
-      primary: "#17202a",
-      secondary: "#64748b",
+      primary: designTokens.color.text.primary,
+      secondary: designTokens.color.text.secondary,
     },
-    divider: "rgba(23, 32, 42, 0.1)",
+    divider: designTokens.color.border.subtle,
   },
   shape: {
-    borderRadius: 8,
+    borderRadius: Number.parseInt(designTokens.radius.md, 10),
   },
   typography: {
-    fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    fontFamily: designTokens.typography.fontFamily,
     h4: {
-      fontSize: "1.75rem",
-      fontWeight: 700,
-      lineHeight: 1.25,
+      ...designTokens.typography.h4,
       letterSpacing: 0,
     },
     h5: {
-      fontSize: "1.25rem",
-      fontWeight: 700,
-      lineHeight: 1.3,
+      ...designTokens.typography.h5,
       letterSpacing: 0,
     },
     h6: {
-      fontSize: "1rem",
-      fontWeight: 700,
-      lineHeight: 1.35,
+      ...designTokens.typography.h6,
+      letterSpacing: 0,
+    },
+    body1: {
+      ...designTokens.typography.body1,
+      letterSpacing: 0,
+    },
+    body2: {
+      ...designTokens.typography.body2,
+      letterSpacing: 0,
+    },
+    caption: {
+      ...designTokens.typography.caption,
       letterSpacing: 0,
     },
     button: {
-      fontWeight: 700,
+      fontWeight: designTokens.typography.button.fontWeight,
       letterSpacing: 0,
-      textTransform: "none",
+      textTransform: designTokens.typography.button.textTransform,
     },
   },
   components: {
+    MuiCssBaseline: {
+      styleOverrides: {
+        ":root": rootCssVariables,
+        body: {
+          backgroundColor: designTokens.color.surface.canvas,
+          color: designTokens.color.text.primary,
+        },
+      },
+    },
     MuiButton: {
       styleOverrides: {
         root: {
-          minHeight: 40,
+          minHeight: designTokens.size.buttonMinHeight,
+          borderRadius: designTokens.radius.md,
           boxShadow: "none",
+          paddingInline: designTokens.space.md,
+          "&:hover": {
+            boxShadow: "none",
+          },
         },
       },
     },
     MuiChip: {
       styleOverrides: {
         root: {
+          borderRadius: designTokens.radius.md,
           fontWeight: 700,
+        },
+      },
+    },
+    MuiDrawer: {
+      styleOverrides: {
+        paper: {
+          backgroundColor: designTokens.color.surface.panel,
+          borderColor: designTokens.color.border.subtle,
+        },
+      },
+    },
+    MuiLinearProgress: {
+      styleOverrides: {
+        root: {
+          height: 6,
+          borderRadius: designTokens.radius.pill,
+          backgroundColor: designTokens.color.border.track,
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: designTokens.radius.md,
+          "&.Mui-selected": {
+            backgroundColor: designTokens.color.primary.light,
+            color: designTokens.color.primary.dark,
+            "& .MuiListItemIcon-root": {
+              color: designTokens.color.primary.dark,
+            },
+          },
         },
       },
     },
@@ -84,6 +121,31 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           backgroundImage: "none",
+          borderRadius: designTokens.radius.md,
+        },
+      },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root: {
+          borderRadius: designTokens.radius.md,
+          backgroundColor: designTokens.color.surface.accent,
+        },
+      },
+    },
+    MuiTabs: {
+      styleOverrides: {
+        indicator: {
+          height: 3,
+          borderRadius: designTokens.radius.pill,
+        },
+      },
+    },
+    MuiTab: {
+      styleOverrides: {
+        root: {
+          minHeight: designTokens.size.buttonMinHeight,
+          paddingInline: designTokens.space.md,
         },
       },
     },
@@ -91,6 +153,15 @@ export const theme = createTheme({
       defaultProps: {
         variant: "outlined",
         size: "small",
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          minHeight: designTokens.size.inputMinHeight,
+          borderRadius: designTokens.radius.md,
+          backgroundColor: designTokens.color.surface.panel,
+        },
       },
     },
   },

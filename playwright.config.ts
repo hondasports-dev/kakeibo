@@ -7,7 +7,7 @@ import { defineConfig, devices } from "@playwright/test";
 export default defineConfig({
   testDir: "./e2e",
   /* 全テストの最大タイムアウト（API 遅延対応） */
-  timeout: 30_000,
+  timeout: 60_000,
   /* expect() のタイムアウト */
   expect: {
     timeout: 10_000,
