@@ -32,6 +32,16 @@ export function normalizeWeekStartDate(dateStr: string): string | null {
   return toIsoDate(date);
 }
 
+export function addDays(dateStr: string, days: number): string {
+  const date = parseIsoDate(dateStr);
+  if (date === null) {
+    throw new Error(`Invalid date: ${dateStr}`);
+  }
+
+  date.setUTCDate(date.getUTCDate() + days);
+  return toIsoDate(date);
+}
+
 export function addWeeks(weekStartDate: string, weeks: number): string {
   const date = parseIsoDate(weekStartDate);
   if (date === null) {

@@ -703,7 +703,7 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await expect(
       page
         .getByRole("img", { name: "週別支出推移グラフ" })
-        .or(page.getByText("2週以上のデータが揃うとグラフが表示されます")),
+        .or(page.getByText("今週または前週の支出データがあると表示されます")),
     ).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
 
@@ -934,7 +934,7 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
     await expect(
       page
         .getByRole("img", { name: "週別支出推移グラフ" })
-        .or(page.getByText("2週以上のデータが揃うとグラフが表示されます")),
+        .or(page.getByText("今週または前週の支出データがあると表示されます")),
     ).toBeVisible({ timeout: 20_000 });
   });
 
@@ -954,6 +954,33 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
     // Then: 前週比ラベルが表示されている（regression確認）
     // WeeklySummaryPanel と ReviewMemoPanel の両方に前週比が表示されるため first() で取得
     await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("[Issue #82] 週次サマリーページで折れ線グラフが表示されクリックでモーダルが開く", async ({
+    page,
+  }) => {
+    const weekStartDate = getCurrentWeekStartDate();
+    await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+
+    // 折れ線グラフが表示される（またはプレースホルダー）
+    await expect(
+      page
+        .getByRole("img", { name: "週別支出推移グラフ" })
+        .or(page.getByText("今週または前週の支出データがあると表示されます")),
+    ).toBeVisible({ timeout: 20_000 });
+
+    // グラフが表示されている場合のみクリックテストを行う
+    const graph = page.getByRole("img", { name: "週別支出推移グラフ" });
+    if (await graph.isVisible().catch(() => false)) {
+      // データポイント（circle）をクリック
+      const point = graph.locator("circle").first();
+      await point.click();
+
+      // モーダルが表示される
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByText("の入出金比較")).toBeVisible();
+    }
   });
 });
 

@@ -12,6 +12,7 @@ import {
   getWeekSummaryHandler,
   getWeekSummaryWithCategoriesHandler,
   getFourWeeksSummaryHandler,
+  getDailySpendingTrendHandler,
   updateReceiptHandler,
 } from "./receipts";
 
@@ -1510,5 +1511,116 @@ describe("getMonthlyExpensesSummary", () => {
 
     expect(result.monthlyIncome).toBeNull();
     expect(result.remainingBalanceYen).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// getDailySpendingTrend
+// ---------------------------------------------------------------------------
+
+describe("getDailySpendingTrendHandler", () => {
+  it("今週と前週の各日の合計支出が正しく返る", async () => {
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r1",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-08",
+        shopName: "shop-A",
+        amountYen: 1000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "r2",
+        _creationTime: 1001,
+        userId: USER_ID,
+        date: "2024-01-10",
+        shopName: "shop-B",
+        amountYen: 2000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+      {
+        _id: "r3",
+        _creationTime: 1002,
+        userId: USER_ID,
+        date: "2024-01-12",
+        shopName: "shop-C",
+        amountYen: 500,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1002,
+        updatedAt: 1002,
+      },
+      {
+        _id: "r4",
+        _creationTime: 1003,
+        userId: USER_ID,
+        date: "2024-01-01",
+        shopName: "shop-D",
+        amountYen: 3000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-01",
+        createdAt: 1003,
+        updatedAt: 1003,
+      },
+      {
+        _id: "r5",
+        _creationTime: 1004,
+        userId: USER_ID,
+        date: "2024-01-03",
+        shopName: "shop-E",
+        amountYen: 1500,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-01",
+        createdAt: 1004,
+        updatedAt: 1004,
+      },
+    ];
+
+    const ctx = createQueryCtx(createIdentity(), receiptDocs);
+    const result = await getDailySpendingTrendHandler(ctx, { weekStartDate: "2024-01-08" });
+
+    expect(result.currentWeek).toHaveLength(7);
+    expect(result.previousWeek).toHaveLength(7);
+
+    expect(result.currentWeek[0]).toEqual({ date: "2024-01-08", totalAmountYen: 1000 });
+    expect(result.currentWeek[1]).toEqual({ date: "2024-01-09", totalAmountYen: 0 });
+    expect(result.currentWeek[2]).toEqual({ date: "2024-01-10", totalAmountYen: 2000 });
+    expect(result.currentWeek[3]).toEqual({ date: "2024-01-11", totalAmountYen: 0 });
+    expect(result.currentWeek[4]).toEqual({ date: "2024-01-12", totalAmountYen: 500 });
+    expect(result.currentWeek[5]).toEqual({ date: "2024-01-13", totalAmountYen: 0 });
+    expect(result.currentWeek[6]).toEqual({ date: "2024-01-14", totalAmountYen: 0 });
+
+    expect(result.previousWeek[0]).toEqual({ date: "2024-01-01", totalAmountYen: 3000 });
+    expect(result.previousWeek[1]).toEqual({ date: "2024-01-02", totalAmountYen: 0 });
+    expect(result.previousWeek[2]).toEqual({ date: "2024-01-03", totalAmountYen: 1500 });
+    expect(result.previousWeek[3]).toEqual({ date: "2024-01-04", totalAmountYen: 0 });
+    expect(result.previousWeek[4]).toEqual({ date: "2024-01-05", totalAmountYen: 0 });
+    expect(result.previousWeek[5]).toEqual({ date: "2024-01-06", totalAmountYen: 0 });
+    expect(result.previousWeek[6]).toEqual({ date: "2024-01-07", totalAmountYen: 0 });
+  });
+
+  it("レシートなしの場合は全て0を返す", async () => {
+    const ctx = createQueryCtx(createIdentity(), []);
+    const result = await getDailySpendingTrendHandler(ctx, { weekStartDate: "2024-01-08" });
+
+    expect(result.currentWeek).toHaveLength(7);
+    expect(result.previousWeek).toHaveLength(7);
+    result.currentWeek.forEach((d) => expect(d.totalAmountYen).toBe(0));
+    result.previousWeek.forEach((d) => expect(d.totalAmountYen).toBe(0));
+  });
+
+  it("未認証時: ConvexError が throw される", async () => {
+    const ctx = createQueryCtx(null, []);
+
+    await expect(
+      getDailySpendingTrendHandler(ctx, { weekStartDate: "2024-01-08" }),
+    ).rejects.toBeInstanceOf(ConvexError);
   });
 });

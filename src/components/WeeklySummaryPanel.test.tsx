@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { WeeklySummaryPanel } from "./WeeklySummaryPanel";
-import type { FourWeeksSummaryData } from "../../convex/receipts";
+import type { DailySpendingTrendData } from "../../convex/receipts";
 
 describe("WeeklySummaryPanel", () => {
   it("レシート0件では空状態を表示し、予算情報は表示しない", () => {
@@ -14,6 +14,7 @@ describe("WeeklySummaryPanel", () => {
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[]}
+        weekStartDate="2024-01-08"
       />,
     );
 
@@ -38,7 +39,6 @@ describe("WeeklySummaryPanel", () => {
       <WeeklySummaryPanel
         count={2}
         totalAmountYen={6280}
-        budgetAmountYen={10000}
         byCategory={[
           {
             categoryId: "cat-food",
@@ -76,6 +76,7 @@ describe("WeeklySummaryPanel", () => {
             categoryColor: "#16A34A",
           },
         ]}
+        weekStartDate="2026-05-13"
       />,
     );
 
@@ -108,16 +109,27 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.getAllByText("日用品")).toHaveLength(2);
   });
 
-  it("weeklyTrendDataが2週以上あるときグラフが表示される", () => {
-    // Given: 直近4週のデータがある
-    const weeklyTrendData: FourWeeksSummaryData = {
-      weeks: [
-        { weekStartDate: "2024-01-01", totalAmountYen: 3000 },
-        { weekStartDate: "2024-01-08", totalAmountYen: 5000 },
-        { weekStartDate: "2024-01-15", totalAmountYen: 2000 },
-        { weekStartDate: "2024-01-22", totalAmountYen: 8000 },
+  it("dailySpendingTrendがデータを含むときグラフが表示される", () => {
+    // Given: 今週と前週の日別データがある
+    const dailySpendingTrend: DailySpendingTrendData = {
+      currentWeek: [
+        { date: "2024-01-08", totalAmountYen: 1000 },
+        { date: "2024-01-09", totalAmountYen: 2000 },
+        { date: "2024-01-10", totalAmountYen: 0 },
+        { date: "2024-01-11", totalAmountYen: 500 },
+        { date: "2024-01-12", totalAmountYen: 0 },
+        { date: "2024-01-13", totalAmountYen: 3000 },
+        { date: "2024-01-14", totalAmountYen: 0 },
       ],
-      weekCount: 4,
+      previousWeek: [
+        { date: "2024-01-01", totalAmountYen: 500 },
+        { date: "2024-01-02", totalAmountYen: 1500 },
+        { date: "2024-01-03", totalAmountYen: 0 },
+        { date: "2024-01-04", totalAmountYen: 2000 },
+        { date: "2024-01-05", totalAmountYen: 0 },
+        { date: "2024-01-06", totalAmountYen: 1000 },
+        { date: "2024-01-07", totalAmountYen: 0 },
+      ],
     };
     renderWithProviders(
       <WeeklySummaryPanel
@@ -126,7 +138,8 @@ describe("WeeklySummaryPanel", () => {
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[]}
-        weeklyTrendData={weeklyTrendData}
+        weekStartDate="2024-01-08"
+        dailySpendingTrend={dailySpendingTrend}
       />,
     );
 
@@ -136,10 +149,26 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
   });
 
-  it("weeklyTrendDataが1週以下のときプレースホルダーが表示される", () => {
-    const weeklyTrendData: FourWeeksSummaryData = {
-      weeks: [{ weekStartDate: "2024-01-08", totalAmountYen: 1000 }],
-      weekCount: 1,
+  it("dailySpendingTrendが空のときプレースホルダーが表示される", () => {
+    const dailySpendingTrend: DailySpendingTrendData = {
+      currentWeek: [
+        { date: "2024-01-08", totalAmountYen: 0 },
+        { date: "2024-01-09", totalAmountYen: 0 },
+        { date: "2024-01-10", totalAmountYen: 0 },
+        { date: "2024-01-11", totalAmountYen: 0 },
+        { date: "2024-01-12", totalAmountYen: 0 },
+        { date: "2024-01-13", totalAmountYen: 0 },
+        { date: "2024-01-14", totalAmountYen: 0 },
+      ],
+      previousWeek: [
+        { date: "2024-01-01", totalAmountYen: 0 },
+        { date: "2024-01-02", totalAmountYen: 0 },
+        { date: "2024-01-03", totalAmountYen: 0 },
+        { date: "2024-01-04", totalAmountYen: 0 },
+        { date: "2024-01-05", totalAmountYen: 0 },
+        { date: "2024-01-06", totalAmountYen: 0 },
+        { date: "2024-01-07", totalAmountYen: 0 },
+      ],
     };
     renderWithProviders(
       <WeeklySummaryPanel
@@ -148,15 +177,16 @@ describe("WeeklySummaryPanel", () => {
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[]}
-        weeklyTrendData={weeklyTrendData}
+        weekStartDate="2024-01-08"
+        dailySpendingTrend={dailySpendingTrend}
       />,
     );
 
-    expect(screen.getByText("2週以上のデータが揃うとグラフが表示されます")).toBeInTheDocument();
+    expect(screen.getByText("今週または前週の支出データがあると表示されます")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
   });
 
-  it("weeklyTrendDataがnullのときグラフセクションが表示されない（クエリskip中）", () => {
+  it("dailySpendingTrendがnullのときグラフセクションが表示されない（クエリskip中）", () => {
     renderWithProviders(
       <WeeklySummaryPanel
         count={0}
@@ -164,14 +194,15 @@ describe("WeeklySummaryPanel", () => {
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[]}
-        weeklyTrendData={null}
+        weekStartDate="2024-01-08"
+        dailySpendingTrend={null}
       />,
     );
 
     expect(screen.queryByRole("heading", { name: "週別支出推移" })).not.toBeInTheDocument();
   });
 
-  it("weeklyTrendDataがundefinedのときSkeletonつきでグラフセクションが表示される（ロード中）", () => {
+  it("dailySpendingTrendがundefinedのときSkeletonつきでグラフセクションが表示される（ロード中）", () => {
     renderWithProviders(
       <WeeklySummaryPanel
         count={0}
@@ -179,7 +210,8 @@ describe("WeeklySummaryPanel", () => {
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[]}
-        weeklyTrendData={undefined}
+        weekStartDate="2024-01-08"
+        dailySpendingTrend={undefined}
       />,
     );
 
