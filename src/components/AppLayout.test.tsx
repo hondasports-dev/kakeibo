@@ -98,7 +98,7 @@ describe("AppLayout サイドバー開閉", () => {
       renderWithProviders(<AppLayout />);
 
       const bottomNavigation = screen.getByLabelText("ボトムナビゲーション");
-      for (const label of ["ホーム", "入力", "履歴", "カテゴリ"]) {
+      for (const label of ["ホーム", "入力", "履歴", "設定"]) {
         const link = screen.getByRole("link", { name: label });
         expect(bottomNavigation).toContainElement(link);
         expect(link.querySelector("svg")).toBeInTheDocument();

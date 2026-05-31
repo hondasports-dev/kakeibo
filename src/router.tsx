@@ -1,6 +1,6 @@
 import { createBrowserRouter } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
-import { CategoriesPage } from "./pages/CategoriesPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InputPage } from "./pages/InputPage";
 import { SummaryPage } from "./pages/SummaryPage";
@@ -23,8 +23,12 @@ export const router = createBrowserRouter([
         element: <SummaryPage />,
       },
       {
+        path: "/settings",
+        element: <SettingsPage />,
+      },
+      {
         path: "/categories",
-        element: <CategoriesPage />,
+        element: <SettingsPage />,
       },
       {
         path: "*",

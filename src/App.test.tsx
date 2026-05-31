@@ -201,19 +201,19 @@ describe("App route rendering", () => {
     });
   });
 
-  it("カテゴリリンクからカテゴリ管理へ遷移できる", async () => {
+  it("設定リンクから設定画面へ遷移できる", async () => {
     // Given: ログイン済みでアプリを表示している
     const user = userEvent.setup();
     setupSignedInApp();
     renderWithProviders(<App />);
     await screen.findByRole("heading", { name: "今週のダッシュボード" });
 
-    // When: カテゴリリンクを選ぶ
-    await user.click(screen.getByRole("link", { name: "カテゴリ" }));
+    // When: 設定リンクを選ぶ
+    await user.click(screen.getByRole("link", { name: "設定" }));
 
-    // Then: カテゴリ管理が表示される
+    // Then: 設定画面が表示される
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "カテゴリ管理" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "設定", level: 1 })).toBeInTheDocument();
     });
   });
 });

@@ -11,7 +11,7 @@ import { gotoAuthenticated } from "./helpers/auth";
  *     **削除** (Issue #49 でダッシュボードが変更されたため)
  *   - ~~シナリオ R-2: 320px viewport でメイン画面の主要要素が表示される (P1 / smoke)~~
  *     **削除** (Issue #49 でダッシュボードが変更されたため)
- *   - シナリオ R-3: 390px viewport でカテゴリ設定画面の主要要素が表示される (P1 / smoke)
+ *   - シナリオ R-3: 390px viewport で設定画面の主要要素が表示される (P1 / smoke)
  *     **更新** (BottomNavigation 経由の遷移に変更)
  *
  * テストデータ・cleanup:
@@ -19,17 +19,15 @@ import { gotoAuthenticated } from "./helpers/auth";
  */
 
 test.describe("レスポンシブ表示（Issue #20）", () => {
-  test("@smoke シナリオR-3: 390px viewport でカテゴリ設定画面の主要要素が表示される", async ({
-    page,
-  }) => {
+  test("@smoke シナリオR-3: 390px viewport で設定画面の主要要素が表示される", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    // BottomNavigationの「カテゴリ」タブをクリックして /categories に遷移
-    await page.getByRole("link", { name: "カテゴリ" }).click();
-    await expect(page).toHaveURL("/categories");
+    // BottomNavigationの「設定」タブをクリックして /settings に遷移
+    await page.getByRole("link", { name: "設定" }).click();
+    await expect(page).toHaveURL("/settings");
 
-    // カテゴリ管理画面の見出しが表示されることを確認
-    await expect(page.getByRole("heading", { name: "カテゴリ管理", level: 1 })).toBeVisible();
+    // 設定画面の見出しが表示されることを確認
+    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
   });
 });

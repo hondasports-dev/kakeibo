@@ -124,14 +124,14 @@ export function AppLayout() {
     { label: "ホーム", path: "/", icon: <HomeIcon /> },
     { label: "入力", path: "/weeks/current/input", icon: <EditIcon /> },
     { label: "履歴", path: `/weeks/${currentWeekStartDate}`, icon: <HistoryIcon /> },
-    { label: "カテゴリ", path: "/categories", icon: <CategoryIcon /> },
+    { label: "設定", path: "/settings", icon: <CategoryIcon /> },
   ];
 
   const getBottomNavValue = () => {
     if (location.pathname === "/") return 0;
     if (location.pathname === "/weeks/current/input") return 1;
     if (location.pathname.startsWith("/weeks/")) return 2;
-    if (location.pathname === "/categories") return 3;
+    if (location.pathname === "/settings" || location.pathname === "/categories") return 3;
     return 0;
   };
 

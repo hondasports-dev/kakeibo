@@ -103,6 +103,8 @@ export async function getUserProfileHandler(ctx: QueryCtx) {
 
   return {
     monthlyIncome: user.monthlyIncome ?? null,
+    weeklyStartDay: user.weeklyStartDay ?? 1,
+    weeklyEndDay: user.weeklyEndDay ?? 0,
   };
 }
 
@@ -202,6 +204,53 @@ export const updateMonthlyIncome = mutation({
     monthlyIncome: v.union(v.null(), v.number()),
   },
   handler: updateMonthlyIncomeHandler,
+});
+
+// ---------------------------------------------------------------------------
+// updateWeeklyDays
+// ---------------------------------------------------------------------------
+
+/** updateWeeklyDays mutation の handler ロジック（テスト用に export） */
+export async function updateWeeklyDaysHandler(
+  ctx: MutationCtx,
+  args: { weeklyStartDay: number; weeklyEndDay: number },
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+
+  if (
+    args.weeklyStartDay < 0 ||
+    args.weeklyStartDay > 6 ||
+    !Number.isInteger(args.weeklyStartDay)
+  ) {
+    throw new ConvexError("週の開始曜日は0〜6の整数で入力してください");
+  }
+  if (args.weeklyEndDay < 0 || args.weeklyEndDay > 6 || !Number.isInteger(args.weeklyEndDay)) {
+    throw new ConvexError("週の終了曜日は0〜6の整数で入力してください");
+  }
+
+  const user = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+    .unique();
+
+  if (user === null) {
+    throw new ConvexError("User not found");
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(user._id, {
+    weeklyStartDay: args.weeklyStartDay,
+    weeklyEndDay: args.weeklyEndDay,
+    updatedAt: now,
+  });
+}
+
+export const updateWeeklyDays = mutation({
+  args: {
+    weeklyStartDay: v.number(),
+    weeklyEndDay: v.number(),
+  },
+  handler: updateWeeklyDaysHandler,
 });
 
 // ---------------------------------------------------------------------------
