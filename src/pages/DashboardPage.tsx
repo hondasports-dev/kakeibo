@@ -53,9 +53,6 @@ export function DashboardPage() {
 
   const { weekStartDate } = weekSession;
   const totalAmountYen = currentWeekSummary?.totalAmountYen ?? 0;
-  const budgetAmountYen = weekSession.budgetAmountYen;
-  const budgetRemaining =
-    budgetAmountYen !== undefined ? budgetAmountYen - totalAmountYen : undefined;
 
   return (
     <Box className="app-main">
@@ -79,25 +76,8 @@ export function DashboardPage() {
             {
               label: "今週の支出",
               value: <AnimatedCounter value={totalAmountYen} suffix="円" />,
-              helper:
-                budgetAmountYen !== undefined
-                  ? `予算 ${budgetAmountYen.toLocaleString()}円`
-                  : "予算未設定",
+              helper: "",
               tone: "secondary" as const,
-            },
-            {
-              label: "予算残り",
-              value:
-                budgetRemaining !== undefined ? (
-                  <AnimatedCounter value={budgetRemaining} suffix="円" />
-                ) : (
-                  "--"
-                ),
-              helper:
-                budgetRemaining !== undefined && budgetAmountYen
-                  ? `${Math.round((budgetRemaining / budgetAmountYen) * 100)}% 残り`
-                  : "",
-              tone: "success" as const,
             },
             {
               label: "今月の残金",
