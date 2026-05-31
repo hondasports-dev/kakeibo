@@ -33,7 +33,6 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  *   - シナリオ 10: 金額に文字を入力しても入力フィールドに反映されない (P1 / validation)
  *   - [Issue #51] シナリオ 11: 金額に数字を入力すると3桁カンマ区切りで表示される (P1 / validation)
  *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke) ※PC幅のみ
- *   - [Issue #83] 予算表示が出ない (P0 / smoke) ※DashboardPage
  *   - [Issue #14] 今週の進捗パネルに件数が表示される (P1 / smoke) ※PC幅のみ
  *   - [Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される (P1 / smoke) ※PC幅のみ
  *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件) ※DashboardPage
@@ -90,8 +89,6 @@ test.describe("メイン画面の表示確認", () => {
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
     // summary-grid の主要カード
     await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
 
   test("@smoke シナリオ3: ページリロードしてもログイン状態が維持される", async ({ page }) => {
@@ -390,10 +387,10 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     const updatedCategoryName = `${categoryName}-更新`;
     const shopName = `E2Eカテゴリ店舗-${stamp}`;
 
-    // カテゴリ設定は BottomNav「カテゴリ」タブ → /categories へ遷移
-    // CategoriesPage には CategorySettingsPanel が直接表示される
-    await page.getByRole("link", { name: "カテゴリ" }).click();
-    await expect(page).toHaveURL("/categories");
+    // カテゴリ設定は BottomNav「設定」タブ → /settings へ遷移
+    // SettingsPage には CategorySettingsPanel が含まれている
+    await page.getByRole("link", { name: "設定" }).click();
+    await expect(page).toHaveURL("/settings");
     await expect(page.getByRole("heading", { name: "カテゴリ管理" })).toBeVisible();
     await expect(page.getByRole("listitem", { name: "カテゴリ 食費" })).toBeVisible();
 
@@ -426,10 +423,10 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     await page.getByRole("button", { name: "保存して次へ" }).click();
     await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
-    // 無効化（カテゴリ設定に戻る）
-    // CategoriesPage には CategorySettingsPanel が直接表示される
-    await page.getByRole("link", { name: "カテゴリ" }).click();
-    await expect(page).toHaveURL("/categories");
+    // 無効化（設定画面に戻る）
+    // SettingsPage には CategorySettingsPanel が含まれている
+    await page.getByRole("link", { name: "設定" }).click();
+    await expect(page).toHaveURL("/settings");
     await page.getByRole("button", { name: `${updatedCategoryName}を無効化` }).click();
     // 無効化後: ボタンが disabled になること（設定画面では無効カテゴリも表示される）
     await expect(page.getByRole("button", { name: `${updatedCategoryName}を無効化` })).toBeDisabled(
@@ -466,15 +463,6 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
     await expect(page.locator('[role="listbox"][aria-label="週内の日付候補"]')).toBeVisible();
     await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible();
-  });
-
-  test("[Issue #83] ダッシュボードに予算表示が出ない", async ({ page }) => {
-    await page.getByRole("link", { name: "ホーム" }).click();
-    await expect(page).toHaveURL("/");
-
-    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算残り")).not.toBeVisible();
-    await expect(page.locator(".summary-grid").locator("text=予算未設定")).not.toBeVisible();
   });
 
   test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {

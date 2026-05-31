@@ -6,7 +6,6 @@ export type WeekSession = {
   weekStartDate: string;
   weekEndDate: string;
   status: "draft" | "completed";
-  budgetAmountYen?: number;
   reviewMemo?: string;
 };
 
