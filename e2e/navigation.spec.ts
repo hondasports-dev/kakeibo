@@ -31,6 +31,42 @@ function getCurrentWeekStartDate(): string {
 }
 
 test.describe("ナビゲーション（Issue #49）", () => {
+  test("@navigation シナリオN-1.1: SP幅でBottomNavigationの非選択項目と選択状態が視認できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
+    await expect(bottomNav).toBeVisible();
+
+    for (const label of ["入力", "履歴", "カテゴリ"]) {
+      const item = bottomNav.getByRole("link", { name: label, exact: true });
+      await expect(item).toBeVisible();
+      await expect(item.locator("svg")).toBeVisible();
+
+      const colors = await item.evaluate((element) => {
+        const labelElement = element.querySelector(".MuiBottomNavigationAction-label");
+        const iconElement = element.querySelector("svg");
+        const navElement = element.closest("nav");
+        return {
+          label: labelElement ? getComputedStyle(labelElement).color : "",
+          icon: iconElement ? getComputedStyle(iconElement).color : "",
+          background: navElement ? getComputedStyle(navElement).backgroundColor : "",
+        };
+      });
+
+      expect(colors.label).not.toBe(colors.background);
+      expect(colors.icon).not.toBe(colors.background);
+    }
+
+    const selectedItem = bottomNav.getByRole("link", { name: "ホーム", exact: true });
+    const selectedBackground = await selectedItem.evaluate(
+      (element) => getComputedStyle(element).backgroundColor,
+    );
+    expect(selectedBackground).not.toBe("rgba(0, 0, 0, 0)");
+  });
+
   test("@smoke @navigation シナリオN-1: SP幅でBottomNavigation 4タブが表示され、タップで各画面に遷移できる", async ({
     page,
   }) => {
