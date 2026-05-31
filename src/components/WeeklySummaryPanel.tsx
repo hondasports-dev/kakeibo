@@ -199,7 +199,7 @@ export function WeeklySummaryPanel({
                         sx={{
                           height: 4,
                           borderRadius: 2,
-                          backgroundColor: "rgba(0,0,0,0.06)",
+                          backgroundColor: "var(--color-border-track)",
                           "& .MuiLinearProgress-bar": {
                             backgroundColor: cat.categoryColor,
                           },

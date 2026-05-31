@@ -15,6 +15,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { designTokens } from "../designTokens";
 
 type Category = {
   _id: Id<"categories">;
@@ -24,7 +25,7 @@ type Category = {
   sortOrder: number;
 };
 
-const DEFAULT_NEW_COLOR = "#2563EB";
+const DEFAULT_NEW_COLOR: string = designTokens.color.category.default;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -37,10 +38,10 @@ export function CategorySettingsPanel() {
   const deactivateCategory = useMutation(api.categories.deactivateCategory);
 
   const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState(DEFAULT_NEW_COLOR);
+  const [newColor, setNewColor] = useState<string>(DEFAULT_NEW_COLOR);
   const [editingId, setEditingId] = useState<Id<"categories"> | null>(null);
   const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState(DEFAULT_NEW_COLOR);
+  const [editColor, setEditColor] = useState<string>(DEFAULT_NEW_COLOR);
   const [status, setStatus] = useState<"idle" | "saving">("idle");
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
@@ -124,11 +125,13 @@ export function CategorySettingsPanel() {
               <TextField
                 fullWidth
                 label="新しいカテゴリ名"
+                name="newCategoryName"
                 onChange={(event) => setNewName(event.target.value)}
                 value={newName}
               />
               <TextField
                 label="新しいカテゴリ色"
+                name="newCategoryColor"
                 onChange={(event) => setNewColor(event.target.value)}
                 slotProps={{ inputLabel: { shrink: true } }}
                 type="color"
@@ -175,11 +178,13 @@ export function CategorySettingsPanel() {
                         <TextField
                           fullWidth
                           label="カテゴリ名を編集"
+                          name="editCategoryName"
                           onChange={(event) => setEditName(event.target.value)}
                           value={editName}
                         />
                         <TextField
                           label="カテゴリ色を編集"
+                          name="editCategoryColor"
                           onChange={(event) => setEditColor(event.target.value)}
                           slotProps={{ inputLabel: { shrink: true } }}
                           type="color"

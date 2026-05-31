@@ -1,0 +1,72 @@
+# デザイントークン
+
+Issue #81 では、`週末に溜まったレシートを、止まらず処理できる入力作業台` という
+UI/UX コンセプトをコードに落とし込むため、色・余白・角丸・タイポグラフィを
+`src/designTokens.ts` に集約する。
+
+## 方針
+
+- 深いティールを主色にして、落ち着いた家計管理の印象を保つ
+- 補助色はスレート系に寄せ、標準 Material Design 感を弱める
+- 余白は広げすぎず、入力作業に必要な情報密度を維持する
+- 角丸は 8px を基本にして、柔らかすぎる表現を避ける
+- コンポーネント直書きの色や余白は、できるだけ theme または CSS 変数経由に寄せる
+
+## トークン一覧
+
+### 色
+
+| グループ | 例 | 用途 |
+| --- | --- | --- |
+| `color.primary` | `#0f766e` | 主要ボタン、フォーカス、選択状態 |
+| `color.secondary` | `#475569` | 補助操作、補助情報 |
+| `color.success` / `warning` / `error` | `#15803d` / `#b45309` / `#b91c1c` | 成功・警告・エラー |
+| `color.surface` | `canvas`, `panel`, `sunken`, `accent` | 画面背景、パネル、補助面 |
+| `color.border` | `subtle`, `emphasis`, `track` | 区切り線、強調枠、進捗バー下地 |
+
+### 余白
+
+| トークン | 値 | 主な用途 |
+| --- | --- | --- |
+| `space.2xs` | `4px` | 極小画面の gap |
+| `space.xs` | `8px` | 小さな要素間の余白 |
+| `space.sm` | `12px` | 行内の gap |
+| `space.md` | `16px` | 通常のカード間隔 |
+| `space.panel` | `20px` | パネル内部の余白 |
+| `space.lg` | `24px` | 認証画面や広めの余白 |
+| `space.xl` | `32px` | ページ全体の上下余白 |
+
+### 角丸とサイズ
+
+| トークン | 値 | 主な用途 |
+| --- | --- | --- |
+| `radius.sm` | `4px` | 小さな要素 |
+| `radius.md` | `8px` | ボタン、パネル、入力欄 |
+| `radius.pill` | `999px` | Progress, indicator |
+| `size.buttonMinHeight` | `40px` | 主要ボタン |
+| `size.inputMinHeight` | `36px` | 入力欄 |
+
+### タイポグラフィ
+
+| トークン | 値 | 用途 |
+| --- | --- | --- |
+| `typography.h4` | `1.75rem / 700` | ページ見出し |
+| `typography.h5` | `1.25rem / 700` | パネル見出し |
+| `typography.h6` | `1rem / 700` | セクション見出し |
+| `typography.body1` | `1rem / 400` | 本文 |
+| `typography.body2` | `0.875rem / 400` | 補助文 |
+| `typography.caption` | `0.75rem / 500` | 小ラベル |
+
+## 実装ルール
+
+- MUI コンポーネントでは `theme.palette.*` と `theme.typography.*` を優先する
+- CSS で使う必要がある値は `MuiCssBaseline` から `:root` の CSS 変数として公開する
+- 新しい色を直接 `sx={{ bgcolor: "#..." }}` に書く前に、既存トークンで表現できないか確認する
+- `App.css` のレイアウト系クラスは CSS 変数を参照し、画面幅ごとの差分だけを media query に残す
+
+## 追加時のチェック
+
+- その値は既存トークンの言い換えではないか
+- 入力画面の情報密度を落とさないか
+- ダッシュボード、入力画面、サマリー画面で横断的に使う値か
+- CSS 変数に公開する必要があるか、それとも MUI theme だけで足りるか

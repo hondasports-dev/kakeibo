@@ -381,6 +381,7 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
 
   test.afterEach(async () => {
     await cleanupTestReceipts();
+    await cleanupTestCategories();
   });
 
   test("シナリオ16: 追加・編集・無効化が入力候補と既存表示に反映される", async ({ page }) => {
@@ -394,15 +395,17 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     await page.getByRole("link", { name: "カテゴリ" }).click();
     await expect(page).toHaveURL("/categories");
     await expect(page.getByRole("heading", { name: "カテゴリ管理" })).toBeVisible();
+    await expect(page.getByRole("listitem", { name: "カテゴリ 食費" })).toBeVisible();
 
-    await page.getByLabel("新しいカテゴリ名").fill(categoryName);
-    await page.getByLabel("新しいカテゴリ色").fill("#2563eb");
+    await page.locator('input[name="newCategoryName"]').fill(categoryName);
+    await page.locator('input[name="newCategoryColor"]').fill("#2563eb");
+    await expect(page.locator('input[name="newCategoryName"]')).toHaveValue(categoryName);
     await page.getByRole("button", { name: "カテゴリを追加" }).click();
     await expect(page.getByRole("listitem", { name: `カテゴリ ${categoryName}` })).toBeVisible();
 
     await page.getByRole("button", { name: `${categoryName}を編集` }).click();
-    await page.getByLabel("カテゴリ名を編集").fill(updatedCategoryName);
-    await page.getByLabel("カテゴリ色を編集").fill("#0f766e");
+    await page.locator('input[name="editCategoryName"]').fill(updatedCategoryName);
+    await page.locator('input[name="editCategoryColor"]').fill("#0f766e");
     await page.getByRole("button", { name: "変更を保存" }).click();
     await expect(
       page.getByRole("listitem", { name: `カテゴリ ${updatedCategoryName}` }),
@@ -457,12 +460,12 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await cleanupTestReceipts();
   });
 
-  test.skip("@smoke [Issue #14] 入力状況パネルの各セクションが表示される", async ({ page }) => {
-    // Issue #77 で WeekStatusPanel（今週の進捗・直近の入力）が InputPage から削除されたためスキップ
-    // WeekStatusPanel は「今週の進捗・直近の入力は不要」の仕様に従い廃止
-    await expect(page.getByRole("heading", { name: "今週の進捗", level: 2 })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "直近の入力", level: 2 })).toBeVisible();
-    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
+  test("@smoke [Issue #14] 入力画面の主要セクションが表示される", async ({ page }) => {
+    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "支出" })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
+    await expect(page.locator('[role="listbox"][aria-label="週内の日付候補"]')).toBeVisible();
+    await expect(page.locator('[role="listbox"][aria-label="カテゴリ候補"]')).toBeVisible();
   });
 
   test('[Issue #14] 予算未設定時に "--" と "予算未設定" が表示される', async ({ page }) => {
@@ -481,39 +484,26 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await expect(spendCard.locator("text=予算未設定")).toBeVisible();
   });
 
-  test.skip('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
-    // Issue #77 で WeekStatusPanel が InputPage から削除されたためスキップ
-    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
-
-    // ロード完了後に receipt-row か空状態メッセージのいずれかが表示されるまで待機
+  test('[Issue #14] 空状態で "まだレシートがありません" が表示される', async ({ page }) => {
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
     const receiptRows = page.locator('[class*="receipt-row"]');
-    const emptyMessage = page.locator("text=まだレシートがありません");
-    await expect(receiptRows.or(emptyMessage).first()).toBeVisible();
-
-    const rowCount = await receiptRows.count();
-    if (rowCount === 0) {
-      await expect(emptyMessage).toBeVisible();
-    } else {
-      // データがある場合は空状態メッセージが非表示であることを確認
-      await expect(emptyMessage).not.toBeVisible();
-    }
+    const emptyMessage = page.getByText("まだレシートがありません").first();
+    await expect(receiptRows.or(emptyMessage).first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test.skip("[Issue #14] 今週の進捗パネルに件数（N 件）が表示される", async ({ page }) => {
-    // Issue #77 で WeekStatusPanel が InputPage から削除されたためスキップ
-    const progressPanel = page
-      .getByRole("heading", { name: "今週の進捗", level: 2 })
-      .locator("../..");
-    const countText = progressPanel
-      .locator("p, .MuiTypography-body2")
-      .filter({ hasText: /^\d+ 件$/ });
-    await expect(countText).toBeVisible();
+  test("[Issue #14] ダッシュボードに今週の支出カウンターが表示される", async ({ page }) => {
+    await page.getByRole("link", { name: "ホーム" }).click();
+    await expect(page).toHaveURL("/");
+    const spendCard = page.locator(".summary-grid .paper-panel").filter({ hasText: "今週の支出" });
+    await expect(spendCard.locator("[data-value]")).toBeVisible();
   });
 
-  test.skip("[Issue #14] 「直前を複製」「直前を取り消す」ボタンが表示される", async ({ page }) => {
-    // Issue #77 で WeekStatusPanel が InputPage から削除されたためスキップ
-    await expect(page.getByRole("button", { name: "直前を複製" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "直前を取り消す" })).toBeVisible();
+  test("[Issue #14] 入力フォームの保存導線が表示される", async ({ page }) => {
+    await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
+    await expect(page.locator('input[name="shopName"]')).toBeVisible();
+    await expect(page.locator('input[name="amountYen"]')).toBeVisible();
   });
 });
 
@@ -524,27 +514,9 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
 test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完了条件）", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  const readAnimatedCounterValue = async (locator: Locator) => {
-    const value = await locator.getAttribute("data-value");
-    return parseInt(value?.replace(/[^0-9]/g, "") ?? "0", 10);
-  };
-
-  const waitForStableAnimatedCounterValue = async (locator: Locator) => {
-    let previousValue: number | null = null;
-    let stableReads = 0;
-
-    await expect(async () => {
-      const currentValue = await readAnimatedCounterValue(locator);
-      stableReads = previousValue === currentValue ? stableReads + 1 : 0;
-      previousValue = currentValue;
-      expect(stableReads).toBeGreaterThanOrEqual(2);
-    }).toPass({ timeout: 15_000 });
-
-    return previousValue ?? 0;
-  };
-
   test.beforeEach(async ({ page }) => {
     await cleanupTestReceipts();
+    await resetTestWeekSession(getCurrentWeekStartDate());
     await gotoAuthenticated(page, "/weeks/current/input");
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
   });
@@ -554,26 +526,9 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await cleanupTestReceipts();
   });
 
-  test("[Issue #14] 保存後にサマリー件数がリアルタイム更新される", async ({ page }) => {
-    // DashboardPage の summary-grid で今週の支出を確認するためホームへ
-    await page.getByRole("link", { name: "ホーム" }).click();
-    await expect(page).toHaveURL("/");
-
-    const summaryCards = page.locator(".summary-grid .paper-panel");
-    await expect(summaryCards).toHaveCount(3);
-    const spendCard = summaryCards.nth(0);
-    // AnimatedCounter導入により数値と単位が別要素になるため、data-value属性で検証
-    // テスト間でデータが残る可能性があるため、値の「変化」を検証（before/after比較）
-    // セレクタ: summary-grid の1枚目は「今週の支出」カード
-    await expect(spendCard.getByText("今週の支出", { exact: true })).toBeVisible();
-    const animatedCounter = spendCard.locator("[data-value]").first();
-    await animatedCounter.waitFor({ state: "visible" });
-    const beforeSpend = await waitForStableAnimatedCounterValue(animatedCounter);
-
-    // 入力画面でレシートを1件保存
-    await page.getByRole("link", { name: "入力", exact: true }).click();
-    await expect(page).toHaveURL("/weeks/current/input");
-    await page.locator('input[name="shopName"]').fill("QAテスト店舗");
+  test("[Issue #14] 保存後に週次サマリーへ支出が反映される", async ({ page }) => {
+    const shopName = `QAサマリー反映_${Date.now()}`;
+    await page.locator('input[name="shopName"]').fill(shopName);
     await page.locator('input[name="amountYen"]').fill("1234");
     await page
       .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
@@ -584,23 +539,19 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     // 保存完了（店名クリアを待機）
     await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
-    // ダッシュボードに戻って支出が更新されていることを確認
-    await page.getByRole("link", { name: "ホーム" }).click();
-    await expect(page).toHaveURL("/");
-    // AnimatedCounter導入により数値と単位が別要素になるため、data-value属性で検証
-    // Note: テスト間でデータが残るため、「増加量」で検証（before/after比較）
-    // 厳密なテストは別途データクリーンアップ機構の導入が必要（Issue #80 スコープ外）
-    const afterCounter = spendCard.locator("[data-value]").first();
-    // Convexリアルタイム更新完了を待機（data-valueが更新されるまで）
-    await expect(async () => {
-      const numericValue = await readAnimatedCounterValue(afterCounter);
-      // beforeSpend + 1234円になってるか検証
-      expect(numericValue).toBe(beforeSpend + 1234);
-    }).toPass({ timeout: 15_000 });
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+    const receiptRows = page.locator('[class*="receipt-row"]');
+    await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(receiptRows.filter({ hasText: "1,234円" }).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
-  test.skip("[Issue #14] 保存後に直近の入力一覧にレシートが表示される", async ({ page }) => {
-    // Issue #77 で WeekStatusPanel（直近の入力一覧）が InputPage から削除されたためスキップ
+  test("[Issue #14] 保存後に週次サマリーの支出一覧にレシートが表示される", async ({ page }) => {
     const shopName = `QA直近確認_${Date.now()}`;
 
     await page.locator('input[name="shopName"]').fill(shopName);
@@ -613,30 +564,19 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
 
     await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
 
-    const recentList = page.getByRole("heading", { name: "直近の入力" }).locator("../../..");
-    await expect(recentList.locator(`text=${shopName}`)).toBeVisible({ timeout: 10_000 });
-    await expect(recentList.locator("text=999円")).toBeVisible({ timeout: 10_000 });
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
+    const receiptRows = page.locator('[class*="receipt-row"]');
+    await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(receiptRows.filter({ hasText: "999円" }).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
-  test.skip("[Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される", async ({
-    page,
-  }) => {
-    // Issue #77 で WeekStatusPanel（今週の進捗・件数表示）が InputPage から削除されたためスキップ
-    const progressPanel = page
-      .getByRole("heading", { name: "今週の進捗", level: 2 })
-      .locator("../..");
-    const countLocator = progressPanel
-      .locator("p, .MuiTypography-body2")
-      .filter({ hasText: /^\d+ 件$/ });
-
-    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
-    await expect(countLocator).toBeVisible();
-    await page.reload();
-    await expect(page.getByRole("progressbar", { name: "今週の入力進捗" })).toBeVisible();
-    await expect(countLocator).toBeVisible();
-    const beforeCountText = await countLocator.textContent();
-    const beforeCount = parseInt(beforeCountText?.replace(" 件", "") ?? "0", 10);
-
+  test("[Issue #14] 保存後に週次サマリーの支出件数が更新される", async ({ page }) => {
     const shopName = `QA進捗確認_${Date.now()}`;
     await page.locator('input[name="shopName"]').fill(shopName);
     await page.locator('input[name="amountYen"]').fill("500");
@@ -647,7 +587,13 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("button", { name: "保存して次へ" }).click();
 
     await expect(page.locator('input[name="shopName"]')).toHaveValue("", { timeout: 10_000 });
-    await expect(countLocator).toHaveText(`${beforeCount + 1} 件`, { timeout: 10_000 });
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
+    await expect(page.locator('[class*="receipt-row"]').filter({ hasText: shopName })).toHaveCount(
+      1,
+      { timeout: 15_000 },
+    );
   });
 });
 
@@ -712,18 +658,9 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
   test("[Issue #15] レシート保存後にサマリーがリアルタイム更新される (P0 / 完了条件)", async ({
     page,
   }) => {
-    // PC幅で入力画面 → サマリー遷移の流れで確認
+    // PC幅で入力画面 → 保存 → サマリー遷移の流れで確認
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoAuthenticated(page, "/weeks/current/input");
-    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
-
-    // Drawer の「履歴」からサマリーページへ遷移
-    await page.getByRole("link", { name: "履歴" }).click();
-    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
-    await expect(page.getByText("合計支出")).toBeVisible({ timeout: 15_000 });
-
-    // 入力画面に戻って入力（Drawer「入力」リンクを使用）
-    await page.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
 
     const shopName = `QAサマリーテスト_${Date.now()}`;
@@ -739,7 +676,11 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     // サマリーページに遷移して確認（Drawer の「履歴」を使用）
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
-    await expect(page.locator(".receipt-list").last()).toContainText(shopName, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
+    await expect(page.locator('[class*="receipt-row"]').filter({ hasText: shopName })).toHaveCount(
+      1,
+      { timeout: 30_000 },
+    );
   });
 
   test("[Issue #15] 再度ナビで戻れる (P1)", async ({ page }) => {

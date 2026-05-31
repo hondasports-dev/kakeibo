@@ -1,0 +1,32 @@
+import { describe, expect, it } from "vitest";
+import { designTokens, rootCssVariables } from "./designTokens";
+import { theme } from "./theme";
+
+describe("designTokens", () => {
+  it("defines the calm workbench palette and spacing scale", () => {
+    expect(designTokens.color.primary.main).toBe("#0f766e");
+    expect(designTokens.color.surface.canvas).toBe("#f6f7f4");
+    expect(designTokens.space.md).toBe("16px");
+    expect(designTokens.radius.md).toBe("8px");
+  });
+
+  it("exposes shared CSS variables for app layout styles", () => {
+    expect(rootCssVariables["--color-surface-canvas"]).toBe(designTokens.color.surface.canvas);
+    expect(rootCssVariables["--color-surface-canvas-rgb"]).toBe("246 247 244");
+    expect(rootCssVariables["--color-surface-panel-rgb"]).toBe("255 255 255");
+    expect(rootCssVariables["--color-border-subtle"]).toBe(designTokens.color.border.subtle);
+    expect(rootCssVariables["--space-lg"]).toBe(designTokens.space.lg);
+    expect(rootCssVariables["--layout-content-max-width"]).toBe(
+      designTokens.layout.contentMaxWidth,
+    );
+  });
+});
+
+describe("theme", () => {
+  it("derives its base palette and shape from design tokens", () => {
+    expect(theme.palette.primary.main).toBe(designTokens.color.primary.main);
+    expect(theme.palette.background.default).toBe(designTokens.color.surface.canvas);
+    expect(theme.palette.divider).toBe(designTokens.color.border.subtle);
+    expect(theme.shape.borderRadius).toBe(8);
+  });
+});
