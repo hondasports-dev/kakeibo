@@ -1,0 +1,1074 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>支出AI登録 操作説明デモ</title>
+    <style>
+      :root {
+        --green: #178447;
+        --green-dark: #0f6636;
+        --green-soft: #eaf6ef;
+        --ink: #20242a;
+        --muted: #6c737f;
+        --line: #dfe4e8;
+        --paper: #ffffff;
+        --bg: #f5f7f4;
+        --amber: #f3a21b;
+        --red: #cc3f3f;
+        --blue: #2974d2;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+
+      .stage {
+        width: 100vw;
+        height: 100vh;
+        min-height: 900px;
+        display: grid;
+        place-items: center;
+        padding: 32px;
+        overflow: hidden;
+      }
+
+      .demo {
+        position: relative;
+        width: min(1280px, 100%);
+        height: min(820px, calc(100vh - 64px));
+        min-height: 760px;
+        display: grid;
+        grid-template-columns: 420px 1fr;
+        gap: 34px;
+        align-items: center;
+      }
+
+      .phone {
+        position: relative;
+        width: 390px;
+        height: 780px;
+        border-radius: 34px;
+        background: #111;
+        padding: 12px;
+        box-shadow: 0 24px 64px rgb(35 44 40 / 24%);
+      }
+
+      .screen {
+        position: relative;
+        height: 100%;
+        overflow: hidden;
+        border-radius: 24px;
+        background: #fbfcfb;
+      }
+
+      .topbar {
+        height: 62px;
+        display: grid;
+        grid-template-columns: 44px 1fr 44px;
+        align-items: center;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: var(--paper);
+      }
+
+      .icon-button {
+        width: 36px;
+        height: 36px;
+        display: grid;
+        place-items: center;
+        border-radius: 999px;
+        color: var(--ink);
+        font-size: 24px;
+      }
+
+      .title {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: 0;
+      }
+
+      .content {
+        position: relative;
+        height: calc(100% - 62px);
+        padding: 18px;
+      }
+
+      .capture-panel,
+      .queue-panel,
+      .review-panel,
+      .done-panel {
+        position: absolute;
+        inset: 18px;
+      }
+
+      .capture-panel {
+        animation: capturePanel 26s linear infinite;
+      }
+
+      .queue-panel {
+        animation: queuePanel 26s linear infinite;
+        opacity: 0;
+      }
+
+      .review-panel {
+        animation: reviewPanel 26s linear infinite;
+        opacity: 0;
+      }
+
+      .done-panel {
+        animation: donePanel 26s linear infinite;
+        opacity: 0;
+      }
+
+      .drop-zone {
+        height: 260px;
+        display: grid;
+        place-items: center;
+        padding: 22px;
+        border: 2px dashed var(--green);
+        border-radius: 8px;
+        background: #f7fbf8;
+      }
+
+      .camera-circle {
+        width: 86px;
+        height: 86px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 18px;
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green);
+        font-size: 42px;
+      }
+
+      .capture-title {
+        margin: 0 0 14px;
+        text-align: center;
+        color: var(--green);
+        font-size: 23px;
+        font-weight: 800;
+      }
+
+      .button-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 18px;
+      }
+
+      .soft-button,
+      .primary-button,
+      .outline-button {
+        height: 52px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        border-radius: 8px;
+        font-size: 18px;
+        font-weight: 800;
+      }
+
+      .soft-button {
+        background: var(--green-soft);
+        color: var(--green-dark);
+      }
+
+      .primary-button {
+        color: white;
+        background: var(--green);
+        box-shadow: 0 8px 18px rgb(23 132 71 / 24%);
+      }
+
+      .outline-button {
+        color: var(--green-dark);
+        border: 1px solid var(--green);
+        background: white;
+      }
+
+      .hint {
+        margin: 16px 0 0;
+        color: var(--muted);
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .receipt-stack {
+        position: relative;
+        height: 310px;
+        margin-top: 22px;
+      }
+
+      .receipt {
+        position: absolute;
+        width: 150px;
+        min-height: 190px;
+        padding: 14px 12px;
+        border-radius: 6px;
+        background: white;
+        box-shadow: 0 12px 28px rgb(45 54 50 / 18%);
+      }
+
+      .receipt::before,
+      .receipt::after {
+        content: "";
+        display: block;
+        height: 8px;
+        margin-bottom: 10px;
+        border-radius: 999px;
+        background: #d8dedb;
+      }
+
+      .receipt::after {
+        width: 68%;
+      }
+
+      .receipt .line {
+        height: 6px;
+        margin-top: 11px;
+        border-radius: 999px;
+        background: #edf1ef;
+      }
+
+      .r1 {
+        left: 24px;
+        top: 34px;
+        transform: rotate(-8deg);
+        animation: shotOne 26s linear infinite;
+      }
+
+      .r2 {
+        left: 116px;
+        top: 10px;
+        transform: rotate(5deg);
+        animation: shotTwo 26s linear infinite;
+      }
+
+      .r3 {
+        left: 192px;
+        top: 70px;
+        transform: rotate(11deg);
+        animation: shotThree 26s linear infinite;
+      }
+
+      .flash {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: white;
+        opacity: 0;
+        animation: flash 26s linear infinite;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-bottom: 14px;
+      }
+
+      .stat {
+        padding: 12px 8px;
+        border-radius: 8px;
+        background: white;
+        border: 1px solid var(--line);
+      }
+
+      .stat-label {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .stat-value {
+        margin-top: 4px;
+        font-size: 22px;
+        font-weight: 900;
+      }
+
+      .list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .queue-item {
+        display: grid;
+        grid-template-columns: 36px 1fr auto;
+        gap: 10px;
+        align-items: center;
+        min-height: 72px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+        box-shadow: 0 4px 14px rgb(26 38 32 / 5%);
+      }
+
+      .thumb {
+        width: 36px;
+        height: 44px;
+        border-radius: 4px;
+        background: linear-gradient(#fff, #edf2ef);
+        border: 1px solid #d9dfdc;
+      }
+
+      .item-title {
+        font-size: 16px;
+        font-weight: 800;
+      }
+
+      .item-sub {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .pill {
+        min-width: 72px;
+        padding: 6px 8px;
+        border-radius: 999px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .pill.processing {
+        color: var(--blue);
+        background: #eaf2fd;
+      }
+
+      .pill.ok {
+        color: var(--green-dark);
+        background: var(--green-soft);
+      }
+
+      .pill.warn {
+        color: #8a5600;
+        background: #fff4da;
+      }
+
+      .spinner {
+        width: 18px;
+        height: 18px;
+        border: 3px solid #cfe1f9;
+        border-top-color: var(--blue);
+        border-radius: 999px;
+        animation: spin 1s linear infinite;
+      }
+
+      .section-heading {
+        margin: 18px 0 10px;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .review-card {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: white;
+      }
+
+      .review-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .review-title {
+        font-size: 19px;
+        font-weight: 900;
+      }
+
+      .edit-row {
+        display: grid;
+        grid-template-columns: 1fr 92px 92px;
+        gap: 8px;
+        align-items: center;
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .field {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        padding: 0 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fbfbfb;
+        font-weight: 700;
+      }
+
+      .field.small {
+        justify-content: flex-end;
+      }
+
+      .category-dot {
+        width: 9px;
+        height: 9px;
+        margin-right: 6px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .category-dot.amber {
+        background: var(--amber);
+      }
+
+      .category-dot.blue {
+        background: var(--blue);
+      }
+
+      .detail-list {
+        border-top: 1px solid var(--line);
+      }
+
+      .detail-row {
+        display: grid;
+        grid-template-columns: 104px 1fr;
+        gap: 8px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .detail-label {
+        color: var(--muted);
+      }
+
+      .detail-value {
+        font-weight: 800;
+      }
+
+      .bottom-button {
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        bottom: 18px;
+      }
+
+      .completion {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        text-align: center;
+      }
+
+      .check {
+        width: 90px;
+        height: 90px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 20px;
+        border-radius: 999px;
+        background: var(--green);
+        color: white;
+        font-size: 52px;
+        font-weight: 900;
+      }
+
+      .completion h2 {
+        margin: 0 0 10px;
+        font-size: 28px;
+      }
+
+      .completion p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+        line-height: 1.7;
+      }
+
+      .narration {
+        position: relative;
+        height: 100%;
+        padding: 54px 0;
+      }
+
+      .caption {
+        position: absolute;
+        left: 0;
+        right: 0;
+        opacity: 0;
+        transform: translateY(18px);
+      }
+
+      .caption h1 {
+        margin: 0 0 18px;
+        font-size: 52px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .caption p {
+        width: min(660px, 100%);
+        margin: 0;
+        color: var(--muted);
+        font-size: 24px;
+        line-height: 1.6;
+      }
+
+      .caption .keyword {
+        color: var(--green-dark);
+      }
+
+      .c1 {
+        animation: captionOne 26s linear infinite;
+      }
+
+      .c2 {
+        animation: captionTwo 26s linear infinite;
+      }
+
+      .c3 {
+        animation: captionThree 26s linear infinite;
+      }
+
+      .c4 {
+        animation: captionFour 26s linear infinite;
+      }
+
+      .c5 {
+        animation: captionFive 26s linear infinite;
+      }
+
+      .progress {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 54px;
+        height: 6px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #dfe7e2;
+      }
+
+      .progress::before {
+        content: "";
+        display: block;
+        width: 100%;
+        height: 100%;
+        background: var(--green);
+        transform-origin: left;
+        animation: progress 26s linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      @keyframes progress {
+        from {
+          transform: scaleX(0);
+        }
+        to {
+          transform: scaleX(1);
+        }
+      }
+
+      @keyframes capturePanel {
+        0%,
+        31% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        35%,
+        100% {
+          opacity: 0;
+          transform: translateX(-24px);
+        }
+      }
+
+      @keyframes queuePanel {
+        0%,
+        30% {
+          opacity: 0;
+          transform: translateX(24px);
+        }
+        35%,
+        64% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        68%,
+        100% {
+          opacity: 0;
+          transform: translateX(-24px);
+        }
+      }
+
+      @keyframes reviewPanel {
+        0%,
+        63% {
+          opacity: 0;
+          transform: translateX(24px);
+        }
+        68%,
+        83% {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        87%,
+        100% {
+          opacity: 0;
+          transform: translateX(-24px);
+        }
+      }
+
+      @keyframes donePanel {
+        0%,
+        84% {
+          opacity: 0;
+          transform: scale(0.98);
+        }
+        88%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+      }
+
+      @keyframes shotOne {
+        0%,
+        9% {
+          transform: translateY(0) rotate(-8deg);
+          opacity: 1;
+        }
+        12%,
+        100% {
+          transform: translate(76px, -56px) scale(0.62) rotate(-2deg);
+          opacity: 0.1;
+        }
+      }
+
+      @keyframes shotTwo {
+        0%,
+        17% {
+          transform: translateY(0) rotate(5deg);
+          opacity: 1;
+        }
+        20%,
+        100% {
+          transform: translate(-26px, -86px) scale(0.62) rotate(2deg);
+          opacity: 0.1;
+        }
+      }
+
+      @keyframes shotThree {
+        0%,
+        25% {
+          transform: translateY(0) rotate(11deg);
+          opacity: 1;
+        }
+        28%,
+        100% {
+          transform: translate(-116px, -44px) scale(0.62) rotate(3deg);
+          opacity: 0.1;
+        }
+      }
+
+      @keyframes flash {
+        9%,
+        17%,
+        25% {
+          opacity: 0;
+        }
+        10%,
+        18%,
+        26% {
+          opacity: 0.8;
+        }
+        12%,
+        20%,
+        28% {
+          opacity: 0;
+        }
+      }
+
+      @keyframes captionOne {
+        0%,
+        2% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        5%,
+        22% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        27%,
+        100% {
+          opacity: 0;
+          transform: translateY(-18px);
+        }
+      }
+
+      @keyframes captionTwo {
+        0%,
+        26% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        31%,
+        44% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        49%,
+        100% {
+          opacity: 0;
+          transform: translateY(-18px);
+        }
+      }
+
+      @keyframes captionThree {
+        0%,
+        47% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        52%,
+        63% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        68%,
+        100% {
+          opacity: 0;
+          transform: translateY(-18px);
+        }
+      }
+
+      @keyframes captionFour {
+        0%,
+        66% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        70%,
+        81% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+        86%,
+        100% {
+          opacity: 0;
+          transform: translateY(-18px);
+        }
+      }
+
+      @keyframes captionFive {
+        0%,
+        84% {
+          opacity: 0;
+          transform: translateY(18px);
+        }
+        89%,
+        100% {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @media (max-width: 900px) {
+        .stage {
+          min-height: 1200px;
+        }
+
+        .demo {
+          height: auto;
+          min-height: 1120px;
+          grid-template-columns: 1fr;
+          justify-items: center;
+        }
+
+        .narration {
+          width: min(390px, 100%);
+          height: 280px;
+          padding: 0;
+        }
+
+        .caption h1 {
+          font-size: 34px;
+        }
+
+        .caption p {
+          font-size: 18px;
+        }
+
+        .progress {
+          bottom: 0;
+        }
+      }
+
+      @media (max-height: 860px) and (min-width: 901px) {
+        .stage {
+          min-height: 100vh;
+          padding: 18px;
+        }
+
+        .demo {
+          height: calc(100vh - 36px);
+          min-height: 0;
+          grid-template-columns: 360px 1fr;
+          gap: 28px;
+        }
+
+        .phone {
+          width: 340px;
+          height: 680px;
+          border-radius: 30px;
+        }
+
+        .screen {
+          border-radius: 22px;
+        }
+
+        .content {
+          padding: 14px;
+        }
+
+        .capture-panel,
+        .queue-panel,
+        .review-panel,
+        .done-panel {
+          inset: 14px;
+        }
+
+        .drop-zone {
+          height: 208px;
+        }
+
+        .receipt-stack {
+          height: 246px;
+          margin-top: 16px;
+          transform: scale(0.88);
+          transform-origin: top left;
+        }
+
+        .caption h1 {
+          font-size: 44px;
+        }
+
+        .caption p {
+          font-size: 21px;
+        }
+
+        .edit-row {
+          grid-template-columns: 1fr 78px 84px;
+          padding: 8px 10px;
+        }
+
+        .field {
+          height: 36px;
+          padding: 0 8px;
+          font-size: 14px;
+        }
+
+        .queue-item {
+          min-height: 62px;
+          padding: 9px;
+        }
+
+        .bottom-button {
+          left: 14px;
+          right: 14px;
+          bottom: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="stage">
+      <section class="demo" aria-label="支出AI登録の操作説明デモ">
+        <div class="phone">
+          <div class="screen">
+            <header class="topbar">
+              <div class="icon-button">‹</div>
+              <div class="title">支出AI登録</div>
+              <div class="icon-button">?</div>
+            </header>
+            <div class="content">
+              <section class="capture-panel" aria-label="書類を撮影する">
+                <div class="drop-zone">
+                  <div>
+                    <div class="camera-circle">📷</div>
+                    <h2 class="capture-title">書類を撮影 / アップロード</h2>
+                    <div class="button-row">
+                      <div class="soft-button">📷 撮影</div>
+                      <div class="soft-button">⬆ アップロード</div>
+                    </div>
+                    <p class="hint">撮ったらすぐ次へ。入力はあとでOK。</p>
+                  </div>
+                </div>
+                <div class="receipt-stack">
+                  <div class="receipt r1"><div class="line"></div><div class="line"></div><div class="line"></div></div>
+                  <div class="receipt r2"><div class="line"></div><div class="line"></div><div class="line"></div></div>
+                  <div class="receipt r3"><div class="line"></div><div class="line"></div><div class="line"></div></div>
+                </div>
+              </section>
+
+              <section class="queue-panel" aria-label="AI処理キュー">
+                <div class="stats">
+                  <div class="stat">
+                    <div class="stat-label">解析中</div>
+                    <div class="stat-value">2</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">登録OK</div>
+                    <div class="stat-value">7</div>
+                  </div>
+                  <div class="stat">
+                    <div class="stat-label">要確認</div>
+                    <div class="stat-value">1</div>
+                  </div>
+                </div>
+
+                <div class="section-heading">登録準備OK</div>
+                <div class="list">
+                  <div class="queue-item">
+                    <div class="thumb"></div>
+                    <div>
+                      <div class="item-title">東京都 自動車税</div>
+                      <div class="item-sub">39,500円 / 税金</div>
+                    </div>
+                    <div class="pill ok">OK</div>
+                  </div>
+                  <div class="queue-item">
+                    <div class="thumb"></div>
+                    <div>
+                      <div class="item-title">セブンイレブン</div>
+                      <div class="item-sub">540円 / 食費</div>
+                    </div>
+                    <div class="pill ok">OK</div>
+                  </div>
+                  <div class="queue-item">
+                    <div class="thumb"></div>
+                    <div>
+                      <div class="item-title">JR東日本</div>
+                      <div class="item-sub">580円 / 交通費</div>
+                    </div>
+                    <div class="pill ok">OK</div>
+                  </div>
+                </div>
+
+                <div class="section-heading">確認が必要</div>
+                <div class="queue-item">
+                  <div class="thumb"></div>
+                  <div>
+                    <div class="item-title">金額の候補が2つあります</div>
+                    <div class="item-sub">内訳と合計を確認してください</div>
+                  </div>
+                  <div class="pill warn">確認</div>
+                </div>
+
+                <div class="bottom-button">
+                  <div class="primary-button">OKの7件をまとめて登録</div>
+                </div>
+              </section>
+
+              <section class="review-panel" aria-label="要確認の書類だけ編集する">
+                <div class="review-card">
+                  <div class="review-head">
+                    <div>
+                      <div class="review-title">要確認</div>
+                      <div class="item-sub">合計と内訳を確認</div>
+                    </div>
+                    <div class="pill warn">AI候補</div>
+                  </div>
+                  <div class="edit-row">
+                    <div class="field">自動車税</div>
+                    <div class="field small">39,500</div>
+                    <div class="field"><span class="category-dot amber"></span>税金</div>
+                  </div>
+                  <div class="edit-row">
+                    <div class="field">お茶</div>
+                    <div class="field small">120</div>
+                    <div class="field"><span class="category-dot"></span>食費</div>
+                  </div>
+                  <div class="edit-row">
+                    <div class="field">コピー用紙</div>
+                    <div class="field small">420</div>
+                    <div class="field"><span class="category-dot blue"></span>消耗品</div>
+                  </div>
+                  <div class="detail-list">
+                    <div class="detail-row">
+                      <div class="detail-label">支払場所</div>
+                      <div class="detail-value">セブンイレブン</div>
+                    </div>
+                    <div class="detail-row">
+                      <div class="detail-label">支払先</div>
+                      <div class="detail-value">東京都</div>
+                    </div>
+                    <div class="detail-row">
+                      <div class="detail-label">メモ</div>
+                      <div class="detail-value">2026年度 自動車税</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="bottom-button">
+                  <div class="primary-button">確認して登録</div>
+                </div>
+              </section>
+
+              <section class="done-panel" aria-label="入力完了">
+                <div class="completion">
+                  <div>
+                    <div class="check">✓</div>
+                    <h2>今週の入力完了</h2>
+                    <p>10件を登録しました。<br />確認が必要なものだけ直せば完了です。</p>
+                  </div>
+                </div>
+              </section>
+              <div class="flash"></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="narration" aria-label="操作説明テキスト">
+          <div class="caption c1">
+            <h1>レシートも払込票も、<br /><span class="keyword">まず撮るだけ。</span></h1>
+            <p>1枚ずつ入力せず、机にある書類をテンポよく投入します。</p>
+          </div>
+          <div class="caption c2">
+            <h1>AIが裏側で<br /><span class="keyword">下書き化。</span></h1>
+            <p>金額、日付、支払先、カテゴリを読み取り、処理キューへ並べます。</p>
+          </div>
+          <div class="caption c3">
+            <h1>見るのは<br /><span class="keyword">怪しいものだけ。</span></h1>
+            <p>信頼度が高い支出は登録準備OK。低いものだけ確認に回します。</p>
+          </div>
+          <div class="caption c4">
+            <h1>修正は<br /><span class="keyword">例外処理。</span></h1>
+            <p>内訳や詳細は、必要な書類を開いたときだけ編集します。</p>
+          </div>
+          <div class="caption c5">
+            <h1>最後はまとめて<br /><span class="keyword">登録完了。</span></h1>
+            <p>入力フォームではなく、紙を片付けるリズムで支出を登録します。</p>
+          </div>
+          <div class="progress" aria-hidden="true"></div>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>
