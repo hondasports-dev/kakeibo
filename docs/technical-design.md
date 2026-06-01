@@ -158,7 +158,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | パス                           | 画面               | 目的                                       |
 | ------------------------------ | ------------------ | ------------------------------------------ |
 | `/sign-in`                     | サインイン         | ClerkでGoogleログインする                  |
-| `/`                            | ダッシュボード     | 今週の支出、月の残金、入力状態を確認する   |
+| `/`                            | ダッシュボード     | 今週の支出、カテゴリ別支出、入力状態を確認する |
 | `/weeks/current/input`         | 今週のレシート入力 | レシートを連続入力する                     |
 | `/weeks/:weekStartDate`        | 週次サマリー       | 指定週の集計、支出一覧を確認する           |
 | `/weeks/:weekStartDate/review` | 週次振り返り       | 振り返りメモを保存する                     |
@@ -200,7 +200,6 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | userId          | string                | `UserIdentity.tokenIdentifier` |
 | weekStartDate   | string                | 週開始日                       |
 | weekEndDate     | string                | 週終了日                       |
-| budgetAmountYen | number (optional)     | 週次予算                       |
 | reviewMemo      | string (optional)     | 振り返りメモ                   |
 | status          | `draft` / `completed` | セッション状態                 |
 | createdAt       | number                | 作成日時                       |
@@ -246,7 +245,6 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 - `getCurrentWeekSession()`
 - `getByWeek(weekStartDate)`
 - `ensureCurrentWeekSession()`
-- `updateBudget(weekStartDate, budgetAmountYen)`
 - `updateReviewMemo(weekStartDate, reviewMemo)`
 - `complete(weekStartDate)`
 - `getSummary(weekStartDate)`
@@ -289,7 +287,6 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 | カテゴリ | 有効なカテゴリIDのみ         |
 | 日付     | `YYYY-MM-DD` として扱える値  |
 | メモ     | 任意。上限文字数を設ける     |
-| 週次予算 | 未入力または1円以上の整数    |
 
 ## 12. 主要ロジック
 

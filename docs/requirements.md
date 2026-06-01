@@ -259,7 +259,6 @@ MVPでは、ユーザーが週1回の入力セッションを完了し、その�
 | id            | string   |  yes | 週次セッションID  |
 | weekStartDate | date     |  yes | 週開始日          |
 | weekEndDate   | date     |  yes | 週終了日          |
-| budgetAmount  | number   |   no | 週次予算          |
 | reviewMemo    | string   |   no | 振り返りメモ      |
 | status        | string   |  yes | draft / completed |
 | createdAt     | datetime |  yes | 作成日時          |
