@@ -1,5 +1,13 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import {
+  aiExpenseDraftConfidenceValidator,
+  aiExpenseDraftDocumentTypeValidator,
+  aiExpenseDraftItemConfidenceValidator,
+  aiExpenseDraftReviewReasonValidator,
+  aiExpenseDraftSourceTypeValidator,
+  aiExpenseDraftStatusValidator,
+} from "./aiExpenseDraftsModel";
 
 export default defineSchema({
   users: defineTable({
@@ -67,4 +75,39 @@ export default defineSchema({
   })
     .index("by_user_id_and_is_active_and_sort_order", ["userId", "isActive", "sortOrder"])
     .index("by_user_id_and_sort_order", ["userId", "sortOrder"]),
+
+  aiExpenseDrafts: defineTable({
+    userId: v.string(),
+    sourceType: aiExpenseDraftSourceTypeValidator,
+    status: aiExpenseDraftStatusValidator,
+    documentType: aiExpenseDraftDocumentTypeValidator,
+    shopName: v.optional(v.string()),
+    paymentPlace: v.optional(v.string()),
+    payeeName: v.optional(v.string()),
+    paymentPurpose: v.optional(v.string()),
+    date: v.optional(v.string()),
+    amountYen: v.optional(v.number()),
+    categoryId: v.optional(v.id("categories")),
+    confidence: aiExpenseDraftConfidenceValidator,
+    reviewReasons: v.array(aiExpenseDraftReviewReasonValidator),
+    registeredReceiptId: v.optional(v.id("receipts")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id_and_status_and_created_at", ["userId", "status", "createdAt"])
+    .index("by_user_id_and_created_at", ["userId", "createdAt"])
+    .index("by_user_id_and_registered_receipt_id", ["userId", "registeredReceiptId"]),
+
+  aiExpenseDraftItems: defineTable({
+    userId: v.string(),
+    draftId: v.id("aiExpenseDrafts"),
+    itemName: v.string(),
+    amountYen: v.number(),
+    categoryId: v.optional(v.id("categories")),
+    confidence: aiExpenseDraftItemConfidenceValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_draft_id", ["draftId"])
+    .index("by_user_id_and_draft_id", ["userId", "draftId"]),
 });
