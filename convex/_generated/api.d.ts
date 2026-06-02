@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiExpenseDraftsModel from "../aiExpenseDraftsModel.js";
 import type * as categories from "../categories.js";
 import type * as http from "../http.js";
 import type * as receiptImageExtraction from "../receiptImageExtraction.js";
@@ -23,6 +24,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiExpenseDraftsModel: typeof aiExpenseDraftsModel;
   categories: typeof categories;
   http: typeof http;
   receiptImageExtraction: typeof receiptImageExtraction;
