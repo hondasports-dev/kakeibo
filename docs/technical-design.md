@@ -217,6 +217,54 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | createdAt | number  | 作成日時                       |
 | updatedAt | number  | 更新日時                       |
 
+### 8.5 aiExpenseDrafts
+
+支出AI登録では、AI解析結果を既存 `receipts` に直接保存せず、未確定の下書きとして
+`aiExpenseDrafts` に保存する。下書きも家計データと同じくユーザー所有データであり、
+`userId` には `UserIdentity.tokenIdentifier` を保存する。query/mutation/action では
+クライアントから渡された `userId` を信用せず、サーバー側で取得した認証ユーザーと
+下書きの `userId` が一致することを確認する。
+
+| 項目                | 型                                                                 | 説明                                  |
+| ------------------- | ------------------------------------------------------------------ | ------------------------------------- |
+| userId              | string                                                             | `UserIdentity.tokenIdentifier`        |
+| sourceType          | `image_upload`                                                     | 下書きの作成元                        |
+| status              | `queued` / `analyzing` / `ready` / `needs_review` / `failed` / `registered` | AI処理と登録の状態                    |
+| documentType        | `receipt` / `convenience_payment` / `unknown`                      | 書類種別                              |
+| shopName            | string (optional)                                                  | レシート上の店名                      |
+| paymentPlace        | string (optional)                                                  | 実際に支払った場所                    |
+| payeeName           | string (optional)                                                  | お金の行き先                          |
+| paymentPurpose      | string (optional)                                                  | 支払内容                              |
+| date                | string (optional)                                                  | 支出日。`YYYY-MM-DD`                  |
+| amountYen           | number (optional)                                                  | 合計金額。日本円の整数                |
+| categoryId          | Id<"categories"> (optional)                                        | 登録候補カテゴリ                      |
+| confidence          | object                                                             | 主要フィールドごとのAI信頼度          |
+| reviewReasons       | fixed enum array                                                   | 確認が必要な理由                      |
+| registeredReceiptId | Id<"receipts"> (optional)                                          | 登録後に作成されたreceipt             |
+| createdAt           | number                                                             | 作成日時                              |
+| updatedAt           | number                                                             | 更新日時                              |
+
+`reviewReasons` は文字列自由入力ではなく、UI表示と分類ロジックで扱える固定 enum とする。
+初期値は `low_confidence`、`missing_required_field`、`ambiguous_document_type`、
+`ambiguous_category`、`amount_mismatch`、`parse_failed` とする。
+
+### 8.6 aiExpenseDraftItems
+
+明細行は親ドキュメントの配列にせず、`aiExpenseDraftItems` として別テーブル化する。
+MVPの画面で全明細を常時表示しない場合でも、将来の複数カテゴリ登録へ安全に拡張できる
+構造にする。
+
+| 項目       | 型                          | 説明                           |
+| ---------- | --------------------------- | ------------------------------ |
+| userId     | string                      | `UserIdentity.tokenIdentifier` |
+| draftId    | Id<"aiExpenseDrafts">       | 親下書きID                     |
+| itemName   | string                      | 明細名                         |
+| amountYen  | number                      | 明細金額                       |
+| categoryId | Id<"categories"> (optional) | 明細候補カテゴリ               |
+| confidence | object                      | 明細フィールドごとのAI信頼度   |
+| createdAt  | number                      | 作成日時                       |
+| updatedAt  | number                      | 更新日時                       |
+
 ## 9. Convex index設計
 
 | テーブル     | index                                     | 用途                                               |
@@ -228,6 +276,11 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | weekSessions | `by_user_id_and_week_start_date`          | 指定ユーザー、指定週のセッション取得               |
 | categories   | `by_user_id_and_is_active_and_sort_order` | 有効カテゴリの表示                                 |
 | categories   | `by_user_id_and_sort_order`               | カテゴリ設定画面、無効化済みカテゴリを含む履歴表示 |
+| aiExpenseDrafts | `by_user_id_and_status_and_created_at` | 指定ユーザーのキューを状態別・作成順で取得         |
+| aiExpenseDrafts | `by_user_id_and_created_at` | 指定ユーザーの下書き一覧を作成順で取得             |
+| aiExpenseDrafts | `by_user_id_and_registered_receipt_id` | receipt登録済み下書きの参照・重複登録防止          |
+| aiExpenseDraftItems | `by_draft_id` | 親下書きの明細取得                                 |
+| aiExpenseDraftItems | `by_user_id_and_draft_id` | 所有者確認済みの明細取得                           |
 
 ## 10. Convex function設計
 
@@ -273,6 +326,33 @@ CSV生成はクライアント側でも可能だが、Convex側で生成する�
 レシート画像入力PoCでは、画像を外部APIへ送信する前にユーザー単位の同意状態を確認する。同意状態は `users.receiptImageExternalApiConsentAcceptedAt` に承認時刻として保存する。
 
 この同意は画像送信の可否判定だけに使い、receipt 保存の認可やユーザー識別には使わない。認可は従来どおり `ctx.auth.getUserIdentity()` から得た `tokenIdentifier` を基準にする。
+
+### 10.6 AI expense drafts
+
+- `aiExpenseDrafts.listByStatus(status)`
+- `aiExpenseDrafts.getWithItems(draftId)`
+- `aiExpenseDrafts.createFromExtraction(input)`
+- `aiExpenseDrafts.updateForReview(draftId, input)`
+- `aiExpenseDrafts.markRegistered(draftId, registeredReceiptId)`
+- `aiExpenseDrafts.listItems(draftId)`
+
+下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` から `userId` を取得する。
+`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの `userId` と認証ユーザーの
+`tokenIdentifier` が一致することを確認する。`aiExpenseDraftItems` は `draftId` だけでなく
+`userId` も保存し、明細単体の取得でも所有者境界を確認できるようにする。
+
+`receipts` への登録時は、既存の週次集計・CSVエクスポートとの互換性を優先し、
+`receipts` 自体にはこのIssueで必須項目を追加しない。変換方針は次の通り。
+
+| 下書き種別 | `receipts.shopName` 変換方針 |
+| ---------- | ---------------------------- |
+| `receipt` | `shopName` を使う。空の場合は `payeeName`、`paymentPlace` の順に補完する。 |
+| `convenience_payment` | `payeeName` と `paymentPurpose` を連結する。空の場合は `paymentPlace`、`shopName` の順に補完する。 |
+| `unknown` | 確認が必要な下書きとして扱い、登録前にユーザーが必要項目を確定する。 |
+
+既存データへの migration / backfill は不要とする。新しい下書きテーブルの追加のみで、
+既存 `receipts`、`categories`、`weekSessions` の必須項目は変更しないため、既存データの読み取りは
+維持される。
 
 ## 11. Valibotバリデーション
 
@@ -463,6 +543,8 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - 週次セッション作成と再開
 - レシート作成、更新、削除
 - レシート画像外部API送信の同意状態取得と承認保存
+- AI支出下書きの状態・確認理由・`receipts.shopName` 変換方針
+- AI支出下書きと明細の所有者確認、登録済み下書きの重複登録防止
 
 ### 17.4 E2E test
 
