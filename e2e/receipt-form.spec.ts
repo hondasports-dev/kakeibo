@@ -391,11 +391,11 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     // SettingsPage には CategorySettingsPanel が含まれている
     await page.getByRole("link", { name: "設定" }).click();
     await expect(page).toHaveURL("/settings");
-    await expect(page.getByRole("heading", { name: "カテゴリ管理" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
     await expect(page.getByRole("listitem", { name: "カテゴリ 食費" })).toBeVisible();
 
-    await page.locator('input[name="newCategoryName"]').fill(categoryName);
     await page.locator('input[name="newCategoryColor"]').fill("#2563eb");
+    await page.locator('input[name="newCategoryName"]').fill(categoryName);
     await expect(page.locator('input[name="newCategoryName"]')).toHaveValue(categoryName);
     await page.getByRole("button", { name: "カテゴリを追加" }).click();
     await expect(page.getByRole("listitem", { name: `カテゴリ ${categoryName}` })).toBeVisible();
