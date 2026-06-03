@@ -13,6 +13,7 @@ import {
   Typography,
 } from "@mui/material";
 import { ReceiptImageExtractor } from "./ReceiptImageExtractor";
+import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
 import { generateWeekDays } from "../lib/weekNavigation";
 import { useReceiptForm } from "../hooks/useReceiptForm";
 import { AnimatedButton } from "./AnimatedButton";
@@ -87,7 +88,10 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
             )}
 
             {formValues.type === "expense" && (
-              <ReceiptImageExtractor onExtracted={handleExtracted} />
+              <>
+                <AiExpenseQueuePanel />
+                <ReceiptImageExtractor onExtracted={handleExtracted} />
+              </>
             )}
 
             <Box className="week-day-grid" aria-label="週内の日付候補" role="listbox">

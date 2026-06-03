@@ -138,6 +138,43 @@
   background: var(--color-surface-accent);
 }
 
+.ai-expense-queue {
+  display: grid;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-panel);
+}
+
+.ai-expense-queue-item {
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-panel);
+}
+
+.ai-expense-queue-item-processing {
+  border-left: 4px solid var(--color-border-emphasis);
+}
+
+.ai-expense-queue-item-ready {
+  border-left: 4px solid var(--color-success-main);
+}
+
+.ai-expense-queue-item-needs_review {
+  border-left: 4px solid var(--color-warning-main);
+}
+
+.ai-expense-queue-item-failed {
+  border-left: 4px solid var(--color-error-main);
+}
+
+.ai-expense-queue-item-registered {
+  border-left: 4px solid var(--color-secondary-main);
+}
+
 .receipt-image-preview {
   display: grid;
   place-items: center;
