@@ -8,6 +8,7 @@
  * @module
  */
 
+import type * as aiExpenseDrafts from "../aiExpenseDrafts.js";
 import type * as aiExpenseDraftsModel from "../aiExpenseDraftsModel.js";
 import type * as categories from "../categories.js";
 import type * as http from "../http.js";
@@ -24,6 +25,7 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  aiExpenseDrafts: typeof aiExpenseDrafts;
   aiExpenseDraftsModel: typeof aiExpenseDraftsModel;
   categories: typeof categories;
   http: typeof http;
