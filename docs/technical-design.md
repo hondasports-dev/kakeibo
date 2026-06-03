@@ -239,6 +239,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | amountYen           | number (optional)                                                  | 合計金額。日本円の整数                |
 | categoryId          | Id<"categories"> (optional)                                        | 登録候補カテゴリ                      |
 | confidence          | object                                                             | 主要フィールドごとのAI信頼度          |
+| warnings            | string[]                                                           | 解析時の警告                          |
 | reviewReasons       | fixed enum array                                                   | 確認が必要な理由                      |
 | registeredReceiptId | Id<"receipts"> (optional)                                          | 登録後に作成されたreceipt             |
 | createdAt           | number                                                             | 作成日時                              |

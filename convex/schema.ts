@@ -89,6 +89,7 @@ export default defineSchema({
     amountYen: v.optional(v.number()),
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftConfidenceValidator,
+    warnings: v.array(v.string()),
     reviewReasons: v.array(aiExpenseDraftReviewReasonValidator),
     registeredReceiptId: v.optional(v.id("receipts")),
     createdAt: v.number(),
