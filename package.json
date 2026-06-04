@@ -48,7 +48,7 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.5",
     "oxfmt": "^0.52.0",
-    "oxlint": "^1.66.0",
+    "oxlint": "^1.68.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "vercel": "^54.5.0",
