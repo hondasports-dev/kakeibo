@@ -20,7 +20,7 @@ const queueItems: AiExpenseQueueItem[] = [
     documentType: "convenience_payment",
     title: "公共料金",
     amountYen: 9120,
-    reviewReasons: ["金額の候補が複数あります", "支払先を確認してください"],
+    reviewReasons: ["low_confidence", "missing_required_field"],
   },
   {
     id: "draft-failed",
@@ -28,7 +28,7 @@ const queueItems: AiExpenseQueueItem[] = [
     status: "failed",
     documentType: "unknown",
     title: "読み取り失敗",
-    reviewReasons: ["画像が不鮮明です"],
+    reviewReasons: ["parse_failed"],
   },
   {
     id: "draft-registering",
@@ -83,8 +83,8 @@ describe("AiExpenseQueuePanel", () => {
 
     const reviewSection = screen.getByRole("region", { name: "確認が必要" });
     expect(within(reviewSection).getByText("review-payment.png")).toBeInTheDocument();
-    expect(within(reviewSection).getByText("金額の候補が複数あります")).toBeInTheDocument();
-    expect(within(reviewSection).getByText("支払先を確認してください")).toBeInTheDocument();
+    expect(within(reviewSection).getByText("信頼度が低い項目があります")).toBeInTheDocument();
+    expect(within(reviewSection).getByText("必須項目を確認してください")).toBeInTheDocument();
     expect(within(reviewSection).getByRole("button", { name: "下書きを確認" })).toBeEnabled();
 
     const failedSection = screen.getByRole("region", { name: "失敗" });
