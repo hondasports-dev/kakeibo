@@ -59,3 +59,25 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
   });
 });
+
+test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
+  test("確認が必要な下書きの reviewReasons を日本語で表示する", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
+
+    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    await expect(queue).toBeVisible();
+    await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
+    await expect(queue.getByText("確認が必要 1件")).toBeVisible();
+    await expect(queue.getByText("失敗 1件")).toBeVisible();
+
+    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
+    await expect(reviewSection.getByText("信頼度が低い項目があります")).toBeVisible();
+    await expect(reviewSection.getByText("必須項目を確認してください")).toBeVisible();
+    await expect(reviewSection.getByRole("button", { name: "下書きを確認" })).toBeEnabled();
+
+    const failedSection = queue.getByRole("region", { name: "失敗" });
+    await expect(failedSection.getByText("failed-receipt.png")).toBeVisible();
+    await expect(failedSection.getByText("画像解析に失敗しました")).toBeVisible();
+  });
+});
