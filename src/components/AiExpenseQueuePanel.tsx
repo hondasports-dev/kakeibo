@@ -61,6 +61,19 @@ const documentTypeLabels: Record<AiExpenseQueueDocumentType, string> = {
   unknown: "種別未判定",
 };
 
+const reviewReasonLabels: Record<string, string> = {
+  low_confidence: "信頼度が低い項目があります",
+  missing_required_field: "必須項目を確認してください",
+  ambiguous_document_type: "書類種別を確認してください",
+  ambiguous_category: "カテゴリを確認してください",
+  amount_mismatch: "明細合計と合計金額が一致しません",
+  parse_failed: "画像解析に失敗しました",
+};
+
+function getReviewReasonLabel(reason: string) {
+  return reviewReasonLabels[reason] ?? reason;
+}
+
 function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
   if (status === "ready") {
     return "ready";
@@ -149,7 +162,12 @@ function QueueItemCard({ item }: { item: AiExpenseQueueItem }) {
         {item.reviewReasons && item.reviewReasons.length > 0 && (
           <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
             {item.reviewReasons.map((reason) => (
-              <Chip key={reason} label={reason} size="small" variant="outlined" />
+              <Chip
+                key={reason}
+                label={getReviewReasonLabel(reason)}
+                size="small"
+                variant="outlined"
+              />
             ))}
           </Stack>
         )}

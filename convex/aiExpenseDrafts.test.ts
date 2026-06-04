@@ -269,6 +269,49 @@ describe("aiExpenseDrafts", () => {
     expect(insertedDraft).not.toHaveProperty("image");
   });
 
+  it("下書き保存時に抽出結果から登録準備OKを分類する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "category-food": {
+          userId: "https://issuer.example|user-001",
+        },
+      },
+      insertedDoc: {
+        ...ownedDraft,
+        _id: "new-draft-id",
+        status: "ready",
+        reviewReasons: [],
+      },
+    });
+
+    await createFromExtractionHandler(ctx, {
+      documentType: "receipt",
+      shopName: "スーパー青葉",
+      date: "2026-06-01",
+      amountYen: 1200,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "category-food" as any,
+      confidence: {
+        documentType: 0.92,
+        shopName: 0.91,
+        date: 0.93,
+        amountYen: 0.96,
+        categoryId: 0.9,
+      },
+      warnings: [],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDrafts",
+      expect.objectContaining({
+        status: "ready",
+        reviewReasons: [],
+      }),
+    );
+  });
+
   it("画像解析失敗時に failed 状態の下書きを作成する", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       insertedDoc: {

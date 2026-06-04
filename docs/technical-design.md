@@ -249,6 +249,14 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 初期値は `low_confidence`、`missing_required_field`、`ambiguous_document_type`、
 `ambiguous_category`、`amount_mismatch`、`parse_failed` とする。
 
+分類ロジックでは、主要フィールドの信頼度しきい値を `0.8` とする。レシート下書きは
+日付、1円以上の金額、店名または支払先相当の名称、カテゴリ候補、主要フィールドの信頼度が
+揃っている場合に `ready` とする。コンビニ払込票は支払先と支払内容の両方が必要であり、
+不足する場合は `needs_review` として `missing_required_field` を付与する。
+
+`unknown` の書類種別、カテゴリ未確定、AI警告、主要フィールドの低信頼度、下書き金額と明細合計の
+不一致がある場合も `needs_review` とし、該当する `reviewReasons` を保存する。
+
 ### 8.6 aiExpenseDraftItems
 
 明細行は親ドキュメントの配列にせず、`aiExpenseDraftItems` として別テーブル化する。

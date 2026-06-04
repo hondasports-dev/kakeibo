@@ -4,35 +4,21 @@ import { action, internalMutation, query } from "./_generated/server";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  AI_EXPENSE_DRAFT_REVIEW_REASONS,
   aiExpenseDraftConfidenceValidator,
   aiExpenseDraftDocumentTypeValidator,
   aiExpenseDraftItemConfidenceValidator,
   aiExpenseDraftReviewReasonValidator,
   aiExpenseDraftStatusValidator,
+  classifyAiExpenseDraft,
+  type AiExpenseDraftConfidence,
+  type AiExpenseDraftDocumentType,
+  type AiExpenseDraftReviewReason,
 } from "./aiExpenseDraftsModel";
 import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
 import { requireAuthenticatedUserId } from "./users";
 
 const LIST_LIMIT = 100;
-
-type AiExpenseDraftConfidence = {
-  documentType?: number;
-  shopName?: number;
-  paymentPlace?: number;
-  payeeName?: number;
-  paymentPurpose?: number;
-  date?: number;
-  amountYen?: number;
-  categoryId?: number;
-};
-
-type AiExpenseDraftReviewReason =
-  | "low_confidence"
-  | "missing_required_field"
-  | "ambiguous_document_type"
-  | "ambiguous_category"
-  | "amount_mismatch"
-  | "parse_failed";
 
 type AiExpenseDraftStatus =
   | "queued"
@@ -41,8 +27,6 @@ type AiExpenseDraftStatus =
   | "needs_review"
   | "failed"
   | "registered";
-
-type AiExpenseDraftDocumentType = "receipt" | "convenience_payment" | "unknown";
 
 type AiExpenseDraftItemInput = {
   itemName: string;
@@ -57,7 +41,6 @@ type AiExpenseDraftItemInput = {
 
 type CreateFromExtractionArgs = {
   documentType: AiExpenseDraftDocumentType;
-  status?: "ready" | "needs_review";
   shopName?: string;
   paymentPlace?: string;
   payeeName?: string;
@@ -67,7 +50,7 @@ type CreateFromExtractionArgs = {
   categoryId?: Id<"categories">;
   confidence: AiExpenseDraftConfidence;
   warnings: string[];
-  reviewReasons: AiExpenseDraftReviewReason[];
+  reviewReasons?: AiExpenseDraftReviewReason[];
   items?: AiExpenseDraftItemInput[];
 };
 
@@ -87,11 +70,27 @@ type AnalyzeReceiptImageToDraftArgs = {
   imageDataUrl: string;
 };
 
-function resolveSuccessfulDraftStatus(args: CreateFromExtractionArgs): "ready" | "needs_review" {
-  if (args.status !== undefined) {
-    return args.status;
+function mergeReviewReasons(
+  computedReasons: AiExpenseDraftReviewReason[],
+  explicitReasons: AiExpenseDraftReviewReason[] | undefined,
+) {
+  const reasons = new Set<AiExpenseDraftReviewReason>(computedReasons);
+  for (const reason of explicitReasons ?? []) {
+    reasons.add(reason);
   }
-  return args.reviewReasons.length === 0 && args.warnings.length === 0 ? "ready" : "needs_review";
+  return AI_EXPENSE_DRAFT_REVIEW_REASONS.filter((reason) => reasons.has(reason));
+}
+
+function resolveDraftClassification(args: CreateFromExtractionArgs): {
+  status: "ready" | "needs_review";
+  reviewReasons: AiExpenseDraftReviewReason[];
+} {
+  const computed = classifyAiExpenseDraft(args);
+  const reviewReasons = mergeReviewReasons(computed.reviewReasons, args.reviewReasons);
+  return {
+    status: reviewReasons.length === 0 ? "ready" : "needs_review",
+    reviewReasons,
+  };
 }
 
 async function assertCategoryBelongsToUser(
@@ -138,10 +137,11 @@ export async function createFromExtractionHandler(
   await assertCategoryBelongsToUser(ctx, args.categoryId, userId);
 
   const now = Date.now();
+  const classification = resolveDraftClassification(args);
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     userId,
     sourceType: "image_upload",
-    status: resolveSuccessfulDraftStatus(args),
+    status: classification.status,
     documentType: args.documentType,
     shopName: args.shopName,
     paymentPlace: args.paymentPlace,
@@ -152,7 +152,7 @@ export async function createFromExtractionHandler(
     categoryId: args.categoryId,
     confidence: args.confidence,
     warnings: args.warnings,
-    reviewReasons: args.reviewReasons,
+    reviewReasons: classification.reviewReasons,
     createdAt: now,
     updatedAt: now,
   });
@@ -169,7 +169,6 @@ export async function createFromExtractionHandler(
 export const createFromExtraction = internalMutation({
   args: {
     documentType: aiExpenseDraftDocumentTypeValidator,
-    status: v.optional(v.union(v.literal("ready"), v.literal("needs_review"))),
     shopName: v.optional(v.string()),
     paymentPlace: v.optional(v.string()),
     payeeName: v.optional(v.string()),
@@ -179,7 +178,7 @@ export const createFromExtraction = internalMutation({
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftConfidenceValidator,
     warnings: v.array(v.string()),
-    reviewReasons: v.array(aiExpenseDraftReviewReasonValidator),
+    reviewReasons: v.optional(v.array(aiExpenseDraftReviewReasonValidator)),
     items: v.optional(
       v.array(
         v.object({
@@ -270,34 +269,6 @@ export const getWithItems = query({
   handler: getWithItemsHandler,
 });
 
-function buildReviewReasonsFromReceiptExtraction(extracted: {
-  shopName: string;
-  date: string;
-  amountYen: number;
-  confidence: {
-    shopName: number;
-    date: number;
-    amountYen: number;
-  };
-  warnings: string[];
-}): AiExpenseDraftReviewReason[] {
-  const reasons = new Set<AiExpenseDraftReviewReason>();
-  if (!extracted.shopName || !extracted.date || extracted.amountYen <= 0) {
-    reasons.add("missing_required_field");
-  }
-  if (
-    extracted.confidence.shopName < 0.8 ||
-    extracted.confidence.date < 0.8 ||
-    extracted.confidence.amountYen < 0.8
-  ) {
-    reasons.add("low_confidence");
-  }
-  if (extracted.warnings.length > 0) {
-    reasons.add("low_confidence");
-  }
-  return [...reasons];
-}
-
 function getSafeFailureWarning(err: unknown) {
   if (err instanceof ConvexError && typeof err.data === "string") {
     return err.data;
@@ -333,7 +304,6 @@ export async function analyzeReceiptImageToDraftHandler(
     return draft;
   }
 
-  const reviewReasons = buildReviewReasonsFromReceiptExtraction(extracted);
   const draft: Doc<"aiExpenseDrafts"> = await ctx.runMutation(
     internal.aiExpenseDrafts.createFromExtraction,
     {
@@ -347,7 +317,6 @@ export async function analyzeReceiptImageToDraftHandler(
         amountYen: extracted.confidence.amountYen,
       },
       warnings: extracted.warnings,
-      reviewReasons,
     },
   );
   return draft;
