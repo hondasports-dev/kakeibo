@@ -395,13 +395,17 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     await expect(page.getByRole("listitem", { name: "カテゴリ 食費" })).toBeVisible();
 
     await page.locator('input[name="newCategoryColor"]').fill("#2563eb");
-    await page.locator('input[name="newCategoryName"]').fill(categoryName);
-    await expect(page.locator('input[name="newCategoryName"]')).toHaveValue(categoryName);
+    const newCategoryNameInput = page.locator('input[name="newCategoryName"]');
+    await newCategoryNameInput.click();
+    await newCategoryNameInput.pressSequentially(categoryName);
+    await expect(newCategoryNameInput).toHaveValue(categoryName);
     await page.getByRole("button", { name: "カテゴリを追加" }).click();
     await expect(page.getByRole("listitem", { name: `カテゴリ ${categoryName}` })).toBeVisible();
 
     await page.getByRole("button", { name: `${categoryName}を編集` }).click();
-    await page.locator('input[name="editCategoryName"]').fill(updatedCategoryName);
+    const editCategoryNameInput = page.locator('input[name="editCategoryName"]');
+    await editCategoryNameInput.clear();
+    await editCategoryNameInput.pressSequentially(updatedCategoryName);
     await page.locator('input[name="editCategoryColor"]').fill("#0f766e");
     await page.getByRole("button", { name: "変更を保存" }).click();
     await expect(
