@@ -7,20 +7,28 @@ import { ReceiptForm } from "./ReceiptForm";
 
 const {
   createReceiptMock,
+  registerReadyDraftsMock,
   extractReceiptFieldsMock,
   acceptReceiptImageConsentMock,
   receiptImageConsentQueryMock,
+  aiExpenseDraftsByStatusQueryMock,
 } = vi.hoisted(() => ({
   createReceiptMock: vi.fn(),
+  registerReadyDraftsMock: vi.fn(),
   extractReceiptFieldsMock: vi.fn(),
   acceptReceiptImageConsentMock: vi.fn(),
   receiptImageConsentQueryMock: vi.fn(),
+  aiExpenseDraftsByStatusQueryMock: vi.fn(),
 }));
 
 vi.mock("../../convex/_generated/api", () => ({
   api: {
     receipts: {
       createReceipt: "receipts.createReceipt",
+    },
+    aiExpenseDrafts: {
+      listByStatus: "aiExpenseDrafts.listByStatus",
+      registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
     },
     users: {
       acceptReceiptImageExternalApiConsent: "users.acceptReceiptImageExternalApiConsent",
@@ -37,10 +45,21 @@ vi.mock("convex/react", () => ({
     if (functionRef === "users.acceptReceiptImageExternalApiConsent") {
       return acceptReceiptImageConsentMock;
     }
+    if (functionRef === "aiExpenseDrafts.registerReadyDrafts") {
+      return registerReadyDraftsMock;
+    }
     return createReceiptMock;
   },
   useAction: () => extractReceiptFieldsMock,
-  useQuery: () => receiptImageConsentQueryMock(),
+  useQuery: (functionRef: string, args?: unknown) => {
+    if (functionRef === "users.getReceiptImageConsent") {
+      return receiptImageConsentQueryMock();
+    }
+    if (functionRef === "aiExpenseDrafts.listByStatus") {
+      return aiExpenseDraftsByStatusQueryMock(args);
+    }
+    return undefined;
+  },
 }));
 
 const categories = [
@@ -52,6 +71,8 @@ describe("ReceiptForm", () => {
   beforeEach(() => {
     createReceiptMock.mockReset();
     createReceiptMock.mockResolvedValue(undefined);
+    registerReadyDraftsMock.mockReset();
+    registerReadyDraftsMock.mockResolvedValue(undefined);
     extractReceiptFieldsMock.mockReset();
     acceptReceiptImageConsentMock.mockReset();
     acceptReceiptImageConsentMock.mockResolvedValue(undefined);
@@ -60,6 +81,8 @@ describe("ReceiptForm", () => {
       hasAcceptedExternalApiConsent: true,
       acceptedAt: 1234567890,
     });
+    aiExpenseDraftsByStatusQueryMock.mockReset();
+    aiExpenseDraftsByStatusQueryMock.mockReturnValue([]);
     HTMLCanvasElement.prototype.toDataURL = vi
       .fn()
       .mockReturnValue("data:image/jpeg;base64,mockBase64Data");

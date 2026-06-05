@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { api, internal } from "./_generated/api";
-import { action, internalMutation, query } from "./_generated/server";
+import { action, internalMutation, mutation, query } from "./_generated/server";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
@@ -11,11 +11,13 @@ import {
   aiExpenseDraftReviewReasonValidator,
   aiExpenseDraftStatusValidator,
   classifyAiExpenseDraft,
+  resolveReceiptShopNameFromDraft,
   type AiExpenseDraftConfidence,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
 } from "./aiExpenseDraftsModel";
 import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
+import { insertReceiptForUser } from "./receipts";
 import { requireAuthenticatedUserId } from "./users";
 
 const LIST_LIMIT = 100;
@@ -68,6 +70,10 @@ type GetWithItemsArgs = {
 
 type AnalyzeReceiptImageToDraftArgs = {
   imageDataUrl: string;
+};
+
+type RegisterReadyDraftsArgs = {
+  draftIds: Id<"aiExpenseDrafts">[];
 };
 
 function mergeReviewReasons(
@@ -267,6 +273,99 @@ export const getWithItems = query({
     draftId: v.id("aiExpenseDrafts"),
   },
   handler: getWithItemsHandler,
+});
+
+function dedupeDraftIds(draftIds: Id<"aiExpenseDrafts">[]) {
+  return [...new Set(draftIds)];
+}
+
+function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
+  if (draft.status !== "ready") {
+    throw new ConvexError("Only ready drafts can be registered");
+  }
+  if (!draft.date) {
+    throw new ConvexError("Draft date is required to register");
+  }
+  if (draft.amountYen === undefined || draft.amountYen <= 0) {
+    throw new ConvexError("Draft amount is required to register");
+  }
+  if (!draft.categoryId) {
+    throw new ConvexError("Draft category is required to register");
+  }
+}
+
+export async function registerReadyDraftsHandler(ctx: MutationCtx, args: RegisterReadyDraftsArgs) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const uniqueDraftIds = dedupeDraftIds(args.draftIds);
+  if (uniqueDraftIds.length === 0) {
+    return {
+      registeredDraftIds: [] as Id<"aiExpenseDrafts">[],
+      registeredReceiptIds: [] as Id<"receipts">[],
+      alreadyRegisteredDraftIds: [] as Id<"aiExpenseDrafts">[],
+    };
+  }
+
+  const drafts = await Promise.all(
+    uniqueDraftIds.map(async (draftId) => {
+      const draft = await ctx.db.get(draftId);
+      if (draft === null) {
+        throw new ConvexError("AI expense draft not found");
+      }
+      if (draft.userId !== userId) {
+        throw new ConvexError("AI expense draft does not belong to the current user");
+      }
+      return draft;
+    }),
+  );
+
+  const draftsToRegister: Doc<"aiExpenseDrafts">[] = [];
+  const alreadyRegisteredDraftIds: Id<"aiExpenseDrafts">[] = [];
+
+  for (const draft of drafts) {
+    if (draft.status === "registered" && draft.registeredReceiptId) {
+      alreadyRegisteredDraftIds.push(draft._id);
+      continue;
+    }
+    assertReadyDraftCanBeRegistered(draft);
+    draftsToRegister.push(draft);
+  }
+
+  const registeredReceiptIds: Id<"receipts">[] = [];
+
+  for (const draft of draftsToRegister) {
+    const receiptId = await insertReceiptForUser(ctx, userId, {
+      type: "expense",
+      date: draft.date!,
+      shopName: resolveReceiptShopNameFromDraft(draft),
+      amountYen: draft.amountYen!,
+      categoryId: draft.categoryId!,
+    });
+    registeredReceiptIds.push(receiptId);
+  }
+
+  const now = Date.now();
+  await Promise.all(
+    draftsToRegister.map((draft, index) =>
+      ctx.db.patch(draft._id, {
+        status: "registered",
+        registeredReceiptId: registeredReceiptIds[index],
+        updatedAt: now,
+      }),
+    ),
+  );
+
+  return {
+    registeredDraftIds: draftsToRegister.map((draft) => draft._id),
+    registeredReceiptIds,
+    alreadyRegisteredDraftIds,
+  };
+}
+
+export const registerReadyDrafts = mutation({
+  args: {
+    draftIds: v.array(v.id("aiExpenseDrafts")),
+  },
+  handler: registerReadyDraftsHandler,
 });
 
 function getSafeFailureWarning(err: unknown) {

@@ -28,12 +28,11 @@ type CreateReceiptArgs =
       memo?: string;
     };
 
-/** createReceipt mutation の handler ロジック（テスト用に export） */
-export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
-
-  // type に応じた必須フィールドのチェック
-  // Convex args では shopName/bankName が optional のため、handler 内でバリデーションする
+export async function insertReceiptForUser(
+  ctx: Pick<MutationCtx, "db">,
+  userId: string,
+  args: CreateReceiptArgs,
+) {
   if (args.type !== "income" && !args.shopName) {
     throw new ConvexError("shopName is required for expense receipts");
   }
@@ -41,7 +40,6 @@ export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceipt
     throw new ConvexError("bankName is required for income receipts");
   }
 
-  // categoryId の所有権チェック
   const category = await ctx.db.get(args.categoryId);
   if (category === null) {
     throw new ConvexError("Category not found");
@@ -56,7 +54,7 @@ export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceipt
   const now = Date.now();
   const weekStartDate = calculateWeekStartDate(args.date);
 
-  const receiptId = await ctx.db.insert("receipts", {
+  return await ctx.db.insert("receipts", {
     userId,
     date: args.date,
     type: args.type,
@@ -69,6 +67,12 @@ export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceipt
     createdAt: now,
     updatedAt: now,
   });
+}
+
+/** createReceipt mutation の handler ロジック（テスト用に export） */
+export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const receiptId = await insertReceiptForUser(ctx, userId, args);
 
   const receipt = await ctx.db.get(receiptId);
   if (receipt === null) {

@@ -7,6 +7,7 @@ import {
   createFromExtractionHandler,
   getWithItemsHandler,
   listByStatusHandler,
+  registerReadyDraftsHandler,
 } from "./aiExpenseDrafts";
 
 type DraftDoc = {
@@ -76,11 +77,22 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
 function createMutationCtx(
   identity: UserIdentity | null,
   opts: {
-    getDocById?: Record<string, DraftDoc | DraftItemDoc | { userId: string } | null>;
+    getDocById?: Record<
+      string,
+      DraftDoc | DraftItemDoc | { userId: string; isActive?: boolean } | null
+    >;
     insertedDoc?: DraftDoc;
+    insertedIds?: string[];
   } = {},
 ): MutationCtx {
-  const insertMock = vi.fn().mockResolvedValue("new-draft-id");
+  const insertedIds = opts.insertedIds ?? ["new-draft-id"];
+  let insertCallCount = 0;
+  const insertMock = vi.fn().mockImplementation(async () => {
+    const nextId = insertedIds[Math.min(insertCallCount, insertedIds.length - 1)];
+    insertCallCount += 1;
+    return nextId;
+  });
+  const patchMock = vi.fn().mockResolvedValue(undefined);
   const getMock = vi.fn().mockImplementation(async (id: string) => {
     if (id === "new-draft-id" && opts.insertedDoc) {
       return opts.insertedDoc;
@@ -95,6 +107,7 @@ function createMutationCtx(
     db: {
       get: getMock,
       insert: insertMock,
+      patch: patchMock,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as MutationCtx;
@@ -219,6 +232,15 @@ const ownedDraft: DraftDoc = {
   reviewReasons: ["low_confidence"],
   createdAt: 1000,
   updatedAt: 1000,
+};
+
+const readyDraft: DraftDoc = {
+  ...ownedDraft,
+  _id: "draft-ready",
+  status: "ready",
+  reviewReasons: [],
+  warnings: [],
+  categoryId: "cat-food",
 };
 
 describe("aiExpenseDrafts", () => {
@@ -381,6 +403,162 @@ describe("aiExpenseDrafts", () => {
 
       expect(runMutation).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("登録準備OKの下書きを receipts としてまとめて登録し、下書きを registered に更新する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "draft-payment": {
+          ...readyDraft,
+          _id: "draft-payment",
+          documentType: "convenience_payment",
+          shopName: "セブンイレブン",
+          payeeName: "東京都",
+          paymentPurpose: "自動車税",
+          amountYen: 39100,
+        },
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+      insertedIds: ["receipt-001", "receipt-002"],
+    });
+
+    const result = await registerReadyDraftsHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftIds: ["draft-ready", "draft-payment"] as any,
+    });
+
+    expect(result).toEqual({
+      registeredDraftIds: ["draft-ready", "draft-payment"],
+      registeredReceiptIds: ["receipt-001", "receipt-002"],
+      alreadyRegisteredDraftIds: [],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenNthCalledWith(
+      1,
+      "receipts",
+      expect.objectContaining({
+        userId: "https://issuer.example|user-001",
+        date: "2026-06-01",
+        type: "expense",
+        shopName: "スーパー青葉",
+        amountYen: 1200,
+        categoryId: "cat-food",
+      }),
+    );
+    expect(dbInsert).toHaveBeenNthCalledWith(
+      2,
+      "receipts",
+      expect.objectContaining({
+        shopName: "東京都 自動車税",
+        amountYen: 39100,
+      }),
+    );
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledTimes(2);
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-ready",
+      expect.objectContaining({
+        status: "registered",
+        registeredReceiptId: "receipt-001",
+      }),
+    );
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-payment",
+      expect.objectContaining({
+        status: "registered",
+        registeredReceiptId: "receipt-002",
+      }),
+    );
+  });
+
+  it("すでに登録済みの下書きは再登録せず、未登録の ready 下書きだけ登録する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "draft-registered": {
+          ...readyDraft,
+          _id: "draft-registered",
+          status: "registered",
+          registeredReceiptId: "receipt-already",
+        },
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+      insertedIds: ["receipt-003"],
+    });
+
+    const result = await registerReadyDraftsHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftIds: ["draft-ready", "draft-registered", "draft-ready"] as any,
+    });
+
+    expect(result).toEqual({
+      registeredDraftIds: ["draft-ready"],
+      registeredReceiptIds: ["receipt-003"],
+      alreadyRegisteredDraftIds: ["draft-registered"],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledTimes(1);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledTimes(1);
+  });
+
+  it("ready 以外の下書きが含まれる場合はまとめて登録を拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "draft-review": {
+          ...readyDraft,
+          _id: "draft-review",
+          status: "needs_review",
+          reviewReasons: ["low_confidence"],
+        },
+      },
+    });
+
+    await expect(
+      registerReadyDraftsHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftIds: ["draft-ready", "draft-review"] as any,
+      }),
+    ).rejects.toMatchObject({ data: "Only ready drafts can be registered" });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).insert as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("他ユーザーの下書きはまとめて登録できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-other": {
+          ...readyDraft,
+          _id: "draft-other",
+          userId: "https://issuer.example|other-user",
+        },
+      },
+    });
+
+    await expect(
+      registerReadyDraftsHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftIds: ["draft-other"] as any,
+      }),
+    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
   });
 
   it("listByStatus は認証ユーザー本人の下書きだけ返す", async () => {
