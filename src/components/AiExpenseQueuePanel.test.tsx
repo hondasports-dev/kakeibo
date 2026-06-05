@@ -1,8 +1,26 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./AiExpenseQueuePanel";
+
+const { registerReadyDraftsMock } = vi.hoisted(() => ({
+  registerReadyDraftsMock: vi.fn(),
+}));
+
+vi.mock("../../convex/_generated/api", () => ({
+  api: {
+    aiExpenseDrafts: {
+      listByStatus: "aiExpenseDrafts.listByStatus",
+      registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
+    },
+  },
+}));
+
+vi.mock("convex/react", () => ({
+  useMutation: () => registerReadyDraftsMock,
+  useQuery: () => [],
+}));
 
 const queueItems: AiExpenseQueueItem[] = [
   {
@@ -49,6 +67,11 @@ const queueItems: AiExpenseQueueItem[] = [
 ];
 
 describe("AiExpenseQueuePanel", () => {
+  beforeEach(() => {
+    registerReadyDraftsMock.mockReset();
+    registerReadyDraftsMock.mockResolvedValue(undefined);
+  });
+
   it("空状態では連続追加できる導線とキューの説明を表示する", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
@@ -79,7 +102,12 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(readySection).getByText("ok-receipt.png")).toBeInTheDocument();
     expect(within(readySection).getByText("4,280円")).toBeInTheDocument();
     expect(within(readySection).queryByText("registering-receipt.png")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "登録準備OKをまとめて登録" })).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（1件）" }),
+    ).toBeEnabled();
+    expect(
+      within(readySection).getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }),
+    ).toBeChecked();
 
     const reviewSection = screen.getByRole("region", { name: "確認が必要" });
     expect(within(reviewSection).getByText("review-payment.png")).toBeInTheDocument();
@@ -98,5 +126,24 @@ describe("AiExpenseQueuePanel", () => {
 
     const registeredSection = screen.getByRole("region", { name: "登録済み" });
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();
+  });
+
+  it("選択した ready 下書きだけまとめて登録する", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
+
+    await user.click(screen.getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }));
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（0件）" }),
+      ).toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }));
+    await user.click(
+      screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（1件）" }),
+    );
+
+    expect(registerReadyDraftsMock).toHaveBeenCalledWith({ draftIds: ["draft-ready"] });
   });
 });

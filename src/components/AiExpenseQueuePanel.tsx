@@ -1,8 +1,12 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useMutation, useQuery } from "convex/react";
+import type { Id } from "../../convex/_generated/dataModel";
+import { api } from "../../convex/_generated/api";
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   Divider,
   LinearProgress,
@@ -30,7 +34,7 @@ export type AiExpenseQueueDocumentType = "receipt" | "convenience_payment" | "un
 
 export type AiExpenseQueueItem = {
   id: string;
-  fileName: string;
+  fileName?: string;
   status: AiExpenseQueueStatus;
   documentType: AiExpenseQueueDocumentType;
   title?: string;
@@ -42,6 +46,20 @@ type QueueSectionKey = "processing" | "ready" | "needs_review" | "failed" | "reg
 
 type AiExpenseQueuePanelProps = {
   initialItems?: AiExpenseQueueItem[];
+};
+
+type AiExpenseDraftStatus = "ready" | "needs_review" | "failed" | "registered";
+
+type AiExpenseDraft = {
+  _id: string;
+  status: AiExpenseDraftStatus;
+  documentType: AiExpenseQueueDocumentType;
+  shopName?: string;
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+  amountYen?: number;
+  reviewReasons: string[];
 };
 
 const statusLabels: Record<AiExpenseQueueStatus, string> = {
@@ -72,6 +90,30 @@ const reviewReasonLabels: Record<string, string> = {
 
 function getReviewReasonLabel(reason: string) {
   return reviewReasonLabels[reason] ?? reason;
+}
+
+function resolveDraftTitle(draft: AiExpenseDraft) {
+  if (draft.documentType === "convenience_payment") {
+    return (
+      [draft.payeeName, draft.paymentPurpose, draft.paymentPlace].find(Boolean) ?? "AI支出下書き"
+    );
+  }
+  return draft.shopName || draft.payeeName || draft.paymentPlace || "AI支出下書き";
+}
+
+function mapDraftToQueueItem(
+  draft: AiExpenseDraft,
+  statusOverrides: Partial<Record<string, AiExpenseQueueStatus>>,
+): AiExpenseQueueItem {
+  return {
+    id: draft._id,
+    fileName: "AI支出下書き",
+    status: statusOverrides[draft._id] ?? draft.status,
+    documentType: draft.documentType,
+    title: resolveDraftTitle(draft),
+    amountYen: draft.amountYen,
+    reviewReasons: draft.reviewReasons,
+  };
 }
 
 function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
@@ -116,7 +158,17 @@ function getStatusColor(status: AiExpenseQueueStatus) {
   return "default" as const;
 }
 
-function QueueItemCard({ item }: { item: AiExpenseQueueItem }) {
+function QueueItemCard({
+  item,
+  isSelected,
+  onToggleReadySelection,
+}: {
+  item: AiExpenseQueueItem;
+  isSelected: boolean;
+  onToggleReadySelection: (itemId: string, checked: boolean) => void;
+}) {
+  const secondaryLabel = item.fileName ?? "AI支出下書き";
+
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
       <Stack spacing={1}>
@@ -125,16 +177,29 @@ function QueueItemCard({ item }: { item: AiExpenseQueueItem }) {
           spacing={1}
           sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}
         >
-          <Box sx={{ minWidth: 0 }}>
-            <Typography sx={{ fontWeight: 700 }} noWrap>
-              {item.title || item.fileName}
-            </Typography>
-            {item.title && (
-              <Typography color="text.secondary" variant="body2" noWrap>
-                {item.fileName}
-              </Typography>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", minWidth: 0 }}>
+            {item.status === "ready" && (
+              <Checkbox
+                checked={isSelected}
+                onChange={(event) => onToggleReadySelection(item.id, event.target.checked)}
+                size="small"
+                slotProps={{
+                  input: { "aria-label": `${item.title || secondaryLabel}を登録対象に含める` },
+                }}
+                sx={{ mt: -0.5 }}
+              />
             )}
-          </Box>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography sx={{ fontWeight: 700 }} noWrap>
+                {item.title || secondaryLabel}
+              </Typography>
+              {item.title && (
+                <Typography color="text.secondary" variant="body2" noWrap>
+                  {secondaryLabel}
+                </Typography>
+              )}
+            </Box>
+          </Stack>
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             <Chip label={documentTypeLabels[item.documentType]} size="small" variant="outlined" />
             <Chip
@@ -154,7 +219,7 @@ function QueueItemCard({ item }: { item: AiExpenseQueueItem }) {
 
         {(item.status === "analyzing" || item.status === "registering") && (
           <LinearProgress
-            aria-label={`${item.fileName}の${statusLabels[item.status]}`}
+            aria-label={`${secondaryLabel}の${statusLabels[item.status]}`}
             sx={{ height: 4, borderRadius: 2 }}
           />
         )}
@@ -198,7 +263,17 @@ function QueueItemCard({ item }: { item: AiExpenseQueueItem }) {
   );
 }
 
-function QueueSection({ label, items }: { label: string; items: AiExpenseQueueItem[] }) {
+function QueueSection({
+  label,
+  items,
+  selectedReadyIds,
+  onToggleReadySelection,
+}: {
+  label: string;
+  items: AiExpenseQueueItem[];
+  selectedReadyIds: string[];
+  onToggleReadySelection: (itemId: string, checked: boolean) => void;
+}) {
   if (items.length === 0) {
     return null;
   }
@@ -214,7 +289,12 @@ function QueueSection({ label, items }: { label: string; items: AiExpenseQueueIt
         </Stack>
         <Stack spacing={1}>
           {items.map((item) => (
-            <QueueItemCard item={item} key={item.id} />
+            <QueueItemCard
+              isSelected={selectedReadyIds.includes(item.id)}
+              item={item}
+              key={item.id}
+              onToggleReadySelection={onToggleReadySelection}
+            />
           ))}
         </Stack>
       </Stack>
@@ -222,10 +302,53 @@ function QueueSection({ label, items }: { label: string; items: AiExpenseQueueIt
   );
 }
 
-export function AiExpenseQueuePanel({ initialItems = [] }: AiExpenseQueuePanelProps) {
+export function AiExpenseQueuePanel({ initialItems }: AiExpenseQueuePanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [items, setItems] = useState<AiExpenseQueueItem[]>(initialItems);
-  const readyItems = items.filter((item) => getSectionKey(item.status) === "ready");
+  const previousReadyItemIdsRef = useRef<string[]>([]);
+  const [localItems, setLocalItems] = useState<AiExpenseQueueItem[]>([]);
+  const [selectedReadyIds, setSelectedReadyIds] = useState<string[]>([]);
+  const [registeringIds, setRegisteringIds] = useState<string[]>([]);
+  const [registrationError, setRegistrationError] = useState("");
+  const readyDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "ready" }) as
+    | AiExpenseDraft[]
+    | undefined;
+  const needsReviewDrafts = useQuery(api.aiExpenseDrafts.listByStatus, {
+    status: "needs_review",
+  }) as AiExpenseDraft[] | undefined;
+  const failedDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "failed" }) as
+    | AiExpenseDraft[]
+    | undefined;
+  const registeredDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "registered" }) as
+    | AiExpenseDraft[]
+    | undefined;
+  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
+
+  const statusOverrides = useMemo<Partial<Record<string, AiExpenseQueueStatus>>>(
+    () =>
+      Object.fromEntries(
+        registeringIds.map((draftId) => [draftId, "registering" as const]),
+      ) as Partial<Record<string, AiExpenseQueueStatus>>,
+    [registeringIds],
+  );
+
+  const liveItems = useMemo(() => {
+    return [
+      ...(readyDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
+      ...(needsReviewDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
+      ...(failedDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
+      ...(registeredDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
+    ];
+  }, [failedDrafts, needsReviewDrafts, readyDrafts, registeredDrafts, statusOverrides]);
+
+  const items = useMemo(
+    () => [...localItems, ...(initialItems ?? liveItems)],
+    [initialItems, liveItems, localItems],
+  );
+  const readyItems = useMemo(
+    () => items.filter((item) => getSectionKey(item.status) === "ready"),
+    [items],
+  );
+  const readyItemIds = useMemo(() => readyItems.map((item) => item.id), [readyItems]);
   const groupedItems = {
     processing: items.filter((item) => getSectionKey(item.status) === "processing"),
     ready: readyItems,
@@ -233,6 +356,22 @@ export function AiExpenseQueuePanel({ initialItems = [] }: AiExpenseQueuePanelPr
     failed: items.filter((item) => getSectionKey(item.status) === "failed"),
     registered: items.filter((item) => getSectionKey(item.status) === "registered"),
   };
+
+  useEffect(() => {
+    const previousReadyItemIds = previousReadyItemIdsRef.current;
+    setSelectedReadyIds((current) => {
+      const retained = current.filter((id) => readyItemIds.includes(id));
+      const additions = readyItemIds.filter(
+        (id) => !previousReadyItemIds.includes(id) && !retained.includes(id),
+      );
+      const next = [...retained, ...additions];
+      if (next.length === current.length && next.every((id, index) => id === current[index])) {
+        return current;
+      }
+      return next;
+    });
+    previousReadyItemIdsRef.current = readyItemIds;
+  }, [readyItemIds]);
 
   const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -252,8 +391,37 @@ export function AiExpenseQueuePanel({ initialItems = [] }: AiExpenseQueuePanelPr
         documentType: "unknown",
       };
     });
-    setItems((current) => [...nextItems, ...current]);
+    setLocalItems((current) => [...nextItems, ...current]);
     event.target.value = "";
+  };
+
+  const handleToggleReadySelection = (itemId: string, checked: boolean) => {
+    setSelectedReadyIds((current) => {
+      if (checked) {
+        return current.includes(itemId) ? current : [...current, itemId];
+      }
+      return current.filter((id) => id !== itemId);
+    });
+  };
+
+  const handleRegisterReady = async () => {
+    if (selectedReadyIds.length === 0) {
+      return;
+    }
+    setRegistrationError("");
+    setRegisteringIds(selectedReadyIds);
+    try {
+      await registerReadyDrafts({ draftIds: selectedReadyIds as Id<"aiExpenseDrafts">[] });
+      setSelectedReadyIds([]);
+    } catch (error) {
+      setRegistrationError(
+        error instanceof Error
+          ? error.message
+          : "まとめて登録に失敗しました。もう一度お試しください。",
+      );
+    } finally {
+      setRegisteringIds([]);
+    }
   };
 
   return (
@@ -302,6 +470,12 @@ export function AiExpenseQueuePanel({ initialItems = [] }: AiExpenseQueuePanelPr
           </Alert>
         ) : (
           <Stack spacing={2}>
+            {registrationError && (
+              <Alert severity="error" variant="outlined">
+                {registrationError}
+              </Alert>
+            )}
+
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Chip label={`キュー ${items.length}件`} size="small" variant="outlined" />
               <Chip label={`登録準備OK ${readyItems.length}件`} size="small" color="success" />
@@ -317,21 +491,48 @@ export function AiExpenseQueuePanel({ initialItems = [] }: AiExpenseQueuePanelPr
               <Button
                 color="primary"
                 startIcon={<CheckCircleIcon />}
+                disabled={selectedReadyIds.length === 0 || registeringIds.length > 0}
+                onClick={handleRegisterReady}
                 type="button"
                 variant="contained"
                 sx={{ alignSelf: "flex-start" }}
               >
-                登録準備OKをまとめて登録
+                選択中の登録準備OKをまとめて登録（{selectedReadyIds.length}件）
               </Button>
             )}
 
             <Divider />
 
-            <QueueSection label="AI処理中" items={groupedItems.processing} />
-            <QueueSection label="登録準備OK" items={groupedItems.ready} />
-            <QueueSection label="確認が必要" items={groupedItems.needs_review} />
-            <QueueSection label="失敗" items={groupedItems.failed} />
-            <QueueSection label="登録済み" items={groupedItems.registered} />
+            <QueueSection
+              label="AI処理中"
+              items={groupedItems.processing}
+              selectedReadyIds={selectedReadyIds}
+              onToggleReadySelection={handleToggleReadySelection}
+            />
+            <QueueSection
+              label="登録準備OK"
+              items={groupedItems.ready}
+              selectedReadyIds={selectedReadyIds}
+              onToggleReadySelection={handleToggleReadySelection}
+            />
+            <QueueSection
+              label="確認が必要"
+              items={groupedItems.needs_review}
+              selectedReadyIds={selectedReadyIds}
+              onToggleReadySelection={handleToggleReadySelection}
+            />
+            <QueueSection
+              label="失敗"
+              items={groupedItems.failed}
+              selectedReadyIds={selectedReadyIds}
+              onToggleReadySelection={handleToggleReadySelection}
+            />
+            <QueueSection
+              label="登録済み"
+              items={groupedItems.registered}
+              selectedReadyIds={selectedReadyIds}
+              onToggleReadySelection={handleToggleReadySelection}
+            />
           </Stack>
         )}
       </Stack>
