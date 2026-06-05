@@ -166,6 +166,9 @@ function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
     throw new ConvexError("Draft amount is required to mark ready");
   }
   if (!hasCounterparty(args)) {
+    if (args.documentType === "convenience_payment") {
+      throw new ConvexError("Draft payee and payment purpose are required to mark ready");
+    }
     throw new ConvexError("Draft shop, payment place, or payee is required to mark ready");
   }
 }
@@ -343,6 +346,9 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   }
   if (draft.status === "registered") {
     throw new ConvexError("Registered AI expense draft cannot be edited");
+  }
+  if (draft.status !== "needs_review") {
+    throw new ConvexError("Only needs_review AI expense drafts can be edited");
   }
 
   await assertActiveCategoryBelongsToUser(ctx, args.categoryId, userId);

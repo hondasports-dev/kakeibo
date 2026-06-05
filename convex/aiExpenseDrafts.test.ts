@@ -662,6 +662,69 @@ describe("aiExpenseDrafts", () => {
     expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
+  it("確認が必要以外の下書きはレビュー編集できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": {
+          ...ownedDraft,
+          _id: "draft-ready",
+          status: "ready",
+        },
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+    });
+
+    await expect(
+      updateForReviewHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftId: "draft-ready" as any,
+        documentType: "receipt",
+        shopName: "スーパー青葉",
+        date: "2026-06-02",
+        amountYen: 1680,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-food" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Only needs_review AI expense drafts can be edited" });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("払込票の支払先と支払内容が不足している場合は専用メッセージで拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+    });
+
+    await expect(
+      updateForReviewHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftId: "draft-owned" as any,
+        documentType: "convenience_payment",
+        payeeName: "大阪市水道局",
+        paymentPurpose: "",
+        date: "2026-06-02",
+        amountYen: 1680,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-food" as any,
+      }),
+    ).rejects.toMatchObject({
+      data: "Draft payee and payment purpose are required to mark ready",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
   it("無効化済みカテゴリでは確認下書きを登録準備OKへ戻せない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {

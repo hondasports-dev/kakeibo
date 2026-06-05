@@ -120,6 +120,10 @@ const documentTypeLabels: Record<AiExpenseQueueDocumentType, string> = {
   unknown: "種別未判定",
 };
 
+const reviewDocumentTypeOptions = Object.entries(documentTypeLabels).filter(
+  ([value]) => value !== "unknown",
+);
+
 const reviewReasonLabels: Record<string, string> = {
   low_confidence: "信頼度が低い項目があります",
   missing_required_field: "必須項目を確認してください",
@@ -432,7 +436,10 @@ export function AiExpenseQueuePanel({
     : isDraftWithItems(selectedReviewDraftDetails)
       ? selectedReviewDraftDetails.draft
       : null;
-  const isReviewDraftLoading = selectedReviewDraftId !== null && selectedReviewDraft === null;
+  const isReviewDraftNotFound =
+    selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === null;
+  const isReviewDraftLoading =
+    selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === undefined;
 
   const statusOverrides = useMemo<Partial<Record<string, AiExpenseQueueStatus>>>(
     () =>
@@ -552,6 +559,10 @@ export function AiExpenseQueuePanel({
       return;
     }
     const amountYen = Number(reviewForm.amountYen);
+    if (reviewForm.documentType === "unknown") {
+      setReviewError("書類種別を選択してください。");
+      return;
+    }
     if (
       !reviewForm.date ||
       !Number.isInteger(amountYen) ||
@@ -769,7 +780,13 @@ export function AiExpenseQueuePanel({
               <Typography color="text.secondary">下書きを読み込んでいます。</Typography>
             )}
 
-            {!isReviewDraftLoading && (
+            {isReviewDraftNotFound && (
+              <Alert severity="error" variant="outlined">
+                下書きが見つかりません。キューを更新してもう一度確認してください。
+              </Alert>
+            )}
+
+            {!isReviewDraftLoading && !isReviewDraftNotFound && (
               <>
                 {selectedReviewDraft?.reviewReasons &&
                   selectedReviewDraft.reviewReasons.length > 0 && (
@@ -807,9 +824,21 @@ export function AiExpenseQueuePanel({
                     )
                   }
                   select
-                  value={reviewForm.documentType}
+                  slotProps={{
+                    select: {
+                      displayEmpty: true,
+                      renderValue: (value) =>
+                        value === ""
+                          ? "書類種別を選択"
+                          : documentTypeLabels[value as AiExpenseQueueDocumentType],
+                    },
+                  }}
+                  value={reviewForm.documentType === "unknown" ? "" : reviewForm.documentType}
                 >
-                  {Object.entries(documentTypeLabels).map(([value, label]) => (
+                  <MenuItem disabled value="">
+                    書類種別を選択
+                  </MenuItem>
+                  {reviewDocumentTypeOptions.map(([value, label]) => (
                     <MenuItem key={value} value={value}>
                       {label}
                     </MenuItem>
@@ -891,7 +920,12 @@ export function AiExpenseQueuePanel({
             キャンセル
           </Button>
           <Button
-            disabled={reviewSubmitting || isReviewDraftLoading || categories.length === 0}
+            disabled={
+              reviewSubmitting ||
+              isReviewDraftLoading ||
+              isReviewDraftNotFound ||
+              categories.length === 0
+            }
             onClick={() => void handleSubmitReview(false)}
             type="button"
             variant="outlined"
@@ -899,7 +933,12 @@ export function AiExpenseQueuePanel({
             登録準備OKに戻す
           </Button>
           <Button
-            disabled={reviewSubmitting || isReviewDraftLoading || categories.length === 0}
+            disabled={
+              reviewSubmitting ||
+              isReviewDraftLoading ||
+              isReviewDraftNotFound ||
+              categories.length === 0
+            }
             onClick={() => void handleSubmitReview(true)}
             type="button"
             variant="contained"
