@@ -76,6 +76,18 @@ type RegisterReadyDraftsArgs = {
   draftIds: Id<"aiExpenseDrafts">[];
 };
 
+type UpdateForReviewArgs = {
+  draftId: Id<"aiExpenseDrafts">;
+  documentType: AiExpenseDraftDocumentType;
+  shopName?: string;
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+  date: string;
+  amountYen: number;
+  categoryId: Id<"categories">;
+};
+
 function mergeReviewReasons(
   computedReasons: AiExpenseDraftReviewReason[],
   explicitReasons: AiExpenseDraftReviewReason[] | undefined,
@@ -110,6 +122,47 @@ async function assertCategoryBelongsToUser(
   const category = await ctx.db.get(categoryId);
   if (category === null || category.userId !== userId) {
     throw new ConvexError("Category does not belong to the current user");
+  }
+}
+
+async function assertActiveCategoryBelongsToUser(
+  ctx: Pick<MutationCtx, "db">,
+  categoryId: Id<"categories">,
+  userId: string,
+) {
+  const category = await ctx.db.get(categoryId);
+  if (category === null || category.userId !== userId) {
+    throw new ConvexError("Category does not belong to the current user");
+  }
+  if (!category.isActive) {
+    throw new ConvexError("Inactive category cannot be used for reviewed drafts");
+  }
+}
+
+function trimOptional(value: string | undefined) {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function hasCounterparty(args: UpdateForReviewArgs) {
+  if (args.documentType === "convenience_payment") {
+    return !!trimOptional(args.payeeName) && !!trimOptional(args.paymentPurpose);
+  }
+  return !!trimOptional(args.shopName) || !!trimOptional(args.payeeName) || !!trimOptional(args.paymentPlace);
+}
+
+function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
+  if (args.documentType === "unknown") {
+    throw new ConvexError("Draft document type must be selected to mark ready");
+  }
+  if (!trimOptional(args.date)) {
+    throw new ConvexError("Draft date is required to mark ready");
+  }
+  if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
+    throw new ConvexError("Draft amount is required to mark ready");
+  }
+  if (!hasCounterparty(args)) {
+    throw new ConvexError("Draft shop, payment place, or payee is required to mark ready");
   }
 }
 
@@ -273,6 +326,70 @@ export const getWithItems = query({
     draftId: v.id("aiExpenseDrafts"),
   },
   handler: getWithItemsHandler,
+});
+
+export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForReviewArgs) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const draft = await ctx.db.get(args.draftId);
+  if (draft === null) {
+    throw new ConvexError("AI expense draft not found");
+  }
+  if (draft.userId !== userId) {
+    throw new ConvexError("AI expense draft does not belong to the current user");
+  }
+  if (draft.status === "registered") {
+    throw new ConvexError("Registered AI expense draft cannot be edited");
+  }
+
+  await assertActiveCategoryBelongsToUser(ctx, args.categoryId, userId);
+  assertReviewUpdateCanBecomeReady(args);
+
+  const now = Date.now();
+  await ctx.db.patch(args.draftId, {
+    status: "ready",
+    documentType: args.documentType,
+    shopName: trimOptional(args.shopName),
+    paymentPlace: trimOptional(args.paymentPlace),
+    payeeName: trimOptional(args.payeeName),
+    paymentPurpose: trimOptional(args.paymentPurpose),
+    date: trimOptional(args.date),
+    amountYen: args.amountYen,
+    categoryId: args.categoryId,
+    confidence: {
+      ...draft.confidence,
+      documentType: 1,
+      shopName: trimOptional(args.shopName) ? 1 : draft.confidence.shopName,
+      paymentPlace: trimOptional(args.paymentPlace) ? 1 : draft.confidence.paymentPlace,
+      payeeName: trimOptional(args.payeeName) ? 1 : draft.confidence.payeeName,
+      paymentPurpose: trimOptional(args.paymentPurpose) ? 1 : draft.confidence.paymentPurpose,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    },
+    reviewReasons: [],
+    updatedAt: now,
+  });
+
+  const updated = await ctx.db.get(args.draftId);
+  if (updated === null) {
+    throw new ConvexError("Failed to retrieve updated AI expense draft");
+  }
+  return updated;
+}
+
+export const updateForReview = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    documentType: aiExpenseDraftDocumentTypeValidator,
+    shopName: v.optional(v.string()),
+    paymentPlace: v.optional(v.string()),
+    payeeName: v.optional(v.string()),
+    paymentPurpose: v.optional(v.string()),
+    date: v.string(),
+    amountYen: v.number(),
+    categoryId: v.id("categories"),
+  },
+  handler: updateForReviewHandler,
 });
 
 function dedupeDraftIds(draftIds: Id<"aiExpenseDrafts">[]) {

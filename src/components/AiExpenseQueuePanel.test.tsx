@@ -4,23 +4,35 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./AiExpenseQueuePanel";
 
-const { registerReadyDraftsMock } = vi.hoisted(() => ({
+const { registerReadyDraftsMock, updateForReviewMock, useQueryMock } = vi.hoisted(() => ({
   registerReadyDraftsMock: vi.fn(),
+  updateForReviewMock: vi.fn(),
+  useQueryMock: vi.fn(),
 }));
 
 vi.mock("../../convex/_generated/api", () => ({
   api: {
     aiExpenseDrafts: {
+      getWithItems: "aiExpenseDrafts.getWithItems",
       listByStatus: "aiExpenseDrafts.listByStatus",
       registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
+      updateForReview: "aiExpenseDrafts.updateForReview",
     },
   },
 }));
 
 vi.mock("convex/react", () => ({
-  useMutation: () => registerReadyDraftsMock,
-  useQuery: () => [],
+  useMutation: (reference: string) => {
+    if (reference === "aiExpenseDrafts.updateForReview") return updateForReviewMock;
+    return registerReadyDraftsMock;
+  },
+  useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
 }));
+
+const categories = [
+  { _id: "cat-food", name: "食費", color: "#2563EB" },
+  { _id: "cat-daily", name: "日用品", color: "#16A34A" },
+];
 
 const queueItems: AiExpenseQueueItem[] = [
   {
@@ -70,6 +82,10 @@ describe("AiExpenseQueuePanel", () => {
   beforeEach(() => {
     registerReadyDraftsMock.mockReset();
     registerReadyDraftsMock.mockResolvedValue(undefined);
+    updateForReviewMock.mockReset();
+    updateForReviewMock.mockResolvedValue(undefined);
+    useQueryMock.mockReset();
+    useQueryMock.mockReturnValue([]);
   });
 
   it("空状態では連続追加できる導線とキューの説明を表示する", () => {
@@ -145,5 +161,124 @@ describe("AiExpenseQueuePanel", () => {
     );
 
     expect(registerReadyDraftsMock).toHaveBeenCalledWith({ draftIds: ["draft-ready"] });
+  });
+
+  it("確認が必要な下書きを理由表示つきで編集し、そのまま登録する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "",
+          paymentPlace: "",
+          payeeName: "スーパー青葉",
+          paymentPurpose: "",
+          date: "2026-06-01",
+          amountYen: 9120,
+          categoryId: "cat-daily",
+          reviewReasons: ["low_confidence", "missing_required_field"],
+          warnings: ["店名が読み取れませんでした"],
+        },
+        items: [],
+      };
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />);
+
+    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+
+    expect(screen.getByRole("heading", { name: "下書き確認" })).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("信頼度が低い項目があります")).toBeInTheDocument();
+    expect(within(dialog).getByText("必須項目を確認してください")).toBeInTheDocument();
+
+    await user.type(screen.getByLabelText("店名"), "スーパー青葉");
+    await user.clear(screen.getByLabelText("合計金額"));
+    await user.type(screen.getByLabelText("合計金額"), "1680");
+    await user.click(screen.getByRole("button", { name: "修正して登録" }));
+
+    expect(updateForReviewMock).toHaveBeenCalledWith({
+      draftId: "draft-review",
+      documentType: "receipt",
+      shopName: "スーパー青葉",
+      paymentPlace: "",
+      payeeName: "スーパー青葉",
+      paymentPurpose: "",
+      date: "2026-06-01",
+      amountYen: 1680,
+      categoryId: "cat-daily",
+    });
+    expect(registerReadyDraftsMock).toHaveBeenCalledWith({ draftIds: ["draft-review"] });
+  });
+
+  it("確認下書きの詳細読み込み前はフォーム送信できない", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference === "aiExpenseDrafts.getWithItems" && args !== "skip") {
+        return undefined;
+      }
+      return [];
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("下書きを読み込んでいます。")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "登録準備OKに戻す" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "修正して登録" })).toBeDisabled();
+    expect(within(dialog).queryByLabelText("合計金額")).not.toBeInTheDocument();
+  });
+
+  it("確認が必要な下書きを登録準備OKへ戻す送信分岐を呼べる", async () => {
+    const user = userEvent.setup();
+    const onReviewSubmit = vi.fn().mockResolvedValue(undefined);
+
+    renderWithProviders(
+      <AiExpenseQueuePanel
+        initialItems={[queueItems[1]]}
+        categories={categories}
+        initialReviewDrafts={{
+          "draft-review": {
+            _id: "draft-review",
+            status: "needs_review",
+            documentType: "convenience_payment",
+            paymentPlace: "コンビニ北浜",
+            payeeName: "大阪市水道局",
+            paymentPurpose: "",
+            date: "2026-06-01",
+            amountYen: 9120,
+            categoryId: "cat-daily",
+            reviewReasons: ["missing_required_field"],
+          },
+        }}
+        onReviewSubmit={onReviewSubmit}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.type(screen.getByLabelText("支払内容"), "水道料金");
+    await user.click(screen.getByRole("button", { name: "登録準備OKに戻す" }));
+
+    expect(onReviewSubmit).toHaveBeenCalledWith(
+      "draft-review",
+      expect.objectContaining({
+        documentType: "convenience_payment",
+        payeeName: "大阪市水道局",
+        paymentPurpose: "水道料金",
+        amountYen: 9120,
+        categoryId: "cat-daily",
+      }),
+      false,
+    );
+    expect(registerReadyDraftsMock).not.toHaveBeenCalled();
   });
 });

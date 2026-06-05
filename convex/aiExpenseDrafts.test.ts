@@ -8,6 +8,7 @@ import {
   getWithItemsHandler,
   listByStatusHandler,
   registerReadyDraftsHandler,
+  updateForReviewHandler,
 } from "./aiExpenseDrafts";
 
 type DraftDoc = {
@@ -559,6 +560,134 @@ describe("aiExpenseDrafts", () => {
         draftIds: ["draft-other"] as any,
       }),
     ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
+  });
+
+  it("確認が必要な下書きを編集して登録準備OKへ戻す", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+    });
+
+    await updateForReviewHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftId: "draft-owned" as any,
+      documentType: "receipt",
+      shopName: "スーパー青葉 北浜店",
+      paymentPlace: "北浜",
+      payeeName: "スーパー青葉",
+      paymentPurpose: "食料品",
+      date: "2026-06-02",
+      amountYen: 1680,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-food" as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-owned",
+      expect.objectContaining({
+        status: "ready",
+        reviewReasons: [],
+        shopName: "スーパー青葉 北浜店",
+        paymentPlace: "北浜",
+        payeeName: "スーパー青葉",
+        paymentPurpose: "食料品",
+        date: "2026-06-02",
+        amountYen: 1680,
+        categoryId: "cat-food",
+      }),
+    );
+  });
+
+  it("他ユーザーの確認下書きは編集できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-other": {
+          ...ownedDraft,
+          _id: "draft-other",
+          userId: "https://issuer.example|other-user",
+        },
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+    });
+
+    await expect(
+      updateForReviewHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftId: "draft-other" as any,
+        documentType: "receipt",
+        shopName: "スーパー青葉",
+        date: "2026-06-02",
+        amountYen: 1680,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-food" as any,
+      }),
+    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
+  });
+
+  it("書類種別が未判定の確認下書きは登録準備OKへ戻せない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-food": {
+          userId: "https://issuer.example|user-001",
+          isActive: true,
+        },
+      },
+    });
+
+    await expect(
+      updateForReviewHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftId: "draft-owned" as any,
+        documentType: "unknown",
+        shopName: "スーパー青葉",
+        date: "2026-06-02",
+        amountYen: 1680,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-food" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Draft document type must be selected to mark ready" });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("無効化済みカテゴリでは確認下書きを登録準備OKへ戻せない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-inactive": {
+          userId: "https://issuer.example|user-001",
+          isActive: false,
+        },
+      },
+    });
+
+    await expect(
+      updateForReviewHandler(ctx, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        draftId: "draft-owned" as any,
+        documentType: "receipt",
+        shopName: "スーパー青葉",
+        date: "2026-06-02",
+        amountYen: 1680,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "cat-inactive" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Inactive category cannot be used for reviewed drafts" });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("listByStatus は認証ユーザー本人の下書きだけ返す", async () => {
