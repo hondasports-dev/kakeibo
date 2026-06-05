@@ -1,6 +1,9 @@
 ---
 name: issue-tdd-workflow
 description: このリポジトリでGitHub Issueの実装、修正、テスト追加、PR作成を行うとき、またはIssue番号を指定してIssue対応を始めるときに使う。特にissue-deliveryが使えない、禁止されている、または重すぎる場合に使う。
+argument-hint: "<issue-number>"
+triggers:
+  - user
 ---
 
 # Issue TDD ワークフロー
