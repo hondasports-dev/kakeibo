@@ -4,9 +4,19 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./AiExpenseQueuePanel";
 
-const { registerReadyDraftsMock, updateForReviewMock, useQueryMock } = vi.hoisted(() => ({
+const {
+  registerReadyDraftsMock,
+  updateForReviewMock,
+  createBatchMock,
+  analyzeImageJobMock,
+  retryImageJobMock,
+  useQueryMock,
+} = vi.hoisted(() => ({
   registerReadyDraftsMock: vi.fn(),
   updateForReviewMock: vi.fn(),
+  createBatchMock: vi.fn(),
+  analyzeImageJobMock: vi.fn(),
+  retryImageJobMock: vi.fn(),
   useQueryMock: vi.fn(),
 }));
 
@@ -18,14 +28,23 @@ vi.mock("../../convex/_generated/api", () => ({
       registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
       updateForReview: "aiExpenseDrafts.updateForReview",
     },
+    receiptAnalysisJobs: {
+      listJobs: "receiptAnalysisJobs.listJobs",
+      createBatch: "receiptAnalysisJobs.createBatch",
+      analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
+      retryImageJob: "receiptAnalysisJobs.retryImageJob",
+    },
   },
 }));
 
 vi.mock("convex/react", () => ({
   useMutation: (reference: string) => {
     if (reference === "aiExpenseDrafts.updateForReview") return updateForReviewMock;
+    if (reference === "receiptAnalysisJobs.createBatch") return createBatchMock;
+    if (reference === "receiptAnalysisJobs.retryImageJob") return retryImageJobMock;
     return registerReadyDraftsMock;
   },
+  useAction: () => analyzeImageJobMock,
   useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
 }));
 
@@ -84,8 +103,20 @@ describe("AiExpenseQueuePanel", () => {
     registerReadyDraftsMock.mockResolvedValue(undefined);
     updateForReviewMock.mockReset();
     updateForReviewMock.mockResolvedValue(undefined);
+    createBatchMock.mockReset();
+    createBatchMock.mockResolvedValue({
+      batch: { _id: "batch-1" },
+      jobs: [{ _id: "job-1" }, { _id: "job-2" }],
+    });
+    analyzeImageJobMock.mockReset();
+    analyzeImageJobMock.mockResolvedValue(undefined);
+    retryImageJobMock.mockReset();
+    retryImageJobMock.mockResolvedValue(undefined);
     useQueryMock.mockReset();
-    useQueryMock.mockReturnValue([]);
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.listJobs") return [];
+      return [];
+    });
   });
 
   it("空状態では連続追加できる導線とキューの説明を表示する", () => {
@@ -99,6 +130,15 @@ describe("AiExpenseQueuePanel", () => {
 
   it("複数画像を選ぶとキューへ解析待ちとして追加される", async () => {
     const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.listJobs") {
+        return [
+          { _id: "job-1", fileName: "first-receipt.png", status: "queued" },
+          { _id: "job-2", fileName: "second-payment.png", status: "queued" },
+        ];
+      }
+      return [];
+    });
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(screen.getByLabelText("AI処理キューへ画像を追加"), [
@@ -106,9 +146,16 @@ describe("AiExpenseQueuePanel", () => {
       new File(["second"], "second-payment.png", { type: "image/png" }),
     ]);
 
-    expect(screen.getByText("first-receipt.png")).toBeInTheDocument();
-    expect(screen.getByText("second-payment.png")).toBeInTheDocument();
-    expect(screen.getAllByText("解析待ち")).toHaveLength(2);
+    await waitFor(() => {
+      expect(screen.getByText("first-receipt.png")).toBeInTheDocument();
+      expect(screen.getByText("second-payment.png")).toBeInTheDocument();
+      expect(screen.getAllByText("解析待ち")).toHaveLength(2);
+    });
+
+    expect(createBatchMock).toHaveBeenCalledWith({
+      fileNames: ["first-receipt.png", "second-payment.png"],
+    });
+    expect(analyzeImageJobMock).toHaveBeenCalledTimes(2);
   });
 
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {
