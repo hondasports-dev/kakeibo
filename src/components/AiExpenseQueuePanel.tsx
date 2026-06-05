@@ -574,7 +574,7 @@ export function AiExpenseQueuePanel({
 
     for (let i = 0; i < result.jobs.length; i++) {
       analyzeImageJob({ jobId: result.jobs[i]._id, imageDataUrl: fileDataUrls[i] }).catch(() => {
-        // fire-and-forget: errors are handled per-job via subscription
+        // fire-and-forget: job failures update status via listJobs subscription and show in UI
       });
     }
 

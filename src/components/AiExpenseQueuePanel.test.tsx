@@ -44,7 +44,10 @@ vi.mock("convex/react", () => ({
     if (reference === "receiptAnalysisJobs.retryImageJob") return retryImageJobMock;
     return registerReadyDraftsMock;
   },
-  useAction: () => analyzeImageJobMock,
+  useAction: (reference: string) => {
+    if (reference === "receiptAnalysisJobs.analyzeImageJob") return analyzeImageJobMock;
+    return vi.fn();
+  },
   useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
 }));
 

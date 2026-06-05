@@ -159,9 +159,8 @@ export async function updateJobStatusHandler(
     error?: string;
   },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
   const job = await ctx.db.get(args.jobId);
-  if (!job || job.userId !== userId) {
+  if (!job) {
     throw new ConvexError("Job not found");
   }
 
@@ -189,9 +188,8 @@ export async function incrementBatchProcessedCountHandler(
   ctx: MutationCtx,
   args: { batchId: Id<"receiptAnalysisBatches"> },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
   const batch = await ctx.db.get(args.batchId);
-  if (!batch || batch.userId !== userId) {
+  if (!batch) {
     throw new ConvexError("Batch not found");
   }
 
@@ -213,9 +211,8 @@ export async function finalizeBatchStatusHandler(
   ctx: MutationCtx,
   args: { batchId: Id<"receiptAnalysisBatches"> },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
   const batch = await ctx.db.get(args.batchId);
-  if (!batch || batch.userId !== userId) return;
+  if (!batch) return;
 
   if (batch.processedCount < batch.totalCount) return;
 
@@ -249,9 +246,8 @@ export async function getJobByIdHandler(
   ctx: QueryCtx,
   { jobId }: { jobId: Id<"receiptAnalysisImageJobs"> },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
   const job = await ctx.db.get(jobId);
-  if (!job || job.userId !== userId) {
+  if (!job) {
     throw new ConvexError("Job not found");
   }
   return job;
@@ -315,6 +311,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   }
 
   let draft: Doc<"aiExpenseDrafts">;
+  let jobFailed = false;
   try {
     const extracted = await extractReceiptFieldsHandler(ctx, { imageDataUrl: args.imageDataUrl });
 
@@ -351,6 +348,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
       warnings: extracted.warnings,
     });
   } catch (err) {
+    jobFailed = true;
     const safeError = err instanceof Error ? err.message : "画像解析に失敗しました";
     draft = await ctx.runMutation(internal.aiExpenseDrafts.createFailedDraftFromImageAnalysis, {
       warning: safeError,
@@ -364,10 +362,10 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     });
   }
 
-  if (draft.status === "ready" || draft.status === "needs_review") {
+  if (!jobFailed) {
     await ctx.runMutation(internal.receiptAnalysisJobs.updateJobStatus, {
       jobId: args.jobId,
-      status: draft.status,
+      status: draft.status as "ready" | "needs_review",
       draftId: draft._id,
     });
   }

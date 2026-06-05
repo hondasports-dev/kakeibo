@@ -305,9 +305,8 @@ describe("analyzeImageJobHandler", () => {
         imageDataUrl: VALID_IMAGE_DATA_URL,
       });
 
-      // updateJobStatus("running") -> createFromExtraction -> updateJobStatus("ready") -> incrementBatch -> finalizeBatch
-      // Note: actual call count observed as 6 in test; likely an extra internal call path
-      expect(ctx.runMutation).toHaveBeenCalledTimes(6);
+      // updateJobStatus("running") -> (catch: createFailedDraft + updateJobStatus("failed")) -> incrementBatch -> finalizeBatch
+      expect(ctx.runMutation).toHaveBeenCalledTimes(5);
     });
   });
 });
