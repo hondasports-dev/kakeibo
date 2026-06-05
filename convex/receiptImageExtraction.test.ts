@@ -148,9 +148,21 @@ describe("extractReceiptFieldsHandler", () => {
         expect(result).toHaveProperty("date");
         expect(result).toHaveProperty("amountYen");
         expect(result).toHaveProperty("confidence");
+        expect(result).toHaveProperty("documentType");
         expect(typeof result.amountYen).toBe("number");
         // date は YYYY-MM-DD 形式
         expect(result.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      });
+    });
+
+    it("mock モードでは documentType が receipt を返す", async () => {
+      await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+        const ctx = createActionCtx(createIdentity());
+        const result = await extractReceiptFieldsHandler(ctx, {
+          imageDataUrl: VALID_IMAGE_DATA_URL,
+        });
+
+        expect(result.documentType).toBe("receipt");
       });
     });
   });
@@ -570,6 +582,141 @@ describe("extractReceiptFieldsHandler", () => {
 
     it("fetch 自体がネットワークエラーのとき ConvexError を投げる", async () => {
       fetchSpy.mockRejectedValueOnce(new Error("Network error"));
+
+      await withEnv(
+        {
+          RECEIPT_IMAGE_EXTRACTOR_MODE: "real",
+          APP_ENV: "production",
+          OPENAI_API_KEY: "sk-test-key",
+        },
+        async () => {
+          const ctx = createActionCtx(createIdentity());
+          await expect(
+            extractReceiptFieldsHandler(ctx, { imageDataUrl: VALID_IMAGE_DATA_URL }),
+          ).rejects.toThrow(ConvexError);
+        },
+      );
+    });
+
+    it("コンビニ払込票のレスポンスをパースして返す", async () => {
+      const mockApiResponse = {
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify({
+                  documentType: "convenience_payment",
+                  shopName: "セブンイレブン",
+                  paymentPlace: "セブンイレブン北浜店",
+                  payeeName: "東京都",
+                  paymentPurpose: "自動車税",
+                  date: "2024-03-15",
+                  amountYen: 39500,
+                  categoryName: "税金",
+                  confidence: {
+                    documentType: 0.92,
+                    shopName: 0.85,
+                    paymentPlace: 0.9,
+                    payeeName: 0.95,
+                    paymentPurpose: 0.94,
+                    date: 0.9,
+                    amountYen: 0.98,
+                    categoryName: 0.88,
+                  },
+                  warnings: [],
+                }),
+              },
+            ],
+          },
+        ],
+      };
+
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockApiResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      await withEnv(
+        {
+          RECEIPT_IMAGE_EXTRACTOR_MODE: "real",
+          APP_ENV: "production",
+          OPENAI_API_KEY: "sk-test-key",
+        },
+        async () => {
+          const ctx = createActionCtx(createIdentity());
+          const result = await extractReceiptFieldsHandler(ctx, {
+            imageDataUrl: VALID_IMAGE_DATA_URL,
+          });
+
+          expect(result).toMatchObject({
+            documentType: "convenience_payment",
+            shopName: "セブンイレブン",
+            paymentPlace: "セブンイレブン北浜店",
+            payeeName: "東京都",
+            paymentPurpose: "自動車税",
+            date: "2024-03-15",
+            amountYen: 39500,
+            categoryName: "税金",
+            confidence: {
+              documentType: 0.92,
+              shopName: 0.85,
+              paymentPlace: 0.9,
+              payeeName: 0.95,
+              paymentPurpose: 0.94,
+              date: 0.9,
+              amountYen: 0.98,
+              categoryName: 0.88,
+            },
+          });
+        },
+      );
+    });
+
+    it("オプション confidence スコアが 0.0〜1.0 の範囲外なら ConvexError を投げる", async () => {
+      const mockApiResponse = {
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify({
+                  documentType: "convenience_payment",
+                  shopName: "セブンイレブン",
+                  paymentPlace: "セブンイレブン北浜店",
+                  payeeName: "東京都",
+                  paymentPurpose: "自動車税",
+                  date: "2024-03-15",
+                  amountYen: 39500,
+                  categoryName: "税金",
+                  confidence: {
+                    documentType: 0.92,
+                    shopName: 0.85,
+                    paymentPlace: 1.5,
+                    payeeName: 0.95,
+                    paymentPurpose: 0.94,
+                    date: 0.9,
+                    amountYen: 0.98,
+                    categoryName: 0.88,
+                  },
+                  warnings: [],
+                }),
+              },
+            ],
+          },
+        ],
+      };
+
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockApiResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
 
       await withEnv(
         {

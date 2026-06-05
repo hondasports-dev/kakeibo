@@ -530,17 +530,36 @@ export async function analyzeReceiptImageToDraftHandler(
     return draft;
   }
 
+  let categoryId = undefined;
+  if (extracted.categoryName && extracted.categoryName.trim().length > 0) {
+    const categories = await ctx.runQuery(api.categories.listActive, {});
+    const targetName = extracted.categoryName.trim();
+    const matched = categories.find((cat) => cat.name === targetName);
+    if (matched) {
+      categoryId = matched._id;
+    }
+  }
+
   const draft: Doc<"aiExpenseDrafts"> = await ctx.runMutation(
     internal.aiExpenseDrafts.createFromExtraction,
     {
-      documentType: "receipt",
+      documentType: extracted.documentType,
       shopName: extracted.shopName || undefined,
+      paymentPlace: extracted.paymentPlace || undefined,
+      payeeName: extracted.payeeName || undefined,
+      paymentPurpose: extracted.paymentPurpose || undefined,
       date: extracted.date || undefined,
       amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
+      categoryId,
       confidence: {
+        documentType: extracted.confidence.documentType,
         shopName: extracted.confidence.shopName,
+        paymentPlace: extracted.confidence.paymentPlace,
+        payeeName: extracted.confidence.payeeName,
+        paymentPurpose: extracted.confidence.paymentPurpose,
         date: extracted.confidence.date,
         amountYen: extracted.confidence.amountYen,
+        categoryId: extracted.confidence.categoryName,
       },
       warnings: extracted.warnings,
     },

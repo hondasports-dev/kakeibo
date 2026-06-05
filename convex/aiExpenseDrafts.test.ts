@@ -168,16 +168,26 @@ function createActionCtx(
   hasConsent: boolean,
   opts: {
     runMutation?: ReturnType<typeof vi.fn>;
+    runQuery?: ReturnType<typeof vi.fn>;
   } = {},
 ): ActionCtx {
+  let queryCallCount = 0;
+  const defaultRunQuery = vi.fn().mockImplementation(async () => {
+    queryCallCount++;
+    if (queryCallCount === 1) {
+      return {
+        hasAcceptedExternalApiConsent: hasConsent,
+        acceptedAt: hasConsent ? 1234567890 : null,
+      };
+    }
+    return [];
+  });
+
   return {
     auth: {
       getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
-    runQuery: vi.fn().mockResolvedValue({
-      hasAcceptedExternalApiConsent: hasConsent,
-      acceptedAt: hasConsent ? 1234567890 : null,
-    }),
+    runQuery: opts.runQuery ?? defaultRunQuery,
     runMutation:
       opts.runMutation ??
       vi.fn().mockResolvedValue({
@@ -403,6 +413,66 @@ describe("aiExpenseDrafts", () => {
       ).rejects.toThrow("draft insert failed");
 
       expect(runMutation).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("mock 解析結果から documentType 付きで下書きを作成する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const runMutation = vi.fn().mockResolvedValue({
+        _id: "draft-mock",
+        status: "needs_review",
+      });
+      const ctx = createActionCtx(createIdentity(), true, { runMutation });
+
+      await analyzeReceiptImageToDraftHandler(ctx, {
+        imageDataUrl: "data:image/jpeg;base64,AAA",
+      });
+
+      expect(runMutation).toHaveBeenCalledTimes(1);
+      const [, callArgs] = runMutation.mock.calls[0];
+      expect(callArgs).toEqual(
+        expect.objectContaining({
+          documentType: "receipt",
+          confidence: expect.objectContaining({
+            documentType: expect.any(Number),
+            shopName: expect.any(Number),
+            date: expect.any(Number),
+            amountYen: expect.any(Number),
+          }),
+        }),
+      );
+    });
+  });
+
+  it("カテゴリ名マッチングで categoryId を解決する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          hasAcceptedExternalApiConsent: true,
+          acceptedAt: 1234567890,
+        })
+        .mockResolvedValueOnce([
+          { _id: "cat-food", name: "食費", color: "#FF0000", isActive: true, sortOrder: 1 },
+        ]);
+      const runMutation = vi.fn().mockResolvedValue({
+        _id: "draft-matched",
+        status: "needs_review",
+      });
+
+      const ctx = createActionCtx(createIdentity(), true, { runQuery, runMutation });
+
+      await analyzeReceiptImageToDraftHandler(ctx, {
+        imageDataUrl: "data:image/jpeg;base64,AAA",
+      });
+
+      expect(runMutation).toHaveBeenCalledTimes(1);
+      const [, callArgs2] = runMutation.mock.calls[0];
+      expect(callArgs2).toEqual(
+        expect.objectContaining({
+          categoryId: "cat-food",
+        }),
+      );
     });
   });
 
