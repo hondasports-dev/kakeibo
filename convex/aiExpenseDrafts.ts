@@ -148,7 +148,11 @@ function hasCounterparty(args: UpdateForReviewArgs) {
   if (args.documentType === "convenience_payment") {
     return !!trimOptional(args.payeeName) && !!trimOptional(args.paymentPurpose);
   }
-  return !!trimOptional(args.shopName) || !!trimOptional(args.payeeName) || !!trimOptional(args.paymentPlace);
+  return (
+    !!trimOptional(args.shopName) ||
+    !!trimOptional(args.payeeName) ||
+    !!trimOptional(args.paymentPlace)
+  );
 }
 
 function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
