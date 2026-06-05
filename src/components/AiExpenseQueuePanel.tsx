@@ -552,7 +552,12 @@ export function AiExpenseQueuePanel({
       return;
     }
     const amountYen = Number(reviewForm.amountYen);
-    if (!reviewForm.date || !Number.isInteger(amountYen) || amountYen <= 0 || !reviewForm.categoryId) {
+    if (
+      !reviewForm.date ||
+      !Number.isInteger(amountYen) ||
+      amountYen <= 0 ||
+      !reviewForm.categoryId
+    ) {
       setReviewError("日付、金額、カテゴリを確認してください。");
       return;
     }

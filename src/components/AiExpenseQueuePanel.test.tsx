@@ -188,7 +188,9 @@ describe("AiExpenseQueuePanel", () => {
       };
     });
 
-    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />);
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
 
     await user.click(screen.getByRole("button", { name: "下書きを確認" }));
 
