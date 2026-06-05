@@ -240,6 +240,70 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(dialog).queryByLabelText("合計金額")).not.toBeInTheDocument();
   });
 
+  it("確認下書きが見つからない場合はローディングを続けずエラーを表示する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference === "aiExpenseDrafts.getWithItems" && args !== "skip") {
+        return null;
+      }
+      return [];
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).queryByText("下書きを読み込んでいます。")).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "下書きが見つかりません。キューを更新してもう一度確認してください。",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "登録準備OKに戻す" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "修正して登録" })).toBeDisabled();
+  });
+
+  it("未判定の書類種別は選択肢に表示せず送信前に止める", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <AiExpenseQueuePanel
+        initialItems={[queueItems[1]]}
+        categories={categories}
+        initialReviewDrafts={{
+          "draft-review": {
+            _id: "draft-review",
+            status: "needs_review",
+            documentType: "unknown",
+            shopName: "スーパー青葉",
+            date: "2026-06-01",
+            amountYen: 9120,
+            categoryId: "cat-daily",
+            reviewReasons: ["ambiguous_document_type"],
+          },
+        }}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("書類種別を選択")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("combobox", { name: "書類種別" }));
+    const listbox = screen.getByRole("listbox");
+    expect(within(listbox).queryByRole("option", { name: "種別未判定" })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.click(screen.getByRole("button", { name: "登録準備OKに戻す" }));
+
+    expect(within(dialog).getByText("書類種別を選択してください。")).toBeInTheDocument();
+    expect(updateForReviewMock).not.toHaveBeenCalled();
+  });
+
   it("確認が必要な下書きを登録準備OKへ戻す送信分岐を呼べる", async () => {
     const user = userEvent.setup();
     const onReviewSubmit = vi.fn().mockResolvedValue(undefined);
