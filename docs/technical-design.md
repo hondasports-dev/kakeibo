@@ -68,35 +68,46 @@ Honoを追加すると、フロントエンド、Hono API、Convexの3層にな�
 
 ```text
 src/
-  app/
-    App.tsx
-    router.tsx
-    providers.tsx
-    layout/
+  App.tsx
+  main.tsx
+  router.tsx
+  theme.ts
   components/
-    ui/
-  features/
-    receipts/
-    weeks/
-    categories/
-    export/
-    settings/
+    AppLayout.tsx
+    ReceiptForm.tsx
+    ReceiptImageExtractor.tsx
+    AiExpenseQueuePanel.tsx
+    WeeklySummaryPanel.tsx
+    WeeklyTrendChart.tsx
+    CategorySettingsPanel.tsx
+    WeekDaySettingsPanel.tsx
+  pages/
+    DashboardPage.tsx
+    InputPage.tsx
+    SummaryPage.tsx
+    SettingsPage.tsx
+    NotFoundPage.tsx
+  hooks/
   lib/
-    date/
-    csv/
-    validation/
-    format/
+  validation/
   test/
 
 convex/
   auth.config.ts
   schema.ts
   receipts.ts
-  weeks.ts
   categories.ts
-  export.ts
   users.ts
+  weekSessions.ts
+  receiptImageExtraction.ts
+  aiExpenseDrafts.ts
+  aiExpenseDraftsModel.ts
+  http.ts
 ```
+
+現行コードは `src/app` や `src/features` に分けず、`components`、`pages`、`hooks`、`lib`、
+`validation` をトップレベルに置く構成である。`CategoriesPage.tsx` は存在するが、現行ルーターでは
+`/categories` も `SettingsPage` へ向ける。
 
 ### 5.1 スタイリング責務
 
@@ -157,35 +168,42 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 | パス                           | 画面               | 目的                                       |
 | ------------------------------ | ------------------ | ------------------------------------------ |
-| `/sign-in`                     | サインイン         | ClerkでGoogleログインする                  |
 | `/`                            | ダッシュボード     | 今週の支出、カテゴリ別支出、入力状態を確認する |
 | `/weeks/current/input`         | 今週のレシート入力 | レシートを連続入力する                     |
 | `/weeks/:weekStartDate`        | 週次サマリー       | 指定週の集計、支出一覧を確認する           |
-| `/weeks/:weekStartDate/review` | 週次振り返り       | 振り返りメモを保存する                     |
-| `/categories`                  | カテゴリ設定       | カテゴリの追加、変更、無効化を行う         |
-| `/export`                      | エクスポート       | 指定週または全期間のCSVを出力する          |
-| `/settings`                    | 設定               | 認証状態、バックアップ、基本設定を確認する |
+| `/settings`                    | 設定               | カテゴリ、週の開始・終了曜日を設定する     |
+| `/categories`                  | 設定               | `/settings` と同じ設定画面への互換ルート   |
+| `/sso-callback`                | 認証コールバック   | Clerk SSO後のコールバックを処理する         |
+| `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
+
+現行コードには `/sign-in`、`/weeks/:weekStartDate/review`、`/export` の個別ルートはない。
+サインイン画面は `App.tsx` の未認証表示で扱い、振り返りメモは週次サマリー画面に埋め込む。
 
 ## 8. データ設計
 
 ### 8.1 users
 
-| 項目        | 型                | 説明                           |
-| ----------- | ----------------- | ------------------------------ |
-| userId      | string            | `UserIdentity.tokenIdentifier` |
-| displayName | string            | 表示名                         |
-| email       | string (optional) | メールアドレス                 |
-| receiptImageExternalApiConsentAcceptedAt | number (optional) | レシート画像を外部APIへ送信することへの承認時刻 |
-| createdAt   | number            | 作成日時                       |
-| updatedAt   | number            | 更新日時                       |
+| 項目                                      | 型                | 説明                                           |
+| ----------------------------------------- | ----------------- | ---------------------------------------------- |
+| userId                                    | string            | `UserIdentity.tokenIdentifier`                 |
+| displayName                               | string            | 表示名                                         |
+| email                                     | string (optional) | メールアドレス                                 |
+| monthlyIncome                             | number (optional) | 月収入。現行UIからの設定導線は削除済み         |
+| weeklyStartDay                            | number (optional) | 週の開始曜日（0=日曜、1=月曜）。未設定は月曜   |
+| weeklyEndDay                              | number (optional) | 週の終了曜日（0=日曜、1=月曜）。未設定は日曜   |
+| receiptImageExternalApiConsentAcceptedAt  | number (optional) | レシート画像を外部APIへ送信することへの承認時刻 |
+| createdAt                                 | number            | 作成日時                                       |
+| updatedAt                                 | number            | 更新日時                                       |
 
 ### 8.2 receipts
 
 | 項目          | 型                | 説明                           |
 | ------------- | ----------------- | ------------------------------ |
 | userId        | string            | `UserIdentity.tokenIdentifier` |
-| date          | string            | 支出日。`YYYY-MM-DD`           |
-| shopName      | string            | 店名                           |
+| date          | string            | 入出金日。`YYYY-MM-DD`         |
+| type          | `expense` / `income` (optional) | 種別。未設定は既存互換で支出扱い |
+| shopName      | string (optional) | 店名。支出で使う               |
+| bankName      | string (optional) | 銀行名。収入で使う             |
 | amountYen     | number            | 金額。日本円の整数             |
 | categoryId    | Id<"categories">  | カテゴリID                     |
 | memo          | string (optional) | 任意メモ                       |
@@ -295,39 +313,59 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 
 ### 10.1 receipts
 
-- `listByWeek(weekStartDate)`
-- `create(input)`
-- `update(id, input)`
-- `remove(id)`
-- `suggestShops(query)`
-- `suggestCategoryByShop(shopName)`
+- `createReceipt(input)`
+- `getReceiptsByWeek(weekStartDate)`
+- `getReceiptsByDate(date)`
+- `updateReceipt(id, input)`
+- `deleteReceipt(id)`
+- `getWeekSummary(weekStartDate)`
+- `getWeekSummaryWithCategories(weekStartDate)`
+- `getFourWeeksSummary()`
+- `getDailySpendingTrend(weekStartDate)`
+- `getMonthlyExpensesSummary(month?)`
+- `deleteReceiptsByUser(userId)`（internal）
 
-### 10.2 weeks
+`receipts` は支出と収入の両方を扱う。支出では `shopName`、収入では `bankName` を保存し、
+`type` 未設定の既存データは支出として扱う。
 
-- `getCurrentWeekSession()`
-- `getByWeek(weekStartDate)`
-- `ensureCurrentWeekSession()`
+### 10.2 weekSessions
+
+- `getOrCreateCurrentWeekSession()`
+- `getOrCreateWeekSession(weekStartDate)`
+- `getWeekSession(weekStartDate)`
 - `updateReviewMemo(weekStartDate, reviewMemo)`
-- `complete(weekStartDate)`
-- `getSummary(weekStartDate)`
+- `completeWeekSession(weekStartDate)`
+- `resetWeekSessionForUser(userId)`（internal）
 
 ### 10.3 categories
 
+- `seedDefaultCategories()`
 - `listActive()`
 - `listForSettings()`
-- `create(input)`
-- `update(id, input)`
-- `deactivate(id)`
-- `seedDefaultsIfNeeded()`
+- `createCategory(input)`
+- `updateCategory(id, input)`
+- `deactivateCategory(id)`
+- `deleteE2eCategoriesByUser(userId)`（internal）
 
-### 10.4 export
+### 10.4 users
 
-- `buildCsvForWeek(weekStartDate)`
-- `buildCsvForAll()`
+- `upsertUser()`
+- `getUserProfile()`
+- `getReceiptImageConsent()`
+- `acceptReceiptImageExternalApiConsent()`
+- `updateMonthlyIncome(monthlyIncome)`
+- `updateWeeklyDays(weeklyStartDay, weeklyEndDay)`
+- `clearUserMonthlyIncome(userId)`（internal）
 
-CSV生成はクライアント側でも可能だが、Convex側で生成すると将来の形式変更やバックアップ拡張をサーバー側に寄せやすい。MVPでは実装コストを見て、クライアント生成でもよい。
+週の開始・終了曜日は `users` に保存する。ただし現行の週計算は月曜始まり・日曜終わり固定であり、
+保存値はまだ `getWeekStartDate` / `getWeekEndDate` に反映していない。
 
-### 10.5 receipt image consent
+### 10.5 export
+
+現行コードには `convex/export.ts`、CSV生成関数、`/export` 画面はない。CSVは将来の
+バックアップ導線として残すが、実装済み機能として扱わない。
+
+### 10.6 receipt image consent
 
 - `users.getReceiptImageConsent()`
 - `users.acceptReceiptImageExternalApiConsent()`
@@ -336,22 +374,22 @@ CSV生成はクライアント側でも可能だが、Convex側で生成する�
 
 この同意は画像送信の可否判定だけに使い、receipt 保存の認可やユーザー識別には使わない。認可は従来どおり `ctx.auth.getUserIdentity()` から得た `tokenIdentifier` を基準にする。
 
-### 10.6 AI expense drafts
+### 10.7 AI expense drafts
 
 - `aiExpenseDrafts.listByStatus(status)`
 - `aiExpenseDrafts.getWithItems(draftId)`
-- `aiExpenseDrafts.createFromExtraction(input)`
 - `aiExpenseDrafts.updateForReview(draftId, input)`
-- `aiExpenseDrafts.markRegistered(draftId, registeredReceiptId)`
-- `aiExpenseDrafts.listItems(draftId)`
+- `aiExpenseDrafts.registerReadyDrafts(draftIds)`
+- `aiExpenseDrafts.analyzeReceiptImageToDraft(input)`
+- `aiExpenseDrafts.createFromExtraction(input)`（internal）
+- `aiExpenseDrafts.createFailedDraftFromImageAnalysis(input)`（internal）
 
 下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` から `userId` を取得する。
 `draftId` や `categoryId` を受け取る処理では、取得したドキュメントの `userId` と認証ユーザーの
 `tokenIdentifier` が一致することを確認する。`aiExpenseDraftItems` は `draftId` だけでなく
 `userId` も保存し、明細単体の取得でも所有者境界を確認できるようにする。
 
-`receipts` への登録時は、既存の週次集計・CSVエクスポートとの互換性を優先し、
-`receipts` 自体にはこのIssueで必須項目を追加しない。変換方針は次の通り。
+`receipts` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
 
 | 下書き種別 | `receipts.shopName` 変換方針 |
 | ---------- | ---------------------------- |
@@ -371,11 +409,13 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 | 対象     | ルール                       |
 | -------- | ---------------------------- |
-| 店名     | 空文字不可。前後の空白は除去 |
-| 金額     | 1円以上の整数                |
+| 種別     | `expense` または `income`    |
+| 店名     | 支出では空文字不可。前後の空白は除去 |
+| 銀行名   | 収入では空文字不可。前後の空白は除去 |
+| 金額     | 1円以上9,999,999円以下の整数 |
 | カテゴリ | 有効なカテゴリIDのみ         |
 | 日付     | `YYYY-MM-DD` として扱える値  |
-| メモ     | 任意。上限文字数を設ける     |
+| メモ     | 任意。500文字以下            |
 
 ## 12. 主要ロジック
 
@@ -385,6 +425,10 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 - `getWeekStartDate(date)` で対象日の週開始日を求める
 - `getWeekEndDate(weekStartDate)` で週終了日を求める
 - 日付は `YYYY-MM-DD` 文字列として扱う
+
+ユーザー設定として `weeklyStartDay` と `weeklyEndDay` は保存できるが、現行コードの週計算には
+まだ反映していない。週次セッション、receipt保存時の `weekStartDate`、週次サマリーは月曜始まり・
+日曜終わりで計算する。
 
 ### 12.2 集計
 
@@ -396,6 +440,9 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 - 前週比
 
 集計はMVPではConvex queryで行う。
+
+現行集計は `receipts.amountYen` を正の金額として合算する。`type: "income"` の入出金表示は
+対応しているが、収入を差し引いた純支出計算にはしていない。
 
 **週別支出推移（今週 vs 前週）:**
 
@@ -413,7 +460,8 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 ## 13. CSVエクスポート設計
 
-CSVは指定週または全期間の支出を対象に生成する。
+CSVは指定週または全期間の支出を対象に生成する将来拡張とする。現行コードでは `/export` 画面、
+CSV生成関数、CSVダウンロード処理はいずれも未実装である。
 
 出力列:
 
@@ -515,7 +563,7 @@ VercelにはPreview / Productionの環境変数を分けて登録する。Produc
 - PRまたは開発ブランチをpreview/DEVに紐づける
 - schema変更はまずDEV Convex deploymentで確認する
 - Clerk設定変更もまずDEVで確認する
-- PROD反映前に、Googleログイン、主要CRUD、CSV出力を確認する
+- PROD反映前に、Googleログイン、主要CRUD、週次サマリー、設定保存を確認する
 
 ### 16.4 データ移行方針
 
@@ -534,8 +582,8 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - 金額バリデーション
 - カテゴリ別集計
 - 前週比計算
-- CSV生成
-- CSVインジェクション対策
+- CSV生成（将来実装時）
+- CSVインジェクション対策（将来実装時）
 
 ### 17.2 Component test
 
@@ -561,10 +609,11 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 1. ClerkでGoogleログインする
 2. 今週の入力を開始する
-3. レシートを複数件入力する
+3. 支出と収入を複数件入力する
 4. ダッシュボードで集計を確認する
 5. 週次振り返りメモを保存する
-6. CSVを出力する
+6. 設定画面でカテゴリと週の曜日設定を確認する
+7. 必要に応じてレシート画像補助やAI支出下書きキューを確認する
 
 スマートフォン幅でも同じ主要フローが完了できることを確認する。
 
@@ -588,11 +637,20 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 16. ダッシュボード集計
 17. 週次振り返りメモ
 18. カテゴリ管理
-19. CSVエクスポート
-20. Unit testとComponent test
-21. Convex function test
-22. E2E test
-23. レスポンシブ確認
+19. レシート画像入力PoC
+20. AI支出下書きキュー
+21. Unit testとComponent test
+22. Convex function test
+23. E2E test
+24. レスポンシブ確認
+
+現行コードで未実装または未反映の項目:
+
+- CSVエクスポート画面とCSV生成処理
+- 週の開始・終了曜日設定の週計算への反映
+- 月収入設定UI
+
+旧タスクリスト上の `Unit testとComponent test` 以降は、変更内容に応じて継続的に追加・更新する。
 
 ## 19. リスクとトレードオフ
 
@@ -609,7 +667,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 - MUIは標準Material Design感を抑えた独自テーマにする
 - Tailwind CSSはレイアウト用途に限定して採用する
-- CSVエクスポートの生成場所は初期セットアップでは扱わず、実装時にクライアント生成を第一候補として再確認する
+- CSVエクスポートは現行コードでは未実装であり、実装時にクライアント生成またはConvex側生成を再確認する
 - オフライン入力はMVPでは扱わない
 - 初期デプロイ先はVercelにする
 - 独自ドメインは使わず、DEV/PRODともに `*.vercel.app` のURLを使う

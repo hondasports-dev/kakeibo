@@ -39,6 +39,9 @@ pnpm run dev -- --host 127.0.0.1
 
 | Skill                   | 用途                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------ |
+| `$issue-delivery`       | GitHub Issue を仮想開発会社フローで納品する重めの標準手順                     |
+| `$issue-tdd-workflow`   | Issue 対応を外部コンテンツ隔離、TDD、検証、PR作成まで軽量に進める手順          |
+| `$prompt-injection-guard` | GitHub Issue / PRコメント、ログ、Web等の外部由来コンテンツを扱う前の安全確認 |
 | `$virtual-company`      | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択                       |
 | `$service-ops-safety`   | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |
 | `$browser-verification` | Chrome DevTools MCPによる画面、Console、Network、DOM確認                       |
