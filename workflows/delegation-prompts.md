@@ -38,7 +38,7 @@ Codexでサブエージェント機能が未ロードなら、先に `tool_searc
 - 設計案
 - 実装タスク
 - テスト方針（単体テスト・統合テスト・E2Eの役割分担）
-- E2E候補シナリオ（既存 docs/e2e-test-cases.md のシナリオ番号、または新規追加案と優先度）
+- E2E候補シナリオ（既存 `e2e/*.spec.ts` のテスト名、または新規追加案と優先度）
 - QA Agent への引き継ぎメモ
 - 技術リスク
 ```
@@ -77,7 +77,7 @@ Tech Leadの仕様・テスト方針:
 - Given / When / Then
 - テストデータ・cleanup要否
 - E2E以外で確認する項目と理由
-- docs/e2e-test-cases.md 更新要否
+- docs/qa-checklist.md 更新要否
 - 判定: approved / needs_revision / needs_discussion
 ```
 

@@ -65,7 +65,7 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、実�
 成果物:
 
 - E2E追加要否（`required` / `not_required`）
-- 既存 `docs/e2e-test-cases.md` でカバーするシナリオ、または新規シナリオ案
+- 既存 `e2e/*.spec.ts` でカバーするシナリオ、または新規シナリオ案
 - 優先度（P0/P1/P2）とカテゴリ
 - Given / When / Then
 - テストデータ・cleanup要否
@@ -81,7 +81,7 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、実�
 
 - コード変更
 - テスト追加
-- E2E追加が必要な場合は `e2e/` を更新し、恒久的な台帳更新が必要な場合だけ `docs/e2e-test-cases.md` を最小差分で更新
+- E2E追加が必要な場合は `e2e/` を更新し、恒久的なQA観点の更新が必要な場合だけ `docs/qa-checklist.md` を最小差分で更新
 - 実行した検証
 - 未解決事項
 
@@ -117,7 +117,7 @@ QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` �
 
 - E2E Checkの合否
 - 失敗時: 原因分類（テストコード問題 / 実装問題 / 環境起因）
-- E2Eテストコードを修正した場合: 必要に応じた `docs/e2e-test-cases.md` の更新
+- E2Eテストコードを修正した場合: 必要に応じた `docs/qa-checklist.md` の更新
 
 ### 6. リリース
 
