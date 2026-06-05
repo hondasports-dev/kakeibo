@@ -150,6 +150,6 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_batch_id", ["batchId"])
-    .index("by_user_id_and_status", ["userId", "status"])
+    .index("by_user_id_and_status", ["userId", "status", "createdAt"])
     .index("by_draft_id", ["draftId"]),
 });

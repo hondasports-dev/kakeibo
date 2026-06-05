@@ -57,15 +57,17 @@ vi.mock("convex/react", () => ({
     if (functionRef === "receiptAnalysisJobs.createBatch") {
       return vi.fn().mockResolvedValue({ batch: { _id: "batch-1" }, jobs: [] });
     }
-    if (functionRef === "receiptAnalysisJobs.analyzeImageJob") {
-      return vi.fn().mockResolvedValue(undefined);
-    }
     if (functionRef === "receiptAnalysisJobs.retryImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
     return createReceiptMock;
   },
-  useAction: () => extractReceiptFieldsMock,
+  useAction: (functionRef: string) => {
+    if (functionRef === "receiptAnalysisJobs.analyzeImageJob") {
+      return vi.fn().mockResolvedValue(undefined);
+    }
+    return extractReceiptFieldsMock;
+  },
   useQuery: (functionRef: string, args?: unknown) => {
     if (functionRef === "users.getReceiptImageConsent") {
       return receiptImageConsentQueryMock();
