@@ -81,6 +81,8 @@ export default defineSchema({
     sourceType: aiExpenseDraftSourceTypeValidator,
     status: aiExpenseDraftStatusValidator,
     documentType: aiExpenseDraftDocumentTypeValidator,
+    // 既存の dev 下書きに残っている画像ファイル名。新規コードでは必須にしない。
+    imageFileName: v.optional(v.string()),
     shopName: v.optional(v.string()),
     paymentPlace: v.optional(v.string()),
     payeeName: v.optional(v.string()),
@@ -89,7 +91,8 @@ export default defineSchema({
     amountYen: v.optional(v.number()),
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftConfidenceValidator,
-    warnings: v.array(v.string()),
+    // 既存の dev 下書きには warnings が無いものがあるため optional とする。
+    warnings: v.optional(v.array(v.string())),
     reviewReasons: v.array(aiExpenseDraftReviewReasonValidator),
     registeredReceiptId: v.optional(v.id("receipts")),
     createdAt: v.number(),
