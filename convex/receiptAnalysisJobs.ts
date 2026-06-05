@@ -306,6 +306,14 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
 
   const job = await ctx.runQuery(internal.receiptAnalysisJobs.getJobById, { jobId: args.jobId });
 
+  const isRetry = job.draftId !== undefined;
+
+  if (isRetry && job.draftId) {
+    await ctx.runMutation(internal.aiExpenseDrafts.deleteOrphanedDraft, {
+      draftId: job.draftId,
+    });
+  }
+
   let draft: Doc<"aiExpenseDrafts">;
   try {
     const extracted = await extractReceiptFieldsHandler(ctx, { imageDataUrl: args.imageDataUrl });
@@ -364,9 +372,11 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     });
   }
 
-  await ctx.runMutation(internal.receiptAnalysisJobs.incrementBatchProcessedCount, {
-    batchId: job.batchId,
-  });
+  if (!isRetry) {
+    await ctx.runMutation(internal.receiptAnalysisJobs.incrementBatchProcessedCount, {
+      batchId: job.batchId,
+    });
+  }
   await ctx.runMutation(internal.receiptAnalysisJobs.finalizeBatchStatus, {
     batchId: job.batchId,
   });

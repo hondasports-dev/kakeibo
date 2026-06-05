@@ -297,6 +297,28 @@ export const createFailedDraftFromImageAnalysis = internalMutation({
   handler: createFailedDraftFromImageAnalysisHandler,
 });
 
+export async function deleteOrphanedDraftHandler(
+  ctx: MutationCtx,
+  args: { draftId: Id<"aiExpenseDrafts"> },
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const draft = await ctx.db.get(args.draftId);
+  if (!draft || draft.userId !== userId) {
+    return;
+  }
+  if (draft.status === "registered") {
+    return;
+  }
+  await ctx.db.delete(args.draftId);
+}
+
+export const deleteOrphanedDraft = internalMutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: deleteOrphanedDraftHandler,
+});
+
 export async function listByStatusHandler(ctx: QueryCtx, args: ListByStatusArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
   return await ctx.db
