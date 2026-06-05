@@ -34,8 +34,10 @@ test.describe("Issue #144 AI処理キューUI", () => {
 
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
 
-    await expect(queue.getByText("ai-queue-receipt-1.png")).toBeVisible();
-    await expect(queue.getByText("ai-queue-payment-2.png")).toBeVisible();
+    // Issue #152: 非同期ジョブの subscription 反映を待つ。
+    // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
+    await expect(queue.getByText("ai-queue-receipt-1.png").first()).toBeVisible({ timeout: 15000 });
+    await expect(queue.getByText("ai-queue-payment-2.png").first()).toBeVisible({ timeout: 15000 });
     await expect(queue.getByText("解析待ち")).toHaveCount(2);
     const processingSection = queue.getByRole("region", { name: "AI処理中" });
     await expect(processingSection).toBeVisible();
@@ -54,8 +56,10 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(queue).toBeVisible();
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
 
-    await expect(queue.getByText("ai-queue-receipt-1.png")).toBeVisible();
-    await expect(queue.getByText("ai-queue-payment-2.png")).toBeVisible();
+    // Issue #152: 非同期ジョブの subscription 反映を待つ。
+    // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
+    await expect(queue.getByText("ai-queue-receipt-1.png").first()).toBeVisible({ timeout: 15000 });
+    await expect(queue.getByText("ai-queue-payment-2.png").first()).toBeVisible({ timeout: 15000 });
     await expect(queue.getByText("解析待ち")).toHaveCount(2);
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
   });

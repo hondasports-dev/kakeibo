@@ -37,6 +37,12 @@ vi.mock("../../convex/_generated/api", () => ({
     receiptImageExtraction: {
       extractReceiptFields: "receiptImageExtraction.extractReceiptFields",
     },
+    receiptAnalysisJobs: {
+      listJobs: "receiptAnalysisJobs.listJobs",
+      createBatch: "receiptAnalysisJobs.createBatch",
+      analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
+      retryImageJob: "receiptAnalysisJobs.retryImageJob",
+    },
   },
 }));
 
@@ -48,6 +54,15 @@ vi.mock("convex/react", () => ({
     if (functionRef === "aiExpenseDrafts.registerReadyDrafts") {
       return registerReadyDraftsMock;
     }
+    if (functionRef === "receiptAnalysisJobs.createBatch") {
+      return vi.fn().mockResolvedValue({ batch: { _id: "batch-1" }, jobs: [] });
+    }
+    if (functionRef === "receiptAnalysisJobs.analyzeImageJob") {
+      return vi.fn().mockResolvedValue(undefined);
+    }
+    if (functionRef === "receiptAnalysisJobs.retryImageJob") {
+      return vi.fn().mockResolvedValue(undefined);
+    }
     return createReceiptMock;
   },
   useAction: () => extractReceiptFieldsMock,
@@ -57,6 +72,9 @@ vi.mock("convex/react", () => ({
     }
     if (functionRef === "aiExpenseDrafts.listByStatus") {
       return aiExpenseDraftsByStatusQueryMock(args);
+    }
+    if (functionRef === "receiptAnalysisJobs.listJobs") {
+      return [];
     }
     return undefined;
   },

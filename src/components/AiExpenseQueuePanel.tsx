@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import type { Id } from "../../convex/_generated/dataModel";
+import { useAction, useMutation, useQuery } from "convex/react";
+import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
 import {
   Alert,
@@ -76,6 +76,7 @@ type AiExpenseDraft = {
   _id: string;
   status: AiExpenseDraftStatus;
   documentType: AiExpenseQueueDocumentType;
+  imageFileName?: string;
   shopName?: string;
   paymentPlace?: string;
   payeeName?: string;
@@ -163,7 +164,7 @@ function mapDraftToQueueItem(
 ): AiExpenseQueueItem {
   return {
     id: draft._id,
-    fileName: "AI支出下書き",
+    fileName: draft.imageFileName ?? "AI支出下書き",
     status: statusOverrides[draft._id] ?? draft.status,
     documentType: draft.documentType,
     title: resolveDraftTitle(draft),
@@ -241,11 +242,13 @@ function QueueItemCard({
   isSelected,
   onToggleReadySelection,
   onOpenReview,
+  onRetry,
 }: {
   item: AiExpenseQueueItem;
   isSelected: boolean;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
   onOpenReview: (itemId: string) => void;
+  onRetry?: (itemId: string) => void;
 }) {
   const secondaryLabel = item.fileName ?? "AI支出下書き";
 
@@ -334,6 +337,7 @@ function QueueItemCard({
             <Button
               size="small"
               startIcon={<ReplayIcon fontSize="small" />}
+              onClick={() => onRetry?.(item.id)}
               type="button"
               variant="outlined"
             >
@@ -355,12 +359,14 @@ function QueueSection({
   selectedReadyIds,
   onToggleReadySelection,
   onOpenReview,
+  onRetry,
 }: {
   label: string;
   items: AiExpenseQueueItem[];
   selectedReadyIds: string[];
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
   onOpenReview: (itemId: string) => void;
+  onRetry?: (itemId: string) => void;
 }) {
   if (items.length === 0) {
     return null;
@@ -382,6 +388,7 @@ function QueueSection({
               item={item}
               key={item.id}
               onOpenReview={onOpenReview}
+              onRetry={onRetry}
               onToggleReadySelection={onToggleReadySelection}
             />
           ))}
@@ -399,15 +406,16 @@ export function AiExpenseQueuePanel({
 }: AiExpenseQueuePanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previousReadyItemIdsRef = useRef<string[]>([]);
-  const [localItems, setLocalItems] = useState<AiExpenseQueueItem[]>([]);
   const [selectedReadyIds, setSelectedReadyIds] = useState<string[]>([]);
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const [registrationError, setRegistrationError] = useState("");
+  const [retryError, setRetryError] = useState("");
   const [selectedReviewDraftId, setSelectedReviewDraftId] = useState<string | null>(null);
   const [initializedReviewDraftId, setInitializedReviewDraftId] = useState<string | null>(null);
   const [reviewForm, setReviewForm] = useState<ReviewFormValues>(emptyReviewForm);
   const [reviewError, setReviewError] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [pendingImageDataUrls, setPendingImageDataUrls] = useState<Map<string, string>>(new Map());
   const readyDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "ready" }) as
     | AiExpenseDraft[]
     | undefined;
@@ -429,6 +437,12 @@ export function AiExpenseQueuePanel({
       ? { draftId: selectedReviewDraftId as Id<"aiExpenseDrafts"> }
       : "skip",
   ) as AiExpenseDraftWithItems | null | undefined;
+  const jobs = useQuery(api.receiptAnalysisJobs.listJobs) as
+    | Doc<"receiptAnalysisImageJobs">[]
+    | undefined;
+  const createBatch = useMutation(api.receiptAnalysisJobs.createBatch);
+  const analyzeImageJob = useAction(api.receiptAnalysisJobs.analyzeImageJob);
+  const retryImageJob = useMutation(api.receiptAnalysisJobs.retryImageJob);
   const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
   const updateForReview = useMutation(api.aiExpenseDrafts.updateForReview);
   const selectedReviewDraft = localReviewDraft
@@ -449,19 +463,45 @@ export function AiExpenseQueuePanel({
     [registeringIds],
   );
 
+  const processingItems = useMemo(() => {
+    return (jobs ?? [])
+      .filter((job) => job.status === "queued" || job.status === "running")
+      .map(
+        (job): AiExpenseQueueItem => ({
+          id: job._id,
+          fileName: job.fileName,
+          status: job.status === "queued" ? "queued" : "analyzing",
+          documentType: "unknown",
+        }),
+      );
+  }, [jobs]);
+
   const liveItems = useMemo(() => {
     return [
+      ...processingItems,
       ...(readyDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
       ...(needsReviewDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
       ...(failedDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
       ...(registeredDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
     ];
-  }, [failedDrafts, needsReviewDrafts, readyDrafts, registeredDrafts, statusOverrides]);
+  }, [
+    processingItems,
+    failedDrafts,
+    needsReviewDrafts,
+    readyDrafts,
+    registeredDrafts,
+    statusOverrides,
+  ]);
 
-  const items = useMemo(
-    () => [...localItems, ...(initialItems ?? liveItems)],
-    [initialItems, liveItems, localItems],
-  );
+  const items = useMemo(() => {
+    // initialItems が渡されている場合は、元のテストデータやローカル状態を優先し、
+    // draft 由来の liveItems は置き換える（dev DB のゴミデータによる重複を防ぐ）
+    if (initialItems && initialItems.length > 0) {
+      return [...initialItems, ...processingItems];
+    }
+    // liveItems は既に processingItems を含むため、ここでは liveItems のみを使う
+    return liveItems;
+  }, [initialItems, processingItems, liveItems]);
   const readyItems = useMemo(
     () => items.filter((item) => getSectionKey(item.status) === "ready"),
     [items],
@@ -502,25 +542,42 @@ export function AiExpenseQueuePanel({
     }
   }, [initializedReviewDraftId, selectedReviewDraft, selectedReviewDraftId]);
 
-  const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) {
       return;
     }
 
-    const nextItems = files.map((file, index): AiExpenseQueueItem => {
-      const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `${Date.now()}-${index}-${file.name}`;
-      return {
-        id,
-        fileName: file.name,
-        status: "queued",
-        documentType: "unknown",
-      };
-    });
-    setLocalItems((current) => [...nextItems, ...current]);
+    const fileDataUrls = await Promise.all(
+      files.map(
+        (file) =>
+          new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          }),
+      ),
+    );
+
+    const result = await createBatch({ fileNames: files.map((f) => f.name) });
+    if (!result) {
+      event.target.value = "";
+      return;
+    }
+
+    const nextPending = new Map(pendingImageDataUrls);
+    for (let i = 0; i < result.jobs.length; i++) {
+      nextPending.set(result.jobs[i]._id, fileDataUrls[i]);
+    }
+    setPendingImageDataUrls(nextPending);
+
+    for (let i = 0; i < result.jobs.length; i++) {
+      analyzeImageJob({ jobId: result.jobs[i]._id, imageDataUrl: fileDataUrls[i] }).catch(() => {
+        // fire-and-forget: errors are handled per-job via subscription
+      });
+    }
+
     event.target.value = "";
   };
 
@@ -548,6 +605,26 @@ export function AiExpenseQueuePanel({
     setInitializedReviewDraftId(null);
     setReviewForm(emptyReviewForm);
     setReviewError("");
+  };
+
+  const handleRetry = async (draftId: string) => {
+    setRetryError("");
+    const job = jobs?.find((j) => j.draftId === draftId);
+    if (!job) {
+      setRetryError("再試行対象の画像ジョブが見つかりません");
+      return;
+    }
+    const imageDataUrl = pendingImageDataUrls.get(job._id);
+    if (!imageDataUrl) {
+      setRetryError("画像データが見つかりません。再度アップロードしてください");
+      return;
+    }
+    try {
+      await retryImageJob({ jobId: job._id });
+      await analyzeImageJob({ jobId: job._id, imageDataUrl });
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "再試行に失敗しました");
+    }
   };
 
   const handleReviewFieldChange = (field: keyof ReviewFormValues, value: string) => {
@@ -700,6 +777,11 @@ export function AiExpenseQueuePanel({
                 {registrationError}
               </Alert>
             )}
+            {retryError && (
+              <Alert severity="error" variant="outlined" onClose={() => setRetryError("")}>
+                {retryError}
+              </Alert>
+            )}
 
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Chip label={`キュー ${items.length}件`} size="small" variant="outlined" />
@@ -754,6 +836,7 @@ export function AiExpenseQueuePanel({
               items={groupedItems.failed}
               selectedReadyIds={selectedReadyIds}
               onOpenReview={handleOpenReview}
+              onRetry={handleRetry}
               onToggleReadySelection={handleToggleReadySelection}
             />
             <QueueSection

@@ -50,6 +50,7 @@ type CreateFromExtractionArgs = {
   date?: string;
   amountYen?: number;
   categoryId?: Id<"categories">;
+  imageFileName?: string;
   confidence: AiExpenseDraftConfidence;
   warnings: string[];
   reviewReasons?: AiExpenseDraftReviewReason[];
@@ -58,6 +59,7 @@ type CreateFromExtractionArgs = {
 
 type CreateFailedDraftFromImageAnalysisArgs = {
   warning: string;
+  imageFileName?: string;
 };
 
 type ListByStatusArgs = {
@@ -209,6 +211,7 @@ export async function createFromExtractionHandler(
     sourceType: "image_upload",
     status: classification.status,
     documentType: args.documentType,
+    imageFileName: args.imageFileName,
     shopName: args.shopName,
     paymentPlace: args.paymentPlace,
     payeeName: args.payeeName,
@@ -242,6 +245,7 @@ export const createFromExtraction = internalMutation({
     date: v.optional(v.string()),
     amountYen: v.optional(v.number()),
     categoryId: v.optional(v.id("categories")),
+    imageFileName: v.optional(v.string()),
     confidence: aiExpenseDraftConfidenceValidator,
     warnings: v.array(v.string()),
     reviewReasons: v.optional(v.array(aiExpenseDraftReviewReasonValidator)),
@@ -270,6 +274,7 @@ export async function createFailedDraftFromImageAnalysisHandler(
     sourceType: "image_upload",
     status: "failed",
     documentType: "unknown",
+    imageFileName: args.imageFileName,
     confidence: {},
     warnings: [args.warning],
     reviewReasons: ["parse_failed"],
@@ -287,6 +292,7 @@ export async function createFailedDraftFromImageAnalysisHandler(
 export const createFailedDraftFromImageAnalysis = internalMutation({
   args: {
     warning: v.string(),
+    imageFileName: v.optional(v.string()),
   },
   handler: createFailedDraftFromImageAnalysisHandler,
 });

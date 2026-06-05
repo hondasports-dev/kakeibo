@@ -114,4 +114,42 @@ export default defineSchema({
   })
     .index("by_draft_id", ["draftId"])
     .index("by_user_id_and_draft_id", ["userId", "draftId"]),
+
+  receiptAnalysisBatches: defineTable({
+    userId: v.string(),
+    totalCount: v.number(),
+    processedCount: v.number(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("partially_failed"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id_and_status", ["userId", "status"])
+    .index("by_user_id_and_created_at", ["userId", "createdAt"]),
+
+  receiptAnalysisImageJobs: defineTable({
+    batchId: v.id("receiptAnalysisBatches"),
+    userId: v.string(),
+    imageIndex: v.number(),
+    fileName: v.string(),
+    status: v.union(
+      v.literal("queued"),
+      v.literal("running"),
+      v.literal("ready"),
+      v.literal("needs_review"),
+      v.literal("failed"),
+    ),
+    draftId: v.optional(v.id("aiExpenseDrafts")),
+    error: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_batch_id", ["batchId"])
+    .index("by_user_id_and_status", ["userId", "status"])
+    .index("by_draft_id", ["draftId"]),
 });
