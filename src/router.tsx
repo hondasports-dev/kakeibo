@@ -1,4 +1,5 @@
 import { createBrowserRouter } from "react-router-dom";
+import { useState } from "react";
 import { AppLayout } from "./components/AppLayout";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./components/AiExpenseQueuePanel";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -35,6 +36,56 @@ const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
   },
 ];
 
+const devAiExpenseQueueCategories = [
+  { _id: "e2e-cat-utilities", name: "水道光熱費", color: "#2563EB" },
+  { _id: "e2e-cat-food", name: "食費", color: "#16A34A" },
+];
+
+const devAiExpenseReviewDrafts = {
+  "e2e-review-draft": {
+    _id: "e2e-review-draft",
+    status: "needs_review" as const,
+    documentType: "convenience_payment" as const,
+    shopName: "",
+    paymentPlace: "セブンイレブン北浜店",
+    payeeName: "大阪市水道局",
+    paymentPurpose: "",
+    date: "2026-06-01",
+    amountYen: 9120,
+    categoryId: "e2e-cat-utilities",
+    reviewReasons: ["low_confidence", "missing_required_field"],
+    warnings: ["支払内容の印字が薄いため確認してください"],
+  },
+};
+
+function E2eAiExpenseQueuePage() {
+  const [items, setItems] = useState(devAiExpenseQueueItems);
+
+  return (
+    <AiExpenseQueuePanel
+      categories={devAiExpenseQueueCategories}
+      initialItems={items}
+      initialReviewDrafts={devAiExpenseReviewDrafts}
+      onReviewSubmit={(draftId, values, registerAfterUpdate) => {
+        setItems((current) =>
+          current.map((item) =>
+            item.id === draftId
+              ? {
+                  ...item,
+                  status: registerAfterUpdate ? "registered" : "ready",
+                  documentType: values.documentType,
+                  title: values.shopName || values.payeeName || values.paymentPlace,
+                  amountYen: values.amountYen,
+                  reviewReasons: [],
+                }
+              : item,
+          ),
+        );
+      }}
+    />
+  );
+}
+
 const appRoutes = [
   {
     path: "/",
@@ -61,7 +112,7 @@ const appRoutes = [
 if (import.meta.env.DEV) {
   appRoutes.push({
     path: "/__e2e__/ai-expense-queue",
-    element: <AiExpenseQueuePanel initialItems={devAiExpenseQueueItems} />,
+    element: <E2eAiExpenseQueuePage />,
   });
 }
 

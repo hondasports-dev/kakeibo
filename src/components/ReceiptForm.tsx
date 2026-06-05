@@ -89,7 +89,7 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
 
             {formValues.type === "expense" && (
               <>
-                <AiExpenseQueuePanel />
+                <AiExpenseQueuePanel categories={categories} />
                 <ReceiptImageExtractor onExtracted={handleExtracted} />
               </>
             )}

@@ -9,8 +9,14 @@ import {
   Checkbox,
   Chip,
   Divider,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   LinearProgress,
+  MenuItem,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
@@ -46,6 +52,22 @@ type QueueSectionKey = "processing" | "ready" | "needs_review" | "failed" | "reg
 
 type AiExpenseQueuePanelProps = {
   initialItems?: AiExpenseQueueItem[];
+  categories?: Array<{ _id: Id<"categories"> | string; name: string; color: string }>;
+  initialReviewDrafts?: Record<string, AiExpenseDraft>;
+  onReviewSubmit?: (
+    draftId: string,
+    values: {
+      documentType: AiExpenseQueueDocumentType;
+      shopName: string;
+      paymentPlace: string;
+      payeeName: string;
+      paymentPurpose: string;
+      date: string;
+      amountYen: number;
+      categoryId: string;
+    },
+    registerAfterUpdate: boolean,
+  ) => Promise<void> | void;
 };
 
 type AiExpenseDraftStatus = "ready" | "needs_review" | "failed" | "registered";
@@ -58,8 +80,27 @@ type AiExpenseDraft = {
   paymentPlace?: string;
   payeeName?: string;
   paymentPurpose?: string;
+  date?: string;
   amountYen?: number;
+  categoryId?: string;
   reviewReasons: string[];
+  warnings?: string[];
+};
+
+type AiExpenseDraftWithItems = {
+  draft: AiExpenseDraft;
+  items: unknown[];
+};
+
+type ReviewFormValues = {
+  documentType: AiExpenseQueueDocumentType;
+  shopName: string;
+  paymentPlace: string;
+  payeeName: string;
+  paymentPurpose: string;
+  date: string;
+  amountYen: string;
+  categoryId: string;
 };
 
 const statusLabels: Record<AiExpenseQueueStatus, string> = {
@@ -88,6 +129,17 @@ const reviewReasonLabels: Record<string, string> = {
   parse_failed: "画像解析に失敗しました",
 };
 
+const emptyReviewForm: ReviewFormValues = {
+  documentType: "receipt",
+  shopName: "",
+  paymentPlace: "",
+  payeeName: "",
+  paymentPurpose: "",
+  date: "",
+  amountYen: "",
+  categoryId: "",
+};
+
 function getReviewReasonLabel(reason: string) {
   return reviewReasonLabels[reason] ?? reason;
 }
@@ -114,6 +166,28 @@ function mapDraftToQueueItem(
     amountYen: draft.amountYen,
     reviewReasons: draft.reviewReasons,
   };
+}
+
+function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
+  return {
+    documentType: draft.documentType,
+    shopName: draft.shopName ?? "",
+    paymentPlace: draft.paymentPlace ?? "",
+    payeeName: draft.payeeName ?? "",
+    paymentPurpose: draft.paymentPurpose ?? "",
+    date: draft.date ?? "",
+    amountYen: draft.amountYen?.toString() ?? "",
+    categoryId: draft.categoryId ?? "",
+  };
+}
+
+function isDraftWithItems(value: unknown): value is AiExpenseDraftWithItems {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "draft" in value &&
+    typeof (value as { draft?: unknown }).draft === "object"
+  );
 }
 
 function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
@@ -162,10 +236,12 @@ function QueueItemCard({
   item,
   isSelected,
   onToggleReadySelection,
+  onOpenReview,
 }: {
   item: AiExpenseQueueItem;
   isSelected: boolean;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
+  onOpenReview: (itemId: string) => void;
 }) {
   const secondaryLabel = item.fileName ?? "AI支出下書き";
 
@@ -238,7 +314,13 @@ function QueueItemCard({
         )}
 
         {item.status === "needs_review" && (
-          <Button size="small" type="button" variant="outlined" sx={{ alignSelf: "flex-start" }}>
+          <Button
+            onClick={() => onOpenReview(item.id)}
+            size="small"
+            type="button"
+            variant="outlined"
+            sx={{ alignSelf: "flex-start" }}
+          >
             下書きを確認
           </Button>
         )}
@@ -268,11 +350,13 @@ function QueueSection({
   items,
   selectedReadyIds,
   onToggleReadySelection,
+  onOpenReview,
 }: {
   label: string;
   items: AiExpenseQueueItem[];
   selectedReadyIds: string[];
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
+  onOpenReview: (itemId: string) => void;
 }) {
   if (items.length === 0) {
     return null;
@@ -293,6 +377,7 @@ function QueueSection({
               isSelected={selectedReadyIds.includes(item.id)}
               item={item}
               key={item.id}
+              onOpenReview={onOpenReview}
               onToggleReadySelection={onToggleReadySelection}
             />
           ))}
@@ -302,13 +387,23 @@ function QueueSection({
   );
 }
 
-export function AiExpenseQueuePanel({ initialItems }: AiExpenseQueuePanelProps) {
+export function AiExpenseQueuePanel({
+  initialItems,
+  categories = [],
+  initialReviewDrafts = {},
+  onReviewSubmit,
+}: AiExpenseQueuePanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const previousReadyItemIdsRef = useRef<string[]>([]);
   const [localItems, setLocalItems] = useState<AiExpenseQueueItem[]>([]);
   const [selectedReadyIds, setSelectedReadyIds] = useState<string[]>([]);
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const [registrationError, setRegistrationError] = useState("");
+  const [selectedReviewDraftId, setSelectedReviewDraftId] = useState<string | null>(null);
+  const [initializedReviewDraftId, setInitializedReviewDraftId] = useState<string | null>(null);
+  const [reviewForm, setReviewForm] = useState<ReviewFormValues>(emptyReviewForm);
+  const [reviewError, setReviewError] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const readyDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "ready" }) as
     | AiExpenseDraft[]
     | undefined;
@@ -321,7 +416,23 @@ export function AiExpenseQueuePanel({ initialItems }: AiExpenseQueuePanelProps) 
   const registeredDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "registered" }) as
     | AiExpenseDraft[]
     | undefined;
+  const localReviewDraft = selectedReviewDraftId
+    ? initialReviewDrafts[selectedReviewDraftId]
+    : undefined;
+  const selectedReviewDraftDetails = useQuery(
+    api.aiExpenseDrafts.getWithItems,
+    selectedReviewDraftId && !localReviewDraft
+      ? { draftId: selectedReviewDraftId as Id<"aiExpenseDrafts"> }
+      : "skip",
+  ) as AiExpenseDraftWithItems | null | undefined;
   const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
+  const updateForReview = useMutation(api.aiExpenseDrafts.updateForReview);
+  const selectedReviewDraft = localReviewDraft
+    ? localReviewDraft
+    : isDraftWithItems(selectedReviewDraftDetails)
+      ? selectedReviewDraftDetails.draft
+      : null;
+  const isReviewDraftLoading = selectedReviewDraftId !== null && selectedReviewDraft === null;
 
   const statusOverrides = useMemo<Partial<Record<string, AiExpenseQueueStatus>>>(
     () =>
@@ -373,6 +484,17 @@ export function AiExpenseQueuePanel({ initialItems }: AiExpenseQueuePanelProps) 
     previousReadyItemIdsRef.current = readyItemIds;
   }, [readyItemIds]);
 
+  useEffect(() => {
+    if (
+      selectedReviewDraft &&
+      selectedReviewDraft._id === selectedReviewDraftId &&
+      initializedReviewDraftId !== selectedReviewDraft._id
+    ) {
+      setReviewForm(mapDraftToReviewForm(selectedReviewDraft));
+      setInitializedReviewDraftId(selectedReviewDraft._id);
+    }
+  }, [initializedReviewDraftId, selectedReviewDraft, selectedReviewDraftId]);
+
   const handleFilesSelected = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) {
@@ -402,6 +524,93 @@ export function AiExpenseQueuePanel({ initialItems }: AiExpenseQueuePanelProps) 
       }
       return current.filter((id) => id !== itemId);
     });
+  };
+
+  const handleOpenReview = (itemId: string) => {
+    setSelectedReviewDraftId(itemId);
+    setInitializedReviewDraftId(null);
+    setReviewForm(emptyReviewForm);
+    setReviewError("");
+  };
+
+  const handleCloseReview = () => {
+    if (reviewSubmitting) {
+      return;
+    }
+    setSelectedReviewDraftId(null);
+    setInitializedReviewDraftId(null);
+    setReviewForm(emptyReviewForm);
+    setReviewError("");
+  };
+
+  const handleReviewFieldChange = (field: keyof ReviewFormValues, value: string) => {
+    setReviewForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleSubmitReview = async (registerAfterUpdate: boolean) => {
+    if (!selectedReviewDraftId) {
+      return;
+    }
+    const amountYen = Number(reviewForm.amountYen);
+    if (!reviewForm.date || !Number.isInteger(amountYen) || amountYen <= 0 || !reviewForm.categoryId) {
+      setReviewError("日付、金額、カテゴリを確認してください。");
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError("");
+    try {
+      if (onReviewSubmit) {
+        await onReviewSubmit(
+          selectedReviewDraftId,
+          {
+            documentType: reviewForm.documentType,
+            shopName: reviewForm.shopName,
+            paymentPlace: reviewForm.paymentPlace,
+            payeeName: reviewForm.payeeName,
+            paymentPurpose: reviewForm.paymentPurpose,
+            date: reviewForm.date,
+            amountYen,
+            categoryId: reviewForm.categoryId,
+          },
+          registerAfterUpdate,
+        );
+      } else {
+        await updateForReview({
+          draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
+          documentType: reviewForm.documentType,
+          shopName: reviewForm.shopName,
+          paymentPlace: reviewForm.paymentPlace,
+          payeeName: reviewForm.payeeName,
+          paymentPurpose: reviewForm.paymentPurpose,
+          date: reviewForm.date,
+          amountYen,
+          categoryId: reviewForm.categoryId as Id<"categories">,
+        });
+
+        if (registerAfterUpdate) {
+          setRegisteringIds([selectedReviewDraftId]);
+          await registerReadyDrafts({
+            draftIds: [selectedReviewDraftId as Id<"aiExpenseDrafts">],
+          });
+        }
+      }
+
+      setSelectedReviewDraftId(null);
+      setInitializedReviewDraftId(null);
+      setReviewForm(emptyReviewForm);
+    } catch (error) {
+      setReviewError(
+        error instanceof Error
+          ? error.message
+          : "下書きの更新に失敗しました。もう一度お試しください。",
+      );
+    } finally {
+      setReviewSubmitting(false);
+      if (registerAfterUpdate) {
+        setRegisteringIds([]);
+      }
+    }
   };
 
   const handleRegisterReady = async () => {
@@ -507,35 +716,193 @@ export function AiExpenseQueuePanel({ initialItems }: AiExpenseQueuePanelProps) 
               label="AI処理中"
               items={groupedItems.processing}
               selectedReadyIds={selectedReadyIds}
+              onOpenReview={handleOpenReview}
               onToggleReadySelection={handleToggleReadySelection}
             />
             <QueueSection
               label="登録準備OK"
               items={groupedItems.ready}
               selectedReadyIds={selectedReadyIds}
+              onOpenReview={handleOpenReview}
               onToggleReadySelection={handleToggleReadySelection}
             />
             <QueueSection
               label="確認が必要"
               items={groupedItems.needs_review}
               selectedReadyIds={selectedReadyIds}
+              onOpenReview={handleOpenReview}
               onToggleReadySelection={handleToggleReadySelection}
             />
             <QueueSection
               label="失敗"
               items={groupedItems.failed}
               selectedReadyIds={selectedReadyIds}
+              onOpenReview={handleOpenReview}
               onToggleReadySelection={handleToggleReadySelection}
             />
             <QueueSection
               label="登録済み"
               items={groupedItems.registered}
               selectedReadyIds={selectedReadyIds}
+              onOpenReview={handleOpenReview}
               onToggleReadySelection={handleToggleReadySelection}
             />
           </Stack>
         )}
       </Stack>
+
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        onClose={handleCloseReview}
+        open={selectedReviewDraftId !== null}
+      >
+        <DialogTitle>下書き確認</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {isReviewDraftLoading && (
+              <Typography color="text.secondary">下書きを読み込んでいます。</Typography>
+            )}
+
+            {!isReviewDraftLoading && (
+              <>
+                {selectedReviewDraft?.reviewReasons &&
+                  selectedReviewDraft.reviewReasons.length > 0 && (
+                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                      {selectedReviewDraft.reviewReasons.map((reason) => (
+                        <Chip
+                          key={reason}
+                          label={getReviewReasonLabel(reason)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Stack>
+                  )}
+
+                {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
+                  <Alert severity="warning" variant="outlined">
+                    {selectedReviewDraft.warnings.join(" / ")}
+                  </Alert>
+                )}
+
+                {reviewError && (
+                  <Alert severity="error" variant="outlined">
+                    {reviewError}
+                  </Alert>
+                )}
+
+                <TextField
+                  fullWidth
+                  label="書類種別"
+                  onChange={(event) =>
+                    handleReviewFieldChange(
+                      "documentType",
+                      event.target.value as AiExpenseQueueDocumentType,
+                    )
+                  }
+                  select
+                  value={reviewForm.documentType}
+                >
+                  {Object.entries(documentTypeLabels).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+
+                <TextField
+                  fullWidth
+                  label="日付"
+                  onChange={(event) => handleReviewFieldChange("date", event.target.value)}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  type="date"
+                  value={reviewForm.date}
+                />
+
+                <TextField
+                  fullWidth
+                  label="合計金額"
+                  onChange={(event) =>
+                    handleReviewFieldChange("amountYen", event.target.value.replace(/[^\d]/g, ""))
+                  }
+                  slotProps={{
+                    htmlInput: {
+                      inputMode: "numeric",
+                    },
+                  }}
+                  value={reviewForm.amountYen}
+                />
+
+                <TextField
+                  fullWidth
+                  label="店名"
+                  onChange={(event) => handleReviewFieldChange("shopName", event.target.value)}
+                  value={reviewForm.shopName}
+                />
+
+                <TextField
+                  fullWidth
+                  label="支払場所"
+                  onChange={(event) => handleReviewFieldChange("paymentPlace", event.target.value)}
+                  value={reviewForm.paymentPlace}
+                />
+
+                <TextField
+                  fullWidth
+                  label="支払先"
+                  onChange={(event) => handleReviewFieldChange("payeeName", event.target.value)}
+                  value={reviewForm.payeeName}
+                />
+
+                <TextField
+                  fullWidth
+                  label="支払内容"
+                  onChange={(event) =>
+                    handleReviewFieldChange("paymentPurpose", event.target.value)
+                  }
+                  value={reviewForm.paymentPurpose}
+                />
+
+                <TextField
+                  fullWidth
+                  label="カテゴリ"
+                  onChange={(event) => handleReviewFieldChange("categoryId", event.target.value)}
+                  select
+                  value={reviewForm.categoryId}
+                >
+                  {categories.map((category) => (
+                    <MenuItem key={category._id} value={category._id}>
+                      {category.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2, flexWrap: "wrap", gap: 1 }}>
+          <Button disabled={reviewSubmitting} onClick={handleCloseReview} type="button">
+            キャンセル
+          </Button>
+          <Button
+            disabled={reviewSubmitting || isReviewDraftLoading || categories.length === 0}
+            onClick={() => void handleSubmitReview(false)}
+            type="button"
+            variant="outlined"
+          >
+            登録準備OKに戻す
+          </Button>
+          <Button
+            disabled={reviewSubmitting || isReviewDraftLoading || categories.length === 0}
+            onClick={() => void handleSubmitReview(true)}
+            type="button"
+            variant="contained"
+          >
+            修正して登録
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
