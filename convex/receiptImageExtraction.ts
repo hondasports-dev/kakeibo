@@ -18,12 +18,22 @@ export type ExtractionConfidence = {
   shopName: number;
   date: number;
   amountYen: number;
+  documentType?: number;
+  paymentPlace?: number;
+  payeeName?: number;
+  paymentPurpose?: number;
+  categoryName?: number;
 };
 
 export type ExtractReceiptFieldsResult = {
   shopName: string;
   date: string;
   amountYen: number;
+  documentType: "receipt" | "convenience_payment" | "unknown";
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+  categoryName?: string;
   confidence: ExtractionConfidence;
   warnings: string[];
 };
@@ -72,6 +82,11 @@ type ExtractedFields = {
   shopName: string;
   date: string;
   amountYen: number;
+  documentType: "receipt" | "convenience_payment" | "unknown";
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+  categoryName?: string;
   confidence: ExtractionConfidence;
   warnings: string[];
 };
@@ -111,15 +126,48 @@ function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ExtractedFields 
   }
   const confidence = parseConfidence(obj.confidence);
 
+  const documentType = parseOptionalDocumentType(obj.documentType);
+  const paymentPlace = parseOptionalString(obj.paymentPlace, "paymentPlace");
+  const payeeName = parseOptionalString(obj.payeeName, "payeeName");
+  const paymentPurpose = parseOptionalString(obj.paymentPurpose, "paymentPurpose");
+  const categoryName = parseOptionalString(obj.categoryName, "categoryName");
+
   return {
     shopName: obj.shopName,
     date: obj.date,
     amountYen: obj.amountYen,
+    documentType,
+    paymentPlace,
+    payeeName,
+    paymentPurpose,
+    categoryName,
     confidence,
     warnings: Array.isArray(obj.warnings)
       ? (obj.warnings as string[]).filter((w) => typeof w === "string")
       : [],
   };
+}
+
+function parseOptionalString(value: unknown, fieldName: string): string | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== "string") {
+    throw new ConvexError(`OpenAI レスポンスの ${fieldName} が文字列ではありません`);
+  }
+  return value;
+}
+
+function parseOptionalDocumentType(value: unknown): "receipt" | "convenience_payment" | "unknown" {
+  if (value === undefined || value === null) {
+    return "unknown";
+  }
+  if (value !== "receipt" && value !== "convenience_payment" && value !== "unknown") {
+    throw new ConvexError(
+      'OpenAI レスポンスの documentType は "receipt", "convenience_payment", "unknown" のいずれかである必要があります',
+    );
+  }
+  return value;
 }
 
 function validateExtractedDate(date: string): void {
@@ -147,10 +195,31 @@ function parseConfidence(value: unknown): ExtractionConfidence {
   const shopName = parseConfidenceScore(confidence.shopName, "shopName");
   const date = parseConfidenceScore(confidence.date, "date");
   const amountYen = parseConfidenceScore(confidence.amountYen, "amountYen");
-  return { shopName, date, amountYen };
+  return {
+    shopName,
+    date,
+    amountYen,
+    documentType: parseOptionalConfidenceScore(confidence.documentType, "documentType"),
+    paymentPlace: parseOptionalConfidenceScore(confidence.paymentPlace, "paymentPlace"),
+    payeeName: parseOptionalConfidenceScore(confidence.payeeName, "payeeName"),
+    paymentPurpose: parseOptionalConfidenceScore(confidence.paymentPurpose, "paymentPurpose"),
+    categoryName: parseOptionalConfidenceScore(confidence.categoryName, "categoryName"),
+  };
 }
 
 function parseConfidenceScore(value: unknown, fieldName: string): number {
+  if (typeof value !== "number" || value < 0 || value > 1) {
+    throw new ConvexError(
+      `OpenAI レスポンスの confidence.${fieldName} は 0.0〜1.0 の数値である必要があります`,
+    );
+  }
+  return value;
+}
+
+function parseOptionalConfidenceScore(value: unknown, fieldName: string): number | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
   if (typeof value !== "number" || value < 0 || value > 1) {
     throw new ConvexError(
       `OpenAI レスポンスの confidence.${fieldName} は 0.0〜1.0 の数値である必要があります`,
@@ -173,10 +242,14 @@ function getMockResult(): ExtractReceiptFieldsResult {
     shopName: "サンプルストア",
     date: `${yyyy}-${mm}-${dd}`,
     amountYen: 1234,
+    documentType: "receipt",
+    categoryName: "食費",
     confidence: {
       shopName: 0.95,
       date: 0.98,
       amountYen: 0.98,
+      documentType: 0.9,
+      categoryName: 0.85,
     },
     warnings: [],
   };
@@ -251,9 +324,11 @@ async function callOpenAIReceiptExtractor({
           {
             type: "input_text",
             text: [
-              "このレシート画像から以下の情報を日本語で抽出してください。",
+              "この画像はレシートまたはコンビニ払込票です。書類種別を判定し、以下の情報を日本語で抽出してください。",
+              "コンビニ払込票の場合は、shopName（店舗名）ではなく paymentPlace（支払場所）・payeeName（支払先）・paymentPurpose（支払内容）を優先して読み取ってください。",
+              "カテゴリ推定は、レシートなら shopName、払込票なら payeeName と paymentPurpose を重視してください。",
               "結果は以下の JSON スキーマに従って返してください：",
-              '{"shopName": "店名（文字列）", "date": "日付（YYYY-MM-DD形式の文字列）", "amountYen": 合計金額（整数）, "confidence": {"shopName": 0.0〜1.0, "date": 0.0〜1.0, "amountYen": 0.0〜1.0}, "warnings": ["注意事項（配列）"]}',
+              '{"documentType": "receipt | convenience_payment | unknown", "shopName": "店名（文字列）", "paymentPlace": "支払場所（文字列）", "payeeName": "支払先（文字列）", "paymentPurpose": "支払内容（文字列）", "date": "日付（YYYY-MM-DD形式の文字列）", "amountYen": 合計金額（整数）, "categoryName": "推定カテゴリ名（文字列）", "confidence": {"documentType": 0.0〜1.0, "shopName": 0.0〜1.0, "paymentPlace": 0.0〜1.0, "payeeName": 0.0〜1.0, "paymentPurpose": 0.0〜1.0, "date": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["注意事項（配列）"]}',
               "読み取れない項目は空文字列または0を使用し、該当項目の confidence を低くしてください。",
             ].join("\n"),
           },
@@ -268,22 +343,46 @@ async function callOpenAIReceiptExtractor({
         schema: {
           type: "object",
           properties: {
+            documentType: {
+              type: "string",
+              enum: ["receipt", "convenience_payment", "unknown"],
+            },
             shopName: { type: "string" },
+            paymentPlace: { type: "string" },
+            payeeName: { type: "string" },
+            paymentPurpose: { type: "string" },
             date: { type: "string", pattern: "^$|^\\d{4}-\\d{2}-\\d{2}$" },
             amountYen: { type: "integer", minimum: 0 },
+            categoryName: { type: "string" },
             confidence: {
               type: "object",
               properties: {
+                documentType: { type: "number", minimum: 0, maximum: 1 },
                 shopName: { type: "number", minimum: 0, maximum: 1 },
+                paymentPlace: { type: "number", minimum: 0, maximum: 1 },
+                payeeName: { type: "number", minimum: 0, maximum: 1 },
+                paymentPurpose: { type: "number", minimum: 0, maximum: 1 },
                 date: { type: "number", minimum: 0, maximum: 1 },
                 amountYen: { type: "number", minimum: 0, maximum: 1 },
+                categoryName: { type: "number", minimum: 0, maximum: 1 },
               },
               required: ["shopName", "date", "amountYen"],
               additionalProperties: false,
             },
             warnings: { type: "array", items: { type: "string" } },
           },
-          required: ["shopName", "date", "amountYen", "confidence", "warnings"],
+          required: [
+            "documentType",
+            "shopName",
+            "paymentPlace",
+            "payeeName",
+            "paymentPurpose",
+            "date",
+            "amountYen",
+            "categoryName",
+            "confidence",
+            "warnings",
+          ],
           additionalProperties: false,
         },
       },
