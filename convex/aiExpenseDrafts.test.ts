@@ -5,6 +5,7 @@ import {
   analyzeReceiptImageToDraftHandler,
   createFailedDraftFromImageAnalysisHandler,
   createFromExtractionHandler,
+  deleteDraftHandler,
   getWithItemsHandler,
   listByStatusHandler,
   registerReadyDraftsHandler,
@@ -84,6 +85,7 @@ function createMutationCtx(
     >;
     insertedDoc?: DraftDoc;
     insertedIds?: string[];
+    items?: DraftItemDoc[];
   } = {},
 ): MutationCtx {
   const insertedIds = opts.insertedIds ?? ["new-draft-id"];
@@ -94,11 +96,17 @@ function createMutationCtx(
     return nextId;
   });
   const patchMock = vi.fn().mockResolvedValue(undefined);
+  const deleteMock = vi.fn().mockResolvedValue(undefined);
   const getMock = vi.fn().mockImplementation(async (id: string) => {
     if (id === "new-draft-id" && opts.insertedDoc) {
       return opts.insertedDoc;
     }
     return opts.getDocById?.[id] ?? null;
+  });
+  const queryMock = vi.fn().mockReturnValue({
+    withIndex: vi.fn().mockReturnValue({
+      collect: vi.fn().mockResolvedValue(opts.items ?? []),
+    }),
   });
 
   return {
@@ -109,6 +117,8 @@ function createMutationCtx(
       get: getMock,
       insert: insertMock,
       patch: patchMock,
+      delete: deleteMock,
+      query: queryMock,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as MutationCtx;
@@ -821,6 +831,59 @@ describe("aiExpenseDrafts", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("未登録下書きは明細ごとキューから削除できる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+      },
+      items: [
+        {
+          _id: "item-1",
+          _creationTime: 1,
+          userId: "https://issuer.example|user-001",
+          draftId: "draft-owned",
+          itemName: "牛乳",
+          amountYen: 198,
+          confidence: {},
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await deleteDraftHandler(ctx, { draftId: "draft-owned" as any });
+
+    expect(result).toEqual({ deleted: true });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).delete as ReturnType<typeof vi.fn>).toHaveBeenCalledWith("item-1");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).delete as ReturnType<typeof vi.fn>).toHaveBeenCalledWith("draft-owned");
+  });
+
+  it("登録済み下書きはキューから削除できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-registered": {
+          ...ownedDraft,
+          _id: "draft-registered",
+          status: "registered",
+          registeredReceiptId: "receipt-1",
+        },
+      },
+    });
+
+    await expect(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      deleteDraftHandler(ctx, { draftId: "draft-registered" as any }),
+    ).rejects.toMatchObject({
+      data: "Registered AI expense draft cannot be deleted from the queue",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    expect((ctx.db as any).delete as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
   it("listByStatus は認証ユーザー本人の下書きだけ返す", async () => {

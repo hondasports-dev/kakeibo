@@ -27,6 +27,7 @@ vi.mock("../../convex/_generated/api", () => ({
       createReceipt: "receipts.createReceipt",
     },
     aiExpenseDrafts: {
+      deleteDraft: "aiExpenseDrafts.deleteDraft",
       listByStatus: "aiExpenseDrafts.listByStatus",
       registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
     },
@@ -42,6 +43,7 @@ vi.mock("../../convex/_generated/api", () => ({
       createBatch: "receiptAnalysisJobs.createBatch",
       analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
       retryImageJob: "receiptAnalysisJobs.retryImageJob",
+      cancelImageJob: "receiptAnalysisJobs.cancelImageJob",
     },
   },
 }));
@@ -54,10 +56,16 @@ vi.mock("convex/react", () => ({
     if (functionRef === "aiExpenseDrafts.registerReadyDrafts") {
       return registerReadyDraftsMock;
     }
+    if (functionRef === "aiExpenseDrafts.deleteDraft") {
+      return vi.fn().mockResolvedValue({ deleted: true });
+    }
     if (functionRef === "receiptAnalysisJobs.createBatch") {
       return vi.fn().mockResolvedValue({ batch: { _id: "batch-1" }, jobs: [] });
     }
     if (functionRef === "receiptAnalysisJobs.retryImageJob") {
+      return vi.fn().mockResolvedValue(undefined);
+    }
+    if (functionRef === "receiptAnalysisJobs.cancelImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
     return createReceiptMock;

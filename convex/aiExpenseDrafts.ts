@@ -90,6 +90,10 @@ type UpdateForReviewArgs = {
   categoryId: Id<"categories">;
 };
 
+type DeleteDraftArgs = {
+  draftId: Id<"aiExpenseDrafts">;
+};
+
 function mergeReviewReasons(
   computedReasons: AiExpenseDraftReviewReason[],
   explicitReasons: AiExpenseDraftReviewReason[] | undefined,
@@ -197,6 +201,24 @@ async function insertDraftItems(
   }
 }
 
+async function deleteDraftAndItems(
+  ctx: Pick<MutationCtx, "db">,
+  draftId: Id<"aiExpenseDrafts">,
+  userId: string,
+) {
+  const draft = await ctx.db.get(draftId);
+  if (!draft || draft.userId !== userId || draft.status === "registered") {
+    return;
+  }
+
+  const items = await ctx.db
+    .query("aiExpenseDraftItems")
+    .withIndex("by_user_id_and_draft_id", (q) => q.eq("userId", userId).eq("draftId", draftId))
+    .collect();
+  await Promise.all(items.map((item) => ctx.db.delete(item._id)));
+  await ctx.db.delete(draftId);
+}
+
 export async function createFromExtractionHandler(
   ctx: MutationCtx,
   args: CreateFromExtractionArgs,
@@ -302,14 +324,7 @@ export async function deleteOrphanedDraftHandler(
   args: { draftId: Id<"aiExpenseDrafts"> },
 ) {
   const userId = await requireAuthenticatedUserId(ctx);
-  const draft = await ctx.db.get(args.draftId);
-  if (!draft || draft.userId !== userId) {
-    return;
-  }
-  if (draft.status === "registered") {
-    return;
-  }
-  await ctx.db.delete(args.draftId);
+  await deleteDraftAndItems(ctx, args.draftId, userId);
 }
 
 export const deleteOrphanedDraft = internalMutation({
@@ -317,6 +332,30 @@ export const deleteOrphanedDraft = internalMutation({
     draftId: v.id("aiExpenseDrafts"),
   },
   handler: deleteOrphanedDraftHandler,
+});
+
+export async function deleteDraftHandler(ctx: MutationCtx, args: DeleteDraftArgs) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const draft = await ctx.db.get(args.draftId);
+  if (draft === null) {
+    return { deleted: false };
+  }
+  if (draft.userId !== userId) {
+    throw new ConvexError("AI expense draft does not belong to the current user");
+  }
+  if (draft.status === "registered") {
+    throw new ConvexError("Registered AI expense draft cannot be deleted from the queue");
+  }
+
+  await deleteDraftAndItems(ctx, args.draftId, userId);
+  return { deleted: true };
+}
+
+export const deleteDraft = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: deleteDraftHandler,
 });
 
 export async function listByStatusHandler(ctx: QueryCtx, args: ListByStatusArgs) {
