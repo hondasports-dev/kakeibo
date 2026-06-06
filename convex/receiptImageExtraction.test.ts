@@ -173,14 +173,21 @@ describe("extractReceiptFieldsHandler", () => {
     });
 
     it("mock モードの日付はJSTの今日を返す", async () => {
-      await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
-        const ctx = createActionCtx(createIdentity());
-        const result = await extractReceiptFieldsHandler(ctx, {
-          imageDataUrl: VALID_IMAGE_DATA_URL,
-        });
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-06-06T12:00:00.000Z"));
+      try {
+        await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+          const ctx = createActionCtx(createIdentity());
+          const expectedDate = getTodayDateStringInJapan();
+          const result = await extractReceiptFieldsHandler(ctx, {
+            imageDataUrl: VALID_IMAGE_DATA_URL,
+          });
 
-        expect(result.date).toBe(getTodayDateStringInJapan());
-      });
+          expect(result.date).toBe(expectedDate);
+        });
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it("mock モードでは documentType が receipt を返す", async () => {

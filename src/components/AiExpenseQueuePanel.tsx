@@ -108,9 +108,17 @@ function readFileAsDataUrl(file: File) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
+    reader.onerror = () => reject(reader.error ?? new Error("画像の読み込みに失敗しました"));
+    reader.onabort = () => reject(new Error("画像の読み込みがキャンセルされました"));
     reader.readAsDataURL(file);
   });
+}
+
+function getFileReadErrorMessage(error: unknown) {
+  if (error instanceof Error && error.message) {
+    return `画像の読み込みに失敗しました: ${error.message}`;
+  }
+  return "画像の読み込みに失敗しました";
 }
 
 const statusLabels: Record<AiExpenseQueueStatus, string> = {
@@ -561,7 +569,14 @@ export function AiExpenseQueuePanel({
       return;
     }
 
-    const fileDataUrls = await Promise.all(files.map(readFileAsDataUrl));
+    let fileDataUrls: string[];
+    try {
+      fileDataUrls = await Promise.all(files.map(readFileAsDataUrl));
+    } catch (err) {
+      setRetryError(getFileReadErrorMessage(err));
+      event.target.value = "";
+      return;
+    }
 
     const result = await createBatch({ fileNames: files.map((f) => f.name) });
     if (!result) {
@@ -649,8 +664,12 @@ export function AiExpenseQueuePanel({
     if (!file || !job) {
       return;
     }
-    const imageDataUrl = await readFileAsDataUrl(file);
-    await runRetry(job, imageDataUrl);
+    try {
+      const imageDataUrl = await readFileAsDataUrl(file);
+      await runRetry(job, imageDataUrl);
+    } catch (err) {
+      setRetryError(getFileReadErrorMessage(err));
+    }
   };
 
   const handleReviewFieldChange = (field: keyof ReviewFormValues, value: string) => {
@@ -801,6 +820,12 @@ export function AiExpenseQueuePanel({
           />
         </Stack>
 
+        {retryError && (
+          <Alert severity="error" variant="outlined" onClose={() => setRetryError("")}>
+            {retryError}
+          </Alert>
+        )}
+
         {items.length === 0 ? (
           <Alert severity="info" variant="outlined">
             追加した画像はここに状態別で表示されます。
@@ -812,12 +837,6 @@ export function AiExpenseQueuePanel({
                 {registrationError}
               </Alert>
             )}
-            {retryError && (
-              <Alert severity="error" variant="outlined" onClose={() => setRetryError("")}>
-                {retryError}
-              </Alert>
-            )}
-
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
               <Chip label={`キュー ${items.length}件`} size="small" variant="outlined" />
               <Chip label={`登録準備OK ${readyItems.length}件`} size="small" color="success" />
