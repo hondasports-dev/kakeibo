@@ -176,15 +176,18 @@ describe("extractReceiptFieldsHandler", () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-06-06T12:00:00.000Z"));
       try {
-        await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
-          const ctx = createActionCtx(createIdentity());
-          const expectedDate = getTodayDateStringInJapan();
-          const result = await extractReceiptFieldsHandler(ctx, {
-            imageDataUrl: VALID_IMAGE_DATA_URL,
-          });
+        await withEnv(
+          { RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" },
+          async () => {
+            const ctx = createActionCtx(createIdentity());
+            const expectedDate = getTodayDateStringInJapan();
+            const result = await extractReceiptFieldsHandler(ctx, {
+              imageDataUrl: VALID_IMAGE_DATA_URL,
+            });
 
-          expect(result.date).toBe(expectedDate);
-        });
+            expect(result.date).toBe(expectedDate);
+          },
+        );
       } finally {
         vi.useRealTimers();
       }
