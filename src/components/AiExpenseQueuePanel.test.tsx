@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./AiExpenseQueuePanel";
 
@@ -100,7 +100,19 @@ const queueItems: AiExpenseQueueItem[] = [
   },
 ];
 
+function rejectFileReads() {
+  return vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (
+    this: FileReader,
+  ) {
+    this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
+  });
+}
+
 describe("AiExpenseQueuePanel", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   beforeEach(() => {
     registerReadyDraftsMock.mockReset();
     registerReadyDraftsMock.mockResolvedValue(undefined);
@@ -159,6 +171,22 @@ describe("AiExpenseQueuePanel", () => {
       fileNames: ["first-receipt.png", "second-payment.png"],
     });
     expect(analyzeImageJobMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("画像追加時の読み込み失敗をUIエラーとして表示する", async () => {
+    const user = userEvent.setup();
+    const readAsDataUrlSpy = rejectFileReads();
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["broken"], "broken-receipt.png", { type: "image/png" }),
+    );
+
+    expect(await screen.findByText(/画像の読み込みに失敗しました/)).toBeInTheDocument();
+    expect(createBatchMock).not.toHaveBeenCalled();
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
+    readAsDataUrlSpy.mockRestore();
   });
 
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {
@@ -225,6 +253,37 @@ describe("AiExpenseQueuePanel", () => {
         imageDataUrl: expect.stringMatching(/^data:image\/png;base64,/),
       });
     });
+  });
+
+  it("再試行画像の読み込み失敗をUIエラーとして表示する", async () => {
+    const user = userEvent.setup();
+    const readAsDataUrlSpy = rejectFileReads();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.listJobs") {
+        return [
+          {
+            _id: "job-failed",
+            draftId: "draft-failed",
+            fileName: "failed-receipt.png",
+            status: "failed",
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
+
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    await user.upload(
+      screen.getByLabelText("再試行する画像を選択"),
+      new File(["broken"], "failed-receipt-retry.png", { type: "image/png" }),
+    );
+
+    expect(await screen.findByText(/画像の読み込みに失敗しました/)).toBeInTheDocument();
+    expect(retryImageJobMock).not.toHaveBeenCalled();
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
+    readAsDataUrlSpy.mockRestore();
   });
 
   it("選択した ready 下書きだけまとめて登録する", async () => {
