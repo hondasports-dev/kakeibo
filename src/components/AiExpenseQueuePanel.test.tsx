@@ -101,11 +101,11 @@ const queueItems: AiExpenseQueueItem[] = [
 ];
 
 function rejectFileReads() {
-  return vi.spyOn(FileReader.prototype, "readAsDataURL").mockImplementation(function (
-    this: FileReader,
-  ) {
-    this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
-  });
+  return vi
+    .spyOn(FileReader.prototype, "readAsDataURL")
+    .mockImplementation(function (this: FileReader) {
+      this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
+    });
 }
 
 describe("AiExpenseQueuePanel", () => {
