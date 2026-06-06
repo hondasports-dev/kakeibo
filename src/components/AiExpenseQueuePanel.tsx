@@ -104,6 +104,15 @@ type ReviewFormValues = {
   categoryId: string;
 };
 
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 const statusLabels: Record<AiExpenseQueueStatus, string> = {
   adding: "追加中",
   queued: "解析待ち",
@@ -405,6 +414,7 @@ export function AiExpenseQueuePanel({
   onReviewSubmit,
 }: AiExpenseQueuePanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const retryInputRef = useRef<HTMLInputElement>(null);
   const previousReadyItemIdsRef = useRef<string[]>([]);
   const [selectedReadyIds, setSelectedReadyIds] = useState<string[]>([]);
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
@@ -416,6 +426,9 @@ export function AiExpenseQueuePanel({
   const [reviewError, setReviewError] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
   const [pendingImageDataUrls, setPendingImageDataUrls] = useState<Map<string, string>>(new Map());
+  const [pendingRetryJob, setPendingRetryJob] = useState<Doc<"receiptAnalysisImageJobs"> | null>(
+    null,
+  );
   const readyDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "ready" }) as
     | AiExpenseDraft[]
     | undefined;
@@ -548,17 +561,7 @@ export function AiExpenseQueuePanel({
       return;
     }
 
-    const fileDataUrls = await Promise.all(
-      files.map(
-        (file) =>
-          new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          }),
-      ),
-    );
+    const fileDataUrls = await Promise.all(files.map(readFileAsDataUrl));
 
     const result = await createBatch({ fileNames: files.map((f) => f.name) });
     if (!result) {
@@ -607,6 +610,21 @@ export function AiExpenseQueuePanel({
     setReviewError("");
   };
 
+  const runRetry = async (job: Doc<"receiptAnalysisImageJobs">, imageDataUrl: string) => {
+    setRetryError("");
+    setPendingImageDataUrls((current) => {
+      const next = new Map(current);
+      next.set(job._id, imageDataUrl);
+      return next;
+    });
+    try {
+      await retryImageJob({ jobId: job._id });
+      await analyzeImageJob({ jobId: job._id, imageDataUrl });
+    } catch (err) {
+      setRetryError(err instanceof Error ? err.message : "再試行に失敗しました");
+    }
+  };
+
   const handleRetry = async (draftId: string) => {
     setRetryError("");
     const job = jobs?.find((j) => j.draftId === draftId);
@@ -616,15 +634,23 @@ export function AiExpenseQueuePanel({
     }
     const imageDataUrl = pendingImageDataUrls.get(job._id);
     if (!imageDataUrl) {
-      setRetryError("画像データが見つかりません。再度アップロードしてください");
+      setPendingRetryJob(job);
+      retryInputRef.current?.click();
       return;
     }
-    try {
-      await retryImageJob({ jobId: job._id });
-      await analyzeImageJob({ jobId: job._id, imageDataUrl });
-    } catch (err) {
-      setRetryError(err instanceof Error ? err.message : "再試行に失敗しました");
+    await runRetry(job, imageDataUrl);
+  };
+
+  const handleRetryFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    const job = pendingRetryJob;
+    event.target.value = "";
+    setPendingRetryJob(null);
+    if (!file || !job) {
+      return;
     }
+    const imageDataUrl = await readFileAsDataUrl(file);
+    await runRetry(job, imageDataUrl);
   };
 
   const handleReviewFieldChange = (field: keyof ReviewFormValues, value: string) => {
@@ -761,6 +787,15 @@ export function AiExpenseQueuePanel({
             multiple
             onChange={handleFilesSelected}
             ref={inputRef}
+            tabIndex={-1}
+            type="file"
+          />
+          <input
+            accept="image/*"
+            aria-label="再試行する画像を選択"
+            className="visually-hidden-file-input"
+            onChange={handleRetryFileSelected}
+            ref={retryInputRef}
             tabIndex={-1}
             type="file"
           />

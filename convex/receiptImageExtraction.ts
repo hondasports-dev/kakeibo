@@ -9,6 +9,7 @@ import { requireAuthenticatedUserId } from "./users";
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */
 const MAX_IMAGE_DATA_URL_LENGTH = 900_000;
+const JAPAN_TIME_ZONE = "Asia/Tokyo";
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -233,14 +234,27 @@ function parseOptionalConfidenceScore(value: unknown, fieldName: string): number
 // ---------------------------------------------------------------------------
 
 /** mock モード用のダミーレスポンス */
+function getTodayDateStringInJapan() {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: JAPAN_TIME_ZONE,
+    year: "numeric",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new ConvexError("mock 日付の生成に失敗しました");
+  }
+  return `${year}-${month}-${day}`;
+}
+
 function getMockResult(): ExtractReceiptFieldsResult {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, "0");
-  const dd = String(today.getDate()).padStart(2, "0");
   return {
     shopName: "サンプルストア",
-    date: `${yyyy}-${mm}-${dd}`,
+    date: getTodayDateStringInJapan(),
     amountYen: 1234,
     documentType: "receipt",
     categoryName: "食費",

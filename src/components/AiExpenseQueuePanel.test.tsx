@@ -194,6 +194,39 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();
   });
 
+  it("失敗ジョブの画像を選び直して再試行できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.listJobs") {
+        return [
+          {
+            _id: "job-failed",
+            draftId: "draft-failed",
+            fileName: "failed-receipt.png",
+            status: "failed",
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
+
+    await user.click(screen.getByRole("button", { name: "再試行" }));
+    await user.upload(
+      screen.getByLabelText("再試行する画像を選択"),
+      new File(["retry"], "failed-receipt-retry.png", { type: "image/png" }),
+    );
+
+    await waitFor(() => {
+      expect(retryImageJobMock).toHaveBeenCalledWith({ jobId: "job-failed" });
+      expect(analyzeImageJobMock).toHaveBeenCalledWith({
+        jobId: "job-failed",
+        imageDataUrl: expect.stringMatching(/^data:image\/png;base64,/),
+      });
+    });
+  });
+
   it("選択した ready 下書きだけまとめて登録する", async () => {
     const user = userEvent.setup();
     renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
