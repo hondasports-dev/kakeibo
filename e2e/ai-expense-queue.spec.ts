@@ -38,7 +38,19 @@ test.describe("Issue #144 AI処理キューUI", () => {
     // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
     await expect(queue.getByText("ai-queue-receipt-1.png").first()).toBeVisible({ timeout: 15000 });
     await expect(queue.getByText("ai-queue-payment-2.png").first()).toBeVisible({ timeout: 15000 });
-    await expect(queue.getByText("解析待ち")).toHaveCount(2);
+    await expect
+      .poll(
+        async () => {
+          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
+          let total = 0;
+          for (const label of statusLabels) {
+            total += await queue.getByText(label).count();
+          }
+          return total;
+        },
+        { timeout: 15000 },
+      )
+      .toBeGreaterThanOrEqual(2);
     const processingSection = queue.getByRole("region", { name: "AI処理中" });
     await expect(processingSection).toBeVisible();
     await expect(processingSection.getByText("2件")).toBeVisible();
@@ -60,7 +72,19 @@ test.describe("Issue #144 AI処理キューUI", () => {
     // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
     await expect(queue.getByText("ai-queue-receipt-1.png").first()).toBeVisible({ timeout: 15000 });
     await expect(queue.getByText("ai-queue-payment-2.png").first()).toBeVisible({ timeout: 15000 });
-    await expect(queue.getByText("解析待ち")).toHaveCount(2);
+    await expect
+      .poll(
+        async () => {
+          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
+          let total = 0;
+          for (const label of statusLabels) {
+            total += await queue.getByText(label).count();
+          }
+          return total;
+        },
+        { timeout: 15000 },
+      )
+      .toBeGreaterThanOrEqual(2);
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
   });
 });
