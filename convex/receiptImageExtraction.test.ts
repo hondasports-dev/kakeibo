@@ -66,6 +66,23 @@ const VALID_IMAGE_DATA_URL = "data:image/jpeg;base64," + "A".repeat(100);
 /** 5MB を超える data URL スタブ */
 const OVERSIZED_IMAGE_DATA_URL = "data:image/jpeg;base64," + "A".repeat(5_000_001);
 
+function getTodayDateStringInJapan() {
+  const parts = new Intl.DateTimeFormat("ja-JP", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Asia/Tokyo",
+    year: "numeric",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    throw new Error("JST 日付の生成に失敗しました");
+  }
+  return `${year}-${month}-${day}`;
+}
+
 // ---------------------------------------------------------------------------
 // テスト
 // ---------------------------------------------------------------------------
@@ -152,6 +169,17 @@ describe("extractReceiptFieldsHandler", () => {
         expect(typeof result.amountYen).toBe("number");
         // date は YYYY-MM-DD 形式
         expect(result.date).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      });
+    });
+
+    it("mock モードの日付はJSTの今日を返す", async () => {
+      await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+        const ctx = createActionCtx(createIdentity());
+        const result = await extractReceiptFieldsHandler(ctx, {
+          imageDataUrl: VALID_IMAGE_DATA_URL,
+        });
+
+        expect(result.date).toBe(getTodayDateStringInJapan());
       });
     });
 

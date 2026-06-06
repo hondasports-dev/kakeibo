@@ -26,14 +26,6 @@ const NON_IMAGE_FILE = {
   buffer: Buffer.from("this is not an image", "utf8"),
 };
 
-function getTodayDateString(): string {
-  const today = new Date();
-  const year = today.getFullYear();
-  const month = String(today.getMonth() + 1).padStart(2, "0");
-  const day = String(today.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
 test.afterEach(async ({ context }) => {
   await context.setOffline(false);
   await cleanupTestReceipts();
@@ -94,7 +86,14 @@ test("I-1: mock モードで画像からレシート候補を抽出し入力フ�
   await expect(amountField).toHaveValue(/1[,，]?234/, { timeout: 5000 });
 
   // mock mode の日付候補が週内日付として反映される
-  await expect(page.locator('input[name="date"]')).toHaveValue(getTodayDateString());
+  const dateInput = page.locator('input[name="date"]');
+  await expect(dateInput).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  const dateValue = await dateInput.inputValue();
+  const minDate = await dateInput.getAttribute("min");
+  const maxDate = await dateInput.getAttribute("max");
+  expect(minDate).not.toBeNull();
+  expect(maxDate).not.toBeNull();
+  expect(dateValue >= minDate! && dateValue <= maxDate!).toBe(true);
 });
 
 // ---------------------------------------------------------------------------
