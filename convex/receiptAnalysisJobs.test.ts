@@ -4,11 +4,13 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  analyzeImageJobHandler,
+  cancelImageJobHandler,
   createBatchHandler,
   listBatchesHandler,
   listJobsByBatchHandler,
   retryImageJobHandler,
-  analyzeImageJobHandler,
+  updateJobStatusHandler,
 } from "./receiptAnalysisJobs";
 
 // ---------------------------------------------------------------------------
@@ -29,6 +31,7 @@ function createMutationCtx(
   opts: {
     docs?: Record<string, unknown>;
     insertedIds?: string[];
+    queryResult?: unknown[];
   } = {},
 ): MutationCtx {
   const insertedIds = opts.insertedIds ?? ["new-batch-id", "new-job-id-0", "new-job-id-1"];
@@ -39,12 +42,18 @@ function createMutationCtx(
     return nextId;
   });
   const patchMock = vi.fn().mockResolvedValue(undefined);
+  const deleteMock = vi.fn().mockResolvedValue(undefined);
   const getMock = vi.fn().mockImplementation(async (id: string) => {
     if (opts.docs && id in opts.docs) {
       return opts.docs[id];
     }
     return null;
   });
+  const queryMock = vi.fn().mockImplementation(() => ({
+    withIndex: vi.fn().mockImplementation(() => ({
+      collect: vi.fn().mockResolvedValue(opts.queryResult ?? []),
+    })),
+  }));
 
   return {
     auth: {
@@ -54,7 +63,8 @@ function createMutationCtx(
       insert: insertMock,
       patch: patchMock,
       get: getMock,
-      query: vi.fn(),
+      delete: deleteMock,
+      query: queryMock,
     },
   } as unknown as MutationCtx;
 }
@@ -231,6 +241,92 @@ describe("retryImageJobHandler", () => {
       "job-1",
       expect.objectContaining({ status: "queued", error: undefined }),
     );
+  });
+});
+
+describe("cancelImageJobHandler", () => {
+  it("未認証ユーザーは実行できない", async () => {
+    const ctx = createMutationCtx(null);
+    await expect(
+      cancelImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> }),
+    ).rejects.toThrow(ConvexError);
+  });
+
+  it("running job を cancelled にしてキューから外せる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          userId: "https://issuer.example|user-001",
+          status: "running",
+        },
+      },
+    });
+
+    await cancelImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "job-1",
+      expect.objectContaining({ status: "cancelled", draftId: undefined }),
+    );
+  });
+
+  it("draft 付き failed job は下書きと明細を削除して cancelled にする", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          userId: "https://issuer.example|user-001",
+          status: "failed",
+          draftId: "draft-1",
+        },
+        "draft-1": {
+          _id: "draft-1",
+          userId: "https://issuer.example|user-001",
+          status: "failed",
+        },
+      },
+      queryResult: [{ _id: "item-1" }],
+    });
+
+    await cancelImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> });
+
+    expect(ctx.db.delete).toHaveBeenCalledWith("item-1");
+    expect(ctx.db.delete).toHaveBeenCalledWith("draft-1");
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "job-1",
+      expect.objectContaining({ status: "cancelled" }),
+    );
+  });
+});
+
+describe("updateJobStatusHandler", () => {
+  it("cancelled job に後続の解析結果が戻っても draft を残さない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          userId: "https://issuer.example|user-001",
+          status: "cancelled",
+        },
+        "draft-1": {
+          _id: "draft-1",
+          userId: "https://issuer.example|user-001",
+          status: "ready",
+        },
+      },
+      queryResult: [{ _id: "item-1" }],
+    });
+
+    await updateJobStatusHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      status: "ready",
+      draftId: "draft-1" as Id<"aiExpenseDrafts">,
+    });
+
+    expect(ctx.db.delete).toHaveBeenCalledWith("item-1");
+    expect(ctx.db.delete).toHaveBeenCalledWith("draft-1");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 });
 

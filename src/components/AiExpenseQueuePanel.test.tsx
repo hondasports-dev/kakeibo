@@ -10,6 +10,8 @@ const {
   createBatchMock,
   analyzeImageJobMock,
   retryImageJobMock,
+  cancelImageJobMock,
+  deleteDraftMock,
   useQueryMock,
 } = vi.hoisted(() => ({
   registerReadyDraftsMock: vi.fn(),
@@ -17,6 +19,8 @@ const {
   createBatchMock: vi.fn(),
   analyzeImageJobMock: vi.fn(),
   retryImageJobMock: vi.fn(),
+  cancelImageJobMock: vi.fn(),
+  deleteDraftMock: vi.fn(),
   useQueryMock: vi.fn(),
 }));
 
@@ -27,12 +31,14 @@ vi.mock("../../convex/_generated/api", () => ({
       listByStatus: "aiExpenseDrafts.listByStatus",
       registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
       updateForReview: "aiExpenseDrafts.updateForReview",
+      deleteDraft: "aiExpenseDrafts.deleteDraft",
     },
     receiptAnalysisJobs: {
       listJobs: "receiptAnalysisJobs.listJobs",
       createBatch: "receiptAnalysisJobs.createBatch",
       analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
       retryImageJob: "receiptAnalysisJobs.retryImageJob",
+      cancelImageJob: "receiptAnalysisJobs.cancelImageJob",
     },
   },
 }));
@@ -40,8 +46,10 @@ vi.mock("../../convex/_generated/api", () => ({
 vi.mock("convex/react", () => ({
   useMutation: (reference: string) => {
     if (reference === "aiExpenseDrafts.updateForReview") return updateForReviewMock;
+    if (reference === "aiExpenseDrafts.deleteDraft") return deleteDraftMock;
     if (reference === "receiptAnalysisJobs.createBatch") return createBatchMock;
     if (reference === "receiptAnalysisJobs.retryImageJob") return retryImageJobMock;
+    if (reference === "receiptAnalysisJobs.cancelImageJob") return cancelImageJobMock;
     return registerReadyDraftsMock;
   },
   useAction: (reference: string) => {
@@ -100,12 +108,10 @@ const queueItems: AiExpenseQueueItem[] = [
   },
 ];
 
-function rejectFileReads() {
+function rejectImageDecoding() {
   return vi
-    .spyOn(FileReader.prototype, "readAsDataURL")
-    .mockImplementation(function (this: FileReader) {
-      this.onerror?.(new ProgressEvent("error") as ProgressEvent<FileReader>);
-    });
+    .spyOn(globalThis, "createImageBitmap")
+    .mockRejectedValueOnce(new Error("画像をデコードできません"));
 }
 
 describe("AiExpenseQueuePanel", () => {
@@ -114,6 +120,11 @@ describe("AiExpenseQueuePanel", () => {
   });
 
   beforeEach(() => {
+    vi.mocked(globalThis.createImageBitmap).mockResolvedValue({
+      width: 100,
+      height: 100,
+      close: vi.fn(),
+    } as unknown as ImageBitmap);
     registerReadyDraftsMock.mockReset();
     registerReadyDraftsMock.mockResolvedValue(undefined);
     updateForReviewMock.mockReset();
@@ -127,6 +138,10 @@ describe("AiExpenseQueuePanel", () => {
     analyzeImageJobMock.mockResolvedValue(undefined);
     retryImageJobMock.mockReset();
     retryImageJobMock.mockResolvedValue(undefined);
+    cancelImageJobMock.mockReset();
+    cancelImageJobMock.mockResolvedValue(undefined);
+    deleteDraftMock.mockReset();
+    deleteDraftMock.mockResolvedValue({ deleted: true });
     useQueryMock.mockReset();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
       if (reference === "receiptAnalysisJobs.listJobs") return [];
@@ -171,11 +186,15 @@ describe("AiExpenseQueuePanel", () => {
       fileNames: ["first-receipt.png", "second-payment.png"],
     });
     expect(analyzeImageJobMock).toHaveBeenCalledTimes(2);
+    expect(analyzeImageJobMock).toHaveBeenCalledWith({
+      jobId: "job-1",
+      imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
+    });
   });
 
   it("画像追加時の読み込み失敗をUIエラーとして表示する", async () => {
     const user = userEvent.setup();
-    const readAsDataUrlSpy = rejectFileReads();
+    const createImageBitmapSpy = rejectImageDecoding();
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
@@ -186,7 +205,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(await screen.findByText(/画像の読み込みに失敗しました/)).toBeInTheDocument();
     expect(createBatchMock).not.toHaveBeenCalled();
     expect(analyzeImageJobMock).not.toHaveBeenCalled();
-    readAsDataUrlSpy.mockRestore();
+    createImageBitmapSpy.mockRestore();
   });
 
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {
@@ -250,14 +269,69 @@ describe("AiExpenseQueuePanel", () => {
       expect(retryImageJobMock).toHaveBeenCalledWith({ jobId: "job-failed" });
       expect(analyzeImageJobMock).toHaveBeenCalledWith({
         jobId: "job-failed",
-        imageDataUrl: expect.stringMatching(/^data:image\/png;base64,/),
+        imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
       });
     });
   });
 
+  it("失敗下書きから手入力へ戻るとキューから削除する", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
+
+    await user.click(screen.getByRole("button", { name: "手入力へ戻る" }));
+
+    await waitFor(() => {
+      expect(deleteDraftMock).toHaveBeenCalledWith({ draftId: "draft-failed" });
+    });
+    expect(screen.queryByText("failed-receipt.png")).not.toBeInTheDocument();
+  });
+
+  it("処理中ジョブをキューから削除できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.listJobs") {
+        return [
+          {
+            _id: "job-running",
+            fileName: "running-receipt.png",
+            status: "running",
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    const processingSection = screen.getByRole("region", { name: "AI処理中" });
+    await user.click(within(processingSection).getByRole("button", { name: "キューから削除" }));
+
+    await waitFor(() => {
+      expect(cancelImageJobMock).toHaveBeenCalledWith({ jobId: "job-running" });
+    });
+    expect(screen.queryByText("running-receipt.png")).not.toBeInTheDocument();
+  });
+
+  it("未登録のキューをまとめてクリアできる", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
+
+    await user.click(screen.getByRole("button", { name: "未登録のキューをクリア（3件）" }));
+
+    await waitFor(() => {
+      expect(deleteDraftMock).toHaveBeenCalledWith({ draftId: "draft-ready" });
+      expect(deleteDraftMock).toHaveBeenCalledWith({ draftId: "draft-review" });
+      expect(deleteDraftMock).toHaveBeenCalledWith({ draftId: "draft-failed" });
+    });
+    expect(screen.queryByText("ok-receipt.png")).not.toBeInTheDocument();
+    expect(screen.queryByText("review-payment.png")).not.toBeInTheDocument();
+    expect(screen.queryByText("failed-receipt.png")).not.toBeInTheDocument();
+    expect(screen.getByText("registered-receipt.png")).toBeInTheDocument();
+  });
+
   it("再試行画像の読み込み失敗をUIエラーとして表示する", async () => {
     const user = userEvent.setup();
-    const readAsDataUrlSpy = rejectFileReads();
+    const createImageBitmapSpy = rejectImageDecoding();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
       if (reference === "receiptAnalysisJobs.listJobs") {
         return [
@@ -283,7 +357,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(await screen.findByText(/画像の読み込みに失敗しました/)).toBeInTheDocument();
     expect(retryImageJobMock).not.toHaveBeenCalled();
     expect(analyzeImageJobMock).not.toHaveBeenCalled();
-    readAsDataUrlSpy.mockRestore();
+    createImageBitmapSpy.mockRestore();
   });
 
   it("選択した ready 下書きだけまとめて登録する", async () => {

@@ -143,6 +143,7 @@ export default defineSchema({
       v.literal("ready"),
       v.literal("needs_review"),
       v.literal("failed"),
+      v.literal("cancelled"),
     ),
     draftId: v.optional(v.id("aiExpenseDrafts")),
     error: v.optional(v.string()),

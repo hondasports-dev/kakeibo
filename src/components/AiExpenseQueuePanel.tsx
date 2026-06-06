@@ -21,10 +21,12 @@ import {
 } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DeleteIcon from "@mui/icons-material/Delete";
 import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
 import HelpIcon from "@mui/icons-material/Help";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import ReplayIcon from "@mui/icons-material/Replay";
+import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../utils/imageDataUrl";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -103,23 +105,6 @@ type ReviewFormValues = {
   amountYen: string;
   categoryId: string;
 };
-
-function readFileAsDataUrl(file: File) {
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(reader.error ?? new Error("画像の読み込みに失敗しました"));
-    reader.onabort = () => reject(new Error("画像の読み込みがキャンセルされました"));
-    reader.readAsDataURL(file);
-  });
-}
-
-function getFileReadErrorMessage(error: unknown) {
-  if (error instanceof Error && error.message) {
-    return `画像の読み込みに失敗しました: ${error.message}`;
-  }
-  return "画像の読み込みに失敗しました";
-}
 
 const statusLabels: Record<AiExpenseQueueStatus, string> = {
   adding: "追加中",
@@ -260,14 +245,21 @@ function QueueItemCard({
   onToggleReadySelection,
   onOpenReview,
   onRetry,
+  onDelete,
+  onReturnToManualInput,
+  isDeleting,
 }: {
   item: AiExpenseQueueItem;
   isSelected: boolean;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
   onOpenReview: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
+  onDelete?: (item: AiExpenseQueueItem) => void;
+  onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
+  isDeleting: boolean;
 }) {
   const secondaryLabel = item.fileName ?? "AI支出下書き";
+  const canDelete = item.status !== "registered" && item.status !== "registering";
 
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
@@ -338,15 +330,27 @@ function QueueItemCard({
         )}
 
         {item.status === "needs_review" && (
-          <Button
-            onClick={() => onOpenReview(item.id)}
-            size="small"
-            type="button"
-            variant="outlined"
-            sx={{ alignSelf: "flex-start" }}
-          >
-            下書きを確認
-          </Button>
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+            <Button
+              onClick={() => onOpenReview(item.id)}
+              size="small"
+              type="button"
+              variant="outlined"
+            >
+              下書きを確認
+            </Button>
+            <Button
+              color="error"
+              disabled={isDeleting}
+              onClick={() => onDelete?.(item)}
+              size="small"
+              startIcon={<DeleteIcon fontSize="small" />}
+              type="button"
+              variant="text"
+            >
+              キューから削除
+            </Button>
+          </Stack>
         )}
 
         {item.status === "failed" && (
@@ -360,11 +364,44 @@ function QueueItemCard({
             >
               再試行
             </Button>
-            <Button size="small" type="button" variant="text">
+            <Button
+              disabled={isDeleting}
+              onClick={() => onReturnToManualInput?.(item)}
+              size="small"
+              type="button"
+              variant="text"
+            >
               手入力へ戻る
+            </Button>
+            <Button
+              color="error"
+              disabled={isDeleting}
+              onClick={() => onDelete?.(item)}
+              size="small"
+              startIcon={<DeleteIcon fontSize="small" />}
+              type="button"
+              variant="text"
+            >
+              キューから削除
             </Button>
           </Stack>
         )}
+
+        {(item.status === "queued" || item.status === "analyzing" || item.status === "ready") &&
+          canDelete && (
+            <Button
+              color="error"
+              disabled={isDeleting}
+              onClick={() => onDelete?.(item)}
+              size="small"
+              startIcon={<DeleteIcon fontSize="small" />}
+              type="button"
+              variant="text"
+              sx={{ alignSelf: "flex-start" }}
+            >
+              キューから削除
+            </Button>
+          )}
       </Stack>
     </Box>
   );
@@ -377,6 +414,9 @@ function QueueSection({
   onToggleReadySelection,
   onOpenReview,
   onRetry,
+  onDelete,
+  onReturnToManualInput,
+  deletingIds,
 }: {
   label: string;
   items: AiExpenseQueueItem[];
@@ -384,6 +424,9 @@ function QueueSection({
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
   onOpenReview: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
+  onDelete?: (item: AiExpenseQueueItem) => void;
+  onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
+  deletingIds: string[];
 }) {
   if (items.length === 0) {
     return null;
@@ -403,9 +446,12 @@ function QueueSection({
             <QueueItemCard
               isSelected={selectedReadyIds.includes(item.id)}
               item={item}
+              isDeleting={deletingIds.includes(item.id)}
               key={item.id}
+              onDelete={onDelete}
               onOpenReview={onOpenReview}
               onRetry={onRetry}
+              onReturnToManualInput={onReturnToManualInput}
               onToggleReadySelection={onToggleReadySelection}
             />
           ))}
@@ -428,6 +474,9 @@ export function AiExpenseQueuePanel({
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const [registrationError, setRegistrationError] = useState("");
   const [retryError, setRetryError] = useState("");
+  const [queueDeleteError, setQueueDeleteError] = useState("");
+  const [deletingIds, setDeletingIds] = useState<string[]>([]);
+  const [hiddenItemIds, setHiddenItemIds] = useState<string[]>([]);
   const [selectedReviewDraftId, setSelectedReviewDraftId] = useState<string | null>(null);
   const [initializedReviewDraftId, setInitializedReviewDraftId] = useState<string | null>(null);
   const [reviewForm, setReviewForm] = useState<ReviewFormValues>(emptyReviewForm);
@@ -464,8 +513,10 @@ export function AiExpenseQueuePanel({
   const createBatch = useMutation(api.receiptAnalysisJobs.createBatch);
   const analyzeImageJob = useAction(api.receiptAnalysisJobs.analyzeImageJob);
   const retryImageJob = useMutation(api.receiptAnalysisJobs.retryImageJob);
+  const cancelImageJob = useMutation(api.receiptAnalysisJobs.cancelImageJob);
   const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
   const updateForReview = useMutation(api.aiExpenseDrafts.updateForReview);
+  const deleteDraft = useMutation(api.aiExpenseDrafts.deleteDraft);
   const selectedReviewDraft = localReviewDraft
     ? localReviewDraft
     : isDraftWithItems(selectedReviewDraftDetails)
@@ -518,11 +569,13 @@ export function AiExpenseQueuePanel({
     // initialItems が渡されている場合は、元のテストデータやローカル状態を優先し、
     // draft 由来の liveItems は置き換える（dev DB のゴミデータによる重複を防ぐ）
     if (initialItems && initialItems.length > 0) {
-      return [...initialItems, ...processingItems];
+      return [...initialItems, ...processingItems].filter(
+        (item) => !hiddenItemIds.includes(item.id),
+      );
     }
     // liveItems は既に processingItems を含むため、ここでは liveItems のみを使う
-    return liveItems;
-  }, [initialItems, processingItems, liveItems]);
+    return liveItems.filter((item) => !hiddenItemIds.includes(item.id));
+  }, [hiddenItemIds, initialItems, processingItems, liveItems]);
   const readyItems = useMemo(
     () => items.filter((item) => getSectionKey(item.status) === "ready"),
     [items],
@@ -535,6 +588,9 @@ export function AiExpenseQueuePanel({
     failed: items.filter((item) => getSectionKey(item.status) === "failed"),
     registered: items.filter((item) => getSectionKey(item.status) === "registered"),
   };
+  const clearableItems = items.filter(
+    (item) => item.status !== "registered" && item.status !== "registering",
+  );
 
   useEffect(() => {
     const previousReadyItemIds = previousReadyItemIdsRef.current;
@@ -571,9 +627,9 @@ export function AiExpenseQueuePanel({
 
     let fileDataUrls: string[];
     try {
-      fileDataUrls = await Promise.all(files.map(readFileAsDataUrl));
+      fileDataUrls = await Promise.all(files.map(resizeImageFileToDataUrl));
     } catch (err) {
-      setRetryError(getFileReadErrorMessage(err));
+      setRetryError(getImageFileErrorMessage(err));
       event.target.value = "";
       return;
     }
@@ -665,10 +721,41 @@ export function AiExpenseQueuePanel({
       return;
     }
     try {
-      const imageDataUrl = await readFileAsDataUrl(file);
+      const imageDataUrl = await resizeImageFileToDataUrl(file);
       await runRetry(job, imageDataUrl);
     } catch (err) {
-      setRetryError(getFileReadErrorMessage(err));
+      setRetryError(getImageFileErrorMessage(err));
+    }
+  };
+
+  const deleteQueueItem = async (item: AiExpenseQueueItem) => {
+    if (deletingIds.includes(item.id)) {
+      return;
+    }
+    setQueueDeleteError("");
+    setDeletingIds((current) => [...current, item.id]);
+    try {
+      if (item.status === "queued" || item.status === "analyzing") {
+        await cancelImageJob({ jobId: item.id as Id<"receiptAnalysisImageJobs"> });
+      } else {
+        await deleteDraft({ draftId: item.id as Id<"aiExpenseDrafts"> });
+      }
+      setHiddenItemIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+      setSelectedReadyIds((current) => current.filter((id) => id !== item.id));
+    } catch (error) {
+      setQueueDeleteError(
+        error instanceof Error
+          ? error.message
+          : "キューから削除できませんでした。もう一度お試しください。",
+      );
+    } finally {
+      setDeletingIds((current) => current.filter((id) => id !== item.id));
+    }
+  };
+
+  const handleClearOpenQueue = async () => {
+    for (const item of clearableItems) {
+      await deleteQueueItem(item);
     }
   };
 
@@ -826,6 +913,12 @@ export function AiExpenseQueuePanel({
           </Alert>
         )}
 
+        {queueDeleteError && (
+          <Alert severity="error" variant="outlined" onClose={() => setQueueDeleteError("")}>
+            {queueDeleteError}
+          </Alert>
+        )}
+
         {items.length === 0 ? (
           <Alert severity="info" variant="outlined">
             追加した画像はここに状態別で表示されます。
@@ -848,6 +941,20 @@ export function AiExpenseQueuePanel({
               <Chip label={`失敗 ${groupedItems.failed.length}件`} size="small" color="error" />
             </Stack>
 
+            {clearableItems.length > 0 && (
+              <Button
+                color="error"
+                disabled={deletingIds.length > 0}
+                onClick={() => void handleClearOpenQueue()}
+                startIcon={<DeleteIcon />}
+                type="button"
+                variant="outlined"
+                sx={{ alignSelf: "flex-start" }}
+              >
+                未登録のキューをクリア（{clearableItems.length}件）
+              </Button>
+            )}
+
             {readyItems.length > 0 && (
               <Button
                 color="primary"
@@ -869,29 +976,41 @@ export function AiExpenseQueuePanel({
               items={groupedItems.processing}
               selectedReadyIds={selectedReadyIds}
               onOpenReview={handleOpenReview}
+              onDelete={(item) => void deleteQueueItem(item)}
+              onReturnToManualInput={(item) => void deleteQueueItem(item)}
               onToggleReadySelection={handleToggleReadySelection}
+              deletingIds={deletingIds}
             />
             <QueueSection
               label="登録準備OK"
               items={groupedItems.ready}
               selectedReadyIds={selectedReadyIds}
               onOpenReview={handleOpenReview}
+              onDelete={(item) => void deleteQueueItem(item)}
+              onReturnToManualInput={(item) => void deleteQueueItem(item)}
               onToggleReadySelection={handleToggleReadySelection}
+              deletingIds={deletingIds}
             />
             <QueueSection
               label="確認が必要"
               items={groupedItems.needs_review}
               selectedReadyIds={selectedReadyIds}
               onOpenReview={handleOpenReview}
+              onDelete={(item) => void deleteQueueItem(item)}
+              onReturnToManualInput={(item) => void deleteQueueItem(item)}
               onToggleReadySelection={handleToggleReadySelection}
+              deletingIds={deletingIds}
             />
             <QueueSection
               label="失敗"
               items={groupedItems.failed}
               selectedReadyIds={selectedReadyIds}
               onOpenReview={handleOpenReview}
+              onDelete={(item) => void deleteQueueItem(item)}
               onRetry={handleRetry}
+              onReturnToManualInput={(item) => void deleteQueueItem(item)}
               onToggleReadySelection={handleToggleReadySelection}
+              deletingIds={deletingIds}
             />
             <QueueSection
               label="登録済み"
@@ -899,6 +1018,7 @@ export function AiExpenseQueuePanel({
               selectedReadyIds={selectedReadyIds}
               onOpenReview={handleOpenReview}
               onToggleReadySelection={handleToggleReadySelection}
+              deletingIds={deletingIds}
             />
           </Stack>
         )}

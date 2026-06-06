@@ -16,6 +16,7 @@ const jobStatusValidator = v.union(
   v.literal("ready"),
   v.literal("needs_review"),
   v.literal("failed"),
+  v.literal("cancelled"),
 );
 
 // ---------------------------------------------------------------------------
@@ -32,6 +33,10 @@ export type AnalyzeImageJobArgs = {
 };
 
 export type RetryImageJobArgs = {
+  jobId: Id<"receiptAnalysisImageJobs">;
+};
+
+export type CancelImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
 };
 
@@ -164,6 +169,13 @@ export async function updateJobStatusHandler(
     throw new ConvexError("Job not found");
   }
 
+  if (job.status === "cancelled") {
+    if (args.draftId !== undefined) {
+      await deleteDraftAndItems(ctx, args.draftId, job.userId);
+    }
+    return;
+  }
+
   const patch: Partial<Doc<"receiptAnalysisImageJobs">> = {
     status: args.status,
     updatedAt: Date.now(),
@@ -281,6 +293,24 @@ export const getJobByDraftId = query({
   },
   handler: getJobByDraftIdHandler,
 });
+
+async function deleteDraftAndItems(
+  ctx: Pick<MutationCtx, "db">,
+  draftId: Id<"aiExpenseDrafts">,
+  userId: string,
+) {
+  const draft = await ctx.db.get(draftId);
+  if (!draft || draft.userId !== userId || draft.status === "registered") {
+    return;
+  }
+
+  const items = await ctx.db
+    .query("aiExpenseDraftItems")
+    .withIndex("by_user_id_and_draft_id", (q) => q.eq("userId", userId).eq("draftId", draftId))
+    .collect();
+  await Promise.all(items.map((item) => ctx.db.delete(item._id)));
+  await ctx.db.delete(draftId);
+}
 
 // ---------------------------------------------------------------------------
 // Action: analyze image job
@@ -414,4 +444,36 @@ export const retryImageJob = mutation({
     jobId: v.id("receiptAnalysisImageJobs"),
   },
   handler: retryImageJobHandler,
+});
+
+// ---------------------------------------------------------------------------
+// Cancel
+// ---------------------------------------------------------------------------
+
+export async function cancelImageJobHandler(ctx: MutationCtx, args: CancelImageJobArgs) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const job = await ctx.db.get(args.jobId);
+  if (!job || job.userId !== userId) {
+    throw new ConvexError("Job not found");
+  }
+  if (job.status === "ready" || job.status === "needs_review") {
+    throw new ConvexError("Ready jobs must be removed from the draft queue");
+  }
+  if (job.draftId !== undefined) {
+    await deleteDraftAndItems(ctx, job.draftId, userId);
+  }
+
+  await ctx.db.patch(args.jobId, {
+    status: "cancelled",
+    error: undefined,
+    draftId: undefined,
+    updatedAt: Date.now(),
+  });
+}
+
+export const cancelImageJob = mutation({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+  },
+  handler: cancelImageJobHandler,
 });
