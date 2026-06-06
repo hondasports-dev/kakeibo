@@ -1,6 +1,6 @@
-import { Buffer } from "node:buffer";
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
+import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
  * Issue #144: 支出AI登録のAI処理キューUI
@@ -11,19 +11,6 @@ import { gotoAuthenticated } from "./helpers/auth";
  */
 
 const INPUT_PATH = "/weeks/current/input";
-const queueFiles = [
-  {
-    name: "ai-queue-receipt-1.png",
-    mimeType: "image/png",
-    buffer: Buffer.from("receipt 1", "utf8"),
-  },
-  {
-    name: "ai-queue-payment-2.png",
-    mimeType: "image/png",
-    buffer: Buffer.from("payment 2", "utf8"),
-  },
-];
-
 test.describe("Issue #144 AI処理キューUI", () => {
   test("@smoke 複数画像をAI処理キューに解析待ちとして追加できる", async ({ page }) => {
     await gotoAuthenticated(page, INPUT_PATH);
@@ -32,6 +19,10 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(queue).toBeVisible();
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
 
+    const queueFiles = [
+      await createSyntheticReceiptImage(page, "ai-queue-receipt-1.jpg"),
+      await createSyntheticReceiptImage(page, "ai-queue-payment-2.jpg"),
+    ];
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
@@ -66,6 +57,10 @@ test.describe("Issue #144 AI処理キューUI", () => {
 
     const queue = page.getByRole("region", { name: "AI処理キュー" });
     await expect(queue).toBeVisible();
+    const queueFiles = [
+      await createSyntheticReceiptImage(page, "ai-queue-receipt-1.jpg"),
+      await createSyntheticReceiptImage(page, "ai-queue-payment-2.jpg"),
+    ];
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
