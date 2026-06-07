@@ -99,8 +99,20 @@ jobs:
                 }
               } else if (forkPr) {
                 reason = `fork PR #${forkPr.number} from ${forkPr.head.repo?.full_name}`
-              } else if (sameRepoBranch) {
-                trusted = true
+              } else {
+                const branches = await github.paginate(github.rest.repos.listBranches, {
+                  owner,
+                  repo,
+                  per_page: 100,
+                })
+                const sameRepoBranchTip = branches.find((branch) => branch.commit?.sha === commitSha)
+
+                if (sameRepoBranchTip) {
+                  trusted = true
+                  reason = `same-repository branch ${sameRepoBranchTip.name}`
+                } else if (sameRepoBranch) {
+                  trusted = true
+                }
               }
             }
 
