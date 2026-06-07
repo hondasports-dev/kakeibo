@@ -51,6 +51,41 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(page.locator('input[name="amountYen"]')).toBeVisible();
   });
 
+  test("@smoke SP幅では撮影して追加導線が表示され、撮影用inputにcapture属性が付く", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAuthenticated(page, INPUT_PATH);
+
+    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    await expect(queue).toBeVisible();
+    await expect(queue.getByRole("button", { name: "撮影する" })).toBeVisible();
+    await expect(page.getByLabel("AI処理キューへカメラで追加")).toHaveAttribute(
+      "capture",
+      "environment",
+    );
+
+    const cameraFiles = [await createSyntheticReceiptImage(page, "ai-queue-camera-1.jpg")];
+    await page.getByLabel("AI処理キューへカメラで追加").setInputFiles(cameraFiles);
+
+    await expect(queue.getByText("ai-queue-camera-1.png").first()).toBeVisible({
+      timeout: 15000,
+    });
+    await expect
+      .poll(
+        async () => {
+          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
+          let total = 0;
+          for (const label of statusLabels) {
+            total += await queue.getByText(label).count();
+          }
+          return total;
+        },
+        { timeout: 15000 },
+      )
+      .toBeGreaterThanOrEqual(1);
+  });
+
   test("@smoke SP幅でも複数画像追加後のキューと入力導線を操作できる", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, INPUT_PATH);

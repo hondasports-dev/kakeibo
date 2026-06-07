@@ -468,6 +468,7 @@ export function AiExpenseQueuePanel({
   onReviewSubmit,
 }: AiExpenseQueuePanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const retryInputRef = useRef<HTMLInputElement>(null);
   const previousReadyItemIdsRef = useRef<string[]>([]);
   const [selectedReadyIds, setSelectedReadyIds] = useState<string[]>([]);
@@ -877,25 +878,53 @@ export function AiExpenseQueuePanel({
             <Typography color="text.secondary" variant="body2">
               レシート・払込票をまとめて追加できます。
             </Typography>
+            <Typography color="text.secondary" variant="body2">
+              スマートフォンでは撮影、PCでは画像選択から追加できます。
+            </Typography>
           </Box>
-          <Button
-            onClick={() => inputRef.current?.click()}
-            startIcon={<AddPhotoAlternateIcon />}
-            type="button"
-            variant="outlined"
-          >
-            画像を追加
-          </Button>
-          <input
-            accept="image/*"
-            aria-label="AI処理キューへ画像を追加"
-            className="visually-hidden-file-input"
-            multiple
-            onChange={handleFilesSelected}
-            ref={inputRef}
-            tabIndex={-1}
-            type="file"
-          />
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Button
+                onClick={() => cameraInputRef.current?.click()}
+                startIcon={<AddPhotoAlternateIcon />}
+                type="button"
+                variant="contained"
+              >
+                撮影する
+              </Button>
+              <input
+                accept="image/*"
+                aria-label="AI処理キューへカメラで追加"
+                capture="environment"
+                className="visually-hidden-file-input"
+                multiple
+                onChange={handleFilesSelected}
+                ref={cameraInputRef}
+                tabIndex={-1}
+                type="file"
+              />
+            </Box>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+              <Button
+                onClick={() => inputRef.current?.click()}
+                startIcon={<AddPhotoAlternateIcon />}
+                type="button"
+                variant="outlined"
+              >
+                画像を追加
+              </Button>
+              <input
+                accept="image/*"
+                aria-label="AI処理キューへ画像を追加"
+                className="visually-hidden-file-input"
+                multiple
+                onChange={handleFilesSelected}
+                ref={inputRef}
+                tabIndex={-1}
+                type="file"
+              />
+            </Box>
+          </Stack>
           <input
             accept="image/*"
             aria-label="再試行する画像を選択"
