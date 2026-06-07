@@ -203,16 +203,10 @@ function createQueryCtx(
             if (condition.eq !== undefined && value !== condition.eq) {
               return false;
             }
-            if (
-              condition.gte !== undefined &&
-              String(value) < String(condition.gte)
-            ) {
+            if (condition.gte !== undefined && String(value) < String(condition.gte)) {
               return false;
             }
-            if (
-              condition.lte !== undefined &&
-              String(value) > String(condition.lte)
-            ) {
+            if (condition.lte !== undefined && String(value) > String(condition.lte)) {
               return false;
             }
             return true;
@@ -261,7 +255,7 @@ function createQueryCtxForSummary(
   categoryDocs: CategoryDoc[] = [],
   expenseEntryDocs: ExpenseEntryDoc[] = [],
 ): QueryCtx {
-    const makeChain = (docs: unknown[], supportsCollect: boolean) => {
+  const makeChain = (docs: unknown[], supportsCollect: boolean) => {
     const collectMock = vi.fn().mockResolvedValue(docs);
     const takeMock = vi.fn().mockImplementation(async (limit?: number) => {
       return typeof limit === "number" ? docs.slice(0, limit) : docs;
@@ -277,56 +271,50 @@ function createQueryCtxForSummary(
       chain.collect = collectMock;
     }
     (chain.order as ReturnType<typeof vi.fn>).mockReturnValue(chain);
-      const withIndexMock = vi
-        .fn()
-        .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
-          const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
-          const q = {
-            eq: vi.fn().mockImplementation((field: string, value: unknown) => {
-              filters[field] ??= {};
-              filters[field].eq = value;
-              return q;
-            }),
-            gte: vi.fn().mockImplementation((field: string, value: unknown) => {
-              filters[field] ??= {};
-              filters[field].gte = value;
-              return q;
-            }),
-            lte: vi.fn().mockImplementation((field: string, value: unknown) => {
-              filters[field] ??= {};
-              filters[field].lte = value;
-              return q;
-            }),
-          };
-          builder(q);
-          const filteredDocs = docs.filter((doc) => {
-            if (typeof doc !== "object" || doc === null) {
+    const withIndexMock = vi
+      .fn()
+      .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+        const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
+        const q = {
+          eq: vi.fn().mockImplementation((field: string, value: unknown) => {
+            filters[field] ??= {};
+            filters[field].eq = value;
+            return q;
+          }),
+          gte: vi.fn().mockImplementation((field: string, value: unknown) => {
+            filters[field] ??= {};
+            filters[field].gte = value;
+            return q;
+          }),
+          lte: vi.fn().mockImplementation((field: string, value: unknown) => {
+            filters[field] ??= {};
+            filters[field].lte = value;
+            return q;
+          }),
+        };
+        builder(q);
+        const filteredDocs = docs.filter((doc) => {
+          if (typeof doc !== "object" || doc === null) {
+            return true;
+          }
+          return Object.entries(filters).every(([field, condition]) => {
+            if (!(field in doc)) {
               return true;
             }
-            return Object.entries(filters).every(([field, condition]) => {
-              if (!(field in doc)) {
-                return true;
-              }
-              const value = (doc as Record<string, unknown>)[field];
-              if (condition.eq !== undefined && value !== condition.eq) {
-                return false;
-              }
-              if (
-                condition.gte !== undefined &&
-                String(value) < String(condition.gte)
-              ) {
-                return false;
-              }
-              if (
-                condition.lte !== undefined &&
-                String(value) > String(condition.lte)
-              ) {
-                return false;
-              }
-              return true;
-            });
+            const value = (doc as Record<string, unknown>)[field];
+            if (condition.eq !== undefined && value !== condition.eq) {
+              return false;
+            }
+            if (condition.gte !== undefined && String(value) < String(condition.gte)) {
+              return false;
+            }
+            if (condition.lte !== undefined && String(value) > String(condition.lte)) {
+              return false;
+            }
+            return true;
           });
-          const filteredChain: Record<string, unknown> = {
+        });
+        const filteredChain: Record<string, unknown> = {
           take: vi.fn().mockImplementation(async (limit?: number) => {
             return typeof limit === "number" ? filteredDocs.slice(0, limit) : filteredDocs;
           }),
