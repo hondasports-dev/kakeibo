@@ -94,6 +94,11 @@ type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
 };
 
+type DeleteDraftsByUserBatchArgs = {
+  userId: string;
+  limit?: number;
+};
+
 function mergeReviewReasons(
   computedReasons: AiExpenseDraftReviewReason[],
   explicitReasons: AiExpenseDraftReviewReason[] | undefined,
@@ -356,6 +361,50 @@ export const deleteDraft = mutation({
     draftId: v.id("aiExpenseDrafts"),
   },
   handler: deleteDraftHandler,
+});
+
+export async function deleteDraftsByUserBatchHandler(
+  ctx: MutationCtx,
+  args: DeleteDraftsByUserBatchArgs,
+) {
+  const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
+  const drafts = await ctx.db
+    .query("aiExpenseDrafts")
+    .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", args.userId))
+    .order("asc")
+    .take(limit);
+
+  let deletedDraftCount = 0;
+  let deletedItemCount = 0;
+
+  for (const draft of drafts) {
+    const items = await ctx.db
+      .query("aiExpenseDraftItems")
+      .withIndex("by_user_id_and_draft_id", (q) =>
+        q.eq("userId", args.userId).eq("draftId", draft._id),
+      )
+      .take(100);
+    for (const item of items) {
+      await ctx.db.delete(item._id);
+      deletedItemCount += 1;
+    }
+    await ctx.db.delete(draft._id);
+    deletedDraftCount += 1;
+  }
+
+  return {
+    deletedDraftCount,
+    deletedItemCount,
+    hasMore: drafts.length === limit,
+  };
+}
+
+export const deleteDraftsByUserBatch = internalMutation({
+  args: {
+    userId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: deleteDraftsByUserBatchHandler,
 });
 
 export async function listByStatusHandler(ctx: QueryCtx, args: ListByStatusArgs) {

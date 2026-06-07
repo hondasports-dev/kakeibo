@@ -35,6 +35,16 @@ export async function cleanupTestReceipts(): Promise<void> {
 }
 
 /**
+ * テスト中に作成した AI 支出キュー関連データを削除する。
+ */
+export async function cleanupAiExpenseQueue(): Promise<void> {
+  await callCleanupEndpoint({
+    userId: getCleanupUserId(),
+    clearAiExpenseQueue: true,
+  });
+}
+
+/**
  * テスト中に作成した E2E 専用カテゴリを削除する。
  */
 export async function cleanupTestCategories(): Promise<void> {
@@ -75,6 +85,7 @@ async function callCleanupEndpoint(body: {
   weekStartDate?: string;
   deleteE2eCategories?: boolean;
   clearMonthlyIncome?: boolean;
+  clearAiExpenseQueue?: boolean;
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
@@ -111,6 +122,12 @@ async function callCleanupEndpoint(body: {
 
   const data = (await res.json()) as {
     receipts?: { deletedCount: number };
+    aiExpenseQueue?: {
+      deletedDraftCount: number;
+      deletedItemCount: number;
+      deletedBatchCount: number;
+      deletedJobCount: number;
+    } | null;
     categories?: { deletedCount: number } | null;
     deletedCount?: number;
     weekSession?: { reset: boolean } | null;
@@ -125,5 +142,21 @@ async function callCleanupEndpoint(body: {
   }
   if (data.categories && data.categories.deletedCount > 0) {
     console.log(`[cleanup] ${data.categories.deletedCount} 件のカテゴリを削除しました。`);
+  }
+  if (data.aiExpenseQueue) {
+    const total =
+      data.aiExpenseQueue.deletedDraftCount +
+      data.aiExpenseQueue.deletedItemCount +
+      data.aiExpenseQueue.deletedBatchCount +
+      data.aiExpenseQueue.deletedJobCount;
+    if (total > 0) {
+      console.log(
+        `[cleanup] AI キュー関連データを削除しました。` +
+          ` drafts=${data.aiExpenseQueue.deletedDraftCount}` +
+          ` items=${data.aiExpenseQueue.deletedItemCount}` +
+          ` batches=${data.aiExpenseQueue.deletedBatchCount}` +
+          ` jobs=${data.aiExpenseQueue.deletedJobCount}`,
+      );
+    }
   }
 }

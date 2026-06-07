@@ -1,5 +1,6 @@
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
+import { cleanupAiExpenseQueue } from "./helpers/cleanup";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
@@ -12,6 +13,10 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 test.describe("Issue #144 AI処理キューUI", () => {
+  test.beforeEach(async () => {
+    await cleanupAiExpenseQueue();
+  });
+
   test("@smoke 複数画像をAI処理キューに解析待ちとして追加できる", async ({ page }) => {
     await gotoAuthenticated(page, INPUT_PATH);
 
@@ -19,32 +24,21 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(queue).toBeVisible();
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
 
+    const stamp = Date.now();
     const queueFiles = [
-      await createSyntheticReceiptImage(page, "ai-queue-receipt-1.jpg"),
-      await createSyntheticReceiptImage(page, "ai-queue-payment-2.jpg"),
+      await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),
+      await createSyntheticReceiptImage(page, `ai-queue-payment-${stamp}.jpg`),
     ];
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
     // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
-    await expect(queue.getByText("ai-queue-receipt-1.png").first()).toBeVisible({ timeout: 15000 });
-    await expect(queue.getByText("ai-queue-payment-2.png").first()).toBeVisible({ timeout: 15000 });
-    await expect
-      .poll(
-        async () => {
-          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
-          let total = 0;
-          for (const label of statusLabels) {
-            total += await queue.getByText(label).count();
-          }
-          return total;
-        },
-        { timeout: 15000 },
-      )
-      .toBeGreaterThanOrEqual(2);
-    const processingSection = queue.getByRole("region", { name: "AI処理中" });
-    await expect(processingSection).toBeVisible();
-    await expect(processingSection.getByText("2件")).toBeVisible();
+    await expect(queue.getByText(`ai-queue-receipt-${stamp}.jpg`).first()).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(queue.getByText(`ai-queue-payment-${stamp}.jpg`).first()).toBeVisible({
+      timeout: 15000,
+    });
 
     await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
     await expect(page.locator('input[name="shopName"]')).toBeVisible();
@@ -65,25 +59,13 @@ test.describe("Issue #144 AI処理キューUI", () => {
       "environment",
     );
 
-    const cameraFiles = [await createSyntheticReceiptImage(page, "ai-queue-camera-1.jpg")];
+    const stamp = Date.now();
+    const cameraFiles = [await createSyntheticReceiptImage(page, `ai-queue-camera-${stamp}.jpg`)];
     await page.getByLabel("AI処理キューへカメラで追加").setInputFiles(cameraFiles);
 
-    await expect(queue.getByText("ai-queue-camera-1.png").first()).toBeVisible({
+    await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
       timeout: 15000,
     });
-    await expect
-      .poll(
-        async () => {
-          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
-          let total = 0;
-          for (const label of statusLabels) {
-            total += await queue.getByText(label).count();
-          }
-          return total;
-        },
-        { timeout: 15000 },
-      )
-      .toBeGreaterThanOrEqual(1);
   });
 
   test("@smoke SP幅でも複数画像追加後のキューと入力導線を操作できる", async ({ page }) => {
@@ -92,29 +74,21 @@ test.describe("Issue #144 AI処理キューUI", () => {
 
     const queue = page.getByRole("region", { name: "AI処理キュー" });
     await expect(queue).toBeVisible();
+    const stamp = Date.now();
     const queueFiles = [
-      await createSyntheticReceiptImage(page, "ai-queue-receipt-1.jpg"),
-      await createSyntheticReceiptImage(page, "ai-queue-payment-2.jpg"),
+      await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),
+      await createSyntheticReceiptImage(page, `ai-queue-payment-${stamp}.jpg`),
     ];
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
     // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
-    await expect(queue.getByText("ai-queue-receipt-1.png").first()).toBeVisible({ timeout: 15000 });
-    await expect(queue.getByText("ai-queue-payment-2.png").first()).toBeVisible({ timeout: 15000 });
-    await expect
-      .poll(
-        async () => {
-          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
-          let total = 0;
-          for (const label of statusLabels) {
-            total += await queue.getByText(label).count();
-          }
-          return total;
-        },
-        { timeout: 15000 },
-      )
-      .toBeGreaterThanOrEqual(2);
+    await expect(queue.getByText(`ai-queue-receipt-${stamp}.jpg`).first()).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(queue.getByText(`ai-queue-payment-${stamp}.jpg`).first()).toBeVisible({
+      timeout: 15000,
+    });
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
   });
 });

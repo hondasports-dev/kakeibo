@@ -40,6 +40,11 @@ export type CancelImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
 };
 
+type DeleteReceiptAnalysisDataByUserBatchArgs = {
+  userId: string;
+  limit?: number;
+};
+
 // ---------------------------------------------------------------------------
 // Create batch
 // ---------------------------------------------------------------------------
@@ -476,4 +481,46 @@ export const cancelImageJob = mutation({
     jobId: v.id("receiptAnalysisImageJobs"),
   },
   handler: cancelImageJobHandler,
+});
+
+export async function deleteReceiptAnalysisDataByUserBatchHandler(
+  ctx: MutationCtx,
+  args: DeleteReceiptAnalysisDataByUserBatchArgs,
+) {
+  const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
+  const batches = await ctx.db
+    .query("receiptAnalysisBatches")
+    .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", args.userId))
+    .order("asc")
+    .take(limit);
+
+  let deletedBatchCount = 0;
+  let deletedJobCount = 0;
+
+  for (const batch of batches) {
+    const jobs = await ctx.db
+      .query("receiptAnalysisImageJobs")
+      .withIndex("by_batch_id", (q) => q.eq("batchId", batch._id))
+      .take(100);
+    for (const job of jobs) {
+      await ctx.db.delete(job._id);
+      deletedJobCount += 1;
+    }
+    await ctx.db.delete(batch._id);
+    deletedBatchCount += 1;
+  }
+
+  return {
+    deletedBatchCount,
+    deletedJobCount,
+    hasMore: batches.length === limit,
+  };
+}
+
+export const deleteReceiptAnalysisDataByUserBatch = internalMutation({
+  args: {
+    userId: v.string(),
+    limit: v.optional(v.number()),
+  },
+  handler: deleteReceiptAnalysisDataByUserBatchHandler,
 });
