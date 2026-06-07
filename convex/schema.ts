@@ -32,6 +32,46 @@ export default defineSchema({
     // 旧 by_user_id インデックスはこのインデックスに一本化した。
     .index("by_token_identifier", ["userId"]),
 
+  sourceDocuments: defineTable({
+    userId: v.string(),
+    sourceType: v.union(
+      v.literal("manual"),
+      v.literal("receipt"),
+      v.literal("convenience_payment"),
+      v.literal("invoice"),
+      v.literal("unknown"),
+    ),
+    status: v.union(v.literal("draft"), v.literal("ready"), v.literal("finalized")),
+    date: v.optional(v.string()),
+    totalAmount: v.optional(v.number()),
+    shopName: v.optional(v.string()),
+    paymentPlace: v.optional(v.string()),
+    payeeName: v.optional(v.string()),
+    paymentPurpose: v.optional(v.string()),
+    imageStorageId: v.optional(v.id("_storage")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id_and_status_and_created_at", ["userId", "status", "createdAt"])
+    .index("by_user_id_and_date", ["userId", "date"]),
+
+  expenseEntries: defineTable({
+    userId: v.string(),
+    sourceDocumentId: v.optional(v.id("sourceDocuments")),
+    date: v.string(),
+    amount: v.number(),
+    categoryId: v.id("categories"),
+    title: v.string(),
+    memo: v.optional(v.string()),
+    entryType: v.union(v.literal("expense"), v.literal("income")),
+    source: v.union(v.literal("manual"), v.literal("ai_suggested"), v.literal("imported")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id_and_date", ["userId", "date"])
+    .index("by_user_id_and_category_id_and_date", ["userId", "categoryId", "date"])
+    .index("by_user_id_and_source_document_id", ["userId", "sourceDocumentId"]),
+
   receipts: defineTable({
     userId: v.string(),
     date: v.string(),
