@@ -85,10 +85,13 @@ http.route({
       let deletedJobCount = 0;
 
       while (true) {
-        const draftResult: { deletedDraftCount: number; deletedItemCount: number; hasMore: boolean } =
-          await ctx.runMutation(internal.aiExpenseDrafts.deleteDraftsByUserBatch, {
-            userId: body.userId,
-          });
+        const draftResult: {
+          deletedDraftCount: number;
+          deletedItemCount: number;
+          hasMore: boolean;
+        } = await ctx.runMutation(internal.aiExpenseDrafts.deleteDraftsByUserBatch, {
+          userId: body.userId,
+        });
         deletedDraftCount += draftResult.deletedDraftCount;
         deletedItemCount += draftResult.deletedItemCount;
         if (!draftResult.hasMore) {
@@ -98,12 +101,9 @@ http.route({
 
       while (true) {
         const jobResult: { deletedBatchCount: number; deletedJobCount: number; hasMore: boolean } =
-          await ctx.runMutation(
-            internal.receiptAnalysisJobs.deleteReceiptAnalysisDataByUserBatch,
-            {
-              userId: body.userId,
-            },
-          );
+          await ctx.runMutation(internal.receiptAnalysisJobs.deleteReceiptAnalysisDataByUserBatch, {
+            userId: body.userId,
+          });
         deletedBatchCount += jobResult.deletedBatchCount;
         deletedJobCount += jobResult.deletedJobCount;
         if (!jobResult.hasMore) {
