@@ -57,8 +57,9 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(processingSection.getByText("2件")).toBeVisible();
 
     await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
-    await expect(page.locator('input[name="shopName"]')).toBeVisible();
-    await expect(page.locator('input[name="amountYen"]')).toBeVisible();
+    // Issue #181: ReceiptForm → ExpenseEntryForm に変更
+    await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
+    await expect(page.getByLabel("合計金額")).toBeVisible();
   });
 
   test("@smoke SP幅では撮影して追加導線が表示され、撮影用inputにcapture属性が付く", async ({
@@ -118,6 +119,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
         { timeout: 15000 },
       )
       .toBeGreaterThanOrEqual(2);
+    // Issue #181: 保存ボタンは変わらず「保存して次へ」
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
   });
 });

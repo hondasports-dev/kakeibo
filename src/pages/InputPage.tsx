@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
 import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { api } from "../../convex/_generated/api";
-import { ReceiptForm } from "../components/ReceiptForm";
+import { ExpenseEntryForm } from "../components/ExpenseEntryForm";
 import { WeekNavigator } from "../components/WeekNavigator";
 import { useInputPageWeek } from "../hooks/useInputPageWeek";
 
@@ -51,7 +51,7 @@ export function InputPage() {
           onNextWeek={goToNextWeek}
         />
 
-        <ReceiptForm
+        <ExpenseEntryForm
           weekStartDate={weekStartDate}
           weekEndDate={weekEndDate}
           categories={categories}

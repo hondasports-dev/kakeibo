@@ -219,9 +219,10 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await gotoAuthenticated(page, "/weeks/current/input");
     await page.setViewportSize({ width: 390, height: 844 });
 
-    // 入力フォームが表示されることを確認
-    await expect(page.locator('input[name="shopName"]')).toBeVisible();
-    await expect(page.locator('input[name="amountYen"]')).toBeVisible();
+    // Issue #181: ReceiptForm → ExpenseEntryForm に変更
+    // 入力フォームが表示されることを確認（aria-label ベースのセレクター）
+    await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
+    await expect(page.getByLabel("合計金額")).toBeVisible();
     await expect(page.getByRole("listbox", { name: "カテゴリ候補" })).toBeVisible();
 
     // サマリーがDOM上に存在しないまたは非表示であることを確認
@@ -235,9 +236,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await gotoAuthenticated(page, "/weeks/current/input");
     await page.setViewportSize({ width: 1280, height: 800 });
 
-    // 入力フォームが表示されることを確認
-    await expect(page.locator('input[name="shopName"]')).toBeVisible();
-    await expect(page.locator('input[name="amountYen"]')).toBeVisible();
+    // Issue #181: ReceiptForm → ExpenseEntryForm に変更
+    await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
+    await expect(page.getByLabel("合計金額")).toBeVisible();
 
     // Issue #77: ReviewMemoPanel は InputPage から SummaryPage に移動した
     // PC幅では WeekNavigator（前の週/次の週ボタン）と入力フォームが表示される
@@ -281,9 +282,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await bottomNavN9.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
 
-    // 入力フォームが表示されることを確認
-    await expect(page.locator('input[name="shopName"]')).toBeVisible();
-    await expect(page.locator('input[name="amountYen"]')).toBeVisible();
+    // Issue #181: ReceiptForm → ExpenseEntryForm に変更
+    await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
+    await expect(page.getByLabel("合計金額")).toBeVisible();
 
     // BottomNavigationも引き続き表示されていることを確認
     await expect(page.getByRole("navigation", { name: "ボトムナビゲーション" })).toBeVisible();
@@ -296,7 +297,8 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.getByText("今週のダッシュボード")).toBeVisible();
 
     await page.goto("/weeks/current/input");
-    await expect(page.locator('input[name="shopName"]')).toBeVisible();
+    // Issue #181: ReceiptForm → ExpenseEntryForm に変更
+    await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
