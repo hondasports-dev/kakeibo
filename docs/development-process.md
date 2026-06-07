@@ -48,6 +48,25 @@ cd ../kakeibo-worktrees/<branch-name>
 - `chore/update-dependencies`
 - `docs/development-process`
 
+## ローカル Git フック
+
+このリポジトリでは、コミット前に `lint-staged` を使って `oxlint` と `oxfmt --check` を
+自動実行します。`package.json` の `prepare: "husky"` と `.husky/pre-commit` がその入口です。
+`oxfmt` の ignore 設定で Markdown は対象外のため、Markdown の整形確認は `git diff --check`
+や目視確認で補います。
+
+### 確認手順
+
+新しい worktree を作った直後や、フックの動作が怪しいときは次を確認します。
+
+1. `pnpm install` を実行して `husky` の初期化を行う。
+2. `git config --get core.hooksPath` が `.husky/_` になっていることを確認する。
+3. `.husky/_` 配下に hook ランチャーが生成されていることを確認する。
+4. ステージした変更に対して `pre-commit` フックが動くことを、実際の commit か `git commit --dry-run` で確認する。
+5. Markdown を含む変更では `git diff --check` も実行し、改行や空白の崩れがないことを確認する。
+
+このフローが壊れている場合は、`pnpm exec husky` で初期化を再実行するか、`pnpm install` をやり直します。
+
 ## Issue 運用
 
 次の変更は、実装作業に入る前に Issue を作成します。調査は Issue 作成前に
