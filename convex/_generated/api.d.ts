@@ -11,6 +11,7 @@
 import type * as aiExpenseDrafts from "../aiExpenseDrafts.js";
 import type * as aiExpenseDraftsModel from "../aiExpenseDraftsModel.js";
 import type * as categories from "../categories.js";
+import type * as expenseEntries from "../expenseEntries.js";
 import type * as http from "../http.js";
 import type * as receiptAnalysisJobs from "../receiptAnalysisJobs.js";
 import type * as receiptImageExtraction from "../receiptImageExtraction.js";
@@ -29,6 +30,7 @@ declare const fullApi: ApiFromModules<{
   aiExpenseDrafts: typeof aiExpenseDrafts;
   aiExpenseDraftsModel: typeof aiExpenseDraftsModel;
   categories: typeof categories;
+  expenseEntries: typeof expenseEntries;
   http: typeof http;
   receiptAnalysisJobs: typeof receiptAnalysisJobs;
   receiptImageExtraction: typeof receiptImageExtraction;
