@@ -459,7 +459,9 @@ export async function getWeekSummaryWithCategoriesHandler(
     new Set(receipts.map((receipt) => receipt.categoryId as Id<"categories">)),
   );
   const categories = await Promise.all(
-    categoryIds.map(async (categoryId): Promise<Doc<"categories"> | null> => ctx.db.get(categoryId)),
+    categoryIds.map(async (categoryId): Promise<Doc<"categories"> | null> => {
+      return await ctx.db.get(categoryId);
+    }),
   );
 
   // カテゴリ情報を id → {name, color} の Map に変換
