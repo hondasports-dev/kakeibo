@@ -72,6 +72,10 @@ jobs:
 
             let trusted = false
             if (commitSha) {
+              // Vercel の deployment_status は、GitHub が commit から PR を即座に
+              // 逆引きできる前に届くことがある。
+              // その場合でも、同一リポジトリの branch tip が deployment の SHA と
+              // 一致していれば、同一ブランチ由来の Preview とみなして E2E を走らせる。
               const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
                 owner,
                 repo,
@@ -100,6 +104,8 @@ jobs:
               } else if (forkPr) {
                 reason = `fork PR #${forkPr.number} from ${forkPr.head.repo?.full_name}`
               } else {
+                // commit -> PR の逆引きがまだ取れない場合の保険。
+                // branch tip が一致するなら、その branch からの Preview と判断する。
                 const branches = await github.paginate(github.rest.repos.listBranches, {
                   owner,
                   repo,
