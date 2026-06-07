@@ -26,13 +26,12 @@ function addDays(dateStr: string, days: number): string {
   return `${y}-${m}-${d}`;
 }
 
-function isDateInWeek(date: string, weekStartDate: string): boolean {
-  for (let i = 0; i < 7; i++) {
-    if (addDays(weekStartDate, i) === date) {
-      return true;
-    }
-  }
-  return false;
+function getMonthEndDate(monthStartDate: string): string {
+  const [yearStr, monthStr] = monthStartDate.split("-");
+  const year = Number(yearStr);
+  const month = Number(monthStr);
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return `${yearStr}-${monthStr}-${String(lastDay).padStart(2, "0")}`;
 }
 
 function mapReceiptToSpendingEntry(receipt: {
@@ -79,60 +78,135 @@ function mapExpenseEntryToSpendingEntry(expenseEntry: {
 }
 
 async function getWeekSpendingEntries(ctx: QueryCtx, userId: string, weekStartDate: string) {
-  const expenseEntries = await ctx.db
+  const weekEndDate = addDays(weekStartDate, 6);
+  const expenseEntries: Array<{
+    _id: string;
+    date: string;
+    amount: number;
+    categoryId: string;
+    title: string;
+    memo?: string;
+    entryType: "expense" | "income";
+  }> = [];
+  for await (const entry of ctx.db
     .query("expenseEntries")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId))
-    .take(500);
-  const expenseEntriesForWeek = expenseEntries.filter((entry) => isDateInWeek(entry.date, weekStartDate));
+    .withIndex("by_user_id_and_date", (q) =>
+      q.eq("userId", userId).gte("date", weekStartDate).lte("date", weekEndDate),
+    )) {
+    expenseEntries.push(entry);
+  }
+  const expenseEntriesForWeek = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (expenseEntriesForWeek.length > 0) {
     return expenseEntriesForWeek.map((entry) => mapExpenseEntryToSpendingEntry(entry));
   }
 
-  const receipts = await ctx.db
+  const receipts: Array<{
+    _id: string;
+    date: string;
+    type?: "expense" | "income";
+    shopName?: string;
+    bankName?: string;
+    amountYen: number;
+    categoryId: string;
+    memo?: string;
+  }> = [];
+  for await (const receipt of ctx.db
     .query("receipts")
     .withIndex("by_user_id_and_week_start_date", (q) =>
       q.eq("userId", userId).eq("weekStartDate", weekStartDate),
     )
-    .order("desc")
-    .take(500);
+    .order("desc")) {
+    receipts.push(receipt);
+  }
 
-  return receipts.map((receipt) => mapReceiptToSpendingEntry(receipt));
+  return receipts
+    .filter((receipt) => receipt.type !== "income")
+    .map((receipt) => mapReceiptToSpendingEntry(receipt));
 }
 
 async function getDateSpendingEntries(ctx: QueryCtx, userId: string, date: string) {
-  const expenseEntries = await ctx.db
+  const expenseEntries: Array<{
+    _id: string;
+    date: string;
+    amount: number;
+    categoryId: string;
+    title: string;
+    memo?: string;
+    entryType: "expense" | "income";
+  }> = [];
+  for await (const entry of ctx.db
     .query("expenseEntries")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date))
-    .take(200);
+    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date))) {
+    expenseEntries.push(entry);
+  }
   if (expenseEntries.length > 0) {
-    return expenseEntries.map((entry) => mapExpenseEntryToSpendingEntry(entry));
+    return expenseEntries
+      .filter((entry) => entry.entryType !== "income")
+      .map((entry) => mapExpenseEntryToSpendingEntry(entry));
   }
 
-  const receipts = await ctx.db
+  const receipts: Array<{
+    _id: string;
+    date: string;
+    type?: "expense" | "income";
+    shopName?: string;
+    bankName?: string;
+    amountYen: number;
+    categoryId: string;
+    memo?: string;
+  }> = [];
+  for await (const receipt of ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date))
-    .take(200);
-  return receipts.map((receipt) => mapReceiptToSpendingEntry(receipt));
+    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date))) {
+    receipts.push(receipt);
+  }
+  return receipts
+    .filter((receipt) => receipt.type !== "income")
+    .map((receipt) => mapReceiptToSpendingEntry(receipt));
 }
 
 async function getMonthSpendingEntries(ctx: QueryCtx, userId: string, monthStartDate: string) {
-  const expenseEntries = await ctx.db
+  const monthEndDate = getMonthEndDate(monthStartDate);
+  const expenseEntries: Array<{
+    _id: string;
+    date: string;
+    amount: number;
+    categoryId: string;
+    title: string;
+    memo?: string;
+    entryType: "expense" | "income";
+  }> = [];
+  for await (const entry of ctx.db
     .query("expenseEntries")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId))
-    .take(1000);
-  const monthExpenseEntries = expenseEntries.filter((entry) =>
-    entry.date.startsWith(monthStartDate),
-  );
+    .withIndex("by_user_id_and_date", (q) =>
+      q.eq("userId", userId).gte("date", monthStartDate).lte("date", monthEndDate),
+    )) {
+    expenseEntries.push(entry);
+  }
+  const monthExpenseEntries = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (monthExpenseEntries.length > 0) {
     return monthExpenseEntries.map((entry) => mapExpenseEntryToSpendingEntry(entry));
   }
 
-  const receipts = await ctx.db
+  const receipts: Array<{
+    _id: string;
+    date: string;
+    type?: "expense" | "income";
+    shopName?: string;
+    bankName?: string;
+    amountYen: number;
+    categoryId: string;
+    memo?: string;
+  }> = [];
+  for await (const receipt of ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) => q.eq("userId", userId))
-    .collect();
+    .withIndex("by_user_id_and_date", (q) =>
+      q.eq("userId", userId).gte("date", monthStartDate).lte("date", monthEndDate),
+    )) {
+    receipts.push(receipt);
+  }
   return receipts
-    .filter((receipt) => receipt.weekStartDate.startsWith(monthStartDate))
+    .filter((receipt) => receipt.type !== "income")
     .map((receipt) => mapReceiptToSpendingEntry(receipt));
 }
 

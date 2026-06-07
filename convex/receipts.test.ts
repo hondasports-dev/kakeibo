@@ -140,6 +140,8 @@ function createMutationCtx(
     .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const q = {
         eq: vi.fn().mockImplementation(() => q),
+        gte: vi.fn().mockImplementation(() => q),
+        lte: vi.fn().mockImplementation(() => q),
       };
       builder(q);
       return queryChain;
@@ -173,20 +175,47 @@ function createQueryCtx(
     withIndex: vi
       .fn()
       .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
-        const filters: Record<string, unknown> = {};
+        const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
         const q = {
           eq: vi.fn().mockImplementation((field: string, value: unknown) => {
-            filters[field] = value;
+            filters[field] ??= {};
+            filters[field].eq = value;
+            return q;
+          }),
+          gte: vi.fn().mockImplementation((field: string, value: unknown) => {
+            filters[field] ??= {};
+            filters[field].gte = value;
+            return q;
+          }),
+          lte: vi.fn().mockImplementation((field: string, value: unknown) => {
+            filters[field] ??= {};
+            filters[field].lte = value;
             return q;
           }),
         };
         builder(q);
         const filteredDocs = docs.filter((doc) =>
-          Object.entries(filters).every(([field, value]) => {
+          Object.entries(filters).every(([field, condition]) => {
             if (!(field in doc)) {
               return true;
             }
-            return (doc as Record<string, unknown>)[field] === value;
+            const value = (doc as Record<string, unknown>)[field];
+            if (condition.eq !== undefined && value !== condition.eq) {
+              return false;
+            }
+            if (
+              condition.gte !== undefined &&
+              String(value) < String(condition.gte)
+            ) {
+              return false;
+            }
+            if (
+              condition.lte !== undefined &&
+              String(value) > String(condition.lte)
+            ) {
+              return false;
+            }
+            return true;
           }),
         );
         const queryChain = {
@@ -232,7 +261,7 @@ function createQueryCtxForSummary(
   categoryDocs: CategoryDoc[] = [],
   expenseEntryDocs: ExpenseEntryDoc[] = [],
 ): QueryCtx {
-  const makeChain = (docs: unknown[], supportsCollect: boolean) => {
+    const makeChain = (docs: unknown[], supportsCollect: boolean) => {
     const collectMock = vi.fn().mockResolvedValue(docs);
     const takeMock = vi.fn().mockImplementation(async (limit?: number) => {
       return typeof limit === "number" ? docs.slice(0, limit) : docs;
@@ -248,29 +277,56 @@ function createQueryCtxForSummary(
       chain.collect = collectMock;
     }
     (chain.order as ReturnType<typeof vi.fn>).mockReturnValue(chain);
-    const withIndexMock = vi
-      .fn()
-      .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
-        const filters: Record<string, unknown> = {};
-        const q = {
-          eq: vi.fn().mockImplementation((field: string, value: unknown) => {
-            filters[field] = value;
-            return q;
-          }),
-        };
-        builder(q);
-        const filteredDocs = docs.filter((doc) => {
-          if (typeof doc !== "object" || doc === null) {
-            return true;
-          }
-          return Object.entries(filters).every(([field, value]) => {
-            if (!(field in doc)) {
+      const withIndexMock = vi
+        .fn()
+        .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+          const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
+          const q = {
+            eq: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].eq = value;
+              return q;
+            }),
+            gte: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].gte = value;
+              return q;
+            }),
+            lte: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].lte = value;
+              return q;
+            }),
+          };
+          builder(q);
+          const filteredDocs = docs.filter((doc) => {
+            if (typeof doc !== "object" || doc === null) {
               return true;
             }
-            return (doc as Record<string, unknown>)[field] === value;
+            return Object.entries(filters).every(([field, condition]) => {
+              if (!(field in doc)) {
+                return true;
+              }
+              const value = (doc as Record<string, unknown>)[field];
+              if (condition.eq !== undefined && value !== condition.eq) {
+                return false;
+              }
+              if (
+                condition.gte !== undefined &&
+                String(value) < String(condition.gte)
+              ) {
+                return false;
+              }
+              if (
+                condition.lte !== undefined &&
+                String(value) > String(condition.lte)
+              ) {
+                return false;
+              }
+              return true;
+            });
           });
-        });
-        const filteredChain: Record<string, unknown> = {
+          const filteredChain: Record<string, unknown> = {
           take: vi.fn().mockImplementation(async (limit?: number) => {
             return typeof limit === "number" ? filteredDocs.slice(0, limit) : filteredDocs;
           }),
@@ -956,6 +1012,19 @@ describe("getWeekSummary", () => {
         createdAt: 1001,
         updatedAt: 1001,
       },
+      {
+        _id: "entry-003",
+        _creationTime: 1002,
+        userId: USER_ID,
+        date: "2024-01-11",
+        amount: 9999,
+        categoryId: "cat-daily",
+        title: "給与",
+        entryType: "income",
+        source: "manual",
+        createdAt: 1002,
+        updatedAt: 1002,
+      },
     ];
     const ctx = createQueryCtx(identity, [receipt], expenseEntries);
 
@@ -969,6 +1038,31 @@ describe("getWeekSummary", () => {
       prevWeekReceiptCount: 0,
       prevWeekTotalAmountYen: null,
     });
+  });
+
+  it("expenseEntries が 500 件を超えても全件を集計する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const expenseEntries: ExpenseEntryDoc[] = Array.from({ length: 501 }, (_, index) => ({
+      _id: `entry-${String(index + 1).padStart(3, "0")}`,
+      _creationTime: 1000 + index,
+      userId: USER_ID,
+      date: "2024-01-10",
+      amount: 1,
+      categoryId: "cat-daily",
+      title: `明細${index + 1}`,
+      entryType: "expense",
+      source: "manual",
+      createdAt: 1000 + index,
+      updatedAt: 1000 + index,
+    }));
+    const ctx = createQueryCtx(identity, [], expenseEntries);
+
+    const result = await getWeekSummaryHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.count).toBe(501);
+    expect(result.totalAmountYen).toBe(501);
   });
 
   it("前週レシートがあるとき: 前週件数と合計金額を返す", async () => {
@@ -1491,7 +1585,7 @@ type UserDoc = {
 /**
  * getMonthlyExpensesSummaryHandler が必要とする QueryCtx の最小モックを生成する。
  * receipts テーブルと users テーブルの2つをクエリする。
- * receipts は by_user_id_and_week_start_date インデックス + collect()
+ * receipts は by_user_id_and_date インデックス + async iteration
  * users は by_token_identifier インデックス + unique()
  */
 function createQueryCtxForMonthlySummary(
@@ -1506,24 +1600,48 @@ function createQueryCtxForMonthlySummary(
       const withIndexMock = vi
         .fn()
         .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
-          const filters: Record<string, unknown> = {};
+          const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
           const q = {
             eq: vi.fn().mockImplementation((field: string, value: unknown) => {
-              filters[field] = value;
+              filters[field] ??= {};
+              filters[field].eq = value;
+              return q;
+            }),
+            gte: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].gte = value;
+              return q;
+            }),
+            lte: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].lte = value;
               return q;
             }),
           };
           builder(q);
           const filteredDocs = receiptDocs.filter((doc) =>
-            Object.entries(filters).every(([field, value]) => {
+            Object.entries(filters).every(([field, condition]) => {
               if (!(field in doc)) return true;
-              return (doc as Record<string, unknown>)[field] === value;
+              const value = (doc as Record<string, unknown>)[field];
+              if (condition.eq !== undefined && value !== condition.eq) {
+                return false;
+              }
+              if (condition.gte !== undefined && String(value) < String(condition.gte)) {
+                return false;
+              }
+              if (condition.lte !== undefined && String(value) > String(condition.lte)) {
+                return false;
+              }
+              return true;
             }),
           );
           return {
             collect: vi.fn().mockResolvedValue(filteredDocs),
             order: vi.fn().mockReturnThis(),
             take: vi.fn().mockResolvedValue(filteredDocs),
+            async *[Symbol.asyncIterator]() {
+              yield* filteredDocs;
+            },
           };
         });
       return { withIndex: withIndexMock };
@@ -1531,24 +1649,48 @@ function createQueryCtxForMonthlySummary(
       const withIndexMock = vi
         .fn()
         .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
-          const filters: Record<string, unknown> = {};
+          const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
           const q = {
             eq: vi.fn().mockImplementation((field: string, value: unknown) => {
-              filters[field] = value;
+              filters[field] ??= {};
+              filters[field].eq = value;
+              return q;
+            }),
+            gte: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].gte = value;
+              return q;
+            }),
+            lte: vi.fn().mockImplementation((field: string, value: unknown) => {
+              filters[field] ??= {};
+              filters[field].lte = value;
               return q;
             }),
           };
           builder(q);
           const filteredDocs = expenseEntryDocs.filter((doc) =>
-            Object.entries(filters).every(([field, value]) => {
+            Object.entries(filters).every(([field, condition]) => {
               if (!(field in doc)) return true;
-              return (doc as Record<string, unknown>)[field] === value;
+              const value = (doc as Record<string, unknown>)[field];
+              if (condition.eq !== undefined && value !== condition.eq) {
+                return false;
+              }
+              if (condition.gte !== undefined && String(value) < String(condition.gte)) {
+                return false;
+              }
+              if (condition.lte !== undefined && String(value) > String(condition.lte)) {
+                return false;
+              }
+              return true;
             }),
           );
           return {
             collect: vi.fn().mockResolvedValue(filteredDocs),
             order: vi.fn().mockReturnThis(),
             take: vi.fn().mockResolvedValue(filteredDocs),
+            async *[Symbol.asyncIterator]() {
+              yield* filteredDocs;
+            },
           };
         });
       return { withIndex: withIndexMock };
@@ -1589,18 +1731,18 @@ describe("getMonthlyExpensesSummary", () => {
     ).rejects.toMatchObject({ data: "Not authenticated" });
   });
 
-  it("当月に属する週のレシートのみ集計される", async () => {
+  it("receipt.date ベースで月次集計される", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const receiptDocs: ReceiptDoc[] = [
       {
         _id: "r-jan-1",
         _creationTime: 1000,
         userId: USER_ID,
-        date: "2024-01-10",
+        date: "2024-02-01",
         shopName: "スーパーA",
         amountYen: 1000,
         categoryId: "cat-001",
-        weekStartDate: "2024-01-08", // 2024-01 に属する
+        weekStartDate: "2024-01-29", // 2024-02 に属する
         createdAt: 1000,
         updatedAt: 1000,
       },
@@ -1608,18 +1750,18 @@ describe("getMonthlyExpensesSummary", () => {
         _id: "r-jan-2",
         _creationTime: 1000,
         userId: USER_ID,
-        date: "2024-01-20",
+        date: "2024-02-20",
         shopName: "コンビニB",
         amountYen: 500,
         categoryId: "cat-001",
-        weekStartDate: "2024-01-15", // 2024-01 に属する
+        weekStartDate: "2024-02-19", // 2024-02 に属する
         createdAt: 1000,
         updatedAt: 1000,
       },
     ];
     const ctx = createQueryCtxForMonthlySummary(identity, receiptDocs, null);
 
-    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
+    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-02" });
 
     expect(result.totalExpensesYen).toBe(1500);
     expect(result.monthlyIncome).toBeNull();
@@ -1659,6 +1801,42 @@ describe("getMonthlyExpensesSummary", () => {
     const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
 
     expect(result.totalExpensesYen).toBe(1000); // janのみ
+  });
+
+  it("income のレシートは月次集計から除外される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r-expense",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-10",
+        shopName: "スーパーA",
+        amountYen: 1000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "r-income",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-15",
+        type: "income",
+        bankName: "給与",
+        amountYen: 50000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-15",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const ctx = createQueryCtxForMonthlySummary(identity, receiptDocs, null);
+
+    const result = await getMonthlyExpensesSummaryHandler(ctx, { monthStartDate: "2024-01" });
+
+    expect(result.totalExpensesYen).toBe(1000);
   });
 
   it("monthlyIncome が設定されている場合の残金計算", async () => {
@@ -1745,6 +1923,19 @@ describe("getDailySpendingTrendHandler", () => {
         weekStartDate: "2024-01-08",
         createdAt: 1001,
         updatedAt: 1001,
+      },
+      {
+        _id: "r-income",
+        _creationTime: 1005,
+        userId: USER_ID,
+        date: "2024-01-10",
+        type: "income",
+        bankName: "給与",
+        amountYen: 9999,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1005,
+        updatedAt: 1005,
       },
       {
         _id: "r3",
