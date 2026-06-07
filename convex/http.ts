@@ -22,7 +22,8 @@ const http = httpRouter();
 //     "userId": "<Clerk の tokenIdentifier>",
 //     "resetWeekSession": true,
 //     "weekStartDate": "YYYY-MM-DD",
-//     "deleteE2eCategories": true
+//     "deleteE2eCategories": true,
+//     "clearAiExpenseQueue": true
 //   }
 //
 // レスポンス:
@@ -58,6 +59,7 @@ http.route({
       weekStartDate?: string;
       deleteE2eCategories?: boolean;
       clearMonthlyIncome?: boolean;
+      clearAiExpenseQueue?: boolean;
     };
     if (!body.userId) {
       return new Response(JSON.stringify({ error: "userId is required." }), {
@@ -69,6 +71,53 @@ http.route({
     const receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
       userId: body.userId,
     });
+
+    let aiExpenseQueue: {
+      deletedDraftCount: number;
+      deletedItemCount: number;
+      deletedBatchCount: number;
+      deletedJobCount: number;
+    } | null = null;
+    if (body.clearAiExpenseQueue) {
+      let deletedDraftCount = 0;
+      let deletedItemCount = 0;
+      let deletedBatchCount = 0;
+      let deletedJobCount = 0;
+
+      while (true) {
+        const draftResult: { deletedDraftCount: number; deletedItemCount: number; hasMore: boolean } =
+          await ctx.runMutation(internal.aiExpenseDrafts.deleteDraftsByUserBatch, {
+            userId: body.userId,
+          });
+        deletedDraftCount += draftResult.deletedDraftCount;
+        deletedItemCount += draftResult.deletedItemCount;
+        if (!draftResult.hasMore) {
+          break;
+        }
+      }
+
+      while (true) {
+        const jobResult: { deletedBatchCount: number; deletedJobCount: number; hasMore: boolean } =
+          await ctx.runMutation(
+            internal.receiptAnalysisJobs.deleteReceiptAnalysisDataByUserBatch,
+            {
+              userId: body.userId,
+            },
+          );
+        deletedBatchCount += jobResult.deletedBatchCount;
+        deletedJobCount += jobResult.deletedJobCount;
+        if (!jobResult.hasMore) {
+          break;
+        }
+      }
+
+      aiExpenseQueue = {
+        deletedDraftCount,
+        deletedItemCount,
+        deletedBatchCount,
+        deletedJobCount,
+      };
+    }
 
     let weekSession: { reset: boolean } | null = null;
     if (body.resetWeekSession) {
@@ -99,10 +148,13 @@ http.route({
       });
     }
 
-    return new Response(JSON.stringify({ receipts, weekSession, categories, monthlyIncome }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ receipts, aiExpenseQueue, weekSession, categories, monthlyIncome }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
   }),
 });
 
