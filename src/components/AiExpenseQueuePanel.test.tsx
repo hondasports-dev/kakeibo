@@ -154,7 +154,15 @@ describe("AiExpenseQueuePanel", () => {
 
     expect(screen.getByRole("heading", { name: "AI処理キュー" })).toBeInTheDocument();
     expect(screen.getByText("レシート・払込票をまとめて追加できます。")).toBeInTheDocument();
+    expect(
+      screen.getByText("スマートフォンでは撮影、PCでは画像選択から追加できます。"),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "撮影する" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "画像を追加" })).toBeEnabled();
+    expect(screen.getByLabelText("AI処理キューへカメラで追加")).toHaveAttribute(
+      "capture",
+      "environment",
+    );
     expect(screen.getByText("追加した画像はここに状態別で表示されます。")).toBeInTheDocument();
   });
 
@@ -188,6 +196,38 @@ describe("AiExpenseQueuePanel", () => {
     expect(analyzeImageJobMock).toHaveBeenCalledTimes(2);
     expect(analyzeImageJobMock).toHaveBeenCalledWith({
       jobId: "job-1",
+      imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
+    });
+  });
+
+  it("撮影導線から画像を追加してもキューへ解析待ちとして追加される", async () => {
+    const user = userEvent.setup();
+    createBatchMock.mockResolvedValueOnce({
+      batch: { _id: "batch-camera-1" },
+      jobs: [{ _id: "job-camera-1" }, { _id: "job-camera-2" }],
+    });
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.listJobs") {
+        return [{ _id: "job-camera-1", fileName: "camera-receipt.png", status: "queued" }];
+      }
+      return [];
+    });
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(screen.getByLabelText("AI処理キューへカメラで追加"), [
+      new File(["camera"], "camera-receipt.png", { type: "image/png" }),
+    ]);
+
+    await waitFor(() => {
+      expect(screen.getByText("camera-receipt.png")).toBeInTheDocument();
+      expect(screen.getByText("解析待ち")).toBeInTheDocument();
+    });
+
+    expect(createBatchMock).toHaveBeenCalledWith({
+      fileNames: ["camera-receipt.png"],
+    });
+    expect(analyzeImageJobMock).toHaveBeenCalledWith({
+      jobId: "job-camera-1",
       imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
     });
   });
