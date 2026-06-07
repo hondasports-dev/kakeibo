@@ -53,6 +53,19 @@ export default defineSchema({
     .index("by_user_id_and_date", ["userId", "date"])
     .index("by_user_id_and_shop_name", ["userId", "shopName"]),
 
+  expenseEntries: defineTable({
+    userId: v.string(),
+    date: v.string(),
+    entryType: v.union(v.literal("expense"), v.literal("income")),
+    title: v.string(),
+    amountYen: v.number(),
+    categoryId: v.id("categories"),
+    memo: v.optional(v.string()),
+    source: v.union(v.literal("manual"), v.literal("ai_suggested"), v.literal("imported")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }).index("by_user_id_and_date", ["userId", "date"]),
+
   weekSessions: defineTable({
     userId: v.string(),
     weekStartDate: v.string(),
