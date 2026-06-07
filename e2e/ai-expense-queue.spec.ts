@@ -46,7 +46,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await expect(processingSection).toBeVisible();
     await expect(processingSection.getByText("2件")).toBeVisible();
 
-    await expect(page.getByRole("region", { name: "画像から入力" })).toBeVisible();
+    await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
     await expect(page.locator('input[name="shopName"]')).toBeVisible();
     await expect(page.locator('input[name="amountYen"]')).toBeVisible();
   });

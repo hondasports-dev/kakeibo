@@ -12,7 +12,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { ReceiptImageExtractor } from "./ReceiptImageExtractor";
 import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
 import { generateWeekDays } from "../lib/weekNavigation";
 import { useReceiptForm } from "../hooks/useReceiptForm";
@@ -37,7 +36,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     selectedCategoryId,
     handleTypeChange,
     handleFieldChange,
-    handleExtracted,
     handleSubmit,
     handleRetry,
     handleSnackbarClose,
@@ -90,7 +88,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
             {formValues.type === "expense" && (
               <>
                 <AiExpenseQueuePanel categories={categories} />
-                <ReceiptImageExtractor onExtracted={handleExtracted} />
               </>
             )}
 
