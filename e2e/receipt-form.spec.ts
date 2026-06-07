@@ -5,8 +5,6 @@ import {
   cleanupTestReceipts,
   resetTestWeekSession,
 } from "./helpers/cleanup";
-import { acceptReceiptImageExternalApiConsentIfVisible } from "./helpers/receiptImageConsent";
-import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
  * レシート入力フォーム E2E テスト（QA Agent 担当）
@@ -219,27 +217,9 @@ test.describe("レシート保存フロー（Issue #13 受け入れ確認）", (
     await expect(shopNameInput).toBeFocused();
   });
 
-  test("[Issue #64] I64-1: 画像アップロードUIが手入力保存フローを妨げない", async ({ page }) => {
-    const imageInput = page.getByLabel("レシート画像を選択");
-    const testImage = await createSyntheticReceiptImage(page, "receipt-upload.jpg");
-
-    await imageInput.setInputFiles(testImage);
-
-    await expect(page.getByRole("img", { name: "選択したレシート画像のプレビュー" })).toBeVisible();
-    await expect(page.getByText("receipt-upload.jpg")).toBeVisible();
-    await expect(page.getByRole("button", { name: "読み取る" })).toBeEnabled();
-
-    await page.getByRole("button", { name: "選択画像を削除" }).click();
-    await expect(page.getByText("receipt-upload.jpg")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "読み取る" })).toBeDisabled();
-
-    await imageInput.setInputFiles(testImage);
-    await page.getByRole("button", { name: "読み取る" }).click();
-    await acceptReceiptImageExternalApiConsentIfVisible(page);
-    await expect(page.locator('input[name="shopName"]')).toHaveValue("サンプルストア", {
-      timeout: 15_000,
-    });
-    await expect(page.locator('input[name="amountYen"]')).toHaveValue(/1[,，]?234/);
+  test("[Issue #64] 旧の画像入力UIがなくても手入力保存フローは維持される", async ({ page }) => {
+    await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "AI処理キュー" })).toBeVisible();
 
     await page.locator('input[name="shopName"]').fill("画像確認スーパー");
     await page.locator('input[name="amountYen"]').fill("980");
