@@ -60,7 +60,7 @@
       "oxlint",
       "oxfmt --check"
     ],
-    "*.{json,md,css}": [
+    "*.{json,css}": [
       "oxfmt --check"
     ]
   },
