@@ -706,3 +706,71 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 6. #179 AI下書きからカテゴリ別支出項目候補を作成
 7. #175 登録済みカード表示改善
 8. #102 受け入れ確認
+
+### 21.4 主要 mutation / query 方針
+
+- `sourceDocuments` は入力元の正本として CRUD する。
+- `expenseEntries` は家計簿集計の正本として CRUD する。
+- 手入力では `sourceDocumentId` なしの `expenseEntries` を許容する。
+- 1つの `sourceDocuments` から 0 件以上の `expenseEntries` を作れるようにする。
+- 既存 `receipts` の query / mutation は当面の互換層として残し、後続 Issue で `expenseEntries` 中心に移行する。
+- 所有者判定はこれまで通り `ctx.auth.getUserIdentity()` と `tokenIdentifier` を基準に統一する。
+
+### 21.5 schema 案
+
+#### sourceDocuments
+
+入力元の原本を表す。手入力・レシート・払込票・AI 下書きの共通入口にする。
+
+- `userId`: `string`
+- `sourceType`: `manual` / `receipt` / `convenience_payment` / `invoice` / `unknown`
+- `status`: `draft` / `ready` / `finalized`
+- `date`: `string` optional
+- `totalAmount`: `number` optional
+- `shopName`: `string` optional
+- `paymentPlace`: `string` optional
+- `payeeName`: `string` optional
+- `paymentPurpose`: `string` optional
+- `imageStorageId`: `Id<"_storage">` optional
+- `aiExtraction`: object optional
+- `createdAt`: `number`
+- `updatedAt`: `number`
+
+#### expenseEntries
+
+カテゴリ別支出項目を表す。週次集計・カテゴリ集計・一覧表示の正本にする。
+
+- `userId`: `string`
+- `sourceDocumentId`: `Id<"sourceDocuments">` optional
+- `date`: `string`
+- `amount`: `number`
+- `categoryId`: `Id<"categories">`
+- `title`: `string`
+- `memo`: `string` optional
+- `entryType`: `expense` / `income`
+- `source`: `manual` / `ai_suggested` / `imported`
+- `createdAt`: `number`
+- `updatedAt`: `number`
+
+#### `sourceDocumentId` の扱い
+
+- 手入力で支出項目だけ作る場合は `sourceDocumentId` を入れない。
+- 画像・払込票・AI 下書き由来の項目は、対応する `sourceDocuments` がある場合のみ `sourceDocumentId` を入れる。
+- 1つの `sourceDocuments` に対して `expenseEntries` が 0 件のまま残るのは、下書き保存または一時保留として許容する。
+- `sourceDocuments.status = finalized` は、少なくとも 1 件の `expenseEntries` が紐付いた状態を基本とする。
+
+### 21.6 index 案
+
+- `sourceDocuments`
+  - `by_user_id_and_status_and_created_at`
+  - `by_user_id_and_date`
+- `expenseEntries`
+  - `by_user_id_and_date`
+  - `by_user_id_and_category_id_and_date`
+  - `by_user_id_and_source_document_id`
+
+### 21.7 互換境界
+
+- #177 では `receipts` を書き換えない。
+- #177 では `expenseEntries` の保存責務だけを定義し、既存 `receipts` の読み書き互換は #180 に集約する。
+- これにより、M18 の後続 Issue は `expenseEntries` を正本として扱える。
