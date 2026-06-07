@@ -489,10 +489,12 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
   test.afterEach(async () => {
     await cleanupTestReceipts();
+    await cleanupTestCategories();
   });
 
   test("[Issue #14] 保存後に週次サマリーへ支出が反映される", async ({ page }) => {
     const shopName = `QAサマリー反映_${Date.now()}`;
+
     await page.locator('input[name="shopName"]').fill(shopName);
     await page.locator('input[name="amountYen"]').fill("1234");
     await page
@@ -507,6 +509,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "カテゴリ別" })).toBeVisible();
     const receiptRows = page.locator('[class*="receipt-row"]');
     await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
       timeout: 15_000,
