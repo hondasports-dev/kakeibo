@@ -3,8 +3,115 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireAuthenticatedUserId } from "./users";
-import type { Id } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { calculateRelativeWeekStartDate, calculateWeekStartDate } from "./utils";
+
+type SpendEntry = {
+  _id: string;
+  date: string;
+  type?: "expense" | "income";
+  shopName?: string;
+  bankName?: string;
+  amountYen: number;
+  categoryId: string;
+  memo?: string;
+};
+
+type ExpenseEntryRecord = {
+  _id: string;
+  date: string;
+  entryType: "expense" | "income";
+  title: string;
+  amountYen: number;
+  categoryId: string;
+  memo?: string;
+};
+
+function addDays(dateStr: string, days: number): string {
+  const date = new Date(dateStr + "T00:00:00Z");
+  date.setDate(date.getDate() + days);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function mapReceiptToSpendEntry(receipt: {
+  _id: string;
+  date: string;
+  type?: "expense" | "income";
+  shopName?: string;
+  bankName?: string;
+  amountYen: number;
+  categoryId: string;
+  memo?: string;
+}): SpendEntry {
+  return {
+    _id: receipt._id,
+    date: receipt.date,
+    type: receipt.type,
+    shopName: receipt.shopName,
+    bankName: receipt.bankName,
+    amountYen: receipt.amountYen,
+    categoryId: receipt.categoryId,
+    memo: receipt.memo,
+  };
+}
+
+function mapExpenseEntryToSpendEntry(entry: ExpenseEntryRecord): SpendEntry {
+  return {
+    _id: entry._id,
+    date: entry.date,
+    type: entry.entryType,
+    shopName: entry.entryType === "expense" ? entry.title : undefined,
+    bankName: entry.entryType === "income" ? entry.title : undefined,
+    amountYen: entry.amountYen,
+    categoryId: entry.categoryId,
+    memo: entry.memo,
+  };
+}
+
+async function getSpendEntriesForDate(ctx: QueryCtx, userId: string, date: string) {
+  const expenseEntriesQuery = ctx.db
+    .query("expenseEntries")
+    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date));
+
+  const expenseEntries: ExpenseEntryRecord[] = [];
+  for await (const entry of expenseEntriesQuery) {
+    expenseEntries.push(entry);
+  }
+  if (expenseEntries.length > 0) {
+    return expenseEntries.map((entry) => mapExpenseEntryToSpendEntry(entry));
+  }
+
+  const receiptsQuery = ctx.db
+    .query("receipts")
+    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date));
+
+  const receipts: SpendEntry[] = [];
+  for await (const receipt of receiptsQuery) {
+    receipts.push(receipt);
+  }
+
+  return receipts.map((receipt) => mapReceiptToSpendEntry(receipt));
+}
+
+async function getSpendEntriesForWeek(ctx: QueryCtx, userId: string, weekStartDate: string) {
+  const entries: SpendEntry[] = [];
+
+  for (let i = 0; i < 7; i++) {
+    const date = addDays(weekStartDate, i);
+    entries.push(...(await getSpendEntriesForDate(ctx, userId, date)));
+  }
+
+  return entries;
+}
+
+function summarizeSpendEntries(entries: Array<{ amountYen: number }>) {
+  const count = entries.length;
+  const totalAmountYen = entries.reduce((sum, entry) => sum + entry.amountYen, 0);
+  return { count, totalAmountYen };
+}
 
 // ---------------------------------------------------------------------------
 // createReceipt
@@ -275,38 +382,16 @@ type GetWeekSummaryArgs = {
   weekStartDate: string;
 };
 
-async function getReceiptsForWeek(ctx: QueryCtx, userId: string, weekStartDate: string) {
-  const receipts = [];
-  const query = ctx.db
-    .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", weekStartDate),
-    )
-    .order("desc");
-
-  for await (const receipt of query) {
-    receipts.push(receipt);
-  }
-
-  return receipts;
-}
-
-function summarizeReceipts(receipts: Array<{ amountYen: number }>) {
-  const count = receipts.length;
-  const totalAmountYen = receipts.reduce((sum, r) => sum + r.amountYen, 0);
-  return { count, totalAmountYen };
-}
-
 /** getWeekSummary query の handler ロジック（テスト用に export） */
 export async function getWeekSummaryHandler(ctx: QueryCtx, args: GetWeekSummaryArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  const receipts = await getReceiptsForWeek(ctx, userId, args.weekStartDate);
+  const receipts = await getSpendEntriesForWeek(ctx, userId, args.weekStartDate);
   const prevWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -1);
-  const prevWeekReceipts = await getReceiptsForWeek(ctx, userId, prevWeekStartDate);
+  const prevWeekReceipts = await getSpendEntriesForWeek(ctx, userId, prevWeekStartDate);
 
-  const { count, totalAmountYen } = summarizeReceipts(receipts);
-  const prevWeekSummary = summarizeReceipts(prevWeekReceipts);
+  const { count, totalAmountYen } = summarizeSpendEntries(receipts);
+  const prevWeekSummary = summarizeSpendEntries(prevWeekReceipts);
 
   return {
     count,
@@ -366,12 +451,16 @@ export async function getWeekSummaryWithCategoriesHandler(
 ): Promise<WeekSummaryWithCategories> {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  const receipts = await getReceiptsForWeek(ctx, userId, args.weekStartDate);
+  const receipts = await getSpendEntriesForWeek(ctx, userId, args.weekStartDate);
   const prevWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -1);
-  const prevWeekReceipts = await getReceiptsForWeek(ctx, userId, prevWeekStartDate);
+  const prevWeekReceipts = await getSpendEntriesForWeek(ctx, userId, prevWeekStartDate);
 
-  const categoryIds = Array.from(new Set(receipts.map((receipt) => receipt.categoryId)));
-  const categories = await Promise.all(categoryIds.map((categoryId) => ctx.db.get(categoryId)));
+  const categoryIds = Array.from(
+    new Set(receipts.map((receipt) => receipt.categoryId as Id<"categories">)),
+  );
+  const categories = await Promise.all(
+    categoryIds.map(async (categoryId): Promise<Doc<"categories"> | null> => ctx.db.get(categoryId)),
+  );
 
   // カテゴリ情報を id → {name, color} の Map に変換
   const categoryInfoMap = new Map<string, { name: string; color: string }>();
@@ -379,14 +468,14 @@ export async function getWeekSummaryWithCategoriesHandler(
     if (category === null || category.userId !== userId) {
       continue;
     }
-    categoryInfoMap.set(category._id as string, {
+    categoryInfoMap.set(category._id, {
       name: category.name,
       color: category.color,
     });
   }
 
-  const { count, totalAmountYen } = summarizeReceipts(receipts);
-  const prevWeekSummary = summarizeReceipts(prevWeekReceipts);
+  const { count, totalAmountYen } = summarizeSpendEntries(receipts);
+  const prevWeekSummary = summarizeSpendEntries(prevWeekReceipts);
 
   // カテゴリ別集計 Map（ループ内で db アクセスしない）
   const categoryMap = new Map<
@@ -482,8 +571,8 @@ export async function getFourWeeksSummaryHandler(
 
   for (let i = 0; i < 4; i++) {
     const targetWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -i);
-    const receipts = await getReceiptsForWeek(ctx, userId, targetWeekStartDate);
-    const { totalAmountYen } = summarizeReceipts(receipts);
+    const receipts = await getSpendEntriesForWeek(ctx, userId, targetWeekStartDate);
+    const { totalAmountYen } = summarizeSpendEntries(receipts);
     descWeeks.push({ weekStartDate: targetWeekStartDate, totalAmountYen });
   }
 
@@ -528,21 +617,9 @@ export async function getDailySpendingTrendHandler(
 ): Promise<DailySpendingTrendData> {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  function addDays(dateStr: string, days: number): string {
-    const date = new Date(dateStr + "T00:00:00Z");
-    date.setDate(date.getDate() + days);
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, "0");
-    const d = String(date.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-
   async function getTotalForDate(targetDate: string): Promise<number> {
-    const receipts = await ctx.db
-      .query("receipts")
-      .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", targetDate))
-      .take(200);
-    return receipts.reduce((sum, r) => sum + r.amountYen, 0);
+    const spendEntries = await getSpendEntriesForDate(ctx, userId, targetDate);
+    return spendEntries.reduce((sum, entry) => sum + entry.amountYen, 0);
   }
 
   const currentWeekStart = args.weekStartDate;

@@ -695,6 +695,9 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 - `receipts` は当面の互換層として残す
 - 既存の表示や集計は、M18の子Issueで段階的に `expenseEntries` 中心へ寄せる
 - このIssueでは schema の実装変更は行わず、用語、責務、実装順を確定する
+- 移行期間の集計は `expenseEntries` を優先し、同じ日付に `expenseEntries` がある場合は
+  同日の `receipts` を集計対象から外して二重計上を防ぐ
+- `expenseEntries` がまだ存在しない日付は `receipts` を従来どおり集計する
 
 ### 21.3 M18の実装順
 

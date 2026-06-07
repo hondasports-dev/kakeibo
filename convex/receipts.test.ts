@@ -36,6 +36,21 @@ type ReceiptDoc = {
   updatedAt: number;
 };
 
+type ExpenseEntryDoc = {
+  _id: string;
+  _creationTime: number;
+  userId: string;
+  date: string;
+  entryType: "expense" | "income";
+  title: string;
+  amountYen: number;
+  categoryId: string;
+  memo?: string;
+  source: "manual" | "ai_suggested" | "imported";
+  createdAt: number;
+  updatedAt: number;
+};
+
 type CategoryDoc = {
   _id: string;
   _creationTime: number;
@@ -77,6 +92,7 @@ function createMutationCtx(
     insertedDoc?: ReceiptDoc;
     updatedDoc?: ReceiptDoc;
     queryDocs?: ReceiptDoc[];
+    expenseEntryDocs?: ExpenseEntryDoc[];
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-receipt-id");
@@ -128,7 +144,24 @@ function createMutationCtx(
       builder(q);
       return queryChain;
     });
-  const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
+  const expenseTakeMock = vi.fn().mockResolvedValue(opts.expenseEntryDocs ?? []);
+  const expenseChain = { take: expenseTakeMock, order: vi.fn() };
+  expenseChain.order.mockReturnValue(expenseChain);
+  const expenseWithIndexMock = vi
+    .fn()
+    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+      const q = {
+        eq: vi.fn().mockImplementation(() => q),
+      };
+      builder(q);
+      return expenseChain;
+    });
+  const queryMock = vi.fn().mockImplementation((tableName: string) => {
+    if (tableName === "expenseEntries") {
+      return { withIndex: expenseWithIndexMock };
+    }
+    return { withIndex: withIndexMock };
+  });
 
   return {
     auth: {
@@ -148,10 +181,27 @@ function createMutationCtx(
 /**
  * QueryCtx の最小モックを生成する。
  */
-function createQueryCtx(identity: UserIdentity | null, queryDocs: ReceiptDoc[] = []): QueryCtx {
-  const withIndexMock = vi
-    .fn()
-    .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+function createQueryCtx(
+  identity: UserIdentity | null,
+  queryDocs: ReceiptDoc[] = [],
+  expenseEntryDocs: ExpenseEntryDoc[] = [],
+): QueryCtx {
+  const makeChain = (docs: unknown[]) => {
+    const queryChain = {
+      take: vi.fn().mockImplementation(async (limit?: number) => {
+        return typeof limit === "number" ? docs.slice(0, limit) : docs;
+      }),
+      order: vi.fn(),
+      async *[Symbol.asyncIterator]() {
+        yield* docs;
+      },
+    };
+    queryChain.order.mockReturnValue(queryChain);
+    return queryChain;
+  };
+
+  const makeWithIndexMock = (docs: unknown[]) =>
+    vi.fn().mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
       const filters: Record<string, unknown> = {};
       const q = {
         eq: vi.fn().mockImplementation((field: string, value: unknown) => {
@@ -160,27 +210,23 @@ function createQueryCtx(identity: UserIdentity | null, queryDocs: ReceiptDoc[] =
         }),
       };
       builder(q);
-      const filteredDocs = queryDocs.filter((doc) =>
+      const filteredDocs = docs.filter((doc) =>
         Object.entries(filters).every(([field, value]) => {
-          if (!(field in doc)) {
+          if (!(field in (doc as Record<string, unknown>))) {
             return true;
           }
           return (doc as Record<string, unknown>)[field] === value;
         }),
       );
-      const queryChain = {
-        take: vi.fn().mockImplementation(async (limit?: number) => {
-          return typeof limit === "number" ? filteredDocs.slice(0, limit) : filteredDocs;
-        }),
-        order: vi.fn(),
-        async *[Symbol.asyncIterator]() {
-          yield* filteredDocs;
-        },
-      };
-      queryChain.order.mockReturnValue(queryChain);
-      return queryChain;
+      return makeChain(filteredDocs);
     });
-  const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
+
+  const queryMock = vi.fn().mockImplementation((tableName: string) => {
+    if (tableName === "expenseEntries") {
+      return { withIndex: makeWithIndexMock(expenseEntryDocs) };
+    }
+    return { withIndex: makeWithIndexMock(queryDocs) };
+  });
 
   return {
     auth: {
@@ -202,6 +248,7 @@ function createQueryCtxForSummary(
   identity: UserIdentity | null,
   receiptDocs: ReceiptDoc[] = [],
   categoryDocs: CategoryDoc[] = [],
+  expenseEntryDocs: ExpenseEntryDoc[] = [],
 ): QueryCtx {
   const makeChain = (docs: unknown[], supportsCollect: boolean) => {
     const collectMock = vi.fn().mockResolvedValue(docs);
@@ -262,6 +309,9 @@ function createQueryCtxForSummary(
   const queryMock = vi.fn().mockImplementation((tableName: string) => {
     if (tableName === "receipts") {
       return makeChain(receiptDocs, false);
+    }
+    if (tableName === "expenseEntries") {
+      return makeChain(expenseEntryDocs, false);
     }
     return makeChain(categoryDocs, true);
   });
@@ -333,6 +383,21 @@ const otherUserReceipt: ReceiptDoc = {
   amountYen: 500,
   categoryId: "cat-other",
   weekStartDate: "2024-01-08",
+  createdAt: 1000,
+  updatedAt: 1000,
+};
+
+const sampleExpenseEntry: ExpenseEntryDoc = {
+  _id: "expense-entry-001",
+  _creationTime: 1000,
+  userId: USER_ID,
+  date: "2024-01-10",
+  entryType: "expense",
+  title: "スーパー",
+  amountYen: 1500,
+  categoryId: "cat-001",
+  memo: "手入力",
+  source: "manual",
   createdAt: 1000,
   updatedAt: 1000,
 };
@@ -890,18 +955,41 @@ describe("getWeekSummary", () => {
     });
   });
 
+  it("expenseEntries がある週は receipts より優先される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-001",
+      amountYen: 9999,
+    };
+    const ctx = createQueryCtx(identity, [receipt], [sampleExpenseEntry]);
+
+    const result = await getWeekSummaryHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result).toEqual({
+      count: 1,
+      totalAmountYen: 1500,
+      prevWeekReceiptCount: 0,
+      prevWeekTotalAmountYen: null,
+    });
+  });
+
   it("前週レシートがあるとき: 前週件数と合計金額を返す", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const currentReceipt: ReceiptDoc = {
       ...sampleReceipt,
       _id: "receipt-current",
       amountYen: 2300,
+      date: "2024-01-08",
       weekStartDate: "2024-01-08",
     };
     const prevReceipt: ReceiptDoc = {
       ...sampleReceipt,
       _id: "receipt-prev",
       amountYen: 5000,
+      date: "2024-01-01",
       weekStartDate: "2024-01-01",
     };
     const ctx = createQueryCtx(identity, [currentReceipt, prevReceipt]);
@@ -924,12 +1012,14 @@ describe("getWeekSummary", () => {
       ...sampleReceipt,
       _id: "receipt-current",
       amountYen: 1000,
+      date: "2024-01-08",
       weekStartDate: "2024-01-08",
     };
     const prevReceipts: ReceiptDoc[] = Array.from({ length: 201 }, (_, index) => ({
       ...sampleReceipt,
       _id: `receipt-prev-${index}`,
       amountYen: 100,
+      date: "2024-01-01",
       weekStartDate: "2024-01-01",
     }));
     const ctx = createQueryCtx(identity, [currentReceipt, ...prevReceipts]);
@@ -1055,6 +1145,76 @@ describe("getWeekSummaryWithCategories", () => {
     );
   });
 
+  it("expenseEntries があるときはカテゴリ別に集計され、同一日の receipts と二重計上しない", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const category2: CategoryDoc = {
+      _id: "cat-002",
+      _creationTime: 1000,
+      userId: USER_ID,
+      name: "外食",
+      color: "#FFE66D",
+      isActive: true,
+      sortOrder: 2,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const receipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-001",
+      amountYen: 9999,
+      categoryId: "cat-001",
+    };
+    const expenseEntry2: ExpenseEntryDoc = {
+      ...sampleExpenseEntry,
+      _id: "expense-entry-002",
+      title: "外食",
+      amountYen: 3000,
+      categoryId: "cat-002",
+    };
+    const ctx = createQueryCtxForSummary(
+      identity,
+      [receipt],
+      [sampleCategory, category2],
+      [sampleExpenseEntry, expenseEntry2],
+    );
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.totalAmountYen).toBe(4500);
+    expect(result.byCategory).toEqual([
+      expect.objectContaining({
+        categoryId: "cat-002",
+        categoryName: "外食",
+        totalAmountYen: 3000,
+        count: 1,
+      }),
+      expect.objectContaining({
+        categoryId: "cat-001",
+        categoryName: "食費",
+        totalAmountYen: 1500,
+        count: 1,
+      }),
+    ]);
+    expect(result.receipts).toHaveLength(2);
+    expect(result.receipts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: "expense-entry-001",
+          shopName: "スーパー",
+          categoryId: "cat-001",
+        }),
+        expect.objectContaining({
+          _id: "expense-entry-002",
+          shopName: "外食",
+          categoryId: "cat-002",
+        }),
+      ]),
+    );
+  });
+
   it("前週レシートがあるとき: prevWeekTotalAmountYen が含まれる", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const receipt1: ReceiptDoc = {
@@ -1063,6 +1223,7 @@ describe("getWeekSummaryWithCategories", () => {
       amountYen: 1000,
       categoryId: "cat-001",
       weekStartDate: "2024-01-08",
+      date: "2024-01-08",
     };
     const prevReceipt: ReceiptDoc = {
       ...sampleReceipt,
@@ -1070,6 +1231,7 @@ describe("getWeekSummaryWithCategories", () => {
       amountYen: 5000,
       categoryId: "cat-001",
       weekStartDate: "2024-01-01",
+      date: "2024-01-01",
     };
     const ctx = createQueryCtxForSummary(identity, [receipt1, prevReceipt], [sampleCategory]);
 
@@ -1604,6 +1766,50 @@ describe("getDailySpendingTrendHandler", () => {
     expect(result.previousWeek[4]).toEqual({ date: "2024-01-05", totalAmountYen: 0 });
     expect(result.previousWeek[5]).toEqual({ date: "2024-01-06", totalAmountYen: 0 });
     expect(result.previousWeek[6]).toEqual({ date: "2024-01-07", totalAmountYen: 0 });
+  });
+
+  it("expenseEntries がある日は receipts より優先し、日別合計を二重計上しない", async () => {
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r1",
+        _creationTime: 1000,
+        userId: USER_ID,
+        date: "2024-01-08",
+        shopName: "shop-A",
+        amountYen: 2000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "r2",
+        _creationTime: 1001,
+        userId: USER_ID,
+        date: "2024-01-10",
+        shopName: "shop-B",
+        amountYen: 3000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+    ];
+    const expenseEntryDocs: ExpenseEntryDoc[] = [
+      {
+        ...sampleExpenseEntry,
+        _id: "expense-entry-001",
+        date: "2024-01-08",
+        amountYen: 1000,
+      },
+    ];
+
+    const ctx = createQueryCtx(createIdentity(), receiptDocs, expenseEntryDocs);
+    const result = await getDailySpendingTrendHandler(ctx, { weekStartDate: "2024-01-08" });
+
+    expect(result.currentWeek[0]).toEqual({ date: "2024-01-08", totalAmountYen: 1000 });
+    expect(result.currentWeek[2]).toEqual({ date: "2024-01-10", totalAmountYen: 3000 });
+    expect(result.previousWeek[0]).toEqual({ date: "2024-01-01", totalAmountYen: 0 });
   });
 
   it("レシートなしの場合は全て0を返す", async () => {
