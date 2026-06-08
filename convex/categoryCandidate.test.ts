@@ -98,9 +98,7 @@ describe("buildCategoryCandidates", () => {
   });
 
   it("全カテゴリが上限を超える場合は上限数に切り詰める", () => {
-    const manyCategories = makeCategories(
-      Array.from({ length: 30 }, (_, i) => `カテゴリ${i + 1}`),
-    );
+    const manyCategories = makeCategories(Array.from({ length: 30 }, (_, i) => `カテゴリ${i + 1}`));
     const candidates = buildCategoryCandidates({
       documentType: "receipt",
       categories: manyCategories,
