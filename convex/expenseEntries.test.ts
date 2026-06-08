@@ -310,32 +310,6 @@ const readyDraft: AiExpenseDraftDoc = {
   updatedAt: 0,
 };
 
-const draftItem1: AiExpenseDraftItemDoc = {
-  _id: "item-1",
-  _creationTime: 0,
-  draftId: "draft-ready",
-  itemName: "食料品",
-  amountYen: 1000,
-  categoryId: "cat-food",
-  confidence: { itemName: 0.9, amountYen: 0.95, categoryId: 0.85 },
-  sortOrder: 1,
-  createdAt: 0,
-  updatedAt: 0,
-};
-
-const draftItem2: AiExpenseDraftItemDoc = {
-  _id: "item-2",
-  _creationTime: 0,
-  draftId: "draft-ready",
-  itemName: "日用品",
-  amountYen: 500,
-  categoryId: "cat-daily",
-  confidence: { itemName: 0.88, amountYen: 0.95, categoryId: 0.82 },
-  sortOrder: 2,
-  createdAt: 0,
-  updatedAt: 0,
-};
-
 describe("createExpenseEntriesFromDraftHandler", () => {
   it("AI下書きのitemsから複数のexpenseEntriesを作成できる", async () => {
     const ctx = createMutationCtx(createIdentity(), {
