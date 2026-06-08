@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
+import type { Id } from "../../convex/_generated/dataModel";
 import {
   validateExpenseItems,
   validateExpenseItemEntry,
   type ExpenseItemEntryInput,
 } from "./expenseItems";
 
+// テスト用: 文字列リテラルを Id<"categories"> として扱うヘルパー
+const catId = (s: string) => s as Id<"categories">;
+
 describe("validateExpenseItemEntry", () => {
   it("正常なカテゴリ・金額・タイトルで success: true を返す", () => {
     const result = validateExpenseItemEntry({
-      categoryId: "cat-food",
+      categoryId: catId("cat-food"),
       amountYen: "2000",
       title: "食料品",
     });
@@ -34,7 +38,7 @@ describe("validateExpenseItemEntry", () => {
 
   it("金額が0円の場合、amountYen エラーを返す", () => {
     const result = validateExpenseItemEntry({
-      categoryId: "cat-food",
+      categoryId: catId("cat-food"),
       amountYen: "0",
       title: "食料品",
     });
@@ -46,7 +50,7 @@ describe("validateExpenseItemEntry", () => {
 
   it("金額が9,999,999円を超える場合、amountYen エラーを返す", () => {
     const result = validateExpenseItemEntry({
-      categoryId: "cat-food",
+      categoryId: catId("cat-food"),
       amountYen: "10000000",
       title: "食料品",
     });
@@ -58,7 +62,7 @@ describe("validateExpenseItemEntry", () => {
 
   it("タイトルが空の場合、title エラーを返す", () => {
     const result = validateExpenseItemEntry({
-      categoryId: "cat-food",
+      categoryId: catId("cat-food"),
       amountYen: "2000",
       title: "",
     });
@@ -70,7 +74,7 @@ describe("validateExpenseItemEntry", () => {
 
   it("メモが空文字列の場合、undefined として扱う", () => {
     const result = validateExpenseItemEntry({
-      categoryId: "cat-food",
+      categoryId: catId("cat-food"),
       amountYen: "2000",
       title: "食料品",
       memo: "",
@@ -83,7 +87,7 @@ describe("validateExpenseItemEntry", () => {
 
   it("メモが500文字を超える場合、memo エラーを返す", () => {
     const result = validateExpenseItemEntry({
-      categoryId: "cat-food",
+      categoryId: catId("cat-food"),
       amountYen: "2000",
       title: "食料品",
       memo: "a".repeat(501),
@@ -97,7 +101,7 @@ describe("validateExpenseItemEntry", () => {
 
 describe("validateExpenseItems", () => {
   const validItem: ExpenseItemEntryInput = {
-    categoryId: "cat-food",
+    categoryId: catId("cat-food"),
     amountYen: "2000",
     title: "食料品",
   };
@@ -106,8 +110,8 @@ describe("validateExpenseItems", () => {
     const result = validateExpenseItems({
       sourceAmount: 5000,
       items: [
-        { categoryId: "cat-food", amountYen: "3000", title: "食費" },
-        { categoryId: "cat-daily", amountYen: "2000", title: "日用品" },
+        { categoryId: catId("cat-food"), amountYen: "3000", title: "食費" },
+        { categoryId: catId("cat-daily"), amountYen: "2000", title: "日用品" },
       ],
     });
     expect(result.success).toBe(true);
@@ -120,8 +124,8 @@ describe("validateExpenseItems", () => {
     const result = validateExpenseItems({
       sourceAmount: 5000,
       items: [
-        { categoryId: "cat-food", amountYen: "3000", title: "食費" },
-        { categoryId: "cat-daily", amountYen: "1500", title: "日用品" },
+        { categoryId: catId("cat-food"), amountYen: "3000", title: "食費" },
+        { categoryId: catId("cat-daily"), amountYen: "1500", title: "日用品" },
       ],
     });
     expect(result.success).toBe(true);
@@ -134,8 +138,8 @@ describe("validateExpenseItems", () => {
     const result = validateExpenseItems({
       sourceAmount: 5000,
       items: [
-        { categoryId: "cat-food", amountYen: "3000", title: "食費" },
-        { categoryId: "cat-daily", amountYen: "2500", title: "日用品" },
+        { categoryId: catId("cat-food"), amountYen: "3000", title: "食費" },
+        { categoryId: catId("cat-daily"), amountYen: "2500", title: "日用品" },
       ],
     });
     expect(result.success).toBe(false);
@@ -163,7 +167,7 @@ describe("validateExpenseItems", () => {
       sourceAmount: 5000,
       items: [
         { categoryId: "", amountYen: "3000", title: "食費" },
-        { categoryId: "cat-daily", amountYen: "2000", title: "日用品" },
+        { categoryId: catId("cat-daily"), amountYen: "2000", title: "日用品" },
       ],
     });
     expect(result.success).toBe(false);
