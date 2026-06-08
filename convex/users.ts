@@ -113,6 +113,13 @@ export const getUserProfile = query({
   handler: getUserProfileHandler,
 });
 
+export const getAuthenticatedUserId = query({
+  args: {},
+  handler: async (ctx) => {
+    return await requireAuthenticatedUserId(ctx);
+  },
+});
+
 // ---------------------------------------------------------------------------
 // getReceiptImageConsent
 // ---------------------------------------------------------------------------

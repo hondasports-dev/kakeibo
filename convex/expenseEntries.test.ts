@@ -60,6 +60,11 @@ type AiExpenseDraftItemDoc = {
   updatedAt: number;
 };
 
+const catFoodId = "cat-food" as Id<"categories">;
+const catDailyId = "cat-daily" as Id<"categories">;
+const draftReadyId = "draft-ready" as Id<"aiExpenseDrafts">;
+const sourceDocumentId = "source-doc-1" as Id<"sourceDocuments">;
+
 // ---------------------------------------------------------------------------
 // テスト用ヘルパー
 // ---------------------------------------------------------------------------
@@ -153,7 +158,7 @@ describe("createExpenseEntriesHandler", () => {
 
     await createExpenseEntriesHandler(ctx, {
       date: "2026-06-07",
-      items: [{ categoryId: "cat-food", amountYen: 2000, title: "スーパー北浜", memo: undefined }],
+      items: [{ categoryId: catFoodId, amountYen: 2000, title: "スーパー北浜", memo: undefined }],
     });
 
     expect(ctx.db.insert).toHaveBeenCalledTimes(1);
@@ -181,8 +186,8 @@ describe("createExpenseEntriesHandler", () => {
     await createExpenseEntriesHandler(ctx, {
       date: "2026-06-07",
       items: [
-        { categoryId: "cat-food", amountYen: 3000, title: "食料品" },
-        { categoryId: "cat-daily", amountYen: 2000, title: "日用品" },
+        { categoryId: catFoodId, amountYen: 3000, title: "食料品" },
+        { categoryId: catDailyId, amountYen: 2000, title: "日用品" },
       ],
     });
 
@@ -205,7 +210,7 @@ describe("createExpenseEntriesHandler", () => {
     await expect(
       createExpenseEntriesHandler(ctx, {
         date: "2026-06-07",
-        items: [{ categoryId: "cat-food", amountYen: 2000, title: "食料品" }],
+        items: [{ categoryId: catFoodId, amountYen: 2000, title: "食料品" }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -218,7 +223,7 @@ describe("createExpenseEntriesHandler", () => {
     await expect(
       createExpenseEntriesHandler(ctx, {
         date: "2026-06-07",
-        items: [{ categoryId: "cat-food", amountYen: 2000, title: "食料品" }],
+        items: [{ categoryId: catFoodId, amountYen: 2000, title: "食料品" }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -235,7 +240,7 @@ describe("createExpenseEntriesHandler", () => {
     await expect(
       createExpenseEntriesHandler(ctx, {
         date: "2026-06-07",
-        items: [{ categoryId: "cat-food", amountYen: 2000, title: "食料品" }],
+        items: [{ categoryId: catFoodId, amountYen: 2000, title: "食料品" }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -249,7 +254,7 @@ describe("createExpenseEntriesHandler", () => {
     await expect(
       createExpenseEntriesHandler(ctx, {
         date: "2026-06-07",
-        items: [{ categoryId: "cat-food", amountYen: 2000, title: "食料品" }],
+        items: [{ categoryId: catFoodId, amountYen: 2000, title: "食料品" }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -261,7 +266,7 @@ describe("createExpenseEntriesHandler", () => {
 
     await createExpenseEntriesHandler(ctx, {
       date: "2026-06-07",
-      items: [{ categoryId: "cat-food", amountYen: 2000, title: "食料品", memo: "特売日" }],
+      items: [{ categoryId: catFoodId, amountYen: 2000, title: "食料品", memo: "特売日" }],
     });
 
     expect(ctx.db.insert).toHaveBeenCalledWith(
@@ -277,8 +282,8 @@ describe("createExpenseEntriesHandler", () => {
 
     await createExpenseEntriesHandler(ctx, {
       date: "2026-06-07",
-      sourceDocumentId: "source-doc-1",
-      items: [{ categoryId: "cat-food", amountYen: 2000, title: "食料品" }],
+      sourceDocumentId,
+      items: [{ categoryId: catFoodId, amountYen: 2000, title: "食料品" }],
     });
 
     expect(ctx.db.insert).toHaveBeenCalledWith(
@@ -321,10 +326,10 @@ describe("createExpenseEntriesFromDraftHandler", () => {
     });
 
     const result = await createExpenseEntriesFromDraftHandler(ctx, {
-      draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+      draftId: draftReadyId,
       items: [
-        { itemName: "食料品", amountYen: 1000, categoryId: "cat-food" },
-        { itemName: "日用品", amountYen: 500, categoryId: "cat-daily" },
+        { itemName: "食料品", amountYen: 1000, categoryId: catFoodId },
+        { itemName: "日用品", amountYen: 500, categoryId: catDailyId },
       ],
     });
 
@@ -365,7 +370,7 @@ describe("createExpenseEntriesFromDraftHandler", () => {
     });
 
     await createExpenseEntriesFromDraftHandler(ctx, {
-      draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+      draftId: draftReadyId,
       items: [{ itemName: "不明な品目", amountYen: 1000, categoryId: undefined }],
     });
 
@@ -384,8 +389,8 @@ describe("createExpenseEntriesFromDraftHandler", () => {
 
     await expect(
       createExpenseEntriesFromDraftHandler(ctx, {
-        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
-        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+        draftId: draftReadyId,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -401,8 +406,8 @@ describe("createExpenseEntriesFromDraftHandler", () => {
 
     await expect(
       createExpenseEntriesFromDraftHandler(ctx, {
-        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
-        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+        draftId: draftReadyId,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -417,8 +422,8 @@ describe("createExpenseEntriesFromDraftHandler", () => {
 
     await expect(
       createExpenseEntriesFromDraftHandler(ctx, {
-        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
-        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+        draftId: draftReadyId,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
       }),
     ).rejects.toThrow(ConvexError);
   });
@@ -434,8 +439,8 @@ describe("createExpenseEntriesFromDraftHandler", () => {
 
     await expect(
       createExpenseEntriesFromDraftHandler(ctx, {
-        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
-        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+        draftId: draftReadyId,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
       }),
     ).rejects.toThrow(ConvexError);
   });

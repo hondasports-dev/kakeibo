@@ -1,6 +1,14 @@
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
-import { cleanupAiExpenseQueue } from "./helpers/cleanup";
+import {
+  cleanupAiExpenseQueue,
+  cleanupE2eExpenseEntries,
+  cleanupTestCategories,
+  cleanupAiExpenseQueueByUser,
+  cleanupE2eExpenseEntriesByUser,
+  cleanupTestCategoriesByUser,
+} from "./helpers/cleanup";
+import { seedAiExpenseDraftForExpenseEntriesByUser } from "./helpers/seed";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
@@ -201,17 +209,44 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
 });
 
 test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
+  test.beforeEach(async () => {
+    await cleanupE2eExpenseEntries();
+    await cleanupAiExpenseQueue();
+    await cleanupTestCategories();
+  });
+
   test("@smoke registerReadyDraftsAsExpenseEntries でexpenseEntriesに登録できる", async ({
     page,
   }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue-expense-entries");
 
     await expect(page.getByText("Issue #179 E2E Test: Register as Expense Entries")).toBeVisible();
+    await expect(page.getByTestId("auth-status")).toHaveText("ready");
+    await expect(page.getByTestId("convex-status")).toHaveText("ready");
+
+    const currentUserId = (await page.getByTestId("current-user-id").textContent())?.trim();
+    expect(currentUserId).toBeTruthy();
+    if (!currentUserId) {
+      throw new Error("current authenticated user id is empty");
+    }
+
+    await cleanupE2eExpenseEntriesByUser(currentUserId);
+    await cleanupAiExpenseQueueByUser(currentUserId);
+    await cleanupTestCategoriesByUser(currentUserId);
+
+    const { draftId } = await seedAiExpenseDraftForExpenseEntriesByUser(currentUserId);
+    await page.goto(`/__e2e__/ai-expense-queue-expense-entries?draftId=${draftId}`);
+
+    await expect(page.getByTestId("auth-status")).toHaveText("ready");
+    await expect(page.getByTestId("convex-status")).toHaveText("ready");
+    await expect(page.getByTestId("current-user-id")).toHaveText(currentUserId);
+    await expect(page.getByTestId("draft-id")).toContainText(draftId);
+    await expect(page.getByRole("button", { name: "下書きをexpenseEntriesに登録" })).toBeEnabled();
     await page.getByRole("button", { name: "下書きをexpenseEntriesに登録" }).click();
 
-    // 結果が表示されることを確認
-    await expect(page.getByText("Result:")).toBeVisible();
-    await expect(page.getByText(/"registeredDraftIds"/)).toBeVisible();
-    await expect(page.getByText(/"createdExpenseEntryIds"/)).toBeVisible();
+    await expect(page.getByTestId("error")).toHaveCount(0);
+    await expect(page.getByTestId("result")).toBeVisible({ timeout: 15000 });
+    await expect(page.getByTestId("registered-draft-count")).toHaveText("1");
+    await expect(page.getByTestId("created-entry-count")).toHaveText("2");
   });
 });

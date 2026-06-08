@@ -1,4 +1,4 @@
-import { mutation } from "./_generated/server";
+import { internalMutation, mutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
@@ -156,5 +156,24 @@ export const createExpenseEntriesFromDraft = mutation({
   },
   handler: async (ctx, args) => {
     return await createExpenseEntriesFromDraftHandler(ctx, args);
+  },
+});
+
+export const deleteE2eExpenseEntriesByUser = internalMutation({
+  args: {
+    userId: v.string(),
+  },
+  handler: async (ctx, { userId }) => {
+    const entries = await ctx.db
+      .query("expenseEntries")
+      .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId))
+      .take(500);
+
+    const targets = entries.filter(
+      (entry) => entry.source === "ai_suggested" && entry.title.startsWith("E2E項目-"),
+    );
+
+    await Promise.all(targets.map((entry) => ctx.db.delete(entry._id)));
+    return { deletedCount: targets.length };
   },
 });

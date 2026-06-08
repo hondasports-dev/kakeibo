@@ -17,6 +17,7 @@ import {
   type AiExpenseDraftReviewReason,
 } from "./aiExpenseDraftsModel";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "./categoryCandidate";
+import { createExpenseEntriesFromDraftHandler } from "./expenseEntries";
 import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
 import { insertReceiptForUser } from "./receipts";
 import { requireAuthenticatedUserId } from "./users";
@@ -98,6 +99,11 @@ type DeleteDraftArgs = {
 type DeleteDraftsByUserBatchArgs = {
   userId: string;
   limit?: number;
+};
+
+type CreateE2eReadyDraftForUserArgs = {
+  userId: string;
+  categoryId: Id<"categories">;
 };
 
 function mergeReviewReasons(
@@ -408,6 +414,67 @@ export const deleteDraftsByUserBatch = internalMutation({
   handler: deleteDraftsByUserBatchHandler,
 });
 
+export const createE2eReadyDraftForUser = internalMutation({
+  args: {
+    userId: v.string(),
+    categoryId: v.id("categories"),
+  },
+  handler: async (ctx, args: CreateE2eReadyDraftForUserArgs) => {
+    const now = Date.now();
+    const draftId = await ctx.db.insert("aiExpenseDrafts", {
+      userId: args.userId,
+      sourceType: "image_upload",
+      status: "ready",
+      documentType: "receipt",
+      imageFileName: "e2e-issue-179-ready.png",
+      shopName: "E2Eスーパー",
+      date: "2026-06-01",
+      amountYen: 1500,
+      categoryId: args.categoryId,
+      confidence: {
+        documentType: 0.99,
+        shopName: 0.99,
+        date: 0.99,
+        amountYen: 0.99,
+        categoryId: 0.99,
+      },
+      warnings: [],
+      reviewReasons: [],
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await insertDraftItems(
+      ctx,
+      args.userId,
+      draftId,
+      [
+        {
+          itemName: "E2E項目-食料品",
+          amountYen: 1000,
+          categoryId: args.categoryId,
+          confidence: {
+            itemName: 0.99,
+            amountYen: 0.99,
+            categoryId: 0.99,
+          },
+        },
+        {
+          itemName: "E2E項目-日用品",
+          amountYen: 500,
+          confidence: {
+            itemName: 0.99,
+            amountYen: 0.99,
+          },
+        },
+      ],
+      now,
+    );
+
+    return draftId;
+  },
+});
+
 export async function listByStatusHandler(ctx: QueryCtx, args: ListByStatusArgs) {
   const userId = await requireAuthenticatedUserId(ctx);
   return await ctx.db
@@ -683,7 +750,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
             },
           ];
 
-    const entryIds = await ctx.runMutation(api.expenseEntries.createExpenseEntriesFromDraft, {
+    const entryIds = await createExpenseEntriesFromDraftHandler(ctx, {
       draftId: draft._id,
       items: itemsToRegister,
     });
