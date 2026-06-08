@@ -683,7 +683,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
             },
           ];
 
-    const entryIds = await ctx.runMutation(internal.expenseEntries.createExpenseEntriesFromDraft, {
+    const entryIds = await ctx.runMutation(api.expenseEntries.createExpenseEntriesFromDraft, {
       draftId: draft._id,
       items: itemsToRegister,
     });

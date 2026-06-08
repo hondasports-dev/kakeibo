@@ -88,6 +88,7 @@ function createMutationCtx(
     insertedDoc?: DraftDoc;
     insertedIds?: string[];
     items?: DraftItemDoc[];
+    runMutation?: ReturnType<typeof vi.fn>;
   } = {},
 ): MutationCtx {
   const insertedIds = opts.insertedIds ?? ["new-draft-id"];
@@ -107,9 +108,13 @@ function createMutationCtx(
   });
   const queryMock = vi.fn().mockReturnValue({
     withIndex: vi.fn().mockReturnValue({
+      order: vi.fn().mockReturnValue({
+        take: vi.fn().mockResolvedValue(opts.items ?? []),
+      }),
       collect: vi.fn().mockResolvedValue(opts.items ?? []),
     }),
   });
+  const runMutationMock = opts.runMutation ?? vi.fn().mockResolvedValue(["entry-1", "entry-2"]);
 
   return {
     auth: {
@@ -122,6 +127,7 @@ function createMutationCtx(
       delete: deleteMock,
       query: queryMock,
     },
+    runMutation: runMutationMock,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as MutationCtx;
 }
@@ -1011,7 +1017,11 @@ describe("aiExpenseDrafts", () => {
     });
 
     it("既にregisteredの下書きはスキップする", async () => {
-      const registeredDraft = { ...readyDraft, status: "registered" as const };
+      const registeredDraft: DraftDoc = {
+        ...readyDraft,
+        _id: "draft-registered",
+        status: "registered",
+      };
       const ctx = createMutationCtx(createIdentity(), {
         getDocById: { "draft-registered": registeredDraft },
       });
