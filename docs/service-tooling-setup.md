@@ -100,6 +100,35 @@ pnpm exec vercel pull --yes --environment=development
 
 GitHub repository連携は、必要に応じてVercel Dashboard上で確認する。
 
+1. 外部製 Agent Skills をインストールする。
+
+Clerk Skills（認証実装・パターン参照用）:
+
+```bash
+npx skills add clerk/agent-skills
+```
+
+Convex AI files（Convexコーディングガイドライン）:
+
+```bash
+npx convex ai-files install
+```
+
+> `convex ai-files install` はステップ4で実行済み。Convex Skills（`convex`、`convex-quickstart`、`convex-setup-auth`、`convex-create-component`、`convex-migration-helper`、`convex-performance-audit`）は Convex AI files に同梱されるため、追加インストール不要。
+
+Vercel Skills（React Best Practices・最適化・デプロイ・UI設計ガイドライン）:
+
+```bash
+npx skills add vercel-labs/agent-skills --skill vercel-react-best-practices
+npx skills add vercel-labs/agent-skills --skill vercel-composition-patterns
+npx skills add vercel-labs/agent-skills --skill vercel-react-view-transitions
+npx skills add vercel-labs/agent-skills --skill vercel-optimize
+npx skills add vercel-labs/agent-skills --skill deploy-to-vercel
+npx skills add vercel-labs/agent-skills --skill web-design-guidelines
+```
+
+> これらの外部Skillは `.gitignore` でGit管理外にしている。新しい環境を構築するたびに上記コマンドで再インストールが必要。
+
 1. secret/local stateがGit管理外になっていることを確認する。
 
 ```bash
@@ -156,7 +185,23 @@ pnpm run dev -- --host 127.0.0.1
 .pnpm-store/
 ```
 
-`.agents/` 配下の生成物はGit管理外にする。ただし、このリポジトリで共有する役割定義とSkillだけは `.agents/roles/` と `.agents/skills/{browser-verification,issue-delivery,prompt-injection-guard,service-ops-safety,stuck-advisor,virtual-company}/` としてGit管理する。
+`.agents/` 配下の生成物はGit管理外にする。ただし、このリポジトリで手作りしたSkillと役割定義だけは `.agents/roles/` および以下のSkillディレクトリをGit管理する。
+
+**Git管理するSkill（手作り）:**
+- `browser-verification` — Chrome DevTools MCP確認手順
+- `issue-delivery` — GitHub Issue対応ワークフロー
+- `issue-tdd-workflow` — TDDベースのIssue対応ワークフロー（軽量版）
+- `prompt-injection-guard` — プロンプトインジェクション対策
+- `service-ops-safety` — 外部サービス操作安全確認
+- `stuck-advisor` — ハマったときのアドバイザー
+- `virtual-company` — 仮想ソフト開発会社ワークフロー
+
+**Git管理しないSkill（外部インストール）:**
+- `clerk` / `clerk-*` 系 — Clerk公式 Skills（`npx skills add clerk/agent-skills`）
+- `convex` / `convex-*` 系 — Convex公式 Skills（`npx convex ai-files install`）
+- `vercel-*` / `deploy-to-vercel` / `web-design-guidelines` — Vercel公式 Skills（`npx skills add vercel-labs/agent-skills --skill <name>`）
+
+外部Skillは新しい環境を構築するたびにセクション2.2の手順で再インストールする。
 
 `skills-lock.json` はsecretを含まないスキルhash一覧である。Git管理するかどうかは、スキル再現性を重視するか、生成物を減らすかで別途判断する。
 
