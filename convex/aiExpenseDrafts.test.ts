@@ -1,4 +1,5 @@
 import type { UserIdentity } from "convex/server";
+import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import {
@@ -8,6 +9,7 @@ import {
   deleteDraftHandler,
   getWithItemsHandler,
   listByStatusHandler,
+  registerReadyDraftsAsExpenseEntriesHandler,
   registerReadyDraftsHandler,
   updateForReviewHandler,
 } from "./aiExpenseDrafts";
@@ -985,6 +987,79 @@ describe("aiExpenseDrafts", () => {
       expect(runMutation).toHaveBeenCalledTimes(1);
       const [, callArgs] = runMutation.mock.calls[0];
       expect(callArgs.categoryId).toBe("cat-food");
+    });
+  });
+
+  describe("registerReadyDraftsAsExpenseEntries", () => {
+    it("ready状態の下書きをexpenseEntriesに登録できる", async () => {
+      const runMutation = vi.fn().mockResolvedValue(["entry-1", "entry-2"]);
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "draft-ready": readyDraft },
+        runMutation,
+      });
+
+      const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+        draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+      });
+
+      expect(result.registeredDraftIds).toContain("draft-ready");
+      expect(result.createdExpenseEntryIds).toHaveLength(2);
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "draft-ready",
+        expect.objectContaining({ status: "registered" }),
+      );
+    });
+
+    it("既にregisteredの下書きはスキップする", async () => {
+      const registeredDraft = { ...readyDraft, status: "registered" as const };
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "draft-registered": registeredDraft },
+      });
+
+      const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+        draftIds: ["draft-registered" as Id<"aiExpenseDrafts">],
+      });
+
+      expect(result.registeredDraftIds).toHaveLength(0);
+      expect(result.alreadyRegisteredDraftIds).toContain("draft-registered");
+    });
+
+    it("ready状態でない下書きはエラー", async () => {
+      const needsReviewDraft = { ...readyDraft, status: "needs_review" as const };
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "draft-needs-review": needsReviewDraft },
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-needs-review" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toThrow(ConvexError);
+    });
+
+    it("他のユーザーの下書きはエラー", async () => {
+      const otherUserDraft = { ...readyDraft, userId: "https://issuer.example|other-user" };
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "draft-ready": otherUserDraft },
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toThrow(ConvexError);
+    });
+
+    it("存在しない下書きはエラー", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "draft-missing": null },
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-missing" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toThrow(ConvexError);
     });
   });
 });
