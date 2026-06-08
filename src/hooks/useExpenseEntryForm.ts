@@ -113,14 +113,14 @@ export function useExpenseEntryForm({ weekStartDate, categories }: UseExpenseEnt
 
     const itemInputs: ExpenseItemEntryInput[] = isMultiMode
       ? items.map((item) => ({
-          categoryId: item.categoryId as string,
+          categoryId: item.categoryId,
           amountYen: item.amountYen,
           title: item.title,
           memo: item.memo || undefined,
         }))
       : [
           {
-            categoryId: (items[0]?.categoryId as string) ?? "",
+            categoryId: items[0]?.categoryId ?? "",
             amountYen: singleAmountNum > 0 ? String(singleAmountNum) : sourceAmount,
             title: shopName,
             memo: items[0]?.memo || undefined,
@@ -152,7 +152,7 @@ export function useExpenseEntryForm({ weekStartDate, categories }: UseExpenseEnt
       await createExpenseEntries({
         date,
         items: validation.data.items.map((item) => ({
-          categoryId: item.categoryId as Id<"categories">,
+          categoryId: item.categoryId,
           amountYen: item.amountYen,
           title: item.title,
           memo: item.memo,

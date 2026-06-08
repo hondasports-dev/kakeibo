@@ -1,4 +1,5 @@
 import * as v from "valibot";
+import type { Id } from "../../convex/_generated/dataModel";
 
 const categoryIdField = v.pipe(v.string(), v.nonEmpty("カテゴリは必須です"));
 
@@ -33,14 +34,14 @@ const expenseItemEntrySchema = v.object({
 });
 
 export type ExpenseItemEntryInput = {
-  categoryId: string;
+  categoryId: Id<"categories"> | "";
   amountYen: string;
   title: string;
   memo?: string;
 };
 
 export type ExpenseItemEntryParsed = {
-  categoryId: string;
+  categoryId: Id<"categories">;
   amountYen: number;
   title: string;
   memo?: string;
@@ -109,7 +110,7 @@ export function validateExpenseItems(
       parsedItems.push(result.data);
       itemErrors.push({});
     } else {
-      parsedItems.push({ categoryId: "", amountYen: 0, title: "" });
+      parsedItems.push({ categoryId: "" as Id<"categories">, amountYen: 0, title: "" });
       itemErrors.push(result.errors);
       hasErrors = true;
     }
