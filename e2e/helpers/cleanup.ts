@@ -45,11 +45,42 @@ export async function cleanupAiExpenseQueue(): Promise<void> {
 }
 
 /**
+ * テスト中に作成した E2E 専用 expenseEntries を削除する。
+ */
+export async function cleanupE2eExpenseEntries(): Promise<void> {
+  await callCleanupEndpoint({
+    userId: getCleanupUserId(),
+    clearE2eExpenseEntries: true,
+  });
+}
+
+/**
  * テスト中に作成した E2E 専用カテゴリを削除する。
  */
 export async function cleanupTestCategories(): Promise<void> {
   await callCleanupEndpoint({
     userId: getCleanupUserId(),
+    deleteE2eCategories: true,
+  });
+}
+
+export async function cleanupAiExpenseQueueByUser(userId: string): Promise<void> {
+  await callCleanupEndpoint({
+    userId,
+    clearAiExpenseQueue: true,
+  });
+}
+
+export async function cleanupE2eExpenseEntriesByUser(userId: string): Promise<void> {
+  await callCleanupEndpoint({
+    userId,
+    clearE2eExpenseEntries: true,
+  });
+}
+
+export async function cleanupTestCategoriesByUser(userId: string): Promise<void> {
+  await callCleanupEndpoint({
+    userId,
     deleteE2eCategories: true,
   });
 }
@@ -86,6 +117,7 @@ async function callCleanupEndpoint(body: {
   deleteE2eCategories?: boolean;
   clearMonthlyIncome?: boolean;
   clearAiExpenseQueue?: boolean;
+  clearE2eExpenseEntries?: boolean;
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
@@ -132,6 +164,7 @@ async function callCleanupEndpoint(body: {
     deletedCount?: number;
     weekSession?: { reset: boolean } | null;
     monthlyIncome?: { cleared: boolean } | null;
+    expenseEntries?: { deletedCount: number } | null;
   };
   const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {
@@ -158,5 +191,10 @@ async function callCleanupEndpoint(body: {
           ` jobs=${data.aiExpenseQueue.deletedJobCount}`,
       );
     }
+  }
+  if (data.expenseEntries && data.expenseEntries.deletedCount > 0) {
+    console.log(
+      `[cleanup] ${data.expenseEntries.deletedCount} 件の E2E expenseEntries を削除しました。`,
+    );
   }
 }

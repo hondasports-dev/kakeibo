@@ -1,6 +1,7 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
+import type { Id } from "./_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import {
   analyzeReceiptImageToDraftHandler,
@@ -271,6 +272,32 @@ const readyDraft: DraftDoc = {
   warnings: [],
   categoryId: "cat-food",
 };
+
+const readyDraftItems: DraftItemDoc[] = [
+  {
+    _id: "draft-item-1",
+    _creationTime: 0,
+    userId: "https://issuer.example|user-001",
+    draftId: "draft-ready",
+    itemName: "食料品",
+    amountYen: 1000,
+    categoryId: "cat-food",
+    confidence: { itemName: 0.99, amountYen: 0.99, categoryId: 0.99 },
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    _id: "draft-item-2",
+    _creationTime: 0,
+    userId: "https://issuer.example|user-001",
+    draftId: "draft-ready",
+    itemName: "日用品",
+    amountYen: 500,
+    confidence: { itemName: 0.99, amountYen: 0.99 },
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
 
 describe("aiExpenseDrafts", () => {
   it("画像解析成功時に抽出結果を receipt ではなく AI 支出下書きとして保存する", async () => {
@@ -998,10 +1025,13 @@ describe("aiExpenseDrafts", () => {
 
   describe("registerReadyDraftsAsExpenseEntries", () => {
     it("ready状態の下書きをexpenseEntriesに登録できる", async () => {
-      const runMutation = vi.fn().mockResolvedValue(["entry-1", "entry-2"]);
       const ctx = createMutationCtx(createIdentity(), {
-        getDocById: { "draft-ready": readyDraft },
-        runMutation,
+        getDocById: {
+          "draft-ready": readyDraft,
+          "cat-food": { userId: "https://issuer.example|user-001", isActive: true },
+        },
+        insertedIds: ["entry-1", "entry-2"],
+        items: readyDraftItems,
       });
 
       const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
@@ -1010,6 +1040,7 @@ describe("aiExpenseDrafts", () => {
 
       expect(result.registeredDraftIds).toContain("draft-ready");
       expect(result.createdExpenseEntryIds).toHaveLength(2);
+      expect(result.createdExpenseEntryIds).toEqual(["entry-1", "entry-2"]);
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "draft-ready",
         expect.objectContaining({ status: "registered" }),

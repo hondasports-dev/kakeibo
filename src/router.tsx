@@ -1,5 +1,9 @@
 import { createBrowserRouter } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@clerk/react";
+import { useMutation, useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
+import type { Id } from "../convex/_generated/dataModel";
 import { AppLayout } from "./components/AppLayout";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./components/AiExpenseQueuePanel";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -91,22 +95,73 @@ function E2eAiExpenseQueuePage() {
  * registerReadyDraftsAsExpenseEntries を使ってexpenseEntriesに登録するテスト用
  */
 function E2eRegisterAsExpenseEntriesPage() {
-  const [result, setResult] = useState<string | null>(null);
+  const draftId = new URLSearchParams(window.location.search).get("draftId");
+  const { isLoaded, isSignedIn } = useAuth();
+  const categories = useQuery(api.categories.listActive, isLoaded && isSignedIn ? {} : "skip");
+  const authenticatedUserId = useQuery(
+    api.users.getAuthenticatedUserId,
+    isLoaded && isSignedIn ? {} : "skip",
+  );
+  const [result, setResult] = useState<{
+    registeredDraftIds: Id<"aiExpenseDrafts">[];
+    createdExpenseEntryIds: Id<"expenseEntries">[];
+    alreadyRegisteredDraftIds: Id<"aiExpenseDrafts">[];
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const registerMutation = useMutation(api.aiExpenseDrafts.registerReadyDraftsAsExpenseEntries);
+  const isAuthReady = isLoaded && isSignedIn;
+  const isConvexReady = categories !== undefined;
+  const isReady = isAuthReady && isConvexReady;
 
-  const handleRegister = () => {
-    setResult("Test page loaded successfully");
+  const handleRegister = async () => {
+    if (!isReady) {
+      setError("authentication or convex connection is not ready yet");
+      return;
+    }
+    if (!draftId) {
+      setError("draftId query param is required");
+      return;
+    }
+    try {
+      setError(null);
+      setIsLoading(true);
+      const res = await registerMutation({
+        draftIds: [draftId as Id<"aiExpenseDrafts">],
+      });
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div style={{ padding: "2rem" }}>
       <h1>Issue #179 E2E Test: Register as Expense Entries</h1>
-      <button onClick={handleRegister} type="button">
-        下書きをexpenseEntriesに登録
+      <p data-testid="auth-status">{isAuthReady ? "ready" : "loading"}</p>
+      <p data-testid="convex-status">{isConvexReady ? "ready" : "loading"}</p>
+      <p data-testid="current-user-id">{authenticatedUserId ?? ""}</p>
+      <p data-testid="draft-id">{draftId ?? ""}</p>
+      <button onClick={handleRegister} type="button" disabled={isLoading || !isReady}>
+        {isLoading ? "登録中..." : "下書きをexpenseEntriesに登録"}
       </button>
+      {error && (
+        <div style={{ color: "red", marginTop: "1rem" }} data-testid="error">
+          Error: {error}
+        </div>
+      )}
       {result && (
-        <div style={{ marginTop: "1rem" }}>
+        <div style={{ marginTop: "1rem" }} data-testid="result">
           <h2>Result:</h2>
-          <pre>{result}</pre>
+          <dl>
+            <dt>registeredDraftCount</dt>
+            <dd data-testid="registered-draft-count">{result.registeredDraftIds.length}</dd>
+            <dt>createdExpenseEntryCount</dt>
+            <dd data-testid="created-entry-count">{result.createdExpenseEntryIds.length}</dd>
+          </dl>
+          <pre>{JSON.stringify(result, null, 2)}</pre>
         </div>
       )}
     </div>

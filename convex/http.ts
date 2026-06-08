@@ -60,6 +60,7 @@ http.route({
       deleteE2eCategories?: boolean;
       clearMonthlyIncome?: boolean;
       clearAiExpenseQueue?: boolean;
+      clearE2eExpenseEntries?: boolean;
     };
     if (!body.userId) {
       return new Response(JSON.stringify({ error: "userId is required." }), {
@@ -148,13 +149,75 @@ http.route({
       });
     }
 
+    let expenseEntries: { deletedCount: number } | null = null;
+    if (body.clearE2eExpenseEntries) {
+      expenseEntries = await ctx.runMutation(
+        internal.expenseEntries.deleteE2eExpenseEntriesByUser,
+        {
+          userId: body.userId,
+        },
+      );
+    }
+
     return new Response(
-      JSON.stringify({ receipts, aiExpenseQueue, weekSession, categories, monthlyIncome }),
+      JSON.stringify({
+        receipts,
+        aiExpenseQueue,
+        weekSession,
+        categories,
+        monthlyIncome,
+        expenseEntries,
+      }),
       {
         status: 200,
         headers: { "Content-Type": "application/json" },
       },
     );
+  }),
+});
+
+http.route({
+  path: "/e2e/seed-ai-expense-draft",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const secret = process.env.E2E_CLEANUP_SECRET;
+    if (!secret) {
+      return new Response(
+        JSON.stringify({ error: "E2E seeding is not enabled in this environment." }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const clientSecret = req.headers.get("X-E2E-Cleanup-Secret");
+    if (clientSecret !== secret) {
+      return new Response(JSON.stringify({ error: "Unauthorized." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const body = (await req.json()) as { userId?: string };
+    if (!body.userId) {
+      return new Response(JSON.stringify({ error: "userId is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const categoryId = await ctx.runMutation(internal.categories.ensureE2eCategoryByUser, {
+      userId: body.userId,
+      name: "E2Eカテゴリ-Issue179",
+      color: "#2563EB",
+    });
+    const draftId = await ctx.runMutation(internal.aiExpenseDrafts.createE2eReadyDraftForUser, {
+      userId: body.userId,
+      categoryId,
+    });
+
+    return new Response(JSON.stringify({ draftId, categoryId }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
   }),
 });
 

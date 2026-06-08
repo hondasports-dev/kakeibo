@@ -259,3 +259,46 @@ export const deleteE2eCategoriesByUser = internalMutation({
     return { deletedCount: targets.length };
   },
 });
+
+export const ensureE2eCategoryByUser = internalMutation({
+  args: {
+    userId: v.string(),
+    name: v.string(),
+    color: v.string(),
+  },
+  handler: async (ctx, { userId, name, color }) => {
+    if (!name.startsWith(E2E_CATEGORY_NAME_PREFIX)) {
+      throw new ConvexError("E2E category name must start with the E2E prefix");
+    }
+
+    const normalizedName = normalizeCategoryName(name);
+    const normalizedColor = normalizeCategoryColor(color);
+    const existing = await ctx.db
+      .query("categories")
+      .withIndex("by_user_id_and_sort_order", (q) => q.eq("userId", userId))
+      .take(MAX_CATEGORIES_PER_USER);
+
+    const matched = existing.find((category) => category.name === normalizedName);
+    const now = Date.now();
+
+    if (matched) {
+      await ctx.db.patch(matched._id, {
+        color: normalizedColor,
+        isActive: true,
+        updatedAt: now,
+      });
+      return matched._id;
+    }
+
+    const sortOrder = existing.reduce((max, category) => Math.max(max, category.sortOrder), 0) + 1;
+    return await ctx.db.insert("categories", {
+      userId,
+      name: normalizedName,
+      color: normalizedColor,
+      isActive: true,
+      sortOrder,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
