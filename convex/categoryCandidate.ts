@@ -1,3 +1,5 @@
+import type { Id } from "./_generated/dataModel";
+
 // ---------------------------------------------------------------------------
 // カテゴリ候補生成ロジック
 //
@@ -9,12 +11,6 @@
 
 /** 候補として返すカテゴリの最大件数 */
 export const CATEGORY_CANDIDATE_MAX = 20;
-
-// ---------------------------------------------------------------------------
-// 型定義
-// ---------------------------------------------------------------------------
-
-import type { Id } from "./_generated/dataModel";
 
 export type CategoryLike = {
   _id: Id<"categories">;
@@ -81,6 +77,7 @@ function rankAndLimit(
  */
 export function buildCategoryCandidates(input: BuildCategoryCandidatesInput): CategoryLike[] {
   const { documentType, categoryName, shopName, payeeName, paymentPurpose, categories } = input;
+  // 注: paymentPlace は input に含まれるが、コンビニ払込票では意図的に使用しない
 
   if (categories.length === 0) return [];
 
