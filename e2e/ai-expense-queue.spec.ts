@@ -199,3 +199,19 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await expect(registeredSection.getByText("9,160円")).toBeVisible();
   });
 });
+
+test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
+  test("@smoke registerReadyDraftsAsExpenseEntries でexpenseEntriesに登録できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue-expense-entries");
+
+    await expect(page.getByText("Issue #179 E2E Test: Register as Expense Entries")).toBeVisible();
+    await page.getByRole("button", { name: "下書きをexpenseEntriesに登録" }).click();
+
+    // 結果が表示されることを確認
+    await expect(page.getByText("Result:")).toBeVisible();
+    await expect(page.getByText(/"registeredDraftIds"/)).toBeVisible();
+    await expect(page.getByText(/"createdExpenseEntryIds"/)).toBeVisible();
+  });
+});

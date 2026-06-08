@@ -1,5 +1,8 @@
 import { createBrowserRouter } from "react-router-dom";
 import { useState } from "react";
+import { useMutation } from "convex/react";
+import { api } from "../convex/_generated/api";
+import type { Id } from "../convex/_generated/dataModel";
 import { AppLayout } from "./components/AppLayout";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./components/AiExpenseQueuePanel";
 import { SettingsPage } from "./pages/SettingsPage";
@@ -86,6 +89,49 @@ function E2eAiExpenseQueuePage() {
   );
 }
 
+/**
+ * Issue #179 E2Eテスト用ページ
+ * registerReadyDraftsAsExpenseEntries を使ってexpenseEntriesに登録するテスト用
+ */
+function E2eRegisterAsExpenseEntriesPage() {
+  const [result, setResult] = useState<{
+    registeredDraftIds: Id<"aiExpenseDrafts">[];
+    createdExpenseEntryIds: Id<"expenseEntries">[];
+    alreadyRegisteredDraftIds: Id<"aiExpenseDrafts">[];
+  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const registerMutation = useMutation(api.aiExpenseDrafts.registerReadyDraftsAsExpenseEntries);
+
+  const handleRegister = async () => {
+    try {
+      setError(null);
+      // E2Eテスト用に既存のready状態の下書きを登録
+      const res = await registerMutation({
+        draftIds: ["e2e-ready-draft" as Id<"aiExpenseDrafts">],
+      });
+      setResult(res);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    }
+  };
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1>Issue #179 E2E Test: Register as Expense Entries</h1>
+      <button onClick={handleRegister} type="button">
+        下書きをexpenseEntriesに登録
+      </button>
+      {error && <div style={{ color: "red", marginTop: "1rem" }}>Error: {error}</div>}
+      {result && (
+        <div style={{ marginTop: "1rem" }}>
+          <h2>Result:</h2>
+          <pre>{JSON.stringify(result, null, 2)}</pre>
+        </div>
+      )}
+    </div>
+  );
+}
+
 const appRoutes = [
   {
     path: "/",
@@ -113,6 +159,10 @@ if (import.meta.env.DEV) {
   appRoutes.push({
     path: "/__e2e__/ai-expense-queue",
     element: <E2eAiExpenseQueuePage />,
+  });
+  appRoutes.push({
+    path: "/__e2e__/ai-expense-queue-expense-entries",
+    element: <E2eRegisterAsExpenseEntriesPage />,
   });
 }
 
