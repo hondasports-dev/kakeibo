@@ -921,4 +921,70 @@ describe("aiExpenseDrafts", () => {
       }),
     ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
   });
+
+  // ---------------------------------------------------------------------------
+  // Issue #173: カテゴリ候補生成ロジック連携
+  // ---------------------------------------------------------------------------
+
+  it("カテゴリ名がカテゴリリストに存在しない場合は categoryId を undefined で渡す", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      // mock の categoryName は "食費" だが、カテゴリリストには "日用品" だけ
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          hasAcceptedExternalApiConsent: true,
+          acceptedAt: 1234567890,
+        })
+        .mockResolvedValueOnce([
+          { _id: "cat-daily", name: "日用品", color: "#4ECDC4", isActive: true, sortOrder: 2 },
+        ]);
+      const runMutation = vi.fn().mockResolvedValue({
+        _id: "draft-no-category",
+        status: "needs_review",
+      });
+
+      const ctx = createActionCtx(createIdentity(), true, { runQuery, runMutation });
+
+      await analyzeReceiptImageToDraftHandler(ctx, {
+        imageDataUrl: "data:image/jpeg;base64,AAA",
+      });
+
+      expect(runMutation).toHaveBeenCalledTimes(1);
+      const [, callArgs] = runMutation.mock.calls[0];
+      // 一致するカテゴリがなければ categoryId は含まれない（または undefined）
+      expect(callArgs.categoryId).toBeUndefined();
+    });
+  });
+
+  it("コンビニ払込票で候補を生成するとき paymentPlace を主根拠にしない", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      // mock の categoryName は "食費"。buildCategoryCandidates の結果に "食費" があれば categoryId が解決される
+      const runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({
+          hasAcceptedExternalApiConsent: true,
+          acceptedAt: 1234567890,
+        })
+        .mockResolvedValueOnce([
+          { _id: "cat-food", name: "食費", color: "#FF0000", isActive: true, sortOrder: 1 },
+          { _id: "cat-tax", name: "税金", color: "#AAAAAA", isActive: true, sortOrder: 9 },
+        ]);
+      const runMutation = vi.fn().mockResolvedValue({
+        _id: "draft-payment",
+        status: "needs_review",
+      });
+
+      const ctx = createActionCtx(createIdentity(), true, { runQuery, runMutation });
+
+      await analyzeReceiptImageToDraftHandler(ctx, {
+        imageDataUrl: "data:image/jpeg;base64,AAA",
+      });
+
+      // mock モードでは documentType: "receipt", categoryName: "食費" が返るため
+      // buildCategoryCandidates で "食費" が候補に入り categoryId が解決される
+      expect(runMutation).toHaveBeenCalledTimes(1);
+      const [, callArgs] = runMutation.mock.calls[0];
+      expect(callArgs.categoryId).toBe("cat-food");
+    });
+  });
 });

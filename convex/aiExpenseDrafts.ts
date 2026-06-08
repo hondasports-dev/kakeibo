@@ -16,6 +16,7 @@ import {
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
 } from "./aiExpenseDraftsModel";
+import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "./categoryCandidate";
 import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
 import { insertReceiptForUser } from "./receipts";
 import { requireAuthenticatedUserId } from "./users";
@@ -646,15 +647,20 @@ export async function analyzeReceiptImageToDraftHandler(
     return draft;
   }
 
-  let categoryId = undefined;
-  if (extracted.categoryName && extracted.categoryName.trim().length > 0) {
-    const categories = await ctx.runQuery(api.categories.listActive, {});
-    const targetName = extracted.categoryName.trim();
-    const matched = categories.find((cat) => cat.name === targetName);
-    if (matched) {
-      categoryId = matched._id;
-    }
-  }
+  // カテゴリ候補を生成し、AI が推定したカテゴリ名を候補の中で解決する。
+  // - コンビニ払込票では paymentPlace を主根拠にせず paymentPurpose / payeeName を優先する。
+  // - 候補にないカテゴリ名は採用しない（存在しないカテゴリIDを保存しない）。
+  const categories = await ctx.runQuery(api.categories.listActive, {});
+  const candidates = buildCategoryCandidates({
+    documentType: extracted.documentType,
+    categoryName: extracted.categoryName,
+    shopName: extracted.shopName || undefined,
+    paymentPlace: extracted.paymentPlace || undefined,
+    payeeName: extracted.payeeName || undefined,
+    paymentPurpose: extracted.paymentPurpose || undefined,
+    categories,
+  });
+  const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
 
   const draft: Doc<"aiExpenseDrafts"> = await ctx.runMutation(
     internal.aiExpenseDrafts.createFromExtraction,
