@@ -95,7 +95,12 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 
 9. **自己レビューとCI対応を行う**
    - push前に、フェーズ0の結論から外れていないか、型安全性、境界条件、認可、非同期状態、重複、テスト不足を確認する。
-   - QA Agent の視点で、受け入れ条件、変更したユーザー導線、権限・データ保存・回帰リスクを見直し、既存E2Eで覆えるか、新規E2Eやテスト名の更新が必要かを確認する。
+   - 変更内容に応じて、以下の専門Skillを使ってレビューを行う:
+     - **QA Agent の視点**: `virtual-company` Skill の QA Agent ロールで、受け入れ条件、変更したユーザー導線、権限・データ保存・回帰リスクを見直し、既存E2Eで覆えるか、新規E2Eやテスト名の更新が必要かを確認する。
+     - **Reviewer の視点**: `virtual-company` Skill の Reviewer ロールで、コード品質、命名、設計整合性、ドキュメント不足を確認する。
+     - **Convex コードを変更した場合**: `convex-performance-audit` Skill で、過剰なドキュメント読み取り、サブスクリプション過多、OCC競合リスクを確認する。`convex/_generated/ai/guidelines.md` の違反（validator 型、ID 型の厳密性など）も合わせて確認する。
+     - **React コンポーネント / hooks を変更した場合**: `vercel-react-best-practices` Skill で、不要な再レンダリング、ウォーターフォール、バンドルサイズへの影響、`useEffect` の依存配列などを確認する。
+     - **UI / デザインを変更した場合**: `web-design-guidelines` Skill で、アクセシビリティ、コントラスト、インタラクションパターンへの準拠を確認する。
    - 指摘があれば修正してから push する。レビュー修正は原則として別コミットにする。
    - push後に CI が失敗したら、`gh run view <run_id> --log-failed` で原因を特定してから修正する。原因を理解せず再pushしない。
    - 修正後は `pnpm test --run`、必要に応じて `pnpm run format:check` を再実行してから push する。
