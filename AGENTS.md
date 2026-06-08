@@ -29,9 +29,72 @@ Convex agent skills for common tasks can be installed by running
 | スクリプト実行 | `pnpm run <script>` または `pnpm <script>`                                       |
 | テスト実行     | `pnpm test`                                                                      |
 | lint           | `pnpm run lint`                                                                  |
+| フォーマット確認 | `pnpm run format:check`                                                        |
+| フォーマット適用 | `pnpm run format`                                                              |
 | ビルド         | `pnpm run build`                                                                 |
+| push前検証     | `pnpm test --run & pnpm run lint & pnpm run format:check & pnpm run build & wait` |
 | パッケージ追加 | `pnpm add <pkg>`                                                                 |
 | Convex CLI     | `pnpm exec convex <cmd>` または `npx convex <cmd>`（convex は例外として npx 可） |
+
+## 検証とCI自動化
+
+コード変更後は以下の自動検証フローに従うこと。
+
+### Push前検証（並列実行）
+
+```bash
+# 全て並列で実行し、全て成功してからpushする
+pnpm test --run & pnpm run lint & pnpm run format:check & pnpm run build &
+wait
+```
+
+### Push後CI自動監視
+
+```bash
+# push直後にCIを監視開始（失敗時は自動原因分析へ）
+gh run watch <run_id> --exit-status
+```
+
+### CI失敗時の自動対応フロー
+
+1. **失敗検出時の自動実行**
+   ```bash
+   gh run view <run_id> --log-failed
+   ```
+
+2. **エラーパターン自動判定と修正**
+   | エラーパターン | 自動判定キーワード | 自動修正アクション |
+   |--------------|------------------|------------------|
+   | フォーマット違反 | `oxfmt`, `format`, `prettier` | `pnpm run format` → 再commit → 再push |
+   | lint警告 | `oxlint`, `eslint`, `warning` | 修正 → `pnpm run lint` → 再commit |
+   | テスト失敗 | `FAIL`, `Error`, `expected` | 失敗テスト名を報告 → ユーザー確認 |
+   | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
+
+3. **修正後は必ず再検証してから再push**
+   ```bash
+   pnpm test --run && pnpm run lint && pnpm run format:check && git push
+   ```
+
+4. **学習の自動反映（AGENTS.md自己更新）**
+   CI失敗の原因が新しいパターンだった場合、自動的にこのAGENTS.mdの「検証とCI自動化」セクションに追記する：
+   - 発生したエラーパターン
+   - 検出キーワード
+   - 対応コマンド
+   
+   例：format違反でCI失敗した場合 → `pnpm run format:check` をpush前チェックリストに追加
+
+### 専門Skillによる自動レビュー
+
+以下の条件に該当する場合、push前に自動的に専門Skillを起動してレビューを行う：
+
+| 変更対象 | 自動起動Skill | レビュー内容 |
+|---------|------------|------------|
+| `convex/**/*.ts` | `convex-performance-audit` | DB読み取り、OCC競合、型厳密性 |
+| `src/**/*.{ts,tsx}` | `vercel-react-best-practices` | 再レンダリング、useEffect依存、バンドル |
+| UI/コンポーネント変更 | `web-design-guidelines` | アクセシビリティ、コントラスト |
+| 認証/Clerk関連 | `virtual-company` (Reviewerロール) | セキュリティ、認可 |
+
+**レビュー指摘があった場合**：自動修正 → 再検証 → 再レビューのループを繰り返し、指摘が0件になるまでpushをブロックする。
 
 ## ドキュメント参照
 
