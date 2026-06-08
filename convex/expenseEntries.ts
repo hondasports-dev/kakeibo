@@ -10,7 +10,7 @@ import type { Id } from "./_generated/dataModel";
 // ---------------------------------------------------------------------------
 
 type ExpenseEntryItemArg = {
-  categoryId: string;
+  categoryId: Id<"categories">;
   amountYen: number;
   title: string;
   memo?: string;
@@ -18,7 +18,7 @@ type ExpenseEntryItemArg = {
 
 type CreateExpenseEntriesArgs = {
   date: string;
-  sourceDocumentId?: string;
+  sourceDocumentId?: Id<"sourceDocuments">;
   items: ExpenseEntryItemArg[];
 };
 
@@ -31,7 +31,7 @@ export async function createExpenseEntriesHandler(
   const now = Date.now();
 
   for (const item of args.items) {
-    const category = await ctx.db.get(item.categoryId as Id<"categories">);
+    const category = await ctx.db.get(item.categoryId);
     if (category === null) {
       throw new ConvexError("Category not found");
     }
@@ -44,12 +44,10 @@ export async function createExpenseEntriesHandler(
 
     await ctx.db.insert("expenseEntries", {
       userId,
-      sourceDocumentId: args.sourceDocumentId
-        ? (args.sourceDocumentId as Id<"sourceDocuments">)
-        : undefined,
+      sourceDocumentId: args.sourceDocumentId,
       date: args.date,
       amount: item.amountYen,
-      categoryId: item.categoryId as Id<"categories">,
+      categoryId: item.categoryId,
       title: item.title,
       memo: item.memo,
       entryType: "expense",
@@ -63,10 +61,10 @@ export async function createExpenseEntriesHandler(
 export const createExpenseEntries = mutation({
   args: {
     date: v.string(),
-    sourceDocumentId: v.optional(v.string()),
+    sourceDocumentId: v.optional(v.id("sourceDocuments")),
     items: v.array(
       v.object({
-        categoryId: v.string(),
+        categoryId: v.id("categories"),
         amountYen: v.number(),
         title: v.string(),
         memo: v.optional(v.string()),

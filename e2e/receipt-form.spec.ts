@@ -132,13 +132,9 @@ test.describe("支出項目保存フロー（Issue #13 / #181 受け入れ確認
     await expect(amountInput).toHaveValue("");
 
     // Snackbar で成功通知が出ることを確認（Issue #13 / #181）
-    // Snackbar は autoHideDuration で消えるため、クリア確認後に表示中であれば合格
+    // フォームリセット完了後でも Snackbar は 3 秒以内なら表示されているはず
     const snackbar = page.getByRole("alert").filter({ hasText: "支出項目を保存しました" });
-    // Snackbar はすでに消えている場合もあるため、表示されていれば確認（optional）
-    const isVisible = await snackbar.isVisible().catch(() => false);
-    if (isVisible) {
-      await expect(snackbar).toBeVisible();
-    }
+    await expect(snackbar).toBeVisible({ timeout: 3_000 });
   });
 
   // Issue #181: ExpenseEntryForm は保存後のフォーカス戻りを実装していないためスキップ
