@@ -612,6 +612,108 @@ export const registerReadyDrafts = mutation({
   handler: registerReadyDraftsHandler,
 });
 
+// ---------------------------------------------------------------------------
+// registerReadyDraftsAsExpenseEntries
+// ---------------------------------------------------------------------------
+
+export async function registerReadyDraftsAsExpenseEntriesHandler(
+  ctx: MutationCtx,
+  args: RegisterReadyDraftsArgs,
+) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const uniqueDraftIds = dedupeDraftIds(args.draftIds);
+  if (uniqueDraftIds.length === 0) {
+    return {
+      registeredDraftIds: [] as Id<"aiExpenseDrafts">[],
+      createdExpenseEntryIds: [] as Id<"expenseEntries">[],
+      alreadyRegisteredDraftIds: [] as Id<"aiExpenseDrafts">[],
+    };
+  }
+
+  const drafts = await Promise.all(
+    uniqueDraftIds.map(async (draftId) => {
+      const draft = await ctx.db.get(draftId);
+      if (draft === null) {
+        throw new ConvexError("AI expense draft not found");
+      }
+      if (draft.userId !== userId) {
+        throw new ConvexError("AI expense draft does not belong to the current user");
+      }
+      return draft;
+    }),
+  );
+
+  const draftsToRegister: Doc<"aiExpenseDrafts">[] = [];
+  const alreadyRegisteredDraftIds: Id<"aiExpenseDrafts">[] = [];
+
+  for (const draft of drafts) {
+    if (draft.status === "registered") {
+      alreadyRegisteredDraftIds.push(draft._id);
+      continue;
+    }
+    if (draft.status !== "ready") {
+      throw new ConvexError(`Draft ${draft._id} is not in ready status`);
+    }
+    draftsToRegister.push(draft);
+  }
+
+  const createdExpenseEntryIds: Id<"expenseEntries">[] = [];
+
+  for (const draft of draftsToRegister) {
+    // aiExpenseDraftItemsを取得
+    const items = await ctx.db
+      .query("aiExpenseDraftItems")
+      .withIndex("by_draft_id", (q) => q.eq("draftId", draft._id))
+      .order("asc")
+      .take(100);
+
+    // itemsが存在する場合は各itemからexpenseEntriesを作成、空の場合はdraft全体を1つ作成
+    const itemsToRegister =
+      items.length > 0
+        ? items.map((item) => ({
+            itemName: item.itemName,
+            amountYen: item.amountYen,
+            categoryId: item.categoryId,
+          }))
+        : [
+            {
+              itemName: resolveReceiptShopNameFromDraft(draft),
+              amountYen: draft.amountYen ?? 0,
+              categoryId: draft.categoryId,
+            },
+          ];
+
+    const entryIds = await ctx.runMutation(internal.expenseEntries.createExpenseEntriesFromDraft, {
+      draftId: draft._id,
+      items: itemsToRegister,
+    });
+    createdExpenseEntryIds.push(...entryIds);
+  }
+
+  const now = Date.now();
+  await Promise.all(
+    draftsToRegister.map((draft) =>
+      ctx.db.patch(draft._id, {
+        status: "registered",
+        updatedAt: now,
+      }),
+    ),
+  );
+
+  return {
+    registeredDraftIds: draftsToRegister.map((draft) => draft._id),
+    createdExpenseEntryIds,
+    alreadyRegisteredDraftIds,
+  };
+}
+
+export const registerReadyDraftsAsExpenseEntries = mutation({
+  args: {
+    draftIds: v.array(v.id("aiExpenseDrafts")),
+  },
+  handler: registerReadyDraftsAsExpenseEntriesHandler,
+});
+
 function getSafeFailureWarning(err: unknown) {
   if (err instanceof ConvexError && typeof err.data === "string") {
     return err.data;

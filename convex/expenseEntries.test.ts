@@ -1,8 +1,12 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
+import type { Id } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-import { createExpenseEntriesHandler } from "./expenseEntries";
+import {
+  createExpenseEntriesFromDraftHandler,
+  createExpenseEntriesHandler,
+} from "./expenseEntries";
 
 // ---------------------------------------------------------------------------
 // テスト用型定義
@@ -15,6 +19,42 @@ type CategoryDoc = {
   name: string;
   color: string;
   isActive: boolean;
+  sortOrder: number;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type AiExpenseDraftDoc = {
+  _id: string;
+  _creationTime: number;
+  userId: string;
+  sourceType: "image_upload";
+  sourceDocumentId?: string;
+  status: "queued" | "analyzing" | "ready" | "needs_review" | "failed" | "registered";
+  documentType: "receipt" | "convenience_payment" | "unknown";
+  shopName?: string;
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+  date?: string;
+  amountYen?: number;
+  categoryId?: string;
+  confidence: Record<string, number | undefined>;
+  warnings: string[];
+  reviewReasons: string[];
+  registeredReceiptId?: string;
+  createdAt: number;
+  updatedAt: number;
+};
+
+type AiExpenseDraftItemDoc = {
+  _id: string;
+  _creationTime: number;
+  draftId: string;
+  itemName?: string;
+  amountYen: number;
+  categoryId?: string;
+  confidence: Record<string, number | undefined>;
   sortOrder: number;
   createdAt: number;
   updatedAt: number;
@@ -36,7 +76,7 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
 function createMutationCtx(
   identity: UserIdentity | null,
   opts: {
-    getDocById?: Record<string, CategoryDoc | null>;
+    getDocById?: Record<string, CategoryDoc | AiExpenseDraftDoc | AiExpenseDraftItemDoc | null>;
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-entry-id");
@@ -245,5 +285,184 @@ describe("createExpenseEntriesHandler", () => {
       "expenseEntries",
       expect.objectContaining({ sourceDocumentId: "source-doc-1" }),
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createExpenseEntriesFromDraft
+// ---------------------------------------------------------------------------
+
+const readyDraft: AiExpenseDraftDoc = {
+  _id: "draft-ready",
+  _creationTime: 0,
+  userId: "https://issuer.example|user-001",
+  sourceType: "image_upload",
+  status: "ready",
+  documentType: "receipt",
+  shopName: "スーパー青葉",
+  date: "2026-06-01",
+  amountYen: 1500,
+  categoryId: "cat-food",
+  confidence: { shopName: 0.92, date: 0.95, amountYen: 0.98, categoryId: 0.88 },
+  warnings: [],
+  reviewReasons: [],
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+const draftItem1: AiExpenseDraftItemDoc = {
+  _id: "item-1",
+  _creationTime: 0,
+  draftId: "draft-ready",
+  itemName: "食料品",
+  amountYen: 1000,
+  categoryId: "cat-food",
+  confidence: { itemName: 0.9, amountYen: 0.95, categoryId: 0.85 },
+  sortOrder: 1,
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+const draftItem2: AiExpenseDraftItemDoc = {
+  _id: "item-2",
+  _creationTime: 0,
+  draftId: "draft-ready",
+  itemName: "日用品",
+  amountYen: 500,
+  categoryId: "cat-daily",
+  confidence: { itemName: 0.88, amountYen: 0.95, categoryId: 0.82 },
+  sortOrder: 2,
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+describe("createExpenseEntriesFromDraftHandler", () => {
+  it("AI下書きのitemsから複数のexpenseEntriesを作成できる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "cat-food": activeFoodCategory,
+        "cat-daily": activeDailyCategory,
+      },
+    });
+
+    const result = await createExpenseEntriesFromDraftHandler(ctx, {
+      draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+      items: [
+        { itemName: "食料品", amountYen: 1000, categoryId: "cat-food" },
+        { itemName: "日用品", amountYen: 500, categoryId: "cat-daily" },
+      ],
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledTimes(2);
+    expect(result).toHaveLength(2);
+    expect(ctx.db.insert).toHaveBeenNthCalledWith(
+      1,
+      "expenseEntries",
+      expect.objectContaining({
+        date: "2026-06-01",
+        amount: 1000,
+        categoryId: "cat-food",
+        title: "食料品",
+        entryType: "expense",
+        source: "ai_suggested",
+      }),
+    );
+    expect(ctx.db.insert).toHaveBeenNthCalledWith(
+      2,
+      "expenseEntries",
+      expect.objectContaining({
+        date: "2026-06-01",
+        amount: 500,
+        categoryId: "cat-daily",
+        title: "日用品",
+        entryType: "expense",
+        source: "ai_suggested",
+      }),
+    );
+  });
+
+  it("itemのcategoryIdがnullの場合、draftのcategoryIdをフォールバックする", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "cat-food": activeFoodCategory,
+      },
+    });
+
+    await createExpenseEntriesFromDraftHandler(ctx, {
+      draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+      items: [{ itemName: "不明な品目", amountYen: 1000, categoryId: undefined }],
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledTimes(1);
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "expenseEntries",
+      expect.objectContaining({
+        categoryId: "cat-food", // draftのcategoryIdが使用される
+        title: "不明な品目",
+      }),
+    );
+  });
+
+  it("未認証の場合、ConvexErrorを投げる", async () => {
+    const ctx = createMutationCtx(null);
+
+    await expect(
+      createExpenseEntriesFromDraftHandler(ctx, {
+        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+      }),
+    ).rejects.toThrow(ConvexError);
+  });
+
+  it("他のユーザーの下書きの場合、ConvexErrorを投げる", async () => {
+    const otherUserDraft: AiExpenseDraftDoc = {
+      ...readyDraft,
+      userId: "https://issuer.example|other-user",
+    };
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: { "draft-ready": otherUserDraft },
+    });
+
+    await expect(
+      createExpenseEntriesFromDraftHandler(ctx, {
+        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+      }),
+    ).rejects.toThrow(ConvexError);
+  });
+
+  it("存在しないカテゴリIDの場合、ConvexErrorを投げる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "cat-food": null,
+      },
+    });
+
+    await expect(
+      createExpenseEntriesFromDraftHandler(ctx, {
+        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+      }),
+    ).rejects.toThrow(ConvexError);
+  });
+
+  it("無効化されたカテゴリIDの場合、ConvexErrorを投げる", async () => {
+    const inactiveCategory: CategoryDoc = { ...activeFoodCategory, isActive: false };
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": readyDraft,
+        "cat-food": inactiveCategory,
+      },
+    });
+
+    await expect(
+      createExpenseEntriesFromDraftHandler(ctx, {
+        draftId: "draft-ready" as Id<"aiExpenseDrafts">,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: "cat-food" }],
+      }),
+    ).rejects.toThrow(ConvexError);
   });
 });
