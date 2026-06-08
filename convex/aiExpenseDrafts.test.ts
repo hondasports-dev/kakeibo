@@ -956,9 +956,9 @@ describe("aiExpenseDrafts", () => {
     });
   });
 
-  it("コンビニ払込票で候補を生成するとき paymentPlace を主根拠にしない", async () => {
+  it("カテゴリ候補生成・解決フローで正しく categoryId が解決される", async () => {
     await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
-      // mock の categoryName は "食費"。buildCategoryCandidates の結果に "食費" があれば categoryId が解決される
+      // mock の categoryName は "食費"。buildCategoryCandidates → resolveCategoryIdFromCandidates で categoryId が解決される
       const runQuery = vi
         .fn()
         .mockResolvedValueOnce({
