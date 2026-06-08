@@ -46,7 +46,7 @@ type BuildCategoryCandidatesInput = {
 function matchScore(keyword: string, categoryName: string): number {
   const kw = keyword.trim().toLowerCase();
   const cn = categoryName.trim().toLowerCase();
-  if (!kw) return 0;
+  if (!kw || !cn) return 0;
   if (cn === kw) return 2;
   if (cn.includes(kw) || kw.includes(cn)) return 1;
   return 0;
@@ -117,7 +117,7 @@ export function resolveCategoryIdFromCandidates(
   categoryName: string | undefined,
   candidates: CategoryLike[],
 ): Id<"categories"> | undefined {
-  const target = categoryName?.trim();
+  const target = categoryName?.trim().toLowerCase();
   if (!target) return undefined;
-  return candidates.find((cat) => cat.name === target)?._id;
+  return candidates.find((cat) => cat.name.toLowerCase() === target)?._id;
 }

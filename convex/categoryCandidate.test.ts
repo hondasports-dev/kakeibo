@@ -138,6 +138,53 @@ describe("buildCategoryCandidates", () => {
     // スコア0で全件同点 → 元の順序のまま
     expect(candidates[0].name).toBe("食費");
   });
+
+  it("categoryNameに前後の空白があっても正しくマッチする", () => {
+    const categories = makeCategories(["食費", "日用品"]);
+    const candidates = buildCategoryCandidates({
+      documentType: "receipt",
+      categoryName: " 食費 ",
+      categories,
+    });
+    expect(candidates[0].name).toBe("食費");
+  });
+
+  it("複数キーワードのスコアが累積される", () => {
+    const categories = makeCategories(["食費", "外食", "日用品"]);
+    // categoryName「食」+ shopName「外食」→ 「外食」が両方にマッチして高スコア
+    const candidates = buildCategoryCandidates({
+      documentType: "receipt",
+      categoryName: "食",
+      shopName: "外食レストラン",
+      categories,
+    });
+    // 「外食」が最も高スコア（categoryNameで部分一致 + shopNameで完全一致）
+    expect(candidates[0].name).toBe("外食");
+  });
+
+  it("大文字小文字が異なっても正しくマッチする", () => {
+    const categories = makeCategories(["Food", "Drink"]);
+    const candidates = buildCategoryCandidates({
+      documentType: "receipt",
+      categoryName: "food",
+      categories,
+    });
+    expect(candidates[0].name).toBe("Food");
+  });
+
+  it("空のカテゴリ名はスコアリングに影響しない", () => {
+    const categories = [
+      { _id: catId("cat-0"), name: "", color: "#FF0000", isActive: true, sortOrder: 1 },
+      { _id: catId("cat-1"), name: "食費", color: "#00FF00", isActive: true, sortOrder: 2 },
+    ];
+    const candidates = buildCategoryCandidates({
+      documentType: "receipt",
+      categoryName: "食費",
+      categories,
+    });
+    // 空nameはスコア0なので「食費」が先頭
+    expect(candidates[0].name).toBe("食費");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -172,5 +219,17 @@ describe("resolveCategoryIdFromCandidates", () => {
   it("候補が空配列のときはundefinedを返す", () => {
     const result = resolveCategoryIdFromCandidates("食費", []);
     expect(result).toBeUndefined();
+  });
+
+  it("categoryNameに前後の空白があっても正しくマッチする", () => {
+    const candidates = makeCategories(["食費", "日用品"]);
+    const result = resolveCategoryIdFromCandidates("  食費  ", candidates);
+    expect(result).toBe(catId("cat-0"));
+  });
+
+  it("大文字小文字が異なっても正しくマッチする", () => {
+    const candidates = makeCategories(["Food", "日用品"]);
+    const result = resolveCategoryIdFromCandidates("food", candidates);
+    expect(result).toBe(catId("cat-0"));
   });
 });

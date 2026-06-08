@@ -655,7 +655,6 @@ export async function analyzeReceiptImageToDraftHandler(
     documentType: extracted.documentType,
     categoryName: extracted.categoryName,
     shopName: extracted.shopName || undefined,
-    paymentPlace: extracted.paymentPlace || undefined,
     payeeName: extracted.payeeName || undefined,
     paymentPurpose: extracted.paymentPurpose || undefined,
     categories,
