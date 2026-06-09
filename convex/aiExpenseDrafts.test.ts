@@ -1102,5 +1102,25 @@ describe("aiExpenseDrafts", () => {
         }),
       ).rejects.toThrow(ConvexError);
     });
+
+    it("itemsが空で必須値不足のready下書きはエラー", async () => {
+      const invalidReadyDraft: DraftDoc = {
+        ...readyDraft,
+        amountYen: undefined,
+        categoryId: undefined,
+      };
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "draft-ready": invalidReadyDraft },
+        items: [],
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toThrow(ConvexError);
+      expect(ctx.db.insert).not.toHaveBeenCalled();
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+    });
   });
 });

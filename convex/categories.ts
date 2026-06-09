@@ -290,6 +290,10 @@ export const ensureE2eCategoryByUser = internalMutation({
       return matched._id;
     }
 
+    if (existing.length >= MAX_CATEGORIES_PER_USER) {
+      throw new ConvexError("Category limit reached");
+    }
+
     const sortOrder = existing.reduce((max, category) => Math.max(max, category.sortOrder), 0) + 1;
     return await ctx.db.insert("categories", {
       userId,
