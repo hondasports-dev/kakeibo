@@ -111,7 +111,7 @@ function E2eRegisterAsExpenseEntriesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const registerMutation = useMutation(api.aiExpenseDrafts.registerReadyDraftsAsExpenseEntries);
   const isAuthReady = isLoaded && isSignedIn;
-  const isConvexReady = categories !== undefined;
+  const isConvexReady = categories !== undefined && authenticatedUserId !== undefined;
   const isReady = isAuthReady && isConvexReady;
 
   const handleRegister = async () => {

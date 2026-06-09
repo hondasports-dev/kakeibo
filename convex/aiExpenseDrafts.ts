@@ -718,9 +718,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
       alreadyRegisteredDraftIds.push(draft._id);
       continue;
     }
-    if (draft.status !== "ready") {
-      throw new ConvexError(`Draft ${draft._id} is not in ready status`);
-    }
+    assertReadyDraftCanBeRegistered(draft);
     draftsToRegister.push(draft);
   }
 
@@ -745,8 +743,8 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
         : [
             {
               itemName: resolveReceiptShopNameFromDraft(draft),
-              amountYen: draft.amountYen ?? 0,
-              categoryId: draft.categoryId,
+              amountYen: draft.amountYen!,
+              categoryId: draft.categoryId!,
             },
           ];
 

@@ -4,6 +4,13 @@ import { internal } from "./_generated/api";
 
 const http = httpRouter();
 
+function invalidJsonResponse() {
+  return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
+    status: 400,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 // ---------------------------------------------------------------------------
 // POST /e2e/cleanup
 // ---------------------------------------------------------------------------
@@ -53,7 +60,7 @@ http.route({
       });
     }
 
-    const body = (await req.json()) as {
+    let body: {
       userId?: string;
       resetWeekSession?: boolean;
       weekStartDate?: string;
@@ -62,6 +69,19 @@ http.route({
       clearAiExpenseQueue?: boolean;
       clearE2eExpenseEntries?: boolean;
     };
+    try {
+      body = (await req.json()) as {
+        userId?: string;
+        resetWeekSession?: boolean;
+        weekStartDate?: string;
+        deleteE2eCategories?: boolean;
+        clearMonthlyIncome?: boolean;
+        clearAiExpenseQueue?: boolean;
+        clearE2eExpenseEntries?: boolean;
+      };
+    } catch {
+      return invalidJsonResponse();
+    }
     if (!body.userId) {
       return new Response(JSON.stringify({ error: "userId is required." }), {
         status: 400,
@@ -196,7 +216,12 @@ http.route({
       });
     }
 
-    const body = (await req.json()) as { userId?: string };
+    let body: { userId?: string };
+    try {
+      body = (await req.json()) as { userId?: string };
+    } catch {
+      return invalidJsonResponse();
+    }
     if (!body.userId) {
       return new Response(JSON.stringify({ error: "userId is required." }), {
         status: 400,
