@@ -40,6 +40,19 @@ const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
   },
 ];
 
+function shouldEnableE2eRoutes() {
+  if (import.meta.env.DEV) {
+    return true;
+  }
+
+  const { hostname, pathname } = window.location;
+  const isLocalPreview = hostname === "localhost" || hostname === "127.0.0.1";
+  const isVercelPreview = hostname.endsWith(".vercel.app");
+  const isE2ePath = pathname.startsWith("/__e2e__/");
+
+  return isE2ePath && (isLocalPreview || isVercelPreview);
+}
+
 const devAiExpenseQueueCategories = [
   { _id: "e2e-cat-utilities", name: "水道光熱費", color: "#2563EB" },
   { _id: "e2e-cat-food", name: "食費", color: "#16A34A" },
@@ -191,7 +204,7 @@ const appRoutes = [
   },
 ];
 
-if (import.meta.env.DEV) {
+if (shouldEnableE2eRoutes()) {
   appRoutes.push({
     path: "/__e2e__/ai-expense-queue",
     element: <E2eAiExpenseQueuePage />,
