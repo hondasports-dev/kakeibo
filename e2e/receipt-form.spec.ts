@@ -1,6 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
+  cleanupE2eExpenseEntries,
   cleanupTestCategories,
   cleanupTestReceipts,
   resetTestWeekSession,
@@ -461,9 +462,12 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
 
   test.beforeEach(async ({ page }) => {
     await cleanupTestReceipts();
+    await cleanupE2eExpenseEntries();
     await resetTestWeekSession(getCurrentWeekStartDate());
     await gotoAuthenticated(page, "/weeks/current/input");
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+    // expenseEntries の cleanup が反映されるまで待機
+    await expect(page.locator('[class*="receipt-row"]')).toHaveCount(0, { timeout: 15_000 });
   });
 
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
@@ -573,9 +577,15 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await expect(receiptRows.filter({ hasText: "1,500円" }).first()).toBeVisible({
       timeout: 15_000,
     });
-    // 日付が表示されることを確認（M/D形式）— 今日の日付
-    const today = new Date();
-    const dateText = `${today.getMonth() + 1}/${today.getDate()}`;
+    // 日付が表示されることを確認（M/D形式）— 週日選択UIの選択中の日付
+    const selectedDateOption = page.locator(
+      '[role="listbox"][aria-label="週内の日付候補"] [role="option"][aria-selected="true"]',
+    );
+    const selectedDateText = await selectedDateOption.textContent();
+    const dateMatch = selectedDateText?.match(/\d+\/\d+/);
+    const dateText = dateMatch
+      ? dateMatch[0]
+      : `${new Date().getMonth() + 1}/${new Date().getDate()}`;
     await expect(receiptRows.filter({ hasText: dateText }).first()).toBeVisible({
       timeout: 15_000,
     });
