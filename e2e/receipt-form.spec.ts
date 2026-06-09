@@ -546,6 +546,46 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
       { timeout: 15_000 },
     );
   });
+
+  test("[Issue #175] 保存後に入力画面の直近の入力一覧に日付とカテゴリが表示される", async ({
+    page,
+  }) => {
+    const shopName = `QA入力画面確認_${Date.now()}`;
+
+    // カテゴリ名を事前に取得
+    const firstCategoryOption = page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first();
+    const categoryName = await firstCategoryOption.textContent();
+    await firstCategoryOption.click();
+
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("1500");
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    // InputPage の WeekStatusPanel（直近の入力）を確認
+    const receiptRows = page.locator('[class*="receipt-row"]');
+    await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(receiptRows.filter({ hasText: "1,500円" }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    // 日付が表示されることを確認（M/D形式）— 今日の日付
+    const today = new Date();
+    const dateText = `${today.getMonth() + 1}/${today.getDate()}`;
+    await expect(receiptRows.filter({ hasText: dateText }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    // カテゴリ名が表示されることを確認
+    if (categoryName) {
+      await expect(receiptRows.filter({ hasText: categoryName }).first()).toBeVisible({
+        timeout: 15_000,
+      });
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

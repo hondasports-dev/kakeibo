@@ -205,6 +205,8 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await expect(registeredSection).toBeVisible();
     await expect(registeredSection.getByText("大阪市水道局")).toBeVisible();
     await expect(registeredSection.getByText("9,160円")).toBeVisible();
+    // Issue #175: 登録済みカードに日付が表示される
+    await expect(registeredSection.getByText("6/1")).toBeVisible();
   });
 });
 
