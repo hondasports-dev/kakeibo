@@ -169,11 +169,7 @@ export const deleteE2eExpenseEntriesByUser = internalMutation({
       .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId))
       .take(500);
 
-    const targets = entries.filter(
-      (entry) => entry.source === "ai_suggested" && entry.title.startsWith("E2E項目-"),
-    );
-
-    await Promise.all(targets.map((entry) => ctx.db.delete(entry._id)));
-    return { deletedCount: targets.length };
+    await Promise.all(entries.map((entry) => ctx.db.delete(entry._id)));
+    return { deletedCount: entries.length };
   },
 });
