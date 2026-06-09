@@ -3,6 +3,7 @@ import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { api } from "../../convex/_generated/api";
 import { ExpenseEntryForm } from "../components/ExpenseEntryForm";
 import { WeekNavigator } from "../components/WeekNavigator";
+import { WeekStatusPanel } from "../components/WeekStatusPanel";
 import { useInputPageWeek } from "../hooks/useInputPageWeek";
 
 export function InputPage() {
@@ -18,6 +19,7 @@ export function InputPage() {
   } = useInputPageWeek();
 
   const categories = useQuery(api.categories.listActive) ?? [];
+  const weekSummary = useQuery(api.receipts.getWeekSummaryWithCategories, { weekStartDate });
 
   if (isLoading && !weekSession) {
     return (
@@ -49,6 +51,11 @@ export function InputPage() {
           isCurrentWeek={isCurrentWeek}
           onPreviousWeek={goToPreviousWeek}
           onNextWeek={goToNextWeek}
+        />
+
+        <WeekStatusPanel
+          receipts={weekSummary?.receipts ?? []}
+          isLoading={weekSummary === undefined}
         />
 
         <ExpenseEntryForm
