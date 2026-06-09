@@ -27,6 +27,7 @@ import HelpIcon from "@mui/icons-material/Help";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import ReplayIcon from "@mui/icons-material/Replay";
 import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../utils/imageDataUrl";
+import { formatDateForDisplay } from "../lib/dateFormat";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -47,6 +48,8 @@ export type AiExpenseQueueItem = {
   documentType: AiExpenseQueueDocumentType;
   title?: string;
   amountYen?: number;
+  date?: string;
+  categoryName?: string;
   reviewReasons?: string[];
 };
 
@@ -163,7 +166,9 @@ function resolveDraftTitle(draft: AiExpenseDraft) {
 function mapDraftToQueueItem(
   draft: AiExpenseDraft,
   statusOverrides: Partial<Record<string, AiExpenseQueueStatus>>,
+  categories?: Array<{ _id: string; name: string }>,
 ): AiExpenseQueueItem {
+  const categoryName = categories?.find((c) => c._id === draft.categoryId)?.name;
   return {
     id: draft._id,
     fileName: draft.imageFileName ?? "AI支出下書き",
@@ -171,6 +176,8 @@ function mapDraftToQueueItem(
     documentType: draft.documentType,
     title: resolveDraftTitle(draft),
     amountYen: draft.amountYen,
+    date: draft.date,
+    categoryName,
     reviewReasons: draft.reviewReasons,
   };
 }
@@ -307,6 +314,19 @@ function QueueItemCard({
           <Typography variant="body2" sx={{ fontWeight: 700 }}>
             {item.amountYen.toLocaleString("ja-JP")}円
           </Typography>
+        )}
+
+        {(item.date || item.categoryName) && (
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+            {item.date && (
+              <Typography color="text.secondary" variant="body2">
+                {formatDateForDisplay(item.date)}
+              </Typography>
+            )}
+            {item.categoryName && (
+              <Chip label={item.categoryName} size="small" variant="outlined" />
+            )}
+          </Stack>
         )}
 
         {(item.status === "analyzing" || item.status === "registering") && (
@@ -552,10 +572,18 @@ export function AiExpenseQueuePanel({
   const liveItems = useMemo(() => {
     return [
       ...processingItems,
-      ...(readyDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
-      ...(needsReviewDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
-      ...(failedDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
-      ...(registeredDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, statusOverrides)),
+      ...(readyDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(draft, statusOverrides, categories),
+      ),
+      ...(needsReviewDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(draft, statusOverrides, categories),
+      ),
+      ...(failedDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(draft, statusOverrides, categories),
+      ),
+      ...(registeredDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(draft, statusOverrides, categories),
+      ),
     ];
   }, [
     processingItems,
@@ -564,6 +592,7 @@ export function AiExpenseQueuePanel({
     readyDrafts,
     registeredDrafts,
     statusOverrides,
+    categories,
   ]);
 
   const items = useMemo(() => {

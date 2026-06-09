@@ -1,5 +1,6 @@
 import {
   Box,
+  Chip,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -42,7 +43,7 @@ type ReceiptItem = {
 function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {
   return (
     <Box className="receipt-row" key={receipt._id}>
-      <Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <Box
             sx={{
@@ -53,20 +54,35 @@ function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {
               flexShrink: 0,
             }}
           />
-          <Typography sx={{ fontWeight: 700 }}>
+          {receipt.type && (
+            <Chip
+              label={receipt.type === "income" ? "収入" : "支出"}
+              size="small"
+              color={receipt.type === "income" ? "warning" : "default"}
+              variant="outlined"
+            />
+          )}
+          <Typography sx={{ fontWeight: 700 }} noWrap>
             {receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? "")}
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={1}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.5 }}>
           <Typography color="text.secondary" variant="body2">
             {formatDateForDisplay(receipt.date)}
           </Typography>
           <Typography color="text.secondary" variant="body2">
             {receipt.categoryName}
           </Typography>
+          {receipt.memo && (
+            <Typography color="text.secondary" variant="caption">
+              メモあり
+            </Typography>
+          )}
         </Stack>
       </Box>
-      <Typography sx={{ fontWeight: 700 }}>{receipt.amountYen.toLocaleString()}円</Typography>
+      <Typography sx={{ fontWeight: 700, flexShrink: 0 }}>
+        {receipt.amountYen.toLocaleString()}円
+      </Typography>
     </Box>
   );
 }
