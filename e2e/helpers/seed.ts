@@ -6,31 +6,6 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
-/**
- * Issue #179 用の ready draft と draft items を seed する。
- */
-export async function seedAiExpenseDraftForExpenseEntries(): Promise<{ draftId: string }> {
-  const siteUrl = getRequiredEnv("VITE_CONVEX_SITE_URL");
-  const secret = getRequiredEnv("E2E_CLEANUP_SECRET");
-  const userId = getRequiredEnv("E2E_CLERK_USER_ID");
-
-  const res = await fetch(`${siteUrl}/e2e/seed-ai-expense-draft`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-E2E-Cleanup-Secret": secret,
-    },
-    body: JSON.stringify({ userId }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`AI expense draft seed に失敗しました: ${res.status} ${text}`);
-  }
-
-  return (await res.json()) as { draftId: string };
-}
-
 export async function seedAiExpenseDraftForExpenseEntriesByUser(userId: string): Promise<{
   draftId: string;
 }> {
