@@ -63,7 +63,9 @@ function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {
             />
           )}
           <Typography sx={{ fontWeight: 700 }} noWrap>
-            {receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? "")}
+            {receipt.type === "income"
+              ? (receipt.bankName ?? "不明")
+              : (receipt.shopName ?? "不明")}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.5 }}>
