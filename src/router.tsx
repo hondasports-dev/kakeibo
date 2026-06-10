@@ -20,6 +20,8 @@ const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
     documentType: "receipt",
     title: "スーパー北浜",
     amountYen: 4280,
+    date: "2026-06-08",
+    categoryName: "食費",
   },
   {
     id: "e2e-review-draft",
@@ -29,6 +31,8 @@ const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
     title: "公共料金",
     amountYen: 9120,
     reviewReasons: ["low_confidence", "missing_required_field"],
+    date: "2026-06-01",
+    categoryName: "水道光熱費",
   },
   {
     id: "e2e-failed-draft",

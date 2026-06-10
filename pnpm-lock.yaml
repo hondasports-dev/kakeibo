@@ -49,15 +49,15 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
       react-router-dom:
-        specifier: ^7.15.1
-        version: 7.16.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^7.17.0
+        version: 7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       valibot:
         specifier: ^1.4.0
         version: 1.4.1(typescript@6.0.3)
     devDependencies:
       '@clerk/testing':
-        specifier: ^2.0.33
-        version: 2.0.34(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        specifier: ^2.0.35
+        version: 2.0.35(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@playwright/test':
         specifier: ^1.60.0
         version: 1.60.0
@@ -83,8 +83,8 @@ importers:
         specifier: ^6.0.2
         version: 6.0.2(vite@8.0.16(@types/node@25.9.1)(esbuild@0.27.0)(tsx@4.21.0)(yaml@2.9.0))
       chrome-devtools-mcp:
-        specifier: ^1.1.0
-        version: 1.1.1
+        specifier: ^1.2.0
+        version: 1.2.0
       clerk:
         specifier: ^1.5.0
         version: 1.5.0
@@ -191,8 +191,8 @@ packages:
   '@bytecodealliance/preview2-shim@0.17.6':
     resolution: {integrity: sha512-n3cM88gTen5980UOBAD6xDcNNL3ocTK8keab21bpx1ONdA+ARj7uD1qoFxOWCyKlkpSi195FH+GeAut7Oc6zZw==}
 
-  '@clerk/backend@3.4.14':
-    resolution: {integrity: sha512-0iaMT7k4wDk31QVC3HMaoeVFttblwsCECTHKNQpbRzIyD8j2gHdKEw/FNjffoyqyBqPw869IQlk1YokUlwVAqQ==}
+  '@clerk/backend@3.5.0':
+    resolution: {integrity: sha512-g1bjzqj7/mb6rnrQ5zr+ybjpilTIWADaCoHE1HnEAjQfbcdfn3gb9PPX0wJ1KWw8OOQEQYSjzXPzvofEB1j+ww==}
     engines: {node: '>=20.9.0'}
 
   '@clerk/cli-darwin-arm64@1.5.0':
@@ -258,8 +258,20 @@ packages:
       react-dom:
         optional: true
 
-  '@clerk/testing@2.0.34':
-    resolution: {integrity: sha512-bCQexQCjE2Hs+yEMNUZG8eF0y7/rWnEnzh69v9+MHqhpxwg4T9Abzo+Iz3IObAYIXr9gx0iIg0BZwUl86CePKA==}
+  '@clerk/shared@4.15.0':
+    resolution: {integrity: sha512-uX8nfLb69m8mA6KWKWfuPSwoVNDRyUdufeCeTEZsdZxbRUsEYT/c0KWFN28IOQCtK09tpVtzrUHvW44v5Dc5OA==}
+    engines: {node: '>=20.9.0'}
+    peerDependencies:
+      react: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
+      react-dom: ^18.0.0 || ~19.0.3 || ~19.1.4 || ~19.2.3 || ~19.3.0-0
+    peerDependenciesMeta:
+      react:
+        optional: true
+      react-dom:
+        optional: true
+
+  '@clerk/testing@2.0.35':
+    resolution: {integrity: sha512-VOSyWnmu2ldcUKboMZHDDNCFEFjXmrnbcrMoFb1kw1yAJejqfvIrVD06MJYiWWW9rWi0fWZWaMjwG7Lbm864YQ==}
     engines: {node: '>=20.9.0'}
     peerDependencies:
       '@playwright/test': ^1
@@ -1667,8 +1679,8 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chrome-devtools-mcp@1.1.1:
-    resolution: {integrity: sha512-Fs/ASXAkQqvYCbJjHIx/pnShjyIoZoPxdg4J3wjaA9FLkRb2ngGnisu2AGcBIXdw5qrPkOuV/cOlGOonpsE1qw==}
+  chrome-devtools-mcp@1.2.0:
+    resolution: {integrity: sha512-xHd8hoLZQArDsYhu8OUHvKBIiihx1Co9DgAPHWaM4kzRf41TpZ0IuxKioIWTEGzFKpRqQzIxpFqydY4AKqP5sQ==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
     hasBin: true
 
@@ -2656,15 +2668,15 @@ packages:
   react-is@19.2.7:
     resolution: {integrity: sha512-kZFnouyVv7eP/Phmrlo9FK+zcAdriZJvzxXHF1Sl1P377WSGe2G/JxVolhTrB/jeV47lKImhNUsijjHAAbcl/A==}
 
-  react-router-dom@7.16.0:
-    resolution: {integrity: sha512-kMUAbimWB5FVbF4Bce4bJsiKJWLIUHq/mEG8+CFDnCSgltptBiG5nguducmsJeGKytlCvQud9Qhzpn49iduTlA==}
+  react-router-dom@7.17.0:
+    resolution: {integrity: sha512-fyU2yjGups/hE6Xz0I5ZYbVL8Gx29eCjgpHaRaTaVU+OOAdfRX05KsvyRm0GO8YQwOkhpU3MurW1jyMUJn+zSw==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: '>=18'
       react-dom: '>=18'
 
-  react-router@7.16.0:
-    resolution: {integrity: sha512-wArC8lVyJb3+jM9OpDyW6hLCizACWkvQR/sSGqSs+o5uEXEtGlqdZ4v8hENR3Jad6i+LRkK93q/+bQAcvl6V1A==}
+  react-router@7.17.0:
+    resolution: {integrity: sha512-FDELK7rTMlCHO5+reyXsPlmfr7N1F91lPHsWYfMEGQm/KQ+F4JFM8jGoeQDmDvdTs93Fw9aSilH+uKRb4/jXvQ==}
     engines: {node: '>=20.0.0'}
     peerDependencies:
       react: '>=18'
@@ -3324,9 +3336,9 @@ snapshots:
 
   '@bytecodealliance/preview2-shim@0.17.6': {}
 
-  '@clerk/backend@3.4.14(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@clerk/backend@3.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@clerk/shared': 4.14.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@clerk/shared': 4.15.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       standardwebhooks: 1.0.0
       tslib: 2.8.1
     transitivePeerDependencies:
@@ -3375,10 +3387,20 @@ snapshots:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
 
-  '@clerk/testing@2.0.34(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@clerk/shared@4.15.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@clerk/backend': 3.4.14(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
-      '@clerk/shared': 4.14.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@tanstack/query-core': 5.101.0
+      dequal: 2.0.3
+      glob-to-regexp: 0.4.1
+      js-cookie: 3.0.7
+    optionalDependencies:
+      react: 19.2.7
+      react-dom: 19.2.7(react@19.2.7)
+
+  '@clerk/testing@2.0.35(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+    dependencies:
+      '@clerk/backend': 3.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@clerk/shared': 4.15.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       dotenv: 17.2.2
     optionalDependencies:
       '@playwright/test': 1.60.0
@@ -4596,7 +4618,7 @@ snapshots:
 
   chownr@3.0.0: {}
 
-  chrome-devtools-mcp@1.1.1: {}
+  chrome-devtools-mcp@1.2.0: {}
 
   cjs-module-lexer@1.2.3: {}
 
@@ -5565,13 +5587,13 @@ snapshots:
 
   react-is@19.2.7: {}
 
-  react-router-dom@7.16.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  react-router-dom@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
-      react-router: 7.16.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react-router: 7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
 
-  react-router@7.16.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  react-router@7.17.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
       cookie: 1.1.1
       react: 19.2.7

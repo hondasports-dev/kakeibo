@@ -29,11 +29,11 @@
     "framer-motion": "^12.40.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.15.1",
+    "react-router-dom": "^7.17.0",
     "valibot": "^1.4.0"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.0.33",
+    "@clerk/testing": "^2.0.35",
     "@playwright/test": "^1.60.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -42,7 +42,7 @@
     "@types/react": "^19.2.15",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
-    "chrome-devtools-mcp": "^1.1.0",
+    "chrome-devtools-mcp": "^1.2.0",
     "clerk": "^1.5.0",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
