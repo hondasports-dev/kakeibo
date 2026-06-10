@@ -4,6 +4,17 @@ import react from "@vitejs/plugin-react";
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: [
+      {
+        find: /^react-transition-group\/TransitionGroupContext$/,
+        replacement: "react-transition-group/cjs/TransitionGroupContext.js",
+      },
+    ],
+  },
+  ssr: {
+    noExternal: ["@mui/material", "react-transition-group"],
+  },
   build: {
     rollupOptions: {
       output: {
