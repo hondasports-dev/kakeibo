@@ -72,6 +72,8 @@ const queueItems: AiExpenseQueueItem[] = [
     documentType: "receipt",
     title: "スーパー北浜",
     amountYen: 4280,
+    date: "2026-05-18",
+    categoryName: "食費",
   },
   {
     id: "draft-review",
@@ -80,6 +82,8 @@ const queueItems: AiExpenseQueueItem[] = [
     documentType: "convenience_payment",
     title: "公共料金",
     amountYen: 9120,
+    date: "2026-05-19",
+    categoryName: "公共料金",
     reviewReasons: ["low_confidence", "missing_required_field"],
   },
   {
@@ -88,6 +92,8 @@ const queueItems: AiExpenseQueueItem[] = [
     status: "failed",
     documentType: "unknown",
     title: "読み取り失敗",
+    date: "2026-05-19",
+    categoryName: "不明",
     reviewReasons: ["parse_failed"],
   },
   {
@@ -97,6 +103,8 @@ const queueItems: AiExpenseQueueItem[] = [
     documentType: "receipt",
     title: "登録中レシート",
     amountYen: 1200,
+    date: "2026-05-20",
+    categoryName: "食費",
   },
   {
     id: "draft-registered",
@@ -105,6 +113,8 @@ const queueItems: AiExpenseQueueItem[] = [
     documentType: "receipt",
     title: "登録済みレシート",
     amountYen: 1800,
+    date: "2026-05-20",
+    categoryName: "日用品",
   },
 ];
 
@@ -602,5 +612,13 @@ describe("AiExpenseQueuePanel", () => {
       false,
     );
     expect(registerReadyDraftsMock).not.toHaveBeenCalled();
+  });
+
+  it("登録済みアイテムに日付とカテゴリが表示される", () => {
+    renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} categories={categories} />);
+
+    const registeredSection = screen.getByRole("region", { name: "登録済み" });
+    expect(within(registeredSection).getByText("5/20")).toBeInTheDocument();
+    expect(within(registeredSection).getByText("日用品")).toBeInTheDocument();
   });
 });

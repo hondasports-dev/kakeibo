@@ -218,6 +218,43 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
   });
 
+  it("支出と収入の種別が判別できる", () => {
+    renderWithProviders(
+      <WeeklySummaryPanel
+        count={2}
+        totalAmountYen={304280}
+        byCategory={[]}
+        prevWeekTotalAmountYen={null}
+        receipts={[
+          {
+            _id: "expense-1",
+            date: "2026-05-18",
+            type: "expense",
+            shopName: "スーパー北浜",
+            amountYen: 4280,
+            categoryId: "cat-food",
+            categoryName: "食費",
+            categoryColor: "#2563EB",
+          },
+          {
+            _id: "income-1",
+            date: "2026-05-18",
+            type: "income",
+            bankName: "三菱UFJ銀行",
+            amountYen: 300000,
+            categoryId: "cat-income",
+            categoryName: "給与",
+            categoryColor: "#F59E0B",
+          },
+        ]}
+        weekStartDate="2026-05-13"
+      />,
+    );
+
+    expect(screen.getByText("支出")).toBeInTheDocument();
+    expect(screen.getByText("収入")).toBeInTheDocument();
+  });
+
   // 振り返りメモ表示・編集は ReviewMemoPanel に移譲し、SummaryPage でレンダリングする。
   // WeeklySummaryPanel は振り返りメモセクションを持たないため、このテストは削除。
 });

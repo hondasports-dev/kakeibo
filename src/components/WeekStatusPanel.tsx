@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Chip,
   Divider,
   LinearProgress,
   Paper,
@@ -12,9 +13,14 @@ import { formatDateForDisplay } from "../lib/dateFormat";
 
 type Receipt = {
   _id: string;
-  shopName: string;
+  shopName?: string;
+  bankName?: string;
   date: string;
   amountYen: number;
+  type?: "expense" | "income";
+  categoryName?: string;
+  categoryColor?: string;
+  memo?: string;
 };
 
 type WeekStatusPanelProps = {
@@ -70,13 +76,50 @@ export function WeekStatusPanel({ receipts, isLoading = false }: WeekStatusPanel
               ) : (
                 receipts.slice(0, 5).map((receipt) => (
                   <Box className="receipt-row" key={receipt._id}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 700 }}>{receipt.shopName}</Typography>
-                      <Typography color="text.secondary" variant="body2">
-                        {formatDateForDisplay(receipt.date)}
-                      </Typography>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        {receipt.type && (
+                          <Chip
+                            label={receipt.type === "income" ? "収入" : "支出"}
+                            size="small"
+                            color={receipt.type === "income" ? "warning" : "default"}
+                            variant="outlined"
+                          />
+                        )}
+                        <Typography sx={{ fontWeight: 700 }} noWrap>
+                          {receipt.type === "income"
+                            ? (receipt.bankName ?? "不明")
+                            : (receipt.shopName ?? "不明")}
+                        </Typography>
+                      </Stack>
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        sx={{ alignItems: "center", mt: 0.5, flexWrap: "wrap" }}
+                      >
+                        <Typography color="text.secondary" variant="body2">
+                          {formatDateForDisplay(receipt.date)}
+                        </Typography>
+                        {receipt.categoryName && (
+                          <Chip
+                            label={receipt.categoryName}
+                            size="small"
+                            sx={{
+                              backgroundColor: receipt.categoryColor,
+                              color: "#fff",
+                              fontSize: "0.7rem",
+                              height: 20,
+                            }}
+                          />
+                        )}
+                        {receipt.memo && (
+                          <Typography color="text.secondary" variant="caption">
+                            メモあり
+                          </Typography>
+                        )}
+                      </Stack>
                     </Box>
-                    <Typography sx={{ fontWeight: 700 }}>
+                    <Typography sx={{ fontWeight: 700, flexShrink: 0 }}>
                       {receipt.amountYen.toLocaleString()}円
                     </Typography>
                   </Box>
