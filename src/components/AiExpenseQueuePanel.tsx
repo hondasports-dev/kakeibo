@@ -166,7 +166,7 @@ function resolveDraftTitle(draft: AiExpenseDraft) {
 function mapDraftToQueueItem(
   draft: AiExpenseDraft,
   statusOverrides: Partial<Record<string, AiExpenseQueueStatus>>,
-  categories?: Array<{ _id: string; name: string }>,
+  categories?: Array<{ _id: Id<"categories"> | string; name: string }>,
 ): AiExpenseQueueItem {
   const categoryName = categories?.find((c) => c._id === draft.categoryId)?.name;
   return {

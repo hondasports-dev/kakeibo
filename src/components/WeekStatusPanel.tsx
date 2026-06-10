@@ -87,7 +87,9 @@ export function WeekStatusPanel({ receipts, isLoading = false }: WeekStatusPanel
                           />
                         )}
                         <Typography sx={{ fontWeight: 700 }} noWrap>
-                          {receipt.type === "income" ? receipt.bankName : receipt.shopName}
+                          {receipt.type === "income"
+                            ? (receipt.bankName ?? "不明")
+                            : (receipt.shopName ?? "不明")}
                         </Typography>
                       </Stack>
                       <Stack
