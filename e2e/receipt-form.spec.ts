@@ -1068,3 +1068,160 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await expect(page.getByText(new RegExp(`${prevYear}年`))).toBeVisible({ timeout: 5_000 });
   });
 });
+
+// ---------------------------------------------------------------------------
+// 複数カテゴリ別支出項目入力フロー（Issue #102 受け入れ確認）
+// ---------------------------------------------------------------------------
+
+/**
+ * Issue #102 M18 受け入れ確認 E2E テスト
+ *
+ * M18 の子 Issue (#176, #177, #178, #179, #180, #181, #173, #175) が全て完了したことを受け、
+ * 「入力元からカテゴリ別支出項目を作成・集計できること」を E2E で確認する。
+ *
+ * QA P0 要件:
+ *   - 1つの入力元から複数のカテゴリ別支出項目を作成できる
+ *   - 入力元合計と支出項目合計の差額を確認できる
+ *   - 複数カテゴリ別支出がカテゴリ別集計と支出一覧に反映される
+ *
+ * 実装: src/hooks/useExpenseEntryForm.ts (isMultiMode, difference)
+ *       src/components/ExpenseEntryForm.tsx (ExpenseItemRow, DifferenceDisplay)
+ *       convex/expenseEntries.ts (createExpenseEntries)
+ */
+test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受け入れ確認）", () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoAuthenticated(page, "/weeks/current/input");
+    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+  });
+
+  test.afterEach(async () => {
+    await cleanupE2eExpenseEntries();
+    await cleanupTestReceipts();
+  });
+
+  test("@smoke [Issue #102] 1つの入力元から複数カテゴリ別支出項目を保存できる", async ({
+    page,
+  }) => {
+    // 店舗名と合計金額を入力
+    await page.getByLabel("店舗名 / 支払先").fill("テストスーパー");
+    await page.getByLabel("合計金額").fill("5000");
+
+    // 複数項目モードに切り替える
+    await page.getByRole("button", { name: "支出項目を追加" }).click();
+
+    // 複数モードに切り替わったことを確認（入力元合計ヘッダーと金額が表示される）
+    await expect(page.getByText("入力元合計")).toBeVisible();
+    await expect(page.getByText("5,000円", { exact: true })).toBeVisible();
+
+    // 項目1: 内容をクリアして「食料品」、3,000円
+    const item0 = page.getByTestId("expense-item-0");
+    await item0.getByLabel("内容").clear();
+    await item0.getByLabel("内容").fill("食料品");
+    await item0.getByLabel("金額").fill("3000");
+    await item0.getByRole("option").first().click();
+
+    // 項目2 を追加して「日用品」、2,000円
+    await page.getByRole("button", { name: "項目を追加" }).click();
+    const item1 = page.getByTestId("expense-item-1");
+    await item1.getByLabel("内容").fill("日用品");
+    await item1.getByLabel("金額").fill("2000");
+    // 2つ以上のカテゴリがあれば2番目を選択、なければ最初のカテゴリを選択
+    const item1Options = item1.getByRole("option");
+    if ((await item1Options.count()) >= 2) {
+      await item1Options.nth(1).click();
+    } else {
+      await item1Options.first().click();
+    }
+
+    // 差額 0円 → 「配分完了」が表示されることを確認
+    await expect(page.getByText("配分完了")).toBeVisible();
+
+    // 保存
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    // 成功通知が表示される
+    const snackbar = page.getByRole("alert").filter({ hasText: "支出項目を保存しました" });
+    await expect(snackbar).toBeVisible({ timeout: 15_000 });
+
+    // フォームがリセットされ単一モードに戻る
+    await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("");
+  });
+
+  test("[Issue #102] 差額がプラスのとき確認ダイアログが表示され保存できる", async ({ page }) => {
+    await page.getByLabel("店舗名 / 支払先").fill("テストスーパー");
+    await page.getByLabel("合計金額").fill("5000");
+    await page.getByRole("button", { name: "支出項目を追加" }).click();
+
+    // 項目1: 3,000円のみ入力（入力元合計 5,000円との差額 2,000円が未配分）
+    const item0 = page.getByTestId("expense-item-0");
+    await item0.getByLabel("内容").clear();
+    await item0.getByLabel("内容").fill("食料品");
+    await item0.getByLabel("金額").fill("3000");
+    await item0.getByRole("option").first().click();
+
+    // 差額プラス → 「未配分」が表示されることを確認
+    await expect(page.getByText(/未配分/)).toBeVisible();
+
+    // 保存すると確認ダイアログが表示される
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByText(/未配分のまま保存しますか/)).toBeVisible();
+
+    // 「このまま保存」で保存できる
+    await page.getByRole("button", { name: "このまま保存" }).click();
+    const snackbar = page.getByRole("alert").filter({ hasText: "支出項目を保存しました" });
+    await expect(snackbar).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("[Issue #102] 複数カテゴリ別支出がカテゴリ別集計と支出一覧に反映される", async ({
+    page,
+  }) => {
+    // 複数項目で保存
+    await page.getByLabel("店舗名 / 支払先").fill("テストスーパー");
+    await page.getByLabel("合計金額").fill("5000");
+    await page.getByRole("button", { name: "支出項目を追加" }).click();
+
+    const item0 = page.getByTestId("expense-item-0");
+    await item0.getByLabel("内容").clear();
+    await item0.getByLabel("内容").fill("食料品");
+    await item0.getByLabel("金額").fill("3000");
+    await item0.getByRole("option").first().click();
+
+    await page.getByRole("button", { name: "項目を追加" }).click();
+
+    const item1 = page.getByTestId("expense-item-1");
+    await item1.getByLabel("内容").fill("日用品");
+    await item1.getByLabel("金額").fill("2000");
+    const item1Options = item1.getByRole("option");
+    if ((await item1Options.count()) >= 2) {
+      await item1Options.nth(1).click();
+    } else {
+      await item1Options.first().click();
+    }
+
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    // 保存完了（フォームリセット）を待機
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 15_000 });
+
+    // 週次サマリーへ移動
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+
+    // カテゴリ別集計セクションが表示される（expenseEntries ベースの集計確認）
+    await expect(page.getByRole("heading", { name: "カテゴリ別" })).toBeVisible({
+      timeout: 15_000,
+    });
+
+    // 支出一覧に複数項目が個別エントリとして反映される
+    const receiptRows = page.locator('[class*="receipt-row"]');
+    await expect(receiptRows.filter({ hasText: "食料品" }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(receiptRows.filter({ hasText: "日用品" }).first()).toBeVisible({
+      timeout: 15_000,
+    });
+  });
+});
