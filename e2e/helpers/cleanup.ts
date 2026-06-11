@@ -100,6 +100,10 @@ function getCleanupUserId(): string | undefined {
   return process.env.E2E_CLERK_USER_ID?.trim().replace(/^["']+|["']+$/g, "");
 }
 
+function getCleanupUserEmail(): string | undefined {
+  return process.env.E2E_CLERK_USER_EMAIL?.trim().replace(/^["']+|["']+$/g, "");
+}
+
 /**
  * テストユーザーの月収入設定をクリアする。
  */
@@ -116,12 +120,14 @@ export async function cleanupUserMonthlyIncome(): Promise<void> {
 export async function cleanupGroupMembershipsByUser(userId?: string): Promise<void> {
   await callCleanupEndpoint({
     userId: userId ?? getCleanupUserId(),
+    email: getCleanupUserEmail(),
     clearGroupMemberships: true,
   });
 }
 
 async function callCleanupEndpoint(body: {
   userId?: string;
+  email?: string;
   resetWeekSession?: boolean;
   weekStartDate?: string;
   deleteE2eCategories?: boolean;
