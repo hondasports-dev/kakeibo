@@ -1,4 +1,4 @@
-import { internalMutation, mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { UserIdentity } from "convex/server";
 import { ConvexError, v } from "convex/values";
@@ -118,6 +118,23 @@ export const getAuthenticatedUserId = query({
   args: {},
   handler: async (ctx) => {
     return await requireAuthenticatedUserId(ctx);
+  },
+});
+
+export const getUserIdByEmail = internalQuery({
+  args: { email: v.string() },
+  handler: async (ctx, args) => {
+    const email = args.email.trim().toLowerCase();
+    if (!email) {
+      return null;
+    }
+
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_email", (q) => q.eq("email", email))
+      .unique();
+
+    return user?.userId ?? null;
   },
 });
 

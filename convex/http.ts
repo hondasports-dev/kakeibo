@@ -27,6 +27,7 @@ function invalidJsonResponse() {
 // リクエストボディ:
 //   {
 //     "userId": "<Clerk の tokenIdentifier>",   // clearMonthlyIncome 用（users テーブルは userId ベースのまま）
+//     "email": "<Clerk の email>",              // userId の代替解決用
 //     "groupId": "<groups テーブルの ID>",        // グループデータのクリーンアップ用
 //     "clearGroupMemberships": true,
 //     "resetWeekSession": true,
@@ -64,6 +65,7 @@ http.route({
 
     let body: {
       userId?: string;
+      email?: string;
       groupId?: string;
       resetWeekSession?: boolean;
       weekStartDate?: string;
@@ -76,6 +78,7 @@ http.route({
     try {
       body = (await req.json()) as {
         userId?: string;
+        email?: string;
         groupId?: string;
         resetWeekSession?: boolean;
         weekStartDate?: string;
@@ -197,10 +200,18 @@ http.route({
     }
 
     let groupMemberships: { deletedCount: number } | null = null;
-    if (body.clearGroupMemberships && body.userId) {
-      groupMemberships = await ctx.runMutation(internal.groups.deleteGroupMembershipsByUser, {
-        userId: body.userId,
-      });
+    if (body.clearGroupMemberships) {
+      const resolvedUserId =
+        body.userId ??
+        (body.email
+          ? await ctx.runQuery(internal.users.getUserIdByEmail, { email: body.email })
+          : null);
+
+      if (resolvedUserId) {
+        groupMemberships = await ctx.runMutation(internal.groups.deleteGroupMembershipsByUser, {
+          userId: resolvedUserId,
+        });
+      }
     }
 
     return new Response(

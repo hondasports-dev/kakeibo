@@ -1930,7 +1930,7 @@ describe("getMonthlyExpensesSummary", () => {
     const userDoc: UserDoc = {
       _id: "user-001",
       _creationTime: 1000,
-      groupId: GROUP_ID,
+      userId: USER_ID,
       displayName: "テストユーザー",
       monthlyIncome: 300000,
       createdAt: 1000,
@@ -1950,7 +1950,7 @@ describe("getMonthlyExpensesSummary", () => {
     const userDoc: UserDoc = {
       _id: "user-001",
       _creationTime: 1000,
-      groupId: GROUP_ID,
+      userId: USER_ID,
       displayName: "テストユーザー",
       // monthlyIncome なし
       createdAt: 1000,
