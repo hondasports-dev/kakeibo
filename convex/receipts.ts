@@ -2,7 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import { requireAuthenticatedUserId } from "./users";
+import { requireGroupMembership } from "./groups";
 import type { Doc, Id } from "./_generated/dataModel";
 import { calculateRelativeWeekStartDate, calculateWeekStartDate } from "./utils";
 
@@ -77,7 +77,7 @@ function mapExpenseEntryToSpendingEntry(expenseEntry: {
   };
 }
 
-async function getWeekSpendingEntries(ctx: QueryCtx, userId: string, weekStartDate: string) {
+async function getWeekSpendingEntries(ctx: QueryCtx, groupId: Id<"groups">, weekStartDate: string) {
   const weekEndDate = addDays(weekStartDate, 6);
   const expenseEntries: Array<{
     _id: string;
@@ -90,8 +90,8 @@ async function getWeekSpendingEntries(ctx: QueryCtx, userId: string, weekStartDa
   }> = [];
   for await (const entry of ctx.db
     .query("expenseEntries")
-    .withIndex("by_user_id_and_date", (q) =>
-      q.eq("userId", userId).gte("date", weekStartDate).lte("date", weekEndDate),
+    .withIndex("by_group_id_and_date", (q) =>
+      q.eq("groupId", groupId).gte("date", weekStartDate).lte("date", weekEndDate),
     )) {
     expenseEntries.push(entry);
   }
@@ -112,8 +112,8 @@ async function getWeekSpendingEntries(ctx: QueryCtx, userId: string, weekStartDa
   }> = [];
   for await (const receipt of ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", weekStartDate),
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", weekStartDate),
     )
     .order("desc")) {
     receipts.push(receipt);
@@ -124,7 +124,7 @@ async function getWeekSpendingEntries(ctx: QueryCtx, userId: string, weekStartDa
     .map((receipt) => mapReceiptToSpendingEntry(receipt));
 }
 
-async function getDateSpendingEntries(ctx: QueryCtx, userId: string, date: string) {
+async function getDateSpendingEntries(ctx: QueryCtx, groupId: Id<"groups">, date: string) {
   const expenseEntries: Array<{
     _id: string;
     date: string;
@@ -136,7 +136,7 @@ async function getDateSpendingEntries(ctx: QueryCtx, userId: string, date: strin
   }> = [];
   for await (const entry of ctx.db
     .query("expenseEntries")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date))) {
+    .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId).eq("date", date))) {
     expenseEntries.push(entry);
   }
   if (expenseEntries.length > 0) {
@@ -157,7 +157,7 @@ async function getDateSpendingEntries(ctx: QueryCtx, userId: string, date: strin
   }> = [];
   for await (const receipt of ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", date))) {
+    .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId).eq("date", date))) {
     receipts.push(receipt);
   }
   return receipts
@@ -165,7 +165,11 @@ async function getDateSpendingEntries(ctx: QueryCtx, userId: string, date: strin
     .map((receipt) => mapReceiptToSpendingEntry(receipt));
 }
 
-async function getMonthSpendingEntries(ctx: QueryCtx, userId: string, monthStartDate: string) {
+async function getMonthSpendingEntries(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  monthStartDate: string,
+) {
   const monthEndDate = getMonthEndDate(monthStartDate);
   const expenseEntries: Array<{
     _id: string;
@@ -178,8 +182,8 @@ async function getMonthSpendingEntries(ctx: QueryCtx, userId: string, monthStart
   }> = [];
   for await (const entry of ctx.db
     .query("expenseEntries")
-    .withIndex("by_user_id_and_date", (q) =>
-      q.eq("userId", userId).gte("date", monthStartDate).lte("date", monthEndDate),
+    .withIndex("by_group_id_and_date", (q) =>
+      q.eq("groupId", groupId).gte("date", monthStartDate).lte("date", monthEndDate),
     )) {
     expenseEntries.push(entry);
   }
@@ -200,8 +204,8 @@ async function getMonthSpendingEntries(ctx: QueryCtx, userId: string, monthStart
   }> = [];
   for await (const receipt of ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_date", (q) =>
-      q.eq("userId", userId).gte("date", monthStartDate).lte("date", monthEndDate),
+    .withIndex("by_group_id_and_date", (q) =>
+      q.eq("groupId", groupId).gte("date", monthStartDate).lte("date", monthEndDate),
     )) {
     receipts.push(receipt);
   }
@@ -232,9 +236,9 @@ type CreateReceiptArgs =
       memo?: string;
     };
 
-export async function insertReceiptForUser(
+export async function insertReceiptForGroup(
   ctx: Pick<MutationCtx, "db">,
-  userId: string,
+  groupId: Id<"groups">,
   args: CreateReceiptArgs,
 ) {
   if (args.type !== "income" && !args.shopName) {
@@ -248,8 +252,8 @@ export async function insertReceiptForUser(
   if (category === null) {
     throw new ConvexError("Category not found");
   }
-  if (category.userId !== userId) {
-    throw new ConvexError("Category does not belong to the current user");
+  if (category.groupId !== groupId) {
+    throw new ConvexError("Category does not belong to the current group");
   }
   if (!category.isActive) {
     throw new ConvexError("Inactive category cannot be used for new receipts");
@@ -259,7 +263,7 @@ export async function insertReceiptForUser(
   const weekStartDate = calculateWeekStartDate(args.date);
 
   return await ctx.db.insert("receipts", {
-    userId,
+    groupId,
     date: args.date,
     type: args.type,
     shopName: args.type === "income" ? undefined : args.shopName,
@@ -275,8 +279,8 @@ export async function insertReceiptForUser(
 
 /** createReceipt mutation の handler ロジック（テスト用に export） */
 export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
-  const receiptId = await insertReceiptForUser(ctx, userId, args);
+  const { groupId } = await requireGroupMembership(ctx);
+  const receiptId = await insertReceiptForGroup(ctx, groupId, args);
 
   const receipt = await ctx.db.get(receiptId);
   if (receipt === null) {
@@ -308,12 +312,12 @@ type GetReceiptsByWeekArgs = {
 
 /** getReceiptsByWeek query の handler ロジック（テスト用に export） */
 export async function getReceiptsByWeekHandler(ctx: QueryCtx, args: GetReceiptsByWeekArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   return await ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", args.weekStartDate),
     )
     .order("desc")
     .take(200);
@@ -336,11 +340,11 @@ type GetReceiptsByDateArgs = {
 
 /** getReceiptsByDate query の handler ロジック（テスト用に export） */
 export async function getReceiptsByDateHandler(ctx: QueryCtx, args: GetReceiptsByDateArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   return await ctx.db
     .query("receipts")
-    .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId).eq("date", args.date))
+    .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId).eq("date", args.date))
     .take(50);
 }
 
@@ -366,15 +370,15 @@ type UpdateReceiptArgs = {
 
 /** updateReceipt mutation の handler ロジック（テスト用に export） */
 export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceiptArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   // receipt の所有権チェック
   const receipt = await ctx.db.get(args.receiptId);
   if (receipt === null) {
     throw new ConvexError("Receipt not found");
   }
-  if (receipt.userId !== userId) {
-    throw new ConvexError("Receipt does not belong to the current user");
+  if (receipt.groupId !== groupId) {
+    throw new ConvexError("Receipt does not belong to the current group");
   }
 
   // categoryId が指定された場合は所有権チェック
@@ -383,8 +387,8 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
     if (category === null) {
       throw new ConvexError("Category not found");
     }
-    if (category.userId !== userId) {
-      throw new ConvexError("Category does not belong to the current user");
+    if (category.groupId !== groupId) {
+      throw new ConvexError("Category does not belong to the current group");
     }
     if (!category.isActive && (args.categoryId as string) !== (receipt.categoryId as string)) {
       throw new ConvexError("Inactive category cannot be used for new receipts");
@@ -450,15 +454,15 @@ type DeleteReceiptArgs = {
 
 /** deleteReceipt mutation の handler ロジック（テスト用に export） */
 export async function deleteReceiptHandler(ctx: MutationCtx, args: DeleteReceiptArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   // receipt の所有権チェック
   const receipt = await ctx.db.get(args.receiptId);
   if (receipt === null) {
     throw new ConvexError("Receipt not found");
   }
-  if (receipt.userId !== userId) {
-    throw new ConvexError("Receipt does not belong to the current user");
+  if (receipt.groupId !== groupId) {
+    throw new ConvexError("Receipt does not belong to the current group");
   }
 
   await ctx.db.delete(args.receiptId);
@@ -487,11 +491,11 @@ function summarizeReceipts(receipts: Array<{ amountYen: number }>) {
 
 /** getWeekSummary query の handler ロジック（テスト用に export） */
 export async function getWeekSummaryHandler(ctx: QueryCtx, args: GetWeekSummaryArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
-  const receipts = await getWeekSpendingEntries(ctx, userId, args.weekStartDate);
+  const receipts = await getWeekSpendingEntries(ctx, groupId, args.weekStartDate);
   const prevWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -1);
-  const prevWeekReceipts = await getWeekSpendingEntries(ctx, userId, prevWeekStartDate);
+  const prevWeekReceipts = await getWeekSpendingEntries(ctx, groupId, prevWeekStartDate);
 
   const { count, totalAmountYen } = summarizeReceipts(receipts);
   const prevWeekSummary = summarizeReceipts(prevWeekReceipts);
@@ -552,11 +556,11 @@ export async function getWeekSummaryWithCategoriesHandler(
   ctx: QueryCtx,
   args: GetWeekSummaryWithCategoriesArgs,
 ): Promise<WeekSummaryWithCategories> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
-  const receipts = await getWeekSpendingEntries(ctx, userId, args.weekStartDate);
+  const receipts = await getWeekSpendingEntries(ctx, groupId, args.weekStartDate);
   const prevWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -1);
-  const prevWeekReceipts = await getWeekSpendingEntries(ctx, userId, prevWeekStartDate);
+  const prevWeekReceipts = await getWeekSpendingEntries(ctx, groupId, prevWeekStartDate);
 
   const categoryIds = Array.from(new Set(receipts.map((receipt) => receipt.categoryId)));
   const categories = (await Promise.all(
@@ -566,7 +570,7 @@ export async function getWeekSummaryWithCategoriesHandler(
   // カテゴリ情報を id → {name, color} の Map に変換
   const categoryInfoMap = new Map<string, { name: string; color: string }>();
   for (const category of categories) {
-    if (category === null || category.userId !== userId) {
+    if (category === null || category.groupId !== groupId) {
       continue;
     }
     categoryInfoMap.set(category._id as string, {
@@ -665,14 +669,14 @@ export async function getFourWeeksSummaryHandler(
   ctx: QueryCtx,
   args: GetFourWeeksSummaryArgs,
 ): Promise<FourWeeksSummaryData> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   // 基準週から3週前まで4週分を降順で収集し、最後に昇順に反転する
   const descWeeks: Array<{ weekStartDate: string; totalAmountYen: number }> = [];
 
   for (let i = 0; i < 4; i++) {
     const targetWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -i);
-    const receipts = await getWeekSpendingEntries(ctx, userId, targetWeekStartDate);
+    const receipts = await getWeekSpendingEntries(ctx, groupId, targetWeekStartDate);
     const { totalAmountYen } = summarizeReceipts(receipts);
     descWeeks.push({ weekStartDate: targetWeekStartDate, totalAmountYen });
   }
@@ -716,10 +720,10 @@ export async function getDailySpendingTrendHandler(
   ctx: QueryCtx,
   args: GetDailySpendingTrendArgs,
 ): Promise<DailySpendingTrendData> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   async function getTotalForDate(targetDate: string): Promise<number> {
-    const receipts = await getDateSpendingEntries(ctx, userId, targetDate);
+    const receipts = await getDateSpendingEntries(ctx, groupId, targetDate);
     return receipts.reduce((sum, r) => sum + r.amountYen, 0);
   }
 
@@ -758,12 +762,12 @@ export const getDailySpendingTrend = query({
  */
 export const deleteReceiptsByUser = internalMutation({
   args: {
-    userId: v.string(),
+    groupId: v.id("groups"),
   },
-  handler: async (ctx, { userId }) => {
+  handler: async (ctx, { groupId }) => {
     const receipts = await ctx.db
       .query("receipts")
-      .withIndex("by_user_id_and_week_start_date", (q) => q.eq("userId", userId))
+      .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId))
       .collect();
 
     await Promise.all(receipts.map((r) => ctx.db.delete(r._id)));
@@ -791,9 +795,10 @@ export async function getMonthlyExpensesSummaryHandler(
   ctx: QueryCtx,
   args: GetMonthlyExpensesSummaryArgs,
 ): Promise<MonthlyExpensesSummary> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  // groupId はレシートクエリに、userId は users テーブルの monthlyIncome 取得に使う
+  const { groupId, userId } = await requireGroupMembership(ctx);
 
-  const monthlyReceipts = await getMonthSpendingEntries(ctx, userId, args.monthStartDate);
+  const monthlyReceipts = await getMonthSpendingEntries(ctx, groupId, args.monthStartDate);
   const totalExpensesYen = monthlyReceipts.reduce((sum, r) => sum + r.amountYen, 0);
 
   // users テーブルから monthlyIncome を取得する

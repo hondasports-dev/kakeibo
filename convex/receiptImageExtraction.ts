@@ -286,7 +286,7 @@ export async function extractReceiptFieldsHandler(
   ctx: ActionCtx,
   args: ExtractReceiptFieldsArgs,
 ): Promise<ExtractReceiptFieldsResult> {
-  // 認証チェック
+  // 認証チェック（画像解析はグループメンバーシップ不要、認証のみ確認）
   await requireAuthenticatedUserId(ctx);
 
   const { imageDataUrl } = args;

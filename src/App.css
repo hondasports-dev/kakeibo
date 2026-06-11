@@ -125,6 +125,26 @@
   background: var(--color-surface-panel);
 }
 
+.group-member-list {
+  display: grid;
+  gap: calc(var(--space-xs) + 2px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.group-member-row {
+  display: flex;
+  gap: var(--space-sm);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-panel);
+}
+
 .primary-action {
   flex: 1;
 }
@@ -283,6 +303,11 @@
   }
 
   .category-settings-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .group-member-row {
     align-items: stretch;
     flex-direction: column;
   }

@@ -17,15 +17,42 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
   };
 }
 
+const GROUP_ID = "group-001";
+
 /**
  * ActionCtx の最小モックを生成する。
  *
  * - ctx.auth.getUserIdentity() は identity を返す
+ * - ctx.db.query("groupMembers").withIndex("by_user_id").unique() はグループメンバーを返す
  */
 function createActionCtx(identity: UserIdentity | null): ActionCtx {
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   return {
     auth: {
       getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
+    },
+    db: {
+      query: vi.fn().mockImplementation((_tableName: string) => ({
+        withIndex: vi
+          .fn()
+          .mockImplementation((_indexName: string, builder?: (q: unknown) => unknown) => {
+            if (builder) {
+              const q = { eq: vi.fn().mockImplementation(() => q) };
+              builder(q);
+            }
+            return { unique: vi.fn().mockResolvedValue(groupMember) };
+          }),
+      })),
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any as ActionCtx;

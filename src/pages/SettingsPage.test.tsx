@@ -16,6 +16,12 @@ vi.mock("../../convex/_generated/api", () => ({
       listForSettings: "categories.listForSettings",
       updateCategory: "categories.updateCategory",
     },
+    groups: {
+      addMemberByEmail: "groups.addMemberByEmail",
+      getGroupMembers: "groups.getGroupMembers",
+      getMyGroup: "groups.getMyGroup",
+      removeMember: "groups.removeMember",
+    },
     users: {
       getUserProfile: "users.getUserProfile",
       updateWeeklyDays: "users.updateWeeklyDays",
@@ -36,6 +42,23 @@ describe("SettingsPage", () => {
     useQueryMock.mockImplementation((queryRef) => {
       if (typeof queryRef === "string") {
         if (queryRef.includes("categories.listForSettings")) return [];
+        if (queryRef.includes("groups.getMyGroup"))
+          return {
+            _id: "group-001",
+            name: "佐藤家",
+            role: "owner",
+            createdAt: 1000,
+          };
+        if (queryRef.includes("groups.getGroupMembers"))
+          return [
+            {
+              userId: "user-owner",
+              role: "owner",
+              displayName: "オーナー",
+              email: "owner@example.com",
+              createdAt: 1000,
+            },
+          ];
         if (queryRef.includes("users.getUserProfile"))
           return { monthlyIncome: null, weeklyStartDay: 1, weeklyEndDay: 0 };
       }
@@ -53,6 +76,13 @@ describe("SettingsPage", () => {
     renderWithProviders(<SettingsPage />);
 
     expect(screen.getByRole("button", { name: "カテゴリを追加" })).toBeInTheDocument();
+  });
+
+  it("GroupSettingsPanel が含まれている", () => {
+    renderWithProviders(<SettingsPage />);
+
+    expect(screen.getByRole("heading", { name: "グループ管理", level: 2 })).toBeInTheDocument();
+    expect(screen.getByText("佐藤家")).toBeInTheDocument();
   });
 
   it("WeekDaySettingsPanel が含まれている", () => {

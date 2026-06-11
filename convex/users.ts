@@ -14,6 +14,7 @@ export async function upsertUserHandler(ctx: MutationCtx) {
   }
 
   const userId = identity.tokenIdentifier;
+  const email = identity.email?.trim().toLowerCase();
   const now = Date.now();
 
   // NOTE: by_token_identifier インデックスには Convex の仕様上 unique constraint を付与できない。
@@ -27,14 +28,14 @@ export async function upsertUserHandler(ctx: MutationCtx) {
     await ctx.db.insert("users", {
       userId,
       displayName: identity.name ?? identity.email ?? "ユーザー",
-      email: identity.email ?? undefined,
+      email,
       createdAt: now,
       updatedAt: now,
     });
   } else {
     await ctx.db.patch(existing._id, {
       displayName: identity.name ?? identity.email ?? existing.displayName,
-      email: identity.email ?? existing.email,
+      email: email ?? existing.email,
       updatedAt: now,
     });
   }

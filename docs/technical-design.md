@@ -138,31 +138,35 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 `userId` を認可判断に使わない。
 
 ユーザー識別子は、Clerkの素のuser idではなく、Convex `UserIdentity` の
-`tokenIdentifier` を正とする。各テーブルにはこの値を `userId` として保存し、
-query/mutationでは必ず `userId` で絞り込む。receipt、category、weekSessionをID指定で
-更新または削除する場合も、取得したドキュメントの `userId` と認証ユーザーの
-`tokenIdentifier` が一致することを確認する。
+`tokenIdentifier` を正とする。`userId` は users と groupMembers の識別に使い、
+家計データの認可は `groupId` を基準に行う。receipt、category、weekSession などの
+家計データは `groupId` で絞り込み、ID指定で更新または削除する場合も、取得した
+ドキュメントの `groupId` と認証ユーザーの所属グループが一致することを確認する。
 
 `users` テーブルはClerkプロフィールのキャッシュまたはアプリ内表示名の保存が必要に
 なった場合に使う。MVPの認可は `users` テーブルの存在に依存せず、
 `ctx.auth.getUserIdentity()` の結果を基準に行う。
 
-### 6.1 2人限定公開方針
+### 6.1 家族グループ公開方針
 
-MVP時点の利用者は2人に限定する。Clerk Allowlistは本番利用で有料機能になるため、
-Clerk Restricted mode と invitation を採用する。
+MVP時点の共有単位は家族グループとする。1ユーザーは1グループに所属し、グループ未所属
+のユーザーはログイン後にグループ作成画面へ誘導する。Clerk Allowlistは本番利用で有料
+機能になるため、Clerk Restricted mode と invitation を入口制限として採用する。
 
 - Clerk DashboardでRestricted modeを有効化する
-- 対象2人へinvitationを発行する
+- 家族グループのオーナーはClerk invitationでメンバーをアプリへ招待する
+- 招待されたユーザーが初回ログインした後、オーナーが設定画面でメールアドレスを指定して
+  `groupMembers` へ追加する
 - 誰でもGoogleログインまたはサインアップできる状態にはしない
 - invitation対象メールはアプリコード、Git管理ファイル、環境変数に持たせない
 - Restricted modeはアプリ入口の制限であり、Convexデータ認可の代替にはしない
+- データ認可は `groupId` と `groupMembers` で行い、オーナー/メンバーの2段階権限を使う
 
 ### 6.2 認証テスト方針
 
 Convex関数を実装する時点で、未認証の場合に拒否されること、認証済みの場合に
-自分の `userId` のデータだけを扱うことをテストする。所有者チェックが必要な更新・削除は、
-他ユーザーのドキュメントIDを渡しても拒否されることを確認する。
+自分の所属グループのデータだけを扱うことをテストする。所有者チェックが必要な更新・削除は、
+他グループのドキュメントIDを渡しても拒否されることを確認する。
 
 ## 7. 画面とルーティング
 
@@ -171,8 +175,9 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | `/`                            | ダッシュボード     | 今週の支出、カテゴリ別支出、入力状態を確認する |
 | `/weeks/current/input`         | 今週のレシート入力 | レシートを連続入力する                     |
 | `/weeks/:weekStartDate`        | 週次サマリー       | 指定週の集計、支出一覧を確認する           |
-| `/settings`                    | 設定               | カテゴリ、週の開始・終了曜日を設定する     |
+| `/settings`                    | 設定               | グループ、カテゴリ、週の開始・終了曜日を設定する |
 | `/categories`                  | 設定               | `/settings` と同じ設定画面への互換ルート   |
+| `/group/setup`                 | グループ作成       | グループ未所属ユーザーが家族グループを作成する |
 | `/sso-callback`                | 認証コールバック   | Clerk SSO後のコールバックを処理する         |
 | `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
 

@@ -26,6 +26,8 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
   };
 }
 
+const GROUP_ID = "group-001";
+
 function createMutationCtx(
   identity: UserIdentity | null,
   opts: {
@@ -49,10 +51,35 @@ function createMutationCtx(
     }
     return null;
   });
-  const queryMock = vi.fn().mockImplementation(() => ({
-    withIndex: vi.fn().mockImplementation(() => ({
-      collect: vi.fn().mockResolvedValue(opts.queryResult ?? []),
-    })),
+
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
+  const queryMock = vi.fn().mockImplementation((_tableName: string) => ({
+    withIndex: vi
+      .fn()
+      .mockImplementation((_indexName: string, builder?: (q: unknown) => unknown) => {
+        // groupMembers の by_user_id クエリはグループメンバーを返す
+        if (_indexName === "by_user_id") {
+          if (builder) {
+            const q = { eq: vi.fn().mockImplementation(() => q) };
+            builder(q);
+          }
+          return { unique: vi.fn().mockResolvedValue(groupMember) };
+        }
+        return {
+          collect: vi.fn().mockResolvedValue(opts.queryResult ?? []),
+          unique: vi.fn().mockResolvedValue(null),
+        };
+      }),
   }));
 
   return {
@@ -83,13 +110,37 @@ function createQueryCtx(
     return null;
   });
 
-  const queryMock = vi.fn().mockImplementation(() => ({
-    withIndex: vi.fn().mockImplementation(() => ({
-      order: vi.fn().mockImplementation(() => ({
-        take: vi.fn().mockResolvedValue(opts.queryResult ?? []),
-        collect: vi.fn().mockResolvedValue(opts.queryResult ?? []),
-      })),
-    })),
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
+  const queryMock = vi.fn().mockImplementation((_tableName: string) => ({
+    withIndex: vi
+      .fn()
+      .mockImplementation((_indexName: string, builder?: (q: unknown) => unknown) => {
+        // groupMembers の by_user_id クエリはグループメンバーを返す
+        if (_indexName === "by_user_id") {
+          if (builder) {
+            const q = { eq: vi.fn().mockImplementation(() => q) };
+            builder(q);
+          }
+          return { unique: vi.fn().mockResolvedValue(groupMember) };
+        }
+        return {
+          order: vi.fn().mockImplementation(() => ({
+            take: vi.fn().mockResolvedValue(opts.queryResult ?? []),
+            collect: vi.fn().mockResolvedValue(opts.queryResult ?? []),
+          })),
+          unique: vi.fn().mockResolvedValue(null),
+        };
+      }),
   }));
 
   return {
@@ -172,9 +223,9 @@ describe("createBatchHandler", () => {
   it("batch と jobs を作成する", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       docs: {
-        "new-batch-id": { _id: "new-batch-id", userId: "https://issuer.example|user-001" },
-        "new-job-id-0": { _id: "new-job-id-0", userId: "https://issuer.example|user-001" },
-        "new-job-id-1": { _id: "new-job-id-1", userId: "https://issuer.example|user-001" },
+        "new-batch-id": { _id: "new-batch-id", groupId: GROUP_ID },
+        "new-job-id-0": { _id: "new-job-id-0", groupId: GROUP_ID },
+        "new-job-id-1": { _id: "new-job-id-1", groupId: GROUP_ID },
       },
     });
     const result = await createBatchHandler(ctx, { fileNames: ["a.png", "b.png"] });
@@ -199,10 +250,10 @@ describe("listJobsByBatchHandler", () => {
     ).rejects.toThrow(ConvexError);
   });
 
-  it("他ユーザーの batch は拒否する", async () => {
+  it("他グループの batch は拒否する", async () => {
     const ctx = createQueryCtx(createIdentity(), {
       docs: {
-        "batch-1": { userId: "other-user", _id: "batch-1" },
+        "batch-1": { groupId: "group-other", _id: "batch-1" },
       },
     });
     await expect(
@@ -222,7 +273,7 @@ describe("retryImageJobHandler", () => {
   it("failed 以外の job は再試行できない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       docs: {
-        "job-1": { userId: "https://issuer.example|user-001", status: "ready" },
+        "job-1": { groupId: GROUP_ID, status: "ready" },
       },
     });
     await expect(
@@ -233,7 +284,7 @@ describe("retryImageJobHandler", () => {
   it("failed job を queued に戻す", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       docs: {
-        "job-1": { userId: "https://issuer.example|user-001", status: "failed" },
+        "job-1": { groupId: GROUP_ID, status: "failed" },
       },
     });
     await retryImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> });
@@ -257,7 +308,7 @@ describe("cancelImageJobHandler", () => {
       docs: {
         "job-1": {
           _id: "job-1",
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           status: "running",
         },
       },
@@ -276,13 +327,13 @@ describe("cancelImageJobHandler", () => {
       docs: {
         "job-1": {
           _id: "job-1",
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           status: "failed",
           draftId: "draft-1",
         },
         "draft-1": {
           _id: "draft-1",
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           status: "failed",
         },
       },
@@ -306,12 +357,12 @@ describe("updateJobStatusHandler", () => {
       docs: {
         "job-1": {
           _id: "job-1",
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           status: "cancelled",
         },
         "draft-1": {
           _id: "draft-1",
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           status: "ready",
         },
       },
@@ -355,7 +406,7 @@ describe("analyzeImageJobHandler", () => {
     await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
       const jobDoc = {
         _id: "job-1",
-        userId: "https://issuer.example|user-001",
+        groupId: GROUP_ID,
         batchId: "batch-1",
         status: "queued",
       } as Doc<"receiptAnalysisImageJobs">;

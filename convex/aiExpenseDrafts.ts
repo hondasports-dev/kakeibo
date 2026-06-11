@@ -19,8 +19,8 @@ import {
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "./categoryCandidate";
 import { createExpenseEntriesFromDraftHandler } from "./expenseEntries";
 import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
-import { insertReceiptForUser } from "./receipts";
-import { requireAuthenticatedUserId } from "./users";
+import { insertReceiptForGroup } from "./receipts";
+import { requireGroupMembership } from "./groups";
 
 const LIST_LIMIT = 100;
 
@@ -97,12 +97,12 @@ type DeleteDraftArgs = {
 };
 
 type DeleteDraftsByUserBatchArgs = {
-  userId: string;
+  groupId: Id<"groups">;
   limit?: number;
 };
 
 type CreateE2eReadyDraftForUserArgs = {
-  userId: string;
+  groupId: Id<"groups">;
   categoryId: Id<"categories">;
 };
 
@@ -129,28 +129,28 @@ function resolveDraftClassification(args: CreateFromExtractionArgs): {
   };
 }
 
-async function assertCategoryBelongsToUser(
+async function assertCategoryBelongsToGroup(
   ctx: Pick<MutationCtx, "db">,
   categoryId: Id<"categories"> | undefined,
-  userId: string,
+  groupId: Id<"groups">,
 ) {
   if (categoryId === undefined) {
     return;
   }
   const category = await ctx.db.get(categoryId);
-  if (category === null || category.userId !== userId) {
-    throw new ConvexError("Category does not belong to the current user");
+  if (category === null || category.groupId !== groupId) {
+    throw new ConvexError("Category does not belong to the current group");
   }
 }
 
-async function assertActiveCategoryBelongsToUser(
+async function assertActiveCategoryBelongsToGroup(
   ctx: Pick<MutationCtx, "db">,
   categoryId: Id<"categories">,
-  userId: string,
+  groupId: Id<"groups">,
 ) {
   const category = await ctx.db.get(categoryId);
-  if (category === null || category.userId !== userId) {
-    throw new ConvexError("Category does not belong to the current user");
+  if (category === null || category.groupId !== groupId) {
+    throw new ConvexError("Category does not belong to the current group");
   }
   if (!category.isActive) {
     throw new ConvexError("Inactive category cannot be used for reviewed drafts");
@@ -193,15 +193,15 @@ function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
 
 async function insertDraftItems(
   ctx: Pick<MutationCtx, "db">,
-  userId: string,
+  groupId: Id<"groups">,
   draftId: Id<"aiExpenseDrafts">,
   items: AiExpenseDraftItemInput[],
   now: number,
 ) {
   for (const item of items) {
-    await assertCategoryBelongsToUser(ctx, item.categoryId, userId);
+    await assertCategoryBelongsToGroup(ctx, item.categoryId, groupId);
     await ctx.db.insert("aiExpenseDraftItems", {
-      userId,
+      groupId,
       draftId,
       itemName: item.itemName,
       amountYen: item.amountYen,
@@ -216,16 +216,16 @@ async function insertDraftItems(
 async function deleteDraftAndItems(
   ctx: Pick<MutationCtx, "db">,
   draftId: Id<"aiExpenseDrafts">,
-  userId: string,
+  groupId: Id<"groups">,
 ) {
   const draft = await ctx.db.get(draftId);
-  if (!draft || draft.userId !== userId || draft.status === "registered") {
+  if (!draft || draft.groupId !== groupId || draft.status === "registered") {
     return;
   }
 
   const items = await ctx.db
     .query("aiExpenseDraftItems")
-    .withIndex("by_user_id_and_draft_id", (q) => q.eq("userId", userId).eq("draftId", draftId))
+    .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId).eq("draftId", draftId))
     .collect();
   await Promise.all(items.map((item) => ctx.db.delete(item._id)));
   await ctx.db.delete(draftId);
@@ -235,13 +235,13 @@ export async function createFromExtractionHandler(
   ctx: MutationCtx,
   args: CreateFromExtractionArgs,
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
-  await assertCategoryBelongsToUser(ctx, args.categoryId, userId);
+  const { groupId } = await requireGroupMembership(ctx);
+  await assertCategoryBelongsToGroup(ctx, args.categoryId, groupId);
 
   const now = Date.now();
   const classification = resolveDraftClassification(args);
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
-    userId,
+    groupId,
     sourceType: "image_upload",
     status: classification.status,
     documentType: args.documentType,
@@ -260,7 +260,7 @@ export async function createFromExtractionHandler(
     updatedAt: now,
   });
 
-  await insertDraftItems(ctx, userId, draftId, args.items ?? [], now);
+  await insertDraftItems(ctx, groupId, draftId, args.items ?? [], now);
 
   const draft = await ctx.db.get(draftId);
   if (draft === null) {
@@ -301,10 +301,10 @@ export async function createFailedDraftFromImageAnalysisHandler(
   ctx: MutationCtx,
   args: CreateFailedDraftFromImageAnalysisArgs,
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
-    userId,
+    groupId,
     sourceType: "image_upload",
     status: "failed",
     documentType: "unknown",
@@ -335,8 +335,8 @@ export async function deleteOrphanedDraftHandler(
   ctx: MutationCtx,
   args: { draftId: Id<"aiExpenseDrafts"> },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
-  await deleteDraftAndItems(ctx, args.draftId, userId);
+  const { groupId } = await requireGroupMembership(ctx);
+  await deleteDraftAndItems(ctx, args.draftId, groupId);
 }
 
 export const deleteOrphanedDraft = internalMutation({
@@ -347,19 +347,19 @@ export const deleteOrphanedDraft = internalMutation({
 });
 
 export async function deleteDraftHandler(ctx: MutationCtx, args: DeleteDraftArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
     return { deleted: false };
   }
-  if (draft.userId !== userId) {
-    throw new ConvexError("AI expense draft does not belong to the current user");
+  if (draft.groupId !== groupId) {
+    throw new ConvexError("AI expense draft does not belong to the current group");
   }
   if (draft.status === "registered") {
     throw new ConvexError("Registered AI expense draft cannot be deleted from the queue");
   }
 
-  await deleteDraftAndItems(ctx, args.draftId, userId);
+  await deleteDraftAndItems(ctx, args.draftId, groupId);
   return { deleted: true };
 }
 
@@ -377,7 +377,7 @@ export async function deleteDraftsByUserBatchHandler(
   const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
   const drafts = await ctx.db
     .query("aiExpenseDrafts")
-    .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", args.userId))
+    .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", args.groupId))
     .order("asc")
     .take(limit);
 
@@ -387,8 +387,8 @@ export async function deleteDraftsByUserBatchHandler(
   for (const draft of drafts) {
     const items = await ctx.db
       .query("aiExpenseDraftItems")
-      .withIndex("by_user_id_and_draft_id", (q) =>
-        q.eq("userId", args.userId).eq("draftId", draft._id),
+      .withIndex("by_group_id_and_draft_id", (q) =>
+        q.eq("groupId", args.groupId).eq("draftId", draft._id),
       )
       .take(100);
     for (const item of items) {
@@ -408,7 +408,7 @@ export async function deleteDraftsByUserBatchHandler(
 
 export const deleteDraftsByUserBatch = internalMutation({
   args: {
-    userId: v.string(),
+    groupId: v.id("groups"),
     limit: v.optional(v.number()),
   },
   handler: deleteDraftsByUserBatchHandler,
@@ -416,13 +416,13 @@ export const deleteDraftsByUserBatch = internalMutation({
 
 export const createE2eReadyDraftForUser = internalMutation({
   args: {
-    userId: v.string(),
+    groupId: v.id("groups"),
     categoryId: v.id("categories"),
   },
   handler: async (ctx, args: CreateE2eReadyDraftForUserArgs) => {
     const now = Date.now();
     const draftId = await ctx.db.insert("aiExpenseDrafts", {
-      userId: args.userId,
+      groupId: args.groupId,
       sourceType: "image_upload",
       status: "ready",
       documentType: "receipt",
@@ -446,7 +446,7 @@ export const createE2eReadyDraftForUser = internalMutation({
 
     await insertDraftItems(
       ctx,
-      args.userId,
+      args.groupId,
       draftId,
       [
         {
@@ -476,11 +476,11 @@ export const createE2eReadyDraftForUser = internalMutation({
 });
 
 export async function listByStatusHandler(ctx: QueryCtx, args: ListByStatusArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   return await ctx.db
     .query("aiExpenseDrafts")
-    .withIndex("by_user_id_and_status_and_created_at", (q) =>
-      q.eq("userId", userId).eq("status", args.status),
+    .withIndex("by_group_id_and_status_and_created_at", (q) =>
+      q.eq("groupId", groupId).eq("status", args.status),
     )
     .order("desc")
     .take(LIST_LIMIT);
@@ -494,18 +494,20 @@ export const listByStatus = query({
 });
 
 export async function getWithItemsHandler(ctx: QueryCtx, args: GetWithItemsArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
     return null;
   }
-  if (draft.userId !== userId) {
-    throw new ConvexError("AI expense draft does not belong to the current user");
+  if (draft.groupId !== groupId) {
+    throw new ConvexError("AI expense draft does not belong to the current group");
   }
 
   const items = await ctx.db
     .query("aiExpenseDraftItems")
-    .withIndex("by_user_id_and_draft_id", (q) => q.eq("userId", userId).eq("draftId", args.draftId))
+    .withIndex("by_group_id_and_draft_id", (q) =>
+      q.eq("groupId", groupId).eq("draftId", args.draftId),
+    )
     .order("asc")
     .take(LIST_LIMIT);
 
@@ -520,13 +522,13 @@ export const getWithItems = query({
 });
 
 export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForReviewArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
     throw new ConvexError("AI expense draft not found");
   }
-  if (draft.userId !== userId) {
-    throw new ConvexError("AI expense draft does not belong to the current user");
+  if (draft.groupId !== groupId) {
+    throw new ConvexError("AI expense draft does not belong to the current group");
   }
   if (draft.status === "registered") {
     throw new ConvexError("Registered AI expense draft cannot be edited");
@@ -535,7 +537,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     throw new ConvexError("Only needs_review AI expense drafts can be edited");
   }
 
-  await assertActiveCategoryBelongsToUser(ctx, args.categoryId, userId);
+  await assertActiveCategoryBelongsToGroup(ctx, args.categoryId, groupId);
   assertReviewUpdateCanBecomeReady(args);
 
   const now = Date.now();
@@ -606,7 +608,7 @@ function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
 }
 
 export async function registerReadyDraftsHandler(ctx: MutationCtx, args: RegisterReadyDraftsArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const uniqueDraftIds = dedupeDraftIds(args.draftIds);
   if (uniqueDraftIds.length === 0) {
     return {
@@ -622,8 +624,8 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
       if (draft === null) {
         throw new ConvexError("AI expense draft not found");
       }
-      if (draft.userId !== userId) {
-        throw new ConvexError("AI expense draft does not belong to the current user");
+      if (draft.groupId !== groupId) {
+        throw new ConvexError("AI expense draft does not belong to the current group");
       }
       return draft;
     }),
@@ -644,7 +646,7 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
   const registeredReceiptIds: Id<"receipts">[] = [];
 
   for (const draft of draftsToRegister) {
-    const receiptId = await insertReceiptForUser(ctx, userId, {
+    const receiptId = await insertReceiptForGroup(ctx, groupId, {
       type: "expense",
       date: draft.date!,
       shopName: resolveReceiptShopNameFromDraft(draft),
@@ -687,7 +689,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
   ctx: MutationCtx,
   args: RegisterReadyDraftsArgs,
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const uniqueDraftIds = dedupeDraftIds(args.draftIds);
   if (uniqueDraftIds.length === 0) {
     return {
@@ -703,8 +705,8 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
       if (draft === null) {
         throw new ConvexError("AI expense draft not found");
       }
-      if (draft.userId !== userId) {
-        throw new ConvexError("AI expense draft does not belong to the current user");
+      if (draft.groupId !== groupId) {
+        throw new ConvexError("AI expense draft does not belong to the current group");
       }
       return draft;
     }),
