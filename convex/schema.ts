@@ -30,10 +30,37 @@ export default defineSchema({
     // by_token_identifier: userId フィールド（= Clerk の tokenIdentifier の値）で引く専用インデックス。
     // Issue #8 要件: users には by_token_identifier index を定義する。
     // 旧 by_user_id インデックスはこのインデックスに一本化した。
-    .index("by_token_identifier", ["userId"]),
+    .index("by_token_identifier", ["userId"])
+    .index("by_email", ["email"]),
+
+  // ---------------------------------------------------------------------------
+  // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）
+  // ---------------------------------------------------------------------------
+
+  groups: defineTable({
+    name: v.string(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  }),
+
+  groupMembers: defineTable({
+    groupId: v.id("groups"),
+    // userId には Clerk の tokenIdentifier を格納する。
+    userId: v.string(),
+    role: v.union(v.literal("owner"), v.literal("member")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_group_id", ["groupId"])
+    .index("by_group_id_and_user_id", ["groupId", "userId"]),
+
+  // ---------------------------------------------------------------------------
+  // データテーブル（userId → groupId に変更済み）
+  // ---------------------------------------------------------------------------
 
   sourceDocuments: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     sourceType: v.union(
       v.literal("manual"),
       v.literal("receipt"),
@@ -52,11 +79,11 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user_id_and_status_and_created_at", ["userId", "status", "createdAt"])
-    .index("by_user_id_and_date", ["userId", "date"]),
+    .index("by_group_id_and_status_and_created_at", ["groupId", "status", "createdAt"])
+    .index("by_group_id_and_date", ["groupId", "date"]),
 
   expenseEntries: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     sourceDocumentId: v.optional(v.id("sourceDocuments")),
     date: v.string(),
     amount: v.number(),
@@ -68,12 +95,12 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user_id_and_date", ["userId", "date"])
-    .index("by_user_id_and_category_id_and_date", ["userId", "categoryId", "date"])
-    .index("by_user_id_and_source_document_id", ["userId", "sourceDocumentId"]),
+    .index("by_group_id_and_date", ["groupId", "date"])
+    .index("by_group_id_and_category_id_and_date", ["groupId", "categoryId", "date"])
+    .index("by_group_id_and_source_document_id", ["groupId", "sourceDocumentId"]),
 
   receipts: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     date: v.string(),
     // type は支出(expense) / 収入(income) を区別する。既存レコードとの後方互換のため optional とする。
     type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
@@ -89,12 +116,12 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user_id_and_week_start_date", ["userId", "weekStartDate"])
-    .index("by_user_id_and_date", ["userId", "date"])
-    .index("by_user_id_and_shop_name", ["userId", "shopName"]),
+    .index("by_group_id_and_week_start_date", ["groupId", "weekStartDate"])
+    .index("by_group_id_and_date", ["groupId", "date"])
+    .index("by_group_id_and_shop_name", ["groupId", "shopName"]),
 
   weekSessions: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     weekStartDate: v.string(),
     weekEndDate: v.string(),
     // reviewMemo は週次セッション完了時のみ入力するため optional とする。
@@ -102,10 +129,10 @@ export default defineSchema({
     status: v.union(v.literal("draft"), v.literal("completed")),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).index("by_user_id_and_week_start_date", ["userId", "weekStartDate"]),
+  }).index("by_group_id_and_week_start_date", ["groupId", "weekStartDate"]),
 
   categories: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     name: v.string(),
     color: v.string(),
     isActive: v.boolean(),
@@ -113,11 +140,11 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user_id_and_is_active_and_sort_order", ["userId", "isActive", "sortOrder"])
-    .index("by_user_id_and_sort_order", ["userId", "sortOrder"]),
+    .index("by_group_id_and_is_active_and_sort_order", ["groupId", "isActive", "sortOrder"])
+    .index("by_group_id_and_sort_order", ["groupId", "sortOrder"]),
 
   aiExpenseDrafts: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     sourceType: aiExpenseDraftSourceTypeValidator,
     status: aiExpenseDraftStatusValidator,
     documentType: aiExpenseDraftDocumentTypeValidator,
@@ -138,12 +165,12 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user_id_and_status_and_created_at", ["userId", "status", "createdAt"])
-    .index("by_user_id_and_created_at", ["userId", "createdAt"])
-    .index("by_user_id_and_registered_receipt_id", ["userId", "registeredReceiptId"]),
+    .index("by_group_id_and_status_and_created_at", ["groupId", "status", "createdAt"])
+    .index("by_group_id_and_created_at", ["groupId", "createdAt"])
+    .index("by_group_id_and_registered_receipt_id", ["groupId", "registeredReceiptId"]),
 
   aiExpenseDraftItems: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     draftId: v.id("aiExpenseDrafts"),
     itemName: v.string(),
     amountYen: v.number(),
@@ -153,10 +180,10 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_draft_id", ["draftId"])
-    .index("by_user_id_and_draft_id", ["userId", "draftId"]),
+    .index("by_group_id_and_draft_id", ["groupId", "draftId"]),
 
   receiptAnalysisBatches: defineTable({
-    userId: v.string(),
+    groupId: v.id("groups"),
     totalCount: v.number(),
     processedCount: v.number(),
     status: v.union(
@@ -169,12 +196,12 @@ export default defineSchema({
     createdAt: v.number(),
     updatedAt: v.number(),
   })
-    .index("by_user_id_and_status", ["userId", "status"])
-    .index("by_user_id_and_created_at", ["userId", "createdAt"]),
+    .index("by_group_id_and_status", ["groupId", "status"])
+    .index("by_group_id_and_created_at", ["groupId", "createdAt"]),
 
   receiptAnalysisImageJobs: defineTable({
     batchId: v.id("receiptAnalysisBatches"),
-    userId: v.string(),
+    groupId: v.id("groups"),
     imageIndex: v.number(),
     fileName: v.string(),
     status: v.union(
@@ -191,6 +218,6 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_batch_id", ["batchId"])
-    .index("by_user_id_and_status", ["userId", "status", "createdAt"])
+    .index("by_group_id_and_status", ["groupId", "status", "createdAt"])
     .index("by_draft_id", ["draftId"]),
 });

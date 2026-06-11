@@ -2,7 +2,7 @@ import { internalMutation, mutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import { requireAuthenticatedUserId } from "./users";
+import { requireGroupMembership } from "./groups";
 import type { Id } from "./_generated/dataModel";
 
 // ---------------------------------------------------------------------------
@@ -26,7 +26,7 @@ export async function createExpenseEntriesHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateExpenseEntriesArgs,
 ): Promise<void> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   const now = Date.now();
 
@@ -35,15 +35,15 @@ export async function createExpenseEntriesHandler(
     if (category === null) {
       throw new ConvexError("Category not found");
     }
-    if (category.userId !== userId) {
-      throw new ConvexError("Category does not belong to the current user");
+    if (category.groupId !== groupId) {
+      throw new ConvexError("Category does not belong to the current group");
     }
     if (!category.isActive) {
       throw new ConvexError("Inactive category cannot be used for new expense entries");
     }
 
     await ctx.db.insert("expenseEntries", {
-      userId,
+      groupId,
       sourceDocumentId: args.sourceDocumentId,
       date: args.date,
       amount: item.amountYen,
@@ -95,14 +95,14 @@ export async function createExpenseEntriesFromDraftHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateExpenseEntriesFromDraftArgs,
 ): Promise<Id<"expenseEntries">[]> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
     throw new ConvexError("Draft not found");
   }
-  if (draft.userId !== userId) {
-    throw new ConvexError("Draft does not belong to the current user");
+  if (draft.groupId !== groupId) {
+    throw new ConvexError("Draft does not belong to the current group");
   }
 
   const now = Date.now();
@@ -118,15 +118,15 @@ export async function createExpenseEntriesFromDraftHandler(
     if (category === null) {
       throw new ConvexError("Category not found");
     }
-    if (category.userId !== userId) {
-      throw new ConvexError("Category does not belong to the current user");
+    if (category.groupId !== groupId) {
+      throw new ConvexError("Category does not belong to the current group");
     }
     if (!category.isActive) {
       throw new ConvexError("Inactive category cannot be used for new expense entries");
     }
 
     const entryId = await ctx.db.insert("expenseEntries", {
-      userId,
+      groupId,
       sourceDocumentId: undefined, // sourceDocuments未実装のため当面undefined
       date: draft.date ?? new Date().toISOString().split("T")[0],
       amount: item.amountYen,
@@ -161,12 +161,12 @@ export const createExpenseEntriesFromDraft = mutation({
 
 export const deleteE2eExpenseEntriesByUser = internalMutation({
   args: {
-    userId: v.string(),
+    groupId: v.id("groups"),
   },
-  handler: async (ctx, { userId }) => {
+  handler: async (ctx, { groupId }) => {
     const entries = await ctx.db
       .query("expenseEntries")
-      .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId))
+      .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
       .take(500);
 
     await Promise.all(entries.map((entry) => ctx.db.delete(entry._id)));

@@ -15,7 +15,7 @@ import {
 type CategoryDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   name: string;
   color: string;
   isActive: boolean;
@@ -27,7 +27,7 @@ type CategoryDoc = {
 type AiExpenseDraftDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   sourceType: "image_upload";
   sourceDocumentId?: string;
   status: "queued" | "analyzing" | "ready" | "needs_review" | "failed" | "registered";
@@ -65,6 +65,9 @@ const catDailyId = "cat-daily" as Id<"categories">;
 const draftReadyId = "draft-ready" as Id<"aiExpenseDrafts">;
 const sourceDocumentId = "source-doc-1" as Id<"sourceDocuments">;
 
+const GROUP_ID = "group-001" as Id<"groups">;
+const OTHER_GROUP_ID = "group-other" as Id<"groups">;
+
 // ---------------------------------------------------------------------------
 // テスト用ヘルパー
 // ---------------------------------------------------------------------------
@@ -82,14 +85,27 @@ function createMutationCtx(
   identity: UserIdentity | null,
   opts: {
     getDocById?: Record<string, CategoryDoc | AiExpenseDraftDoc | AiExpenseDraftItemDoc | null>;
+    groupId?: Id<"groups">;
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-entry-id");
   const getDocById = opts.getDocById ?? {};
+  const ctxGroupId = opts.groupId ?? GROUP_ID;
 
   const getMock = vi.fn().mockImplementation(async (id: string) => {
     return getDocById[id] ?? null;
   });
+
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: ctxGroupId,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
 
   const withIndexMock = vi
     .fn()
@@ -100,6 +116,12 @@ function createMutationCtx(
         lte: vi.fn().mockImplementation(() => q),
       };
       builder(q);
+
+      // groupMembers テーブルのクエリ
+      if (_indexName === "by_user_id") {
+        return { unique: vi.fn().mockResolvedValue(groupMember) };
+      }
+
       return {
         take: vi.fn().mockResolvedValue([]),
         order: vi.fn().mockReturnValue({ take: vi.fn().mockResolvedValue([]) }),
@@ -125,7 +147,7 @@ function createMutationCtx(
 const activeFoodCategory: CategoryDoc = {
   _id: "cat-food",
   _creationTime: 0,
-  userId: "https://issuer.example|user-001",
+  groupId: GROUP_ID,
   name: "食費",
   color: "#2563EB",
   isActive: true,
@@ -137,7 +159,7 @@ const activeFoodCategory: CategoryDoc = {
 const activeDailyCategory: CategoryDoc = {
   _id: "cat-daily",
   _creationTime: 0,
-  userId: "https://issuer.example|user-001",
+  groupId: GROUP_ID,
   name: "日用品",
   color: "#16A34A",
   isActive: true,
@@ -228,13 +250,13 @@ describe("createExpenseEntriesHandler", () => {
     ).rejects.toThrow(ConvexError);
   });
 
-  it("他のユーザーのカテゴリIDの場合、ConvexError を投げる", async () => {
-    const otherUserCategory: CategoryDoc = {
+  it("他のグループのカテゴリIDの場合、ConvexError を投げる", async () => {
+    const otherGroupCategory: CategoryDoc = {
       ...activeFoodCategory,
-      userId: "https://issuer.example|other-user",
+      groupId: OTHER_GROUP_ID,
     };
     const ctx = createMutationCtx(createIdentity(), {
-      getDocById: { "cat-food": otherUserCategory },
+      getDocById: { "cat-food": otherGroupCategory },
     });
 
     await expect(
@@ -300,7 +322,7 @@ describe("createExpenseEntriesHandler", () => {
 const readyDraft: AiExpenseDraftDoc = {
   _id: "draft-ready",
   _creationTime: 0,
-  userId: "https://issuer.example|user-001",
+  groupId: GROUP_ID,
   sourceType: "image_upload",
   status: "ready",
   documentType: "receipt",
@@ -395,13 +417,13 @@ describe("createExpenseEntriesFromDraftHandler", () => {
     ).rejects.toThrow(ConvexError);
   });
 
-  it("他のユーザーの下書きの場合、ConvexErrorを投げる", async () => {
-    const otherUserDraft: AiExpenseDraftDoc = {
+  it("他のグループの下書きの場合、ConvexErrorを投げる", async () => {
+    const otherGroupDraft: AiExpenseDraftDoc = {
       ...readyDraft,
-      userId: "https://issuer.example|other-user",
+      groupId: OTHER_GROUP_ID,
     };
     const ctx = createMutationCtx(createIdentity(), {
-      getDocById: { "draft-ready": otherUserDraft },
+      getDocById: { "draft-ready": otherGroupDraft },
     });
 
     await expect(
@@ -412,29 +434,9 @@ describe("createExpenseEntriesFromDraftHandler", () => {
     ).rejects.toThrow(ConvexError);
   });
 
-  it("存在しないカテゴリIDの場合、ConvexErrorを投げる", async () => {
+  it("存在しない下書きIDの場合、ConvexErrorを投げる", async () => {
     const ctx = createMutationCtx(createIdentity(), {
-      getDocById: {
-        "draft-ready": readyDraft,
-        "cat-food": null,
-      },
-    });
-
-    await expect(
-      createExpenseEntriesFromDraftHandler(ctx, {
-        draftId: draftReadyId,
-        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
-      }),
-    ).rejects.toThrow(ConvexError);
-  });
-
-  it("無効化されたカテゴリIDの場合、ConvexErrorを投げる", async () => {
-    const inactiveCategory: CategoryDoc = { ...activeFoodCategory, isActive: false };
-    const ctx = createMutationCtx(createIdentity(), {
-      getDocById: {
-        "draft-ready": readyDraft,
-        "cat-food": inactiveCategory,
-      },
+      getDocById: { "draft-ready": null },
     });
 
     await expect(

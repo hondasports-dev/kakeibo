@@ -4,7 +4,7 @@ import { action, internalMutation, internalQuery, mutation, query } from "./_gen
 import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
-import { requireAuthenticatedUserId } from "./users";
+import { requireGroupMembership } from "./groups";
 
 // ---------------------------------------------------------------------------
 // Validators
@@ -41,7 +41,7 @@ export type CancelImageJobArgs = {
 };
 
 type DeleteReceiptAnalysisDataByUserBatchArgs = {
-  userId: string;
+  groupId: Id<"groups">;
   limit?: number;
 };
 
@@ -53,7 +53,7 @@ export async function createBatchHandler(
   ctx: MutationCtx,
   args: CreateBatchArgs,
 ): Promise<{ batch: Doc<"receiptAnalysisBatches">; jobs: Doc<"receiptAnalysisImageJobs">[] }> {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const now = Date.now();
   const totalCount = args.fileNames.length;
 
@@ -62,7 +62,7 @@ export async function createBatchHandler(
   }
 
   const batchId = await ctx.db.insert("receiptAnalysisBatches", {
-    userId,
+    groupId,
     totalCount,
     processedCount: 0,
     status: "queued",
@@ -74,7 +74,7 @@ export async function createBatchHandler(
   for (let i = 0; i < args.fileNames.length; i++) {
     const jobId = await ctx.db.insert("receiptAnalysisImageJobs", {
       batchId,
-      userId,
+      groupId,
       imageIndex: i,
       fileName: args.fileNames[i],
       status: "queued",
@@ -106,10 +106,10 @@ export const createBatch = mutation({
 // ---------------------------------------------------------------------------
 
 export async function listBatchesHandler(ctx: QueryCtx) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   return await ctx.db
     .query("receiptAnalysisBatches")
-    .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", userId))
+    .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
     .order("desc")
     .take(50);
 }
@@ -120,10 +120,10 @@ export const listBatches = query({
 });
 
 export async function listJobsHandler(ctx: QueryCtx) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   return await ctx.db
     .query("receiptAnalysisImageJobs")
-    .withIndex("by_user_id_and_status", (q) => q.eq("userId", userId))
+    .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId))
     .order("desc")
     .take(100);
 }
@@ -137,9 +137,9 @@ export async function listJobsByBatchHandler(
   ctx: QueryCtx,
   { batchId }: { batchId: Id<"receiptAnalysisBatches"> },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const batch = await ctx.db.get(batchId);
-  if (!batch || batch.userId !== userId) {
+  if (!batch || batch.groupId !== groupId) {
     throw new ConvexError("Batch not found");
   }
   return await ctx.db
@@ -176,7 +176,7 @@ export async function updateJobStatusHandler(
 
   if (job.status === "cancelled") {
     if (args.draftId !== undefined) {
-      await deleteDraftAndItems(ctx, args.draftId, job.userId);
+      await deleteDraftAndItems(ctx, args.draftId, job.groupId);
     }
     return;
   }
@@ -281,12 +281,12 @@ export async function getJobByDraftIdHandler(
   ctx: QueryCtx,
   { draftId }: { draftId: Id<"aiExpenseDrafts"> },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const job = await ctx.db
     .query("receiptAnalysisImageJobs")
     .withIndex("by_draft_id", (q) => q.eq("draftId", draftId))
     .unique();
-  if (!job || job.userId !== userId) {
+  if (!job || job.groupId !== groupId) {
     return null;
   }
   return job;
@@ -302,16 +302,16 @@ export const getJobByDraftId = query({
 async function deleteDraftAndItems(
   ctx: Pick<MutationCtx, "db">,
   draftId: Id<"aiExpenseDrafts">,
-  userId: string,
+  groupId: Id<"groups">,
 ) {
   const draft = await ctx.db.get(draftId);
-  if (!draft || draft.userId !== userId || draft.status === "registered") {
+  if (!draft || draft.groupId !== groupId || draft.status === "registered") {
     return;
   }
 
   const items = await ctx.db
     .query("aiExpenseDraftItems")
-    .withIndex("by_user_id_and_draft_id", (q) => q.eq("userId", userId).eq("draftId", draftId))
+    .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId).eq("draftId", draftId))
     .collect();
   await Promise.all(items.map((item) => ctx.db.delete(item._id)));
   await ctx.db.delete(draftId);
@@ -428,9 +428,9 @@ export const analyzeImageJob = action({
 // ---------------------------------------------------------------------------
 
 export async function retryImageJobHandler(ctx: MutationCtx, args: RetryImageJobArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const job = await ctx.db.get(args.jobId);
-  if (!job || job.userId !== userId) {
+  if (!job || job.groupId !== groupId) {
     throw new ConvexError("Job not found");
   }
   if (job.status !== "failed") {
@@ -456,16 +456,16 @@ export const retryImageJob = mutation({
 // ---------------------------------------------------------------------------
 
 export async function cancelImageJobHandler(ctx: MutationCtx, args: CancelImageJobArgs) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
   const job = await ctx.db.get(args.jobId);
-  if (!job || job.userId !== userId) {
+  if (!job || job.groupId !== groupId) {
     throw new ConvexError("Job not found");
   }
   if (job.status === "ready" || job.status === "needs_review") {
     throw new ConvexError("Ready jobs must be removed from the draft queue");
   }
   if (job.draftId !== undefined) {
-    await deleteDraftAndItems(ctx, job.draftId, userId);
+    await deleteDraftAndItems(ctx, job.draftId, job.groupId);
   }
 
   await ctx.db.patch(args.jobId, {
@@ -490,7 +490,7 @@ export async function deleteReceiptAnalysisDataByUserBatchHandler(
   const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
   const batches = await ctx.db
     .query("receiptAnalysisBatches")
-    .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", args.userId))
+    .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", args.groupId))
     .order("asc")
     .take(limit);
 
@@ -519,7 +519,7 @@ export async function deleteReceiptAnalysisDataByUserBatchHandler(
 
 export const deleteReceiptAnalysisDataByUserBatch = internalMutation({
   args: {
-    userId: v.string(),
+    groupId: v.id("groups"),
     limit: v.optional(v.number()),
   },
   handler: deleteReceiptAnalysisDataByUserBatchHandler,

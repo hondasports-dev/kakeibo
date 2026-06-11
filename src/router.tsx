@@ -1,7 +1,8 @@
-import { createBrowserRouter } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useMutation, useQuery } from "convex/react";
+import { Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { AppLayout } from "./components/AppLayout";
@@ -11,6 +12,8 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InputPage } from "./pages/InputPage";
 import { SummaryPage } from "./pages/SummaryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { GroupSetupPage } from "./pages/GroupSetupPage";
+import { useGroupMembership } from "./hooks/useGroupMembership";
 
 const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
   {
@@ -115,10 +118,7 @@ function E2eRegisterAsExpenseEntriesPage() {
   const draftId = new URLSearchParams(window.location.search).get("draftId");
   const { isLoaded, isSignedIn } = useAuth();
   const categories = useQuery(api.categories.listActive, isLoaded && isSignedIn ? {} : "skip");
-  const authenticatedUserId = useQuery(
-    api.users.getAuthenticatedUserId,
-    isLoaded && isSignedIn ? {} : "skip",
-  );
+  const group = useQuery(api.groups.getMyGroup, isLoaded && isSignedIn ? {} : "skip");
   const [result, setResult] = useState<{
     registeredDraftIds: Id<"aiExpenseDrafts">[];
     createdExpenseEntryIds: Id<"expenseEntries">[];
@@ -128,7 +128,7 @@ function E2eRegisterAsExpenseEntriesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const registerMutation = useMutation(api.aiExpenseDrafts.registerReadyDraftsAsExpenseEntries);
   const isAuthReady = isLoaded && isSignedIn;
-  const isConvexReady = categories !== undefined && authenticatedUserId !== undefined;
+  const isConvexReady = categories !== undefined && group !== undefined;
   const isReady = isAuthReady && isConvexReady;
 
   const handleRegister = async () => {
@@ -159,7 +159,7 @@ function E2eRegisterAsExpenseEntriesPage() {
       <h1>Issue #179 E2E Test: Register as Expense Entries</h1>
       <p data-testid="auth-status">{isAuthReady ? "ready" : "loading"}</p>
       <p data-testid="convex-status">{isConvexReady ? "ready" : "loading"}</p>
-      <p data-testid="current-user-id">{authenticatedUserId ?? ""}</p>
+      <p data-testid="current-group-id">{group?._id ?? ""}</p>
       <p data-testid="draft-id">{draftId ?? ""}</p>
       <button onClick={handleRegister} type="button" disabled={isLoading || !isReady}>
         {isLoading ? "登録中..." : "下書きをexpenseEntriesに登録"}
@@ -183,6 +183,29 @@ function E2eRegisterAsExpenseEntriesPage() {
       )}
     </div>
   );
+}
+
+function GroupRouteGuard() {
+  const { group, isLoading } = useGroupMembership();
+
+  if (isLoading) {
+    return (
+      <Box className="auth-screen">
+        <Paper className="auth-panel paper-panel" elevation={0}>
+          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
+            <CircularProgress aria-label="グループ所属を確認中" />
+            <Typography color="text.secondary">グループ所属を確認しています。</Typography>
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
+
+  if (group === null) {
+    return <Navigate to="/group/setup" replace />;
+  }
+
+  return <AppLayout />;
 }
 
 const appRoutes = [
@@ -221,7 +244,11 @@ if (shouldEnableE2eRoutes()) {
 
 export const router = createBrowserRouter([
   {
-    element: <AppLayout />,
+    path: "/group/setup",
+    element: <GroupSetupPage />,
+  },
+  {
+    element: <GroupRouteGuard />,
     children: [
       ...appRoutes,
       {

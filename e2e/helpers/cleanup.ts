@@ -110,6 +110,16 @@ export async function cleanupUserMonthlyIncome(): Promise<void> {
   });
 }
 
+/**
+ * テストユーザーのグループ所属を削除する。
+ */
+export async function cleanupGroupMembershipsByUser(userId?: string): Promise<void> {
+  await callCleanupEndpoint({
+    userId: userId ?? getCleanupUserId(),
+    clearGroupMemberships: true,
+  });
+}
+
 async function callCleanupEndpoint(body: {
   userId?: string;
   resetWeekSession?: boolean;
@@ -118,6 +128,7 @@ async function callCleanupEndpoint(body: {
   clearMonthlyIncome?: boolean;
   clearAiExpenseQueue?: boolean;
   clearE2eExpenseEntries?: boolean;
+  clearGroupMemberships?: boolean;
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
@@ -153,7 +164,7 @@ async function callCleanupEndpoint(body: {
   }
 
   const data = (await res.json()) as {
-    receipts?: { deletedCount: number };
+    receipts?: { deletedCount: number } | null;
     aiExpenseQueue?: {
       deletedDraftCount: number;
       deletedItemCount: number;
@@ -165,6 +176,7 @@ async function callCleanupEndpoint(body: {
     weekSession?: { reset: boolean } | null;
     monthlyIncome?: { cleared: boolean } | null;
     expenseEntries?: { deletedCount: number } | null;
+    groupMemberships?: { deletedCount: number } | null;
   };
   const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {

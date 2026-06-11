@@ -23,7 +23,7 @@ import {
 type ReceiptDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   date: string;
   type?: "expense" | "income";
   shopName?: string;
@@ -39,7 +39,7 @@ type ReceiptDoc = {
 type ExpenseEntryDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   sourceDocumentId?: string;
   date: string;
   amount: number;
@@ -55,7 +55,7 @@ type ExpenseEntryDoc = {
 type CategoryDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   name: string;
   color: string;
   isActive: boolean;
@@ -77,6 +77,9 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
   };
 }
 
+const GROUP_ID = "group-001";
+const OTHER_GROUP_ID = "group-other";
+
 /**
  * MutationCtx の最小モックを生成する。
  *
@@ -85,6 +88,7 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
  *   insertedDoc を返すよう構成する
  * - ctx.db.patch() / ctx.db.delete() は vi.fn()
  * - ctx.db.query().withIndex().take() は queryDocs を返す
+ * - groupMembers テーブルの by_user_id クエリは groupMember を返す
  */
 function createMutationCtx(
   identity: UserIdentity | null,
@@ -93,6 +97,7 @@ function createMutationCtx(
     insertedDoc?: ReceiptDoc;
     updatedDoc?: ReceiptDoc;
     queryDocs?: ReceiptDoc[];
+    groupId?: string;
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-receipt-id");
@@ -102,6 +107,18 @@ function createMutationCtx(
   const getDocById = opts.getDocById ?? {};
   const insertedDoc = opts.insertedDoc ?? null;
   const updatedDoc = opts.updatedDoc ?? null;
+  const ctxGroupId = opts.groupId ?? GROUP_ID;
+
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: ctxGroupId,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
 
   // insert 後の get と通常の get を区別するために呼び出し回数を追跡
   let insertCalled = false;
@@ -144,6 +161,10 @@ function createMutationCtx(
         lte: vi.fn().mockImplementation(() => q),
       };
       builder(q);
+      // groupMembers テーブルの by_user_id クエリはグループメンバーを返す
+      if (_indexName === "by_user_id") {
+        return { unique: vi.fn().mockResolvedValue(groupMember) };
+      }
       return queryChain;
     });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
@@ -165,16 +186,36 @@ function createMutationCtx(
 
 /**
  * QueryCtx の最小モックを生成する。
+ * groupMembers テーブルの by_user_id クエリはグループメンバーを返す。
  */
 function createQueryCtx(
   identity: UserIdentity | null,
   queryDocs: ReceiptDoc[] = [],
   expenseEntryDocs: ExpenseEntryDoc[] = [],
+  groupId: string = GROUP_ID,
 ): QueryCtx {
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   const makeChain = (docs: Array<Record<string, unknown>>) => ({
     withIndex: vi
       .fn()
       .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+        // groupMembers テーブルのクエリ
+        if (_indexName === "by_user_id") {
+          const q = { eq: vi.fn().mockImplementation(() => q) };
+          builder(q);
+          return { unique: vi.fn().mockResolvedValue(groupMember) };
+        }
+
         const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
         const q = {
           eq: vi.fn().mockImplementation((field: string, value: unknown) => {
@@ -227,6 +268,9 @@ function createQueryCtx(
   });
 
   const queryMock = vi.fn().mockImplementation((tableName: string) => {
+    if (tableName === "groupMembers") {
+      return makeChain([]);
+    }
     if (tableName === "expenseEntries") {
       return makeChain(expenseEntryDocs as Record<string, unknown>[]);
     }
@@ -248,13 +292,26 @@ function createQueryCtx(
  * QueryCtx の最小モックを生成する（receipts + categories の2クエリ対応）。
  * query() の呼び出し順序（1回目=receipts、2回目=categories）を利用して
  * それぞれ異なるデータを返す。
+ * groupMembers テーブルの by_user_id クエリはグループメンバーを返す。
  */
 function createQueryCtxForSummary(
   identity: UserIdentity | null,
   receiptDocs: ReceiptDoc[] = [],
   categoryDocs: CategoryDoc[] = [],
   expenseEntryDocs: ExpenseEntryDoc[] = [],
+  groupId: string = GROUP_ID,
 ): QueryCtx {
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   const makeChain = (docs: unknown[], supportsCollect: boolean) => {
     const collectMock = vi.fn().mockResolvedValue(docs);
     const takeMock = vi.fn().mockImplementation(async (limit?: number) => {
@@ -274,6 +331,13 @@ function createQueryCtxForSummary(
     const withIndexMock = vi
       .fn()
       .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+        // groupMembers テーブルの by_user_id クエリはグループメンバーを返す
+        if (_indexName === "by_user_id") {
+          const q = { eq: vi.fn().mockImplementation(() => q) };
+          builder(q);
+          return { unique: vi.fn().mockResolvedValue(groupMember) };
+        }
+
         const filters: Record<string, { eq?: unknown; gte?: unknown; lte?: unknown }> = {};
         const q = {
           eq: vi.fn().mockImplementation((field: string, value: unknown) => {
@@ -333,6 +397,9 @@ function createQueryCtxForSummary(
   };
 
   const queryMock = vi.fn().mockImplementation((tableName: string) => {
+    if (tableName === "groupMembers") {
+      return makeChain([], false);
+    }
     if (tableName === "receipts") {
       return makeChain(receiptDocs, false);
     }
@@ -366,7 +433,7 @@ const OTHER_USER_ID = "https://issuer.example|user-002";
 const sampleCategory: CategoryDoc = {
   _id: "cat-001",
   _creationTime: 1000,
-  userId: USER_ID,
+  groupId: GROUP_ID,
   name: "食費",
   color: "#FF6B6B",
   isActive: true,
@@ -375,10 +442,10 @@ const sampleCategory: CategoryDoc = {
   updatedAt: 1000,
 };
 
-const otherUserCategory: CategoryDoc = {
+const otherGroupCategory: CategoryDoc = {
   _id: "cat-other",
   _creationTime: 1000,
-  userId: OTHER_USER_ID,
+  groupId: OTHER_GROUP_ID,
   name: "外食",
   color: "#FFE66D",
   isActive: true,
@@ -390,7 +457,7 @@ const otherUserCategory: CategoryDoc = {
 const sampleReceipt: ReceiptDoc = {
   _id: "receipt-001",
   _creationTime: 1000,
-  userId: USER_ID,
+  groupId: GROUP_ID,
   date: "2024-01-10",
   shopName: "スーパー",
   amountYen: 1500,
@@ -400,10 +467,10 @@ const sampleReceipt: ReceiptDoc = {
   updatedAt: 1000,
 };
 
-const otherUserReceipt: ReceiptDoc = {
+const otherGroupReceipt: ReceiptDoc = {
   _id: "receipt-other",
   _creationTime: 1000,
-  userId: OTHER_USER_ID,
+  groupId: OTHER_GROUP_ID,
   date: "2024-01-10",
   shopName: "コンビニ",
   amountYen: 500,
@@ -474,7 +541,7 @@ describe("createReceipt", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "receipts",
       expect.objectContaining({
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         shopName: "スーパー",
         amountYen: 1500,
@@ -510,11 +577,11 @@ describe("createReceipt", () => {
     ).rejects.toMatchObject({ data: "Not authenticated" });
   });
 
-  it("別ユーザーのカテゴリを使用時: ConvexError が throw される", async () => {
+  it("別グループのカテゴリを使用時: ConvexError が throw される", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const ctx = createMutationCtx(identity, {
       getDocById: {
-        "cat-other": otherUserCategory,
+        "cat-other": otherGroupCategory,
       },
     });
 
@@ -537,7 +604,7 @@ describe("createReceipt", () => {
         categoryId: "cat-other" as any,
       }),
     ).rejects.toMatchObject({
-      data: "Category does not belong to the current user",
+      data: "Category does not belong to the current group",
     });
   });
 
@@ -567,7 +634,7 @@ describe("createReceipt", () => {
     const createdReceipt: ReceiptDoc = {
       _id: "new-receipt-id",
       _creationTime: 1000,
-      userId: USER_ID,
+      groupId: GROUP_ID,
       date: "2024-01-10",
       type: "income",
       bankName: "三菱UFJ銀行",
@@ -599,7 +666,7 @@ describe("createReceipt", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "receipts",
       expect.objectContaining({
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         type: "income",
         bankName: "三菱UFJ銀行",
@@ -664,17 +731,17 @@ describe("getReceiptsByWeek", () => {
     expect(result).toEqual(docs);
   });
 
-  it("別ユーザーのレシートが返らない", async () => {
+  it("別グループのレシートが返らない", async () => {
     const identity = createIdentity({ tokenIdentifier: OTHER_USER_ID });
-    // OTHER_USER_ID のコンテキストでは queryDocs を空にして別ユーザーのデータが混入しないことを表現
-    const ctx = createQueryCtx(identity, []);
+    // OTHER_GROUP_ID のコンテキストでは queryDocs を空にして別グループのデータが混入しないことを表現
+    const ctx = createQueryCtx(identity, [], [], OTHER_GROUP_ID);
 
     const result = await getReceiptsByWeekHandler(ctx, {
       weekStartDate: "2024-01-08",
     });
 
-    // USER_ID のレシートは含まれない
-    expect(result).not.toContainEqual(expect.objectContaining({ userId: USER_ID }));
+    // GROUP_ID のレシートは含まれない
+    expect(result).not.toContainEqual(expect.objectContaining({ groupId: GROUP_ID }));
     expect(result).toHaveLength(0);
   });
 
@@ -750,11 +817,11 @@ describe("updateReceipt", () => {
     );
   });
 
-  it("別ユーザーの receipt 更新試みる: ConvexError が throw される", async () => {
+  it("別グループの receipt 更新試みる: ConvexError が throw される", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const ctx = createMutationCtx(identity, {
       getDocById: {
-        "receipt-other": otherUserReceipt,
+        "receipt-other": otherGroupReceipt,
       },
     });
 
@@ -773,7 +840,7 @@ describe("updateReceipt", () => {
         shopName: "新しい店",
       }),
     ).rejects.toMatchObject({
-      data: "Receipt does not belong to the current user",
+      data: "Receipt does not belong to the current group",
     });
   });
 
@@ -892,11 +959,11 @@ describe("deleteReceipt", () => {
     expect(dbDelete).toHaveBeenCalledWith("receipt-001");
   });
 
-  it("別ユーザーの receipt 削除試みる: ConvexError が throw される", async () => {
+  it("別グループの receipt 削除試みる: ConvexError が throw される", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const ctx = createMutationCtx(identity, {
       getDocById: {
-        "receipt-other": otherUserReceipt,
+        "receipt-other": otherGroupReceipt,
       },
     });
 
@@ -913,7 +980,7 @@ describe("deleteReceipt", () => {
         receiptId: "receipt-other" as any,
       }),
     ).rejects.toMatchObject({
-      data: "Receipt does not belong to the current user",
+      data: "Receipt does not belong to the current group",
     });
   });
 });
@@ -977,7 +1044,7 @@ describe("getWeekSummary", () => {
       {
         _id: "entry-001",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         amount: 4280,
         categoryId: "cat-food",
@@ -990,7 +1057,7 @@ describe("getWeekSummary", () => {
       {
         _id: "entry-002",
         _creationTime: 1001,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-11",
         amount: 2000,
         categoryId: "cat-daily",
@@ -1003,7 +1070,7 @@ describe("getWeekSummary", () => {
       {
         _id: "entry-003",
         _creationTime: 1002,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-11",
         amount: 9999,
         categoryId: "cat-daily",
@@ -1033,7 +1100,7 @@ describe("getWeekSummary", () => {
     const expenseEntries: ExpenseEntryDoc[] = Array.from({ length: 501 }, (_, index) => ({
       _id: `entry-${String(index + 1).padStart(3, "0")}`,
       _creationTime: 1000 + index,
-      userId: USER_ID,
+      groupId: GROUP_ID,
       date: "2024-01-10",
       amount: 1,
       categoryId: "cat-daily",
@@ -1179,7 +1246,7 @@ describe("getWeekSummaryWithCategories", () => {
     const category2: CategoryDoc = {
       _id: "cat-002",
       _creationTime: 1000,
-      userId: USER_ID,
+      groupId: GROUP_ID,
       name: "外食",
       color: "#FFE66D",
       isActive: true,
@@ -1229,7 +1296,7 @@ describe("getWeekSummaryWithCategories", () => {
       {
         _id: "entry-food",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         amount: 4280,
         categoryId: "cat-food",
@@ -1242,7 +1309,7 @@ describe("getWeekSummaryWithCategories", () => {
       {
         _id: "entry-daily",
         _creationTime: 1001,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-11",
         amount: 2000,
         categoryId: "cat-daily",
@@ -1256,7 +1323,7 @@ describe("getWeekSummaryWithCategories", () => {
     const category2: CategoryDoc = {
       _id: "cat-daily",
       _creationTime: 1000,
-      userId: USER_ID,
+      groupId: GROUP_ID,
       name: "日用品",
       color: "#16A34A",
       isActive: true,
@@ -1439,7 +1506,7 @@ describe("getFourWeeksSummaryHandler", () => {
       {
         _id: "r-w0-1",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-08",
         shopName: "shop-A",
         amountYen: 1000,
@@ -1451,7 +1518,7 @@ describe("getFourWeeksSummaryHandler", () => {
       {
         _id: "r-w0-2",
         _creationTime: 1001,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         shopName: "shop-B",
         amountYen: 2000,
@@ -1463,7 +1530,7 @@ describe("getFourWeeksSummaryHandler", () => {
       {
         _id: "r-w1",
         _creationTime: 1002,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-01",
         shopName: "shop-C",
         amountYen: 500,
@@ -1475,7 +1542,7 @@ describe("getFourWeeksSummaryHandler", () => {
       {
         _id: "r-w2",
         _creationTime: 1003,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2023-12-25",
         shopName: "shop-D",
         amountYen: 3000,
@@ -1523,7 +1590,7 @@ describe("getFourWeeksSummaryHandler", () => {
       {
         _id: "r-only",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-08",
         shopName: "shop-only",
         amountYen: 9999,
@@ -1582,8 +1649,25 @@ function createQueryCtxForMonthlySummary(
   userDoc: UserDoc | null = null,
   expenseEntryDocs: ExpenseEntryDoc[] = [],
 ): QueryCtx {
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   const queryMock = vi.fn().mockImplementation((tableName: string) => {
-    if (tableName === "receipts") {
+    if (tableName === "groupMembers") {
+      // groupMembers: withIndex("by_user_id") → unique() でgroupMemberを返す
+      const withIndexMock = vi.fn().mockReturnValue({
+        unique: vi.fn().mockResolvedValue(groupMember),
+      });
+      return { withIndex: withIndexMock };
+    } else if (tableName === "receipts") {
       // receipts: withIndex → collect() で全件返す
       const withIndexMock = vi
         .fn()
@@ -1725,7 +1809,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-jan-1",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-02-01",
         shopName: "スーパーA",
         amountYen: 1000,
@@ -1737,7 +1821,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-jan-2",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-02-20",
         shopName: "コンビニB",
         amountYen: 500,
@@ -1762,7 +1846,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-jan",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         shopName: "スーパーA",
         amountYen: 1000,
@@ -1774,7 +1858,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-feb",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-02-05",
         shopName: "コンビニB",
         amountYen: 2000,
@@ -1797,7 +1881,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-expense",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         shopName: "スーパーA",
         amountYen: 1000,
@@ -1809,7 +1893,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-income",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-15",
         type: "income",
         bankName: "給与",
@@ -1833,7 +1917,7 @@ describe("getMonthlyExpensesSummary", () => {
       {
         _id: "r-1",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         shopName: "スーパー",
         amountYen: 50000,
@@ -1846,7 +1930,7 @@ describe("getMonthlyExpensesSummary", () => {
     const userDoc: UserDoc = {
       _id: "user-001",
       _creationTime: 1000,
-      userId: USER_ID,
+      groupId: GROUP_ID,
       displayName: "テストユーザー",
       monthlyIncome: 300000,
       createdAt: 1000,
@@ -1866,7 +1950,7 @@ describe("getMonthlyExpensesSummary", () => {
     const userDoc: UserDoc = {
       _id: "user-001",
       _creationTime: 1000,
-      userId: USER_ID,
+      groupId: GROUP_ID,
       displayName: "テストユーザー",
       // monthlyIncome なし
       createdAt: 1000,
@@ -1891,7 +1975,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "r1",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-08",
         shopName: "shop-A",
         amountYen: 1000,
@@ -1903,7 +1987,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "r2",
         _creationTime: 1001,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         shopName: "shop-B",
         amountYen: 2000,
@@ -1915,7 +1999,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "r-income",
         _creationTime: 1005,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         type: "income",
         bankName: "給与",
@@ -1928,7 +2012,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "r3",
         _creationTime: 1002,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-12",
         shopName: "shop-C",
         amountYen: 500,
@@ -1940,7 +2024,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "r4",
         _creationTime: 1003,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-01",
         shopName: "shop-D",
         amountYen: 3000,
@@ -1952,7 +2036,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "r5",
         _creationTime: 1004,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-03",
         shopName: "shop-E",
         amountYen: 1500,
@@ -2001,7 +2085,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "entry-1",
         _creationTime: 1000,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-08",
         amount: 1000,
         categoryId: "cat-food",
@@ -2014,7 +2098,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "entry-2",
         _creationTime: 1001,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-10",
         amount: 2000,
         categoryId: "cat-daily",
@@ -2027,7 +2111,7 @@ describe("getDailySpendingTrendHandler", () => {
       {
         _id: "entry-3",
         _creationTime: 1002,
-        userId: USER_ID,
+        groupId: GROUP_ID,
         date: "2024-01-01",
         amount: 3000,
         categoryId: "cat-food",

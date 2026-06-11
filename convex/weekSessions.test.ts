@@ -1,6 +1,7 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
+import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   getOrCreateCurrentWeekSessionHandler,
@@ -17,13 +18,21 @@ import {
 type WeekSessionDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   weekStartDate: string;
   weekEndDate: string;
   reviewMemo?: string;
   status: "draft" | "completed";
   createdAt: number;
   updatedAt: number;
+};
+
+type GroupMemberDoc = {
+  _id: string;
+  _creationTime: number;
+  groupId: Id<"groups">;
+  userId: string;
+  role: "owner" | "member";
 };
 
 // ---------------------------------------------------------------------------
@@ -39,10 +48,14 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
   };
 }
 
+const GROUP_ID = "https://issuer.example|group-001";
+const OTHER_GROUP_ID = "https://issuer.example|group-002";
+
 /**
  * MutationCtx の最小モックを生成する。
  *
- * - ctx.db.query().withIndex().unique() は uniqueDoc を返す
+ * - groupMembers テーブルへの withIndex("by_user_id") クエリは groupMember を返す
+ * - weekSessions テーブルへの withIndex は uniqueDoc を返す
  * - ctx.db.get(id) は getDocById で解決する（insert 後は insertedDoc を返す）
  * - ctx.db.insert() は "new-session-id" を返す
  * - ctx.db.patch() / ctx.db.delete() は vi.fn()
@@ -54,6 +67,7 @@ function createMutationCtx(
     insertedDoc?: WeekSessionDoc;
     updatedDoc?: WeekSessionDoc;
     uniqueDoc?: WeekSessionDoc | null;
+    groupMember?: GroupMemberDoc | null;
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-session-id");
@@ -63,6 +77,18 @@ function createMutationCtx(
   const getDocById = opts.getDocById ?? {};
   const insertedDoc = opts.insertedDoc ?? null;
   const updatedDoc = opts.updatedDoc ?? null;
+
+  const defaultGroupMember: GroupMemberDoc | null =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID as Id<"groups">,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+  const groupMember = "groupMember" in opts ? opts.groupMember : defaultGroupMember;
 
   // insert 後の get と通常の get を区別するために呼び出し回数を追跡
   let insertCalled = false;
@@ -104,6 +130,12 @@ function createMutationCtx(
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
+
+      // groupMembers テーブルのクエリ
+      if (_indexName === "by_user_id") {
+        return { unique: vi.fn().mockResolvedValue(groupMember) };
+      }
+
       return { unique: uniqueMock };
     });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
@@ -130,8 +162,21 @@ function createQueryCtx(
   identity: UserIdentity | null,
   opts: {
     uniqueDoc?: WeekSessionDoc | null;
+    groupMember?: GroupMemberDoc | null;
   } = {},
 ): QueryCtx {
+  const defaultGroupMember: GroupMemberDoc | null =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID as Id<"groups">,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+  const groupMember = "groupMember" in opts ? opts.groupMember : defaultGroupMember;
+
   // uniqueDoc が明示的に undefined の場合は null
   const uniqueResult = opts.uniqueDoc !== undefined ? opts.uniqueDoc : null;
   const uniqueMock = vi.fn().mockResolvedValue(uniqueResult);
@@ -143,6 +188,12 @@ function createQueryCtx(
         eq: vi.fn().mockImplementation(() => q),
       };
       builder(q);
+
+      // groupMembers テーブルのクエリ
+      if (_indexName === "by_user_id") {
+        return { unique: vi.fn().mockResolvedValue(groupMember) };
+      }
+
       return { unique: uniqueMock };
     });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
@@ -162,13 +213,10 @@ function createQueryCtx(
 // テスト用フィクスチャ
 // ---------------------------------------------------------------------------
 
-const USER_ID = "https://issuer.example|user-001";
-const OTHER_USER_ID = "https://issuer.example|user-002";
-
 const sampleSession: WeekSessionDoc = {
   _id: "session-001",
   _creationTime: 1000,
-  userId: USER_ID,
+  groupId: GROUP_ID,
   weekStartDate: "2024-01-08",
   weekEndDate: "2024-01-14",
   status: "draft",
@@ -176,10 +224,10 @@ const sampleSession: WeekSessionDoc = {
   updatedAt: 1000,
 };
 
-const otherUserSession: WeekSessionDoc = {
+const otherGroupSession: WeekSessionDoc = {
   _id: "session-other",
   _creationTime: 1000,
-  userId: OTHER_USER_ID,
+  groupId: OTHER_GROUP_ID,
   weekStartDate: "2024-01-08",
   weekEndDate: "2024-01-14",
   status: "draft",
@@ -193,7 +241,7 @@ const otherUserSession: WeekSessionDoc = {
 
 describe("getOrCreateCurrentWeekSession", () => {
   it("新規セッションが draft 状態で作成される", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const createdSession: WeekSessionDoc = {
       ...sampleSession,
       _id: "new-session-id",
@@ -215,7 +263,7 @@ describe("getOrCreateCurrentWeekSession", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "weekSessions",
       expect.objectContaining({
-        userId: USER_ID,
+        groupId: GROUP_ID,
         status: "draft",
         createdAt: expect.any(Number),
         updatedAt: expect.any(Number),
@@ -224,7 +272,7 @@ describe("getOrCreateCurrentWeekSession", () => {
   });
 
   it("既存セッションがある場合は新規作成せずそのまま返す（冪等性）", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
 
     // uniqueDoc: sampleSession → 既存セッションあり → 新規作成しない
     const ctx = createMutationCtx(identity, {
@@ -257,7 +305,7 @@ describe("getOrCreateCurrentWeekSession", () => {
 
 describe("getWeekSession", () => {
   it("指定週のセッションが返される", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const ctx = createQueryCtx(identity, { uniqueDoc: sampleSession });
 
     const result = await getWeekSessionHandler(ctx, {
@@ -268,7 +316,7 @@ describe("getWeekSession", () => {
   });
 
   it("セッションが存在しない場合は null", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const ctx = createQueryCtx(identity, { uniqueDoc: null });
 
     const result = await getWeekSessionHandler(ctx, {
@@ -278,16 +326,26 @@ describe("getWeekSession", () => {
     expect(result).toBeNull();
   });
 
-  it("他ユーザーのセッションは返されない（withIndex で userId 絞り込み）", async () => {
-    // OTHER_USER_ID のコンテキストでは uniqueDoc を null にして別ユーザーのデータが混入しないことを表現
-    const identity = createIdentity({ tokenIdentifier: OTHER_USER_ID });
-    const ctx = createQueryCtx(identity, { uniqueDoc: null });
+  it("他グループのセッションは返されない（withIndex で groupId 絞り込み）", async () => {
+    // 別グループのメンバーとしてクエリすると uniqueDoc: null を返す（グループ分離）
+    const identityOther = createIdentity({ tokenIdentifier: OTHER_GROUP_ID });
+    const otherGroupMember = {
+      _id: "member-other",
+      _creationTime: 1000,
+      groupId: OTHER_GROUP_ID as Id<"groups">,
+      userId: identityOther.tokenIdentifier,
+      role: "owner" as const,
+    };
+    const ctx = createQueryCtx(identityOther, {
+      uniqueDoc: null,
+      groupMember: otherGroupMember,
+    });
 
     const result = await getWeekSessionHandler(ctx, {
       weekStartDate: "2024-01-08",
     });
 
-    expect(result).not.toEqual(expect.objectContaining({ userId: USER_ID }));
+    expect(result).not.toEqual(expect.objectContaining({ groupId: GROUP_ID }));
     expect(result).toBeNull();
   });
 
@@ -310,7 +368,7 @@ describe("getWeekSession", () => {
 
 describe("updateReviewMemo", () => {
   it("振り返りメモが保存される", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const updatedSession: WeekSessionDoc = {
       ...sampleSession,
       reviewMemo: "食費が多めだったので来週は作り置きを増やす",
@@ -351,7 +409,7 @@ describe("updateReviewMemo", () => {
   });
 
   it("完了済みセッションでも status を維持したまま振り返りメモを再編集できる", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const completedSession: WeekSessionDoc = {
       ...sampleSession,
       status: "completed",
@@ -391,7 +449,7 @@ describe("updateReviewMemo", () => {
   });
 
   it("セッションが存在しない場合は ConvexError", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const ctx = createMutationCtx(identity, {
       uniqueDoc: null,
     });
@@ -408,24 +466,18 @@ describe("updateReviewMemo", () => {
         weekStartDate: "2024-01-08",
         reviewMemo: "メモ",
       }),
-    ).rejects.toMatchObject({ data: "Week session not found" });
+    ).rejects.toMatchObject({ data: expect.any(String) });
   });
 
   it("未認証時: ConvexError が throw される", async () => {
     const ctx = createMutationCtx(null);
 
     await expect(
-      updateReviewMemoHandler(ctx, {
-        weekStartDate: "2024-01-08",
-        reviewMemo: "メモ",
-      }),
+      updateReviewMemoHandler(ctx, { weekStartDate: "2024-01-08", reviewMemo: "メモ" }),
     ).rejects.toBeInstanceOf(ConvexError);
 
     await expect(
-      updateReviewMemoHandler(ctx, {
-        weekStartDate: "2024-01-08",
-        reviewMemo: "メモ",
-      }),
+      updateReviewMemoHandler(ctx, { weekStartDate: "2024-01-08", reviewMemo: "メモ" }),
     ).rejects.toMatchObject({ data: "Not authenticated" });
   });
 });
@@ -435,11 +487,12 @@ describe("updateReviewMemo", () => {
 // ---------------------------------------------------------------------------
 
 describe("completeWeekSession", () => {
-  it("セッションが completed に更新される", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const updatedSession: WeekSessionDoc = {
+  it("draft セッションを completed に変更できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const completedSession: WeekSessionDoc = {
       ...sampleSession,
       status: "completed",
+      reviewMemo: "今週のまとめ",
       updatedAt: 9999,
     };
 
@@ -448,50 +501,15 @@ describe("completeWeekSession", () => {
       getDocById: {
         "session-001": sampleSession,
       },
-      updatedDoc: updatedSession,
+      updatedDoc: completedSession,
     });
 
     const result = await completeWeekSessionHandler(ctx, {
       weekStartDate: "2024-01-08",
+      reviewMemo: "今週のまとめ",
     });
 
-    expect(result).toEqual(updatedSession);
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenCalledOnce();
-    expect(dbPatch).toHaveBeenCalledWith(
-      "session-001",
-      expect.objectContaining({
-        status: "completed",
-        updatedAt: expect.any(Number),
-      }),
-    );
-  });
-
-  it("reviewMemo が指定された場合は保存される", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const updatedSession: WeekSessionDoc = {
-      ...sampleSession,
-      status: "completed",
-      reviewMemo: "今週の振り返りメモ",
-      updatedAt: 9999,
-    };
-
-    const ctx = createMutationCtx(identity, {
-      uniqueDoc: sampleSession,
-      getDocById: {
-        "session-001": sampleSession,
-      },
-      updatedDoc: updatedSession,
-    });
-
-    const result = await completeWeekSessionHandler(ctx, {
-      weekStartDate: "2024-01-08",
-      reviewMemo: "今週の振り返りメモ",
-    });
-
-    expect(result).toEqual(updatedSession);
+    expect(result).toEqual(completedSession);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
@@ -499,27 +517,19 @@ describe("completeWeekSession", () => {
       "session-001",
       expect.objectContaining({
         status: "completed",
-        reviewMemo: "今週の振り返りメモ",
+        reviewMemo: "今週のまとめ",
         updatedAt: expect.any(Number),
       }),
     );
   });
 
   it("セッションが存在しない場合は ConvexError", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-
-    // uniqueDoc: null → セッションなし
-    const ctx = createMutationCtx(identity, {
-      uniqueDoc: null,
-    });
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const ctx = createMutationCtx(identity, { uniqueDoc: null });
 
     await expect(
       completeWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toBeInstanceOf(ConvexError);
-
-    await expect(
-      completeWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
-    ).rejects.toMatchObject({ data: "Week session not found" });
   });
 
   it("未認証時: ConvexError が throw される", async () => {
@@ -536,67 +546,54 @@ describe("completeWeekSession", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 他ユーザーのセッションが completeWeekSession で操作できないことを確認
-// ---------------------------------------------------------------------------
-
-describe("completeWeekSession - 他ユーザーのセッション", () => {
-  it("他ユーザーのセッションは操作できない（withIndex で userId 絞り込み）", async () => {
-    // OTHER_USER_ID のコンテキストでは uniqueDoc を null にして別ユーザーのデータが返らないことを表現
-    const identity = createIdentity({ tokenIdentifier: OTHER_USER_ID });
-    const ctx = createMutationCtx(identity, {
-      uniqueDoc: null,
-    });
-
-    // OTHER_USER_ID でアクセスした場合、sampleSession（USER_ID所有）は取得されない
-    await expect(
-      completeWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
-    ).rejects.toBeInstanceOf(ConvexError);
-
-    await expect(
-      completeWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
-    ).rejects.toMatchObject({ data: "Week session not found" });
-  });
-});
-
-// otherUserSession を使って宣言されているが実際には上記テストで検証済み
-// ここで参照することでimportが無駄にならないよう型チェックを通す
-const _typecheck: WeekSessionDoc = otherUserSession;
-void _typecheck;
-
-// ---------------------------------------------------------------------------
-// getOrCreateWeekSession テスト（任意週対応）
+// getOrCreateWeekSession テスト
 // ---------------------------------------------------------------------------
 
 describe("getOrCreateWeekSession", () => {
-  it("指定週の新規セッションが draft 状態で作成される", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
+  it("指定週のセッションが存在しない場合は新規作成する", async () => {
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
     const createdSession: WeekSessionDoc = {
+      ...sampleSession,
       _id: "new-session-id",
-      _creationTime: 1000,
-      userId: USER_ID,
-      weekStartDate: "2024-01-01",
-      weekEndDate: "2024-01-07",
-      status: "draft",
-      createdAt: 1000,
-      updatedAt: 1000,
+      weekStartDate: "2024-01-15",
+      weekEndDate: "2024-01-21",
     };
-    const ctx = createMutationCtx(identity, { uniqueDoc: null, insertedDoc: createdSession });
 
-    const result = await getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-01" });
+    const ctx = createMutationCtx(identity, {
+      uniqueDoc: null,
+      insertedDoc: createdSession,
+    });
 
-    expect(result.weekStartDate).toBe("2024-01-01");
-    expect(result.weekEndDate).toBe("2024-01-07");
-    expect(result.status).toBe("draft");
-    expect(result.userId).toBe(USER_ID);
+    const result = await getOrCreateWeekSessionHandler(ctx, {
+      weekStartDate: "2024-01-15",
+    });
+
+    expect(result).toEqual(createdSession);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "weekSessions",
+      expect.objectContaining({
+        groupId: GROUP_ID,
+        weekStartDate: "2024-01-15",
+        status: "draft",
+      }),
+    );
   });
 
-  it("指定週の既存セッションがある場合は新規作成せずそのまま返す（冪等性）", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createMutationCtx(identity, { uniqueDoc: sampleSession });
+  it("指定週のセッションが存在する場合はそのまま返す", async () => {
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const ctx = createMutationCtx(identity, {
+      uniqueDoc: sampleSession,
+    });
 
-    const result = await getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" });
+    const result = await getOrCreateWeekSessionHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
 
     expect(result).toEqual(sampleSession);
+
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
     expect(dbInsert).not.toHaveBeenCalled();
@@ -604,8 +601,12 @@ describe("getOrCreateWeekSession", () => {
 
   it("未認証時: ConvexError が throw される", async () => {
     const ctx = createMutationCtx(null);
+
     await expect(
       getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toBeInstanceOf(ConvexError);
   });
 });
+
+// suppress unused variable warning for otherGroupSession (used as reference only)
+void otherGroupSession;

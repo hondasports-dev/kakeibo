@@ -18,7 +18,7 @@ import {
 type DraftDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   sourceType: "image_upload";
   status: "queued" | "analyzing" | "ready" | "needs_review" | "failed" | "registered";
   documentType: "receipt" | "convenience_payment" | "unknown";
@@ -56,7 +56,7 @@ type DraftDoc = {
 type DraftItemDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   draftId: string;
   itemName: string;
   amountYen: number;
@@ -79,19 +79,35 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
   };
 }
 
+const GROUP_ID = "group-001";
+const OTHER_GROUP_ID = "group-other";
+
 function createMutationCtx(
   identity: UserIdentity | null,
   opts: {
     getDocById?: Record<
       string,
-      DraftDoc | DraftItemDoc | { userId: string; isActive?: boolean } | null
+      DraftDoc | DraftItemDoc | { groupId: string; isActive?: boolean } | null
     >;
     insertedDoc?: DraftDoc;
     insertedIds?: string[];
     items?: DraftItemDoc[];
     runMutation?: ReturnType<typeof vi.fn>;
+    groupId?: string;
   } = {},
 ): MutationCtx {
+  const ctxGroupId = opts.groupId ?? GROUP_ID;
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: ctxGroupId,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   const insertedIds = opts.insertedIds ?? ["new-draft-id"];
   let insertCallCount = 0;
   const insertMock = vi.fn().mockImplementation(async () => {
@@ -107,14 +123,26 @@ function createMutationCtx(
     }
     return opts.getDocById?.[id] ?? null;
   });
-  const queryMock = vi.fn().mockReturnValue({
-    withIndex: vi.fn().mockReturnValue({
-      order: vi.fn().mockReturnValue({
-        take: vi.fn().mockResolvedValue(opts.items ?? []),
+  const queryMock = vi.fn().mockImplementation((_tableName: string) => ({
+    withIndex: vi
+      .fn()
+      .mockImplementation((_indexName: string, builder?: (q: unknown) => unknown) => {
+        // groupMembers の by_user_id クエリはグループメンバーを返す
+        if (_indexName === "by_user_id") {
+          if (builder) {
+            const q = { eq: vi.fn().mockImplementation(() => q) };
+            builder(q);
+          }
+          return { unique: vi.fn().mockResolvedValue(groupMember) };
+        }
+        return {
+          order: vi.fn().mockReturnValue({
+            take: vi.fn().mockResolvedValue(opts.items ?? []),
+          }),
+          collect: vi.fn().mockResolvedValue(opts.items ?? []),
+        };
       }),
-      collect: vi.fn().mockResolvedValue(opts.items ?? []),
-    }),
-  });
+  }));
   const runMutationMock = opts.runMutation ?? vi.fn().mockResolvedValue(["entry-1", "entry-2"]);
 
   return {
@@ -139,11 +167,31 @@ function createQueryCtx(
     drafts?: DraftDoc[];
     items?: DraftItemDoc[];
     getDocById?: Record<string, DraftDoc | null>;
+    groupId?: string;
   } = {},
 ): QueryCtx {
+  const ctxGroupId = opts.groupId ?? GROUP_ID;
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: ctxGroupId,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   const withIndexMock = vi
     .fn()
     .mockImplementation((indexName: string, builder: (q: unknown) => unknown) => {
+      // groupMembers の by_user_id クエリはグループメンバーを返す
+      if (indexName === "by_user_id") {
+        const q = { eq: vi.fn().mockImplementation(() => q) };
+        builder(q);
+        return { unique: vi.fn().mockResolvedValue(groupMember) };
+      }
+
       const filters: Record<string, unknown> = {};
       const q = {
         eq: vi.fn().mockImplementation((field: string, value: unknown) => {
@@ -154,7 +202,7 @@ function createQueryCtx(
       builder(q);
 
       const sourceDocs =
-        indexName === "by_user_id_and_draft_id" ? (opts.items ?? []) : (opts.drafts ?? []);
+        indexName === "by_group_id_and_draft_id" ? (opts.items ?? []) : (opts.drafts ?? []);
       const filteredDocs = sourceDocs.filter((doc) =>
         Object.entries(filters).every(([field, value]) => {
           return (doc as Record<string, unknown>)[field] === value;
@@ -190,6 +238,17 @@ function createActionCtx(
     runQuery?: ReturnType<typeof vi.fn>;
   } = {},
 ): ActionCtx {
+  const groupMember =
+    identity !== null
+      ? {
+          _id: "member-001",
+          _creationTime: 1000,
+          groupId: GROUP_ID,
+          userId: identity.tokenIdentifier,
+          role: "owner",
+        }
+      : null;
+
   let queryCallCount = 0;
   const defaultRunQuery = vi.fn().mockImplementation(async () => {
     queryCallCount++;
@@ -205,6 +264,20 @@ function createActionCtx(
   return {
     auth: {
       getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
+    },
+    // extractReceiptFieldsHandler 内の requireGroupMembership が ctx.db.query を呼ぶ
+    db: {
+      query: vi.fn().mockImplementation((_tableName: string) => ({
+        withIndex: vi
+          .fn()
+          .mockImplementation((_indexName: string, builder?: (q: unknown) => unknown) => {
+            if (builder) {
+              const q = { eq: vi.fn().mockImplementation(() => q) };
+              builder(q);
+            }
+            return { unique: vi.fn().mockResolvedValue(groupMember) };
+          }),
+      })),
     },
     runQuery: opts.runQuery ?? defaultRunQuery,
     runMutation:
@@ -246,7 +319,7 @@ async function withEnv(
 const ownedDraft: DraftDoc = {
   _id: "draft-owned",
   _creationTime: 1000,
-  userId: "https://issuer.example|user-001",
+  groupId: GROUP_ID,
   sourceType: "image_upload",
   status: "needs_review",
   documentType: "receipt",
@@ -277,7 +350,7 @@ const readyDraftItems: DraftItemDoc[] = [
   {
     _id: "draft-item-1",
     _creationTime: 0,
-    userId: "https://issuer.example|user-001",
+    groupId: GROUP_ID,
     draftId: "draft-ready",
     itemName: "食料品",
     amountYen: 1000,
@@ -289,7 +362,7 @@ const readyDraftItems: DraftItemDoc[] = [
   {
     _id: "draft-item-2",
     _creationTime: 0,
-    userId: "https://issuer.example|user-001",
+    groupId: GROUP_ID,
     draftId: "draft-ready",
     itemName: "日用品",
     amountYen: 500,
@@ -325,7 +398,7 @@ describe("aiExpenseDrafts", () => {
 
     expect(result).toMatchObject({
       _id: "new-draft-id",
-      userId: "https://issuer.example|user-001",
+      groupId: GROUP_ID,
       status: "needs_review",
       warnings: ["日付の印字が薄い"],
     });
@@ -334,7 +407,7 @@ describe("aiExpenseDrafts", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDrafts",
       expect.objectContaining({
-        userId: "https://issuer.example|user-001",
+        groupId: GROUP_ID,
         sourceType: "image_upload",
         status: "needs_review",
         documentType: "receipt",
@@ -351,7 +424,7 @@ describe("aiExpenseDrafts", () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
         "category-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
         },
       },
       insertedDoc: {
@@ -411,7 +484,7 @@ describe("aiExpenseDrafts", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDrafts",
       expect.objectContaining({
-        userId: "https://issuer.example|user-001",
+        groupId: GROUP_ID,
         status: "failed",
         documentType: "unknown",
         warnings: ["画像解析に失敗しました"],
@@ -535,7 +608,7 @@ describe("aiExpenseDrafts", () => {
           amountYen: 39100,
         },
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -559,7 +632,7 @@ describe("aiExpenseDrafts", () => {
       1,
       "receipts",
       expect.objectContaining({
-        userId: "https://issuer.example|user-001",
+        groupId: GROUP_ID,
         date: "2026-06-01",
         type: "expense",
         shopName: "スーパー青葉",
@@ -606,7 +679,7 @@ describe("aiExpenseDrafts", () => {
           registeredReceiptId: "receipt-already",
         },
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -664,7 +737,7 @@ describe("aiExpenseDrafts", () => {
         "draft-other": {
           ...readyDraft,
           _id: "draft-other",
-          userId: "https://issuer.example|other-user",
+          groupId: OTHER_GROUP_ID,
         },
       },
     });
@@ -674,7 +747,7 @@ describe("aiExpenseDrafts", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         draftIds: ["draft-other"] as any,
       }),
-    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
+    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current group" });
   });
 
   it("確認が必要な下書きを編集して登録準備OKへ戻す", async () => {
@@ -682,7 +755,7 @@ describe("aiExpenseDrafts", () => {
       getDocById: {
         "draft-owned": ownedDraft,
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -726,10 +799,10 @@ describe("aiExpenseDrafts", () => {
         "draft-other": {
           ...ownedDraft,
           _id: "draft-other",
-          userId: "https://issuer.example|other-user",
+          groupId: OTHER_GROUP_ID,
         },
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -746,7 +819,7 @@ describe("aiExpenseDrafts", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         categoryId: "cat-food" as any,
       }),
-    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
+    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current group" });
   });
 
   it("書類種別が未判定の確認下書きは登録準備OKへ戻せない", async () => {
@@ -754,7 +827,7 @@ describe("aiExpenseDrafts", () => {
       getDocById: {
         "draft-owned": ownedDraft,
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -786,7 +859,7 @@ describe("aiExpenseDrafts", () => {
           status: "ready",
         },
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -814,7 +887,7 @@ describe("aiExpenseDrafts", () => {
       getDocById: {
         "draft-owned": ownedDraft,
         "cat-food": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: true,
         },
       },
@@ -845,7 +918,7 @@ describe("aiExpenseDrafts", () => {
       getDocById: {
         "draft-owned": ownedDraft,
         "cat-inactive": {
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           isActive: false,
         },
       },
@@ -877,7 +950,7 @@ describe("aiExpenseDrafts", () => {
         {
           _id: "item-1",
           _creationTime: 1,
-          userId: "https://issuer.example|user-001",
+          groupId: GROUP_ID,
           draftId: "draft-owned",
           itemName: "牛乳",
           amountYen: 198,
@@ -928,7 +1001,7 @@ describe("aiExpenseDrafts", () => {
         {
           ...ownedDraft,
           _id: "draft-other",
-          userId: "https://issuer.example|other-user",
+          groupId: OTHER_GROUP_ID,
         },
       ],
     });
@@ -944,7 +1017,7 @@ describe("aiExpenseDrafts", () => {
         "draft-other": {
           ...ownedDraft,
           _id: "draft-other",
-          userId: "https://issuer.example|other-user",
+          groupId: OTHER_GROUP_ID,
         },
       },
     });
@@ -954,7 +1027,7 @@ describe("aiExpenseDrafts", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         draftId: "draft-other" as any,
       }),
-    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current user" });
+    ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current group" });
   });
 
   // ---------------------------------------------------------------------------
@@ -1028,7 +1101,7 @@ describe("aiExpenseDrafts", () => {
       const ctx = createMutationCtx(createIdentity(), {
         getDocById: {
           "draft-ready": readyDraft,
-          "cat-food": { userId: "https://issuer.example|user-001", isActive: true },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
         },
         insertedIds: ["entry-1", "entry-2"],
         items: readyDraftItems,
@@ -1078,8 +1151,8 @@ describe("aiExpenseDrafts", () => {
       ).rejects.toThrow(ConvexError);
     });
 
-    it("他のユーザーの下書きはエラー", async () => {
-      const otherUserDraft = { ...readyDraft, userId: "https://issuer.example|other-user" };
+    it("他グループの下書きはエラー", async () => {
+      const otherUserDraft = { ...readyDraft, groupId: OTHER_GROUP_ID };
       const ctx = createMutationCtx(createIdentity(), {
         getDocById: { "draft-ready": otherUserDraft },
       });

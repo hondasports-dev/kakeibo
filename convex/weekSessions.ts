@@ -2,7 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import { requireAuthenticatedUserId } from "./users";
+import { requireGroupMembership } from "./groups";
 import { calculateWeekStartDate, calculateWeekEndDate } from "./utils";
 
 // ---------------------------------------------------------------------------
@@ -36,14 +36,14 @@ export async function getOrCreateWeekSessionHandler(
   ctx: MutationCtx,
   args: { weekStartDate: string },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   const weekEndDate = calculateWeekEndDate(args.weekStartDate);
 
   const existing = await ctx.db
     .query("weekSessions")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", args.weekStartDate),
     )
     .unique();
 
@@ -53,7 +53,7 @@ export async function getOrCreateWeekSessionHandler(
 
   const now = Date.now();
   const sessionId = await ctx.db.insert("weekSessions", {
-    userId,
+    groupId,
     weekStartDate: args.weekStartDate,
     weekEndDate,
     status: "draft",
@@ -79,12 +79,12 @@ export const getOrCreateWeekSession = mutation({
 
 /** getWeekSession query の handler ロジック（テスト用に export） */
 export async function getWeekSessionHandler(ctx: QueryCtx, args: { weekStartDate: string }) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   const session = await ctx.db
     .query("weekSessions")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", args.weekStartDate),
     )
     .unique();
 
@@ -105,12 +105,12 @@ export async function updateReviewMemoHandler(
   ctx: MutationCtx,
   args: { weekStartDate: string; reviewMemo: string },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   const session = await ctx.db
     .query("weekSessions")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", args.weekStartDate),
     )
     .unique();
 
@@ -147,13 +147,13 @@ export async function completeWeekSessionHandler(
   ctx: MutationCtx,
   args: { weekStartDate: string; reviewMemo?: string },
 ) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  const { groupId } = await requireGroupMembership(ctx);
 
   // 存在確認・所有権チェック
   const session = await ctx.db
     .query("weekSessions")
-    .withIndex("by_user_id_and_week_start_date", (q) =>
-      q.eq("userId", userId).eq("weekStartDate", args.weekStartDate),
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", args.weekStartDate),
     )
     .unique();
 
@@ -190,25 +190,25 @@ export const completeWeekSession = mutation({
 });
 
 // ---------------------------------------------------------------------------
-// resetWeekSessionForUser (internal mutation / E2E テストデータクリーンアップ専用)
+// resetWeekSessionForGroup (internal mutation / E2E テストデータクリーンアップ専用)
 // ---------------------------------------------------------------------------
 
 /**
- * 指定ユーザー・指定週の週次セッションを draft に戻す。
+ * 指定グループ・指定週の週次セッションを draft に戻す。
  *
  * この mutation は internalMutation として定義されており、外部クライアントから
  * 直接呼び出せない。E2E テスト用の HTTP エンドポイント（convex/http.ts）経由でのみ呼び出す。
  */
 export const resetWeekSessionForUser = internalMutation({
   args: {
-    userId: v.string(),
+    groupId: v.id("groups"),
     weekStartDate: v.string(),
   },
-  handler: async (ctx, { userId, weekStartDate }) => {
+  handler: async (ctx, { groupId, weekStartDate }) => {
     const session = await ctx.db
       .query("weekSessions")
-      .withIndex("by_user_id_and_week_start_date", (q) =>
-        q.eq("userId", userId).eq("weekStartDate", weekStartDate),
+      .withIndex("by_group_id_and_week_start_date", (q) =>
+        q.eq("groupId", groupId).eq("weekStartDate", weekStartDate),
       )
       .unique();
 

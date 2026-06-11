@@ -1,6 +1,7 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
+import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
   createCategoryHandler,
@@ -27,7 +28,7 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
 type CategoryDoc = {
   _id: string;
   _creationTime: number;
-  userId: string;
+  groupId: string;
   name: string;
   color: string;
   isActive: boolean;
@@ -36,16 +37,32 @@ type CategoryDoc = {
   updatedAt: number;
 };
 
+type GroupMemberDoc = {
+  _id: string;
+  _creationTime: number;
+  groupId: Id<"groups">;
+  userId: string;
+  role: "owner" | "member";
+};
+
 /**
  * seedDefaultCategoriesHandler が必要とする MutationCtx の最小モックを生成する。
  *
- * - withIndex のコールバックに渡す chainable な q mock を実装する
- * - q.eq("userId", ...).eq("isActive", true).eq("sortOrder", N).unique() で
- *   existingDocs から sortOrder N のドキュメントを返す
+ * - groupMembers テーブルへの withIndex("by_user_id") クエリは groupMember を返す
+ * - categories テーブルへの withIndex は existingDocs から groupId/sortOrder でフィルタ
  */
 function createMutationCtx(
   identity: UserIdentity | null,
   existingDocs: CategoryDoc[] = [],
+  groupMember: GroupMemberDoc | null = identity
+    ? {
+        _id: "member-001",
+        _creationTime: 1000,
+        groupId: "group-001" as Id<"groups">,
+        userId: identity.tokenIdentifier,
+        role: "owner",
+      }
+    : null,
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-doc-id");
   const patchMock = vi.fn().mockResolvedValue(undefined);
@@ -56,16 +73,15 @@ function createMutationCtx(
   const withIndexMock = vi
     .fn()
     .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
-      // builder: (q) => q.eq("userId", ...).eq("isActive", ...).eq("sortOrder", ...)
-      // 各 eq の呼び出しで sortOrder の値をキャプチャし、unique() に紐付ける
-      let capturedUserId: string | null = null;
+      // groupMembers テーブル用のフィルタリング
+      let capturedGroupId: string | null = null;
       let capturedIsActive: boolean | null = null;
       let capturedSortOrder: number | null = null;
 
       const q = {
         eq: vi.fn().mockImplementation((_field: string, _value: unknown) => {
-          if (_field === "userId") {
-            capturedUserId = _value as string;
+          if (_field === "groupId") {
+            capturedGroupId = _value as string;
           }
           if (_field === "isActive") {
             capturedIsActive = _value as boolean;
@@ -77,12 +93,19 @@ function createMutationCtx(
         }),
       };
 
-      // builder を実行して sortOrder をキャプチャさせる
+      // builder を実行してフィールドをキャプチャさせる
       builder(q);
 
-      // unique() は capturedSortOrder に対応するドキュメントを返す
+      // groupMembers テーブルのクエリは groupMember を返す
+      if (_indexName === "by_user_id") {
+        return {
+          unique: vi.fn().mockResolvedValue(groupMember),
+        };
+      }
+
+      // categories テーブルのクエリ: groupId/sortOrder でフィルタ
       const docs = existingDocs.filter((d) => {
-        if (capturedUserId !== null && d.userId !== capturedUserId) return false;
+        if (capturedGroupId !== null && d.groupId !== capturedGroupId) return false;
         if (capturedIsActive !== null && d.isActive !== capturedIsActive) return false;
         if (capturedSortOrder !== null && d.sortOrder !== capturedSortOrder) return false;
         return true;
@@ -131,7 +154,19 @@ function createMutationCtx(
 /**
  * listActiveHandler が必要とする QueryCtx の最小モックを生成する。
  */
-function createQueryCtx(identity: UserIdentity | null, docs: CategoryDoc[] = []): QueryCtx {
+function createQueryCtx(
+  identity: UserIdentity | null,
+  docs: CategoryDoc[] = [],
+  groupMember: GroupMemberDoc | null = identity
+    ? {
+        _id: "member-001",
+        _creationTime: 1000,
+        groupId: "group-001" as Id<"groups">,
+        userId: identity.tokenIdentifier,
+        role: "owner",
+      }
+    : null,
+): QueryCtx {
   const collectMock = vi.fn().mockResolvedValue(docs);
   const takeMock = vi.fn().mockResolvedValue(docs);
   const orderMock = vi.fn().mockReturnValue({ collect: collectMock, take: takeMock });
@@ -143,6 +178,14 @@ function createQueryCtx(identity: UserIdentity | null, docs: CategoryDoc[] = [])
         eq: vi.fn().mockImplementation(() => q), // self-referential chain
       };
       builder(q);
+
+      // groupMembers テーブルのクエリ
+      if (_indexName === "by_user_id") {
+        return {
+          unique: vi.fn().mockResolvedValue(groupMember),
+        };
+      }
+
       return { order: orderMock, take: takeMock };
     });
 
@@ -192,7 +235,7 @@ describe("seedDefaultCategories", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "categories",
       expect.objectContaining({
-        userId: "https://issuer.example|user-first-login",
+        groupId: "group-001",
         name: "食費",
         color: "#FF6B6B",
         isActive: true,
@@ -213,7 +256,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-1",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "食費",
         color: "#FF6B6B",
         isActive: true,
@@ -224,7 +267,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-2",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "日用品",
         color: "#4ECDC4",
         isActive: true,
@@ -235,7 +278,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-3",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "外食",
         color: "#FFE66D",
         isActive: true,
@@ -246,7 +289,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-4",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "交通",
         color: "#95E1D3",
         isActive: true,
@@ -257,7 +300,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-5",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "医療",
         color: "#F38181",
         isActive: true,
@@ -268,7 +311,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-6",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "娯楽",
         color: "#AA96DA",
         isActive: true,
@@ -279,7 +322,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-7",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "衣服",
         color: "#FCBAD3",
         isActive: true,
@@ -290,7 +333,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-8",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-second-login",
+        groupId: "group-001",
         name: "その他",
         color: "#A8DADC",
         isActive: true,
@@ -311,7 +354,7 @@ describe("seedDefaultCategories", () => {
     expect(dbInsert).not.toHaveBeenCalled();
   });
 
-  it("userId が異なるユーザーのカテゴリは分離される", async () => {
+  it("groupId が異なるグループのカテゴリは分離される", async () => {
     const identityA = createIdentity({
       tokenIdentifier: "https://issuer.example|user-A",
     });
@@ -319,12 +362,27 @@ describe("seedDefaultCategories", () => {
       tokenIdentifier: "https://issuer.example|user-B",
     });
 
-    // user-A のカテゴリのみ既存として用意
-    const existingDocsForUserA: CategoryDoc[] = [
+    const groupMemberA: GroupMemberDoc = {
+      _id: "member-A",
+      _creationTime: 1000,
+      groupId: "group-A" as Id<"groups">,
+      userId: identityA.tokenIdentifier,
+      role: "owner",
+    };
+    const groupMemberB: GroupMemberDoc = {
+      _id: "member-B",
+      _creationTime: 1000,
+      groupId: "group-B" as Id<"groups">,
+      userId: identityB.tokenIdentifier,
+      role: "owner",
+    };
+
+    // group-A のカテゴリのみ既存として用意
+    const existingDocsForGroupA: CategoryDoc[] = [
       {
         _id: "id-1",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "食費",
         color: "#FF6B6B",
         isActive: true,
@@ -335,7 +393,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-2",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "日用品",
         color: "#4ECDC4",
         isActive: true,
@@ -346,7 +404,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-3",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "外食",
         color: "#FFE66D",
         isActive: true,
@@ -357,7 +415,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-4",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "交通",
         color: "#95E1D3",
         isActive: true,
@@ -368,7 +426,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-5",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "医療",
         color: "#F38181",
         isActive: true,
@@ -379,7 +437,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-6",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "娯楽",
         color: "#AA96DA",
         isActive: true,
@@ -390,7 +448,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-7",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "衣服",
         color: "#FCBAD3",
         isActive: true,
@@ -401,7 +459,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-8",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-A",
+        groupId: "group-A",
         name: "その他",
         color: "#A8DADC",
         isActive: true,
@@ -411,24 +469,24 @@ describe("seedDefaultCategories", () => {
       },
     ];
 
-    // user-A は全件既存 → skipped: 8
-    const ctxA = createMutationCtx(identityA, existingDocsForUserA);
+    // group-A は全件既存 → skipped: 8
+    const ctxA = createMutationCtx(identityA, existingDocsForGroupA, groupMemberA);
     const resultA = await seedDefaultCategoriesHandler(ctxA);
     expect(resultA).toEqual({ created: 0, skipped: 8 });
 
-    // user-B は既存なし → created: 8（user-A のドキュメントは影響しない）
-    const ctxB = createMutationCtx(identityB, []);
+    // group-B は既存なし → created: 8（group-A のドキュメントは影響しない）
+    const ctxB = createMutationCtx(identityB, [], groupMemberB);
     const resultB = await seedDefaultCategoriesHandler(ctxB);
     expect(resultB).toEqual({ created: 8, skipped: 0 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbInsertB = (ctxB.db as any).insert as ReturnType<typeof vi.fn>;
     expect(dbInsertB).toHaveBeenCalledTimes(8);
-    // user-B の insert には user-B の userId が使われていること
+    // group-B の insert には group-B の groupId が使われていること
     expect(dbInsertB).toHaveBeenCalledWith(
       "categories",
       expect.objectContaining({
-        userId: "https://issuer.example|user-B",
+        groupId: "group-B",
       }),
     );
   });
@@ -442,7 +500,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-1",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "食費",
         color: "#FF6B6B",
         isActive: false,
@@ -453,7 +511,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-2",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "日用品",
         color: "#4ECDC4",
         isActive: true,
@@ -464,7 +522,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-3",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "外食",
         color: "#FFE66D",
         isActive: true,
@@ -475,7 +533,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-4",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "交通",
         color: "#95E1D3",
         isActive: true,
@@ -486,7 +544,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-5",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "医療",
         color: "#F38181",
         isActive: true,
@@ -497,7 +555,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-6",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "娯楽",
         color: "#AA96DA",
         isActive: true,
@@ -508,7 +566,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-7",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "衣服",
         color: "#FCBAD3",
         isActive: true,
@@ -519,7 +577,7 @@ describe("seedDefaultCategories", () => {
       {
         _id: "id-8",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-deactivated-default",
+        groupId: "group-001",
         name: "その他",
         color: "#A8DADC",
         isActive: true,
@@ -564,7 +622,7 @@ describe("listActive", () => {
       {
         _id: "id-1",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-list",
+        groupId: "group-001",
         name: "食費",
         color: "#FF6B6B",
         isActive: true,
@@ -575,7 +633,7 @@ describe("listActive", () => {
       {
         _id: "id-2",
         _creationTime: 1000,
-        userId: "https://issuer.example|user-list",
+        groupId: "group-001",
         name: "日用品",
         color: "#4ECDC4",
         isActive: true,
@@ -597,13 +655,25 @@ describe("listActive", () => {
 // ---------------------------------------------------------------------------
 
 describe("category management", () => {
-  const USER_ID = "https://issuer.example|category-user";
-  const OTHER_USER_ID = "https://issuer.example|other-user";
+  const GROUP_ID = "group-cat-mgmt" as Id<"groups">;
+  const OTHER_GROUP_ID = "group-other" as Id<"groups">;
+
+  const identityOwner = createIdentity({
+    tokenIdentifier: "https://issuer.example|category-user",
+  });
+
+  const groupMemberOwner: GroupMemberDoc = {
+    _id: "member-owner",
+    _creationTime: 1000,
+    groupId: GROUP_ID,
+    userId: identityOwner.tokenIdentifier,
+    role: "owner",
+  };
 
   const activeCategory: CategoryDoc = {
     _id: "cat-active",
     _creationTime: 1000,
-    userId: USER_ID,
+    groupId: GROUP_ID,
     name: "食費",
     color: "#FF6B6B",
     isActive: true,
@@ -622,9 +692,8 @@ describe("category management", () => {
   };
 
   it("listForSettings は inactive を含むカテゴリ一覧を返す", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
     const docs = [activeCategory, inactiveCategory];
-    const ctx = createQueryCtx(identity, docs);
+    const ctx = createQueryCtx(identityOwner, docs, groupMemberOwner);
 
     const result = await listForSettingsHandler(ctx);
 
@@ -632,8 +701,11 @@ describe("category management", () => {
   });
 
   it("createCategory は既存最大 sortOrder の次でカテゴリを作成する", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createMutationCtx(identity, [activeCategory, inactiveCategory]);
+    const ctx = createMutationCtx(
+      identityOwner,
+      [activeCategory, inactiveCategory],
+      groupMemberOwner,
+    );
 
     await createCategoryHandler(ctx, {
       name: "ペット用品",
@@ -645,7 +717,7 @@ describe("category management", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "categories",
       expect.objectContaining({
-        userId: USER_ID,
+        groupId: GROUP_ID,
         name: "ペット用品",
         color: "#2563EB",
         isActive: true,
@@ -655,14 +727,13 @@ describe("category management", () => {
   });
 
   it("createCategory はカテゴリが100件以上ある場合は拒否する", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
     const existingDocs: CategoryDoc[] = Array.from({ length: 100 }, (_, index) => ({
       ...activeCategory,
       _id: `cat-${index + 1}`,
       name: `カテゴリ${index + 1}`,
       sortOrder: index + 1,
     }));
-    const ctx = createMutationCtx(identity, existingDocs);
+    const ctx = createMutationCtx(identityOwner, existingDocs, groupMemberOwner);
 
     await expect(
       createCategoryHandler(ctx, {
@@ -679,8 +750,7 @@ describe("category management", () => {
   });
 
   it("updateCategory は所有カテゴリの名前と色を更新する", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createMutationCtx(identity, [activeCategory]);
+    const ctx = createMutationCtx(identityOwner, [activeCategory], groupMemberOwner);
 
     await updateCategoryHandler(ctx, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -702,8 +772,7 @@ describe("category management", () => {
   });
 
   it("deactivateCategory は所有カテゴリを無効化する", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createMutationCtx(identity, [activeCategory]);
+    const ctx = createMutationCtx(identityOwner, [activeCategory], groupMemberOwner);
 
     await deactivateCategoryHandler(ctx, {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -721,37 +790,35 @@ describe("category management", () => {
     );
   });
 
-  it("他ユーザーのカテゴリ更新は拒否する", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createMutationCtx(identity, [
-      { ...activeCategory, _id: "cat-other", userId: OTHER_USER_ID },
-    ]);
+  it("他グループのカテゴリは更新できない", async () => {
+    const otherGroupCategory: CategoryDoc = {
+      ...activeCategory,
+      groupId: OTHER_GROUP_ID,
+    };
+    const ctx = createMutationCtx(identityOwner, [otherGroupCategory], groupMemberOwner);
 
     await expect(
       updateCategoryHandler(ctx, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        categoryId: "cat-other" as any,
-        name: "変更不可",
-        color: "#0F766E",
+        categoryId: "cat-active" as any,
+        name: "不正更新",
+        color: "#000000",
       }),
-    ).rejects.toMatchObject({
-      data: "Category does not belong to the current user",
-    });
+    ).rejects.toBeInstanceOf(ConvexError);
   });
 
-  it("他ユーザーのカテゴリ無効化は拒否する", async () => {
-    const identity = createIdentity({ tokenIdentifier: USER_ID });
-    const ctx = createMutationCtx(identity, [
-      { ...activeCategory, _id: "cat-other", userId: OTHER_USER_ID },
-    ]);
+  it("他グループのカテゴリは無効化できない", async () => {
+    const otherGroupCategory: CategoryDoc = {
+      ...activeCategory,
+      groupId: OTHER_GROUP_ID,
+    };
+    const ctx = createMutationCtx(identityOwner, [otherGroupCategory], groupMemberOwner);
 
     await expect(
       deactivateCategoryHandler(ctx, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        categoryId: "cat-other" as any,
+        categoryId: "cat-active" as any,
       }),
-    ).rejects.toMatchObject({
-      data: "Category does not belong to the current user",
-    });
+    ).rejects.toBeInstanceOf(ConvexError);
   });
 });

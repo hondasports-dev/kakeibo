@@ -16,7 +16,7 @@ function invalidJsonResponse() {
 // ---------------------------------------------------------------------------
 //
 // E2E テスト専用のデータクリーンアップエンドポイント。
-// テストユーザーのレシート削除と、必要に応じた週次セッション状態リセットを行い、
+// テストグループのレシート削除と、必要に応じた週次セッション状態リセットを行い、
 // Dev DB のゴミや状態依存を防ぐ。
 //
 // セキュリティ:
@@ -26,7 +26,9 @@ function invalidJsonResponse() {
 //
 // リクエストボディ:
 //   {
-//     "userId": "<Clerk の tokenIdentifier>",
+//     "userId": "<Clerk の tokenIdentifier>",   // clearMonthlyIncome 用（users テーブルは userId ベースのまま）
+//     "groupId": "<groups テーブルの ID>",        // グループデータのクリーンアップ用
+//     "clearGroupMemberships": true,
 //     "resetWeekSession": true,
 //     "weekStartDate": "YYYY-MM-DD",
 //     "deleteE2eCategories": true,
@@ -62,36 +64,51 @@ http.route({
 
     let body: {
       userId?: string;
+      groupId?: string;
       resetWeekSession?: boolean;
       weekStartDate?: string;
       deleteE2eCategories?: boolean;
       clearMonthlyIncome?: boolean;
       clearAiExpenseQueue?: boolean;
       clearE2eExpenseEntries?: boolean;
+      clearGroupMemberships?: boolean;
     };
     try {
       body = (await req.json()) as {
         userId?: string;
+        groupId?: string;
         resetWeekSession?: boolean;
         weekStartDate?: string;
         deleteE2eCategories?: boolean;
         clearMonthlyIncome?: boolean;
         clearAiExpenseQueue?: boolean;
         clearE2eExpenseEntries?: boolean;
+        clearGroupMemberships?: boolean;
       };
     } catch {
       return invalidJsonResponse();
     }
-    if (!body.userId) {
-      return new Response(JSON.stringify({ error: "userId is required." }), {
+    const shouldOperateOnGroup = Boolean(
+      body.groupId ||
+      body.resetWeekSession ||
+      body.deleteE2eCategories ||
+      body.clearAiExpenseQueue ||
+      body.clearE2eExpenseEntries,
+    );
+
+    if (!shouldOperateOnGroup && !body.clearGroupMemberships) {
+      return new Response(JSON.stringify({ error: "groupId is required." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    const receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
-      userId: body.userId,
-    });
+    let receipts: { deletedCount: number } | null = null;
+    if (body.groupId) {
+      receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
+        groupId: body.groupId as never,
+      });
+    }
 
     let aiExpenseQueue: {
       deletedDraftCount: number;
@@ -99,7 +116,7 @@ http.route({
       deletedBatchCount: number;
       deletedJobCount: number;
     } | null = null;
-    if (body.clearAiExpenseQueue) {
+    if (body.groupId && body.clearAiExpenseQueue) {
       let deletedDraftCount = 0;
       let deletedItemCount = 0;
       let deletedBatchCount = 0;
@@ -111,7 +128,7 @@ http.route({
           deletedItemCount: number;
           hasMore: boolean;
         } = await ctx.runMutation(internal.aiExpenseDrafts.deleteDraftsByUserBatch, {
-          userId: body.userId,
+          groupId: body.groupId as never,
         });
         deletedDraftCount += draftResult.deletedDraftCount;
         deletedItemCount += draftResult.deletedItemCount;
@@ -123,7 +140,7 @@ http.route({
       while (true) {
         const jobResult: { deletedBatchCount: number; deletedJobCount: number; hasMore: boolean } =
           await ctx.runMutation(internal.receiptAnalysisJobs.deleteReceiptAnalysisDataByUserBatch, {
-            userId: body.userId,
+            groupId: body.groupId as never,
           });
         deletedBatchCount += jobResult.deletedBatchCount;
         deletedJobCount += jobResult.deletedJobCount;
@@ -141,7 +158,7 @@ http.route({
     }
 
     let weekSession: { reset: boolean } | null = null;
-    if (body.resetWeekSession) {
+    if (body.groupId && body.resetWeekSession) {
       if (!body.weekStartDate) {
         return new Response(
           JSON.stringify({ error: "weekStartDate is required when resetWeekSession is true." }),
@@ -150,33 +167,40 @@ http.route({
       }
 
       weekSession = await ctx.runMutation(internal.weekSessions.resetWeekSessionForUser, {
-        userId: body.userId,
+        groupId: body.groupId as never,
         weekStartDate: body.weekStartDate,
       });
     }
 
     let categories: { deletedCount: number } | null = null;
-    if (body.deleteE2eCategories) {
+    if (body.groupId && body.deleteE2eCategories) {
       categories = await ctx.runMutation(internal.categories.deleteE2eCategoriesByUser, {
-        userId: body.userId,
+        groupId: body.groupId as never,
       });
     }
 
     let monthlyIncome: { cleared: boolean } | null = null;
-    if (body.clearMonthlyIncome) {
+    if (body.clearMonthlyIncome && body.userId) {
       monthlyIncome = await ctx.runMutation(internal.users.clearUserMonthlyIncome, {
         userId: body.userId,
       });
     }
 
     let expenseEntries: { deletedCount: number } | null = null;
-    if (body.clearE2eExpenseEntries) {
+    if (body.groupId && body.clearE2eExpenseEntries) {
       expenseEntries = await ctx.runMutation(
         internal.expenseEntries.deleteE2eExpenseEntriesByUser,
         {
-          userId: body.userId,
+          groupId: body.groupId as never,
         },
       );
+    }
+
+    let groupMemberships: { deletedCount: number } | null = null;
+    if (body.clearGroupMemberships && body.userId) {
+      groupMemberships = await ctx.runMutation(internal.groups.deleteGroupMembershipsByUser, {
+        userId: body.userId,
+      });
     }
 
     return new Response(
@@ -187,6 +211,7 @@ http.route({
         categories,
         monthlyIncome,
         expenseEntries,
+        groupMemberships,
       }),
       {
         status: 200,
@@ -216,26 +241,26 @@ http.route({
       });
     }
 
-    let body: { userId?: string };
+    let body: { groupId?: string };
     try {
-      body = (await req.json()) as { userId?: string };
+      body = (await req.json()) as { groupId?: string };
     } catch {
       return invalidJsonResponse();
     }
-    if (!body.userId) {
-      return new Response(JSON.stringify({ error: "userId is required." }), {
+    if (!body.groupId) {
+      return new Response(JSON.stringify({ error: "groupId is required." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
     const categoryId = await ctx.runMutation(internal.categories.ensureE2eCategoryByUser, {
-      userId: body.userId,
+      groupId: body.groupId as never,
       name: "E2Eカテゴリ-Issue179",
       color: "#2563EB",
     });
     const draftId = await ctx.runMutation(internal.aiExpenseDrafts.createE2eReadyDraftForUser, {
-      userId: body.userId,
+      groupId: body.groupId as never,
       categoryId,
     });
 
