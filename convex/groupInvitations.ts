@@ -6,7 +6,6 @@ import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import type { UserIdentity } from "convex/server";
 
 type MyGroup = {
   _id: Id<"groups">;
@@ -19,12 +18,7 @@ type MyGroup = {
 type InviteMemberResult = {
   token: string;
   clerkInvitationId: string;
-  clerkOrganizationId: string;
-};
-
-type InvitationUserIds = {
-  appUserId: string;
-  clerkUserId: string;
+  clerkOrganizationId: string | null;
 };
 
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
@@ -36,22 +30,6 @@ function normalizeEmail(email: string) {
     throw new ConvexError("メールアドレスを入力してください");
   }
   return normalized;
-}
-
-export function getInvitationUserIds(identity: UserIdentity | null): InvitationUserIds {
-  if (!identity) {
-    throw new ConvexError("Not authenticated");
-  }
-
-  const clerkUserId = identity.subject.trim();
-  if (!clerkUserId) {
-    throw new ConvexError("Clerk user ID を取得できませんでした");
-  }
-
-  return {
-    appUserId: identity.tokenIdentifier,
-    clerkUserId,
-  };
 }
 
 export function getConfiguredRedirectOrigins() {
@@ -133,31 +111,15 @@ export const inviteMember = action({
     if (group.role !== "owner") {
       throw new ConvexError("グループオーナーのみメンバーを招待できます");
     }
-    const { appUserId, clerkUserId } = getInvitationUserIds(await ctx.auth.getUserIdentity());
+    const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
 
     const email = normalizeEmail(args.email);
     const token = randomUUID();
     const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
     const clerk = getClerkClient();
 
-    let clerkOrganizationId: string | null = group.clerkOrganizationId;
-    if (!clerkOrganizationId) {
-      const createdGroupOrganization = await clerk.organizations.createOrganization({
-        name: group.name,
-        createdBy: clerkUserId,
-      });
-      clerkOrganizationId = createdGroupOrganization.id;
-      await ctx.runMutation(internal.groups.setGroupClerkOrganizationId, {
-        groupId: group._id,
-        clerkOrganizationId,
-      });
-    }
-
-    const invitation = await clerk.organizations.createOrganizationInvitation({
-      organizationId: clerkOrganizationId,
-      inviterUserId: clerkUserId,
+    const invitation = await clerk.invitations.createInvitation({
       emailAddress: email,
-      role: "org:member",
       redirectUrl,
       publicMetadata: {
         groupId: group._id,
@@ -169,14 +131,14 @@ export const inviteMember = action({
       groupId: group._id,
       email,
       token,
-      invitedByUserId: appUserId,
+      invitedByUserId: currentUserId,
       clerkInvitationId: invitation.id,
     });
 
     return {
       token,
       clerkInvitationId: invitation.id,
-      clerkOrganizationId,
+      clerkOrganizationId: group.clerkOrganizationId,
     };
   },
 });
