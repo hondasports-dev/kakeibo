@@ -2,7 +2,7 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export function useGroupMembership() {
-  const { isAuthenticated } = useConvexAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const group = useQuery(api.groups.getMyGroup, isAuthenticated ? {} : "skip");
   const groups = useQuery(api.groups.listMyGroups, isAuthenticated ? {} : "skip");
 
@@ -14,6 +14,6 @@ export function useGroupMembership() {
     groups,
     hasGroups,
     needsSelection,
-    isLoading: isAuthenticated && (group === undefined || groups === undefined),
+    isLoading: isAuthLoading || (isAuthenticated && (group === undefined || groups === undefined)),
   };
 }

@@ -20,9 +20,10 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
 
 type GroupInfo = {
-  _id: string;
+  _id: Id<"groups">;
   name: string;
   role: "owner" | "member";
   createdAt: number;
@@ -43,14 +44,14 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function GroupSettingsPanel() {
   const group = useQuery(api.groups.getMyGroup) as GroupInfo | null | undefined;
   const groups = useQuery(api.groups.listMyGroups) as
-    | { _id: string; name: string; role: "owner" | "member"; isActive: boolean }[]
+    | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
     | undefined;
   const members = useQuery(api.groups.getGroupMembers) as GroupMember[] | undefined;
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
   const inviteMember = useAction(api.groupInvitations.inviteMember);
 
-  const [activeGroupId, setActiveGroupId] = useState("");
+  const [activeGroupId, setActiveGroupId] = useState<Id<"groups"> | "">("");
   const [email, setEmail] = useState("");
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -123,7 +124,7 @@ export function GroupSettingsPanel() {
     setSavingTarget("switch");
     setError("");
     try {
-      await setActiveGroup({ groupId: activeGroupId as never });
+      await setActiveGroup({ groupId: activeGroupId });
       setSnackbar("表示中のグループを切り替えました");
     } catch (caughtError) {
       setError(getErrorMessage(caughtError, "グループを切り替えられませんでした。"));
@@ -172,7 +173,7 @@ export function GroupSettingsPanel() {
                 select
                 fullWidth
                 label="現在のグループ"
-                onChange={(event) => setActiveGroupId(event.target.value)}
+                onChange={(event) => setActiveGroupId(event.target.value as Id<"groups">)}
                 value={activeGroupId}
               >
                 {groups.map((item) => (
@@ -236,7 +237,7 @@ export function GroupSettingsPanel() {
           <Box component="ul" className="group-member-list">
             {members.map((member) => {
               const canRemove = isOwner && member.role !== "owner";
-              const label = member.email ?? member.userId;
+              const label = member.email ?? "メール未設定";
               return (
                 <Box className="group-member-row" component="li" key={member.userId}>
                   <Box sx={{ minWidth: 0 }}>

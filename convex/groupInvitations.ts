@@ -21,12 +21,65 @@ type InviteMemberResult = {
   clerkOrganizationId: string;
 };
 
+const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
+
 function normalizeEmail(email: string) {
   const normalized = email.trim().toLowerCase();
   if (!normalized) {
     throw new ConvexError("メールアドレスを入力してください");
   }
   return normalized;
+}
+
+function getConfiguredRedirectOrigins() {
+  const raw = process.env.INVITATION_REDIRECT_ORIGINS ?? "";
+  return raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+    .map((origin) => {
+      try {
+        return new URL(origin).origin;
+      } catch {
+        throw new ConvexError("INVITATION_REDIRECT_ORIGINS contains an invalid URL");
+      }
+    });
+}
+
+function isAllowedRedirectOrigin(url: URL) {
+  const configuredOrigins = getConfiguredRedirectOrigins();
+  if (configuredOrigins.includes(url.origin)) {
+    return true;
+  }
+
+  const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
+  if (isLocalhost && (url.protocol === "http:" || url.protocol === "https:")) {
+    return true;
+  }
+
+  return /^kakeibo(?:-[a-z0-9-]+)?-hondasports-projects\.vercel\.app$/i.test(url.hostname);
+}
+
+function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string) {
+  let url: URL;
+  try {
+    url = new URL(rawRedirectUrl);
+  } catch {
+    throw new ConvexError("招待リンクの戻り先URLが不正です");
+  }
+
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new ConvexError("招待リンクの戻り先URLが不正です");
+  }
+  if (url.username || url.password || url.hash || url.pathname !== INVITATION_ACCEPT_PATH) {
+    throw new ConvexError("招待リンクの戻り先URLが不正です");
+  }
+  if (!isAllowedRedirectOrigin(url)) {
+    throw new ConvexError("招待リンクの戻り先URLが許可されていません");
+  }
+
+  url.searchParams.set("token", token);
+  return url.toString();
 }
 
 function getClerkClient() {
@@ -55,6 +108,7 @@ export const inviteMember = action({
 
     const email = normalizeEmail(args.email);
     const token = randomUUID();
+    const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
     const clerk = getClerkClient();
 
     let clerkOrganizationId: string | null = group.clerkOrganizationId;
@@ -75,7 +129,7 @@ export const inviteMember = action({
       inviterUserId: currentUserId,
       emailAddress: email,
       role: "org:member",
-      redirectUrl: `${args.redirectUrl}${args.redirectUrl.includes("?") ? "&" : "?"}token=${token}`,
+      redirectUrl,
       publicMetadata: {
         groupId: group._id,
         token,

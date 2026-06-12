@@ -7,6 +7,7 @@ import {
   getOrCreateCurrentWeekSessionHandler,
   getOrCreateWeekSessionHandler,
   getWeekSessionHandler,
+  resetWeekSessionForUserHandler,
   updateReviewMemoHandler,
   completeWeekSessionHandler,
 } from "./weekSessions";
@@ -605,6 +606,34 @@ describe("getOrCreateWeekSession", () => {
     await expect(
       getOrCreateWeekSessionHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toBeInstanceOf(ConvexError);
+  });
+});
+
+describe("resetWeekSessionForUser", () => {
+  it("status を draft に戻し、reviewMemo を削除する", async () => {
+    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const ctx = createMutationCtx(identity, {
+      uniqueDoc: {
+        ...sampleSession,
+        status: "completed",
+        reviewMemo: "今週のまとめ",
+      },
+    });
+
+    await resetWeekSessionForUserHandler(ctx, {
+      groupId: GROUP_ID as Id<"groups">,
+      weekStartDate: "2024-01-08",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "session-001",
+      expect.objectContaining({
+        status: "draft",
+        reviewMemo: undefined,
+      }),
+    );
   });
 });
 

@@ -104,6 +104,12 @@ export async function createExpenseEntriesFromDraftHandler(
   if (draft.groupId !== groupId) {
     throw new ConvexError("Draft does not belong to the current group");
   }
+  if (draft.status !== "ready") {
+    throw new ConvexError("Only ready drafts can create expense entries");
+  }
+  if (!draft.date) {
+    throw new ConvexError("Draft date is required");
+  }
 
   const now = Date.now();
   const createdIds: Id<"expenseEntries">[] = [];
@@ -128,7 +134,7 @@ export async function createExpenseEntriesFromDraftHandler(
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
       sourceDocumentId: undefined, // sourceDocuments未実装のため当面undefined
-      date: draft.date ?? new Date().toISOString().split("T")[0],
+      date: draft.date,
       amount: item.amountYen,
       categoryId,
       title: item.itemName ?? "不明",

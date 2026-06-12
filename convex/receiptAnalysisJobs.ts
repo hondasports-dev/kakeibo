@@ -330,12 +330,19 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     throw new ConvexError("Receipt image external API consent is required");
   }
 
+  const group: { _id: Id<"groups"> } | null = await ctx.runQuery(api.groups.getMyGroup, {});
+  if (!group) {
+    throw new ConvexError("グループを選択してください");
+  }
+  const job = await ctx.runQuery(internal.receiptAnalysisJobs.getJobById, { jobId: args.jobId });
+  if (job.groupId !== group._id) {
+    throw new ConvexError("Job not found");
+  }
+
   await ctx.runMutation(internal.receiptAnalysisJobs.updateJobStatus, {
     jobId: args.jobId,
     status: "running",
   });
-
-  const job = await ctx.runQuery(internal.receiptAnalysisJobs.getJobById, { jobId: args.jobId });
 
   const isRetry = job.draftId !== undefined;
 

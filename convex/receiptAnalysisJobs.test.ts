@@ -411,49 +411,63 @@ describe("analyzeImageJobHandler", () => {
         status: "queued",
       } as Doc<"receiptAnalysisImageJobs">;
 
-      const runQueryMap: Record<string, unknown> = {
-        "api.users.getReceiptImageConsent": { hasAcceptedExternalApiConsent: true },
-        "internal.receiptAnalysisJobs.getJobById": jobDoc,
-      };
-
       const draftDoc = {
         _id: "draft-1",
         status: "ready",
       } as Doc<"aiExpenseDrafts">;
 
-      const runMutationMap: Record<string, unknown> = {
-        "internal.aiExpenseDrafts.createFromExtraction": draftDoc,
-      };
-
       const ctx = createActionCtx(createIdentity(), {
-        runQueryResults: runQueryMap,
-        runMutationResults: runMutationMap,
+        runQueryResults: {},
+        runMutationResults: {},
       });
 
-      // runQuery は呼び出し回数で結果を変える必要がある
-      let runQueryCallCount = 0;
-      ctx.runQuery = vi.fn().mockImplementation(async (_ref: unknown, _args: unknown) => {
-        const keys = Object.keys(runQueryMap);
-        const result = runQueryMap[keys[Math.min(runQueryCallCount, keys.length - 1)]];
-        runQueryCallCount += 1;
-        return result;
-      });
+      ctx.runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
+        .mockResolvedValueOnce({ _id: GROUP_ID })
+        .mockResolvedValueOnce(jobDoc)
+        .mockResolvedValueOnce([]);
 
-      let runMutationCallCount = 0;
-      ctx.runMutation = vi.fn().mockImplementation(async (_ref: unknown, _args: unknown) => {
-        const keys = Object.keys(runMutationMap);
-        const result = runMutationMap[keys[Math.min(runMutationCallCount, keys.length - 1)]];
-        runMutationCallCount += 1;
-        return result;
-      });
+      ctx.runMutation = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(draftDoc)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
 
       await analyzeImageJobHandler(ctx, {
         jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
         imageDataUrl: VALID_IMAGE_DATA_URL,
       });
 
-      // updateJobStatus("running") -> (catch: createFailedDraft + updateJobStatus("failed")) -> incrementBatch -> finalizeBatch
       expect(ctx.runMutation).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  it("他グループの job は running に更新せず拒否する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const ctx = createActionCtx(createIdentity());
+      ctx.runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
+        .mockResolvedValueOnce({ _id: GROUP_ID })
+        .mockResolvedValueOnce({
+          _id: "job-other",
+          groupId: "group-other",
+          batchId: "batch-1",
+          status: "queued",
+        });
+      ctx.runMutation = vi.fn();
+
+      await expect(
+        analyzeImageJobHandler(ctx, {
+          jobId: "job-other" as Id<"receiptAnalysisImageJobs">,
+          imageDataUrl: VALID_IMAGE_DATA_URL,
+        }),
+      ).rejects.toThrow("Job not found");
+
+      expect(ctx.runMutation).not.toHaveBeenCalled();
     });
   });
 });

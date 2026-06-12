@@ -149,14 +149,15 @@ Convex functionでは必ず `ctx.auth.getUserIdentity()` を使ってユーザ�
 
 ### 6.1 家族グループ公開方針
 
-MVP時点の共有単位は家族グループとする。1ユーザーは1グループに所属し、グループ未所属
-のユーザーはログイン後にグループ作成画面へ誘導する。Clerk Allowlistは本番利用で有料
-機能になるため、Clerk Restricted mode と invitation を入口制限として採用する。
+MVP時点の共有単位は家族グループとする。1ユーザーは複数グループに所属でき、現在操作
+対象のグループは `users.activeGroupId` で保持する。グループ未所属のユーザーはログイン後に
+グループ作成画面へ誘導し、複数グループに所属しているが activeGroupId が未設定のユーザーは
+グループ選択画面へ誘導する。Clerk Allowlistは本番利用で有料機能になるため、Clerk Restricted
+mode と invitation を入口制限として採用する。
 
 - Clerk DashboardでRestricted modeを有効化する
-- 家族グループのオーナーはClerk invitationでメンバーをアプリへ招待する
-- 招待されたユーザーが初回ログインした後、オーナーが設定画面でメールアドレスを指定して
-  `groupMembers` へ追加する
+- 家族グループのオーナーは設定画面からClerk organization invitationを経由してメンバーを招待する
+- 招待リンクにはアプリ側の招待トークンを含め、受け入れ時に `groupMembers` へ追加する
 - 誰でもGoogleログインまたはサインアップできる状態にはしない
 - invitation対象メールはアプリコード、Git管理ファイル、環境変数に持たせない
 - Restricted modeはアプリ入口の制限であり、Convexデータ認可の代替にはしない
@@ -170,31 +171,31 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 ### 6.3 グループ運用手順
 
-グループ所属の正本は `groupMembers` テーブルとし、Clerk invitation は「ログインしてよい
-ユーザーを入口で制限するための仕組み」として使う。誰がどのグループに入るかは、
+グループ所属の正本は `groupMembers` テーブルとする。Clerk organization invitation は
+招待メール送信とサインアップ/サインイン導線に使い、誰がどのグループに所属するかは
 アプリ側の `groupMembers` で管理する。
 
 運用の流れは次のとおり。
 
 1. オーナーが `/group/setup` で家族グループを新規作成する。
 2. グループ作成時に、作成者は `groupMembers` へ `owner` として追加される。
-3. その後、オーナーは Clerk Dashboard から対象ユーザーへ invitation を送る。
-4. 招待されたユーザーが初回ログインすると、アプリはまだグループ未所属として扱い、
-   `/group/setup` へ誘導する。
-5. オーナーは `/settings` の「グループ管理」で、招待済みユーザーのメールアドレスを入力し、
+3. オーナーは `/settings` の「グループ管理」で対象メールアドレスを入力し、Clerkを経由して招待を送る。
+4. 招待リンクには `/group/invitations/accept?token=...` への戻り先を設定する。
+5. 招待されたユーザーがリンクから認証を完了すると、アプリは招待トークンを検証し、
    `groupMembers` へ `member` として追加する。
-6. 追加されたユーザーは、次回以降のログインから通常画面へ進める。
-7. メンバーを外す場合は、オーナーが `/settings` からそのユーザーを削除する。
-8. ユーザーを別グループへ移したい場合は、いったん現在のグループから削除してから、
-   追加先グループで改めて追加する。
+6. 追加されたグループは `users.activeGroupId` に設定され、通常画面へ進める。
+7. 複数グループに所属しているユーザーは `/group/select` または設定画面から表示対象グループを切り替える。
+8. メンバーを外す場合は、オーナーが `/settings` からそのユーザーを削除する。
+9. 削除対象ユーザーの activeGroupId が削除されたグループだった場合、残りの所属グループへ切り替える。
 
 この運用では、次の制約を前提にする。
 
-- 1ユーザーは同時に1グループにのみ所属できる。
-- `addMemberByEmail` は、既に別グループに所属しているユーザーを拒否する。
+- 1ユーザーは同時に複数グループへ所属できる。
+- `acceptGroupInvitation` は、招待メールとログイン中ユーザーのメールが一致する場合だけ所属を追加する。
+- `setActiveGroup` は、ログイン中ユーザーが所属しているグループだけを active にできる。
 - `removeMember` はユーザー本人の `users` レコードや Clerk アカウントは削除しない。
 - 現行実装では、グループの削除やオーナー移譲は UI では提供していない。
-- グループ未所属のユーザーは、設定や家計データへ進めない。
+- グループ未所属または activeGroupId 未選択のユーザーは、設定や家計データへ進めない。
 
 ## 7. 画面とルーティング
 
@@ -206,6 +207,8 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 | `/settings`                    | 設定               | グループ、カテゴリ、週の開始・終了曜日を設定する |
 | `/categories`                  | 設定               | `/settings` と同じ設定画面への互換ルート   |
 | `/group/setup`                 | グループ作成       | グループ未所属ユーザーが家族グループを作成する |
+| `/group/select`                | グループ選択       | 複数所属ユーザーが表示対象グループを選ぶ     |
+| `/group/invitations/accept`    | 招待受け入れ       | Clerk招待後にアプリ側の所属追加を完了する   |
 | `/sso-callback`                | 認証コールバック   | Clerk SSO後のコールバックを処理する         |
 | `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
 
@@ -232,7 +235,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 | 項目          | 型                | 説明                           |
 | ------------- | ----------------- | ------------------------------ |
-| userId        | string            | `UserIdentity.tokenIdentifier` |
+| groupId       | Id<"groups">      | 家計データの所有境界となるグループID |
 | date          | string            | 入出金日。`YYYY-MM-DD`         |
 | type          | `expense` / `income` (optional) | 種別。未設定は既存互換で支出扱い |
 | shopName      | string (optional) | 店名。支出で使う               |
@@ -248,7 +251,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 | 項目            | 型                    | 説明                           |
 | --------------- | --------------------- | ------------------------------ |
-| userId          | string                | `UserIdentity.tokenIdentifier` |
+| groupId         | Id<"groups">          | 家計データの所有境界となるグループID |
 | weekStartDate   | string                | 週開始日                       |
 | weekEndDate     | string                | 週終了日                       |
 | reviewMemo      | string (optional)     | 振り返りメモ                   |
@@ -260,7 +263,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 | 項目      | 型      | 説明                           |
 | --------- | ------- | ------------------------------ |
-| userId    | string  | `UserIdentity.tokenIdentifier` |
+| groupId   | Id<"groups"> | 家計データの所有境界となるグループID |
 | name      | string  | カテゴリ名                     |
 | color     | string  | 表示色                         |
 | isActive  | boolean | 新規入力で利用可能か           |
@@ -271,14 +274,13 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 ### 8.5 aiExpenseDrafts
 
 支出AI登録では、AI解析結果を既存 `receipts` に直接保存せず、未確定の下書きとして
-`aiExpenseDrafts` に保存する。下書きも家計データと同じくユーザー所有データであり、
-`userId` には `UserIdentity.tokenIdentifier` を保存する。query/mutation/action では
-クライアントから渡された `userId` を信用せず、サーバー側で取得した認証ユーザーと
-下書きの `userId` が一致することを確認する。
+`aiExpenseDrafts` に保存する。下書きも家計データと同じくグループ所有データであり、
+`groupId` を保存する。query/mutation/action ではクライアントから渡された `userId` を
+信用せず、サーバー側で取得した認証ユーザーの active group と下書きの `groupId` が一致することを確認する。
 
 | 項目                | 型                                                                 | 説明                                  |
 | ------------------- | ------------------------------------------------------------------ | ------------------------------------- |
-| userId              | string                                                             | `UserIdentity.tokenIdentifier`        |
+| groupId             | Id<"groups">                                                       | 家計データの所有境界                  |
 | sourceType          | `image_upload`                                                     | 下書きの作成元                        |
 | status              | `queued` / `analyzing` / `ready` / `needs_review` / `failed` / `registered` | AI処理と登録の状態                    |
 | documentType        | `receipt` / `convenience_payment` / `unknown`                      | 書類種別                              |
@@ -316,7 +318,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 
 | 項目       | 型                          | 説明                           |
 | ---------- | --------------------------- | ------------------------------ |
-| userId     | string                      | `UserIdentity.tokenIdentifier` |
+| groupId    | Id<"groups">                | 家計データの所有境界             |
 | draftId    | Id<"aiExpenseDrafts">       | 親下書きID                     |
 | itemName   | string                      | 明細名                         |
 | amountYen  | number                      | 明細金額                       |
@@ -330,17 +332,20 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 | テーブル     | index                                     | 用途                                               |
 | ------------ | ----------------------------------------- | -------------------------------------------------- |
 | users        | `by_token_identifier`                     | `UserIdentity.tokenIdentifier`からユーザーを取得   |
-| receipts     | `by_user_id_and_week_start_date`          | 指定ユーザー、指定週の支出取得                     |
-| receipts     | `by_user_id_and_date`                     | 指定ユーザー、期間指定の支出取得                   |
-| receipts     | `by_user_id_and_shop_name`                | 店名候補、カテゴリ推定                             |
-| weekSessions | `by_user_id_and_week_start_date`          | 指定ユーザー、指定週のセッション取得               |
-| categories   | `by_user_id_and_is_active_and_sort_order` | 有効カテゴリの表示                                 |
-| categories   | `by_user_id_and_sort_order`               | カテゴリ設定画面、無効化済みカテゴリを含む履歴表示 |
-| aiExpenseDrafts | `by_user_id_and_status_and_created_at` | 指定ユーザーのキューを状態別・作成順で取得         |
-| aiExpenseDrafts | `by_user_id_and_created_at` | 指定ユーザーの下書き一覧を作成順で取得             |
-| aiExpenseDrafts | `by_user_id_and_registered_receipt_id` | receipt登録済み下書きの参照・重複登録防止          |
-| aiExpenseDraftItems | `by_draft_id` | 親下書きの明細取得                                 |
-| aiExpenseDraftItems | `by_user_id_and_draft_id` | 所有者確認済みの明細取得                           |
+| groupMembers | `by_user_id` | ログイン中ユーザーの所属グループ取得 |
+| groupMembers | `by_group_id` | グループのメンバー一覧取得 |
+| groupMembers | `by_group_id_and_user_id` | 所属重複確認・削除対象確認 |
+| groupInvitations | `by_token` | 招待受け入れ時のトークン検証 |
+| receipts     | `by_group_id_and_week_start_date`          | 指定グループ、指定週の支出取得                     |
+| receipts     | `by_group_id_and_date`                     | 指定グループ、期間指定の支出取得                   |
+| receipts     | `by_group_id_and_shop_name`                | 店名候補、カテゴリ推定                             |
+| weekSessions | `by_group_id_and_week_start_date`          | 指定グループ、指定週のセッション取得               |
+| categories   | `by_group_id_and_is_active_and_sort_order` | 有効カテゴリの表示                                 |
+| categories   | `by_group_id_and_sort_order`               | カテゴリ設定画面、無効化済みカテゴリを含む履歴表示 |
+| aiExpenseDrafts | `by_group_id_and_status_and_created_at` | 指定グループのキューを状態別・作成順で取得         |
+| aiExpenseDrafts | `by_group_id_and_created_at` | 指定グループの下書き一覧を作成順で取得             |
+| aiExpenseDrafts | `by_group_id_and_registered_receipt_id` | receipt登録済み下書きの参照・重複登録防止          |
+| aiExpenseDraftItems | `by_group_id_and_draft_id` | 所属グループ確認済みの明細取得                     |
 
 ## 10. Convex function設計
 
@@ -356,7 +361,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 - `getFourWeeksSummary()`
 - `getDailySpendingTrend(weekStartDate)`
 - `getMonthlyExpensesSummary(month?)`
-- `deleteReceiptsByUser(userId)`（internal）
+- `deleteReceiptsByUser(groupId)`（internal）
 
 `receipts` は支出と収入の両方を扱う。支出では `shopName`、収入では `bankName` を保存し、
 `type` 未設定の既存データは支出として扱う。
@@ -368,7 +373,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 - `getWeekSession(weekStartDate)`
 - `updateReviewMemo(weekStartDate, reviewMemo)`
 - `completeWeekSession(weekStartDate)`
-- `resetWeekSessionForUser(userId)`（internal）
+- `resetWeekSessionForUser(groupId)`（internal）
 
 ### 10.3 categories
 
@@ -378,7 +383,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 - `createCategory(input)`
 - `updateCategory(id, input)`
 - `deactivateCategory(id)`
-- `deleteE2eCategoriesByUser(userId)`（internal）
+- `deleteE2eCategoriesByUser(groupId)`（internal）
 
 ### 10.4 users
 
@@ -417,10 +422,10 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 - `aiExpenseDrafts.createFromExtraction(input)`（internal）
 - `aiExpenseDrafts.createFailedDraftFromImageAnalysis(input)`（internal）
 
-下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` から `userId` を取得する。
-`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの `userId` と認証ユーザーの
-`tokenIdentifier` が一致することを確認する。`aiExpenseDraftItems` は `draftId` だけでなく
-`userId` も保存し、明細単体の取得でも所有者境界を確認できるようにする。
+下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` と `groupMembers` から
+active group を解決する。`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの
+`groupId` と認証ユーザーの active group が一致することを確認する。`aiExpenseDraftItems` は
+`draftId` だけでなく `groupId` も保存し、明細単体の取得でもグループ境界を確認できるようにする。
 
 `receipts` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
 
@@ -628,13 +633,13 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 ### 17.3 Convex function test
 
 - 未認証時にquery/mutationが拒否される
-- 他ユーザーのデータが取得・更新できない
+- 他グループのデータが取得・更新できない
 - 初期カテゴリseed
 - 週次セッション作成と再開
 - レシート作成、更新、削除
 - レシート画像外部API送信の同意状態取得と承認保存
 - AI支出下書きの状態・確認理由・`receipts.shopName` 変換方針
-- AI支出下書きと明細の所有者確認、登録済み下書きの重複登録防止
+- AI支出下書きと明細のグループ境界確認、登録済み下書きの重複登録防止
 
 ### 17.4 E2E test
 
@@ -692,7 +697,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 | ベンダー依存       | ConvexのDB/Functionsに依存する      | データモデルを単純に保ち、CSV/JSONエクスポートを用意する        |
 | SQL分析がしづらい  | Postgresほど自由なSQL分析ができない | MVPでは不要。必要になれば外部分析基盤へのexportを検討する       |
 | オフライン入力なし | 通信不安定時に入力できない          | MVPではエラー表示と再試行を優先し、将来オフライン対応を検討する |
-| 認可漏れ           | 他ユーザーのデータが見えると致命的  | 全query/mutationで `userId` を必ず確認し、テストする            |
+| 認可漏れ           | 他グループのデータが見えると致命的  | 全query/mutationで `groupMembers` と `groupId` を必ず確認し、テストする |
 | Hono追加時の複雑化 | API層が増えて責務が曖昧になる       | Convexで足りない要件が出るまで追加しない                        |
 | 環境混在           | DEVのClerkやConvexがPRODに混ざる    | Clerk application、Convex deployment、環境変数を明確に分離する  |
 
@@ -750,7 +755,7 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 - 手入力では `sourceDocumentId` なしの `expenseEntries` を許容する。
 - 1つの `sourceDocuments` から 0 件以上の `expenseEntries` を作れるようにする。
 - 既存 `receipts` の query / mutation は当面の互換層として残し、後続 Issue で `expenseEntries` 中心に移行する。
-- 所有者判定はこれまで通り `ctx.auth.getUserIdentity()` と `tokenIdentifier` を基準に統一する。
+- 所有境界は `ctx.auth.getUserIdentity()`、`groupMembers`、`users.activeGroupId` から解決した `groupId` を基準に統一する。
 
 ### 21.5 schema 案
 
@@ -758,7 +763,7 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 
 入力元の原本を表す。手入力・レシート・払込票・AI 下書きの共通入口にする。
 
-- `userId`: `string`
+- `groupId`: `Id<"groups">`
 - `sourceType`: `manual` / `receipt` / `convenience_payment` / `invoice` / `unknown`
 - `status`: `draft` / `ready` / `finalized`
 - `date`: `string` optional
@@ -776,7 +781,7 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 
 カテゴリ別支出項目を表す。週次集計・カテゴリ集計・一覧表示の正本にする。
 
-- `userId`: `string`
+- `groupId`: `Id<"groups">`
 - `sourceDocumentId`: `Id<"sourceDocuments">` optional
 - `date`: `string`
 - `amount`: `number`
@@ -798,12 +803,12 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 ### 21.6 index 案
 
 - `sourceDocuments`
-  - `by_user_id_and_status_and_created_at`
-  - `by_user_id_and_date`
+  - `by_group_id_and_status_and_created_at`
+  - `by_group_id_and_date`
 - `expenseEntries`
-  - `by_user_id_and_date`
-  - `by_user_id_and_category_id_and_date`
-  - `by_user_id_and_source_document_id`
+  - `by_group_id_and_date`
+  - `by_group_id_and_category_id_and_date`
+  - `by_group_id_and_source_document_id`
 
 ### 21.7 互換境界
 

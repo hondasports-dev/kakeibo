@@ -21,7 +21,6 @@ function getErrorMessage(error: unknown, fallback: string) {
 export function GroupSetupPage() {
   const navigate = useNavigate();
   const createGroup = useMutation(api.groups.createGroup);
-  const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories);
   const [groupName, setGroupName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
@@ -38,7 +37,6 @@ export function GroupSetupPage() {
     setError("");
     try {
       await createGroup({ name });
-      await seedDefaultCategories();
       navigate("/", { replace: true });
     } catch (caughtError) {
       setError(getErrorMessage(caughtError, "グループを作成できませんでした。"));

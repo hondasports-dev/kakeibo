@@ -101,16 +101,25 @@ http.route({
         ? await ctx.runQuery(internal.groups.getGroupIdByUserId, { userId: resolvedUserId })
         : null);
 
-    const shouldOperateOnGroup = Boolean(
-      resolvedGroupId ||
+    const requestedGroupScopedCleanup = Boolean(
       body.resetWeekSession ||
       body.deleteE2eCategories ||
       body.clearAiExpenseQueue ||
-      body.clearE2eExpenseEntries,
+      body.clearE2eExpenseEntries ||
+      (!body.clearMonthlyIncome && !body.clearGroupMemberships),
+    );
+    const requestedUserScopedCleanup = Boolean(
+      body.clearMonthlyIncome || body.clearGroupMemberships,
     );
 
-    if (!shouldOperateOnGroup && !body.clearGroupMemberships) {
+    if (requestedGroupScopedCleanup && !resolvedGroupId) {
       return new Response(JSON.stringify({ error: "groupId is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    if (requestedUserScopedCleanup && !resolvedUserId) {
+      return new Response(JSON.stringify({ error: "userId or email is required." }), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
