@@ -65,9 +65,6 @@ export function GroupInvitationAcceptPage() {
         if (signUpError) {
           throw signUpError;
         }
-        if (signUp.status !== "complete") {
-          throw new Error("Clerk invitation sign-up was not completed.");
-        }
 
         const { error: finalizeError } = await signUp.finalize({
           navigate: ({ decorateUrl }) => {

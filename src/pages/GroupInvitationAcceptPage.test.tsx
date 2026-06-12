@@ -80,7 +80,6 @@ describe("GroupInvitationAcceptPage", () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
-        status: "complete",
         ticket: signUpTicketMock,
       },
     });
@@ -128,6 +127,23 @@ describe("GroupInvitationAcceptPage", () => {
     });
 
     locationSpy.mockRestore();
+  });
+
+  it("Clerk ticket 処理後は同期的な status を見ずに finalize へ進む", async () => {
+    useSignUpMock.mockReturnValue({
+      signUp: {
+        finalize: signUpFinalizeMock,
+        status: "missing_requirements",
+        ticket: signUpTicketMock,
+      },
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(signUpTicketMock).toHaveBeenCalledWith({ ticket: "ticket-001" });
+      expect(signUpFinalizeMock).toHaveBeenCalled();
+    });
   });
 
   it("Clerk ticket 付きURLで既存セッションがあれば現在のセッションを抜けてから処理する", async () => {
