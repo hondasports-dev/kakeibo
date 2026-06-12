@@ -126,12 +126,17 @@ export function GroupInvitationAcceptPage() {
     setError("");
     setIsCompletingInvitation(true);
     try {
-      const { error: updateError } = await signUp.update({
+      if (!clerkTicket) {
+        throw new Error("Clerk invitation ticket is missing.");
+      }
+
+      const { error: ticketError } = await signUp.ticket({
         firstName: firstName.trim(),
         lastName: lastName.trim(),
+        ticket: clerkTicket,
       });
-      if (updateError) {
-        throw updateError;
+      if (ticketError) {
+        throw ticketError;
       }
 
       const finalized = await finalizeInvitation();

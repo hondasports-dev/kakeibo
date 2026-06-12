@@ -8,7 +8,6 @@ const {
   acceptGroupInvitationMock,
   signUpFinalizeMock,
   signUpTicketMock,
-  signUpUpdateMock,
   useAuthMock,
   useClerkMock,
   useConvexAuthMock,
@@ -19,7 +18,6 @@ const {
   acceptGroupInvitationMock: vi.fn(),
   signUpFinalizeMock: vi.fn(),
   signUpTicketMock: vi.fn(),
-  signUpUpdateMock: vi.fn(),
   useAuthMock: vi.fn(),
   useClerkMock: vi.fn(),
   useConvexAuthMock: vi.fn(),
@@ -63,7 +61,6 @@ describe("GroupInvitationAcceptPage", () => {
     acceptGroupInvitationMock.mockReset();
     signUpFinalizeMock.mockReset();
     signUpTicketMock.mockReset();
-    signUpUpdateMock.mockReset();
     useAuthMock.mockReset();
     useClerkMock.mockReset();
     useConvexAuthMock.mockReset();
@@ -73,7 +70,6 @@ describe("GroupInvitationAcceptPage", () => {
     acceptGroupInvitationMock.mockResolvedValue("group-001");
     signUpFinalizeMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
-    signUpUpdateMock.mockResolvedValue({ error: null });
     useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
     useClerkMock.mockReturnValue({ signOut: vi.fn().mockResolvedValue(undefined) });
     useConvexAuthMock.mockReturnValue({ isAuthenticated: false });
@@ -86,7 +82,6 @@ describe("GroupInvitationAcceptPage", () => {
         finalize: signUpFinalizeMock,
         status: "complete",
         ticket: signUpTicketMock,
-        update: signUpUpdateMock,
       },
     });
   });
@@ -143,7 +138,6 @@ describe("GroupInvitationAcceptPage", () => {
         finalize: signUpFinalizeMock,
         status: "missing_requirements",
         ticket: signUpTicketMock,
-        update: signUpUpdateMock,
       },
     });
 
@@ -156,15 +150,16 @@ describe("GroupInvitationAcceptPage", () => {
     });
   });
 
-  it("名前入力後にサインアップを更新して finalize する", async () => {
+  it("名前入力後に ticket を再実行して finalize する", async () => {
     const signUpResource = {
       finalize: signUpFinalizeMock,
       status: "missing_requirements",
       ticket: signUpTicketMock,
-      update: signUpUpdateMock,
     };
-    signUpUpdateMock.mockImplementation(async () => {
-      signUpResource.status = "complete";
+    signUpTicketMock.mockImplementation(async (params) => {
+      if (params?.firstName && params?.lastName) {
+        signUpResource.status = "complete";
+      }
       return { error: null };
     });
     useSignUpMock.mockReturnValue({ signUp: signUpResource });
@@ -181,9 +176,10 @@ describe("GroupInvitationAcceptPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "招待を完了する" }));
 
     await waitFor(() => {
-      expect(signUpUpdateMock).toHaveBeenCalledWith({
+      expect(signUpTicketMock).toHaveBeenLastCalledWith({
         firstName: "Taro",
         lastName: "Yamada",
+        ticket: "ticket-001",
       });
       expect(signUpFinalizeMock).toHaveBeenCalled();
     });
