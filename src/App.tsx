@@ -10,10 +10,14 @@ import { getClerkErrorMessage } from "./lib/clerkError";
 import "./App.css";
 
 const OAUTH_CALLBACK_PATH = "/sso-callback";
+const GROUP_INVITATION_ACCEPT_PATH = "/group/invitations/accept";
 
 function App() {
   if (window.location.pathname === OAUTH_CALLBACK_PATH) {
     return <AuthCallbackScreen />;
+  }
+  if (window.location.pathname === GROUP_INVITATION_ACCEPT_PATH) {
+    return <RouterProvider router={router} />;
   }
   return <AuthenticatedApp />;
 }
