@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
-import { buildInvitationRedirectUrl } from "./groupInvitations";
+import type { Id } from "./_generated/dataModel";
+import { buildClerkInvitationParams, buildInvitationRedirectUrl } from "./groupInvitations";
 
 describe("buildInvitationRedirectUrl", () => {
   it("本番ドメインの招待受け入れURLを許可する", () => {
@@ -27,5 +28,26 @@ describe("buildInvitationRedirectUrl", () => {
     expect(() =>
       buildInvitationRedirectUrl("https://example.com/group/invitations/accept", "token-789"),
     ).toThrowError(ConvexError);
+  });
+});
+
+describe("buildClerkInvitationParams", () => {
+  it("既存招待または既存ユーザーでも再招待できるよう ignoreExisting を有効にする", () => {
+    expect(
+      buildClerkInvitationParams(
+        "invitee@example.com",
+        "https://kakeibo.vercel.app/group/invitations/accept?token=token-123",
+        "group-001" as Id<"groups">,
+        "token-123",
+      ),
+    ).toEqual({
+      emailAddress: "invitee@example.com",
+      redirectUrl: "https://kakeibo.vercel.app/group/invitations/accept?token=token-123",
+      ignoreExisting: true,
+      publicMetadata: {
+        groupId: "group-001",
+        token: "token-123",
+      },
+    });
   });
 });
