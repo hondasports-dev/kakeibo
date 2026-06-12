@@ -42,15 +42,17 @@ type GroupMemberDoc = {
 
 function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
   return {
-    tokenIdentifier: "https://issuer.example|user-001",
+    tokenIdentifier: USER_ID,
     subject: "user-001",
     issuer: "https://issuer.example",
     ...overrides,
   };
 }
 
-const GROUP_ID = "https://issuer.example|group-001";
-const OTHER_GROUP_ID = "https://issuer.example|group-002";
+const USER_ID = "https://issuer.example|user-001";
+const OTHER_USER_ID = "https://issuer.example|user-002";
+const GROUP_ID = "group-001";
+const OTHER_GROUP_ID = "group-002";
 
 /**
  * MutationCtx の最小モックを生成する。
@@ -68,6 +70,7 @@ function createMutationCtx(
     insertedDoc?: WeekSessionDoc;
     updatedDoc?: WeekSessionDoc;
     uniqueDoc?: WeekSessionDoc | null;
+    sessions?: WeekSessionDoc[];
     groupMember?: GroupMemberDoc | null;
   } = {},
 ): MutationCtx {
@@ -127,14 +130,37 @@ function createMutationCtx(
   const withIndexMock = vi
     .fn()
     .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+      const filters: Record<string, unknown> = {};
       const q = {
-        eq: vi.fn().mockImplementation(() => q),
+        eq: vi.fn().mockImplementation((field: string, value: unknown) => {
+          filters[field] = value;
+          return q;
+        }),
       };
       builder(q);
 
       // groupMembers テーブルのクエリ
       if (_indexName === "by_user_id") {
-        return { unique: vi.fn().mockResolvedValue(groupMember) };
+        return {
+          unique: vi
+            .fn()
+            .mockResolvedValue(
+              groupMember && filters.userId === groupMember.userId ? groupMember : null,
+            ),
+        };
+      }
+
+      if (_indexName === "by_group_id_and_week_start_date") {
+        if (opts.sessions === undefined) {
+          return { unique: uniqueMock };
+        }
+        const matched =
+          opts.sessions.find(
+            (session) =>
+              session.groupId === filters.groupId &&
+              session.weekStartDate === filters.weekStartDate,
+          ) ?? null;
+        return { unique: vi.fn().mockResolvedValue(matched) };
       }
 
       return { unique: uniqueMock };
@@ -163,6 +189,7 @@ function createQueryCtx(
   identity: UserIdentity | null,
   opts: {
     uniqueDoc?: WeekSessionDoc | null;
+    sessions?: WeekSessionDoc[];
     groupMember?: GroupMemberDoc | null;
   } = {},
 ): QueryCtx {
@@ -185,14 +212,37 @@ function createQueryCtx(
   const withIndexMock = vi
     .fn()
     .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+      const filters: Record<string, unknown> = {};
       const q = {
-        eq: vi.fn().mockImplementation(() => q),
+        eq: vi.fn().mockImplementation((field: string, value: unknown) => {
+          filters[field] = value;
+          return q;
+        }),
       };
       builder(q);
 
       // groupMembers テーブルのクエリ
       if (_indexName === "by_user_id") {
-        return { unique: vi.fn().mockResolvedValue(groupMember) };
+        return {
+          unique: vi
+            .fn()
+            .mockResolvedValue(
+              groupMember && filters.userId === groupMember.userId ? groupMember : null,
+            ),
+        };
+      }
+
+      if (_indexName === "by_group_id_and_week_start_date") {
+        if (opts.sessions === undefined) {
+          return { unique: uniqueMock };
+        }
+        const matched =
+          opts.sessions.find(
+            (session) =>
+              session.groupId === filters.groupId &&
+              session.weekStartDate === filters.weekStartDate,
+          ) ?? null;
+        return { unique: vi.fn().mockResolvedValue(matched) };
       }
 
       return { unique: uniqueMock };
@@ -242,7 +292,7 @@ const otherGroupSession: WeekSessionDoc = {
 
 describe("getOrCreateCurrentWeekSession", () => {
   it("新規セッションが draft 状態で作成される", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const createdSession: WeekSessionDoc = {
       ...sampleSession,
       _id: "new-session-id",
@@ -273,7 +323,7 @@ describe("getOrCreateCurrentWeekSession", () => {
   });
 
   it("既存セッションがある場合は新規作成せずそのまま返す（冪等性）", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
 
     // uniqueDoc: sampleSession → 既存セッションあり → 新規作成しない
     const ctx = createMutationCtx(identity, {
@@ -306,7 +356,7 @@ describe("getOrCreateCurrentWeekSession", () => {
 
 describe("getWeekSession", () => {
   it("指定週のセッションが返される", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const ctx = createQueryCtx(identity, { uniqueDoc: sampleSession });
 
     const result = await getWeekSessionHandler(ctx, {
@@ -317,7 +367,7 @@ describe("getWeekSession", () => {
   });
 
   it("セッションが存在しない場合は null", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const ctx = createQueryCtx(identity, { uniqueDoc: null });
 
     const result = await getWeekSessionHandler(ctx, {
@@ -327,9 +377,8 @@ describe("getWeekSession", () => {
     expect(result).toBeNull();
   });
 
-  it("他グループのセッションは返されない（withIndex で groupId 絞り込み）", async () => {
-    // 別グループのメンバーとしてクエリすると uniqueDoc: null を返す（グループ分離）
-    const identityOther = createIdentity({ tokenIdentifier: OTHER_GROUP_ID });
+  it("現在グループのセッションだけを返す（withIndex で groupId 絞り込み）", async () => {
+    const identityOther = createIdentity({ tokenIdentifier: OTHER_USER_ID });
     const otherGroupMember = {
       _id: "member-other",
       _creationTime: 1000,
@@ -338,7 +387,7 @@ describe("getWeekSession", () => {
       role: "owner" as const,
     };
     const ctx = createQueryCtx(identityOther, {
-      uniqueDoc: null,
+      sessions: [sampleSession, otherGroupSession],
       groupMember: otherGroupMember,
     });
 
@@ -346,8 +395,8 @@ describe("getWeekSession", () => {
       weekStartDate: "2024-01-08",
     });
 
+    expect(result).toEqual(otherGroupSession);
     expect(result).not.toEqual(expect.objectContaining({ groupId: GROUP_ID }));
-    expect(result).toBeNull();
   });
 
   it("未認証時: ConvexError が throw される", async () => {
@@ -369,7 +418,7 @@ describe("getWeekSession", () => {
 
 describe("updateReviewMemo", () => {
   it("振り返りメモが保存される", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const updatedSession: WeekSessionDoc = {
       ...sampleSession,
       reviewMemo: "食費が多めだったので来週は作り置きを増やす",
@@ -410,7 +459,7 @@ describe("updateReviewMemo", () => {
   });
 
   it("完了済みセッションでも status を維持したまま振り返りメモを再編集できる", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const completedSession: WeekSessionDoc = {
       ...sampleSession,
       status: "completed",
@@ -450,7 +499,7 @@ describe("updateReviewMemo", () => {
   });
 
   it("セッションが存在しない場合は ConvexError", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const ctx = createMutationCtx(identity, {
       uniqueDoc: null,
     });
@@ -489,7 +538,7 @@ describe("updateReviewMemo", () => {
 
 describe("completeWeekSession", () => {
   it("draft セッションを completed に変更できる", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const completedSession: WeekSessionDoc = {
       ...sampleSession,
       status: "completed",
@@ -525,7 +574,7 @@ describe("completeWeekSession", () => {
   });
 
   it("セッションが存在しない場合は ConvexError", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const ctx = createMutationCtx(identity, { uniqueDoc: null });
 
     await expect(
@@ -552,7 +601,7 @@ describe("completeWeekSession", () => {
 
 describe("getOrCreateWeekSession", () => {
   it("指定週のセッションが存在しない場合は新規作成する", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const createdSession: WeekSessionDoc = {
       ...sampleSession,
       _id: "new-session-id",
@@ -584,7 +633,7 @@ describe("getOrCreateWeekSession", () => {
   });
 
   it("指定週のセッションが存在する場合はそのまま返す", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const ctx = createMutationCtx(identity, {
       uniqueDoc: sampleSession,
     });
@@ -611,7 +660,7 @@ describe("getOrCreateWeekSession", () => {
 
 describe("resetWeekSessionForUser", () => {
   it("status を draft に戻し、reviewMemo を削除する", async () => {
-    const identity = createIdentity({ tokenIdentifier: GROUP_ID });
+    const identity = createIdentity();
     const ctx = createMutationCtx(identity, {
       uniqueDoc: {
         ...sampleSession,
@@ -636,6 +685,3 @@ describe("resetWeekSessionForUser", () => {
     );
   });
 });
-
-// suppress unused variable warning for otherGroupSession (used as reference only)
-void otherGroupSession;
