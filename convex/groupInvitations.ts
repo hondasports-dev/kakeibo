@@ -6,6 +6,7 @@ import { action } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import type { UserIdentity } from "convex/server";
 
 type MyGroup = {
   _id: Id<"groups">;
@@ -21,6 +22,11 @@ type InviteMemberResult = {
   clerkOrganizationId: string;
 };
 
+type InvitationUserIds = {
+  appUserId: string;
+  clerkUserId: string;
+};
+
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
 const KAKEIBO_PRODUCTION_HOSTNAME = "kakeibo.vercel.app";
 
@@ -30,6 +36,22 @@ function normalizeEmail(email: string) {
     throw new ConvexError("メールアドレスを入力してください");
   }
   return normalized;
+}
+
+export function getInvitationUserIds(identity: UserIdentity | null): InvitationUserIds {
+  if (!identity) {
+    throw new ConvexError("Not authenticated");
+  }
+
+  const clerkUserId = identity.subject.trim();
+  if (!clerkUserId) {
+    throw new ConvexError("Clerk user ID を取得できませんでした");
+  }
+
+  return {
+    appUserId: identity.tokenIdentifier,
+    clerkUserId,
+  };
 }
 
 export function getConfiguredRedirectOrigins() {
@@ -111,7 +133,7 @@ export const inviteMember = action({
     if (group.role !== "owner") {
       throw new ConvexError("グループオーナーのみメンバーを招待できます");
     }
-    const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
+    const { appUserId, clerkUserId } = getInvitationUserIds(await ctx.auth.getUserIdentity());
 
     const email = normalizeEmail(args.email);
     const token = randomUUID();
@@ -122,7 +144,7 @@ export const inviteMember = action({
     if (!clerkOrganizationId) {
       const createdGroupOrganization = await clerk.organizations.createOrganization({
         name: group.name,
-        createdBy: currentUserId,
+        createdBy: clerkUserId,
       });
       clerkOrganizationId = createdGroupOrganization.id;
       await ctx.runMutation(internal.groups.setGroupClerkOrganizationId, {
@@ -133,7 +155,7 @@ export const inviteMember = action({
 
     const invitation = await clerk.organizations.createOrganizationInvitation({
       organizationId: clerkOrganizationId,
-      inviterUserId: currentUserId,
+      inviterUserId: clerkUserId,
       emailAddress: email,
       role: "org:member",
       redirectUrl,
@@ -147,7 +169,7 @@ export const inviteMember = action({
       groupId: group._id,
       email,
       token,
-      invitedByUserId: currentUserId,
+      invitedByUserId: appUserId,
       clerkInvitationId: invitation.id,
     });
 
