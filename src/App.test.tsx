@@ -135,4 +135,17 @@ describe("App authentication states", () => {
     expect(screen.getByRole("heading", { name: "Googleログインを処理中" })).toBeInTheDocument();
     expect(screen.getByText("OAuth callback mock")).toBeInTheDocument();
   });
+
+  it("招待受け入れpathでは未ログインでもルーターを表示する", () => {
+    // Given: Clerkは読み込み済みだが未ログイン
+    window.history.pushState({}, "", "/group/invitations/accept?token=invite-token");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    // When: アプリを表示する
+    renderWithProviders(<App />);
+
+    // Then: 招待受け入れページへ到達できるように、通常の未ログイン画面ではなくルーターへ渡す
+    expect(screen.getByTestId("router-provider")).toBeInTheDocument();
+  });
 });
