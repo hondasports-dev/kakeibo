@@ -167,15 +167,22 @@ function createQueryCtx(
       }
     : null,
 ): QueryCtx {
-  const collectMock = vi.fn().mockResolvedValue(docs);
-  const takeMock = vi.fn().mockResolvedValue(docs);
-  const orderMock = vi.fn().mockReturnValue({ collect: collectMock, take: takeMock });
-
   const withIndexMock = vi
     .fn()
     .mockImplementation((_indexName: string, builder: (q: unknown) => unknown) => {
+      let capturedGroupId: string | null = null;
+      let capturedIsActive: boolean | null = null;
+
       const q = {
-        eq: vi.fn().mockImplementation(() => q), // self-referential chain
+        eq: vi.fn().mockImplementation((_field: string, _value: unknown) => {
+          if (_field === "groupId") {
+            capturedGroupId = _value as string;
+          }
+          if (_field === "isActive") {
+            capturedIsActive = _value as boolean;
+          }
+          return q;
+        }),
       };
       builder(q);
 
@@ -185,6 +192,32 @@ function createQueryCtx(
           unique: vi.fn().mockResolvedValue(groupMember),
         };
       }
+
+      const filteredDocs = docs.filter((doc) => {
+        if (capturedGroupId !== null && doc.groupId !== capturedGroupId) return false;
+        if (capturedIsActive !== null && doc.isActive !== capturedIsActive) return false;
+        return true;
+      });
+
+      const orderMock = vi.fn().mockImplementation((direction?: "asc" | "desc") => {
+        const orderedDocs = [...filteredDocs].sort((a, b) => a.sortOrder - b.sortOrder);
+        if (direction === "desc") {
+          orderedDocs.reverse();
+        }
+        return {
+          collect: vi.fn().mockResolvedValue(orderedDocs),
+          take: vi
+            .fn()
+            .mockImplementation(async (limit?: number) =>
+              typeof limit === "number" ? orderedDocs.slice(0, limit) : orderedDocs,
+            ),
+        };
+      });
+      const takeMock = vi
+        .fn()
+        .mockImplementation(async (limit?: number) =>
+          typeof limit === "number" ? filteredDocs.slice(0, limit) : filteredDocs,
+        );
 
       return { order: orderMock, take: takeMock };
     });
