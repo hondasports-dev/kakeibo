@@ -126,6 +126,27 @@ function createMockDb(state: {
       };
       builder(q);
 
+      const isSupportedIndex = () => {
+        if (tableName === "users") {
+          return indexName === "by_token_identifier" || indexName === "by_email";
+        }
+        if (tableName === "groupMembers") {
+          return (
+            indexName === "by_user_id" ||
+            indexName === "by_group_id" ||
+            indexName === "by_group_id_and_user_id"
+          );
+        }
+        if (tableName === "groupInvitations") {
+          return indexName === "by_token";
+        }
+        return false;
+      };
+
+      if (!isSupportedIndex()) {
+        throw new Error(`Unsupported mock index: ${tableName}.${indexName}`);
+      }
+
       const filterDocs = () => {
         const source =
           tableName === "groups"
@@ -155,14 +176,19 @@ function createMockDb(state: {
           if (indexName === "by_token" && "token" in doc) {
             return doc.token === filters.token;
           }
-          return true;
+          return false;
         });
       };
 
       const docs = filterDocs();
       return {
         collect: vi.fn(async () => docs),
-        unique: vi.fn(async () => docs[0] ?? null),
+        unique: vi.fn(async () => {
+          if (docs.length > 1) {
+            throw new Error(`Mock unique() received ${docs.length} documents`);
+          }
+          return docs[0] ?? null;
+        }),
         take: vi.fn(async (count?: number) =>
           typeof count === "number" ? docs.slice(0, count) : docs,
         ),

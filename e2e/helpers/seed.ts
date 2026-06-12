@@ -11,15 +11,13 @@ export async function seedAiExpenseDraftForExpenseEntriesByUser(userId: string):
 }> {
   const siteUrl = getRequiredEnv("VITE_CONVEX_SITE_URL");
   const secret = getRequiredEnv("E2E_CLEANUP_SECRET");
-  const email = process.env.E2E_CLERK_USER_EMAIL?.trim().replace(/^["']+|["']+$/g, "");
-
   const res = await fetch(`${siteUrl}/e2e/seed-ai-expense-draft`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-E2E-Cleanup-Secret": secret,
     },
-    body: JSON.stringify({ userId, email }),
+    body: JSON.stringify({ userId }),
   });
 
   if (!res.ok) {

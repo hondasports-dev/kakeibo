@@ -118,9 +118,10 @@ export async function cleanupUserMonthlyIncome(): Promise<void> {
  * テストユーザーのグループ所属を削除する。
  */
 export async function cleanupGroupMembershipsByUser(userId?: string): Promise<void> {
+  const resolvedUserId = userId ?? getCleanupUserId();
   await callCleanupEndpoint({
-    userId: userId ?? getCleanupUserId(),
-    email: getCleanupUserEmail(),
+    userId: resolvedUserId,
+    email: resolvedUserId ? undefined : getCleanupUserEmail(),
     clearGroupMemberships: true,
   });
 }
@@ -156,7 +157,7 @@ async function callCleanupEndpoint(body: {
     return;
   }
 
-  const requestBody = { email, ...body };
+  const requestBody = body.userId ? { ...body } : { email, ...body };
 
   const res = await fetchCleanupWithRetry(`${siteUrl}/e2e/cleanup`, secret, requestBody);
 

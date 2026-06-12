@@ -28,8 +28,9 @@ export function GroupInvitationAcceptPage() {
       })
       .catch((caughtError: unknown) => {
         hasAccepted.current = false;
+        console.error("[GroupInvitationAcceptPage] failed to accept invitation:", caughtError);
         setError(
-          caughtError instanceof Error ? caughtError.message : "招待を受け取れませんでした。",
+          "招待を処理できませんでした。招待リンクを確認し、時間を置いて再度お試しください。",
         );
       });
   }, [acceptInvitation, isAuthenticated, navigate, token]);
@@ -45,6 +46,8 @@ export function GroupInvitationAcceptPage() {
       </Box>
     );
   }
+
+  const encodedToken = encodeURIComponent(token);
 
   return (
     <Box className="auth-screen">
@@ -62,8 +65,8 @@ export function GroupInvitationAcceptPage() {
 
           {clerkTicket ? (
             <AuthenticateWithRedirectCallback
-              signInFallbackRedirectUrl={`/group/invitations/accept?token=${token}`}
-              signUpFallbackRedirectUrl={`/group/invitations/accept?token=${token}`}
+              signInFallbackRedirectUrl={`/group/invitations/accept?token=${encodedToken}`}
+              signUpFallbackRedirectUrl={`/group/invitations/accept?token=${encodedToken}`}
             />
           ) : null}
 

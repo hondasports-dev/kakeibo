@@ -727,10 +727,12 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
   const createdExpenseEntryIds: Id<"expenseEntries">[] = [];
 
   for (const draft of draftsToRegister) {
-    // aiExpenseDraftItemsを取得
+    // aiExpenseDraftItemsを現在のグループ境界内で取得する。
     const items = await ctx.db
       .query("aiExpenseDraftItems")
-      .withIndex("by_draft_id", (q) => q.eq("draftId", draft._id))
+      .withIndex("by_group_id_and_draft_id", (q) =>
+        q.eq("groupId", groupId).eq("draftId", draft._id),
+      )
       .order("asc")
       .take(100);
 

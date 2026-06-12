@@ -446,4 +446,40 @@ describe("createExpenseEntriesFromDraftHandler", () => {
       }),
     ).rejects.toThrow(ConvexError);
   });
+
+  it("ready 以外の下書きからは expenseEntries を作成できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": {
+          ...readyDraft,
+          status: "needs_review",
+        },
+      },
+    });
+
+    await expect(
+      createExpenseEntriesFromDraftHandler(ctx, {
+        draftId: draftReadyId,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
+      }),
+    ).rejects.toThrow("Only ready drafts can create expense entries");
+  });
+
+  it("日付が未確定の下書きからは expenseEntries を作成できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-ready": {
+          ...readyDraft,
+          date: undefined,
+        },
+      },
+    });
+
+    await expect(
+      createExpenseEntriesFromDraftHandler(ctx, {
+        draftId: draftReadyId,
+        items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
+      }),
+    ).rejects.toThrow("Draft date is required");
+  });
 });

@@ -70,14 +70,15 @@ async function ensureE2eGroup(page: Page) {
   const setupHeading = page.getByRole("heading", { name: "家族グループを作成" });
   const dashboardHeading = page.getByRole("heading", { name: "今週のダッシュボード" });
 
-  try {
-    await dashboardHeading.waitFor({ state: "visible", timeout: 5_000 });
+  const destination = await Promise.any([
+    dashboardHeading.waitFor({ state: "visible", timeout: 20_000 }).then(() => "dashboard"),
+    setupHeading.waitFor({ state: "visible", timeout: 20_000 }).then(() => "setup"),
+  ]);
+
+  if (destination === "dashboard") {
     return;
-  } catch {
-    // 未所属ユーザーは /group/setup に誘導されるため、続けてセットアップ画面を確認する。
   }
 
-  await setupHeading.waitFor({ state: "visible", timeout: 15_000 });
   await page.getByRole("textbox", { name: "グループ名" }).fill("E2E家計グループ");
   await page.getByRole("button", { name: "グループを作成" }).click();
   await dashboardHeading.waitFor({ state: "visible", timeout: 15_000 });
