@@ -22,6 +22,7 @@ type InviteMemberResult = {
 };
 
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
+const KAKEIBO_PRODUCTION_HOSTNAME = "kakeibo.vercel.app";
 
 function normalizeEmail(email: string) {
   const normalized = email.trim().toLowerCase();
@@ -31,7 +32,7 @@ function normalizeEmail(email: string) {
   return normalized;
 }
 
-function getConfiguredRedirectOrigins() {
+export function getConfiguredRedirectOrigins() {
   const raw = process.env.INVITATION_REDIRECT_ORIGINS ?? "";
   return raw
     .split(",")
@@ -46,7 +47,7 @@ function getConfiguredRedirectOrigins() {
     });
 }
 
-function isAllowedRedirectOrigin(url: URL) {
+export function isAllowedRedirectOrigin(url: URL) {
   const configuredOrigins = getConfiguredRedirectOrigins();
   if (configuredOrigins.includes(url.origin)) {
     return true;
@@ -57,10 +58,14 @@ function isAllowedRedirectOrigin(url: URL) {
     return true;
   }
 
-  return /^kakeibo(?:-[a-z0-9-]+)?-hondasports-projects\.vercel\.app$/i.test(url.hostname);
+  if (url.hostname === KAKEIBO_PRODUCTION_HOSTNAME) {
+    return true;
+  }
+
+  return /^kakeibo-[a-z0-9-]+\.vercel\.app$/i.test(url.hostname);
 }
 
-function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string) {
+export function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string) {
   let url: URL;
   try {
     url = new URL(rawRedirectUrl);
