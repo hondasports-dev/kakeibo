@@ -87,6 +87,23 @@ export function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string
   return url.toString();
 }
 
+export function buildClerkInvitationParams(
+  emailAddress: string,
+  redirectUrl: string,
+  groupId: Id<"groups">,
+  token: string,
+) {
+  return {
+    emailAddress,
+    redirectUrl,
+    ignoreExisting: true,
+    publicMetadata: {
+      groupId,
+      token,
+    },
+  };
+}
+
 function getClerkClient() {
   const secretKey = process.env.CLERK_SECRET_KEY;
   if (!secretKey) {
@@ -118,14 +135,9 @@ export const inviteMember = action({
     const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
     const clerk = getClerkClient();
 
-    const invitation = await clerk.invitations.createInvitation({
-      emailAddress: email,
-      redirectUrl,
-      publicMetadata: {
-        groupId: group._id,
-        token,
-      },
-    });
+    const invitation = await clerk.invitations.createInvitation(
+      buildClerkInvitationParams(email, redirectUrl, group._id, token),
+    );
 
     await ctx.runMutation(internal.groups.createGroupInvitationRecord, {
       groupId: group._id,
