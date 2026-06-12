@@ -9,6 +9,7 @@ const {
   signUpFinalizeMock,
   signUpTicketMock,
   useAuthMock,
+  useClerkMock,
   useConvexAuthMock,
   useNavigateMock,
   useSearchParamsMock,
@@ -18,6 +19,7 @@ const {
   signUpFinalizeMock: vi.fn(),
   signUpTicketMock: vi.fn(),
   useAuthMock: vi.fn(),
+  useClerkMock: vi.fn(),
   useConvexAuthMock: vi.fn(),
   useNavigateMock: vi.fn(),
   useSearchParamsMock: vi.fn(),
@@ -26,6 +28,7 @@ const {
 
 vi.mock("@clerk/react", () => ({
   useAuth: useAuthMock,
+  useClerk: useClerkMock,
   useSignUp: useSignUpMock,
 }));
 
@@ -59,6 +62,7 @@ describe("GroupInvitationAcceptPage", () => {
     signUpFinalizeMock.mockReset();
     signUpTicketMock.mockReset();
     useAuthMock.mockReset();
+    useClerkMock.mockReset();
     useConvexAuthMock.mockReset();
     useNavigateMock.mockReset();
     useSearchParamsMock.mockReset();
@@ -67,6 +71,7 @@ describe("GroupInvitationAcceptPage", () => {
     signUpFinalizeMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
     useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useClerkMock.mockReturnValue({ signOut: vi.fn().mockResolvedValue(undefined) });
     useConvexAuthMock.mockReturnValue({ isAuthenticated: false });
     useNavigateMock.mockReturnValue(vi.fn());
     useSearchParamsMock.mockImplementation(() => [
@@ -93,6 +98,8 @@ describe("GroupInvitationAcceptPage", () => {
     const navigateMock = vi.fn();
     useNavigateMock.mockReturnValue(navigateMock);
     useConvexAuthMock.mockReturnValue({ isAuthenticated: true });
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    useSearchParamsMock.mockImplementation(() => [new URLSearchParams("token=invite-token")]);
 
     renderPage();
 
@@ -121,5 +128,27 @@ describe("GroupInvitationAcceptPage", () => {
     });
 
     locationSpy.mockRestore();
+  });
+
+  it("Clerk ticket 付きURLで既存セッションがあれば現在のセッションを抜けてから処理する", async () => {
+    const signOutMock = vi.fn().mockResolvedValue(undefined);
+    const invitationPath =
+      "/group/invitations/accept?token=invite-token&__clerk_ticket=ticket-001&__clerk_status=sign_up";
+    window.history.pushState({}, "", invitationPath);
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true });
+    useClerkMock.mockReturnValue({ signOut: signOutMock });
+    useConvexAuthMock.mockReturnValue({ isAuthenticated: true });
+
+    renderPage(
+      "/group/invitations/accept?token=invite-token&__clerk_ticket=ticket-001&__clerk_status=sign_up",
+    );
+
+    await waitFor(() => {
+      expect(signOutMock).toHaveBeenCalledWith({
+        redirectUrl: invitationPath,
+      });
+    });
+    expect(signUpTicketMock).not.toHaveBeenCalled();
+    expect(acceptGroupInvitationMock).not.toHaveBeenCalled();
   });
 });

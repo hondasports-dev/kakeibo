@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth, useSignUp } from "@clerk/react";
+import { useAuth, useClerk, useSignUp } from "@clerk/react";
 import { useConvexAuth, useMutation } from "convex/react";
 import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../convex/_generated/api";
@@ -9,6 +9,7 @@ export function GroupInvitationAcceptPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isLoaded: isClerkLoaded, isSignedIn } = useAuth();
+  const { signOut } = useClerk();
   const { signUp } = useSignUp();
   const { isAuthenticated } = useConvexAuth();
   const acceptInvitation = useMutation(api.groups.acceptGroupInvitation);
@@ -18,6 +19,30 @@ export function GroupInvitationAcceptPage() {
 
   const token = searchParams.get("token");
   const clerkTicket = searchParams.get("__clerk_ticket");
+
+  useEffect(() => {
+    if (
+      !isClerkLoaded ||
+      !isSignedIn ||
+      !token ||
+      !clerkTicket ||
+      hasStartedClerkInvitation.current
+    ) {
+      return;
+    }
+
+    hasStartedClerkInvitation.current = true;
+    signOut({ redirectUrl: `${window.location.pathname}${window.location.search}` }).catch(
+      (caughtError: unknown) => {
+        hasStartedClerkInvitation.current = false;
+        console.error(
+          "[GroupInvitationAcceptPage] failed to sign out current session:",
+          caughtError,
+        );
+        setError("招待リンクの認証を開始できませんでした。リンクを開き直して再度お試しください。");
+      },
+    );
+  }, [clerkTicket, isClerkLoaded, isSignedIn, signOut, token]);
 
   useEffect(() => {
     if (
@@ -64,7 +89,7 @@ export function GroupInvitationAcceptPage() {
   }, [clerkTicket, isClerkLoaded, isSignedIn, signUp, token]);
 
   useEffect(() => {
-    if (!isAuthenticated || hasAccepted.current || !token) {
+    if (!isAuthenticated || hasAccepted.current || !token || clerkTicket) {
       return;
     }
 
@@ -80,7 +105,7 @@ export function GroupInvitationAcceptPage() {
           "招待を処理できませんでした。招待リンクを確認し、時間を置いて再度お試しください。",
         );
       });
-  }, [acceptInvitation, isAuthenticated, navigate, token]);
+  }, [acceptInvitation, clerkTicket, isAuthenticated, navigate, token]);
 
   if (!token) {
     return (
