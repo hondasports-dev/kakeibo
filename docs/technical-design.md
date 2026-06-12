@@ -156,7 +156,7 @@ MVP時点の共有単位は家族グループとする。1ユーザーは複数�
 mode と invitation を入口制限として採用する。
 
 - Clerk DashboardでRestricted modeを有効化する
-- 家族グループのオーナーは設定画面からClerk organization invitationを経由してメンバーを招待する
+- 家族グループのオーナーは設定画面からClerk invitationを経由してメンバーを招待する
 - 招待リンクにはアプリ側の招待トークンを含め、受け入れ時に `groupMembers` へ追加する
 - 誰でもGoogleログインまたはサインアップできる状態にはしない
 - invitation対象メールはアプリコード、Git管理ファイル、環境変数に持たせない
@@ -171,7 +171,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 
 ### 6.3 グループ運用手順
 
-グループ所属の正本は `groupMembers` テーブルとする。Clerk organization invitation は
+グループ所属の正本は `groupMembers` テーブルとする。Clerk invitation は
 招待メール送信とサインアップ/サインイン導線に使い、誰がどのグループに所属するかは
 アプリ側の `groupMembers` で管理する。
 
