@@ -1,8 +1,18 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { FormEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth, useClerk, useSignUp } from "@clerk/react";
 import { useConvexAuth, useMutation } from "convex/react";
-import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { api } from "../../convex/_generated/api";
 
 export function GroupInvitationAcceptPage() {
@@ -14,11 +24,34 @@ export function GroupInvitationAcceptPage() {
   const { isAuthenticated } = useConvexAuth();
   const acceptInvitation = useMutation(api.groups.acceptGroupInvitation);
   const [error, setError] = useState("");
+  const [needsProfileDetails, setNeedsProfileDetails] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [isCompletingInvitation, setIsCompletingInvitation] = useState(false);
   const hasStartedClerkInvitation = useRef(false);
   const hasAccepted = useRef(false);
 
   const token = searchParams.get("token");
   const clerkTicket = searchParams.get("__clerk_ticket");
+  const fallbackUrl = token
+    ? `/group/invitations/accept?token=${encodeURIComponent(token)}`
+    : "/group/invitations/accept";
+
+  const finalizeInvitation = useCallback(async () => {
+    if (!signUp || signUp.status !== "complete") {
+      return false;
+    }
+
+    const { error: finalizeError } = await signUp.finalize({
+      navigate: ({ decorateUrl }) => {
+        window.location.href = decorateUrl(fallbackUrl);
+      },
+    });
+    if (finalizeError) {
+      throw finalizeError;
+    }
+    return true;
+  }, [fallbackUrl, signUp]);
 
   useEffect(() => {
     if (
@@ -57,7 +90,7 @@ export function GroupInvitationAcceptPage() {
     }
 
     hasStartedClerkInvitation.current = true;
-    const fallbackUrl = `/group/invitations/accept?token=${encodeURIComponent(token)}`;
+    setIsCompletingInvitation(true);
 
     signUp
       .ticket({ ticket: clerkTicket })
@@ -66,13 +99,9 @@ export function GroupInvitationAcceptPage() {
           throw signUpError;
         }
 
-        const { error: finalizeError } = await signUp.finalize({
-          navigate: ({ decorateUrl }) => {
-            window.location.href = decorateUrl(fallbackUrl);
-          },
-        });
-        if (finalizeError) {
-          throw finalizeError;
+        const finalized = await finalizeInvitation();
+        if (!finalized) {
+          setNeedsProfileDetails(true);
         }
       })
       .catch((caughtError: unknown) => {
@@ -82,8 +111,43 @@ export function GroupInvitationAcceptPage() {
           caughtError,
         );
         setError("招待リンクの認証を完了できませんでした。リンクを開き直して再度お試しください。");
+      })
+      .finally(() => {
+        setIsCompletingInvitation(false);
       });
-  }, [clerkTicket, isClerkLoaded, isSignedIn, signUp, token]);
+  }, [clerkTicket, finalizeInvitation, isClerkLoaded, isSignedIn, signUp, token]);
+
+  const handleProfileDetailsSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!signUp) {
+      return;
+    }
+
+    setError("");
+    setIsCompletingInvitation(true);
+    try {
+      const { error: updateError } = await signUp.update({
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+      });
+      if (updateError) {
+        throw updateError;
+      }
+
+      const finalized = await finalizeInvitation();
+      if (!finalized) {
+        setError("招待の認証に必要な情報を完了できませんでした。入力内容を確認してください。");
+      }
+    } catch (caughtError: unknown) {
+      console.error(
+        "[GroupInvitationAcceptPage] failed to complete invitation profile:",
+        caughtError,
+      );
+      setError("招待の認証に必要な情報を保存できませんでした。入力内容を確認してください。");
+    } finally {
+      setIsCompletingInvitation(false);
+    }
+  };
 
   useEffect(() => {
     if (!isAuthenticated || hasAccepted.current || !token || clerkTicket) {
@@ -120,16 +184,51 @@ export function GroupInvitationAcceptPage() {
     <Box className="auth-screen">
       <Paper className="auth-panel paper-panel" elevation={0}>
         <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-          <CircularProgress aria-label="招待を処理中" />
+          {isCompletingInvitation ? <CircularProgress aria-label="招待を処理中" /> : null}
           <Box>
             <Typography component="h1" variant="h5">
-              グループ招待を処理中
+              {needsProfileDetails ? "招待を完了する" : "グループ招待を処理中"}
             </Typography>
             <Typography color="text.secondary" variant="body2">
-              招待を受け取り次第、家計簿画面へ進みます。
+              {needsProfileDetails
+                ? "招待を受け入れるため、名前を入力してください。"
+                : "招待を受け取り次第、家計簿画面へ進みます。"}
             </Typography>
           </Box>
           <Box id="clerk-captcha" sx={{ minHeight: 1 }} />
+
+          {needsProfileDetails ? (
+            <Box component="form" onSubmit={handleProfileDetailsSubmit} sx={{ width: "100%" }}>
+              <Stack spacing={2}>
+                <TextField
+                  autoComplete="given-name"
+                  disabled={isCompletingInvitation}
+                  fullWidth
+                  label="名"
+                  onChange={(event) => setFirstName(event.target.value)}
+                  required
+                  value={firstName}
+                />
+                <TextField
+                  autoComplete="family-name"
+                  disabled={isCompletingInvitation}
+                  fullWidth
+                  label="姓"
+                  onChange={(event) => setLastName(event.target.value)}
+                  required
+                  value={lastName}
+                />
+                <Button
+                  disabled={isCompletingInvitation}
+                  size="large"
+                  type="submit"
+                  variant="contained"
+                >
+                  招待を完了する
+                </Button>
+              </Stack>
+            </Box>
+          ) : null}
 
           {error ? (
             <Alert severity="error" variant="outlined" sx={{ width: "100%" }}>

@@ -1,5 +1,5 @@
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { GroupInvitationAcceptPage } from "./GroupInvitationAcceptPage";
@@ -8,6 +8,7 @@ const {
   acceptGroupInvitationMock,
   signUpFinalizeMock,
   signUpTicketMock,
+  signUpUpdateMock,
   useAuthMock,
   useClerkMock,
   useConvexAuthMock,
@@ -18,6 +19,7 @@ const {
   acceptGroupInvitationMock: vi.fn(),
   signUpFinalizeMock: vi.fn(),
   signUpTicketMock: vi.fn(),
+  signUpUpdateMock: vi.fn(),
   useAuthMock: vi.fn(),
   useClerkMock: vi.fn(),
   useConvexAuthMock: vi.fn(),
@@ -61,6 +63,7 @@ describe("GroupInvitationAcceptPage", () => {
     acceptGroupInvitationMock.mockReset();
     signUpFinalizeMock.mockReset();
     signUpTicketMock.mockReset();
+    signUpUpdateMock.mockReset();
     useAuthMock.mockReset();
     useClerkMock.mockReset();
     useConvexAuthMock.mockReset();
@@ -70,6 +73,7 @@ describe("GroupInvitationAcceptPage", () => {
     acceptGroupInvitationMock.mockResolvedValue("group-001");
     signUpFinalizeMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
+    signUpUpdateMock.mockResolvedValue({ error: null });
     useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
     useClerkMock.mockReturnValue({ signOut: vi.fn().mockResolvedValue(undefined) });
     useConvexAuthMock.mockReturnValue({ isAuthenticated: false });
@@ -80,7 +84,9 @@ describe("GroupInvitationAcceptPage", () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
+        status: "complete",
         ticket: signUpTicketMock,
+        update: signUpUpdateMock,
       },
     });
   });
@@ -131,12 +137,13 @@ describe("GroupInvitationAcceptPage", () => {
     locationSpy.mockRestore();
   });
 
-  it("Clerk ticket 処理後は同期的な status を見ずに finalize へ進む", async () => {
+  it("Clerk ticket 処理後に追加情報が必要なら名前入力を表示する", async () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
         status: "missing_requirements",
         ticket: signUpTicketMock,
+        update: signUpUpdateMock,
       },
     });
 
@@ -144,6 +151,40 @@ describe("GroupInvitationAcceptPage", () => {
 
     await waitFor(() => {
       expect(signUpTicketMock).toHaveBeenCalledWith({ ticket: "ticket-001" });
+      expect(signUpFinalizeMock).not.toHaveBeenCalled();
+      expect(screen.getByRole("heading", { name: "招待を完了する" })).toBeInTheDocument();
+    });
+  });
+
+  it("名前入力後にサインアップを更新して finalize する", async () => {
+    const signUpResource = {
+      finalize: signUpFinalizeMock,
+      status: "missing_requirements",
+      ticket: signUpTicketMock,
+      update: signUpUpdateMock,
+    };
+    signUpUpdateMock.mockImplementation(async () => {
+      signUpResource.status = "complete";
+      return { error: null };
+    });
+    useSignUpMock.mockReturnValue({ signUp: signUpResource });
+
+    renderPage();
+
+    await screen.findByRole("heading", { name: "招待を完了する" });
+    fireEvent.change(screen.getByRole("textbox", { name: /名/ }), {
+      target: { value: "Taro" },
+    });
+    fireEvent.change(screen.getByRole("textbox", { name: /姓/ }), {
+      target: { value: "Yamada" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "招待を完了する" }));
+
+    await waitFor(() => {
+      expect(signUpUpdateMock).toHaveBeenCalledWith({
+        firstName: "Taro",
+        lastName: "Yamada",
+      });
       expect(signUpFinalizeMock).toHaveBeenCalled();
     });
   });
