@@ -13,6 +13,7 @@ import type * as aiExpenseDraftsModel from "../aiExpenseDraftsModel.js";
 import type * as categories from "../categories.js";
 import type * as categoryCandidate from "../categoryCandidate.js";
 import type * as expenseEntries from "../expenseEntries.js";
+import type * as groupInvitations from "../groupInvitations.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
 import type * as receiptAnalysisJobs from "../receiptAnalysisJobs.js";
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   categories: typeof categories;
   categoryCandidate: typeof categoryCandidate;
   expenseEntries: typeof expenseEntries;
+  groupInvitations: typeof groupInvitations;
   groups: typeof groups;
   http: typeof http;
   receiptAnalysisJobs: typeof receiptAnalysisJobs;

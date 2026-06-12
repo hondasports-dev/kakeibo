@@ -46,7 +46,6 @@ function AuthenticatedApp() {
   const { isLoaded, isSignedIn } = useAuth();
   const { isLoading: isConvexAuthLoading, isAuthenticated: isConvexAuthenticated } =
     useConvexAuth();
-
   useInitializeUser();
 
   if (!isLoaded) {

@@ -139,35 +139,26 @@ async function callCleanupEndpoint(body: {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
   const userId = body.userId;
+  const email = body.email ?? getCleanupUserEmail();
 
-  if (!siteUrl || !secret || !userId) {
+  if (!siteUrl || !secret || (!userId && !email)) {
     if (process.env.CI) {
       throw new Error(
         "E2E クリーンアップに必要な環境変数が未設定です。" +
-          "VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET, E2E_CLERK_USER_ID を設定してください。",
+          "VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET, E2E_CLERK_USER_ID または E2E_CLERK_USER_EMAIL を設定してください。",
       );
     }
     // ローカルでは警告のみ（未設定でもテストは続行できる）
     console.warn(
-      "[cleanup] VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_ID が未設定のため" +
+      "[cleanup] VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_ID または E2E_CLERK_USER_EMAIL が未設定のため" +
         "クリーンアップをスキップします。",
     );
     return;
   }
 
-  const res = await fetch(`${siteUrl}/e2e/cleanup`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-E2E-Cleanup-Secret": secret,
-    },
-    body: JSON.stringify(body),
-  });
+  const requestBody = { email, ...body };
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`E2E クリーンアップに失敗しました: ${res.status} ${text}`);
-  }
+  const res = await fetchCleanupWithRetry(`${siteUrl}/e2e/cleanup`, secret, requestBody);
 
   const data = (await res.json()) as {
     receipts?: { deletedCount: number } | null;
@@ -215,4 +206,48 @@ async function callCleanupEndpoint(body: {
       `[cleanup] ${data.expenseEntries.deletedCount} 件の E2E expenseEntries を削除しました。`,
     );
   }
+}
+
+async function fetchCleanupWithRetry(
+  url: string,
+  secret: string,
+  body: Record<string, unknown>,
+): Promise<Response> {
+  const retryableStatuses = new Set([500, 502, 503, 504]);
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-E2E-Cleanup-Secret": secret,
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt === 3) {
+        throw lastError;
+      }
+      await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+      continue;
+    }
+
+    if (res.ok) {
+      return res;
+    }
+
+    const text = await res.text();
+    lastError = new Error(`E2E クリーンアップに失敗しました: ${res.status} ${text}`);
+    if (!retryableStatuses.has(res.status) || attempt === 3) {
+      throw lastError;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
+  }
+
+  throw lastError ?? new Error("E2E クリーンアップに失敗しました");
 }

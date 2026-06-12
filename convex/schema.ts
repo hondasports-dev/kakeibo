@@ -16,6 +16,7 @@ export default defineSchema({
     userId: v.string(),
     displayName: v.string(),
     email: v.optional(v.string()),
+    activeGroupId: v.optional(v.id("groups")),
     // monthlyIncome は月収入（円）。未設定の場合は optional で保持しない。
     monthlyIncome: v.optional(v.number()),
     // 週の開始曜日（0=日曜, 1=月曜, ..., 6=土曜）。未設定の場合は月曜(1)をデフォルトとする。
@@ -39,6 +40,7 @@ export default defineSchema({
 
   groups: defineTable({
     name: v.string(),
+    clerkOrganizationId: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }),
@@ -54,6 +56,27 @@ export default defineSchema({
     .index("by_user_id", ["userId"])
     .index("by_group_id", ["groupId"])
     .index("by_group_id_and_user_id", ["groupId", "userId"]),
+
+  groupInvitations: defineTable({
+    groupId: v.id("groups"),
+    email: v.string(),
+    token: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("accepted"),
+      v.literal("revoked"),
+      v.literal("expired"),
+    ),
+    invitedByUserId: v.string(),
+    clerkInvitationId: v.optional(v.string()),
+    acceptedByUserId: v.optional(v.string()),
+    acceptedAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_token", ["token"])
+    .index("by_group_id_and_email", ["groupId", "email"])
+    .index("by_group_id_and_status", ["groupId", "status"]),
 
   // ---------------------------------------------------------------------------
   // データテーブル（userId → groupId に変更済み）

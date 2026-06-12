@@ -1,13 +1,19 @@
-import { useAuth } from "@clerk/react";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 
 export function useGroupMembership() {
-  const { isLoaded, isSignedIn } = useAuth();
-  const group = useQuery(api.groups.getMyGroup, isLoaded && isSignedIn ? {} : "skip");
+  const { isAuthenticated } = useConvexAuth();
+  const group = useQuery(api.groups.getMyGroup, isAuthenticated ? {} : "skip");
+  const groups = useQuery(api.groups.listMyGroups, isAuthenticated ? {} : "skip");
+
+  const hasGroups = Array.isArray(groups) && groups.length > 0;
+  const needsSelection = Array.isArray(groups) && groups.length > 1 && group === null;
 
   return {
     group,
-    isLoading: isLoaded && isSignedIn && group === undefined,
+    groups,
+    hasGroups,
+    needsSelection,
+    isLoading: isAuthenticated && (group === undefined || groups === undefined),
   };
 }

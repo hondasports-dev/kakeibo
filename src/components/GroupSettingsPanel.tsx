@@ -1,5 +1,5 @@
-import { type FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { type FormEvent, useEffect, useState } from "react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Alert,
   Box,
@@ -15,7 +15,9 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import MenuItem from "@mui/material/MenuItem";
 import DeleteIcon from "@mui/icons-material/Delete";
+import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { api } from "../../convex/_generated/api";
 
@@ -40,16 +42,27 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function GroupSettingsPanel() {
   const group = useQuery(api.groups.getMyGroup) as GroupInfo | null | undefined;
+  const groups = useQuery(api.groups.listMyGroups) as
+    | { _id: string; name: string; role: "owner" | "member"; isActive: boolean }[]
+    | undefined;
   const members = useQuery(api.groups.getGroupMembers) as GroupMember[] | undefined;
-  const addMemberByEmail = useMutation(api.groups.addMemberByEmail);
+  const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
+  const inviteMember = useAction(api.groupInvitations.inviteMember);
 
+  const [activeGroupId, setActiveGroupId] = useState("");
   const [email, setEmail] = useState("");
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
 
-  if (group === undefined || members === undefined) {
+  useEffect(() => {
+    if (group) {
+      setActiveGroupId(group._id);
+    }
+  }, [group]);
+
+  if (group === undefined || members === undefined || groups === undefined) {
     return (
       <Paper className="paper-panel" elevation={0}>
         <Box sx={{ p: 2.5 }}>
@@ -77,8 +90,9 @@ export function GroupSettingsPanel() {
   }
 
   const isOwner = group.role === "owner";
+  const canSwitchGroups = groups.length > 1;
 
-  const handleAddMember = async (event: FormEvent) => {
+  const handleInviteMember = async (event: FormEvent) => {
     event.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
@@ -89,11 +103,30 @@ export function GroupSettingsPanel() {
     setSavingTarget("add");
     setError("");
     try {
-      await addMemberByEmail({ email: normalizedEmail });
+      await inviteMember({
+        email: normalizedEmail,
+        redirectUrl: `${window.location.origin}/group/invitations/accept`,
+      });
       setEmail("");
-      setSnackbar("メンバーを追加しました");
+      setSnackbar("招待メールを送信しました");
     } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "メンバーを追加できませんでした。"));
+      setError(getErrorMessage(caughtError, "招待メールを送信できませんでした。"));
+    } finally {
+      setSavingTarget(null);
+    }
+  };
+
+  const handleSwitchGroup = async () => {
+    if (!activeGroupId) {
+      return;
+    }
+    setSavingTarget("switch");
+    setError("");
+    try {
+      await setActiveGroup({ groupId: activeGroupId as never });
+      setSnackbar("表示中のグループを切り替えました");
+    } catch (caughtError) {
+      setError(getErrorMessage(caughtError, "グループを切り替えられませんでした。"));
     } finally {
       setSavingTarget(null);
     }
@@ -133,18 +166,47 @@ export function GroupSettingsPanel() {
             <Chip label={`${members.length}人`} variant="outlined" />
           </Stack>
 
+          {canSwitchGroups ? (
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <TextField
+                select
+                fullWidth
+                label="現在のグループ"
+                onChange={(event) => setActiveGroupId(event.target.value)}
+                value={activeGroupId}
+              >
+                {groups.map((item) => (
+                  <MenuItem key={item._id} value={item._id}>
+                    {item.name}
+                    {item.isActive ? "（現在）" : ""}
+                  </MenuItem>
+                ))}
+              </TextField>
+              <Button
+                disabled={savingTarget !== null || activeGroupId === group._id}
+                onClick={handleSwitchGroup}
+                startIcon={
+                  savingTarget === "switch" ? <CircularProgress size={16} /> : <GroupSwitchIcon />
+                }
+                variant="outlined"
+              >
+                切り替え
+              </Button>
+            </Stack>
+          ) : null}
+
           {error ? (
             <Alert severity="error" variant="outlined">
               {error}
             </Alert>
           ) : null}
 
-          <Box component="form" onSubmit={handleAddMember}>
+          <Box component="form" onSubmit={handleInviteMember}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField
                 disabled={!isOwner || savingTarget !== null}
                 fullWidth
-                label="Clerk招待済みメンバーのメールアドレス"
+                label="招待するメールアドレス"
                 name="memberEmail"
                 onChange={(event) => setEmail(event.target.value)}
                 type="email"
@@ -158,14 +220,14 @@ export function GroupSettingsPanel() {
                 type="submit"
                 variant="contained"
               >
-                追加
+                招待を送る
               </Button>
             </Stack>
           </Box>
 
           {!isOwner ? (
             <Alert severity="info" variant="outlined">
-              メンバーの追加と削除はオーナーのみ操作できます。
+              招待と削除はオーナーのみ操作できます。
             </Alert>
           ) : null}
 

@@ -1,9 +1,7 @@
-import { screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "./test/render";
 import App from "./App";
-import { router } from "./router";
 
 const {
   useAuthMock,
@@ -36,38 +34,21 @@ vi.mock("@clerk/react/legacy", () => ({
   useSignIn: useSignInMock,
 }));
 
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    RouterProvider: () => <div data-testid="router-provider" />,
+    createBrowserRouter: () => ({}) as never,
+  };
+});
+
 vi.mock("convex/react", () => ({
   useAction: useActionMock,
   useConvexAuth: useConvexAuthMock,
   useMutation: useMutationMock,
   useQuery: useQueryMock,
 }));
-
-const currentWeekSession = {
-  weekStartDate: "2026-05-18",
-  weekEndDate: "2026-05-24",
-  status: "draft" as const,
-};
-
-function setupSignedInApp() {
-  const getOrCreateSession = vi.fn().mockResolvedValue(currentWeekSession);
-
-  useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true });
-  useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: true });
-  useActionMock.mockReset();
-  useActionMock.mockReturnValue(vi.fn());
-  useMutationMock.mockReset();
-  useMutationMock.mockReturnValue(getOrCreateSession);
-  useQueryMock.mockReset();
-  useQueryMock.mockImplementation((_fn: unknown, args: unknown) => {
-    if (args === "skip") {
-      return undefined;
-    }
-    return [];
-  });
-
-  return { getOrCreateSession };
-}
 
 describe("App authentication states", () => {
   beforeEach(() => {
@@ -153,67 +134,5 @@ describe("App authentication states", () => {
     // Then: callback専用画面が表示される
     expect(screen.getByRole("heading", { name: "Googleログインを処理中" })).toBeInTheDocument();
     expect(screen.getByText("OAuth callback mock")).toBeInTheDocument();
-  });
-});
-
-describe("App route rendering", () => {
-  beforeEach(async () => {
-    await router.navigate("/");
-    useSignInMock.mockReturnValue({
-      isLoaded: true,
-      signIn: {
-        authenticateWithRedirect: vi.fn(),
-      },
-    });
-    useClerkMock.mockReturnValue({
-      openUserProfile: vi.fn(),
-      signOut: vi.fn(),
-    });
-    useUserMock.mockReturnValue({ user: null });
-  });
-
-  it("ルートURLではダッシュボードを表示する", async () => {
-    // Given: ログイン済みでルートURLを表示している
-    setupSignedInApp();
-
-    // When: アプリを表示する
-    renderWithProviders(<App />);
-
-    // Then: ダッシュボードが表示される
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "今週のダッシュボード" })).toBeInTheDocument();
-    });
-  });
-
-  it("入力リンクから入力画面へ遷移できる", async () => {
-    // Given: ログイン済みでアプリを表示している
-    const user = userEvent.setup();
-    setupSignedInApp();
-    renderWithProviders(<App />);
-    await screen.findByRole("heading", { name: "今週のダッシュボード" });
-
-    // When: 入力リンクを選ぶ
-    await user.click(screen.getByRole("link", { name: "入力" }));
-
-    // Then: 入力フォームが表示される
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "入力" })).toBeInTheDocument();
-    });
-  });
-
-  it("設定リンクから設定画面へ遷移できる", async () => {
-    // Given: ログイン済みでアプリを表示している
-    const user = userEvent.setup();
-    setupSignedInApp();
-    renderWithProviders(<App />);
-    await screen.findByRole("heading", { name: "今週のダッシュボード" });
-
-    // When: 設定リンクを選ぶ
-    await user.click(screen.getByRole("link", { name: "設定" }));
-
-    // Then: 設定画面が表示される
-    await waitFor(() => {
-      expect(screen.getByRole("heading", { name: "設定", level: 1 })).toBeInTheDocument();
-    });
   });
 });

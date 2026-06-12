@@ -20,6 +20,7 @@
     "convex:dev": "convex dev"
   },
   "dependencies": {
+    "@clerk/backend": "^3.6.1",
     "@clerk/react": "^6.7.1",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
