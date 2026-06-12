@@ -16,7 +16,7 @@
 | 変数名                       | 用途                           | Local | Production | Secret扱い | 設定場所                            |
 | ---------------------------- | ------------------------------ | ----- | ---------- | ---------- | ----------------------------------- |
 | `VITE_CLERK_PUBLISHABLE_KEY` | フロントエンド用公開鍵         | ✅    | ✅         | ❌         | .env.local / Vercel Env             |
-| `CLERK_SECRET_KEY`           | サーバー用秘密鍵               | ✅    | ✅         | ✅         | .env.local / Vercel Secrets         |
+| `CLERK_SECRET_KEY`           | サーバー用秘密鍵。Convex Action から Clerk Backend API を呼ぶためにも使う | ✅ | ✅ | ✅ | .env.local / Vercel Secrets / Convex Dashboard |
 | `CLERK_JWT_ISSUER_DOMAIN`    | Convex認証用JWT issuerドメイン | ✅    | ✅         | ❌         | Convex Dashboard (CLI) / Vercel Env |
 | `E2E_CLERK_USER_EMAIL`       | E2Eテスト用メール              | ✅    | ❌         | ✅         | .env.local のみ                     |
 | `E2E_CLERK_USER_PASSWORD`    | E2Eテスト用パスワード          | ✅    | ❌         | ✅         | .env.local のみ                     |
@@ -69,11 +69,13 @@ CONVEX_DEPLOYMENT=dev:your-deployment
 VITE_CONVEX_URL=https://your-deployment.convex.cloud
 ```
 
-`CLERK_JWT_ISSUER_DOMAIN` はフロントエンドでは使わないため `.env.local` には不要だが、
-Convex バックエンド（dev deployment）には CLI で別途設定が必要：
+`CLERK_JWT_ISSUER_DOMAIN` と `CLERK_SECRET_KEY` は Convex バックエンド（dev deployment）にも CLI で別途設定が必要。
+特にグループ招待メール送信は Convex Action から Clerk Backend API を呼ぶため、
+`CLERK_SECRET_KEY` が Convex 側に未設定だと `groupInvitations:inviteMember` が失敗する。
 
 ```bash
-npx convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
+pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
+pnpm exec convex env set CLERK_SECRET_KEY sk_test_...
 ```
 
 ### Vercel Production環境
@@ -93,6 +95,7 @@ Vercel DashboardのEnvironment Variablesに設定する。
 **Convex Dashboardに設定**:
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Convex側の認証設定 (`npx convex env set CLERK_JWT_ISSUER_DOMAIN <value>`)
+- `CLERK_SECRET_KEY` — Convex Action から Clerk Backend API を呼ぶための秘密鍵 (`pnpm exec convex env set CLERK_SECRET_KEY <value>`)
 
 ### Clerk instanceの使い分け
 
@@ -163,6 +166,7 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 Convex Dashboard (Deployment Settings > Environment Variables) に以下を設定：
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Clerk Frontend API URL (`https://xxxx.clerk.accounts.dev`)
+- `CLERK_SECRET_KEY` — Clerk Backend API 用の秘密鍵。グループ招待メール送信で必要
 - `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（未設定時はエンドポイントが 503 を返すため本番誤操作を防止できる）
 - `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（ローカル・dev deployment）/ `real`（production deployment のみ）
 - `APP_ENV` — `development`（ローカル・dev deployment）/ `production`（production deployment のみ）
