@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useMutation } from "convex/react";
 import {
   Alert,
@@ -13,7 +13,6 @@ import {
 } from "@mui/material";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import { api } from "../../convex/_generated/api";
-import { useGroupMembership } from "../hooks/useGroupMembership";
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -21,29 +20,11 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function GroupSetupPage() {
   const navigate = useNavigate();
-  const { group, isLoading } = useGroupMembership();
   const createGroup = useMutation(api.groups.createGroup);
   const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories);
   const [groupName, setGroupName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
-
-  if (isLoading) {
-    return (
-      <Box className="auth-screen">
-        <Paper className="auth-panel paper-panel" elevation={0}>
-          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-            <CircularProgress aria-label="グループ所属を確認中" />
-            <Typography color="text.secondary">グループ所属を確認しています。</Typography>
-          </Stack>
-        </Paper>
-      </Box>
-    );
-  }
-
-  if (group) {
-    return <Navigate to="/" replace />;
-  }
 
   const handleCreate = async (event: FormEvent) => {
     event.preventDefault();

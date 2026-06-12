@@ -724,7 +724,8 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await expect(
       page
         .getByRole("heading", { name: "週次振り返り" })
-        .or(page.getByText("この週の振り返りメモはまだありません")),
+        .or(page.getByText("この週の振り返りメモはまだありません"))
+        .first(),
     ).toBeVisible({ timeout: 15_000 });
   });
 

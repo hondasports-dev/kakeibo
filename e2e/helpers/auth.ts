@@ -1,6 +1,10 @@
 import { clerk } from "@clerk/testing/playwright";
 import { type Page } from "@playwright/test";
 
+type GotoAuthenticatedOptions = {
+  ensureGroup?: boolean;
+};
+
 /**
  * Clerk Testing Token でサインインしてページに遷移する認証ヘルパー。
  *
@@ -14,13 +18,67 @@ import { type Page } from "@playwright/test";
  *
  * @param page - Playwright の Page オブジェクト
  * @param path - サインイン後に遷移するパス（デフォルト: '/'）
+ * @param options.ensureGroup - true の場合、未所属ならE2E用グループを作成してから遷移する
  */
-export async function gotoAuthenticated(page: Page, path = "/") {
+export async function gotoAuthenticated(
+  page: Page,
+  path = "/",
+  options: GotoAuthenticatedOptions = {},
+) {
+  const { ensureGroup = true } = options;
   const email = process.env.E2E_CLERK_USER_EMAIL;
   if (!email) throw new Error("E2E_CLERK_USER_EMAIL is not set");
 
   // clerk.signIn は window.Clerk のロードを待つため、事前に page.goto が必要
   await page.goto("/");
   await clerk.signIn({ page, signInParams: { strategy: "email_code", identifier: email } });
+  if (ensureGroup) {
+    await ensureE2eGroup(page);
+  }
   if (path !== "/") await page.goto(path);
+}
+
+export async function getCurrentClerkTokenIdentifier(page: Page): Promise<string> {
+  const token = (await page.evaluate(async () => {
+    const clerk = (
+      window as Window & { Clerk?: { session?: { getToken?: () => Promise<string | null> } } }
+    ).Clerk;
+    return clerk?.session?.getToken ? await clerk.session.getToken() : null;
+  })) as string | null;
+
+  if (!token) {
+    throw new Error("current Clerk token is not available");
+  }
+
+  const payloadPart = token.split(".")[1];
+  if (!payloadPart) {
+    throw new Error("invalid Clerk token");
+  }
+
+  const payloadJson = Buffer.from(payloadPart, "base64url").toString("utf8");
+  const payload = JSON.parse(payloadJson) as { iss?: string; sub?: string };
+  if (!payload.iss || !payload.sub) {
+    throw new Error("Clerk token is missing iss or sub");
+  }
+
+  return `${payload.iss}|${payload.sub}`;
+}
+
+async function ensureE2eGroup(page: Page) {
+  await page.goto("/");
+
+  const setupHeading = page.getByRole("heading", { name: "家族グループを作成" });
+  const dashboardHeading = page.getByRole("heading", { name: "今週のダッシュボード" });
+
+  try {
+    await dashboardHeading.waitFor({ state: "visible", timeout: 5_000 });
+    return;
+  } catch {
+    // 未所属ユーザーは /group/setup に誘導されるため、続けてセットアップ画面を確認する。
+  }
+
+  await setupHeading.waitFor({ state: "visible", timeout: 15_000 });
+  await page.getByRole("textbox", { name: "グループ名" }).fill("E2E家計グループ");
+  await page.getByRole("button", { name: "グループを作成" }).click();
+  await dashboardHeading.waitFor({ state: "visible", timeout: 15_000 });
 }

@@ -352,7 +352,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
 
     let categoryId = undefined;
     if (extracted.categoryName && extracted.categoryName.trim().length > 0) {
-      const categories = await ctx.runQuery(api.categories.listActive, {});
+      const categories: Doc<"categories">[] = await ctx.runQuery(api.categories.listActive, {});
       const targetName = extracted.categoryName.trim();
       const matched = categories.find((cat) => cat.name === targetName);
       if (matched) {

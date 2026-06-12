@@ -1,39 +1,42 @@
 import { MemoryRouter } from "react-router-dom";
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
 import { GroupSetupPage } from "./GroupSetupPage";
 
-const { createGroupMock, seedDefaultCategoriesMock, useMutationMock, useQueryMock, useAuthMock } =
-  vi.hoisted(() => ({
+const { createGroupMock, seedDefaultCategoriesMock, useMutationMock, useNavigateMock } = vi.hoisted(
+  () => ({
     createGroupMock: vi.fn(),
     seedDefaultCategoriesMock: vi.fn(),
     useMutationMock: vi.fn(),
-    useQueryMock: vi.fn(),
-    useAuthMock: vi.fn(),
-  }));
-
-vi.mock("@clerk/react", () => ({
-  useAuth: useAuthMock,
-}));
+    useNavigateMock: vi.fn(),
+  }),
+);
 
 vi.mock("../../convex/_generated/api", () => ({
   api: {
-    categories: {
-      seedDefaultCategories: "categories.seedDefaultCategories",
-    },
     groups: {
       createGroup: "groups.createGroup",
-      getMyGroup: "groups.getMyGroup",
+    },
+    categories: {
+      seedDefaultCategories: "categories.seedDefaultCategories",
     },
   },
 }));
 
 vi.mock("convex/react", () => ({
   useMutation: useMutationMock,
-  useQuery: useQueryMock,
 }));
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    Navigate: ({ to }: { to: string }) => <div data-testid="navigate" data-to={to} />,
+    useNavigate: useNavigateMock,
+  };
+});
 
 function renderPage() {
   return renderWithProviders(
@@ -48,19 +51,17 @@ describe("GroupSetupPage", () => {
     createGroupMock.mockReset();
     seedDefaultCategoriesMock.mockReset();
     useMutationMock.mockReset();
-    useQueryMock.mockReset();
-    useAuthMock.mockReset();
+    useNavigateMock.mockReset();
 
     createGroupMock.mockResolvedValue("group-001");
     seedDefaultCategoriesMock.mockResolvedValue({ created: 8, skipped: 0 });
-    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: true });
-    useQueryMock.mockReturnValue(null);
     useMutationMock.mockImplementation((mutationRef: string) => {
       if (mutationRef.includes("groups.createGroup")) return createGroupMock;
       if (mutationRef.includes("categories.seedDefaultCategories"))
         return seedDefaultCategoriesMock;
       return vi.fn();
     });
+    useNavigateMock.mockReturnValue(vi.fn());
   });
 
   it("グループ未所属なら作成フォームを表示する", () => {
@@ -70,16 +71,17 @@ describe("GroupSetupPage", () => {
     expect(screen.getByRole("textbox", { name: "グループ名" })).toBeInTheDocument();
   });
 
-  it("グループ作成後にデフォルトカテゴリをseedする", async () => {
+  it("グループ作成後にデフォルトカテゴリを seed してから遷移する", async () => {
     const user = userEvent.setup();
+    const navigate = vi.fn();
+    useNavigateMock.mockReturnValue(navigate);
     renderPage();
 
     await user.type(screen.getByRole("textbox", { name: "グループ名" }), "佐藤家");
     await user.click(screen.getByRole("button", { name: "グループを作成" }));
 
-    await waitFor(() => {
-      expect(createGroupMock).toHaveBeenCalledWith({ name: "佐藤家" });
-      expect(seedDefaultCategoriesMock).toHaveBeenCalledTimes(1);
-    });
+    expect(createGroupMock).toHaveBeenCalledWith({ name: "佐藤家" });
+    expect(seedDefaultCategoriesMock).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/", { replace: true });
   });
 });
