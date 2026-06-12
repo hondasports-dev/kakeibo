@@ -90,7 +90,9 @@ export function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string
 function getClerkClient() {
   const secretKey = process.env.CLERK_SECRET_KEY;
   if (!secretKey) {
-    throw new ConvexError("CLERK_SECRET_KEY is not set");
+    throw new ConvexError(
+      "CLERK_SECRET_KEY が設定されていません。Convex Dashboard で環境変数を設定してください",
+    );
   }
 
   return createClerkClient({ secretKey });
