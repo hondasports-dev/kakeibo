@@ -120,6 +120,8 @@ describe("GroupInvitationAcceptPage", () => {
 
     renderPage();
 
+    expect(document.querySelector("#clerk-captcha")).toBeInTheDocument();
+
     await waitFor(() => {
       expect(signUpTicketMock).toHaveBeenCalledWith({ ticket: "ticket-001" });
       expect(signUpFinalizeMock).toHaveBeenCalled();

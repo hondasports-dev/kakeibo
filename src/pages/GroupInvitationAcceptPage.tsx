@@ -129,6 +129,7 @@ export function GroupInvitationAcceptPage() {
               招待を受け取り次第、家計簿画面へ進みます。
             </Typography>
           </Box>
+          <Box id="clerk-captcha" sx={{ minHeight: 1 }} />
 
           {error ? (
             <Alert severity="error" variant="outlined" sx={{ width: "100%" }}>
