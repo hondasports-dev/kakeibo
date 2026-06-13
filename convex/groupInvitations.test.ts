@@ -1,7 +1,11 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it } from "vitest";
 import type { Id } from "./_generated/dataModel";
-import { buildClerkInvitationParams, buildInvitationRedirectUrl } from "./groupInvitations";
+import {
+  buildClerkInvitationParams,
+  buildInvitationRedirectUrl,
+  getVerifiedClerkEmailAddresses,
+} from "./groupInvitations";
 
 describe("buildInvitationRedirectUrl", () => {
   it("本番ドメインの招待受け入れURLを許可する", () => {
@@ -49,5 +53,28 @@ describe("buildClerkInvitationParams", () => {
         token: "token-123",
       },
     });
+  });
+});
+
+describe("getVerifiedClerkEmailAddresses", () => {
+  it("Clerkユーザーの verified なメールだけを正規化して返す", () => {
+    expect(
+      getVerifiedClerkEmailAddresses({
+        emailAddresses: [
+          {
+            emailAddress: " Primary@Example.com ",
+            verification: { status: "verified" },
+          },
+          {
+            emailAddress: "unverified@example.com",
+            verification: { status: "unverified" },
+          },
+          {
+            emailAddress: "missing-verification@example.com",
+            verification: null,
+          },
+        ],
+      }),
+    ).toEqual(["primary@example.com"]);
   });
 });
