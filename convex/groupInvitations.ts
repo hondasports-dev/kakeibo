@@ -28,6 +28,7 @@ type ClerkEmailAddress = {
 };
 
 type ClerkUserWithEmails = {
+  username?: string | null;
   firstName?: string | null;
   lastName?: string | null;
   emailAddresses?: ClerkEmailAddress[];
@@ -136,11 +137,12 @@ export function getVerifiedClerkEmailAddresses(user: ClerkUserWithEmails) {
 }
 
 export function getClerkUserDisplayName(user: ClerkUserWithEmails, fallbackEmail?: string) {
+  const username = user.username?.trim();
   const displayName = [user.firstName, user.lastName]
     .map((name) => name?.trim())
     .filter(Boolean)
     .join(" ");
-  return displayName || fallbackEmail || "ユーザー";
+  return username || displayName || fallbackEmail || "ユーザー";
 }
 
 export function getPrimaryVerifiedClerkEmailAddress(user: ClerkUserWithEmails) {

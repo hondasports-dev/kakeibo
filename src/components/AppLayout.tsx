@@ -33,6 +33,7 @@ import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
 import { getCurrentWeekStartDate } from "../lib/weekNavigation";
 import { getClerkErrorMessage } from "../lib/clerkError";
+import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
 import { PageTransition } from "./PageTransition";
 
 const DRAWER_WIDTH = 220;
@@ -45,7 +46,7 @@ function UserMenu() {
   const [signOutError, setSignOutError] = useState("");
   const [isSigningOut, setIsSigningOut] = useState(false);
   const open = Boolean(anchorEl);
-  const displayName = user?.fullName ?? user?.primaryEmailAddress?.emailAddress ?? "ログイン中";
+  const displayName = getClerkUserFriendlyDisplayName(user) ?? "ログイン中";
 
   const handleClose = () => setAnchorEl(null);
 

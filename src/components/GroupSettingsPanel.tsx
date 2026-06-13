@@ -20,9 +20,10 @@ import MenuItem from "@mui/material/MenuItem";
 import DeleteIcon from "@mui/icons-material/Delete";
 import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
-import { useAuth } from "@clerk/react";
+import { useAuth, useUser } from "@clerk/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
 
 type GroupInfo = {
   _id: Id<"groups">;
@@ -43,23 +44,23 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function getMemberInitial(member: GroupMember) {
-  const source = member.displayName !== "ユーザー" ? member.displayName : member.email;
-  return source?.trim().slice(0, 1).toUpperCase() || "?";
+function getMemberInitial(primaryLabel: string) {
+  return primaryLabel.trim().slice(0, 1).toUpperCase() || "?";
 }
 
-function getMemberPrimaryLabel(member: GroupMember) {
+function getMemberPrimaryLabel(member: GroupMember, currentUserDisplayName: string | null) {
+  if (currentUserDisplayName) {
+    return currentUserDisplayName;
+  }
   if (member.displayName !== "ユーザー") {
     return member.displayName;
   }
   return member.email ?? "ユーザー";
 }
 
-function getMemberSecondaryLabel(member: GroupMember) {
+function getMemberSecondaryLabel(member: GroupMember, primaryLabel: string) {
   if (member.email) {
-    return member.displayName === "ユーザー" || member.displayName === member.email
-      ? "メール登録済み"
-      : member.email;
+    return member.email === primaryLabel ? "メール登録済み" : member.email;
   }
   return `ID: ${member.userId.slice(-8)}`;
 }
@@ -72,6 +73,7 @@ function isCurrentUserMember(memberUserId: string, clerkUserId: string | null | 
 
 export function GroupSettingsPanel() {
   const { userId } = useAuth();
+  const { user } = useUser();
   const group = useQuery(api.groups.getMyGroup) as GroupInfo | null | undefined;
   const groups = useQuery(api.groups.listMyGroups) as
     | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
@@ -122,6 +124,7 @@ export function GroupSettingsPanel() {
 
   const isOwner = group.role === "owner";
   const canSwitchGroups = groups.length > 1;
+  const currentUserDisplayName = getClerkUserFriendlyDisplayName(user);
 
   const handleInviteMember = async (event: FormEvent) => {
     event.preventDefault();
@@ -268,13 +271,16 @@ export function GroupSettingsPanel() {
             {members.map((member) => {
               const canRemove = isOwner && member.role !== "owner";
               const isCurrentUser = isCurrentUserMember(member.userId, userId);
-              const primaryLabel = getMemberPrimaryLabel(member);
-              const secondaryLabel = getMemberSecondaryLabel(member);
+              const primaryLabel = getMemberPrimaryLabel(
+                member,
+                isCurrentUser ? currentUserDisplayName : null,
+              );
+              const secondaryLabel = getMemberSecondaryLabel(member, primaryLabel);
               return (
                 <Box className="group-member-row" component="li" key={member.userId}>
                   <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
                     <Avatar sx={{ bgcolor: "primary.light", color: "primary.dark" }}>
-                      {getMemberInitial(member)}
+                      {getMemberInitial(primaryLabel)}
                     </Avatar>
                     <Box sx={{ minWidth: 0 }}>
                       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>

@@ -217,6 +217,34 @@ describe("upsertUser", () => {
     });
   });
 
+  it("identity.name がない2回目以降のログインでは既存の表示名をメールで上書きしない", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|clerk-user-token",
+      name: undefined,
+      email: "updated@example.com",
+    });
+    const existingDoc: Doc = {
+      _id: "existing-doc-id",
+      _creationTime: 1000000,
+      userId: "https://issuer.example|clerk-user-token",
+      displayName: "招待 太郎",
+      email: "old@example.com",
+      createdAt: 1000000,
+      updatedAt: 1000000,
+    };
+    const ctx = createMutationCtx(identity, existingDoc);
+
+    await upsertUserHandler(ctx);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith("existing-doc-id", {
+      displayName: "招待 太郎",
+      email: "updated@example.com",
+      updatedAt: expect.any(Number),
+    });
+  });
+
   it("userId には tokenIdentifier を使い、Clerk の user_xxx 形式は使わない", async () => {
     // Clerk の subject は "user_xxx" 形式だが、tokenIdentifier を使うことを検証する
     const identity = createIdentity({

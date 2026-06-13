@@ -103,7 +103,17 @@ describe("getVerifiedClerkEmailAddresses", () => {
     ).toBe("primary@example.com");
   });
 
-  it("氏名があれば表示名として結合し、なければメールを使う", () => {
+  it("username があれば表示名として優先し、なければ氏名を結合する", () => {
+    expect(
+      getClerkUserDisplayName(
+        {
+          username: "friendly-user",
+          firstName: "Taro",
+          lastName: "Yamada",
+        },
+        "fallback@example.com",
+      ),
+    ).toBe("friendly-user");
     expect(
       getClerkUserDisplayName(
         {
