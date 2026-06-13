@@ -21,8 +21,24 @@ type ClerkSignUpResult = {
   status?: string | null;
 };
 
+type ClerkSignUp = ClerkSignUpResult & {
+  authenticateWithRedirect: (params: {
+    continueSignUp: boolean;
+    redirectUrl: string;
+    redirectUrlComplete: string;
+    strategy: "oauth_google";
+  }) => Promise<void>;
+  finalize: (params: {
+    navigate: (params: { decorateUrl: (url: string) => string }) => void;
+  }) => Promise<{ error?: unknown }>;
+  ticket: (params: { ticket: string }) => Promise<ClerkSignUpResult>;
+  update: (params: { firstName?: string; lastName?: string }) => Promise<ClerkSignUpResult>;
+};
+
+const OAUTH_CALLBACK_PATH = "/sso-callback";
 const firstNameFieldNames = new Set(["firstName", "first_name"]);
 const lastNameFieldNames = new Set(["lastName", "last_name"]);
+const passwordFieldNames = new Set(["password"]);
 
 function getMissingFields(signUpResult: ClerkSignUpResult | undefined, signUp: ClerkSignUpResult) {
   return signUpResult?.missingFields ?? signUp.missingFields ?? [];
@@ -32,12 +48,17 @@ function hasSupportedProfileFields(fields: string[]) {
   return fields.some((field) => firstNameFieldNames.has(field) || lastNameFieldNames.has(field));
 }
 
+function hasPasswordField(fields: string[]) {
+  return fields.some((field) => passwordFieldNames.has(field));
+}
+
 export function GroupInvitationAcceptPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isLoaded: isClerkLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
-  const { signUp } = useSignUp();
+  const { signUp: rawSignUp } = useSignUp();
+  const signUp = rawSignUp as unknown as ClerkSignUp | undefined;
   const { isAuthenticated } = useConvexAuth();
   const acceptInvitation = useMutation(api.groups.acceptGroupInvitation);
   const [error, setError] = useState("");
@@ -122,6 +143,16 @@ export function GroupInvitationAcceptPage() {
           const missingFields = getMissingFields(signUpResult, signUp);
           setMissingProfileFields(missingFields);
 
+          if (hasPasswordField(missingFields)) {
+            await signUp.authenticateWithRedirect({
+              continueSignUp: true,
+              redirectUrl: OAUTH_CALLBACK_PATH,
+              redirectUrlComplete: fallbackUrl,
+              strategy: "oauth_google",
+            });
+            return;
+          }
+
           if (hasSupportedProfileFields(missingFields)) {
             setNeedsProfileDetails(true);
             return;
@@ -147,7 +178,7 @@ export function GroupInvitationAcceptPage() {
       .finally(() => {
         setIsCompletingInvitation(false);
       });
-  }, [clerkTicket, finalizeInvitation, isClerkLoaded, isSignedIn, signUp, token]);
+  }, [clerkTicket, fallbackUrl, finalizeInvitation, isClerkLoaded, isSignedIn, signUp, token]);
 
   const handleProfileDetailsSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
