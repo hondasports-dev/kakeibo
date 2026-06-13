@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth, useClerk, useSignUp } from "@clerk/react";
+import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/react";
 import { useConvexAuth, useMutation } from "convex/react";
 import {
   Alert,
@@ -21,6 +21,10 @@ type ClerkSignUpResult = {
   status?: string | null;
 };
 
+type ClerkSsoResult = {
+  error?: unknown;
+};
+
 type ClerkSignUp = ClerkSignUpResult & {
   sso: (params: {
     redirectCallbackUrl: string;
@@ -34,7 +38,16 @@ type ClerkSignUp = ClerkSignUpResult & {
   update: (params: { firstName?: string; lastName?: string }) => Promise<ClerkSignUpResult>;
 };
 
+type ClerkSignIn = {
+  sso: (params: {
+    redirectCallbackUrl: string;
+    redirectUrl: string;
+    strategy: "oauth_google";
+  }) => Promise<ClerkSsoResult>;
+};
+
 const OAUTH_CALLBACK_PATH = "/sso-callback";
+const CLERK_STATUS_SIGN_IN = "sign_in";
 const firstNameFieldNames = new Set(["firstName", "first_name"]);
 const lastNameFieldNames = new Set(["lastName", "last_name"]);
 const passwordFieldNames = new Set(["password"]);
@@ -51,12 +64,61 @@ function hasPasswordField(fields: string[]) {
   return fields.some((field) => passwordFieldNames.has(field));
 }
 
+function collectClerkErrorMessages(error: unknown) {
+  if (typeof error === "string") {
+    return [error];
+  }
+
+  if (!error || typeof error !== "object") {
+    return [];
+  }
+
+  const messages: string[] = [];
+  const maybeError = error as {
+    errors?: unknown;
+    longMessage?: unknown;
+    message?: unknown;
+  };
+  if (typeof maybeError.message === "string") {
+    messages.push(maybeError.message);
+  }
+  if (typeof maybeError.longMessage === "string") {
+    messages.push(maybeError.longMessage);
+  }
+  if (Array.isArray(maybeError.errors)) {
+    for (const item of maybeError.errors) {
+      if (!item || typeof item !== "object") {
+        continue;
+      }
+      const clerkError = item as { code?: unknown; longMessage?: unknown; message?: unknown };
+      if (typeof clerkError.code === "string") {
+        messages.push(clerkError.code);
+      }
+      if (typeof clerkError.message === "string") {
+        messages.push(clerkError.message);
+      }
+      if (typeof clerkError.longMessage === "string") {
+        messages.push(clerkError.longMessage);
+      }
+    }
+  }
+
+  return messages;
+}
+
+function isExistingAccountInvitationError(error: unknown) {
+  const message = collectClerkErrorMessages(error).join(" ").toLowerCase();
+  return message.includes("account already exists") && message.includes("sign in");
+}
+
 export function GroupInvitationAcceptPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { isLoaded: isClerkLoaded, isSignedIn } = useAuth();
   const { signOut } = useClerk();
+  const { signIn: rawSignIn } = useSignIn();
   const { signUp: rawSignUp } = useSignUp();
+  const signIn = rawSignIn as unknown as ClerkSignIn | undefined;
   const signUp = rawSignUp as unknown as ClerkSignUp | undefined;
   const { isAuthenticated } = useConvexAuth();
   const acceptInvitation = useMutation(api.groups.acceptGroupInvitation);
@@ -71,6 +133,7 @@ export function GroupInvitationAcceptPage() {
 
   const token = searchParams.get("token");
   const clerkTicket = searchParams.get("__clerk_ticket");
+  const clerkStatus = searchParams.get("__clerk_status");
   const fallbackUrl = token
     ? `/group/invitations/accept?token=${encodeURIComponent(token)}`
     : "/group/invitations/accept";
@@ -90,6 +153,21 @@ export function GroupInvitationAcceptPage() {
     }
     return true;
   }, [fallbackUrl, signUp]);
+
+  const startGoogleSignIn = useCallback(async () => {
+    if (!signIn) {
+      throw new Error("Clerk sign-in client is not loaded");
+    }
+
+    const ssoResult = await signIn.sso({
+      redirectCallbackUrl: OAUTH_CALLBACK_PATH,
+      redirectUrl: fallbackUrl,
+      strategy: "oauth_google",
+    });
+    if (ssoResult.error) {
+      throw ssoResult.error;
+    }
+  }, [fallbackUrl, signIn]);
 
   useEffect(() => {
     if (
@@ -119,20 +197,32 @@ export function GroupInvitationAcceptPage() {
     if (
       !isClerkLoaded ||
       isSignedIn ||
-      !signUp ||
       !token ||
       !clerkTicket ||
       hasStartedClerkInvitation.current
     ) {
       return;
     }
+    const shouldUseSignIn = clerkStatus === CLERK_STATUS_SIGN_IN;
+    if ((shouldUseSignIn && !signIn) || (!shouldUseSignIn && !signUp)) {
+      return;
+    }
 
     hasStartedClerkInvitation.current = true;
     setIsCompletingInvitation(true);
 
-    signUp
-      .ticket({ ticket: clerkTicket })
-      .then(async (signUpResult: ClerkSignUpResult) => {
+    const consumeClerkInvitation = async () => {
+      if (shouldUseSignIn) {
+        await startGoogleSignIn();
+        return;
+      }
+
+      if (!signUp) {
+        throw new Error("Clerk sign-up client is not loaded");
+      }
+
+      try {
+        const signUpResult = await signUp.ticket({ ticket: clerkTicket });
         if (signUpResult.error) {
           throw signUpResult.error;
         }
@@ -167,7 +257,16 @@ export function GroupInvitationAcceptPage() {
             "招待の認証に追加の設定が必要です。Clerkのサインアップ必須項目を確認してください。",
           );
         }
-      })
+      } catch (caughtError) {
+        if (isExistingAccountInvitationError(caughtError)) {
+          await startGoogleSignIn();
+          return;
+        }
+        throw caughtError;
+      }
+    };
+
+    consumeClerkInvitation()
       .catch((caughtError: unknown) => {
         hasStartedClerkInvitation.current = false;
         console.error(
@@ -179,7 +278,18 @@ export function GroupInvitationAcceptPage() {
       .finally(() => {
         setIsCompletingInvitation(false);
       });
-  }, [clerkTicket, fallbackUrl, finalizeInvitation, isClerkLoaded, isSignedIn, signUp, token]);
+  }, [
+    clerkStatus,
+    clerkTicket,
+    fallbackUrl,
+    finalizeInvitation,
+    isClerkLoaded,
+    isSignedIn,
+    signIn,
+    signUp,
+    startGoogleSignIn,
+    token,
+  ]);
 
   const handleProfileDetailsSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
