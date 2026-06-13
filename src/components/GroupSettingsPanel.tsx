@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Alert,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -19,6 +20,7 @@ import MenuItem from "@mui/material/MenuItem";
 import DeleteIcon from "@mui/icons-material/Delete";
 import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
+import { useAuth } from "@clerk/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 
@@ -41,7 +43,35 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function getMemberInitial(member: GroupMember) {
+  const source = member.displayName !== "ユーザー" ? member.displayName : member.email;
+  return source?.trim().slice(0, 1).toUpperCase() || "?";
+}
+
+function getMemberPrimaryLabel(member: GroupMember) {
+  if (member.displayName !== "ユーザー") {
+    return member.displayName;
+  }
+  return member.email ?? "ユーザー";
+}
+
+function getMemberSecondaryLabel(member: GroupMember) {
+  if (member.email) {
+    return member.displayName === "ユーザー" || member.displayName === member.email
+      ? "メール登録済み"
+      : member.email;
+  }
+  return `ID: ${member.userId.slice(-8)}`;
+}
+
+function isCurrentUserMember(memberUserId: string, clerkUserId: string | null | undefined) {
+  return Boolean(
+    clerkUserId && (memberUserId === clerkUserId || memberUserId.endsWith(`|${clerkUserId}`)),
+  );
+}
+
 export function GroupSettingsPanel() {
+  const { userId } = useAuth();
   const group = useQuery(api.groups.getMyGroup) as GroupInfo | null | undefined;
   const groups = useQuery(api.groups.listMyGroups) as
     | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
@@ -237,17 +267,29 @@ export function GroupSettingsPanel() {
           <Box component="ul" className="group-member-list">
             {members.map((member) => {
               const canRemove = isOwner && member.role !== "owner";
-              const label = member.email ?? "メール未設定";
+              const isCurrentUser = isCurrentUserMember(member.userId, userId);
+              const primaryLabel = getMemberPrimaryLabel(member);
+              const secondaryLabel = getMemberSecondaryLabel(member);
               return (
                 <Box className="group-member-row" component="li" key={member.userId}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 700 }} noWrap>
-                      {member.displayName}
-                    </Typography>
-                    <Typography color="text.secondary" variant="body2" noWrap>
-                      {label}
-                    </Typography>
-                  </Box>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                    <Avatar sx={{ bgcolor: "primary.light", color: "primary.dark" }}>
+                      {getMemberInitial(member)}
+                    </Avatar>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                        <Typography sx={{ fontWeight: 700 }} noWrap>
+                          {primaryLabel}
+                        </Typography>
+                        {isCurrentUser ? (
+                          <Chip label="あなた" size="small" variant="outlined" />
+                        ) : null}
+                      </Stack>
+                      <Typography color="text.secondary" variant="body2" noWrap>
+                        {secondaryLabel}
+                      </Typography>
+                    </Box>
+                  </Stack>
                   <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                     <Chip
                       color={member.role === "owner" ? "primary" : "secondary"}
@@ -258,7 +300,7 @@ export function GroupSettingsPanel() {
                     <Tooltip title={canRemove ? "メンバーを削除" : "削除できません"}>
                       <span>
                         <IconButton
-                          aria-label={`${member.displayName}を削除`}
+                          aria-label={`${primaryLabel}を削除`}
                           color="error"
                           disabled={!canRemove || savingTarget !== null}
                           onClick={() => handleRemoveMember(member.userId)}

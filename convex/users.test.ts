@@ -11,6 +11,7 @@ import {
   updateMonthlyIncomeHandler,
   updateWeeklyDaysHandler,
   upsertUserHandler,
+  upsertUserProfileHandler,
 } from "./users";
 
 type AuthContext = Parameters<typeof requireAuthenticatedUserId>[0];
@@ -279,6 +280,55 @@ describe("upsertUser", () => {
 
     expect(insertedDoc.displayName).toBe("ユーザー");
     expect(insertedDoc.email).toBeUndefined();
+  });
+});
+
+describe("upsertUserProfile", () => {
+  it("招待受け入れ時のプロフィールを users テーブルへ作成する", async () => {
+    const ctx = createMutationCtx(null, null);
+
+    await upsertUserProfileHandler(ctx, {
+      userId: "https://issuer.example|invitee",
+      displayName: "招待 太郎",
+      email: "Invitee@Example.com",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith("users", {
+      userId: "https://issuer.example|invitee",
+      displayName: "招待 太郎",
+      email: "invitee@example.com",
+      createdAt: expect.any(Number),
+      updatedAt: expect.any(Number),
+    });
+  });
+
+  it("既存プロフィールがあれば表示名とメールを更新する", async () => {
+    const existingDoc: Doc = {
+      _id: "user-existing",
+      _creationTime: 1000,
+      userId: "https://issuer.example|invitee",
+      displayName: "旧表示名",
+      email: "old@example.com",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const ctx = createMutationCtx(null, existingDoc);
+
+    await upsertUserProfileHandler(ctx, {
+      userId: "https://issuer.example|invitee",
+      displayName: "新表示名",
+      email: "new@example.com",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith("user-existing", {
+      displayName: "新表示名",
+      email: "new@example.com",
+      updatedAt: expect.any(Number),
+    });
   });
 });
 

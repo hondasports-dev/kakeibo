@@ -22,12 +22,16 @@ type InviteMemberResult = {
 };
 
 type ClerkEmailAddress = {
+  id: string;
   emailAddress: string;
   verification: { status?: string } | null;
 };
 
 type ClerkUserWithEmails = {
+  firstName?: string | null;
+  lastName?: string | null;
   emailAddresses?: ClerkEmailAddress[];
+  primaryEmailAddressId?: string | null;
 };
 
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
@@ -131,6 +135,28 @@ export function getVerifiedClerkEmailAddresses(user: ClerkUserWithEmails) {
     .filter(Boolean);
 }
 
+export function getClerkUserDisplayName(user: ClerkUserWithEmails, fallbackEmail?: string) {
+  const displayName = [user.firstName, user.lastName]
+    .map((name) => name?.trim())
+    .filter(Boolean)
+    .join(" ");
+  return displayName || fallbackEmail || "ユーザー";
+}
+
+export function getPrimaryVerifiedClerkEmailAddress(user: ClerkUserWithEmails) {
+  const verifiedEmails = getVerifiedClerkEmailAddresses(user);
+  const primaryEmail = (user.emailAddresses ?? []).find(
+    (email) => email.id === user.primaryEmailAddressId,
+  );
+  if (
+    primaryEmail?.verification?.status === "verified" &&
+    primaryEmail.emailAddress.trim().length > 0
+  ) {
+    return primaryEmail.emailAddress.trim().toLowerCase();
+  }
+  return verifiedEmails[0];
+}
+
 export const inviteMember = action({
   args: {
     email: v.string(),
@@ -185,19 +211,30 @@ export const acceptInvitation = action({
     if (identity.email) {
       acceptedEmails.add(identity.email.trim().toLowerCase());
     }
+    let displayName = identity.name ?? identity.email ?? "ユーザー";
+    let profileEmail = identity.email?.trim().toLowerCase();
 
     try {
       const clerk = getClerkClient();
       const user = (await clerk.users.getUser(identity.subject)) as ClerkUserWithEmails;
-      for (const email of getVerifiedClerkEmailAddresses(user)) {
+      const verifiedEmails = getVerifiedClerkEmailAddresses(user);
+      for (const email of verifiedEmails) {
         acceptedEmails.add(email);
       }
+      profileEmail = getPrimaryVerifiedClerkEmailAddress(user) ?? profileEmail;
+      displayName = getClerkUserDisplayName(user, profileEmail);
     } catch (caughtError) {
       console.warn(
         "[groupInvitations.acceptInvitation] failed to fetch Clerk user emails; falling back to identity email only",
         caughtError instanceof Error ? caughtError.name : "UnknownError",
       );
     }
+
+    await ctx.runMutation(internal.users.upsertUserProfile, {
+      userId: identity.tokenIdentifier,
+      displayName,
+      ...(profileEmail ? { email: profileEmail } : {}),
+    });
 
     return await ctx.runMutation(internal.groups.acceptGroupInvitationForVerifiedEmails, {
       token: args.token,
