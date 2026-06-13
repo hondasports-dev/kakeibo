@@ -11,6 +11,17 @@ type UpsertUserProfileArgs = {
   email?: string;
 };
 
+function getIdentityDisplayName(identity: UserIdentity, existingDisplayName?: string) {
+  const identityName = identity.name?.trim();
+  if (identityName) {
+    return identityName;
+  }
+  if (existingDisplayName && existingDisplayName !== "ユーザー") {
+    return existingDisplayName;
+  }
+  return identity.email ?? existingDisplayName ?? "ユーザー";
+}
+
 /** upsertUser mutation の handler ロジック（テスト用に export） */
 export async function upsertUserHandler(ctx: MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -33,14 +44,14 @@ export async function upsertUserHandler(ctx: MutationCtx) {
   if (existing === null) {
     await ctx.db.insert("users", {
       userId,
-      displayName: identity.name ?? identity.email ?? "ユーザー",
+      displayName: getIdentityDisplayName(identity),
       email,
       createdAt: now,
       updatedAt: now,
     });
   } else {
     await ctx.db.patch(existing._id, {
-      displayName: identity.name ?? identity.email ?? existing.displayName,
+      displayName: getIdentityDisplayName(identity, existing.displayName),
       email: email ?? existing.email,
       updatedAt: now,
     });

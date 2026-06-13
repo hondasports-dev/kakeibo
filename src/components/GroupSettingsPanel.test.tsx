@@ -12,6 +12,7 @@ const {
   useAuthMock,
   useMutationMock,
   useQueryMock,
+  useUserMock,
 } = vi.hoisted(() => ({
   inviteMemberMock: vi.fn(),
   removeMemberMock: vi.fn(),
@@ -20,10 +21,12 @@ const {
   useAuthMock: vi.fn(),
   useMutationMock: vi.fn(),
   useQueryMock: vi.fn(),
+  useUserMock: vi.fn(),
 }));
 
 vi.mock("@clerk/react", () => ({
   useAuth: useAuthMock,
+  useUser: useUserMock,
 }));
 
 vi.mock("../../convex/_generated/api", () => ({
@@ -56,6 +59,7 @@ describe("GroupSettingsPanel", () => {
     useAuthMock.mockReset();
     useMutationMock.mockReset();
     useQueryMock.mockReset();
+    useUserMock.mockReset();
 
     inviteMemberMock.mockResolvedValue({
       token: "invite-token",
@@ -65,6 +69,15 @@ describe("GroupSettingsPanel", () => {
     setActiveGroupMock.mockResolvedValue("group-002");
     removeMemberMock.mockResolvedValue(undefined);
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
+    useUserMock.mockReturnValue({
+      user: {
+        fullName: "ログイン 太郎",
+        username: "login-taro",
+        firstName: "ログイン",
+        lastName: "太郎",
+        primaryEmailAddress: { emailAddress: "owner@example.com" },
+      },
+    });
     useActionMock.mockImplementation((reference: string) => {
       if (reference.includes("groupInvitations.inviteMember")) return inviteMemberMock;
       return vi.fn();
@@ -141,10 +154,45 @@ describe("GroupSettingsPanel", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     expect(screen.getByText("佐藤家")).toBeInTheDocument();
-    expect(screen.getAllByText("オーナー").length).toBeGreaterThan(0);
+    expect(screen.getByText("ログイン 太郎")).toBeInTheDocument();
+    expect(screen.getByText("owner@example.com")).toBeInTheDocument();
     expect(screen.getByText("あなた")).toBeInTheDocument();
+    expect(screen.getAllByText("オーナー").length).toBeGreaterThan(0);
     expect(screen.getAllByText("メンバー").length).toBeGreaterThan(0);
     expect(screen.getByText("member@example.com")).toBeInTheDocument();
+  });
+
+  it("ログイン中ユーザーの fullName がない場合は username を表示する", () => {
+    useUserMock.mockReturnValue({
+      user: {
+        fullName: null,
+        username: "friendly-owner",
+        firstName: "名",
+        lastName: "姓",
+        primaryEmailAddress: { emailAddress: "owner@example.com" },
+      },
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByText("friendly-owner")).toBeInTheDocument();
+    expect(screen.queryByText("名 姓")).not.toBeInTheDocument();
+  });
+
+  it("ログイン中ユーザーの username がない場合は firstName と lastName を結合して表示する", () => {
+    useUserMock.mockReturnValue({
+      user: {
+        fullName: null,
+        username: null,
+        firstName: "名",
+        lastName: "姓",
+        primaryEmailAddress: { emailAddress: "owner@example.com" },
+      },
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByText("名 姓")).toBeInTheDocument();
   });
 
   it("表示名が未設定ならメールアドレスを主表示に使う", () => {
