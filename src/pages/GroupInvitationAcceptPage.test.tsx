@@ -6,6 +6,7 @@ import { GroupInvitationAcceptPage } from "./GroupInvitationAcceptPage";
 
 const {
   acceptGroupInvitationMock,
+  signUpAuthenticateWithRedirectMock,
   signUpFinalizeMock,
   signUpTicketMock,
   signUpUpdateMock,
@@ -17,6 +18,7 @@ const {
   useSignUpMock,
 } = vi.hoisted(() => ({
   acceptGroupInvitationMock: vi.fn(),
+  signUpAuthenticateWithRedirectMock: vi.fn(),
   signUpFinalizeMock: vi.fn(),
   signUpTicketMock: vi.fn(),
   signUpUpdateMock: vi.fn(),
@@ -61,6 +63,7 @@ function renderPage(initialEntry = "/group/invitations/accept?token=invite-token
 describe("GroupInvitationAcceptPage", () => {
   beforeEach(() => {
     acceptGroupInvitationMock.mockReset();
+    signUpAuthenticateWithRedirectMock.mockReset();
     signUpFinalizeMock.mockReset();
     signUpTicketMock.mockReset();
     signUpUpdateMock.mockReset();
@@ -71,6 +74,7 @@ describe("GroupInvitationAcceptPage", () => {
     useSearchParamsMock.mockReset();
     useSignUpMock.mockReset();
     acceptGroupInvitationMock.mockResolvedValue("group-001");
+    signUpAuthenticateWithRedirectMock.mockResolvedValue(undefined);
     signUpFinalizeMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
     signUpUpdateMock.mockResolvedValue({ error: null });
@@ -83,6 +87,7 @@ describe("GroupInvitationAcceptPage", () => {
     ]);
     useSignUpMock.mockReturnValue({
       signUp: {
+        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         finalize: signUpFinalizeMock,
         missingFields: [],
         status: "complete",
@@ -142,6 +147,7 @@ describe("GroupInvitationAcceptPage", () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
+        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         missingFields: ["first_name", "last_name"],
         status: "missing_requirements",
         ticket: signUpTicketMock,
@@ -165,6 +171,7 @@ describe("GroupInvitationAcceptPage", () => {
   it("名前入力後に必要な項目だけ更新して finalize する", async () => {
     const signUpResource = {
       finalize: signUpFinalizeMock,
+      authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
       missingFields: ["first_name", "last_name"],
       status: "missing_requirements",
       ticket: signUpTicketMock,
@@ -200,9 +207,10 @@ describe("GroupInvitationAcceptPage", () => {
     });
   });
 
-  it("Clerk ticket 処理後の不足項目が未対応なら名前フォームを出さない", async () => {
+  it("password が不足していればGoogleサインアップへ進める", async () => {
     useSignUpMock.mockReturnValue({
       signUp: {
+        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         finalize: signUpFinalizeMock,
         missingFields: ["password"],
         status: "missing_requirements",
@@ -213,6 +221,35 @@ describe("GroupInvitationAcceptPage", () => {
     signUpTicketMock.mockResolvedValue({
       error: null,
       missingFields: ["password"],
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(signUpAuthenticateWithRedirectMock).toHaveBeenCalledWith({
+        continueSignUp: true,
+        redirectUrl: "/sso-callback",
+        redirectUrlComplete: "/group/invitations/accept?token=invite-token",
+        strategy: "oauth_google",
+      });
+      expect(screen.queryByRole("heading", { name: "招待を完了する" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("Clerk ticket 処理後の不足項目が未対応なら名前フォームを出さない", async () => {
+    useSignUpMock.mockReturnValue({
+      signUp: {
+        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
+        finalize: signUpFinalizeMock,
+        missingFields: ["username"],
+        status: "missing_requirements",
+        ticket: signUpTicketMock,
+        update: signUpUpdateMock,
+      },
+    });
+    signUpTicketMock.mockResolvedValue({
+      error: null,
+      missingFields: ["username"],
     });
 
     renderPage();
