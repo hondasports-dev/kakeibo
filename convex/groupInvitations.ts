@@ -21,6 +21,15 @@ type InviteMemberResult = {
   clerkOrganizationId: string | null;
 };
 
+type ClerkEmailAddress = {
+  emailAddress: string;
+  verification: { status?: string } | null;
+};
+
+type ClerkUserWithEmails = {
+  emailAddresses?: ClerkEmailAddress[];
+};
+
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
 const KAKEIBO_PRODUCTION_HOSTNAME = "kakeibo.vercel.app";
 
@@ -115,6 +124,13 @@ function getClerkClient() {
   return createClerkClient({ secretKey });
 }
 
+export function getVerifiedClerkEmailAddresses(user: ClerkUserWithEmails) {
+  return (user.emailAddresses ?? [])
+    .filter((email) => email.verification?.status === "verified")
+    .map((email) => email.emailAddress.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export const inviteMember = action({
   args: {
     email: v.string(),
@@ -152,5 +168,41 @@ export const inviteMember = action({
       clerkInvitationId: invitation.id,
       clerkOrganizationId: group.clerkOrganizationId,
     };
+  },
+});
+
+export const acceptInvitation = action({
+  args: {
+    token: v.string(),
+  },
+  handler: async (ctx, args): Promise<Id<"groups">> => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (identity === null) {
+      throw new ConvexError("Not authenticated");
+    }
+
+    const acceptedEmails = new Set<string>();
+    if (identity.email) {
+      acceptedEmails.add(identity.email.trim().toLowerCase());
+    }
+
+    try {
+      const clerk = getClerkClient();
+      const user = (await clerk.users.getUser(identity.subject)) as ClerkUserWithEmails;
+      for (const email of getVerifiedClerkEmailAddresses(user)) {
+        acceptedEmails.add(email);
+      }
+    } catch (caughtError) {
+      console.warn(
+        "[groupInvitations.acceptInvitation] failed to fetch Clerk user emails; falling back to identity email only",
+        caughtError instanceof Error ? caughtError.name : "UnknownError",
+      );
+    }
+
+    return await ctx.runMutation(internal.groups.acceptGroupInvitationForVerifiedEmails, {
+      token: args.token,
+      acceptedUserId: identity.tokenIdentifier,
+      acceptedEmails: [...acceptedEmails],
+    });
   },
 });

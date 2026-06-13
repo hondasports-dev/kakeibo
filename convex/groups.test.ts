@@ -4,11 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import {
+  acceptGroupInvitationForVerifiedEmailsHandler,
   acceptGroupInvitationHandler,
   addMemberByEmailHandler,
   createGroupHandler,
   getGroupMembership,
   invitationEmailsMatch,
+  invitationEmailsMatchAny,
   listMyGroupsHandler,
   removeMemberHandler,
   setActiveGroupHandler,
@@ -219,6 +221,16 @@ describe("groups", () => {
       true,
     );
     expect(invitationEmailsMatch("invitee@example.com", "invitee+family@example.com")).toBe(false);
+  });
+
+  it("invitationEmailsMatchAny は Clerk の検証済みメール候補も照合する", () => {
+    expect(
+      invitationEmailsMatchAny(
+        ["primary@example.com", "in.vi.tee+family@gmail.com"],
+        "invitee@gmail.com",
+      ),
+    ).toBe(true);
+    expect(invitationEmailsMatchAny(["primary@example.com"], "invitee@example.com")).toBe(false);
   });
 
   it("getGroupMembership は activeGroupId が複数所属でも現在のグループを返す", async () => {
@@ -527,6 +539,76 @@ describe("groups", () => {
     await expect(acceptGroupInvitationHandler(ctx, { token: "invite-token" })).rejects.toThrow(
       ConvexError,
     );
+  });
+
+  it("acceptGroupInvitationForVerifiedEmailsHandler は検証済みメール候補が一致すれば受け入れる", async () => {
+    const userId = "https://issuer.example|invitee";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-invitee" as Id<"users">,
+          userId,
+          displayName: "招待先",
+          email: "primary@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-verified" as Id<"groupInvitations">,
+          groupId: "group-verified" as Id<"groups">,
+          email: "invitee@example.com",
+          token: "invite-token",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+
+    await expect(
+      acceptGroupInvitationForVerifiedEmailsHandler(ctx, {
+        token: "invite-token",
+        acceptedUserId: userId,
+        acceptedEmails: ["primary@example.com", "invitee@example.com"],
+      }),
+    ).resolves.toEqual("group-verified");
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "groupMembers",
+      expect.objectContaining({
+        groupId: "group-verified",
+        userId,
+        role: "member",
+      }),
+    );
+  });
+
+  it("acceptGroupInvitationForVerifiedEmailsHandler は検証済みメール候補が不一致なら拒否する", async () => {
+    const userId = "https://issuer.example|invitee";
+    const ctx = createMockDb({
+      groupInvitations: [
+        {
+          _id: "invite-unmatched" as Id<"groupInvitations">,
+          groupId: "group-unmatched" as Id<"groups">,
+          email: "invitee@example.com",
+          token: "invite-token",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+
+    await expect(
+      acceptGroupInvitationForVerifiedEmailsHandler(ctx, {
+        token: "invite-token",
+        acceptedUserId: userId,
+        acceptedEmails: ["primary@example.com"],
+      }),
+    ).rejects.toThrow(ConvexError);
   });
 
   it("addMemberByEmailHandler は対象ユーザーが別グループ所属済みでも現在グループに追加できる", async () => {

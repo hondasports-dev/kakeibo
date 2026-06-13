@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useAuth, useClerk, useSignIn, useSignUp } from "@clerk/react";
-import { useConvexAuth, useMutation } from "convex/react";
+import { useAction, useConvexAuth } from "convex/react";
 import {
   Alert,
   Box,
@@ -121,7 +121,7 @@ export function GroupInvitationAcceptPage() {
   const signIn = rawSignIn as unknown as ClerkSignIn | undefined;
   const signUp = rawSignUp as unknown as ClerkSignUp | undefined;
   const { isAuthenticated } = useConvexAuth();
-  const acceptInvitation = useMutation(api.groups.acceptGroupInvitation);
+  const acceptInvitation = useAction(api.groupInvitations.acceptInvitation);
   const [error, setError] = useState("");
   const [needsProfileDetails, setNeedsProfileDetails] = useState(false);
   const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);

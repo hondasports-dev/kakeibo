@@ -42,8 +42,8 @@ vi.mock("@clerk/react", () => ({
 }));
 
 vi.mock("convex/react", () => ({
+  useAction: () => acceptGroupInvitationMock,
   useConvexAuth: useConvexAuthMock,
-  useMutation: () => acceptGroupInvitationMock,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
