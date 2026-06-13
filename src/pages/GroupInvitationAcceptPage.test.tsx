@@ -8,6 +8,7 @@ const {
   acceptGroupInvitationMock,
   signUpFinalizeMock,
   signUpTicketMock,
+  signUpUpdateMock,
   useAuthMock,
   useClerkMock,
   useConvexAuthMock,
@@ -18,6 +19,7 @@ const {
   acceptGroupInvitationMock: vi.fn(),
   signUpFinalizeMock: vi.fn(),
   signUpTicketMock: vi.fn(),
+  signUpUpdateMock: vi.fn(),
   useAuthMock: vi.fn(),
   useClerkMock: vi.fn(),
   useConvexAuthMock: vi.fn(),
@@ -61,6 +63,7 @@ describe("GroupInvitationAcceptPage", () => {
     acceptGroupInvitationMock.mockReset();
     signUpFinalizeMock.mockReset();
     signUpTicketMock.mockReset();
+    signUpUpdateMock.mockReset();
     useAuthMock.mockReset();
     useClerkMock.mockReset();
     useConvexAuthMock.mockReset();
@@ -70,6 +73,7 @@ describe("GroupInvitationAcceptPage", () => {
     acceptGroupInvitationMock.mockResolvedValue("group-001");
     signUpFinalizeMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
+    signUpUpdateMock.mockResolvedValue({ error: null });
     useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
     useClerkMock.mockReturnValue({ signOut: vi.fn().mockResolvedValue(undefined) });
     useConvexAuthMock.mockReturnValue({ isAuthenticated: false });
@@ -80,8 +84,10 @@ describe("GroupInvitationAcceptPage", () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
+        missingFields: [],
         status: "complete",
         ticket: signUpTicketMock,
+        update: signUpUpdateMock,
       },
     });
   });
@@ -136,9 +142,15 @@ describe("GroupInvitationAcceptPage", () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
+        missingFields: ["first_name", "last_name"],
         status: "missing_requirements",
         ticket: signUpTicketMock,
+        update: signUpUpdateMock,
       },
+    });
+    signUpTicketMock.mockResolvedValue({
+      error: null,
+      missingFields: ["first_name", "last_name"],
     });
 
     renderPage();
@@ -150,16 +162,20 @@ describe("GroupInvitationAcceptPage", () => {
     });
   });
 
-  it("名前入力後に ticket を再実行して finalize する", async () => {
+  it("名前入力後に必要な項目だけ更新して finalize する", async () => {
     const signUpResource = {
       finalize: signUpFinalizeMock,
+      missingFields: ["first_name", "last_name"],
       status: "missing_requirements",
       ticket: signUpTicketMock,
+      update: signUpUpdateMock,
     };
-    signUpTicketMock.mockImplementation(async (params) => {
-      if (params?.firstName && params?.lastName) {
-        signUpResource.status = "complete";
-      }
+    signUpTicketMock.mockResolvedValue({
+      error: null,
+      missingFields: ["first_name", "last_name"],
+    });
+    signUpUpdateMock.mockImplementation(async () => {
+      signUpResource.status = "complete";
       return { error: null };
     });
     useSignUpMock.mockReturnValue({ signUp: signUpResource });
@@ -176,12 +192,34 @@ describe("GroupInvitationAcceptPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "招待を完了する" }));
 
     await waitFor(() => {
-      expect(signUpTicketMock).toHaveBeenLastCalledWith({
+      expect(signUpUpdateMock).toHaveBeenCalledWith({
         firstName: "Taro",
         lastName: "Yamada",
-        ticket: "ticket-001",
       });
       expect(signUpFinalizeMock).toHaveBeenCalled();
+    });
+  });
+
+  it("Clerk ticket 処理後の不足項目が未対応なら名前フォームを出さない", async () => {
+    useSignUpMock.mockReturnValue({
+      signUp: {
+        finalize: signUpFinalizeMock,
+        missingFields: ["password"],
+        status: "missing_requirements",
+        ticket: signUpTicketMock,
+        update: signUpUpdateMock,
+      },
+    });
+    signUpTicketMock.mockResolvedValue({
+      error: null,
+      missingFields: ["password"],
+    });
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(screen.getByText(/Clerkのサインアップ必須項目/)).toBeInTheDocument();
+      expect(screen.queryByRole("heading", { name: "招待を完了する" })).not.toBeInTheDocument();
     });
   });
 
