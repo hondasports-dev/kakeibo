@@ -8,6 +8,7 @@ import {
   addMemberByEmailHandler,
   createGroupHandler,
   getGroupMembership,
+  invitationEmailsMatch,
   listMyGroupsHandler,
   removeMemberHandler,
   setActiveGroupHandler,
@@ -212,6 +213,14 @@ function createMockDb(state: {
 }
 
 describe("groups", () => {
+  it("invitationEmailsMatch は Gmail の plus tag とドット違いを同一メールボックスとして扱う", () => {
+    expect(invitationEmailsMatch("invitee@gmail.com", "in.vi.tee+family@gmail.com")).toBe(true);
+    expect(invitationEmailsMatch("invitee@googlemail.com", "in.vi.tee+family@gmail.com")).toBe(
+      true,
+    );
+    expect(invitationEmailsMatch("invitee@example.com", "invitee+family@example.com")).toBe(false);
+  });
+
   it("getGroupMembership は activeGroupId が複数所属でも現在のグループを返す", async () => {
     const userId = "https://issuer.example|user-001";
     const ctx = createMockDb({
