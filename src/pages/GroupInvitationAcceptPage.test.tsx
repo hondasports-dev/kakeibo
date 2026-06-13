@@ -6,8 +6,8 @@ import { GroupInvitationAcceptPage } from "./GroupInvitationAcceptPage";
 
 const {
   acceptGroupInvitationMock,
-  signUpAuthenticateWithRedirectMock,
   signUpFinalizeMock,
+  signUpSsoMock,
   signUpTicketMock,
   signUpUpdateMock,
   useAuthMock,
@@ -18,8 +18,8 @@ const {
   useSignUpMock,
 } = vi.hoisted(() => ({
   acceptGroupInvitationMock: vi.fn(),
-  signUpAuthenticateWithRedirectMock: vi.fn(),
   signUpFinalizeMock: vi.fn(),
+  signUpSsoMock: vi.fn(),
   signUpTicketMock: vi.fn(),
   signUpUpdateMock: vi.fn(),
   useAuthMock: vi.fn(),
@@ -63,8 +63,8 @@ function renderPage(initialEntry = "/group/invitations/accept?token=invite-token
 describe("GroupInvitationAcceptPage", () => {
   beforeEach(() => {
     acceptGroupInvitationMock.mockReset();
-    signUpAuthenticateWithRedirectMock.mockReset();
     signUpFinalizeMock.mockReset();
+    signUpSsoMock.mockReset();
     signUpTicketMock.mockReset();
     signUpUpdateMock.mockReset();
     useAuthMock.mockReset();
@@ -74,8 +74,8 @@ describe("GroupInvitationAcceptPage", () => {
     useSearchParamsMock.mockReset();
     useSignUpMock.mockReset();
     acceptGroupInvitationMock.mockResolvedValue("group-001");
-    signUpAuthenticateWithRedirectMock.mockResolvedValue(undefined);
     signUpFinalizeMock.mockResolvedValue({ error: null });
+    signUpSsoMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
     signUpUpdateMock.mockResolvedValue({ error: null });
     useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
@@ -87,9 +87,9 @@ describe("GroupInvitationAcceptPage", () => {
     ]);
     useSignUpMock.mockReturnValue({
       signUp: {
-        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         finalize: signUpFinalizeMock,
         missingFields: [],
+        sso: signUpSsoMock,
         status: "complete",
         ticket: signUpTicketMock,
         update: signUpUpdateMock,
@@ -147,8 +147,8 @@ describe("GroupInvitationAcceptPage", () => {
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
-        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         missingFields: ["first_name", "last_name"],
+        sso: signUpSsoMock,
         status: "missing_requirements",
         ticket: signUpTicketMock,
         update: signUpUpdateMock,
@@ -171,8 +171,8 @@ describe("GroupInvitationAcceptPage", () => {
   it("名前入力後に必要な項目だけ更新して finalize する", async () => {
     const signUpResource = {
       finalize: signUpFinalizeMock,
-      authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
       missingFields: ["first_name", "last_name"],
+      sso: signUpSsoMock,
       status: "missing_requirements",
       ticket: signUpTicketMock,
       update: signUpUpdateMock,
@@ -210,9 +210,9 @@ describe("GroupInvitationAcceptPage", () => {
   it("password が不足していればGoogleサインアップへ進める", async () => {
     useSignUpMock.mockReturnValue({
       signUp: {
-        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         finalize: signUpFinalizeMock,
         missingFields: ["password"],
+        sso: signUpSsoMock,
         status: "missing_requirements",
         ticket: signUpTicketMock,
         update: signUpUpdateMock,
@@ -226,10 +226,9 @@ describe("GroupInvitationAcceptPage", () => {
     renderPage();
 
     await waitFor(() => {
-      expect(signUpAuthenticateWithRedirectMock).toHaveBeenCalledWith({
-        continueSignUp: true,
-        redirectUrl: "/sso-callback",
-        redirectUrlComplete: "/group/invitations/accept?token=invite-token",
+      expect(signUpSsoMock).toHaveBeenCalledWith({
+        redirectCallbackUrl: "/sso-callback",
+        redirectUrl: "/group/invitations/accept?token=invite-token",
         strategy: "oauth_google",
       });
       expect(screen.queryByRole("heading", { name: "招待を完了する" })).not.toBeInTheDocument();
@@ -239,9 +238,9 @@ describe("GroupInvitationAcceptPage", () => {
   it("Clerk ticket 処理後の不足項目が未対応なら名前フォームを出さない", async () => {
     useSignUpMock.mockReturnValue({
       signUp: {
-        authenticateWithRedirect: signUpAuthenticateWithRedirectMock,
         finalize: signUpFinalizeMock,
         missingFields: ["username"],
+        sso: signUpSsoMock,
         status: "missing_requirements",
         ticket: signUpTicketMock,
         update: signUpUpdateMock,
