@@ -5,6 +5,12 @@ import { ConvexError, v } from "convex/values";
 
 type AuthContext = Pick<QueryCtx, "auth">;
 
+type UpsertUserProfileArgs = {
+  userId: string;
+  displayName: string;
+  email?: string;
+};
+
 /** upsertUser mutation の handler ロジック（テスト用に export） */
 export async function upsertUserHandler(ctx: MutationCtx) {
   const identity = await ctx.auth.getUserIdentity();
@@ -83,6 +89,42 @@ export async function requireAuthenticatedUserId(ctx: AuthContext) {
 export const upsertUser = mutation({
   args: {},
   handler: upsertUserHandler,
+});
+
+export async function upsertUserProfileHandler(ctx: MutationCtx, args: UpsertUserProfileArgs) {
+  const now = Date.now();
+  const email = args.email?.trim().toLowerCase();
+  const displayName = args.displayName.trim() || email || "ユーザー";
+  const existing = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", args.userId))
+    .unique();
+
+  if (existing === null) {
+    await ctx.db.insert("users", {
+      userId: args.userId,
+      displayName,
+      email,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return;
+  }
+
+  await ctx.db.patch(existing._id, {
+    displayName,
+    email: email ?? existing.email,
+    updatedAt: now,
+  });
+}
+
+export const upsertUserProfile = internalMutation({
+  args: {
+    userId: v.string(),
+    displayName: v.string(),
+    email: v.optional(v.string()),
+  },
+  handler: upsertUserProfileHandler,
 });
 
 // ---------------------------------------------------------------------------

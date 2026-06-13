@@ -4,6 +4,8 @@ import type { Id } from "./_generated/dataModel";
 import {
   buildClerkInvitationParams,
   buildInvitationRedirectUrl,
+  getClerkUserDisplayName,
+  getPrimaryVerifiedClerkEmailAddress,
   getVerifiedClerkEmailAddresses,
 } from "./groupInvitations";
 
@@ -62,19 +64,55 @@ describe("getVerifiedClerkEmailAddresses", () => {
       getVerifiedClerkEmailAddresses({
         emailAddresses: [
           {
+            id: "email-primary",
             emailAddress: " Primary@Example.com ",
             verification: { status: "verified" },
           },
           {
+            id: "email-unverified",
             emailAddress: "unverified@example.com",
             verification: { status: "unverified" },
           },
           {
+            id: "email-missing-verification",
             emailAddress: "missing-verification@example.com",
             verification: null,
           },
         ],
       }),
     ).toEqual(["primary@example.com"]);
+  });
+
+  it("verified な primary email をプロフィール表示用メールとして返す", () => {
+    expect(
+      getPrimaryVerifiedClerkEmailAddress({
+        primaryEmailAddressId: "email-primary",
+        emailAddresses: [
+          {
+            id: "email-secondary",
+            emailAddress: "secondary@example.com",
+            verification: { status: "verified" },
+          },
+          {
+            id: "email-primary",
+            emailAddress: "Primary@Example.com",
+            verification: { status: "verified" },
+          },
+        ],
+      }),
+    ).toBe("primary@example.com");
+  });
+
+  it("氏名があれば表示名として結合し、なければメールを使う", () => {
+    expect(
+      getClerkUserDisplayName(
+        {
+          firstName: "Taro",
+          lastName: "Yamada",
+        },
+        "fallback@example.com",
+      ),
+    ).toBe("Taro Yamada");
+    expect(getClerkUserDisplayName({}, "fallback@example.com")).toBe("fallback@example.com");
   });
 });

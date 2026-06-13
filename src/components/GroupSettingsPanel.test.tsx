@@ -9,6 +9,7 @@ const {
   removeMemberMock,
   setActiveGroupMock,
   useActionMock,
+  useAuthMock,
   useMutationMock,
   useQueryMock,
 } = vi.hoisted(() => ({
@@ -16,8 +17,13 @@ const {
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
   useActionMock: vi.fn(),
+  useAuthMock: vi.fn(),
   useMutationMock: vi.fn(),
   useQueryMock: vi.fn(),
+}));
+
+vi.mock("@clerk/react", () => ({
+  useAuth: useAuthMock,
 }));
 
 vi.mock("../../convex/_generated/api", () => ({
@@ -47,6 +53,7 @@ describe("GroupSettingsPanel", () => {
     removeMemberMock.mockReset();
     setActiveGroupMock.mockReset();
     useActionMock.mockReset();
+    useAuthMock.mockReset();
     useMutationMock.mockReset();
     useQueryMock.mockReset();
 
@@ -57,6 +64,7 @@ describe("GroupSettingsPanel", () => {
     });
     setActiveGroupMock.mockResolvedValue("group-002");
     removeMemberMock.mockResolvedValue(undefined);
+    useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useActionMock.mockImplementation((reference: string) => {
       if (reference.includes("groupInvitations.inviteMember")) return inviteMemberMock;
       return vi.fn();
@@ -84,7 +92,7 @@ describe("GroupSettingsPanel", () => {
       if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
         return [
           {
-            userId: "user-owner",
+            userId: "https://issuer.example|owner-clerk-id",
             role: "owner",
             displayName: "オーナー",
             email: "owner@example.com",
@@ -133,6 +141,42 @@ describe("GroupSettingsPanel", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     expect(screen.getByText("佐藤家")).toBeInTheDocument();
+    expect(screen.getAllByText("オーナー").length).toBeGreaterThan(0);
+    expect(screen.getByText("あなた")).toBeInTheDocument();
+    expect(screen.getAllByText("メンバー").length).toBeGreaterThan(0);
     expect(screen.getByText("member@example.com")).toBeInTheDocument();
+  });
+
+  it("表示名が未設定ならメールアドレスを主表示に使う", () => {
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "owner",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "user-member",
+            role: "member",
+            displayName: "ユーザー",
+            email: "member@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByText("member@example.com")).toBeInTheDocument();
+    expect(screen.getByText("メール登録済み")).toBeInTheDocument();
   });
 });
