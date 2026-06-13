@@ -22,12 +22,11 @@ type ClerkSignUpResult = {
 };
 
 type ClerkSignUp = ClerkSignUpResult & {
-  authenticateWithRedirect: (params: {
-    continueSignUp: boolean;
+  sso: (params: {
+    redirectCallbackUrl: string;
     redirectUrl: string;
-    redirectUrlComplete: string;
     strategy: "oauth_google";
-  }) => Promise<void>;
+  }) => Promise<ClerkSignUpResult>;
   finalize: (params: {
     navigate: (params: { decorateUrl: (url: string) => string }) => void;
   }) => Promise<{ error?: unknown }>;
@@ -144,12 +143,14 @@ export function GroupInvitationAcceptPage() {
           setMissingProfileFields(missingFields);
 
           if (hasPasswordField(missingFields)) {
-            await signUp.authenticateWithRedirect({
-              continueSignUp: true,
-              redirectUrl: OAUTH_CALLBACK_PATH,
-              redirectUrlComplete: fallbackUrl,
+            const ssoResult = await signUp.sso({
+              redirectCallbackUrl: OAUTH_CALLBACK_PATH,
+              redirectUrl: fallbackUrl,
               strategy: "oauth_google",
             });
+            if (ssoResult.error) {
+              throw ssoResult.error;
+            }
             return;
           }
 
