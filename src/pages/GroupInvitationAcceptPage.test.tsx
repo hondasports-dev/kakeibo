@@ -6,6 +6,7 @@ import { GroupInvitationAcceptPage } from "./GroupInvitationAcceptPage";
 
 const {
   acceptGroupInvitationMock,
+  signInSsoMock,
   signUpFinalizeMock,
   signUpSsoMock,
   signUpTicketMock,
@@ -15,9 +16,11 @@ const {
   useConvexAuthMock,
   useNavigateMock,
   useSearchParamsMock,
+  useSignInMock,
   useSignUpMock,
 } = vi.hoisted(() => ({
   acceptGroupInvitationMock: vi.fn(),
+  signInSsoMock: vi.fn(),
   signUpFinalizeMock: vi.fn(),
   signUpSsoMock: vi.fn(),
   signUpTicketMock: vi.fn(),
@@ -27,12 +30,14 @@ const {
   useConvexAuthMock: vi.fn(),
   useNavigateMock: vi.fn(),
   useSearchParamsMock: vi.fn(),
+  useSignInMock: vi.fn(),
   useSignUpMock: vi.fn(),
 }));
 
 vi.mock("@clerk/react", () => ({
   useAuth: useAuthMock,
   useClerk: useClerkMock,
+  useSignIn: useSignInMock,
   useSignUp: useSignUpMock,
 }));
 
@@ -63,6 +68,7 @@ function renderPage(initialEntry = "/group/invitations/accept?token=invite-token
 describe("GroupInvitationAcceptPage", () => {
   beforeEach(() => {
     acceptGroupInvitationMock.mockReset();
+    signInSsoMock.mockReset();
     signUpFinalizeMock.mockReset();
     signUpSsoMock.mockReset();
     signUpTicketMock.mockReset();
@@ -72,8 +78,10 @@ describe("GroupInvitationAcceptPage", () => {
     useConvexAuthMock.mockReset();
     useNavigateMock.mockReset();
     useSearchParamsMock.mockReset();
+    useSignInMock.mockReset();
     useSignUpMock.mockReset();
     acceptGroupInvitationMock.mockResolvedValue("group-001");
+    signInSsoMock.mockResolvedValue({ error: null });
     signUpFinalizeMock.mockResolvedValue({ error: null });
     signUpSsoMock.mockResolvedValue({ error: null });
     signUpTicketMock.mockResolvedValue({ error: null });
@@ -85,6 +93,11 @@ describe("GroupInvitationAcceptPage", () => {
     useSearchParamsMock.mockImplementation(() => [
       new URLSearchParams("token=invite-token&__clerk_ticket=ticket-001"),
     ]);
+    useSignInMock.mockReturnValue({
+      signIn: {
+        sso: signInSsoMock,
+      },
+    });
     useSignUpMock.mockReturnValue({
       signUp: {
         finalize: signUpFinalizeMock,
@@ -232,6 +245,44 @@ describe("GroupInvitationAcceptPage", () => {
         strategy: "oauth_google",
       });
       expect(screen.queryByRole("heading", { name: "招待を完了する" })).not.toBeInTheDocument();
+    });
+  });
+
+  it("既存アカウント向けClerk ticketならGoogleサインインへ進める", async () => {
+    useSearchParamsMock.mockImplementation(() => [
+      new URLSearchParams("token=invite-token&__clerk_ticket=ticket-001&__clerk_status=sign_in"),
+    ]);
+
+    renderPage(
+      "/group/invitations/accept?token=invite-token&__clerk_ticket=ticket-001&__clerk_status=sign_in",
+    );
+
+    await waitFor(() => {
+      expect(signInSsoMock).toHaveBeenCalledWith({
+        redirectCallbackUrl: "/sso-callback",
+        redirectUrl: "/group/invitations/accept?token=invite-token",
+        strategy: "oauth_google",
+      });
+      expect(signUpTicketMock).not.toHaveBeenCalled();
+      expect(acceptGroupInvitationMock).not.toHaveBeenCalled();
+    });
+  });
+
+  it("新規登録ticketが既存アカウントエラーならGoogleサインインへフォールバックする", async () => {
+    signUpTicketMock.mockRejectedValue(
+      new Error("An account already exists for this invitation. Sign in instead."),
+    );
+
+    renderPage();
+
+    await waitFor(() => {
+      expect(signUpTicketMock).toHaveBeenCalledWith({ ticket: "ticket-001" });
+      expect(signInSsoMock).toHaveBeenCalledWith({
+        redirectCallbackUrl: "/sso-callback",
+        redirectUrl: "/group/invitations/accept?token=invite-token",
+        strategy: "oauth_google",
+      });
+      expect(screen.queryByText(/招待リンクの認証を完了できませんでした/)).not.toBeInTheDocument();
     });
   });
 
