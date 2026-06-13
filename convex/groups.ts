@@ -274,6 +274,36 @@ function normalizeEmail(email: string) {
   return normalized;
 }
 
+function normalizeGmailAddress(email: string) {
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) {
+    return null;
+  }
+
+  const normalizedDomain = domain === "googlemail.com" ? "gmail.com" : domain;
+  if (normalizedDomain !== "gmail.com") {
+    return null;
+  }
+
+  const canonicalLocalPart = localPart.split("+")[0].replaceAll(".", "");
+  return `${canonicalLocalPart}@${normalizedDomain}`;
+}
+
+export function invitationEmailsMatch(identityEmail: string | undefined, invitationEmail: string) {
+  const normalizedIdentityEmail = identityEmail?.trim().toLowerCase();
+  const normalizedInvitationEmail = invitationEmail.trim().toLowerCase();
+  if (!normalizedIdentityEmail) {
+    return false;
+  }
+  if (normalizedIdentityEmail === normalizedInvitationEmail) {
+    return true;
+  }
+
+  const canonicalIdentityEmail = normalizeGmailAddress(normalizedIdentityEmail);
+  const canonicalInvitationEmail = normalizeGmailAddress(normalizedInvitationEmail);
+  return canonicalIdentityEmail !== null && canonicalIdentityEmail === canonicalInvitationEmail;
+}
+
 export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: string }) {
   const { groupId, role } = await requireGroupMembership(ctx);
 
@@ -469,8 +499,7 @@ export async function acceptGroupInvitationHandler(ctx: MutationCtx, args: { tok
     throw new ConvexError("招待が見つかりません");
   }
 
-  const email = identity.email?.trim().toLowerCase();
-  if (!email || email !== invite.email) {
+  if (!invitationEmailsMatch(identity.email, invite.email)) {
     throw new ConvexError("招待先メールアドレスと一致しません");
   }
 
