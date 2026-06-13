@@ -15,6 +15,23 @@ import {
 } from "@mui/material";
 import { api } from "../../convex/_generated/api";
 
+type ClerkSignUpResult = {
+  error?: unknown;
+  missingFields?: string[];
+  status?: string | null;
+};
+
+const firstNameFieldNames = new Set(["firstName", "first_name"]);
+const lastNameFieldNames = new Set(["lastName", "last_name"]);
+
+function getMissingFields(signUpResult: ClerkSignUpResult | undefined, signUp: ClerkSignUpResult) {
+  return signUpResult?.missingFields ?? signUp.missingFields ?? [];
+}
+
+function hasSupportedProfileFields(fields: string[]) {
+  return fields.some((field) => firstNameFieldNames.has(field) || lastNameFieldNames.has(field));
+}
+
 export function GroupInvitationAcceptPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -25,6 +42,7 @@ export function GroupInvitationAcceptPage() {
   const acceptInvitation = useMutation(api.groups.acceptGroupInvitation);
   const [error, setError] = useState("");
   const [needsProfileDetails, setNeedsProfileDetails] = useState(false);
+  const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [isCompletingInvitation, setIsCompletingInvitation] = useState(false);
@@ -94,14 +112,28 @@ export function GroupInvitationAcceptPage() {
 
     signUp
       .ticket({ ticket: clerkTicket })
-      .then(async ({ error: signUpError }) => {
-        if (signUpError) {
-          throw signUpError;
+      .then(async (signUpResult: ClerkSignUpResult) => {
+        if (signUpResult.error) {
+          throw signUpResult.error;
         }
 
         const finalized = await finalizeInvitation();
         if (!finalized) {
-          setNeedsProfileDetails(true);
+          const missingFields = getMissingFields(signUpResult, signUp);
+          setMissingProfileFields(missingFields);
+
+          if (hasSupportedProfileFields(missingFields)) {
+            setNeedsProfileDetails(true);
+            return;
+          }
+
+          console.error(
+            "[GroupInvitationAcceptPage] unsupported Clerk invitation requirements:",
+            missingFields,
+          );
+          setError(
+            "招待の認証に追加の設定が必要です。Clerkのサインアップ必須項目を確認してください。",
+          );
         }
       })
       .catch((caughtError: unknown) => {
@@ -126,17 +158,17 @@ export function GroupInvitationAcceptPage() {
     setError("");
     setIsCompletingInvitation(true);
     try {
-      if (!clerkTicket) {
-        throw new Error("Clerk invitation ticket is missing.");
+      const updateParams: { firstName?: string; lastName?: string } = {};
+      if (missingProfileFields.some((field) => firstNameFieldNames.has(field))) {
+        updateParams.firstName = firstName.trim();
+      }
+      if (missingProfileFields.some((field) => lastNameFieldNames.has(field))) {
+        updateParams.lastName = lastName.trim();
       }
 
-      const { error: ticketError } = await signUp.ticket({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        ticket: clerkTicket,
-      });
-      if (ticketError) {
-        throw ticketError;
+      const updateResult: ClerkSignUpResult = await signUp.update(updateParams);
+      if (updateResult.error) {
+        throw updateResult.error;
       }
 
       const finalized = await finalizeInvitation();
@@ -211,7 +243,7 @@ export function GroupInvitationAcceptPage() {
                   fullWidth
                   label="名"
                   onChange={(event) => setFirstName(event.target.value)}
-                  required
+                  required={missingProfileFields.some((field) => firstNameFieldNames.has(field))}
                   value={firstName}
                 />
                 <TextField
@@ -220,7 +252,7 @@ export function GroupInvitationAcceptPage() {
                   fullWidth
                   label="姓"
                   onChange={(event) => setLastName(event.target.value)}
-                  required
+                  required={missingProfileFields.some((field) => lastNameFieldNames.has(field))}
                   value={lastName}
                 />
                 <Button
