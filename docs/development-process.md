@@ -354,6 +354,33 @@ PR をマージします。
 
 ただし Markdown のみの変更では、GitHub Actions / E2E の成功確認は不要です。
 
+## PREVIEW release candidate 運用
+
+マイルストーン単位のリリース候補は、通常の PR Preview とは分けて扱います。
+正式な非本番リリース経路は次のとおりです。
+
+```text
+DEV / PR Preview
+  ↓
+mainへmerge
+  ↓
+milestone close
+  ↓
+PREVIEW release candidate
+```
+
+マイルストーンを close すると、`milestone-preview-ready.yml` が準備チェックを実行します。
+この workflow はデプロイせず、マイルストーン内の open issue / PR、未merge PR、
+`lint` / `format:check` / `test` / `build` の成功を確認します。
+
+PREVIEW release candidate は、`preview-release.yml` を手動実行して作成します。
+この workflow は GitHub Environment `Preview` の secret / variable を使い、
+Convex Preview deployment と Vercel Preview deployment を作成します。
+
+PROD 反映は現時点では未構築です。Clerk Production に必要な独自ドメイン、Google OAuth
+Production credentials、GitHub Environment `Production` の承認ルールが揃うまで、
+`production-release.yml` は追加しません。
+
 ### E2E テスト設計基準（issue-delivery QA Agent 向け）
 
 - Product Lead の完了条件と Tech Lead のテスト方針を照合する。

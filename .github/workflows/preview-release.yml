@@ -1,0 +1,181 @@
+name: Preview Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      milestone_number:
+        description: "Closed milestone number to release as PREVIEW candidate"
+        required: true
+      source_ref:
+        description: "Repository ref to deploy. Allowed: main or release/*"
+        required: true
+        default: "main"
+      preview_name:
+        description: "Convex preview deployment name, e.g. m20"
+        required: true
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+concurrency:
+  group: preview-release-${{ inputs.preview_name }}
+  cancel-in-progress: false
+
+jobs:
+  preview:
+    name: Deploy PREVIEW release candidate
+    runs-on: ubuntu-latest
+    environment: Preview
+    timeout-minutes: 30
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
+      SOURCE_REF: ${{ inputs.source_ref }}
+      PREVIEW_NAME: ${{ inputs.preview_name }}
+      MILESTONE_NUMBER: ${{ inputs.milestone_number }}
+    steps:
+      - name: Validate inputs and required configuration
+        run: |
+          case "$SOURCE_REF" in
+            main|release/*) ;;
+            *)
+              echo "::error::source_ref must be main or release/* for Preview release candidates."
+              exit 1
+              ;;
+          esac
+
+          if ! [[ "$PREVIEW_NAME" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
+            echo "::error::preview_name must match ^[a-z0-9][a-z0-9-]{0,31}$"
+            exit 1
+          fi
+
+          if ! [[ "$MILESTONE_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::milestone_number must be a numeric GitHub milestone number."
+            exit 1
+          fi
+
+          missing=()
+          [ -n "$VERCEL_TOKEN" ] || missing+=("secrets.VERCEL_TOKEN")
+          [ -n "$VERCEL_ORG_ID" ] || missing+=("vars.VERCEL_ORG_ID")
+          [ -n "$VERCEL_PROJECT_ID" ] || missing+=("vars.VERCEL_PROJECT_ID")
+          [ -n "$CONVEX_DEPLOY_KEY" ] || missing+=("secrets.CONVEX_DEPLOY_KEY")
+
+          if [ "${#missing[@]}" -gt 0 ]; then
+            printf '::error::Missing required Preview configuration: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      - name: Verify milestone is closed and complete
+        uses: actions/github-script@v9
+        env:
+          MILESTONE_NUMBER: ${{ inputs.milestone_number }}
+        with:
+          script: |
+            const milestoneNumber = Number(process.env.MILESTONE_NUMBER)
+            const { owner, repo } = context.repo
+
+            const milestone = await github.rest.issues.getMilestone({
+              owner,
+              repo,
+              milestone_number: milestoneNumber,
+            })
+            if (milestone.data.state !== 'closed') {
+              core.setFailed(`Milestone #${milestoneNumber} must be closed before PREVIEW release.`)
+              return
+            }
+
+            const openItems = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              milestone: String(milestoneNumber),
+              state: 'open',
+              per_page: 100,
+            })
+            if (openItems.length > 0) {
+              core.setFailed(
+                `Milestone #${milestoneNumber} still has ${openItems.length} open issue(s) or PR(s).`,
+              )
+              return
+            }
+
+            const allItems = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              milestone: String(milestoneNumber),
+              state: 'all',
+              per_page: 100,
+            })
+
+            const unmergedPulls = []
+            for (const item of allItems.filter((entry) => entry.pull_request)) {
+              const pull = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: item.number,
+              })
+              if (!pull.data.merged_at) {
+                unmergedPulls.push(`#${item.number}`)
+              }
+            }
+
+            if (unmergedPulls.length > 0) {
+              core.setFailed(
+                `Milestone #${milestoneNumber} includes unmerged pull request(s): ${unmergedPulls.join(', ')}`,
+              )
+              return
+            }
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.source_ref }}
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Test
+        run: pnpm test --run
+
+      - name: Build Convex preview and Vercel output
+        run: |
+          pnpm exec convex deploy \
+            --preview-create "$PREVIEW_NAME" \
+            --cmd-url-env-var-name VITE_CONVEX_URL \
+            --cmd 'pnpm exec vercel build --yes --target=preview --token "$VERCEL_TOKEN"'
+
+      - name: Deploy Vercel Preview
+        id: vercel
+        run: |
+          deployment_url="$(pnpm exec vercel deploy --prebuilt --archive=tgz --target=preview --token "$VERCEL_TOKEN")"
+          echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
+
+      - name: Write summary
+        run: |
+          {
+            echo "## PREVIEW release candidate"
+            echo
+            echo "| Item | Value |"
+            echo "| --- | --- |"
+            echo "| Milestone | #$MILESTONE_NUMBER |"
+            echo "| Source ref | \`$SOURCE_REF\` |"
+            echo "| Convex preview | \`$PREVIEW_NAME\` |"
+            echo "| Vercel Preview URL | ${{ steps.vercel.outputs.url }} |"
+            echo
+            echo "Use this PREVIEW URL only for release-candidate verification. Do not treat it as PROD."
+          } >> "$GITHUB_STEP_SUMMARY"

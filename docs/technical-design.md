@@ -550,27 +550,30 @@ DEV/PreviewはVercel Preview DeploymentのURLを使い、PRODはVercel Productio
 
 ## 16. 環境設計
 
-DEVとPRODの2環境を分けて構築する。
+DEV / PREVIEW / PROD の3環境を分けて構築する。
 
-| 領域           | DEV                                              | PROD                                              |
-| -------------- | ------------------------------------------------ | ------------------------------------------------- |
-| フロントエンド | Vercel Preview URL、またはlocalhost              | Vercel Production URL                             |
-| URL            | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo.vercel.app` などのProduction URL |
-| Clerk          | Development instance                             | Production instance                               |
-| Clerk認証方式  | Google OAuth                                     | Google OAuth                                      |
-| Convex         | dev deployment                                   | production deployment                             |
-| データ         | テストデータ                                     | 実ユーザーデータ                                  |
-| 環境変数       | `.env.local`、Vercel Preview env                 | Vercel Production env                             |
+| 領域           | DEV                                              | PREVIEW                                          | PROD                                              |
+| -------------- | ------------------------------------------------ | ------------------------------------------------ | ------------------------------------------------- |
+| フロントエンド | Vercel Preview URL、またはlocalhost              | 手動実行した Vercel Preview release candidate   | Vercel Production URL                             |
+| URL            | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo.vercel.app` などのProduction URL |
+| Clerk          | Development instance                             | Development instance                             | Production instance                               |
+| Clerk認証方式  | Google OAuth                                     | Google OAuth                                     | Google OAuth                                      |
+| Convex         | dev deployment                                   | preview deployment                               | production deployment                             |
+| データ         | テストデータ                                     | release candidate用の代表データ                 | 実ユーザーデータ                                  |
+| 環境変数       | `.env.local`、Vercel Preview env                 | GitHub Environment `Preview`、Vercel Preview env、Convex Preview default env | Vercel Production env                             |
 
 ### 16.1 環境分離方針
 
-- DEVとPRODでClerk instanceを分ける
-- DEVとPRODでConvex deploymentを分ける
+- DEV/PREVIEWとPRODでClerk instanceを分ける
+- DEV/PREVIEW/PRODでConvex deploymentを分ける
+- PREVIEWはPR単位の通常Previewと区別し、マイルストーン単位のrelease candidateとして扱う
 - DEVのGoogle OAuth callback URLに本番URLを入れない
 - PRODのGoogle OAuth callback URLにローカルURLを入れない
-- 初期MVPでは独自ドメインを使わず、`*.vercel.app` のURLを使う
+- PREVIEWではClerk Development instanceを使い、Clerk Production instanceをPreview URLで使わない
 - DEVデータをPRODへ手動投入しない
+- PREVIEWデータをPRODへ手動投入しない
 - PRODの環境変数をローカル開発に流用しない
+- PRODはClerk Production用の独自ドメインが準備できるまで未対応とする
 
 ### 16.2 必要な環境変数
 
@@ -589,7 +592,7 @@ CONVEX_DEPLOYMENT=
 CLERK_JWT_ISSUER_DOMAIN=
 ```
 
-`CLERK_JWT_ISSUER_DOMAIN` は、DEV/PRODそれぞれのClerk Frontend API URLに合わせる。
+`CLERK_JWT_ISSUER_DOMAIN` は、DEV/PREVIEW/PRODそれぞれのClerk Frontend API URLに合わせる。
 
 ローカルではClerk CLIとConvex CLIにより `.env.local` が生成される。`.env.local`、`.vercel/`、`.agents/`、`.pnpm-store/`、`.npmrc` はGit管理外にする。
 
@@ -597,9 +600,11 @@ VercelにはPreview / Productionの環境変数を分けて登録する。Produc
 
 ### 16.3 デプロイ方針
 
-- `main` ブランチをPRODに紐づける
-- PRまたは開発ブランチをpreview/DEVに紐づける
+- PRまたは開発ブランチをDEV/PR Previewに紐づける
+- マイルストーン単位のrelease candidateは `preview-release.yml` からPREVIEWへ手動デプロイする
+- PROD反映はClerk Productionと独自ドメインの準備後に別途 `production-release.yml` として構築する
 - schema変更はまずDEV Convex deploymentで確認する
+- schema変更を含むリリース候補はPREVIEW Convex deploymentで代表データを使って確認する
 - Clerk設定変更もまずDEVで確認する
 - PROD反映前に、Googleログイン、主要CRUD、週次サマリー、設定保存を確認する
 
