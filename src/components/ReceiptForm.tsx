@@ -13,9 +13,11 @@ import {
   Typography,
 } from "@mui/material";
 import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
-import { generateWeekDays } from "../lib/weekNavigation";
 import { useReceiptForm } from "../hooks/useReceiptForm";
 import { AnimatedButton } from "./AnimatedButton";
+import { ReceiptCategorySelector } from "./receiptForm/ReceiptCategorySelector";
+import { ReceiptNameField } from "./receiptForm/ReceiptNameField";
+import { ReceiptWeekDaySelector } from "./receiptForm/ReceiptWeekDaySelector";
 
 interface ReceiptFormProps {
   weekStartDate: string;
@@ -40,9 +42,6 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
     handleRetry,
     handleSnackbarClose,
   } = useReceiptForm({ weekStartDate, weekEndDate, categories });
-
-  const weekDays = generateWeekDays(weekStartDate, weekEndDate);
-
   return (
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
@@ -91,47 +90,12 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               </>
             )}
 
-            <Box className="week-day-grid" aria-label="週内の日付候補" role="listbox">
-              {weekDays.map((day) => {
-                const isSelected = formValues.date === day.isoDate;
-                return (
-                  <Box
-                    aria-label={`${day.label}曜日 ${day.date}${isSelected ? " 選択中" : ""}`}
-                    aria-selected={isSelected}
-                    className="week-day-button"
-                    key={day.isoDate}
-                    onClick={() => handleFieldChange("date", day.isoDate)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        handleFieldChange("date", day.isoDate);
-                      }
-                    }}
-                    role="option"
-                    tabIndex={0}
-                    sx={{
-                      border: "1px solid",
-                      borderColor: isSelected ? "primary.main" : "divider",
-                      borderRadius: 1,
-                      bgcolor: isSelected ? "primary.main" : "background.paper",
-                      color: isSelected ? "primary.contrastText" : "text.primary",
-                      px: 1,
-                      py: 1,
-                      textAlign: "center",
-                      cursor: "pointer",
-                      "&:focus-visible": {
-                        outline: "2px solid",
-                        outlineColor: "primary.main",
-                        outlineOffset: "2px",
-                      },
-                    }}
-                  >
-                    <span>{day.label}</span>
-                    <small>{day.date}</small>
-                  </Box>
-                );
-              })}
-            </Box>
+            <ReceiptWeekDaySelector
+              selectedDate={formValues.date}
+              weekEndDate={weekEndDate}
+              weekStartDate={weekStartDate}
+              onSelectDate={(date) => handleFieldChange("date", date)}
+            />
 
             <TextField
               error={!!errors.date}
@@ -154,38 +118,19 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               value={formValues.date}
             />
 
-            {formValues.type === "expense" ? (
-              <TextField
-                autoComplete="organization"
-                data-testid="shop-name-field"
-                error={!!errors.shopName}
-                fullWidth
-                helperText={
-                  errors.shopName ||
-                  (aiFieldStatuses?.shopName.status === "applied" ? "AI候補" : undefined)
-                }
-                id="receipt-shop-name"
-                inputRef={shopNameRef}
-                label="店舗名"
-                name="shopName"
-                onChange={(e) => handleFieldChange("shopName", e.target.value)}
-                placeholder="例: スーパー北浜"
-                value={formValues.shopName}
-              />
-            ) : (
-              <TextField
-                error={!!errors.bankName}
-                fullWidth
-                helperText={errors.bankName}
-                id="receipt-bank-name"
-                inputRef={bankNameRef}
-                label="銀行名"
-                name="bankName"
-                onChange={(e) => handleFieldChange("bankName", e.target.value)}
-                placeholder="例: 三菱UFJ銀行"
-                value={formValues.bankName}
-              />
-            )}
+            <ReceiptNameField
+              bankName={formValues.type === "income" ? formValues.bankName : ""}
+              bankNameError={errors.bankName}
+              bankNameRef={bankNameRef}
+              shopName={formValues.type === "expense" ? formValues.shopName : ""}
+              shopNameError={
+                errors.shopName ||
+                (aiFieldStatuses?.shopName.status === "applied" ? "AI候補" : undefined)
+              }
+              shopNameRef={shopNameRef}
+              type={formValues.type}
+              onFieldChange={handleFieldChange}
+            />
 
             <TextField
               error={!!errors.amountYen}
@@ -213,74 +158,12 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               }
             />
 
-            <Stack spacing={1}>
-              <Typography component="p" variant="body2" sx={{ fontWeight: 700 }}>
-                カテゴリ
-              </Typography>
-              {errors.categoryId && (
-                <Typography color="error" variant="caption">
-                  {errors.categoryId}
-                </Typography>
-              )}
-              <Box className="category-grid" aria-label="カテゴリ候補" role="listbox">
-                {categories.map((category) => {
-                  const isSelected = selectedCategoryId === category._id;
-                  return (
-                    <Box
-                      aria-label={`${category.name}${isSelected ? " 選択中" : ""}`}
-                      aria-selected={isSelected}
-                      className="category-button"
-                      key={category._id}
-                      onClick={() => handleFieldChange("categoryId", category._id)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          handleFieldChange("categoryId", category._id);
-                        }
-                      }}
-                      role="option"
-                      tabIndex={0}
-                      sx={
-                        isSelected
-                          ? {
-                              border: "1px solid",
-                              borderColor: "primary.main",
-                              borderRadius: 1,
-                              bgcolor: "primary.main",
-                              color: "primary.contrastText",
-                              px: 1,
-                              py: 0.75,
-                              textAlign: "center",
-                              cursor: "pointer",
-                              "&:focus-visible": {
-                                outline: "2px solid",
-                                outlineColor: "primary.main",
-                                outlineOffset: "2px",
-                              },
-                            }
-                          : {
-                              border: "1px solid",
-                              borderColor: category.color,
-                              borderRadius: 1,
-                              color: category.color,
-                              px: 1,
-                              py: 0.75,
-                              textAlign: "center",
-                              cursor: "pointer",
-                              "&:focus-visible": {
-                                outline: "2px solid",
-                                outlineColor: category.color,
-                                outlineOffset: "2px",
-                              },
-                            }
-                      }
-                    >
-                      {category.name}
-                    </Box>
-                  );
-                })}
-              </Box>
-            </Stack>
+            <ReceiptCategorySelector
+              categories={categories}
+              error={errors.categoryId}
+              selectedCategoryId={selectedCategoryId}
+              onSelectCategory={(categoryId) => handleFieldChange("categoryId", categoryId)}
+            />
 
             <TextField
               error={!!errors.memo}
