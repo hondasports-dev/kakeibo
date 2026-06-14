@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import {
   buildClerkInvitationParams,
@@ -7,6 +7,7 @@ import {
   getClerkUserDisplayName,
   getPrimaryVerifiedClerkEmailAddress,
   getVerifiedClerkEmailAddresses,
+  inviteMemberHandler,
 } from "./groupInvitations";
 
 describe("buildInvitationRedirectUrl", () => {
@@ -124,5 +125,149 @@ describe("getVerifiedClerkEmailAddresses", () => {
       ),
     ).toBe("Taro Yamada");
     expect(getClerkUserDisplayName({}, "fallback@example.com")).toBe("fallback@example.com");
+  });
+});
+
+describe("inviteMemberHandler", () => {
+  it("重複招待時に Clerk invitation 作成へ進まない", async () => {
+    const getClerkClient = vi.fn();
+    const createToken = vi.fn(() => "invite-token");
+    const ctx = {
+      runQuery: vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          clerkOrganizationId: null,
+          role: "owner",
+          createdAt: 1000,
+        })
+        .mockResolvedValueOnce("https://issuer.example|owner"),
+      runMutation: vi
+        .fn()
+        .mockRejectedValueOnce(new ConvexError("このメールアドレスにはすでに招待を送信しています")),
+    };
+
+    await expect(
+      inviteMemberHandler(
+        ctx,
+        {
+          email: "member@example.com",
+          redirectUrl: "http://localhost:5173/group/invitations/accept",
+        },
+        { createToken, getClerkClient },
+      ),
+    ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
+
+    expect(createToken).toHaveBeenCalled();
+    expect(getClerkClient).not.toHaveBeenCalled();
+    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+    expect(ctx.runMutation.mock.calls[0]?.[1]).toEqual({
+      groupId: "group-001",
+      email: "member@example.com",
+      token: "invite-token",
+      invitedByUserId: "https://issuer.example|owner",
+    });
+  });
+
+  it("ローカル予約を作ってから Clerk invitation を作成し、成功後に clerkInvitationId を追記する", async () => {
+    const createInvitation = vi.fn().mockResolvedValue({ id: "clerk-invite-001" });
+    const getClerkClient = vi.fn(() => ({
+      invitations: { createInvitation },
+    }));
+    const createToken = vi.fn(() => "invite-token");
+    const ctx = {
+      runQuery: vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          clerkOrganizationId: null,
+          role: "owner",
+          createdAt: 1000,
+        })
+        .mockResolvedValueOnce("https://issuer.example|owner"),
+      runMutation: vi.fn().mockResolvedValue("invite-001"),
+    };
+
+    await expect(
+      inviteMemberHandler(
+        ctx,
+        {
+          email: " Member@Example.com ",
+          redirectUrl: "http://localhost:5173/group/invitations/accept",
+        },
+        { createToken, getClerkClient },
+      ),
+    ).resolves.toEqual({
+      token: "invite-token",
+      clerkInvitationId: "clerk-invite-001",
+      clerkOrganizationId: null,
+    });
+
+    expect(ctx.runMutation).toHaveBeenCalledTimes(2);
+    expect(ctx.runMutation.mock.calls[0]?.[1]).toEqual({
+      groupId: "group-001",
+      email: "member@example.com",
+      token: "invite-token",
+      invitedByUserId: "https://issuer.example|owner",
+    });
+    expect(createInvitation).toHaveBeenCalledWith({
+      emailAddress: "member@example.com",
+      redirectUrl: "http://localhost:5173/group/invitations/accept?token=invite-token",
+      ignoreExisting: true,
+      publicMetadata: {
+        groupId: "group-001",
+        token: "invite-token",
+      },
+    });
+    expect(ctx.runMutation.mock.calls[1]?.[1]).toEqual({
+      groupId: "group-001",
+      email: "member@example.com",
+      token: "invite-token",
+      invitedByUserId: "https://issuer.example|owner",
+      clerkInvitationId: "clerk-invite-001",
+    });
+    expect(ctx.runMutation.mock.invocationCallOrder[0]).toBeLessThan(
+      createInvitation.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(createInvitation.mock.invocationCallOrder[0]).toBeLessThan(
+      ctx.runMutation.mock.invocationCallOrder[1] ?? 0,
+    );
+  });
+
+  it("Clerk invitation 作成に失敗したらローカル予約を削除する", async () => {
+    const createInvitation = vi.fn().mockRejectedValue(new Error("Clerk unavailable"));
+    const getClerkClient = vi.fn(() => ({
+      invitations: { createInvitation },
+    }));
+    const createToken = vi.fn(() => "invite-token");
+    const ctx = {
+      runQuery: vi
+        .fn()
+        .mockResolvedValueOnce({
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          clerkOrganizationId: null,
+          role: "owner",
+          createdAt: 1000,
+        })
+        .mockResolvedValueOnce("https://issuer.example|owner"),
+      runMutation: vi.fn().mockResolvedValueOnce("invite-001").mockResolvedValueOnce("invite-001"),
+    };
+
+    await expect(
+      inviteMemberHandler(
+        ctx,
+        {
+          email: "member@example.com",
+          redirectUrl: "http://localhost:5173/group/invitations/accept",
+        },
+        { createToken, getClerkClient },
+      ),
+    ).rejects.toThrow("Clerk unavailable");
+
+    expect(ctx.runMutation).toHaveBeenCalledTimes(2);
+    expect(ctx.runMutation.mock.calls[1]?.[1]).toEqual({ token: "invite-token" });
   });
 });

@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { createClerkClient } from "@clerk/backend";
 import { action } from "./_generated/server";
+import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
@@ -33,6 +34,16 @@ type ClerkUserWithEmails = {
   lastName?: string | null;
   emailAddresses?: ClerkEmailAddress[];
   primaryEmailAddressId?: string | null;
+};
+
+type InviteMemberArgs = {
+  email: string;
+  redirectUrl: string;
+};
+
+type InviteMemberDeps = {
+  createToken: () => string;
+  getClerkClient: typeof getClerkClient;
 };
 
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
@@ -164,40 +175,69 @@ export const inviteMember = action({
     email: v.string(),
     redirectUrl: v.string(),
   },
-  handler: async (ctx, args): Promise<InviteMemberResult> => {
-    const group: MyGroup = await ctx.runQuery(api.groups.getMyGroup, {});
-    if (!group) {
-      throw new ConvexError("グループを選択してください");
-    }
-    if (group.role !== "owner") {
-      throw new ConvexError("グループオーナーのみメンバーを招待できます");
-    }
-    const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
+  handler: inviteMemberHandler,
+});
 
-    const email = normalizeEmail(args.email);
-    const token = randomUUID();
-    const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
-    const clerk = getClerkClient();
+export async function inviteMemberHandler(
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  args: InviteMemberArgs,
+  deps: InviteMemberDeps = {
+    createToken: randomUUID,
+    getClerkClient,
+  },
+): Promise<InviteMemberResult> {
+  const group: MyGroup = await ctx.runQuery(api.groups.getMyGroup, {});
+  if (!group) {
+    throw new ConvexError("グループを選択してください");
+  }
+  if (group.role !== "owner") {
+    throw new ConvexError("グループオーナーのみメンバーを招待できます");
+  }
+  const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
 
-    const invitation = await clerk.invitations.createInvitation(
+  const email = normalizeEmail(args.email);
+  const token = deps.createToken();
+  const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
+
+  await ctx.runMutation(internal.groups.createGroupInvitationRecord, {
+    groupId: group._id,
+    email,
+    token,
+    invitedByUserId: currentUserId,
+  });
+
+  const clerk = deps.getClerkClient();
+  let invitation: { id: string };
+  try {
+    invitation = await clerk.invitations.createInvitation(
       buildClerkInvitationParams(email, redirectUrl, group._id, token),
     );
+  } catch (caughtError) {
+    try {
+      await ctx.runMutation(internal.groups.deletePendingGroupInvitationRecordByToken, { token });
+    } catch (cleanupError) {
+      console.warn(
+        "[groupInvitations.inviteMember] failed to clean up reserved invitation",
+        cleanupError instanceof Error ? cleanupError.name : "UnknownError",
+      );
+    }
+    throw caughtError;
+  }
 
-    await ctx.runMutation(internal.groups.createGroupInvitationRecord, {
-      groupId: group._id,
-      email,
-      token,
-      invitedByUserId: currentUserId,
-      clerkInvitationId: invitation.id,
-    });
+  await ctx.runMutation(internal.groups.createGroupInvitationRecord, {
+    groupId: group._id,
+    email,
+    token,
+    invitedByUserId: currentUserId,
+    clerkInvitationId: invitation.id,
+  });
 
-    return {
-      token,
-      clerkInvitationId: invitation.id,
-      clerkOrganizationId: group.clerkOrganizationId,
-    };
-  },
-});
+  return {
+    token,
+    clerkInvitationId: invitation.id,
+    clerkOrganizationId: group.clerkOrganizationId,
+  };
+}
 
 export const acceptInvitation = action({
   args: {

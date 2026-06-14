@@ -439,6 +439,109 @@ export const getGroupIdByUserId = internalQuery({
   },
 });
 
+export async function assertEmailCanBeInvitedToGroupHandler(
+  ctx: Pick<QueryCtx, "db">,
+  args: { groupId: Id<"groups">; email: string },
+) {
+  const email = normalizeEmail(args.email);
+  const members = await readQueryDocs(
+    ctx.db.query("groupMembers").withIndex("by_group_id", (q) => q.eq("groupId", args.groupId)),
+  );
+
+  for (const member of members) {
+    const user = await readQueryDoc(
+      ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", member.userId)),
+    );
+    if (user?.email && invitationEmailsMatch(user.email, email)) {
+      throw new ConvexError("このユーザーはすでにグループに参加しています");
+    }
+  }
+
+  const exactInvitations = await readQueryDocs(
+    ctx.db
+      .query("groupInvitations")
+      .withIndex("by_group_id_and_email", (q) => q.eq("groupId", args.groupId).eq("email", email)),
+  );
+  const matchingExactInvitation = exactInvitations.find(
+    (invitation) => invitation.status === "pending" || invitation.status === "accepted",
+  );
+  if (matchingExactInvitation?.status === "pending") {
+    throw new ConvexError("このメールアドレスにはすでに招待を送信しています");
+  }
+  if (matchingExactInvitation?.status === "accepted") {
+    throw new ConvexError("このメールアドレスの招待はすでに承認済みです");
+  }
+
+  for (const status of ["pending", "accepted"] as const) {
+    const invitations = await readQueryDocs(
+      ctx.db
+        .query("groupInvitations")
+        .withIndex("by_group_id_and_status", (q) =>
+          q.eq("groupId", args.groupId).eq("status", status),
+        ),
+    );
+    const matchingInvitation = invitations.find((invitation) =>
+      invitationEmailsMatch(invitation.email, email),
+    );
+    if (matchingInvitation && status === "pending") {
+      throw new ConvexError("このメールアドレスにはすでに招待を送信しています");
+    }
+    if (matchingInvitation && status === "accepted") {
+      throw new ConvexError("このメールアドレスの招待はすでに承認済みです");
+    }
+  }
+
+  return null;
+}
+
+export const assertEmailCanBeInvitedToGroup = internalQuery({
+  args: { groupId: v.id("groups"), email: v.string() },
+  handler: assertEmailCanBeInvitedToGroupHandler,
+});
+
+export async function createGroupInvitationRecordHandler(
+  ctx: MutationCtx,
+  args: {
+    groupId: Id<"groups">;
+    email: string;
+    token: string;
+    invitedByUserId: string;
+    clerkInvitationId?: string;
+  },
+) {
+  const now = Date.now();
+  const existing = await readQueryDoc(
+    ctx.db.query("groupInvitations").withIndex("by_token", (q) => q.eq("token", args.token)),
+  );
+
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      status: "pending",
+      updatedAt: now,
+      ...(args.clerkInvitationId ? { clerkInvitationId: args.clerkInvitationId } : {}),
+    });
+    return existing._id;
+  }
+
+  await assertEmailCanBeInvitedToGroupHandler(ctx, {
+    groupId: args.groupId,
+    email: args.email,
+  });
+
+  const invitation = {
+    groupId: args.groupId,
+    email: normalizeEmail(args.email),
+    token: args.token,
+    status: "pending" as const,
+    invitedByUserId: args.invitedByUserId,
+    createdAt: now,
+    updatedAt: now,
+    ...(args.clerkInvitationId ? { clerkInvitationId: args.clerkInvitationId } : {}),
+  };
+
+  return await ctx.db.insert("groupInvitations", invitation);
+}
+
 export const createGroupInvitationRecord = internalMutation({
   args: {
     groupId: v.id("groups"),
@@ -447,34 +550,28 @@ export const createGroupInvitationRecord = internalMutation({
     invitedByUserId: v.string(),
     clerkInvitationId: v.optional(v.string()),
   },
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const existing = await readQueryDoc(
-      ctx.db.query("groupInvitations").withIndex("by_token", (q) => q.eq("token", args.token)),
-    );
+  handler: createGroupInvitationRecordHandler,
+});
 
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        status: "pending",
-        updatedAt: now,
-        ...(args.clerkInvitationId ? { clerkInvitationId: args.clerkInvitationId } : {}),
-      });
-      return existing._id;
-    }
+export async function deletePendingGroupInvitationRecordByTokenHandler(
+  ctx: MutationCtx,
+  args: { token: string },
+) {
+  const existing = await readQueryDoc(
+    ctx.db.query("groupInvitations").withIndex("by_token", (q) => q.eq("token", args.token)),
+  );
 
-    const invitation = {
-      groupId: args.groupId,
-      email: args.email.trim().toLowerCase(),
-      token: args.token,
-      status: "pending" as const,
-      invitedByUserId: args.invitedByUserId,
-      createdAt: now,
-      updatedAt: now,
-      ...(args.clerkInvitationId ? { clerkInvitationId: args.clerkInvitationId } : {}),
-    };
+  if (existing === null || existing.status !== "pending" || existing.clerkInvitationId) {
+    return null;
+  }
 
-    return await ctx.db.insert("groupInvitations", invitation);
-  },
+  await ctx.db.delete(existing._id);
+  return existing._id;
+}
+
+export const deletePendingGroupInvitationRecordByToken = internalMutation({
+  args: { token: v.string() },
+  handler: deletePendingGroupInvitationRecordByTokenHandler,
 });
 
 export const setGroupClerkOrganizationId = internalMutation({
