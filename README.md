@@ -2,7 +2,7 @@
 
 # kakeibo
 
-週1回レシートをまとめて入力するWeb家計簿アプリです。
+レシート画像をAIで読み取り、まとめて支出を記録・振り返るための個人向けWeb家計簿アプリです。
 
 ## ローカル起動
 
@@ -57,3 +57,8 @@ pnpm run dev -- --host 127.0.0.1
 - `.agents/` 配下の生成物
 - `.pnpm-store/`
 - `.npmrc`
+
+## License
+
+This project is licensed under the Apache License 2.0.
+See [LICENSE](./LICENSE) for details.
