@@ -377,6 +377,18 @@ PREVIEW release candidate は、`preview-release.yml` を手動実行して作�
 この workflow は GitHub Environment `Preview` の secret / variable を使い、
 Convex Preview deployment と Vercel Preview deployment を作成します。
 
+手動実行時の入力は次の方針にします。
+
+| 入力               | 例     | 方針                                      |
+| ------------------ | ------ | ----------------------------------------- |
+| `milestone_number` | `15`   | close済みのGitHub milestone番号           |
+| `source_ref`       | `main` | 初期運用では `main` または `release/*` のみ |
+| `preview_name`     | `m15`  | Convex Preview deployment名。`m<マイルストーン番号>` を基本形にする |
+
+`preview_name` は release candidate 用の一時的な Convex Preview deployment の識別名です。
+同じ `preview_name` で再実行すると、同名 Preview deployment を作り直します。
+候補を上書き確認する場合は `m15`、候補ごとに分ける場合は `m15-rc1` のようにします。
+
 PROD 反映は現時点では未構築です。Clerk Production に必要な独自ドメイン、Google OAuth
 Production credentials、GitHub Environment `Production` の承認ルールが揃うまで、
 `production-release.yml` は追加しません。

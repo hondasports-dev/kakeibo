@@ -11,7 +11,7 @@ on:
         required: true
         default: "main"
       preview_name:
-        description: "Convex preview deployment name, e.g. m20"
+        description: "Convex preview deployment name, e.g. m15 or m15-rc1"
         required: true
 
 permissions:

@@ -104,6 +104,10 @@ GitHub Environment `Preview` には次を設定する。
 | Variable | `VERCEL_ORG_ID`     | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
 
+`CONVEX_DEPLOY_KEY` には、Convex Dashboard の Project Settings で生成した
+Project-level の Preview Deploy Key を保存する。`pnpm exec convex deployment token create`
+で生成する既存 deployment 用 deploy key は、`convex deploy --preview-create` 用ではない。
+
 Convex Project の Preview / Development 用 default environment variables には次を設定する。
 
 - `CLERK_JWT_ISSUER_DOMAIN`
@@ -186,6 +190,18 @@ PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行�
 Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
 
 マイルストーン単位の PREVIEW RC では、`preview-release.yml` が Convex Preview deployment を作成し、Vercel Preview へデプロイする。
+
+`preview-release.yml` の手動実行入力は次の方針にする。
+
+| 入力               | 例     | 方針                                      |
+| ------------------ | ------ | ----------------------------------------- |
+| `milestone_number` | `15`   | close済みのGitHub milestone番号           |
+| `source_ref`       | `main` | 初期運用では `main` または `release/*` のみ |
+| `preview_name`     | `m15`  | `m<マイルストーン番号>` を基本形にする    |
+
+`preview_name` は Convex Preview deployment の識別名である。
+同じ名前で再実行すると同名 Preview deployment を作り直すため、候補を上書き確認する場合は
+`m15` を再利用し、候補ごとに分けたい場合は `m15-rc1` のように suffix を付ける。
 
 ### GitHub Actions Secretsに保存する項目
 
