@@ -240,6 +240,9 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 - Clerk Production instanceはPreview URLでは使わない
 - Vercel Custom EnvironmentはMVPでは使わない
 - Convex production deploymentは通常MCPから触らない
+- preview RC の `CONVEX_DEPLOY_KEY` は、Convex Dashboard の Project Settings で生成する
+  Project-level Preview Deploy Keyを使う。既存 deployment 用 deploy key では
+  `convex deploy --preview-create` に使わない
 
 ## 4. Clerk CLIセットアップ
 

@@ -42,6 +42,17 @@ PREVIEWデプロイは `preview-release.yml` を `workflow_dispatch` で手動�
 | `source_ref`       | `main` | デプロイ対象ref。初期運用では `main` または `release/*` のみ |
 | `preview_name`     | `m15`  | Convex Preview deployment名               |
 
+`preview_name` は、Convex Preview deployment に付ける一時的な識別名である。
+マイルストーン単位の release candidate では、`m<マイルストーン番号>` を基本形にする。
+例: milestone #15 なら `m15`。
+
+同じ `preview_name` で再実行すると、`convex deploy --preview-create` により同名の
+Convex Preview deployment を作り直す。候補を上書き確認する場合は `m15` を再利用し、
+履歴を分けたい場合は `m15-rc1`、`m15-rc2` のように suffix を付ける。
+
+`preview_name` は `^[a-z0-9][a-z0-9-]{0,31}$` に一致させる。
+`M15`、`m15_rc1`、`m15/rc1` は使わない。
+
 ## PREVIEW release candidate の事前条件
 
 - 対象マイルストーンが close されている。
@@ -61,6 +72,11 @@ GitHub Environment `Preview` に以下を設定する。
 | Secret | `CONVEX_DEPLOY_KEY` | Convex Preview deployment を作成・更新する |
 | Variable | `VERCEL_ORG_ID`   | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                    |
+
+`CONVEX_DEPLOY_KEY` は、Convex Dashboard の Project Settings で作成する
+Project-level の Preview Deploy Key を設定する。`pnpm exec convex deployment token create`
+で作る既存 deployment 用 deploy key では、`preview-release.yml` の
+`convex deploy --preview-create` に使わない。
 
 Vercel Preview Environment には `VITE_CLERK_PUBLISHABLE_KEY` を Clerk Development instance の公開鍵で設定する。
 
