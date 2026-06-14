@@ -1,31 +1,19 @@
 import { useMemo } from "react";
 import { useQuery } from "convex/react";
-import type { Doc, Id } from "../../../convex/_generated/dataModel";
+import type { Doc } from "../../../convex/_generated/dataModel";
 import { api } from "../../../convex/_generated/api";
 import { getSectionKey } from "./labels";
-import { isDraftWithItems, mapDraftToQueueItem } from "./mappers";
-import type {
-  AiExpenseDraft,
-  AiExpenseDraftWithItems,
-  AiExpenseQueueCategory,
-  AiExpenseQueueItem,
-  AiExpenseQueueStatus,
-} from "./types";
+import { mapDraftToQueueItem } from "./mappers";
+import type { AiExpenseDraft, AiExpenseQueueCategory, AiExpenseQueueItem } from "./types";
 
 export function useAiExpenseQueueData({
   categories,
   hiddenItemIds,
   initialItems,
-  initialReviewDrafts,
-  registeringIds,
-  selectedReviewDraftId,
 }: {
   categories: AiExpenseQueueCategory[];
   hiddenItemIds: string[];
   initialItems?: AiExpenseQueueItem[];
-  initialReviewDrafts: Record<string, AiExpenseDraft>;
-  registeringIds: string[];
-  selectedReviewDraftId: string | null;
 }) {
   const readyDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "ready" }) as
     | AiExpenseDraft[]
@@ -39,36 +27,9 @@ export function useAiExpenseQueueData({
   const registeredDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "registered" }) as
     | AiExpenseDraft[]
     | undefined;
-  const localReviewDraft = selectedReviewDraftId
-    ? initialReviewDrafts[selectedReviewDraftId]
-    : undefined;
-  const selectedReviewDraftDetails = useQuery(
-    api.aiExpenseDrafts.getWithItems,
-    selectedReviewDraftId && !localReviewDraft
-      ? { draftId: selectedReviewDraftId as Id<"aiExpenseDrafts"> }
-      : "skip",
-  ) as AiExpenseDraftWithItems | null | undefined;
   const jobs = useQuery(api.receiptAnalysisJobs.listJobs) as
     | Doc<"receiptAnalysisImageJobs">[]
     | undefined;
-
-  const selectedReviewDraft = localReviewDraft
-    ? localReviewDraft
-    : isDraftWithItems(selectedReviewDraftDetails)
-      ? selectedReviewDraftDetails.draft
-      : null;
-  const isReviewDraftNotFound =
-    selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === null;
-  const isReviewDraftLoading =
-    selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === undefined;
-
-  const statusOverrides = useMemo<Partial<Record<string, AiExpenseQueueStatus>>>(
-    () =>
-      Object.fromEntries(
-        registeringIds.map((draftId) => [draftId, "registering" as const]),
-      ) as Partial<Record<string, AiExpenseQueueStatus>>,
-    [registeringIds],
-  );
 
   const processingItems = useMemo(() => {
     return (jobs ?? [])
@@ -86,28 +47,12 @@ export function useAiExpenseQueueData({
   const liveItems = useMemo(() => {
     return [
       ...processingItems,
-      ...(readyDrafts ?? []).map((draft) =>
-        mapDraftToQueueItem(draft, statusOverrides, categories),
-      ),
-      ...(needsReviewDrafts ?? []).map((draft) =>
-        mapDraftToQueueItem(draft, statusOverrides, categories),
-      ),
-      ...(failedDrafts ?? []).map((draft) =>
-        mapDraftToQueueItem(draft, statusOverrides, categories),
-      ),
-      ...(registeredDrafts ?? []).map((draft) =>
-        mapDraftToQueueItem(draft, statusOverrides, categories),
-      ),
+      ...(readyDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
+      ...(needsReviewDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
+      ...(failedDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
+      ...(registeredDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
     ];
-  }, [
-    processingItems,
-    failedDrafts,
-    needsReviewDrafts,
-    readyDrafts,
-    registeredDrafts,
-    statusOverrides,
-    categories,
-  ]);
+  }, [processingItems, failedDrafts, needsReviewDrafts, readyDrafts, registeredDrafts, categories]);
 
   const items = useMemo(() => {
     if (initialItems && initialItems.length > 0) {
@@ -136,12 +81,9 @@ export function useAiExpenseQueueData({
   return {
     clearableItems,
     groupedItems,
-    isReviewDraftLoading,
-    isReviewDraftNotFound,
     items,
     jobs,
     readyItemIds,
     readyItems,
-    selectedReviewDraft,
   };
 }
