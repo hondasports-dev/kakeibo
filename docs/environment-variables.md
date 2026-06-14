@@ -4,39 +4,43 @@
 
 ## 概要
 
-このプロジェクトは **DEV / Production の2環境**で運用する。Preview環境は設置しない。
+このプロジェクトは **DEV / PREVIEW / PROD** を分けて運用する。
 
 - **Local**: 開発環境 (`.env.local`)
-- **Production**: Vercel Production環境 (本番用)
+- **DEV**: 通常開発と PR 単位の Vercel Preview
+- **PREVIEW**: マイルストーン単位の release candidate
+- **PROD**: Vercel Production環境 (本番用)
+
+現時点では Clerk Production に独自ドメインが必要なため、PROD の構築と `production-release.yml` は未対応とする。
 
 ## 環境変数一覧
 
 ### Clerk認証関連
 
-| 変数名                       | 用途                           | Local | Production | Secret扱い | 設定場所                            |
-| ---------------------------- | ------------------------------ | ----- | ---------- | ---------- | ----------------------------------- |
-| `VITE_CLERK_PUBLISHABLE_KEY` | フロントエンド用公開鍵         | ✅    | ✅         | ❌         | .env.local / Vercel Env             |
-| `CLERK_SECRET_KEY`           | サーバー用秘密鍵。Convex Action から Clerk Backend API を呼ぶためにも使う | ✅ | ✅ | ✅ | .env.local / Vercel Secrets / Convex Dashboard |
-| `CLERK_JWT_ISSUER_DOMAIN`    | Convex認証用JWT issuerドメイン | ✅    | ✅         | ❌         | Convex Dashboard (CLI) / Vercel Env |
-| `E2E_CLERK_USER_EMAIL`       | E2Eテスト用メール              | ✅    | ❌         | ✅         | .env.local のみ                     |
-| `E2E_CLERK_USER_PASSWORD`    | E2Eテスト用パスワード          | ✅    | ❌         | ✅         | .env.local のみ                     |
+| 変数名                       | 用途                           | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所                            |
+| ---------------------------- | ------------------------------ | ----- | -------------- | ---------- | ---- | ---------- | ----------------------------------- |
+| `VITE_CLERK_PUBLISHABLE_KEY` | フロントエンド用公開鍵         | ✅    | ✅             | ✅         | ✅   | ❌         | .env.local / Vercel Env             |
+| `CLERK_SECRET_KEY`           | サーバー用秘密鍵。Convex Action から Clerk Backend API を呼ぶためにも使う | ✅ | ✅ | ✅ | ✅ | ✅ | .env.local / GitHub Actions Secret / Convex Dashboard |
+| `CLERK_JWT_ISSUER_DOMAIN`    | Convex認証用JWT issuerドメイン | ✅    | ✅             | ✅         | ✅   | ❌         | Convex Dashboard / Vercel Env       |
+| `E2E_CLERK_USER_EMAIL`       | E2Eテスト用メール              | ✅    | ✅             | 任意       | ❌   | ✅         | .env.local / GitHub Actions Secret  |
+| `E2E_CLERK_USER_PASSWORD`    | E2Eテスト用パスワード          | ✅    | ✅             | 任意       | ❌   | ✅         | .env.local / GitHub Actions Secret  |
 
 ### Convex関連
 
-| 変数名                 | 用途                                     | Local | Production | Secret扱い | 設定場所                           |
-| ---------------------- | ---------------------------------------- | ----- | ---------- | ---------- | ---------------------------------- |
-| `CONVEX_DEPLOYMENT`    | ローカル開発用デプロイメント名           | ✅    | ❌         | ❌         | .env.local のみ                    |
-| `VITE_CONVEX_URL`      | フロントエンド用Convex接続URL            | ✅    | ✅         | ❌         | .env.local / Vercel Env            |
-| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ❌         | ❌         | .env.local / GitHub Actions Secret |
-| `CONVEX_DEPLOY_KEY`    | VercelビルドからConvexへのデプロイ用キー（現状未使用） | ❌    | ❌         | ✅         | 将来的に Vercel Secrets へ         |
+| 変数名                 | 用途                                     | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所                           |
+| ---------------------- | ---------------------------------------- | ----- | -------------- | ---------- | ---- | ---------- | ---------------------------------- |
+| `CONVEX_DEPLOYMENT`    | ローカル開発用デプロイメント名           | ✅    | ❌             | ❌         | ❌   | ❌         | .env.local のみ                    |
+| `VITE_CONVEX_URL`      | フロントエンド用Convex接続URL            | ✅    | ✅             | 自動設定   | ✅   | ❌         | .env.local / Vercel Env / Convex deploy |
+| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ✅             | 任意       | ✅   | ❌         | .env.local / GitHub Actions Secret |
+| `CONVEX_DEPLOY_KEY`    | Convex deploy key                        | ❌    | ❌             | ✅         | ✅   | ✅         | GitHub Actions Secret / Vercel Env |
 
 ### OpenAI / レシート画像抽出関連
 
-| 変数名                          | 用途                                          | Local | Production | Secret扱い | 設定場所                    |
-| ------------------------------- | --------------------------------------------- | ----- | ---------- | ---------- | --------------------------- |
-| `OPENAI_API_KEY`                | OpenAI API 認証キー                           | ❌    | ✅         | ✅         | Convex Dashboard (CLI)      |
-| `RECEIPT_IMAGE_EXTRACTOR_MODE`  | OpenAI 呼び出しの切り替え（`mock` / `real`）  | ✅    | ✅         | ❌         | Convex Dashboard (CLI)      |
-| `APP_ENV`                       | real mode の許可判定（`development` / `preview` / `production`） | ✅ | ✅ | ❌ | Convex Dashboard (CLI) |
+| 変数名                         | 用途                                         | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所               |
+| ------------------------------ | -------------------------------------------- | ----- | -------------- | ---------- | ---- | ---------- | ---------------------- |
+| `OPENAI_API_KEY`               | OpenAI API 認証キー                          | ❌    | ❌             | ❌         | ✅   | ✅         | Convex Dashboard       |
+| `RECEIPT_IMAGE_EXTRACTOR_MODE` | OpenAI 呼び出しの切り替え（`mock` / `real`） | ✅    | ✅             | ✅         | ✅   | ❌         | Convex Dashboard       |
+| `APP_ENV`                      | real mode の許可判定（`development` / `preview` / `production`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
 
 > `OPENAI_API_KEY` は Convex Action 内（サーバー側）でのみ使用する。フロントエンドには渡さない。
 > ローカル・PR・Preview・CI では `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、OpenAI API を呼ばない。
@@ -78,7 +82,40 @@ pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api
 pnpm exec convex env set CLERK_SECRET_KEY sk_test_...
 ```
 
+### Vercel Preview / PREVIEW RC環境
+
+PR単位の Preview は通常の開発確認に使う。マイルストーン単位の PREVIEW RC は
+`preview-release.yml` を手動実行して作成する。
+
+Vercel Preview Environment には次を設定する。
+
+- `VITE_CLERK_PUBLISHABLE_KEY` — Clerk Development instance の公開鍵 (`pk_test_*`)
+
+Convex Preview deployment は `preview-release.yml` の `CONVEX_DEPLOY_KEY` で作成する。
+`VITE_CONVEX_URL` は `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` により、
+Vercel build 時に Preview deployment の URL が渡される。
+
+GitHub Environment `Preview` には次を設定する。
+
+| 種類     | 名前                | 用途                                  |
+| -------- | ------------------- | ------------------------------------- |
+| Secret   | `VERCEL_TOKEN`      | Vercel CLI を GitHub Actions から実行する |
+| Secret   | `CONVEX_DEPLOY_KEY` | Convex Preview deployment を作成・更新する |
+| Variable | `VERCEL_ORG_ID`     | Vercel project の所属ID               |
+| Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
+
+Convex Project の Preview / Development 用 default environment variables には次を設定する。
+
+- `CLERK_JWT_ISSUER_DOMAIN`
+- `CLERK_SECRET_KEY`
+- `RECEIPT_IMAGE_EXTRACTOR_MODE=mock`
+- `APP_ENV=preview`
+
+PREVIEW では Clerk Development instance を使う。Production instance や `pk_live_*` / `sk_live_*` は使わない。
+
 ### Vercel Production環境
+
+現時点では Clerk Production に独自ドメインが必要なため、PROD環境構築は未対応とする。
 
 Vercel DashboardのEnvironment Variablesに設定する。
 
@@ -102,6 +139,8 @@ Vercel DashboardのEnvironment Variablesに設定する。
 | 環境       | Clerk instance       | キーの形式                |
 | ---------- | -------------------- | ------------------------- |
 | Local      | Development instance | `pk_test_*` / `sk_test_*` |
+| DEV/Preview | Development instance | `pk_test_*` / `sk_test_*` |
+| PREVIEW RC | Development instance | `pk_test_*` / `sk_test_*` |
 | Production | Production instance  | `pk_live_*` / `sk_live_*` |
 
 > Production環境には必ずProduction instanceのキーを使うこと。
@@ -118,20 +157,24 @@ Vercel に設定されておらず、Vercel ビルドから Convex への関数�
 Convex 関数のデプロイは、ローカル開発者が `npx convex dev --once` または
 `npx convex dev` を手動で実行することで dev deployment に反映する。
 
-**Vercel Preview 環境の Convex 接続先**
+**Vercel Preview / PREVIEW RC 環境の Convex 接続先**
 
-Vercel Preview は `VITE_CONVEX_URL` で dev deployment（`hardy-mockingbird-708.convex.cloud`）
-を向いている。つまり、Preview も本番も同じ dev deployment を共有している状態。
+通常の PR Preview は、既存の Vercel Git Integration と E2E 方針に従い dev deployment を向く。
+マイルストーン単位の PREVIEW RC は、`preview-release.yml` で fresh な Convex Preview deployment を作成し、その URL を `VITE_CONVEX_URL` として Vercel build に渡す。
 
 この構成の含意:
 
 - Convex 関数を追加・変更した PR では、E2E 実行前に `npx convex dev --once` で
   dev deployment に反映する必要がある。反映前に E2E を実行すると `FunctionNotFound`
   エラーが発生する。
-- `VITE_CONVEX_SITE_URL`（Convex HTTP エンドポイント）は Production 環境のみに設定されており、
-  Preview 環境には未設定。E2E cleanup は GitHub Actions Secrets から値を受け取るため問題なし。
+- PREVIEW RC は dev deployment ではなく Convex Preview deployment を使うため、DEVデータは共有しない。
+- `VITE_CONVEX_SITE_URL`（Convex HTTP エンドポイント）は Local / DEV E2E で使う。
+  PREVIEW RC では必要な smoke 内容に応じて、Convex Preview deployment の site URL を使うか、
+  cleanup不要の非破壊確認に絞る。
 
 **将来的な改善候補**（現時点では未実施）
+
+PREVIEW RC には `pnpm exec convex deploy --preview-create <name> --cmd-url-env-var-name VITE_CONVEX_URL` を使う。
 
 Production に `npx convex deploy --cmd 'pnpm run build'` を導入する場合は:
 - `CONVEX_DEPLOY_KEY` を Vercel Secrets に追加する
@@ -139,8 +182,10 @@ Production に `npx convex deploy --cmd 'pnpm run build'` を導入する場合�
 
 ## GitHub Actionsでの扱い
 
-現状、GitHub ActionsからConvexへの直接デプロイは行わない。
+PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行わない。
 Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
+
+マイルストーン単位の PREVIEW RC では、`preview-release.yml` が Convex Preview deployment を作成し、Vercel Preview へデプロイする。
 
 ### GitHub Actions Secretsに保存する項目
 
@@ -153,6 +198,13 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 - `VITE_CONVEX_SITE_URL` — Dev deployment の Convex HTTP URL（例: `https://xxx.convex.site`）
 - `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（Convex Dashboard の値と同一）
 - `E2E_CLERK_USER_ID` — テストユーザーの Clerk tokenIdentifier（`https://xxx.clerk.accounts.dev|user_xxx`）
+
+### GitHub Environment `Preview` に保存する項目
+
+- `VERCEL_TOKEN` — Vercel CLI 実行用 token
+- `CONVEX_DEPLOY_KEY` — Convex Preview Deploy Key
+- `VERCEL_ORG_ID` — GitHub Actions Variable として保存
+- `VERCEL_PROJECT_ID` — GitHub Actions Variable として保存
 
 ### 重要ルール
 
@@ -168,9 +220,12 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - `CLERK_JWT_ISSUER_DOMAIN` — Clerk Frontend API URL (`https://xxxx.clerk.accounts.dev`)
 - `CLERK_SECRET_KEY` — Clerk Backend API 用の秘密鍵。グループ招待メール送信で必要
 - `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（未設定時はエンドポイントが 503 を返すため本番誤操作を防止できる）
-- `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（ローカル・dev deployment）/ `real`（production deployment のみ）
-- `APP_ENV` — `development`（ローカル・dev deployment）/ `production`（production deployment のみ）
+- `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（Local / DEV / PREVIEW）/ `real`（PRODのみ）
+- `APP_ENV` — `development`（Local / DEV）/ `preview`（PREVIEW）/ `production`（PROD）
 - `OPENAI_API_KEY` — OpenAI API 認証キー（production deployment のみ設定。dev deployment には設定しない）
+
+Convex Preview deployment 用の default environment variables では、`APP_ENV=preview`、
+`RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使う。PREVIEW には `OPENAI_API_KEY` を設定しない。
 
 CLI での設定例:
 

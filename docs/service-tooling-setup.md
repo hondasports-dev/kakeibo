@@ -38,7 +38,7 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 | Vite + React + TypeScript | 雛形作成済み                                               | サービス連携完了後に本実装へ進む                               |
 | Chrome DevTools MCP       | 設定済み、ローカル画面確認済み                             | 必要に応じてブラウザ確認に使う                                 |
 | Clerk CLI                 | ログイン済み                                               | Google OAuthのDevelopment設定を確認する                        |
-| Clerk application         | `kakeibo` を新規作成してリンク済み                         | Production instanceをいつ作るか決める                          |
+| Clerk application         | `kakeibo` を新規作成してリンク済み                         | Production instanceは独自ドメイン取得後に構築する               |
 | Clerk env                 | `.env.local` に取得済み                                    | secretをGit管理外に保つ                                        |
 | Convex CLI                | project/dev deployment作成済み                             | schema実装前に設計を再確認する                                 |
 | Convex MCP                | Codexへ登録済み                                            | 次回Codexセッションでtools表示を確認する                       |
@@ -229,13 +229,15 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 | 用途       | Vercel                               | Clerk                            | Convex                                   |
 | ---------- | ------------------------------------ | -------------------------------- | ---------------------------------------- |
 | local dev  | local `.env.local`                   | Development instance `pk_test_*` | dev deployment                           |
-| preview PR | Vercel Preview `*.vercel.app` URL    | 原則Development instance         | dev deployment、必要時preview deployment |
+| preview PR | Vercel Preview `*.vercel.app` URL    | 原則Development instance         | dev deployment                           |
+| preview RC | Vercel Preview `*.vercel.app` URL    | Development instance             | preview deployment                       |
 | production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*`  | production deployment                    |
 
 注意:
 
-- 独自ドメインは初期MVPでは使わない
+- Clerk Productionは独自ドメイン取得後に構築する
 - Clerk Development instanceは本番用途に使わない
+- Clerk Production instanceはPreview URLでは使わない
 - Vercel Custom EnvironmentはMVPでは使わない
 - Convex production deploymentは通常MCPから触らない
 

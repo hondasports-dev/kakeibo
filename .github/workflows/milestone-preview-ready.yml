@@ -1,0 +1,124 @@
+name: Milestone Preview Ready
+
+on:
+  milestone:
+    types: [closed]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  ready:
+    name: Preview readiness check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify milestone state
+        uses: actions/github-script@v9
+        env:
+          MILESTONE_NUMBER: ${{ github.event.milestone.number }}
+          MILESTONE_TITLE: ${{ github.event.milestone.title }}
+        with:
+          script: |
+            const milestoneNumber = Number(process.env.MILESTONE_NUMBER)
+            const milestoneTitle = process.env.MILESTONE_TITLE
+            const { owner, repo } = context.repo
+
+            const openItems = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              milestone: String(milestoneNumber),
+              state: 'open',
+              per_page: 100,
+            })
+
+            if (openItems.length > 0) {
+              core.setFailed(
+                `Milestone #${milestoneNumber} still has ${openItems.length} open issue(s) or PR(s).`,
+              )
+              return
+            }
+
+            const allItems = await github.paginate(github.rest.issues.listForRepo, {
+              owner,
+              repo,
+              milestone: String(milestoneNumber),
+              state: 'all',
+              per_page: 100,
+            })
+
+            const unmergedPulls = []
+            for (const item of allItems.filter((entry) => entry.pull_request)) {
+              const pull = await github.rest.pulls.get({
+                owner,
+                repo,
+                pull_number: item.number,
+              })
+              if (!pull.data.merged_at) {
+                unmergedPulls.push(`#${item.number}`)
+              }
+            }
+
+            if (unmergedPulls.length > 0) {
+              core.setFailed(
+                `Milestone #${milestoneNumber} includes unmerged pull request(s): ${unmergedPulls.join(', ')}`,
+              )
+              return
+            }
+
+            const schemaRelated = allItems.filter((item) => {
+              const labels = item.labels.map((label) =>
+                typeof label === 'string' ? label : label.name || '',
+              )
+              const haystack = [
+                item.title,
+                item.body || '',
+                labels.join(' '),
+              ].join(' ').toLowerCase()
+              return /convex|schema|db|database|migration|データ|マイグレーション/.test(haystack)
+            })
+
+            await core.summary
+              .addHeading('Preview deploy ready')
+              .addTable([
+                [
+                  { data: 'Item', header: true },
+                  { data: 'Value', header: true },
+                ],
+                ['Milestone', `#${milestoneNumber} ${milestoneTitle}`],
+                ['Open issues / PRs', '0'],
+                ['Unmerged milestone PRs', '0'],
+                ['Schema / DB related items', String(schemaRelated.length)],
+              ])
+              .addRaw(
+                schemaRelated.length > 0
+                  ? '\nDB/schema related items were detected. Confirm the PREVIEW seed, compatibility, migration/backfill, and forward-fix checklist before running Preview Release.\n'
+                  : '\nNo obvious DB/schema related item was detected from titles, bodies, and labels.\n',
+              )
+              .addRaw('\nNext step: run the Preview Release workflow manually with `source_ref=main`.\n')
+              .write()
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Test
+        run: pnpm test --run
+
+      - name: Build
+        run: pnpm run build
