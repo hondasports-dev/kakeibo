@@ -1,485 +1,31 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import type { Doc, Id } from "../../convex/_generated/dataModel";
 import { api } from "../../convex/_generated/api";
-import {
-  Alert,
-  Box,
-  Button,
-  Checkbox,
-  Chip,
-  Divider,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  LinearProgress,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import AddPhotoAlternateIcon from "@mui/icons-material/AddPhotoAlternate";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
-import ErrorOutlinedIcon from "@mui/icons-material/ErrorOutlined";
-import HelpIcon from "@mui/icons-material/Help";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
-import ReplayIcon from "@mui/icons-material/Replay";
 import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../utils/imageDataUrl";
-import { formatDateForDisplay } from "../lib/dateFormat";
+import { getSectionKey } from "./aiExpenseQueue/labels";
+import {
+  emptyReviewForm,
+  isDraftWithItems,
+  mapDraftToQueueItem,
+  mapDraftToReviewForm,
+} from "./aiExpenseQueue/mappers";
+import { QueueSection } from "./aiExpenseQueue/QueueSection";
+import { ReviewDialog } from "./aiExpenseQueue/ReviewDialog";
+import type {
+  AiExpenseDraft,
+  AiExpenseDraftWithItems,
+  AiExpenseQueueItem,
+  AiExpenseQueuePanelProps,
+  AiExpenseQueueStatus,
+  ReviewFormValues,
+} from "./aiExpenseQueue/types";
 
-export type AiExpenseQueueStatus =
-  | "adding"
-  | "queued"
-  | "analyzing"
-  | "ready"
-  | "needs_review"
-  | "failed"
-  | "registering"
-  | "registered";
-
-export type AiExpenseQueueDocumentType = "receipt" | "convenience_payment" | "unknown";
-
-export type AiExpenseQueueItem = {
-  id: string;
-  fileName?: string;
-  status: AiExpenseQueueStatus;
-  documentType: AiExpenseQueueDocumentType;
-  title?: string;
-  amountYen?: number;
-  date?: string;
-  categoryName?: string;
-  reviewReasons?: string[];
-};
-
-type QueueSectionKey = "processing" | "ready" | "needs_review" | "failed" | "registered";
-
-type AiExpenseQueuePanelProps = {
-  initialItems?: AiExpenseQueueItem[];
-  categories?: Array<{ _id: Id<"categories"> | string; name: string; color: string }>;
-  initialReviewDrafts?: Record<string, AiExpenseDraft>;
-  onReviewSubmit?: (
-    draftId: string,
-    values: {
-      documentType: AiExpenseQueueDocumentType;
-      shopName: string;
-      paymentPlace: string;
-      payeeName: string;
-      paymentPurpose: string;
-      date: string;
-      amountYen: number;
-      categoryId: string;
-    },
-    registerAfterUpdate: boolean,
-  ) => Promise<void> | void;
-};
-
-type AiExpenseDraftStatus = "ready" | "needs_review" | "failed" | "registered";
-
-type AiExpenseDraft = {
-  _id: string;
-  status: AiExpenseDraftStatus;
-  documentType: AiExpenseQueueDocumentType;
-  imageFileName?: string;
-  shopName?: string;
-  paymentPlace?: string;
-  payeeName?: string;
-  paymentPurpose?: string;
-  date?: string;
-  amountYen?: number;
-  categoryId?: string;
-  reviewReasons: string[];
-  warnings?: string[];
-};
-
-type AiExpenseDraftWithItems = {
-  draft: AiExpenseDraft;
-  items: unknown[];
-};
-
-type ReviewFormValues = {
-  documentType: AiExpenseQueueDocumentType;
-  shopName: string;
-  paymentPlace: string;
-  payeeName: string;
-  paymentPurpose: string;
-  date: string;
-  amountYen: string;
-  categoryId: string;
-};
-
-const statusLabels: Record<AiExpenseQueueStatus, string> = {
-  adding: "追加中",
-  queued: "解析待ち",
-  analyzing: "解析中",
-  ready: "登録準備OK",
-  needs_review: "確認が必要",
-  failed: "失敗",
-  registering: "登録中",
-  registered: "登録済み",
-};
-
-const documentTypeLabels: Record<AiExpenseQueueDocumentType, string> = {
-  receipt: "レシート",
-  convenience_payment: "払込票",
-  unknown: "種別未判定",
-};
-
-const reviewDocumentTypeOptions = Object.entries(documentTypeLabels).filter(
-  ([value]) => value !== "unknown",
-);
-
-const reviewReasonLabels: Record<string, string> = {
-  low_confidence: "信頼度が低い項目があります",
-  missing_required_field: "必須項目を確認してください",
-  ambiguous_document_type: "書類種別を確認してください",
-  ambiguous_category: "カテゴリを確認してください",
-  amount_mismatch: "明細合計と合計金額が一致しません",
-  parse_failed: "画像解析に失敗しました",
-};
-
-const emptyReviewForm: ReviewFormValues = {
-  documentType: "receipt",
-  shopName: "",
-  paymentPlace: "",
-  payeeName: "",
-  paymentPurpose: "",
-  date: "",
-  amountYen: "",
-  categoryId: "",
-};
-
-function getReviewReasonLabel(reason: string) {
-  return reviewReasonLabels[reason] ?? reason;
-}
-
-function resolveDraftTitle(draft: AiExpenseDraft) {
-  if (draft.documentType === "convenience_payment") {
-    return (
-      [draft.payeeName, draft.paymentPurpose, draft.paymentPlace].find(Boolean) ?? "AI支出下書き"
-    );
-  }
-  return draft.shopName || draft.payeeName || draft.paymentPlace || "AI支出下書き";
-}
-
-function mapDraftToQueueItem(
-  draft: AiExpenseDraft,
-  statusOverrides: Partial<Record<string, AiExpenseQueueStatus>>,
-  categories?: Array<{ _id: Id<"categories"> | string; name: string }>,
-): AiExpenseQueueItem {
-  const categoryName = categories?.find((c) => c._id === draft.categoryId)?.name;
-  return {
-    id: draft._id,
-    fileName: draft.imageFileName ?? "AI支出下書き",
-    status: statusOverrides[draft._id] ?? draft.status,
-    documentType: draft.documentType,
-    title: resolveDraftTitle(draft),
-    amountYen: draft.amountYen,
-    date: draft.date,
-    categoryName,
-    reviewReasons: draft.reviewReasons,
-  };
-}
-
-function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
-  return {
-    documentType: draft.documentType,
-    shopName: draft.shopName ?? "",
-    paymentPlace: draft.paymentPlace ?? "",
-    payeeName: draft.payeeName ?? "",
-    paymentPurpose: draft.paymentPurpose ?? "",
-    date: draft.date ?? "",
-    amountYen: draft.amountYen?.toString() ?? "",
-    categoryId: draft.categoryId ?? "",
-  };
-}
-
-function isDraftWithItems(value: unknown): value is AiExpenseDraftWithItems {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "draft" in value &&
-    typeof (value as { draft?: unknown }).draft === "object"
-  );
-}
-
-function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
-  if (status === "ready") {
-    return "ready";
-  }
-  if (status === "needs_review") {
-    return "needs_review";
-  }
-  if (status === "failed") {
-    return "failed";
-  }
-  if (status === "registered") {
-    return "registered";
-  }
-  return "processing";
-}
-
-function getStatusIcon(status: AiExpenseQueueStatus) {
-  if (status === "ready" || status === "registered") {
-    return <CheckCircleIcon fontSize="small" />;
-  }
-  if (status === "needs_review") {
-    return <HelpIcon fontSize="small" />;
-  }
-  if (status === "failed") {
-    return <ErrorOutlinedIcon fontSize="small" />;
-  }
-  return <HourglassEmptyIcon fontSize="small" />;
-}
-
-function getStatusColor(status: AiExpenseQueueStatus) {
-  if (status === "ready" || status === "registered") {
-    return "success" as const;
-  }
-  if (status === "needs_review") {
-    return "warning" as const;
-  }
-  if (status === "failed") {
-    return "error" as const;
-  }
-  return "default" as const;
-}
-
-function QueueItemCard({
-  item,
-  isSelected,
-  onToggleReadySelection,
-  onOpenReview,
-  onRetry,
-  onDelete,
-  onReturnToManualInput,
-  isDeleting,
-}: {
-  item: AiExpenseQueueItem;
-  isSelected: boolean;
-  onToggleReadySelection: (itemId: string, checked: boolean) => void;
-  onOpenReview: (itemId: string) => void;
-  onRetry?: (itemId: string) => void;
-  onDelete?: (item: AiExpenseQueueItem) => void;
-  onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
-  isDeleting: boolean;
-}) {
-  const secondaryLabel = item.fileName ?? "AI支出下書き";
-  const canDelete = item.status !== "registered" && item.status !== "registering";
-
-  return (
-    <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
-      <Stack spacing={1}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}
-        >
-          <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", minWidth: 0 }}>
-            {item.status === "ready" && (
-              <Checkbox
-                checked={isSelected}
-                onChange={(event) => onToggleReadySelection(item.id, event.target.checked)}
-                size="small"
-                slotProps={{
-                  input: { "aria-label": `${item.title || secondaryLabel}を登録対象に含める` },
-                }}
-                sx={{ mt: -0.5 }}
-              />
-            )}
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 700 }} noWrap>
-                {item.title || secondaryLabel}
-              </Typography>
-              {item.title && (
-                <Typography color="text.secondary" variant="body2" noWrap>
-                  {secondaryLabel}
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <Chip label={documentTypeLabels[item.documentType]} size="small" variant="outlined" />
-            <Chip
-              color={getStatusColor(item.status)}
-              icon={getStatusIcon(item.status)}
-              label={statusLabels[item.status]}
-              size="small"
-            />
-          </Stack>
-        </Stack>
-
-        {item.amountYen !== undefined && (
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {item.amountYen.toLocaleString("ja-JP")}円
-          </Typography>
-        )}
-
-        {(item.date || item.categoryName) && (
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-            {item.date && (
-              <Typography color="text.secondary" variant="body2">
-                {formatDateForDisplay(item.date)}
-              </Typography>
-            )}
-            {item.categoryName && (
-              <Chip label={item.categoryName} size="small" variant="outlined" />
-            )}
-          </Stack>
-        )}
-
-        {(item.status === "analyzing" || item.status === "registering") && (
-          <LinearProgress
-            aria-label={`${secondaryLabel}の${statusLabels[item.status]}`}
-            sx={{ height: 4, borderRadius: 2 }}
-          />
-        )}
-
-        {item.reviewReasons && item.reviewReasons.length > 0 && (
-          <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-            {item.reviewReasons.map((reason) => (
-              <Chip
-                key={reason}
-                label={getReviewReasonLabel(reason)}
-                size="small"
-                variant="outlined"
-              />
-            ))}
-          </Stack>
-        )}
-
-        {item.status === "needs_review" && (
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <Button
-              onClick={() => onOpenReview(item.id)}
-              size="small"
-              type="button"
-              variant="outlined"
-            >
-              下書きを確認
-            </Button>
-            <Button
-              color="error"
-              disabled={isDeleting}
-              onClick={() => onDelete?.(item)}
-              size="small"
-              startIcon={<DeleteIcon fontSize="small" />}
-              type="button"
-              variant="text"
-            >
-              キューから削除
-            </Button>
-          </Stack>
-        )}
-
-        {item.status === "failed" && (
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <Button
-              size="small"
-              startIcon={<ReplayIcon fontSize="small" />}
-              onClick={() => onRetry?.(item.id)}
-              type="button"
-              variant="outlined"
-            >
-              再試行
-            </Button>
-            <Button
-              disabled={isDeleting}
-              onClick={() => onReturnToManualInput?.(item)}
-              size="small"
-              type="button"
-              variant="text"
-            >
-              手入力へ戻る
-            </Button>
-            <Button
-              color="error"
-              disabled={isDeleting}
-              onClick={() => onDelete?.(item)}
-              size="small"
-              startIcon={<DeleteIcon fontSize="small" />}
-              type="button"
-              variant="text"
-            >
-              キューから削除
-            </Button>
-          </Stack>
-        )}
-
-        {(item.status === "queued" || item.status === "analyzing" || item.status === "ready") &&
-          canDelete && (
-            <Button
-              color="error"
-              disabled={isDeleting}
-              onClick={() => onDelete?.(item)}
-              size="small"
-              startIcon={<DeleteIcon fontSize="small" />}
-              type="button"
-              variant="text"
-              sx={{ alignSelf: "flex-start" }}
-            >
-              キューから削除
-            </Button>
-          )}
-      </Stack>
-    </Box>
-  );
-}
-
-function QueueSection({
-  label,
-  items,
-  selectedReadyIds,
-  onToggleReadySelection,
-  onOpenReview,
-  onRetry,
-  onDelete,
-  onReturnToManualInput,
-  deletingIds,
-}: {
-  label: string;
-  items: AiExpenseQueueItem[];
-  selectedReadyIds: string[];
-  onToggleReadySelection: (itemId: string, checked: boolean) => void;
-  onOpenReview: (itemId: string) => void;
-  onRetry?: (itemId: string) => void;
-  onDelete?: (item: AiExpenseQueueItem) => void;
-  onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
-  deletingIds: string[];
-}) {
-  if (items.length === 0) {
-    return null;
-  }
-
-  return (
-    <Box aria-label={label} role="region">
-      <Stack spacing={1}>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-            {label}
-          </Typography>
-          <Chip label={`${items.length}件`} size="small" variant="outlined" />
-        </Stack>
-        <Stack spacing={1}>
-          {items.map((item) => (
-            <QueueItemCard
-              isSelected={selectedReadyIds.includes(item.id)}
-              item={item}
-              isDeleting={deletingIds.includes(item.id)}
-              key={item.id}
-              onDelete={onDelete}
-              onOpenReview={onOpenReview}
-              onRetry={onRetry}
-              onReturnToManualInput={onReturnToManualInput}
-              onToggleReadySelection={onToggleReadySelection}
-            />
-          ))}
-        </Stack>
-      </Stack>
-    </Box>
-  );
-}
+export type { AiExpenseQueueItem } from "./aiExpenseQueue/types";
 
 export function AiExpenseQueuePanel({
   initialItems,
@@ -596,14 +142,11 @@ export function AiExpenseQueuePanel({
   ]);
 
   const items = useMemo(() => {
-    // initialItems が渡されている場合は、元のテストデータやローカル状態を優先し、
-    // draft 由来の liveItems は置き換える（dev DB のゴミデータによる重複を防ぐ）
     if (initialItems && initialItems.length > 0) {
       return [...initialItems, ...processingItems].filter(
         (item) => !hiddenItemIds.includes(item.id),
       );
     }
-    // liveItems は既に processingItems を含むため、ここでは liveItems のみを使う
     return liveItems.filter((item) => !hiddenItemIds.includes(item.id));
   }, [hiddenItemIds, initialItems, processingItems, liveItems]);
   const readyItems = useMemo(
@@ -649,7 +192,7 @@ export function AiExpenseQueuePanel({
     }
   }, [initializedReviewDraftId, selectedReviewDraft, selectedReviewDraftId]);
 
-  const handleFilesSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     if (files.length === 0) {
       return;
@@ -742,7 +285,7 @@ export function AiExpenseQueuePanel({
     await runRetry(job, imageDataUrl);
   };
 
-  const handleRetryFileSelected = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRetryFileSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     const job = pendingRetryJob;
     event.target.value = "";
@@ -1082,186 +625,19 @@ export function AiExpenseQueuePanel({
         )}
       </Stack>
 
-      <Dialog
-        fullWidth
-        maxWidth="sm"
-        onClose={handleCloseReview}
+      <ReviewDialog
         open={selectedReviewDraftId !== null}
-      >
-        <DialogTitle>下書き確認</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            {isReviewDraftLoading && (
-              <Typography color="text.secondary">下書きを読み込んでいます。</Typography>
-            )}
-
-            {isReviewDraftNotFound && (
-              <Alert severity="error" variant="outlined">
-                下書きが見つかりません。キューを更新してもう一度確認してください。
-              </Alert>
-            )}
-
-            {!isReviewDraftLoading && !isReviewDraftNotFound && (
-              <>
-                {selectedReviewDraft?.reviewReasons &&
-                  selectedReviewDraft.reviewReasons.length > 0 && (
-                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                      {selectedReviewDraft.reviewReasons.map((reason) => (
-                        <Chip
-                          key={reason}
-                          label={getReviewReasonLabel(reason)}
-                          size="small"
-                          variant="outlined"
-                        />
-                      ))}
-                    </Stack>
-                  )}
-
-                {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
-                  <Alert severity="warning" variant="outlined">
-                    {selectedReviewDraft.warnings.join(" / ")}
-                  </Alert>
-                )}
-
-                {reviewError && (
-                  <Alert severity="error" variant="outlined">
-                    {reviewError}
-                  </Alert>
-                )}
-
-                <TextField
-                  fullWidth
-                  label="書類種別"
-                  onChange={(event) =>
-                    handleReviewFieldChange(
-                      "documentType",
-                      event.target.value as AiExpenseQueueDocumentType,
-                    )
-                  }
-                  select
-                  slotProps={{
-                    select: {
-                      displayEmpty: true,
-                      renderValue: (value) =>
-                        value === ""
-                          ? "書類種別を選択"
-                          : documentTypeLabels[value as AiExpenseQueueDocumentType],
-                    },
-                  }}
-                  value={reviewForm.documentType === "unknown" ? "" : reviewForm.documentType}
-                >
-                  <MenuItem disabled value="">
-                    書類種別を選択
-                  </MenuItem>
-                  {reviewDocumentTypeOptions.map(([value, label]) => (
-                    <MenuItem key={value} value={value}>
-                      {label}
-                    </MenuItem>
-                  ))}
-                </TextField>
-
-                <TextField
-                  fullWidth
-                  label="日付"
-                  onChange={(event) => handleReviewFieldChange("date", event.target.value)}
-                  slotProps={{ inputLabel: { shrink: true } }}
-                  type="date"
-                  value={reviewForm.date}
-                />
-
-                <TextField
-                  fullWidth
-                  label="合計金額"
-                  onChange={(event) =>
-                    handleReviewFieldChange("amountYen", event.target.value.replace(/[^\d]/g, ""))
-                  }
-                  slotProps={{
-                    htmlInput: {
-                      inputMode: "numeric",
-                    },
-                  }}
-                  value={reviewForm.amountYen}
-                />
-
-                <TextField
-                  fullWidth
-                  label="店名"
-                  onChange={(event) => handleReviewFieldChange("shopName", event.target.value)}
-                  value={reviewForm.shopName}
-                />
-
-                <TextField
-                  fullWidth
-                  label="支払場所"
-                  onChange={(event) => handleReviewFieldChange("paymentPlace", event.target.value)}
-                  value={reviewForm.paymentPlace}
-                />
-
-                <TextField
-                  fullWidth
-                  label="支払先"
-                  onChange={(event) => handleReviewFieldChange("payeeName", event.target.value)}
-                  value={reviewForm.payeeName}
-                />
-
-                <TextField
-                  fullWidth
-                  label="支払内容"
-                  onChange={(event) =>
-                    handleReviewFieldChange("paymentPurpose", event.target.value)
-                  }
-                  value={reviewForm.paymentPurpose}
-                />
-
-                <TextField
-                  fullWidth
-                  label="カテゴリ"
-                  onChange={(event) => handleReviewFieldChange("categoryId", event.target.value)}
-                  select
-                  value={reviewForm.categoryId}
-                >
-                  {categories.map((category) => (
-                    <MenuItem key={category._id} value={category._id}>
-                      {category.name}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              </>
-            )}
-          </Stack>
-        </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2, flexWrap: "wrap", gap: 1 }}>
-          <Button disabled={reviewSubmitting} onClick={handleCloseReview} type="button">
-            キャンセル
-          </Button>
-          <Button
-            disabled={
-              reviewSubmitting ||
-              isReviewDraftLoading ||
-              isReviewDraftNotFound ||
-              categories.length === 0
-            }
-            onClick={() => void handleSubmitReview(false)}
-            type="button"
-            variant="outlined"
-          >
-            登録準備OKに戻す
-          </Button>
-          <Button
-            disabled={
-              reviewSubmitting ||
-              isReviewDraftLoading ||
-              isReviewDraftNotFound ||
-              categories.length === 0
-            }
-            onClick={() => void handleSubmitReview(true)}
-            type="button"
-            variant="contained"
-          >
-            修正して登録
-          </Button>
-        </DialogActions>
-      </Dialog>
+        categories={categories}
+        isReviewDraftLoading={isReviewDraftLoading}
+        isReviewDraftNotFound={isReviewDraftNotFound}
+        selectedReviewDraft={selectedReviewDraft}
+        reviewError={reviewError}
+        reviewForm={reviewForm}
+        reviewSubmitting={reviewSubmitting}
+        onClose={handleCloseReview}
+        onFieldChange={handleReviewFieldChange}
+        onSubmit={(registerAfterUpdate) => void handleSubmitReview(registerAfterUpdate)}
+      />
     </Box>
   );
 }
