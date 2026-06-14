@@ -2,7 +2,8 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
-import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./AiExpenseQueuePanel";
+import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
+import { categories, queueItems, rejectImageDecoding } from "./aiExpenseQueue/testFixtures";
 
 const {
   registerReadyDraftsMock,
@@ -58,71 +59,6 @@ vi.mock("convex/react", () => ({
   },
   useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
 }));
-
-const categories = [
-  { _id: "cat-food", name: "食費", color: "#2563EB" },
-  { _id: "cat-daily", name: "日用品", color: "#16A34A" },
-];
-
-const queueItems: AiExpenseQueueItem[] = [
-  {
-    id: "draft-ready",
-    fileName: "ok-receipt.png",
-    status: "ready",
-    documentType: "receipt",
-    title: "スーパー北浜",
-    amountYen: 4280,
-    date: "2026-05-18",
-    categoryName: "食費",
-  },
-  {
-    id: "draft-review",
-    fileName: "review-payment.png",
-    status: "needs_review",
-    documentType: "convenience_payment",
-    title: "公共料金",
-    amountYen: 9120,
-    date: "2026-05-19",
-    categoryName: "公共料金",
-    reviewReasons: ["low_confidence", "missing_required_field"],
-  },
-  {
-    id: "draft-failed",
-    fileName: "failed-receipt.png",
-    status: "failed",
-    documentType: "unknown",
-    title: "読み取り失敗",
-    date: "2026-05-19",
-    categoryName: "不明",
-    reviewReasons: ["parse_failed"],
-  },
-  {
-    id: "draft-registering",
-    fileName: "registering-receipt.png",
-    status: "registering",
-    documentType: "receipt",
-    title: "登録中レシート",
-    amountYen: 1200,
-    date: "2026-05-20",
-    categoryName: "食費",
-  },
-  {
-    id: "draft-registered",
-    fileName: "registered-receipt.png",
-    status: "registered",
-    documentType: "receipt",
-    title: "登録済みレシート",
-    amountYen: 1800,
-    date: "2026-05-20",
-    categoryName: "日用品",
-  },
-];
-
-function rejectImageDecoding() {
-  return vi
-    .spyOn(globalThis, "createImageBitmap")
-    .mockRejectedValueOnce(new Error("画像をデコードできません"));
-}
 
 describe("AiExpenseQueuePanel", () => {
   afterEach(() => {
