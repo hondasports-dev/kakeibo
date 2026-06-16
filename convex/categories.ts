@@ -5,18 +5,41 @@ import type { Id } from "./_generated/dataModel";
 import { requireGroupMembership } from "./groups";
 
 const DEFAULT_CATEGORIES = [
-  { name: "食費", color: "#FF6B6B", sortOrder: 1 },
-  { name: "日用品", color: "#4ECDC4", sortOrder: 2 },
-  { name: "外食", color: "#FFE66D", sortOrder: 3 },
-  { name: "交通", color: "#95E1D3", sortOrder: 4 },
-  { name: "医療", color: "#F38181", sortOrder: 5 },
-  { name: "娯楽", color: "#AA96DA", sortOrder: 6 },
-  { name: "衣服", color: "#FCBAD3", sortOrder: 7 },
-  { name: "その他", color: "#A8DADC", sortOrder: 8 },
+  { name: "食費", color: "#8B5E3C", sortOrder: 1 },
+  { name: "日用品", color: "#A6B28B", sortOrder: 2 },
+  { name: "外食", color: "#F4A27A", sortOrder: 3 },
+  { name: "交通", color: "#AAB7C4", sortOrder: 4 },
+  { name: "医療", color: "#C9734B", sortOrder: 5 },
+  { name: "娯楽", color: "#6F7F55", sortOrder: 6 },
+  { name: "衣服", color: "#D8B28F", sortOrder: 7 },
+  { name: "その他", color: "#765F4F", sortOrder: 8 },
 ] as const;
+
+const LEGACY_DEFAULT_CATEGORY_COLORS_BY_SORT_ORDER = new Map<number, string>([
+  [1, "#FF6B6B"],
+  [2, "#4ECDC4"],
+  [3, "#FFE66D"],
+  [4, "#95E1D3"],
+  [5, "#F38181"],
+  [6, "#AA96DA"],
+  [7, "#FCBAD3"],
+  [8, "#A8DADC"],
+]);
 
 const MAX_CATEGORIES_PER_GROUP = 100;
 const E2E_CATEGORY_NAME_PREFIX = "E2Eカテゴリ-";
+
+function shouldRefreshLegacyDefaultCategoryColor(
+  existing: { name: string; color: string; sortOrder: number },
+  nextDefault: (typeof DEFAULT_CATEGORIES)[number],
+) {
+  const legacyColor = LEGACY_DEFAULT_CATEGORY_COLORS_BY_SORT_ORDER.get(existing.sortOrder);
+  return (
+    existing.name === nextDefault.name &&
+    existing.sortOrder === nextDefault.sortOrder &&
+    existing.color.toUpperCase() === legacyColor
+  );
+}
 
 /** seedDefaultCategories mutation の handler ロジック（テスト用に export） */
 export async function seedDefaultCategoriesHandler(ctx: MutationCtx) {
@@ -36,6 +59,12 @@ export async function seedDefaultCategoriesHandler(ctx: MutationCtx) {
       .unique();
 
     if (existing !== null) {
+      if (shouldRefreshLegacyDefaultCategoryColor(existing, category)) {
+        await ctx.db.patch(existing._id, {
+          color: category.color,
+          updatedAt: now,
+        });
+      }
       skipped++;
       continue;
     }

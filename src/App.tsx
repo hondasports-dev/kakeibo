@@ -27,13 +27,14 @@ function AuthCallbackScreen() {
     <Box className="auth-screen">
       <Paper className="auth-panel paper-panel" elevation={0}>
         <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
+          <AuthBrand />
           <CircularProgress aria-label="Googleログイン処理中" />
           <Box>
             <Typography component="h1" variant="h5">
               Googleログインを処理中
             </Typography>
             <Typography color="text.secondary" variant="body2">
-              認証が完了したら家計簿画面に戻ります。
+              認証が完了したらSuzumemoに戻ります。
             </Typography>
           </Box>
           <AuthenticateWithRedirectCallback
@@ -57,6 +58,7 @@ function AuthenticatedApp() {
       <Box className="auth-screen">
         <Paper className="auth-panel paper-panel" elevation={0}>
           <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
+            <AuthBrand />
             <CircularProgress aria-label="ログイン状態を確認中" />
             <Typography color="text.secondary">ログイン状態を確認しています。</Typography>
           </Stack>
@@ -74,6 +76,7 @@ function AuthenticatedApp() {
       <Box className="auth-screen">
         <Paper className="auth-panel paper-panel" elevation={0}>
           <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
+            <AuthBrand />
             <CircularProgress aria-label="Convex認証状態を確認中" />
             <Typography color="text.secondary">データ同期の認証状態を確認しています。</Typography>
           </Stack>
@@ -86,16 +89,30 @@ function AuthenticatedApp() {
     return (
       <Box className="auth-screen">
         <Paper className="auth-panel paper-panel" elevation={0}>
-          <Alert severity="error" variant="outlined">
-            Clerkログインは完了していますが、Convexで認証できませんでした。
-            ClerkのConvex連携とCLERK_JWT_ISSUER_DOMAINを確認してください。
-          </Alert>
+          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
+            <AuthBrand />
+            <Alert severity="error" variant="outlined">
+              Clerkログインは完了していますが、Convexで認証できませんでした。
+              ClerkのConvex連携とCLERK_JWT_ISSUER_DOMAINを確認してください。
+            </Alert>
+          </Stack>
         </Paper>
       </Box>
     );
   }
 
   return <RouterProvider router={router} />;
+}
+
+function AuthBrand() {
+  return (
+    <Box
+      alt="Suzumemo スズメモ"
+      component="img"
+      src="/suzumemo-logo-lockup.png"
+      sx={{ display: "block", height: "auto", mx: "auto", width: "min(220px, 72vw)" }}
+    />
+  );
 }
 
 function SignedOutScreen() {
@@ -127,20 +144,10 @@ function SignedOutScreen() {
   return (
     <Box className="auth-screen">
       <Paper className="auth-panel paper-panel" elevation={0}>
-        <Stack spacing={3}>
-          <Box>
-            <Typography component="h1" variant="h4">
-              家計簿にログイン
-            </Typography>
-            <Typography color="text.secondary">
-              実在するGoogleアカウントでログインすると、レシート入力画面を確認できます。
-            </Typography>
-          </Box>
+        <Stack spacing={3} sx={{ alignItems: "center", textAlign: "center" }}>
+          <AuthBrand />
 
-          <Alert severity="info" variant="outlined">
-            Clerkの開発用テストユーザーではGoogle OAuthにログインできません。
-            Googleの認証画面では、実際に使えるGoogleアカウントを入力してください。
-          </Alert>
+          <Typography color="text.secondary">小さな支出と日々のメモを、軽く残せます。</Typography>
 
           {error ? (
             <Alert severity="error" variant="outlined">

@@ -43,14 +43,14 @@ describe("WeeklySummaryPanel", () => {
           {
             categoryId: "cat-food",
             categoryName: "食費",
-            categoryColor: "#2563EB",
+            categoryColor: "#AAB7C4",
             totalAmountYen: 4280,
             count: 1,
           },
           {
             categoryId: "cat-daily",
             categoryName: "日用品",
-            categoryColor: "#16A34A",
+            categoryColor: "#A6B28B",
             totalAmountYen: 2000,
             count: 1,
           },
@@ -64,7 +64,7 @@ describe("WeeklySummaryPanel", () => {
             amountYen: 4280,
             categoryId: "cat-food",
             categoryName: "食費",
-            categoryColor: "#2563EB",
+            categoryColor: "#AAB7C4",
           },
           {
             _id: "receipt-2",
@@ -73,7 +73,7 @@ describe("WeeklySummaryPanel", () => {
             amountYen: 2000,
             categoryId: "cat-daily",
             categoryName: "日用品",
-            categoryColor: "#16A34A",
+            categoryColor: "#A6B28B",
           },
         ]}
         weekStartDate="2026-05-13"
@@ -234,7 +234,7 @@ describe("WeeklySummaryPanel", () => {
             amountYen: 4280,
             categoryId: "cat-food",
             categoryName: "食費",
-            categoryColor: "#2563EB",
+            categoryColor: "#AAB7C4",
           },
           {
             _id: "income-1",
@@ -244,7 +244,7 @@ describe("WeeklySummaryPanel", () => {
             amountYen: 300000,
             categoryId: "cat-income",
             categoryName: "給与",
-            categoryColor: "#F59E0B",
+            categoryColor: "#F4A27A",
           },
         ]}
         weekStartDate="2026-05-13"

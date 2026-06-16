@@ -94,7 +94,8 @@ describe("App authentication states", () => {
     renderWithProviders(<App />);
 
     // Then: Googleログイン導線が表示される
-    expect(screen.getByRole("heading", { name: "家計簿にログイン" })).toBeInTheDocument();
+    expect(screen.getByAltText("Suzumemo スズメモ")).toBeInTheDocument();
+    expect(screen.getByText("小さな支出と日々のメモを、軽く残せます。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Googleでログイン" })).toBeEnabled();
   });
 

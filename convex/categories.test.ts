@@ -270,7 +270,7 @@ describe("seedDefaultCategories", () => {
       expect.objectContaining({
         groupId: "group-001",
         name: "食費",
-        color: "#FF6B6B",
+        color: "#8B5E3C",
         isActive: true,
         sortOrder: 1,
         createdAt: expect.any(Number),
@@ -291,7 +291,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "食費",
-        color: "#FF6B6B",
+        color: "#8B5E3C",
         isActive: true,
         sortOrder: 1,
         createdAt: 1000,
@@ -302,7 +302,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "日用品",
-        color: "#4ECDC4",
+        color: "#A6B28B",
         isActive: true,
         sortOrder: 2,
         createdAt: 1000,
@@ -313,7 +313,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "外食",
-        color: "#FFE66D",
+        color: "#F4A27A",
         isActive: true,
         sortOrder: 3,
         createdAt: 1000,
@@ -324,7 +324,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "交通",
-        color: "#95E1D3",
+        color: "#AAB7C4",
         isActive: true,
         sortOrder: 4,
         createdAt: 1000,
@@ -335,7 +335,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "医療",
-        color: "#F38181",
+        color: "#C9734B",
         isActive: true,
         sortOrder: 5,
         createdAt: 1000,
@@ -346,7 +346,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "娯楽",
-        color: "#AA96DA",
+        color: "#6F7F55",
         isActive: true,
         sortOrder: 6,
         createdAt: 1000,
@@ -357,7 +357,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "衣服",
-        color: "#FCBAD3",
+        color: "#D8B28F",
         isActive: true,
         sortOrder: 7,
         createdAt: 1000,
@@ -368,7 +368,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "その他",
-        color: "#A8DADC",
+        color: "#765F4F",
         isActive: true,
         sortOrder: 8,
         createdAt: 1000,
@@ -385,6 +385,63 @@ describe("seedDefaultCategories", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
     expect(dbInsert).not.toHaveBeenCalled();
+  });
+
+  it("旧デフォルトカテゴリ色はSuzumemoパレットへ更新する", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-legacy-colors",
+    });
+    const existingDocs: CategoryDoc[] = [
+      {
+        _id: "id-legacy-food",
+        _creationTime: 1000,
+        groupId: "group-001",
+        name: "食費",
+        color: "#FF6B6B",
+        isActive: true,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const ctx = createMutationCtx(identity, existingDocs);
+
+    const result = await seedDefaultCategoriesHandler(ctx);
+
+    expect(result).toEqual({ created: 7, skipped: 1 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith("id-legacy-food", {
+      color: "#8B5E3C",
+      updatedAt: expect.any(Number),
+    });
+  });
+
+  it("ユーザーが変更したカテゴリ色は上書きしない", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-custom-color",
+    });
+    const existingDocs: CategoryDoc[] = [
+      {
+        _id: "id-custom-food",
+        _creationTime: 1000,
+        groupId: "group-001",
+        name: "食費",
+        color: "#000000",
+        isActive: true,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const ctx = createMutationCtx(identity, existingDocs);
+
+    const result = await seedDefaultCategoriesHandler(ctx);
+
+    expect(result).toEqual({ created: 7, skipped: 1 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).not.toHaveBeenCalled();
   });
 
   it("groupId が異なるグループのカテゴリは分離される", async () => {
@@ -417,7 +474,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "食費",
-        color: "#FF6B6B",
+        color: "#8B5E3C",
         isActive: true,
         sortOrder: 1,
         createdAt: 1000,
@@ -428,7 +485,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "日用品",
-        color: "#4ECDC4",
+        color: "#A6B28B",
         isActive: true,
         sortOrder: 2,
         createdAt: 1000,
@@ -439,7 +496,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "外食",
-        color: "#FFE66D",
+        color: "#F4A27A",
         isActive: true,
         sortOrder: 3,
         createdAt: 1000,
@@ -450,7 +507,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "交通",
-        color: "#95E1D3",
+        color: "#AAB7C4",
         isActive: true,
         sortOrder: 4,
         createdAt: 1000,
@@ -461,7 +518,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "医療",
-        color: "#F38181",
+        color: "#C9734B",
         isActive: true,
         sortOrder: 5,
         createdAt: 1000,
@@ -472,7 +529,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "娯楽",
-        color: "#AA96DA",
+        color: "#6F7F55",
         isActive: true,
         sortOrder: 6,
         createdAt: 1000,
@@ -483,7 +540,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "衣服",
-        color: "#FCBAD3",
+        color: "#D8B28F",
         isActive: true,
         sortOrder: 7,
         createdAt: 1000,
@@ -494,7 +551,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-A",
         name: "その他",
-        color: "#A8DADC",
+        color: "#765F4F",
         isActive: true,
         sortOrder: 8,
         createdAt: 1000,
@@ -535,7 +592,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "食費",
-        color: "#FF6B6B",
+        color: "#8B5E3C",
         isActive: false,
         sortOrder: 1,
         createdAt: 1000,
@@ -546,7 +603,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "日用品",
-        color: "#4ECDC4",
+        color: "#A6B28B",
         isActive: true,
         sortOrder: 2,
         createdAt: 1000,
@@ -557,7 +614,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "外食",
-        color: "#FFE66D",
+        color: "#F4A27A",
         isActive: true,
         sortOrder: 3,
         createdAt: 1000,
@@ -568,7 +625,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "交通",
-        color: "#95E1D3",
+        color: "#AAB7C4",
         isActive: true,
         sortOrder: 4,
         createdAt: 1000,
@@ -579,7 +636,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "医療",
-        color: "#F38181",
+        color: "#C9734B",
         isActive: true,
         sortOrder: 5,
         createdAt: 1000,
@@ -590,7 +647,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "娯楽",
-        color: "#AA96DA",
+        color: "#6F7F55",
         isActive: true,
         sortOrder: 6,
         createdAt: 1000,
@@ -601,7 +658,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "衣服",
-        color: "#FCBAD3",
+        color: "#D8B28F",
         isActive: true,
         sortOrder: 7,
         createdAt: 1000,
@@ -612,7 +669,7 @@ describe("seedDefaultCategories", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "その他",
-        color: "#A8DADC",
+        color: "#765F4F",
         isActive: true,
         sortOrder: 8,
         createdAt: 1000,
@@ -657,7 +714,7 @@ describe("listActive", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "食費",
-        color: "#FF6B6B",
+        color: "#8B5E3C",
         isActive: true,
         sortOrder: 1,
         createdAt: 1000,
@@ -668,7 +725,7 @@ describe("listActive", () => {
         _creationTime: 1000,
         groupId: "group-001",
         name: "日用品",
-        color: "#4ECDC4",
+        color: "#A6B28B",
         isActive: true,
         sortOrder: 2,
         createdAt: 1000,
@@ -708,7 +765,7 @@ describe("category management", () => {
     _creationTime: 1000,
     groupId: GROUP_ID,
     name: "食費",
-    color: "#FF6B6B",
+    color: "#8B5E3C",
     isActive: true,
     sortOrder: 1,
     createdAt: 1000,
@@ -719,7 +776,7 @@ describe("category management", () => {
     ...activeCategory,
     _id: "cat-inactive",
     name: "旧カテゴリ",
-    color: "#64748B",
+    color: "#765F4F",
     isActive: false,
     sortOrder: 2,
   };
@@ -742,7 +799,7 @@ describe("category management", () => {
 
     await createCategoryHandler(ctx, {
       name: "ペット用品",
-      color: "#2563EB",
+      color: "#AAB7C4",
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -752,7 +809,7 @@ describe("category management", () => {
       expect.objectContaining({
         groupId: GROUP_ID,
         name: "ペット用品",
-        color: "#2563EB",
+        color: "#AAB7C4",
         isActive: true,
         sortOrder: 3,
       }),
@@ -771,7 +828,7 @@ describe("category management", () => {
     await expect(
       createCategoryHandler(ctx, {
         name: "上限超過",
-        color: "#2563EB",
+        color: "#AAB7C4",
       }),
     ).rejects.toMatchObject({
       data: "Category limit reached",
@@ -789,7 +846,7 @@ describe("category management", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       categoryId: "cat-active" as any,
       name: "食料品",
-      color: "#0F766E",
+      color: "#8B5E3C",
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -798,7 +855,7 @@ describe("category management", () => {
       "cat-active",
       expect.objectContaining({
         name: "食料品",
-        color: "#0F766E",
+        color: "#8B5E3C",
         updatedAt: expect.any(Number),
       }),
     );

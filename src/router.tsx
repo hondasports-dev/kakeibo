@@ -63,8 +63,8 @@ function shouldEnableE2eRoutes() {
 }
 
 const devAiExpenseQueueCategories = [
-  { _id: "e2e-cat-utilities", name: "水道光熱費", color: "#2563EB" },
-  { _id: "e2e-cat-food", name: "食費", color: "#16A34A" },
+  { _id: "e2e-cat-utilities", name: "水道光熱費", color: "#AAB7C4" },
+  { _id: "e2e-cat-food", name: "食費", color: "#A6B28B" },
 ];
 
 const devAiExpenseReviewDrafts = {
@@ -173,7 +173,7 @@ function E2eRegisterAsExpenseEntriesPage() {
         {isLoading ? "登録中..." : "下書きをexpenseEntriesに登録"}
       </button>
       {error && (
-        <div style={{ color: "red", marginTop: "1rem" }} data-testid="error">
+        <div style={{ color: "#B85A4C", marginTop: "1rem" }} data-testid="error">
           Error: {error}
         </div>
       )}

@@ -594,7 +594,7 @@ export async function getWeekSummaryWithCategoriesHandler(
     const categoryIdStr = receipt.categoryId as string;
     const info = categoryInfoMap.get(categoryIdStr);
     const name = info?.name ?? "不明";
-    const color = info?.color ?? "#999999";
+    const color = info?.color ?? "#AAB7C4";
 
     const catEntry = categoryMap.get(categoryIdStr);
     if (catEntry === undefined) {

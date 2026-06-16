@@ -174,8 +174,8 @@ describe("buildCategoryCandidates", () => {
 
   it("空のカテゴリ名はスコアリングに影響しない", () => {
     const categories = [
-      { _id: catId("cat-0"), name: "", color: "#FF0000", isActive: true, sortOrder: 1 },
-      { _id: catId("cat-1"), name: "食費", color: "#00FF00", isActive: true, sortOrder: 2 },
+      { _id: catId("cat-0"), name: "", color: "#F4A27A", isActive: true, sortOrder: 1 },
+      { _id: catId("cat-1"), name: "食費", color: "#A6B28B", isActive: true, sortOrder: 2 },
     ];
     const candidates = buildCategoryCandidates({
       documentType: "receipt",

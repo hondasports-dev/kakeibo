@@ -20,10 +20,6 @@ export function useInitializeUser() {
   const upsertUser = useMutation(api.users.upsertUser);
   const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories);
   const group = useQuery(api.groups.getMyGroup, isAuthenticated ? {} : "skip");
-  const categories = useQuery(
-    api.categories.listActive,
-    isAuthenticated && group !== undefined && group !== null ? {} : "skip",
-  );
   const hasInitialized = useRef(false);
   const seededGroupIds = useRef(new Set<string>());
   const [isInitializing, setIsInitializing] = useState(false);
@@ -49,10 +45,10 @@ export function useInitializeUser() {
   }, [isAuthenticated, upsertUser]);
 
   useEffect(() => {
-    if (!isAuthenticated || group === undefined || group === null || categories === undefined) {
+    if (!isAuthenticated || group === undefined || group === null) {
       return;
     }
-    if (categories.length > 0 || seededGroupIds.current.has(group._id)) {
+    if (seededGroupIds.current.has(group._id)) {
       return;
     }
 
@@ -61,7 +57,7 @@ export function useInitializeUser() {
       seededGroupIds.current.delete(group._id);
       console.error("[useInitializeUser] category seed failed:", err);
     });
-  }, [categories, group, isAuthenticated, seedDefaultCategories]);
+  }, [group, isAuthenticated, seedDefaultCategories]);
 
   return { isInitializing };
 }
