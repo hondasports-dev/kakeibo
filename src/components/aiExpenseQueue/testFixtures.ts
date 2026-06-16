@@ -2,8 +2,8 @@ import { vi } from "vitest";
 import type { AiExpenseQueueItem } from "./types";
 
 export const categories = [
-  { _id: "cat-food", name: "食費", color: "#2563EB" },
-  { _id: "cat-daily", name: "日用品", color: "#16A34A" },
+  { _id: "cat-food", name: "食費", color: "#AAB7C4" },
+  { _id: "cat-daily", name: "日用品", color: "#A6B28B" },
 ];
 
 export const queueItems: AiExpenseQueueItem[] = [

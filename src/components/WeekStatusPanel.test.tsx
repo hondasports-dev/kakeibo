@@ -36,7 +36,7 @@ describe("WeekStatusPanel", () => {
             amountYen: 4280,
             type: "expense",
             categoryName: "食費",
-            categoryColor: "#2563EB",
+            categoryColor: "#AAB7C4",
             memo: "野菜多め",
           },
           {
@@ -46,7 +46,7 @@ describe("WeekStatusPanel", () => {
             amountYen: 300000,
             type: "income",
             categoryName: "給与",
-            categoryColor: "#F59E0B",
+            categoryColor: "#F4A27A",
           },
         ]}
       />,

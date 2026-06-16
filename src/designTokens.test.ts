@@ -4,16 +4,18 @@ import { theme } from "./theme";
 
 describe("designTokens", () => {
   it("defines the calm workbench palette and spacing scale", () => {
-    expect(designTokens.color.primary.main).toBe("#0f766e");
-    expect(designTokens.color.surface.canvas).toBe("#f6f7f4");
+    expect(designTokens.color.brand.sparrow).toBe("#8B5E3C");
+    expect(designTokens.color.primary.main).toBe("#8B5E3C");
+    expect(designTokens.color.surface.canvas).toBe("#FBF8F2");
     expect(designTokens.space.md).toBe("16px");
     expect(designTokens.radius.md).toBe("8px");
   });
 
   it("exposes shared CSS variables for app layout styles", () => {
     expect(rootCssVariables["--color-surface-canvas"]).toBe(designTokens.color.surface.canvas);
-    expect(rootCssVariables["--color-surface-canvas-rgb"]).toBe("246 247 244");
-    expect(rootCssVariables["--color-surface-panel-rgb"]).toBe("255 255 255");
+    expect(rootCssVariables["--color-brand-coral"]).toBe(designTokens.color.brand.coral);
+    expect(rootCssVariables["--color-surface-canvas-rgb"]).toBe("251 248 242");
+    expect(rootCssVariables["--color-surface-panel-rgb"]).toBe("255 253 248");
     expect(rootCssVariables["--color-border-subtle"]).toBe(designTokens.color.border.subtle);
     expect(rootCssVariables["--space-lg"]).toBe(designTokens.space.lg);
     expect(rootCssVariables["--layout-content-max-width"]).toBe(

@@ -174,17 +174,45 @@ export function AppLayout() {
             sx={{
               justifyContent: sidebarOpen ? "space-between" : "center",
               px: sidebarOpen ? 2 : 0,
+              gap: 1,
             }}
           >
             {sidebarOpen && (
-              <Typography
+              <Box
                 component={Link}
                 to="/"
-                variant="h6"
-                sx={{ textDecoration: "none", color: "inherit", fontWeight: 700 }}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  minWidth: 0,
+                  gap: 1,
+                  textDecoration: "none",
+                  color: "inherit",
+                }}
               >
-                家計簿
-              </Typography>
+                <Box
+                  alt=""
+                  component="img"
+                  src="/suzumemo-app-icon.png"
+                  sx={{ height: 34, width: 34, flex: "0 0 auto", borderRadius: 2 }}
+                />
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    component="span"
+                    variant="h6"
+                    sx={{ display: "block", fontWeight: 800, lineHeight: 1.05 }}
+                  >
+                    Suzumemo
+                  </Typography>
+                  <Typography
+                    component="span"
+                    color="text.secondary"
+                    sx={{ display: "block", fontSize: "0.7rem", fontWeight: 700, lineHeight: 1.1 }}
+                  >
+                    スズメモ
+                  </Typography>
+                </Box>
+              </Box>
             )}
             <IconButton
               aria-label={sidebarOpen ? "サイドバーを閉じる" : "サイドバーを開く"}

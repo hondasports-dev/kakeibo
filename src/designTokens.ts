@@ -10,45 +10,52 @@ function hexToRgbChannel(hexColor: string) {
 
 export const designTokens = {
   color: {
+    brand: {
+      sparrow: "#8B5E3C",
+      paper: "#F7EDE2",
+      leaf: "#A6B28B",
+      coral: "#F4A27A",
+      mist: "#AAB7C4",
+    },
     primary: {
-      light: "#ccfbf1",
-      main: "#0f766e",
-      dark: "#115e59",
+      light: "#F7EDE2",
+      main: "#8B5E3C",
+      dark: "#5F3D26",
       contrastText: "#ffffff",
     },
     secondary: {
-      light: "#e2e8f0",
-      main: "#475569",
-      dark: "#334155",
+      light: "#EEF2E7",
+      main: "#6F7F55",
+      dark: "#4F5C3C",
       contrastText: "#ffffff",
     },
     success: {
-      main: "#15803d",
+      main: "#5F7D4A",
     },
     warning: {
-      main: "#b45309",
+      main: "#C9734B",
     },
     error: {
-      main: "#b91c1c",
+      main: "#B85A4C",
     },
     text: {
-      primary: "#17202a",
-      secondary: "#64748b",
-      muted: "#94a3b8",
+      primary: "#3D2C22",
+      secondary: "#765F4F",
+      muted: "#9E9288",
     },
     surface: {
-      canvas: "#f6f7f4",
-      panel: "#ffffff",
-      sunken: "#f1f5f9",
-      accent: "#f8faf9",
+      canvas: "#FBF8F2",
+      panel: "#FFFDF8",
+      sunken: "#F7EDE2",
+      accent: "#F2F5EA",
     },
     border: {
-      subtle: "rgba(23, 32, 42, 0.1)",
-      emphasis: "rgba(15, 118, 110, 0.32)",
-      track: "rgba(23, 32, 42, 0.06)",
+      subtle: "rgba(61, 44, 34, 0.12)",
+      emphasis: "rgba(139, 94, 60, 0.34)",
+      track: "rgba(61, 44, 34, 0.08)",
     },
     category: {
-      default: "#2563EB",
+      default: "#8B5E3C",
     },
   },
   space: {
@@ -80,7 +87,7 @@ export const designTokens = {
   },
   typography: {
     fontFamily:
-      'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      '"M PLUS Rounded 1c", "Zen Maru Gothic", "Hiragino Maru Gothic ProN", "Yu Gothic UI", "Yu Gothic", Meiryo, "Arial Rounded MT Bold", ui-rounded, system-ui, sans-serif',
     h4: {
       fontSize: "1.75rem",
       fontWeight: 700,
@@ -127,6 +134,11 @@ export const designTokens = {
 
 export const rootCssVariables: Record<CssVariableName, string> = {
   "--font-family-sans": designTokens.typography.fontFamily,
+  "--color-brand-sparrow": designTokens.color.brand.sparrow,
+  "--color-brand-paper": designTokens.color.brand.paper,
+  "--color-brand-leaf": designTokens.color.brand.leaf,
+  "--color-brand-coral": designTokens.color.brand.coral,
+  "--color-brand-mist": designTokens.color.brand.mist,
   "--color-primary-main": designTokens.color.primary.main,
   "--color-primary-light": designTokens.color.primary.light,
   "--color-primary-dark": designTokens.color.primary.dark,

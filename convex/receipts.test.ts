@@ -435,7 +435,7 @@ const sampleCategory: CategoryDoc = {
   _creationTime: 1000,
   groupId: GROUP_ID,
   name: "食費",
-  color: "#FF6B6B",
+  color: "#8B5E3C",
   isActive: true,
   sortOrder: 1,
   createdAt: 1000,
@@ -447,7 +447,7 @@ const otherGroupCategory: CategoryDoc = {
   _creationTime: 1000,
   groupId: OTHER_GROUP_ID,
   name: "外食",
-  color: "#FFE66D",
+  color: "#F4A27A",
   isActive: true,
   sortOrder: 3,
   createdAt: 1000,
@@ -1234,7 +1234,7 @@ describe("getWeekSummaryWithCategories", () => {
     expect(result.byCategory[0]).toMatchObject({
       categoryId: "cat-001",
       categoryName: "食費",
-      categoryColor: "#FF6B6B",
+      categoryColor: "#8B5E3C",
       totalAmountYen: 2300,
       count: 2,
     });
@@ -1248,7 +1248,7 @@ describe("getWeekSummaryWithCategories", () => {
       _creationTime: 1000,
       groupId: GROUP_ID,
       name: "外食",
-      color: "#FFE66D",
+      color: "#F4A27A",
       isActive: true,
       sortOrder: 2,
       createdAt: 1000,
@@ -1325,7 +1325,7 @@ describe("getWeekSummaryWithCategories", () => {
       _creationTime: 1000,
       groupId: GROUP_ID,
       name: "日用品",
-      color: "#16A34A",
+      color: "#A6B28B",
       isActive: true,
       sortOrder: 2,
       createdAt: 1000,
@@ -1339,7 +1339,7 @@ describe("getWeekSummaryWithCategories", () => {
           ...sampleCategory,
           _id: "cat-food",
           name: "食費",
-          color: "#2563EB",
+          color: "#AAB7C4",
         },
         category2,
       ],
@@ -1357,14 +1357,14 @@ describe("getWeekSummaryWithCategories", () => {
         expect.objectContaining({
           categoryId: "cat-food",
           categoryName: "食費",
-          categoryColor: "#2563EB",
+          categoryColor: "#AAB7C4",
           totalAmountYen: 4280,
           count: 1,
         }),
         expect.objectContaining({
           categoryId: "cat-daily",
           categoryName: "日用品",
-          categoryColor: "#16A34A",
+          categoryColor: "#A6B28B",
           totalAmountYen: 2000,
           count: 1,
         }),
@@ -1373,7 +1373,7 @@ describe("getWeekSummaryWithCategories", () => {
     expect(result.receipts).toHaveLength(2);
     expect(result.receipts[0]).toMatchObject({
       categoryName: "食費",
-      categoryColor: "#2563EB",
+      categoryColor: "#AAB7C4",
       amountYen: 4280,
     });
   });
@@ -1410,7 +1410,7 @@ describe("getWeekSummaryWithCategories", () => {
       ...sampleCategory,
       _id: "cat-inactive",
       name: "旧カテゴリ",
-      color: "#64748B",
+      color: "#765F4F",
       isActive: false,
     };
     const receipt: ReceiptDoc = {
@@ -1428,7 +1428,7 @@ describe("getWeekSummaryWithCategories", () => {
       {
         categoryId: "cat-inactive",
         categoryName: "旧カテゴリ",
-        categoryColor: "#64748B",
+        categoryColor: "#765F4F",
         totalAmountYen: 1500,
         count: 1,
       },
@@ -1436,7 +1436,7 @@ describe("getWeekSummaryWithCategories", () => {
     expect(result.receipts[0]).toMatchObject({
       categoryId: "cat-inactive",
       categoryName: "旧カテゴリ",
-      categoryColor: "#64748B",
+      categoryColor: "#765F4F",
     });
   });
 
@@ -1446,7 +1446,7 @@ describe("getWeekSummaryWithCategories", () => {
       ...sampleCategory,
       _id: "cat-target-over-100",
       name: "101件目カテゴリ",
-      color: "#0F766E",
+      color: "#8B5E3C",
       sortOrder: 101,
     };
     const firstOneHundredCategories = Array.from({ length: 100 }, (_, index) => ({
@@ -1473,12 +1473,12 @@ describe("getWeekSummaryWithCategories", () => {
     expect(result.receipts[0]).toMatchObject({
       categoryId: "cat-target-over-100",
       categoryName: "101件目カテゴリ",
-      categoryColor: "#0F766E",
+      categoryColor: "#8B5E3C",
     });
     expect(result.byCategory[0]).toMatchObject({
       categoryId: "cat-target-over-100",
       categoryName: "101件目カテゴリ",
-      categoryColor: "#0F766E",
+      categoryColor: "#8B5E3C",
     });
   });
 

@@ -291,7 +291,7 @@ http.route({
     const categoryId = await ctx.runMutation(internal.categories.ensureE2eCategoryByUser, {
       groupId: resolvedGroupId as never,
       name: "E2Eカテゴリ-Issue179",
-      color: "#2563EB",
+      color: "#AAB7C4",
     });
     const draftId = await ctx.runMutation(internal.aiExpenseDrafts.createE2eReadyDraftForUser, {
       groupId: resolvedGroupId as never,

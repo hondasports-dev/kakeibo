@@ -47,14 +47,14 @@ const categories: Category[] = [
   {
     _id: "cat-food" as Id<"categories">,
     name: "食費",
-    color: "#2563EB",
+    color: "#AAB7C4",
     isActive: true,
     sortOrder: 10,
   },
   {
     _id: "cat-old" as Id<"categories">,
     name: "旧カテゴリ",
-    color: "#64748B",
+    color: "#765F4F",
     isActive: false,
     sortOrder: 20,
   },
@@ -103,7 +103,7 @@ describe("CategorySettingsPanel", () => {
     await waitFor(() => {
       expect(createCategoryMock).toHaveBeenCalledWith({
         name: "交通",
-        color: "#2563EB",
+        color: "#8B5E3C",
       });
     });
     expect(screen.getByLabelText("新しいカテゴリ名")).toHaveValue("");
@@ -147,7 +147,7 @@ describe("CategorySettingsPanel", () => {
       expect(updateCategoryMock).toHaveBeenCalledWith({
         categoryId: "cat-food",
         name: "スーパー",
-        color: "#2563EB",
+        color: "#AAB7C4",
       });
     });
     expect(screen.getByText("カテゴリを更新しました")).toBeInTheDocument();
