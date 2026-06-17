@@ -3,6 +3,11 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireAuthenticatedUserId } from "./users";
+import {
+  assertGroupOwnerRole,
+  assertNotSelfOperator,
+  assertRemovableGroupMemberRole,
+} from "./groupAdminGuards";
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -134,6 +139,18 @@ export async function requireGroupMembership(
   if (membership === null) {
     throw new ConvexError("グループに所属していません");
   }
+  return membership;
+}
+
+/**
+ * active group のオーナー権限を要求する。
+ * 管理系 mutation はこのヘルパーまたは groupAdminGuards の assertion を使う。
+ */
+export async function requireGroupOwner(
+  ctx: Pick<QueryCtx, "auth" | "db">,
+): Promise<GroupMembership> {
+  const membership = await requireGroupMembership(ctx);
+  assertGroupOwnerRole(membership.role);
   return membership;
 }
 
@@ -312,11 +329,7 @@ export function invitationEmailsMatchAny(
 }
 
 export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: string }) {
-  const { groupId, role } = await requireGroupMembership(ctx);
-
-  if (role !== "owner") {
-    throw new ConvexError("グループオーナーのみメンバーを追加できます");
-  }
+  const { groupId } = await requireGroupOwner(ctx);
 
   const email = normalizeEmail(args.email);
   const user = await readQueryDoc(
@@ -674,15 +687,8 @@ export const acceptGroupInvitationForVerifiedEmails = internalMutation({
 // ---------------------------------------------------------------------------
 
 export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId: string }) {
-  const { groupId, userId, role } = await requireGroupMembership(ctx);
-
-  if (role !== "owner") {
-    throw new ConvexError("グループオーナーのみメンバーを削除できます");
-  }
-
-  if (userId === args.targetUserId) {
-    throw new ConvexError("自分自身をグループから削除することはできません");
-  }
+  const { groupId, userId } = await requireGroupOwner(ctx);
+  assertNotSelfOperator(userId, args.targetUserId);
 
   const targetMembership = await readQueryDoc(
     ctx.db
@@ -695,6 +701,8 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
   if (targetMembership === null) {
     throw new ConvexError("指定されたメンバーが見つかりません");
   }
+
+  assertRemovableGroupMemberRole(targetMembership.role);
 
   await ctx.db.delete(targetMembership._id);
 

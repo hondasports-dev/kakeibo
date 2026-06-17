@@ -7,6 +7,7 @@ import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { assertGroupOwnerRole } from "./groupAdminGuards";
 
 type MyGroup = {
   _id: Id<"groups">;
@@ -194,9 +195,7 @@ export async function inviteMemberHandler(
   if (!group) {
     throw new ConvexError("グループを選択してください");
   }
-  if (group.role !== "owner") {
-    throw new ConvexError("グループオーナーのみメンバーを招待できます");
-  }
+  assertGroupOwnerRole(group.role);
   const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
 
   const email = normalizeEmail(args.email);
