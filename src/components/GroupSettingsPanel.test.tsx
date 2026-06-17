@@ -237,9 +237,7 @@ describe("GroupSettingsPanel", () => {
     expect(
       screen.getByRole("heading", { name: "メンバーをグループから外しますか？" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Clerk アカウント自体は削除されず/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Clerk アカウント自体は削除されず/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "グループから外す" }));
 

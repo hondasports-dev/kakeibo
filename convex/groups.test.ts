@@ -1022,7 +1022,9 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(memberId, "member@example.com"));
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
 
     await expect(addMemberByEmailHandler(ctx, { email: "new@example.com" })).rejects.toThrow(
       "グループオーナーのみ実行できます",
@@ -1054,7 +1056,9 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(memberId, "member@example.com"));
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
 
     await expect(
       removeMemberHandler(ctx, { targetUserId: "https://issuer.example|other" }),
