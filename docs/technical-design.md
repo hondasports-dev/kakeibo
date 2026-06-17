@@ -560,7 +560,7 @@ DEV / PREVIEW / PROD の3環境を分けて構築する。
 | Clerk認証方式  | Google OAuth                                     | Google OAuth                                     | Google OAuth                                      |
 | Convex         | dev deployment                                   | preview deployment                               | production deployment                             |
 | データ         | テストデータ                                     | release candidate用の代表データ                 | 実ユーザーデータ                                  |
-| 環境変数       | `.env.local`、Vercel Preview env                 | GitHub Environment `Preview`、Vercel Preview env、Convex Preview default env | Vercel Production env                             |
+| 環境変数       | `.env.local`、Vercel Preview env                 | GitHub Environment `Preview`、Vercel Preview env、Convex Preview default env | GitHub Environment `production`、Vercel Production env、Convex Production env |
 
 ### 16.1 環境分離方針
 
@@ -573,7 +573,7 @@ DEV / PREVIEW / PROD の3環境を分けて構築する。
 - DEVデータをPRODへ手動投入しない
 - PREVIEWデータをPRODへ手動投入しない
 - PRODの環境変数をローカル開発に流用しない
-- PRODはClerk Production用の独自ドメインが準備できるまで未対応とする
+- PROD反映は `production-release.yml` から手動承認後に実行し、Actions以外を正規ルートにしない
 
 ### 16.2 必要な環境変数
 
@@ -602,7 +602,8 @@ VercelにはPreview / Productionの環境変数を分けて登録する。Produc
 
 - PRまたは開発ブランチをDEV/PR Previewに紐づける
 - マイルストーン単位のrelease candidateは `preview-release.yml` からPREVIEWへ手動デプロイする
-- PROD反映はClerk Productionと独自ドメインの準備後に別途 `production-release.yml` として構築する
+- PROD反映は `production-release.yml` から、PREVIEWで検証した同じ commit / ref をProductionへ再デプロイする
+- PROD反映は GitHub Environment `production` の承認後に、Convex Production、Vercel Production、PROD smoke checklist の順で実行する
 - schema変更はまずDEV Convex deploymentで確認する
 - schema変更を含むリリース候補はPREVIEW Convex deploymentで代表データを使って確認する
 - Clerk設定変更もまずDEVで確認する

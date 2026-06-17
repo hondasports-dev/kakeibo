@@ -11,7 +11,7 @@
 - **PREVIEW**: マイルストーン単位の release candidate
 - **PROD**: Vercel Production環境 (本番用)
 
-現時点では Clerk Production に独自ドメインが必要なため、PROD の構築と `production-release.yml` は未対応とする。
+PROD 反映は `.github/workflows/production-release.yml` を正規ルートとし、GitHub Environment `production` の承認後にだけ実行する。
 
 ## 環境変数一覧
 
@@ -119,7 +119,7 @@ PREVIEW では Clerk Development instance を使う。Production instance や `p
 
 ### Vercel Production環境
 
-現時点では Clerk Production に独自ドメインが必要なため、PROD環境構築は未対応とする。
+PROD 環境には Production 用の値だけを設定する。DEV / PREVIEW の Clerk Development instance、Convex dev / preview deployment、`pk_test_*` / `sk_test_*` を流用しない。
 
 Vercel DashboardのEnvironment Variablesに設定する。
 
@@ -131,12 +131,15 @@ Vercel DashboardのEnvironment Variablesに設定する。
 **Secrets (秘匿)**:
 
 - `CLERK_SECRET_KEY` — Clerk Production instanceの秘密鍵 (`sk_live_*`)
-- `CONVEX_DEPLOY_KEY` — ConvexのProduction deploy key（**現状未設定・未使用**。将来的に `npx convex deploy` をビルドコマンドに組み込む場合に必要）
 
 **Convex Dashboardに設定**:
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Convex側の認証設定 (`npx convex env set CLERK_JWT_ISSUER_DOMAIN <value>`)
 - `CLERK_SECRET_KEY` — Convex Action から Clerk Backend API を呼ぶための秘密鍵 (`pnpm exec convex env set CLERK_SECRET_KEY <value>`)
+
+**GitHub Environment `production` に設定**:
+
+- `CONVEX_DEPLOY_KEY` — ConvexのProduction deploy key。Vercel Production Environment へは通常保存しない。
 
 ### Clerk instanceの使い分け
 
@@ -176,13 +179,9 @@ Convex 関数のデプロイは、ローカル開発者が `npx convex dev --onc
   PREVIEW RC では必要な smoke 内容に応じて、Convex Preview deployment の site URL を使うか、
   cleanup不要の非破壊確認に絞る。
 
-**将来的な改善候補**（現時点では未実施）
-
 PREVIEW RC には `pnpm exec convex deploy --preview-create <name> --cmd-url-env-var-name VITE_CONVEX_URL` を使う。
 
-Production に `npx convex deploy --cmd 'pnpm run build'` を導入する場合は:
-- `CONVEX_DEPLOY_KEY` を Vercel Secrets に追加する
-- Production Convex deployment に対して deploy key を発行する（Convex Dashboard）
+Production には `production-release.yml` から `pnpm exec convex deploy --cmd-url-env-var-name VITE_CONVEX_URL --cmd 'pnpm exec vercel build --yes --prod --token "$VERCEL_TOKEN"'` を使う。これにより、Convex Production functions を先に反映し、その Production URL を Vercel Production build に渡す。
 
 ## GitHub Actionsでの扱い
 
@@ -190,6 +189,8 @@ PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行�
 Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
 
 マイルストーン単位の PREVIEW RC では、`preview-release.yml` が Convex Preview deployment を作成し、Vercel Preview へデプロイする。
+
+PROD 反映では、`production-release.yml` を手動実行する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。
 
 `preview-release.yml` の手動実行入力は次の方針にする。
 
@@ -221,6 +222,16 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 - `CONVEX_DEPLOY_KEY` — Convex Preview Deploy Key
 - `VERCEL_ORG_ID` — GitHub Actions Variable として保存
 - `VERCEL_PROJECT_ID` — GitHub Actions Variable として保存
+
+### GitHub Environment `production` に保存する項目
+
+- `VERCEL_TOKEN` — Vercel CLI 実行用 token
+- `CONVEX_DEPLOY_KEY` — Convex Production Deploy Key
+- `VERCEL_ORG_ID` — GitHub Actions Variable として保存
+- `VERCEL_PROJECT_ID` — GitHub Actions Variable として保存
+- `PRODUCTION_SMOKE_URL` — 任意。custom domain など smoke 対象を固定したい場合に Variable として保存
+
+Production 用の secret / variable は `production` environment にだけ置く。`Preview` environment、Repository secret、ローカル `.env.local` へコピーしない。
 
 ### 重要ルール
 
