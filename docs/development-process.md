@@ -389,9 +389,27 @@ Convex Preview deployment と Vercel Preview deployment を作成します。
 同じ `preview_name` で再実行すると、同名 Preview deployment を作り直します。
 候補を上書き確認する場合は `m15`、候補ごとに分ける場合は `m15-rc1` のようにします。
 
-PROD 反映は現時点では未構築です。Clerk Production に必要な独自ドメイン、Google OAuth
-Production credentials、GitHub Environment `Production` の承認ルールが揃うまで、
-`production-release.yml` は追加しません。
+PROD 反映は `production-release.yml` を手動実行して行います。PREVIEW で確認した同じ
+commit / ref を指定し、preflight の成功後に GitHub Environment `production` の承認を待ちます。
+承認後は Convex Production、Vercel Production、PROD smoke checklist の順で実行します。
+Actions 以外の Vercel Dashboard、Convex Dashboard、ローカル CLI からの直接 Production deploy は
+正規ルートにしません。
+
+手動実行時の入力は次の方針にします。
+
+| 入力 | 例 | 方針 |
+| --- | --- | --- |
+| `source_ref` | `main` | PREVIEW で検証済みの `main` または `release/*` |
+| `preview_confirmed` | `true` | 同じ ref の PREVIEW 確認が完了していること |
+| `db_schema_change_check` | `no_db_or_schema_change` | DB/schema 変更なし、または forward-fix 前提の確認済みを選ぶ |
+| `release_note` | `m15 PREVIEW URL確認済み` | PREVIEW evidence またはリリース意図 |
+
+GitHub Environment `production` では Required reviewers、Prevent self-review、Deployment branch rule を有効にします。
+Production 用 secret / variable は `production` environment にだけ置き、DEV / PREVIEW へ流用しません。
+
+PROD smoke は初期運用では非破壊確認に限定します。workflow は Vercel Production deployment URL または
+`PRODUCTION_SMOKE_URL` へ HTTP GET を行い、空でない応答を確認します。データ作成、更新、削除を伴う確認は
+自動 smoke では行わず、必要最小限の手動確認として扱います。
 
 ### E2E テスト設計基準（issue-delivery QA Agent 向け）
 
