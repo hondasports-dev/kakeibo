@@ -24,6 +24,8 @@ import { useAuth, useUser } from "@clerk/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
+import { getConvexErrorMessage } from "../lib/convexError";
+import { ConfirmDangerousActionDialog } from "./groupAdmin/ConfirmDangerousActionDialog";
 
 type GroupInfo = {
   _id: Id<"groups">;
@@ -40,8 +42,13 @@ type GroupMember = {
   createdAt: number;
 };
 
+type PendingRemoveMember = {
+  userId: string;
+  displayLabel: string;
+};
+
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return getConvexErrorMessage(error, fallback);
 }
 
 function getMemberInitial(primaryLabel: string) {
@@ -88,6 +95,7 @@ export function GroupSettingsPanel() {
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
+  const [pendingRemoveMember, setPendingRemoveMember] = useState<PendingRemoveMember | null>(null);
 
   useEffect(() => {
     if (group) {
@@ -166,14 +174,31 @@ export function GroupSettingsPanel() {
     }
   };
 
-  const handleRemoveMember = async (targetUserId: string) => {
+  const handleRequestRemoveMember = (member: GroupMember, displayLabel: string) => {
+    setPendingRemoveMember({ userId: member.userId, displayLabel });
+  };
+
+  const handleCancelRemoveMember = () => {
+    if (savingTarget !== null) {
+      return;
+    }
+    setPendingRemoveMember(null);
+  };
+
+  const handleConfirmRemoveMember = async () => {
+    if (!pendingRemoveMember) {
+      return;
+    }
+
+    const targetUserId = pendingRemoveMember.userId;
     setSavingTarget(targetUserId);
     setError("");
     try {
       await removeMember({ targetUserId });
-      setSnackbar("メンバーを削除しました");
+      setPendingRemoveMember(null);
+      setSnackbar("メンバーをグループから外しました");
     } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "メンバーを削除できませんでした。"));
+      setError(getErrorMessage(caughtError, "メンバーをグループから外せませんでした。"));
     } finally {
       setSavingTarget(null);
     }
@@ -303,13 +328,13 @@ export function GroupSettingsPanel() {
                       size="small"
                       variant={member.role === "owner" ? "filled" : "outlined"}
                     />
-                    <Tooltip title={canRemove ? "メンバーを削除" : "削除できません"}>
+                    <Tooltip title={canRemove ? "グループから外す" : "外せません"}>
                       <span>
                         <IconButton
-                          aria-label={`${primaryLabel}を削除`}
+                          aria-label={`${primaryLabel}をグループから外す`}
                           color="error"
                           disabled={!canRemove || savingTarget !== null}
-                          onClick={() => handleRemoveMember(member.userId)}
+                          onClick={() => handleRequestRemoveMember(member, primaryLabel)}
                           size="small"
                         >
                           {savingTarget === member.userId ? (
@@ -327,6 +352,20 @@ export function GroupSettingsPanel() {
           </Box>
         </Stack>
       </Box>
+
+      <ConfirmDangerousActionDialog
+        confirmLabel="グループから外す"
+        confirming={pendingRemoveMember !== null && savingTarget === pendingRemoveMember.userId}
+        description={
+          pendingRemoveMember
+            ? `${pendingRemoveMember.displayLabel} をこのグループから外します。Clerk アカウント自体は削除されず、他のグループへの所属はそのままです。`
+            : ""
+        }
+        onCancel={handleCancelRemoveMember}
+        onConfirm={() => void handleConfirmRemoveMember()}
+        open={pendingRemoveMember !== null}
+        title="メンバーをグループから外しますか？"
+      />
 
       <Snackbar
         anchorOrigin={{ horizontal: "center", vertical: "bottom" }}

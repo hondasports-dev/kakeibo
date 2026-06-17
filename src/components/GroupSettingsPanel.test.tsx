@@ -227,4 +227,24 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByText("member@example.com")).toBeInTheDocument();
     expect(screen.getByText("メール登録済み")).toBeInTheDocument();
   });
+
+  it("メンバー削除前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupSettingsPanel />);
+
+    await user.click(screen.getByRole("button", { name: "メンバーをグループから外す" }));
+
+    expect(
+      screen.getByRole("heading", { name: "メンバーをグループから外しますか？" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Clerk アカウント自体は削除されず/),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "グループから外す" }));
+
+    await waitFor(() => {
+      expect(removeMemberMock).toHaveBeenCalledWith({ targetUserId: "user-member" });
+    });
+  });
 });
