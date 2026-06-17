@@ -229,6 +229,7 @@ PROD 反映では、`production-release.yml` を手動実行する。preflight �
 - `CONVEX_DEPLOY_KEY` — Convex Production Deploy Key
 - `VERCEL_ORG_ID` — GitHub Actions Variable として保存
 - `VERCEL_PROJECT_ID` — GitHub Actions Variable として保存
+- `VITE_CLERK_PUBLISHABLE_KEY` — Clerk Production instance の公開鍵 (`pk_live_*`)。GitHub Actions 上の Vercel production build に明示的に渡す
 - `PRODUCTION_SMOKE_URL` — 任意。custom domain など smoke 対象を固定したい場合に Variable として保存
 
 Production 用の secret / variable は `production` environment にだけ置く。`Preview` environment、Repository secret、ローカル `.env.local` へコピーしない。

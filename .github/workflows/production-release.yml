@@ -117,6 +117,7 @@ jobs:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       PRODUCTION_SMOKE_URL: ${{ vars.PRODUCTION_SMOKE_URL }}
       SOURCE_REF: ${{ inputs.source_ref }}
@@ -129,6 +130,7 @@ jobs:
           [ -n "$VERCEL_TOKEN" ] || missing+=("secrets.VERCEL_TOKEN")
           [ -n "$VERCEL_ORG_ID" ] || missing+=("vars.VERCEL_ORG_ID")
           [ -n "$VERCEL_PROJECT_ID" ] || missing+=("vars.VERCEL_PROJECT_ID")
+          [ -n "$VITE_CLERK_PUBLISHABLE_KEY" ] || missing+=("vars.VITE_CLERK_PUBLISHABLE_KEY")
           [ -n "$CONVEX_DEPLOY_KEY" ] || missing+=("secrets.CONVEX_DEPLOY_KEY")
 
           if [ "${#missing[@]}" -gt 0 ]; then
@@ -154,7 +156,7 @@ jobs:
         run: |
           pnpm exec convex deploy \
             --cmd-url-env-var-name VITE_CONVEX_URL \
-            --cmd 'pnpm exec vercel build --yes --prod --token "$VERCEL_TOKEN"'
+            --cmd 'VITE_CLERK_PUBLISHABLE_KEY="$VITE_CLERK_PUBLISHABLE_KEY" pnpm exec vercel build --yes --prod --token "$VERCEL_TOKEN"'
 
       - name: Deploy Vercel Production
         id: vercel

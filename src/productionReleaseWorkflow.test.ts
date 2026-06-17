@@ -12,6 +12,7 @@ describe("production-release workflow", () => {
     expect(yaml).toContain("preview_confirmed:");
     expect(yaml).toContain("db_schema_change_check:");
     expect(yaml).toContain("main|release/*");
+    expect(yaml).toContain("vars.VITE_CLERK_PUBLISHABLE_KEY");
   });
 
   test("guards production deployment with the GitHub production environment", () => {

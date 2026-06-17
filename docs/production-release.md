@@ -132,6 +132,7 @@ GitHub Environment `production` に以下を設定する。
 | Secret   | `CONVEX_DEPLOY_KEY`    | Convex Production deployment へ反映する |
 | Variable | `VERCEL_ORG_ID`        | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID`    | Vercel project ID                     |
+| Variable | `VITE_CLERK_PUBLISHABLE_KEY` | Clerk Production instance の公開鍵 (`pk_live_*`) |
 | Variable | `PRODUCTION_SMOKE_URL` | 任意。custom domain など smoke 対象を固定したい場合に設定 |
 
 GitHub Environment `production` 側で設定するもの:
