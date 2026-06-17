@@ -40,11 +40,9 @@ describe("groupAdminGuards", () => {
       db: {
         query: vi.fn().mockReturnValue({
           withIndex: vi.fn().mockReturnValue({
-            collect: vi.fn().mockResolvedValue([
-              { role: "owner" },
-              { role: "member" },
-              { role: "owner" },
-            ]),
+            collect: vi
+              .fn()
+              .mockResolvedValue([{ role: "owner" }, { role: "member" }, { role: "owner" }]),
           }),
         }),
       },
@@ -64,8 +62,8 @@ describe("groupAdminGuards", () => {
       },
     };
 
-    await expect(
-      assertGroupHasMinimumOwners(ctx, "group-001" as Id<"groups">, 2),
-    ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
+    await expect(assertGroupHasMinimumOwners(ctx, "group-001" as Id<"groups">, 2)).rejects.toThrow(
+      GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED,
+    );
   });
 });
