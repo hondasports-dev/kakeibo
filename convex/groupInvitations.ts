@@ -41,9 +41,13 @@ type InviteMemberArgs = {
   redirectUrl: string;
 };
 
+type ClerkInvitationClient = {
+  invitations: Pick<ReturnType<typeof getClerkClient>["invitations"], "createInvitation">;
+};
+
 type InviteMemberDeps = {
   createToken: () => string;
-  getClerkClient: typeof getClerkClient;
+  getClerkClient: () => ClerkInvitationClient;
 };
 
 const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
