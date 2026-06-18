@@ -32,10 +32,11 @@ describe("AppErrorBoundary", () => {
     );
 
     expect(screen.getByRole("alert")).toBeInTheDocument();
+    expect(screen.getByText("Application Error")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "問題が発生しました" })).toBeInTheDocument();
     expect(
       screen.getByText(
-        /画面の表示中にエラーが発生しました。しばらくしてから再読み込みしてください。/,
+        /画面の表示中にエラーが発生しました。再読み込みしても直らない場合は、時間をおいてもう一度お試しください。/,
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();

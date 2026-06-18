@@ -1,5 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
+import { designTokens } from "../designTokens";
+import { PublicStatusPage } from "./PublicStatusPage";
 
 type AppErrorBoundaryProps = {
   children: ReactNode;
@@ -33,35 +35,32 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
       const showDetails = import.meta.env.DEV;
 
       return (
-        <Box className="auth-screen" component="main" role="alert">
-          <Box className="app-main" sx={{ maxWidth: 480 }}>
-            <Stack spacing={2.5}>
-              <Typography component="h1" variant="h5">
-                問題が発生しました
-              </Typography>
-              <Typography color="text.secondary" variant="body2">
-                画面の表示中にエラーが発生しました。しばらくしてから再読み込みしてください。
-              </Typography>
-              <Stack direction="row" spacing={1.5} sx={{ flexWrap: "wrap" }}>
-                <Button onClick={this.handleReload} variant="contained">
-                  再読み込み
-                </Button>
-                <Button onClick={this.handleGoHome} variant="outlined">
-                  ホームへ戻る
-                </Button>
-              </Stack>
-              {showDetails ? (
-                <Typography
-                  component="pre"
-                  sx={{ fontSize: 12, overflow: "auto", whiteSpace: "pre-wrap" }}
-                  variant="body2"
-                >
-                  {this.state.error.message}
-                </Typography>
-              ) : null}
-            </Stack>
-          </Box>
-        </Box>
+        <PublicStatusPage
+          brandImage={{ alt: "Suzumemo", src: "/suzumemo-app-icon.png", width: 56 }}
+          description="画面の表示中にエラーが発生しました。再読み込みしても直らない場合は、時間をおいてもう一度お試しください。"
+          label="Application Error"
+          primaryAction={{ label: "再読み込み", onClick: this.handleReload }}
+          role="alert"
+          secondaryActions={[{ label: "ホームへ戻る", onClick: this.handleGoHome }]}
+          title="問題が発生しました"
+        >
+          {showDetails ? (
+            <Typography
+              component="pre"
+              sx={{
+                color: designTokens.color.error.main,
+                fontSize: 12,
+                maxWidth: "100%",
+                overflow: "auto",
+                textAlign: "left",
+                whiteSpace: "pre-wrap",
+              }}
+              variant="body2"
+            >
+              {this.state.error.message}
+            </Typography>
+          ) : null}
+        </PublicStatusPage>
       );
     }
 

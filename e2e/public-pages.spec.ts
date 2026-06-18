@@ -31,7 +31,8 @@ test.describe("公開・異常系ページ", () => {
   test("未ログインで存在しないURLに404を表示する (#253)", async ({ page }) => {
     await page.goto("/this-route-does-not-exist-m23");
 
-    await expect(page.getByRole("heading", { name: "ページが見つかりませんでした" })).toBeVisible();
+    await expect(page.getByText("404 Not Found")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();
     await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toBeVisible();
     await expect(page.getByRole("link", { name: "利用規約" })).toBeVisible();
   });
@@ -50,9 +51,12 @@ test.describe("公開・異常系ページ", () => {
   test("未ログインで /maintenance を表示できる (#255)", async ({ page }) => {
     await page.goto("/maintenance");
 
-    await expect(page.getByRole("heading", { name: "メンテナンス中です" })).toBeVisible();
+    await expect(page.getByText("Maintenance")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "ただいまメンテナンス中です" })).toBeVisible();
     await expect(
-      page.getByText(/現在、サービス改善のため一時的に利用を停止しています/),
+      page.getByText(/Suzumemo を安心して使えるように、ただいま整えています/),
     ).toBeVisible();
+    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "利用規約" })).toBeVisible();
   });
 });
