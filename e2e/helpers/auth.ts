@@ -39,29 +39,35 @@ export async function gotoAuthenticated(
 }
 
 export async function getCurrentClerkTokenIdentifier(page: Page): Promise<string> {
-  const token = (await page.evaluate(async () => {
-    const clerk = (
-      window as Window & { Clerk?: { session?: { getToken?: () => Promise<string | null> } } }
-    ).Clerk;
-    return clerk?.session?.getToken ? await clerk.session.getToken() : null;
-  })) as string | null;
+  const deadline = Date.now() + 15_000;
 
-  if (!token) {
-    throw new Error("current Clerk token is not available");
+  while (Date.now() < deadline) {
+    const token = (await page.evaluate(async () => {
+      const clerk = (
+        window as Window & { Clerk?: { session?: { getToken?: () => Promise<string | null> } } }
+      ).Clerk;
+      return clerk?.session?.getToken ? await clerk.session.getToken() : null;
+    })) as string | null;
+
+    if (token) {
+      const payloadPart = token.split(".")[1];
+      if (!payloadPart) {
+        throw new Error("invalid Clerk token");
+      }
+
+      const payloadJson = Buffer.from(payloadPart, "base64url").toString("utf8");
+      const payload = JSON.parse(payloadJson) as { iss?: string; sub?: string };
+      if (!payload.iss || !payload.sub) {
+        throw new Error("Clerk token is missing iss or sub");
+      }
+
+      return `${payload.iss}|${payload.sub}`;
+    }
+
+    await page.waitForTimeout(200);
   }
 
-  const payloadPart = token.split(".")[1];
-  if (!payloadPart) {
-    throw new Error("invalid Clerk token");
-  }
-
-  const payloadJson = Buffer.from(payloadPart, "base64url").toString("utf8");
-  const payload = JSON.parse(payloadJson) as { iss?: string; sub?: string };
-  if (!payload.iss || !payload.sub) {
-    throw new Error("Clerk token is missing iss or sub");
-  }
-
-  return `${payload.iss}|${payload.sub}`;
+  throw new Error("current Clerk token is not available");
 }
 
 async function ensureE2eGroup(page: Page) {

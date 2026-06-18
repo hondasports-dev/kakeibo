@@ -14,6 +14,7 @@
  *   E2E_CLEANUP_SECRET    — Convex 側の E2E_CLEANUP_SECRET 環境変数と同じ値
  *   E2E_CLERK_USER_ID     — テストユーザーの Clerk tokenIdentifier
  *                           例: https://xxx.clerk.accounts.dev|user_xxxxxx
+ *   E2E_CLERK_USER_EMAIL  — E2E_CLERK_USER_ID 未設定時のフォールバック
  *
  * セットアップ:
  *   1. Convex Dashboard > Settings > Environment Variables に
@@ -24,22 +25,54 @@
  *      形式で設定する（AGENTS.md の「E2E クリーンアップ設定」参照）。
  */
 
+import type { Page } from "@playwright/test";
+import { getCurrentClerkTokenIdentifier } from "./auth";
+
+export type CleanupOptions = {
+  page?: Page;
+};
+
 /**
  * テストユーザーのレシートを全件削除する。
  *
  * 環境変数が未設定の場合は警告のみ出してスキップする（ローカル開発の利便性のため）。
  * CI 環境（process.env.CI === 'true'）では未設定の場合にエラーをスローする。
  */
-export async function cleanupTestReceipts(): Promise<void> {
-  await callCleanupEndpoint({ userId: getCleanupUserId() });
+function getCleanupIdentity(): { userId?: string; email?: string } {
+  const userId = getCleanupUserId();
+  if (userId) {
+    return { userId };
+  }
+  const email = getCleanupUserEmail();
+  if (email) {
+    return { email };
+  }
+  return {};
+}
+
+async function resolveCleanupIdentity(
+  options?: CleanupOptions,
+): Promise<{ userId?: string; email?: string }> {
+  if (options?.page) {
+    try {
+      return { userId: await getCurrentClerkTokenIdentifier(options.page) };
+    } catch {
+      // サインイン直後などセッション未安定時は環境変数ベースにフォールバック
+    }
+  }
+  return getCleanupIdentity();
+}
+
+export async function cleanupTestReceipts(options?: CleanupOptions): Promise<void> {
+  await callCleanupEndpoint(await resolveCleanupIdentity(options));
 }
 
 /**
  * テスト中に作成した AI 支出キュー関連データを削除する。
  */
-export async function cleanupAiExpenseQueue(): Promise<void> {
+export async function cleanupAiExpenseQueue(options?: CleanupOptions): Promise<void> {
   await callCleanupEndpoint({
-    userId: getCleanupUserId(),
+    ...(await resolveCleanupIdentity(options)),
     clearAiExpenseQueue: true,
   });
 }
@@ -47,9 +80,9 @@ export async function cleanupAiExpenseQueue(): Promise<void> {
 /**
  * テスト中に作成した E2E 専用 expenseEntries を削除する。
  */
-export async function cleanupE2eExpenseEntries(): Promise<void> {
+export async function cleanupE2eExpenseEntries(options?: CleanupOptions): Promise<void> {
   await callCleanupEndpoint({
-    userId: getCleanupUserId(),
+    ...(await resolveCleanupIdentity(options)),
     clearE2eExpenseEntries: true,
   });
 }
@@ -57,9 +90,9 @@ export async function cleanupE2eExpenseEntries(): Promise<void> {
 /**
  * テスト中に作成した E2E 専用カテゴリを削除する。
  */
-export async function cleanupTestCategories(): Promise<void> {
+export async function cleanupTestCategories(options?: CleanupOptions): Promise<void> {
   await callCleanupEndpoint({
-    userId: getCleanupUserId(),
+    ...(await resolveCleanupIdentity(options)),
     deleteE2eCategories: true,
   });
 }
@@ -88,9 +121,12 @@ export async function cleanupTestCategoriesByUser(userId: string): Promise<void>
 /**
  * 指定週のテストユーザーの週次セッションを draft に戻し、振り返りメモをクリアする。
  */
-export async function resetTestWeekSession(weekStartDate: string): Promise<void> {
+export async function resetTestWeekSession(
+  weekStartDate: string,
+  options?: CleanupOptions,
+): Promise<void> {
   await callCleanupEndpoint({
-    userId: getCleanupUserId(),
+    ...(await resolveCleanupIdentity(options)),
     resetWeekSession: true,
     weekStartDate,
   });
@@ -107,9 +143,9 @@ function getCleanupUserEmail(): string | undefined {
 /**
  * テストユーザーの月収入設定をクリアする。
  */
-export async function cleanupUserMonthlyIncome(): Promise<void> {
+export async function cleanupUserMonthlyIncome(options?: CleanupOptions): Promise<void> {
   await callCleanupEndpoint({
-    userId: getCleanupUserId(),
+    ...(await resolveCleanupIdentity(options)),
     clearMonthlyIncome: true,
   });
 }
@@ -118,10 +154,9 @@ export async function cleanupUserMonthlyIncome(): Promise<void> {
  * テストユーザーのグループ所属を削除する。
  */
 export async function cleanupGroupMembershipsByUser(userId?: string): Promise<void> {
-  const resolvedUserId = userId ?? getCleanupUserId();
+  const identity = userId ? { userId } : getCleanupIdentity();
   await callCleanupEndpoint({
-    userId: resolvedUserId,
-    email: resolvedUserId ? undefined : getCleanupUserEmail(),
+    ...identity,
     clearGroupMemberships: true,
   });
 }
