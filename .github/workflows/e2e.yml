@@ -32,10 +32,13 @@ jobs:
     # Vercel の Preview デプロイが成功した時のみ実行
     # Production デプロイ（environment == 'Production'）は除外する
     # GitHub Environment の deployment_status は target_url が Actions job URL になるため除外する
+    # preview ブランチのデプロイは preview-deploy.yml 内で smoke E2E を実行するため、
+    # Vercel の deployment_status 由来の単独 E2E は重複実行しない
     if: |
       github.event.deployment_status.state == 'success' &&
       contains(github.event.deployment_status.environment, 'Preview') &&
-      contains(github.event.deployment_status.target_url, '.vercel.app')
+      contains(github.event.deployment_status.target_url, '.vercel.app') &&
+      github.event.deployment.ref != 'preview'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
