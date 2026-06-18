@@ -112,6 +112,13 @@ http.route({
       });
     }
 
+    if (body.resetWeekSession && !resolvedGroupId) {
+      return new Response(JSON.stringify({ error: "groupId is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
     let receipts: { deletedCount: number } | null = null;
     if (resolvedGroupId) {
       receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {

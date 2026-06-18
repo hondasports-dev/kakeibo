@@ -14,6 +14,7 @@ import { SummaryPage } from "./pages/SummaryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { TermsPage } from "./pages/TermsPage";
+import { MaintenancePage } from "./pages/MaintenancePage";
 import { GroupSetupPage } from "./pages/GroupSetupPage";
 import { GroupSelectPage } from "./pages/GroupSelectPage";
 import { GroupInvitationAcceptPage } from "./pages/GroupInvitationAcceptPage";
@@ -266,6 +267,10 @@ export const router = createBrowserRouter([
     element: <TermsPage />,
   },
   {
+    path: "/maintenance",
+    element: <MaintenancePage />,
+  },
+  {
     path: "/group/setup",
     element: <GroupSetupPage />,
   },
@@ -279,12 +284,10 @@ export const router = createBrowserRouter([
   },
   {
     element: <GroupRouteGuard />,
-    children: [
-      ...appRoutes,
-      {
-        path: "*",
-        element: <NotFoundPage />,
-      },
-    ],
+    children: appRoutes,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
   },
 ]);

@@ -47,7 +47,7 @@ test.describe("ログアウト", () => {
     await clickUserMenuItem(page, "ログアウト");
 
     // ログイン画面に戻ることを確認
-    await expect(page.getByRole("heading", { name: "家計簿にログイン" })).toBeVisible({
+    await expect(page.getByAltText("Suzumemo スズメモ")).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByRole("button", { name: "Googleでログイン" })).toBeVisible();
