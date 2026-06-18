@@ -562,14 +562,14 @@ DEV / PREVIEW / PROD の3環境を分けて構築する。
 | Clerk          | Development instance                             | Development instance                             | Production instance                               |
 | Clerk認証方式  | Google OAuth                                     | Google OAuth                                     | Google OAuth                                      |
 | Convex         | dev deployment                                   | fixed staging deployment                         | production deployment                             |
-| データ         | テストデータ                                     | 統合確認・release candidate用の代表データ        | 実ユーザーデータ                                  |
+| データ         | テストデータ                                     | 統合確認・PROD候補確認用の代表データ             | 実ユーザーデータ                                  |
 | 環境変数       | `.env.local`、Vercel Preview env                 | GitHub Environment `Preview`、Vercel Preview env、Convex staging env | GitHub Environment `production`、Vercel Production env、Convex Production env |
 
 ### 16.1 環境分離方針
 
 - DEV/PREVIEWとPRODでClerk instanceを分ける
 - DEV/PREVIEW/PRODでConvex deploymentを分ける
-- PREVIEWはPR単位の通常Previewと区別し、`preview` branchの統合確認とマイルストーン単位のrelease candidateとして扱う
+- PREVIEWはPR単位の通常Previewと区別し、`preview` branchの統合確認とPROD候補確認として扱う
 - DEVのGoogle OAuth callback URLに本番URLを入れない
 - PRODのGoogle OAuth callback URLにローカルURLを入れない
 - PREVIEWではClerk Development instanceを使い、Clerk Production instanceをPreview URLで使わない
@@ -604,7 +604,7 @@ VercelにはPreview / Productionの環境変数を分けて登録する。Produc
 ### 16.3 デプロイ方針
 
 - PRまたは開発ブランチをDEV/PR Previewに紐づける
-- マイルストーン単位のrelease candidateは `preview-release.yml` からPREVIEWへ手動デプロイする
+- `preview` branch への push は `preview-deploy.yml` からPREVIEWへ自動デプロイする
 - PROD反映は `production-release.yml` から、PREVIEWで検証した同じ commit / ref をProductionへ再デプロイする
 - PROD反映は GitHub Environment `production` の承認後に、Convex Production、Vercel Production、PROD smoke checklist の順で実行する
 - schema変更はまずDEV Convex deploymentで確認する

@@ -8,7 +8,7 @@
 
 - **Local**: 開発環境 (`.env.local`)
 - **DEV**: 通常開発と PR 単位の Vercel Preview
-- **PREVIEW**: `preview` branch の統合確認とマイルストーン単位の release candidate
+- **PREVIEW**: `preview` branch の統合確認とPROD候補確認
 - **PROD**: Vercel Production環境 (本番用)
 
 PROD 反映は `.github/workflows/production-release.yml` を正規ルートとし、GitHub Environment `production` の承認後にだけ実行する。
@@ -86,7 +86,6 @@ pnpm exec convex env set CLERK_SECRET_KEY sk_test_...
 
 PR単位の Preview は通常の開発確認に使う。`preview` branch は統合確認用の固定 PREVIEW とし、
 `preview-deploy.yml` が固定 Convex staging deployment と Vercel Preview を更新する。
-マイルストーン単位の PREVIEW RC を明示的に再作成したい場合は、`preview-release.yml` を手動実行する。
 
 Vercel Preview Environment には次を設定する。
 
@@ -106,7 +105,7 @@ GitHub Environment `Preview` には次を設定する。
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
 
 `CONVEX_DEPLOY_KEY` には、固定 staging deployment 用の deploy key を保存する。
-`preview-deploy.yml` と `preview-release.yml` はこの key で staging functions / schema を反映する。
+`preview-deploy.yml` はこの key で staging functions / schema を反映する。
 
 Convex staging deployment には次を設定する。
 
@@ -167,8 +166,8 @@ Convex 関数のデプロイは、ローカル開発者が `npx convex dev --onc
 **Vercel Preview / PREVIEW 環境の Convex 接続先**
 
 通常の PR Preview は、既存の Vercel Git Integration と E2E 方針に従い dev deployment を向く。
-`preview` branch の統合確認とマイルストーン単位の PREVIEW RC は、固定 Convex staging deployment を向く。
-`preview-deploy.yml` / `preview-release.yml` は `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` で staging URL を Vercel build に渡す。
+`preview` branch の統合確認は、固定 Convex staging deployment を向く。
+`preview-deploy.yml` は `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` で staging URL を Vercel build に渡す。
 
 この構成の含意:
 
@@ -190,16 +189,8 @@ PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行�
 Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
 
 `preview` branch への push では、`preview-deploy.yml` が固定 Convex staging deployment を更新し、Vercel Preview へデプロイする。
-マイルストーン単位の PREVIEW RC では、`preview-release.yml` が同じ staging deployment を更新し、Vercel Preview へデプロイする。
 
 PROD 反映では、`main` への push で `production-release.yml` が自動起動する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。手動リリースや forward-fix では、同じ workflow を `workflow_dispatch` で実行してよい。
-
-`preview-release.yml` の手動実行入力は次の方針にする。
-
-| 入力               | 例     | 方針                                      |
-| ------------------ | ------ | ----------------------------------------- |
-| `milestone_number` | `15`   | close済みのGitHub milestone番号           |
-| `source_ref`       | `preview` | `preview`、`main`、または `release/*` のみ |
 
 ### GitHub Actions Secretsに保存する項目
 
