@@ -7,3 +7,11 @@ export const PUBLIC_PATHS = ["/privacy", "/terms", GROUP_INVITATION_ACCEPT_PATH]
 export function isPublicPath(pathname: string): boolean {
   return (PUBLIC_PATHS as readonly string[]).includes(pathname);
 }
+
+/** 未ログインでもルーターへ渡し、404 等を表示できるパスか */
+export function shouldUseRouterBeforeAuth(pathname: string): boolean {
+  if (isPublicPath(pathname)) {
+    return true;
+  }
+  return pathname !== "/";
+}

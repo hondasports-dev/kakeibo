@@ -279,12 +279,10 @@ export const router = createBrowserRouter([
   },
   {
     element: <GroupRouteGuard />,
-    children: [
-      ...appRoutes,
-      {
-        path: "*",
-        element: <NotFoundPage />,
-      },
-    ],
+    children: appRoutes,
+  },
+  {
+    path: "*",
+    element: <NotFoundPage />,
   },
 ]);
