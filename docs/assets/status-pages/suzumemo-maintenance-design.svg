@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" role="img" aria-label="ただいまメンテナンス中です のSuzumemo公開ステータスページデザイン案">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="160%">
+      <feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#3D2C22" flood-opacity="0.16"/>
+    </filter>
+  </defs>
+  <rect width="1440" height="1000" fill="#FBF8F2"/>
+  <ellipse cx="60" cy="300" rx="250" ry="220" fill="#F7EDE2" opacity="0.72"/>
+  <ellipse cx="1240" cy="820" rx="260" ry="210" fill="#A6B28B" opacity="0.26"/>
+  <ellipse cx="1180" cy="25" rx="210" ry="165" fill="#AAB7C4" opacity="0.24"/>
+  <rect x="92" y="790" width="278" height="50" rx="25" fill="#F4A27A" opacity="0.18"/>
+  <g transform="translate(555 132)">
+    <rect x="-32" y="-32" width="64" height="64" rx="17" fill="#F7EDE2"/>
+    <ellipse cx="1" cy="6" rx="20" ry="18" fill="#8B5E3C"/>
+    <ellipse cx="6" cy="-9" rx="16" ry="14" fill="#8B5E3C"/>
+    <path d="M-9,4 C4,23 27,17 21,0 C9,11 -1,11 -9,4Z" fill="#5F3D26"/>
+    <path d="M21,-11 L39,-7 L22,-2 Z" fill="#F4A27A"/>
+    <circle cx="14" cy="-13" r="3" fill="#3D2C22"/>
+    <path d="M-16,5 L-38,-5 L-22,16 Z" fill="#5F3D26"/>
+  </g>
+  <text x="608" y="122" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="31" font-weight="800" fill="#3D2C22">Suzumemo</text>
+  <text x="610" y="154" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" font-weight="700" fill="#765F4F">スズメモ</text>
+  <g filter="url(#shadow)">
+    <rect x="395" y="292" width="650" height="452" rx="34" fill="#FFFDF8" stroke="#E7D8C8" stroke-width="2"/>
+    <rect x="449" y="346" width="180" height="40" rx="20" fill="#F7EDE2"/>
+    <circle cx="469" cy="366" r="7" fill="#8B5E3C"/>
+    <text x="492" y="373" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="16" font-weight="800" fill="#8B5E3C">Maintenance</text>
+    <text x="449" y="468" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="42" font-weight="800" fill="#3D2C22">ただいまメンテナンス中です</text>
+    <text x="449" y="542" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" fill="#765F4F">Suzumemo を安心して使えるように、ただいま整えています。</text>
+    <text x="449" y="580" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="22" fill="#765F4F">しばらく時間をおいてから、もう一度お試しください。</text>
+    <rect x="449" y="606" width="252" height="8" rx="4" fill="#8B5E3C" opacity="0.24"/>
+    <rect x="449" y="624" width="188" height="8" rx="4" fill="#A6B28B" opacity="0.38"/>
+    <rect x="449" y="642" width="318" height="8" rx="4" fill="#AAB7C4" opacity="0.32"/>
+    <rect x="449" y="664" width="158" height="52" rx="16" fill="#8B5E3C"/>
+    <text x="528" y="697" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="800" text-anchor="middle" fill="#FFFFFF">再読み込み</text>
+    <rect x="622" y="664" width="180" height="52" rx="16" fill="#FFFDF8" stroke="#E7D8C8" stroke-width="2"/>
+    <text x="712" y="697" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="700" text-anchor="middle" fill="#8B5E3C">プライバシー</text>
+    <rect x="820" y="664" width="180" height="52" rx="16" fill="#FFFDF8" stroke="#E7D8C8" stroke-width="2"/>
+    <text x="910" y="697" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="19" font-weight="700" text-anchor="middle" fill="#8B5E3C">利用規約</text>
+  </g>
+  <g transform="translate(1048 548)">
+    <rect width="240" height="380" rx="34" fill="#FFFFFF" stroke="#E7D8C8" stroke-width="2"/>
+    <rect x="18" y="20" width="204" height="340" rx="28" fill="#FBF8F2"/>
+    <g transform="translate(120 64) scale(0.58)">
+      <rect x="-36" y="-36" width="72" height="72" rx="18" fill="#F7EDE2"/>
+      <ellipse cx="1" cy="7" rx="22" ry="20" fill="#8B5E3C"/>
+      <ellipse cx="6" cy="-10" rx="18" ry="15" fill="#8B5E3C"/>
+      <path d="M-10,4 C4,24 28,18 22,0 C10,12 -2,12 -10,4Z" fill="#5F3D26"/>
+      <path d="M23,-12 L43,-7 L24,-2 Z" fill="#F4A27A"/>
+      <circle cx="15" cy="-14" r="3" fill="#3D2C22"/>
+      <path d="M-17,5 L-40,-5 L-23,17 Z" fill="#5F3D26"/>
+    </g>
+    <text x="34" y="134" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="20" font-weight="800" fill="#3D2C22">ただいまメンテナ</text>
+    <text x="34" y="170" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="13" fill="#765F4F">短い説明文を配置</text>
+    <rect x="34" y="274" width="172" height="42" rx="14" fill="#8B5E3C"/>
+    <text x="120" y="301" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="14" font-weight="800" text-anchor="middle" fill="#FFFFFF">再読み込み</text>
+  </g>
+  <text x="1048" y="948" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" fill="#9E9288">mobile preview</text>
+  <text x="720" y="895" font-family="system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" font-size="15" text-anchor="middle" fill="#9E9288">Privacy  /  Terms  /  Suzumemo</text>
+</svg>
