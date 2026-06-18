@@ -461,19 +461,19 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async ({ page }) => {
-    await cleanupTestReceipts();
-    await cleanupE2eExpenseEntries();
-    await resetTestWeekSession(getCurrentWeekStartDate());
     await gotoAuthenticated(page, "/weeks/current/input");
+    await cleanupTestReceipts({ page });
+    await cleanupE2eExpenseEntries({ page });
+    await resetTestWeekSession(getCurrentWeekStartDate(), { page });
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
     // expenseEntries の cleanup が反映されるまで待機
     await expect(page.locator('[class*="receipt-row"]')).toHaveCount(0, { timeout: 15_000 });
   });
 
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
-  test.afterEach(async () => {
-    await cleanupTestReceipts();
-    await cleanupTestCategories();
+  test.afterEach(async ({ page }) => {
+    await cleanupTestReceipts({ page });
+    await cleanupTestCategories({ page });
   });
 
   test("[Issue #14] 保存後に週次サマリーへ支出が反映される", async ({ page }) => {
@@ -831,10 +831,8 @@ test.describe("振り返りメモとセッション完了（Issue #16 受け入�
 
   test.beforeEach(async ({ page }) => {
     // Issue #77: ReviewMemoPanel は SummaryPage に移動したため、SummaryPage を起点にする
-    await resetTestWeekSession(getCurrentWeekStartDate());
-    // InputPage を経由してセッションを作成してから SummaryPage へ遷移する
-    // （getOrCreateWeekSession を呼ぶため InputPage に一度アクセスが必要）
     await gotoAuthenticated(page, "/weeks/current/input");
+    await resetTestWeekSession(getCurrentWeekStartDate(), { page });
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
       timeout: 15_000,
     });
@@ -849,9 +847,9 @@ test.describe("振り返りメモとセッション完了（Issue #16 受け入�
     });
   });
 
-  test.afterEach(async () => {
-    await resetTestWeekSession(getCurrentWeekStartDate());
-    await cleanupTestReceipts();
+  test.afterEach(async ({ page }) => {
+    await resetTestWeekSession(getCurrentWeekStartDate(), { page });
+    await cleanupTestReceipts({ page });
   });
 
   test("[Issue #16] 振り返りメモ保存からセッション完了、完了後のメモ更新まで確認できる", async ({
@@ -912,10 +910,10 @@ test.describe("振り返りメモとセッション完了（Issue #16 受け入�
 test.describe("週別支出推移グラフ（Issue #47）", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
-  test.afterEach(async () => {
-    await cleanupTestReceipts();
-    await cleanupTestCategories();
-    await resetTestWeekSession(getCurrentWeekStartDate());
+  test.afterEach(async ({ page }) => {
+    await cleanupTestReceipts({ page });
+    await cleanupTestCategories({ page });
+    await resetTestWeekSession(getCurrentWeekStartDate(), { page });
   });
 
   test("[Issue #47] 週次サマリーページに週別支出推移セクションが表示される", async ({ page }) => {

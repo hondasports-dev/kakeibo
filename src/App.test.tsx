@@ -182,4 +182,38 @@ describe("App authentication states", () => {
 
     expect(screen.getByTestId("router-provider")).toBeInTheDocument();
   });
+
+  it("存在しないpathでは未ログインでもルーターを表示する", () => {
+    window.history.pushState({}, "", "/this-page-does-not-exist");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByTestId("router-provider")).toBeInTheDocument();
+  });
+
+  it("メンテナンスモードでは通常ページにメンテナンス画面を表示する", () => {
+    vi.stubEnv("VITE_APP_MAINTENANCE_MODE", "true");
+    window.history.pushState({}, "", "/");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByRole("heading", { name: "メンテナンス中です" })).toBeInTheDocument();
+    vi.unstubAllEnvs();
+  });
+
+  it("メンテナンスモードでもプライバシーポリシーはルーター経由で表示する", () => {
+    vi.stubEnv("VITE_APP_MAINTENANCE_MODE", "true");
+    window.history.pushState({}, "", "/privacy");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByTestId("router-provider")).toBeInTheDocument();
+    vi.unstubAllEnvs();
+  });
 });

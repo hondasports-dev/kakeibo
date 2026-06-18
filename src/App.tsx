@@ -16,14 +16,21 @@ import { useConvexAuth } from "convex/react";
 import { useInitializeUser } from "./hooks/useInitializeUser";
 import { router } from "./router";
 import { getClerkErrorMessage } from "./lib/clerkError";
-import { isPublicPath, OAUTH_CALLBACK_PATH } from "./lib/publicPaths";
+import { shouldShowMaintenancePage } from "./lib/maintenanceMode";
+import { OAUTH_CALLBACK_PATH, shouldUseRouterBeforeAuth } from "./lib/publicPaths";
+import { MaintenancePage } from "./pages/MaintenancePage";
 import "./App.css";
 
 function App() {
-  if (window.location.pathname === OAUTH_CALLBACK_PATH) {
+  const pathname = window.location.pathname;
+
+  if (pathname === OAUTH_CALLBACK_PATH) {
     return <AuthCallbackScreen />;
   }
-  if (isPublicPath(window.location.pathname)) {
+  if (shouldShowMaintenancePage(pathname)) {
+    return <MaintenancePage />;
+  }
+  if (shouldUseRouterBeforeAuth(pathname)) {
     return <RouterProvider router={router} />;
   }
   return <AuthenticatedApp />;
