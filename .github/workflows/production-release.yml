@@ -1,6 +1,8 @@
 name: Production Release
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       source_ref:
@@ -22,6 +24,10 @@ on:
         description: "Short release note or PREVIEW evidence URL"
         required: true
 
+run-name: >-
+  Production Release
+  ${{ github.event_name == 'push' && format('from main@{0}', github.sha) || format('from {0}', inputs.source_ref) }}
+
 permissions:
   contents: read
 
@@ -35,20 +41,28 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
-      SOURCE_REF: ${{ inputs.source_ref }}
-      PREVIEW_CONFIRMED: ${{ inputs.preview_confirmed }}
-      DB_SCHEMA_CHANGE_CHECK: ${{ inputs.db_schema_change_check }}
-      RELEASE_NOTE: ${{ inputs.release_note }}
+      RELEASE_MODE: ${{ github.event_name == 'push' && 'main_push' || 'manual' }}
+      SOURCE_REF: ${{ github.event_name == 'push' && github.sha || inputs.source_ref }}
+      PREVIEW_CONFIRMED: ${{ github.event_name == 'push' && 'true' || inputs.preview_confirmed }}
+      DB_SCHEMA_CHANGE_CHECK: ${{ github.event_name == 'push' && 'main_push_with_production_approval' || inputs.db_schema_change_check }}
+      RELEASE_NOTE: ${{ github.event_name == 'push' && format('main merge auto release candidate {0}', github.sha) || inputs.release_note }}
     steps:
       - name: Validate release inputs
         run: |
-          case "$SOURCE_REF" in
-            main|release/*) ;;
-            *)
-              echo "::error::source_ref must be main or release/* for Production releases."
+          if [ "$RELEASE_MODE" = "manual" ]; then
+            case "$SOURCE_REF" in
+              main|release/*) ;;
+              *)
+                echo "::error::source_ref must be main or release/* for manual Production releases."
+                exit 1
+                ;;
+            esac
+          else
+            if [ "$GITHUB_REF_NAME" != "main" ]; then
+              echo "::error::automatic Production releases only run from main."
               exit 1
-              ;;
-          esac
+            fi
+          fi
 
           if [ "$PREVIEW_CONFIRMED" != "true" ]; then
             echo "::error::preview_confirmed must be true before Production release."
@@ -56,7 +70,7 @@ jobs:
           fi
 
           case "$DB_SCHEMA_CHANGE_CHECK" in
-            no_db_or_schema_change|reviewed_forward_fix_plan) ;;
+            no_db_or_schema_change|reviewed_forward_fix_plan|main_push_with_production_approval) ;;
             *)
               echo "::error::db_schema_change_check must be selected."
               exit 1
@@ -70,7 +84,7 @@ jobs:
 
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ env.SOURCE_REF }}
 
       - uses: pnpm/action-setup@v6
 
@@ -102,6 +116,7 @@ jobs:
             echo "| Item | Value |"
             echo "| --- | --- |"
             echo "| Source ref | \`$SOURCE_REF\` |"
+            echo "| Release mode | \`$RELEASE_MODE\` |"
             echo "| PREVIEW confirmed | \`$PREVIEW_CONFIRMED\` |"
             echo "| DB/schema check | \`$DB_SCHEMA_CHANGE_CHECK\` |"
             echo "| Release note | $RELEASE_NOTE |"
@@ -119,9 +134,10 @@ jobs:
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       PRODUCTION_SMOKE_URL: ${{ vars.PRODUCTION_SMOKE_URL }}
-      SOURCE_REF: ${{ inputs.source_ref }}
-      DB_SCHEMA_CHANGE_CHECK: ${{ inputs.db_schema_change_check }}
-      RELEASE_NOTE: ${{ inputs.release_note }}
+      RELEASE_MODE: ${{ github.event_name == 'push' && 'main_push' || 'manual' }}
+      SOURCE_REF: ${{ github.event_name == 'push' && github.sha || inputs.source_ref }}
+      DB_SCHEMA_CHANGE_CHECK: ${{ github.event_name == 'push' && 'main_push_with_production_approval' || inputs.db_schema_change_check }}
+      RELEASE_NOTE: ${{ github.event_name == 'push' && format('main merge auto release candidate {0}', github.sha) || inputs.release_note }}
     steps:
       - name: Validate production configuration
         run: |
@@ -138,7 +154,7 @@ jobs:
 
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.source_ref }}
+          ref: ${{ env.SOURCE_REF }}
 
       - uses: pnpm/action-setup@v6
 
@@ -183,6 +199,7 @@ jobs:
             echo "| Item | Value |"
             echo "| --- | --- |"
             echo "| Source ref | \`$SOURCE_REF\` |"
+            echo "| Release mode | \`$RELEASE_MODE\` |"
             echo "| DB/schema check | \`$DB_SCHEMA_CHANGE_CHECK\` |"
             echo "| Vercel Production URL | ${{ steps.vercel.outputs.url }} |"
             echo "| PROD smoke target | ${{ steps.smoke.outputs.target }} |"
