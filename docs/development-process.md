@@ -309,12 +309,16 @@ E2E 本体へ進みません。
 
 ## E2E 確認方針
 
-Pull Request ごとに Vercel Preview に対して GitHub Actions で Playwright smoke E2E を実行します。
-実装は `.github/workflows/e2e.yml` を参照してください。
+`preview` ブランチのデプロイでは、`.github/workflows/preview-deploy.yml` が
+Vercel Preview URL に対して Playwright smoke E2E を実行します。
+Vercel Git Integration 由来の Preview Deployment に対する補助的な E2E は
+`.github/workflows/e2e.yml` を参照してください。
 
 ### 基本方針
 
-- Vercel Git Integration が作成した Preview Deployment の URL を対象にします。
+- `preview-deploy.yml` では、Vercel CLI が作成した Preview Deployment の URL を対象にします。
+- `e2e.yml` は `deployment_status.target_url` が `.vercel.app` の場合だけ実行し、
+  GitHub Environment の deployment_status など、アプリではないURLは対象にしません。
 - smoke E2E は GitHub Actions 上で実行し、QA Agent は結果確認と失敗内容の要約のみを担当します。
 - QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
 - Vercel Authentication 付き Preview へのアクセスには、Vercel の
@@ -432,9 +436,9 @@ PROD smoke は初期運用では非破壊確認に限定します。workflow は
 ### 実行環境
 
 - ブラウザ: Chromium
-- CI: GitHub Actions（ubuntu-latest）、`.github/workflows/e2e.yml`
+- CI: GitHub Actions（ubuntu-latest）、`.github/workflows/preview-deploy.yml` と `.github/workflows/e2e.yml`
 - ローカル: `http://localhost:5173`（`pnpm run dev` 自動起動）
-- Vercel Preview: `deployment_status` イベントで smoke E2E を自動トリガー
+- Vercel Preview: `preview-deploy.yml` 内で smoke E2E を実行し、補助的に `.vercel.app` の `deployment_status` も対象にする
 - 失敗時のみ trace / screenshot を保存（retention: 1 日）
 
 ### Vercel Preview と Convex subscription の挙動差異（重要）
