@@ -230,7 +230,7 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 | ---------- | ------------------------------------ | -------------------------------- | ---------------------------------------- |
 | local dev  | local `.env.local`                   | Development instance `pk_test_*` | dev deployment                           |
 | preview PR | Vercel Preview `*.vercel.app` URL    | 原則Development instance         | dev deployment                           |
-| preview RC | Vercel Preview `*.vercel.app` URL    | Development instance             | preview deployment                       |
+| preview branch / RC | Vercel Preview `*.vercel.app` URL | Development instance             | fixed staging deployment                 |
 | production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*`  | production deployment                    |
 
 注意:
@@ -240,9 +240,9 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 - Clerk Production instanceはPreview URLでは使わない
 - Vercel Custom EnvironmentはMVPでは使わない
 - Convex production deploymentは通常MCPから触らない
-- preview RC の `CONVEX_DEPLOY_KEY` は、Convex Dashboard の Project Settings で生成する
-  Project-level Preview Deploy Keyを使う。既存 deployment 用 deploy key では
-  `convex deploy --preview-create` に使わない
+- GitHub Environment `Preview` の `CONVEX_DEPLOY_KEY` は、固定 staging deployment 用の
+  deploy key を使う。`preview` branch への push は、Convex staging を更新してから
+  Vercel Preview を作成する。
 
 ## 4. Clerk CLIセットアップ
 

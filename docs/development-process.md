@@ -354,40 +354,47 @@ PR をマージします。
 
 ただし Markdown のみの変更では、GitHub Actions / E2E の成功確認は不要です。
 
-## PREVIEW release candidate 運用
+## preview ブランチ / PREVIEW release candidate 運用
 
-マイルストーン単位のリリース候補は、通常の PR Preview とは分けて扱います。
-正式な非本番リリース経路は次のとおりです。
+開発統合は `preview` ブランチで行います。`preview` に merge された変更は、
+GitHub Actions から固定 Convex staging deployment と Vercel Preview へ反映します。
+`main` への merge は本番反映ではなく、PROD リリース候補の確定として扱います。
 
 ```text
-DEV / PR Preview
+feature/*
+  ↓
+previewへmerge
+  ↓
+preview-deploy.yml が Convex staging → Vercel Preview の順で反映
+  ↓
+PREVIEW URLで動作確認
   ↓
 mainへmerge
   ↓
 milestone close
   ↓
-PREVIEW release candidate
+必要に応じて preview-release.yml を手動実行
+  ↓
+production-release.yml でPROD反映
 ```
 
 マイルストーンを close すると、`milestone-preview-ready.yml` が準備チェックを実行します。
 この workflow はデプロイせず、マイルストーン内の open issue / PR、未merge PR、
 `lint` / `format:check` / `test` / `build` の成功を確認します。
 
-PREVIEW release candidate は、`preview-release.yml` を手動実行して作成します。
+`preview` ブランチの通常デプロイは、`preview-deploy.yml` が `push` を契機に自動実行します。
 この workflow は GitHub Environment `Preview` の secret / variable を使い、
-Convex Preview deployment と Vercel Preview deployment を作成します。
+固定 Convex staging deployment と Vercel Preview deployment を作成します。
+
+マイルストーン単位の release candidate を明示的に再作成したい場合は、
+`preview-release.yml` を手動実行します。この workflow も固定 Convex staging deployment を使います。
 
 手動実行時の入力は次の方針にします。
 
-| 入力               | 例     | 方針                                      |
-| ------------------ | ------ | ----------------------------------------- |
-| `milestone_number` | `15`   | close済みのGitHub milestone番号           |
-| `source_ref`       | `main` | 初期運用では `main` または `release/*` のみ |
-| `preview_name`     | `m15`  | Convex Preview deployment名。`m<マイルストーン番号>` を基本形にする |
-
-`preview_name` は release candidate 用の一時的な Convex Preview deployment の識別名です。
-同じ `preview_name` で再実行すると、同名 Preview deployment を作り直します。
-候補を上書き確認する場合は `m15`、候補ごとに分ける場合は `m15-rc1` のようにします。
+| 入力               | 例        | 方針                                               |
+| ------------------ | --------- | -------------------------------------------------- |
+| `milestone_number` | `15`      | close済みのGitHub milestone番号                    |
+| `source_ref`       | `preview` | `preview`、`main`、または `release/*` のみを許可する |
 
 PROD 反映は `production-release.yml` を手動実行して行います。PREVIEW で確認した同じ
 commit / ref を指定し、preflight の成功後に GitHub Environment `production` の承認を待ちます。

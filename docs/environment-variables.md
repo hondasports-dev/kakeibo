@@ -8,7 +8,7 @@
 
 - **Local**: 開発環境 (`.env.local`)
 - **DEV**: 通常開発と PR 単位の Vercel Preview
-- **PREVIEW**: マイルストーン単位の release candidate
+- **PREVIEW**: `preview` branch の統合確認とマイルストーン単位の release candidate
 - **PROD**: Vercel Production環境 (本番用)
 
 PROD 反映は `.github/workflows/production-release.yml` を正規ルートとし、GitHub Environment `production` の承認後にだけ実行する。
@@ -82,33 +82,33 @@ pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api
 pnpm exec convex env set CLERK_SECRET_KEY sk_test_...
 ```
 
-### Vercel Preview / PREVIEW RC環境
+### Vercel Preview / PREVIEW環境
 
-PR単位の Preview は通常の開発確認に使う。マイルストーン単位の PREVIEW RC は
-`preview-release.yml` を手動実行して作成する。
+PR単位の Preview は通常の開発確認に使う。`preview` branch は統合確認用の固定 PREVIEW とし、
+`preview-deploy.yml` が固定 Convex staging deployment と Vercel Preview を更新する。
+マイルストーン単位の PREVIEW RC を明示的に再作成したい場合は、`preview-release.yml` を手動実行する。
 
 Vercel Preview Environment には次を設定する。
 
 - `VITE_CLERK_PUBLISHABLE_KEY` — Clerk Development instance の公開鍵 (`pk_test_*`)
 
-Convex Preview deployment は `preview-release.yml` の `CONVEX_DEPLOY_KEY` で作成する。
+固定 Convex staging deployment は GitHub Environment `Preview` の `CONVEX_DEPLOY_KEY` で更新する。
 `VITE_CONVEX_URL` は `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` により、
-Vercel build 時に Preview deployment の URL が渡される。
+Vercel build 時に staging deployment の URL が渡される。
 
 GitHub Environment `Preview` には次を設定する。
 
 | 種類     | 名前                | 用途                                  |
 | -------- | ------------------- | ------------------------------------- |
 | Secret   | `VERCEL_TOKEN`      | Vercel CLI を GitHub Actions から実行する |
-| Secret   | `CONVEX_DEPLOY_KEY` | Convex Preview deployment を作成・更新する |
+| Secret   | `CONVEX_DEPLOY_KEY` | 固定 Convex staging deployment を更新する |
 | Variable | `VERCEL_ORG_ID`     | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
 
-`CONVEX_DEPLOY_KEY` には、Convex Dashboard の Project Settings で生成した
-Project-level の Preview Deploy Key を保存する。`pnpm exec convex deployment token create`
-で生成する既存 deployment 用 deploy key は、`convex deploy --preview-create` 用ではない。
+`CONVEX_DEPLOY_KEY` には、固定 staging deployment 用の deploy key を保存する。
+`preview-deploy.yml` と `preview-release.yml` はこの key で staging functions / schema を反映する。
 
-Convex Project の Preview / Development 用 default environment variables には次を設定する。
+Convex staging deployment には次を設定する。
 
 - `CLERK_JWT_ISSUER_DOMAIN`
 - `CLERK_SECRET_KEY`
@@ -119,7 +119,7 @@ PREVIEW では Clerk Development instance を使う。Production instance や `p
 
 ### Vercel Production環境
 
-PROD 環境には Production 用の値だけを設定する。DEV / PREVIEW の Clerk Development instance、Convex dev / preview deployment、`pk_test_*` / `sk_test_*` を流用しない。
+PROD 環境には Production 用の値だけを設定する。DEV / PREVIEW の Clerk Development instance、Convex dev / staging deployment、`pk_test_*` / `sk_test_*` を流用しない。
 
 Vercel DashboardのEnvironment Variablesに設定する。
 
@@ -164,22 +164,23 @@ Vercel に設定されておらず、Vercel ビルドから Convex への関数�
 Convex 関数のデプロイは、ローカル開発者が `npx convex dev --once` または
 `npx convex dev` を手動で実行することで dev deployment に反映する。
 
-**Vercel Preview / PREVIEW RC 環境の Convex 接続先**
+**Vercel Preview / PREVIEW 環境の Convex 接続先**
 
 通常の PR Preview は、既存の Vercel Git Integration と E2E 方針に従い dev deployment を向く。
-マイルストーン単位の PREVIEW RC は、`preview-release.yml` で fresh な Convex Preview deployment を作成し、その URL を `VITE_CONVEX_URL` として Vercel build に渡す。
+`preview` branch の統合確認とマイルストーン単位の PREVIEW RC は、固定 Convex staging deployment を向く。
+`preview-deploy.yml` / `preview-release.yml` は `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` で staging URL を Vercel build に渡す。
 
 この構成の含意:
 
 - Convex 関数を追加・変更した PR では、E2E 実行前に `npx convex dev --once` で
   dev deployment に反映する必要がある。反映前に E2E を実行すると `FunctionNotFound`
   エラーが発生する。
-- PREVIEW RC は dev deployment ではなく Convex Preview deployment を使うため、DEVデータは共有しない。
+- PREVIEW は dev deployment ではなく固定 Convex staging deployment を使うため、DEVデータは共有しない。
 - `VITE_CONVEX_SITE_URL`（Convex HTTP エンドポイント）は Local / DEV E2E で使う。
-  PREVIEW RC では必要な smoke 内容に応じて、Convex Preview deployment の site URL を使うか、
+  PREVIEW では必要な smoke 内容に応じて、Convex staging deployment の site URL を使うか、
   cleanup不要の非破壊確認に絞る。
 
-PREVIEW RC には `pnpm exec convex deploy --preview-create <name> --cmd-url-env-var-name VITE_CONVEX_URL` を使う。
+PREVIEW には `pnpm exec convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` を使う。
 
 Production には `production-release.yml` から `pnpm exec convex deploy --cmd-url-env-var-name VITE_CONVEX_URL --cmd 'pnpm exec vercel build --yes --prod --token "$VERCEL_TOKEN"'` を使う。これにより、Convex Production functions を先に反映し、その Production URL を Vercel Production build に渡す。
 
@@ -188,7 +189,8 @@ Production には `production-release.yml` から `pnpm exec convex deploy --cmd
 PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行わない。
 Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
 
-マイルストーン単位の PREVIEW RC では、`preview-release.yml` が Convex Preview deployment を作成し、Vercel Preview へデプロイする。
+`preview` branch への push では、`preview-deploy.yml` が固定 Convex staging deployment を更新し、Vercel Preview へデプロイする。
+マイルストーン単位の PREVIEW RC では、`preview-release.yml` が同じ staging deployment を更新し、Vercel Preview へデプロイする。
 
 PROD 反映では、`production-release.yml` を手動実行する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。
 
@@ -197,12 +199,7 @@ PROD 反映では、`production-release.yml` を手動実行する。preflight �
 | 入力               | 例     | 方針                                      |
 | ------------------ | ------ | ----------------------------------------- |
 | `milestone_number` | `15`   | close済みのGitHub milestone番号           |
-| `source_ref`       | `main` | 初期運用では `main` または `release/*` のみ |
-| `preview_name`     | `m15`  | `m<マイルストーン番号>` を基本形にする    |
-
-`preview_name` は Convex Preview deployment の識別名である。
-同じ名前で再実行すると同名 Preview deployment を作り直すため、候補を上書き確認する場合は
-`m15` を再利用し、候補ごとに分けたい場合は `m15-rc1` のように suffix を付ける。
+| `source_ref`       | `preview` | `preview`、`main`、または `release/*` のみ |
 
 ### GitHub Actions Secretsに保存する項目
 
@@ -251,7 +248,7 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - `APP_ENV` — `development`（Local / DEV）/ `preview`（PREVIEW）/ `production`（PROD）
 - `OPENAI_API_KEY` — OpenAI API 認証キー（production deployment のみ設定。dev deployment には設定しない）
 
-Convex Preview deployment 用の default environment variables では、`APP_ENV=preview`、
+Convex staging deployment では、`APP_ENV=preview`、
 `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使う。PREVIEW には `OPENAI_API_KEY` を設定しない。
 
 CLI での設定例:

@@ -4,15 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       milestone_number:
-        description: "Closed milestone number to release as PREVIEW candidate"
+        description: "Closed milestone number to verify before deploying to the fixed staging preview"
         required: true
       source_ref:
-        description: "Repository ref to deploy. Allowed: main or release/*"
+        description: "Repository ref to deploy. Allowed: preview, main, or release/*"
         required: true
-        default: "main"
-      preview_name:
-        description: "Convex preview deployment name, e.g. m15 or m15-rc1"
-        required: true
+        default: "preview"
 
 permissions:
   contents: read
@@ -20,7 +17,7 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: preview-release-${{ inputs.preview_name }}
+  group: preview-release
   cancel-in-progress: false
 
 jobs:
@@ -35,23 +32,17 @@ jobs:
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       SOURCE_REF: ${{ inputs.source_ref }}
-      PREVIEW_NAME: ${{ inputs.preview_name }}
       MILESTONE_NUMBER: ${{ inputs.milestone_number }}
     steps:
       - name: Validate inputs and required configuration
         run: |
           case "$SOURCE_REF" in
-            main|release/*) ;;
+            preview|main|release/*) ;;
             *)
-              echo "::error::source_ref must be main or release/* for Preview release candidates."
+              echo "::error::source_ref must be preview, main, or release/* for Preview release candidates."
               exit 1
               ;;
           esac
-
-          if ! [[ "$PREVIEW_NAME" =~ ^[a-z0-9][a-z0-9-]{0,31}$ ]]; then
-            echo "::error::preview_name must match ^[a-z0-9][a-z0-9-]{0,31}$"
-            exit 1
-          fi
 
           if ! [[ "$MILESTONE_NUMBER" =~ ^[0-9]+$ ]]; then
             echo "::error::milestone_number must be a numeric GitHub milestone number."
@@ -155,8 +146,8 @@ jobs:
       - name: Build Convex preview and Vercel output
         run: |
           pnpm exec convex deploy \
-            --preview-create "$PREVIEW_NAME" \
             --cmd-url-env-var-name VITE_CONVEX_URL \
+            --message "preview release ${SOURCE_REF}" \
             --cmd 'pnpm exec vercel build --yes --target=preview --token "$VERCEL_TOKEN"'
 
       - name: Deploy Vercel Preview
@@ -174,8 +165,8 @@ jobs:
             echo "| --- | --- |"
             echo "| Milestone | #$MILESTONE_NUMBER |"
             echo "| Source ref | \`$SOURCE_REF\` |"
-            echo "| Convex preview | \`$PREVIEW_NAME\` |"
+            echo "| Convex deployment | \`staging\` |"
             echo "| Vercel Preview URL | ${{ steps.vercel.outputs.url }} |"
             echo
-            echo "Use this PREVIEW URL only for release-candidate verification. Do not treat it as PROD."
+            echo "Use this PREVIEW URL only for release-candidate verification. It uses the fixed Convex staging deployment and must not be treated as PROD."
           } >> "$GITHUB_STEP_SUMMARY"
