@@ -10,7 +10,7 @@ PROD 反映の正規ルートは `.github/workflows/production-release.yml` と�
 | 環境    | Vercel                         | Convex                         | Clerk                | 用途                         |
 | ------- | ------------------------------ | ------------------------------ | -------------------- | ---------------------------- |
 | DEV     | Local / 通常の Vercel Preview  | Development deployment         | Development instance | 日常開発、PR単位の確認       |
-| PREVIEW | `preview` branch の Vercel Preview | fixed staging deployment       | Development instance | 統合確認、マイルストーン候補確認 |
+| PREVIEW | `preview` branch の Vercel Preview | fixed staging deployment       | Development instance | 統合確認、PROD候補確認 |
 | PROD    | Vercel Production              | Production deployment          | Production instance  | 実ユーザー向け               |
 
 PREVIEW は本番DBのコピーではない。Convex staging deployment は固定の非本番バックエンドとして扱い、PROD / DEV のデータや functions と混在させない。
@@ -31,36 +31,14 @@ production-release.yml が自動起動
 preflight後、GitHub Environment: production の承認待ち
   ↓
 承認後にPRODへ反映
-  ↓
-マイルストーン内のIssue / PRをすべてclose
-  ↓
-マイルストーンをclose
-  ↓
-milestone-preview-ready.yml が準備チェックを実行
-  ↓
-必要に応じて Preview Release workflowを手動実行
-  ↓
-PREVIEW URLで候補確認
 ```
 
-`milestone-preview-ready.yml` は準備チェック専用であり、PREVIEWへデプロイしない。
-
 通常の PREVIEW デプロイは、`preview` branch への push で `preview-deploy.yml` が自動実行する。
-マイルストーン候補を明示的に再作成したい場合は、`preview-release.yml` を `workflow_dispatch` で手動実行する。
+## PREVIEW 確認の事前条件
 
-入力値:
-
-| 入力               | 例        | 説明                                      |
-| ------------------ | --------- | ----------------------------------------- |
-| `milestone_number` | `15`      | close済みマイルストーン番号               |
-| `source_ref`       | `preview` | デプロイ対象ref。`preview`、`main`、または `release/*` のみ |
-
-## PREVIEW release candidate の事前条件
-
-- 対象マイルストーンが close されている。
-- マイルストーン内の open issue / PR が 0 件である。
-- マイルストーンに含まれる PR が merge 済みである。
-- `source_ref` が `preview`、`main`、または `release/*` である。
+- 対象変更が `preview` branch に merge 済みである。
+- `preview-deploy.yml` が成功している。
+- PREVIEW URLで必要な動作確認が完了している。
 - `pnpm run lint`、`pnpm run format:check`、`pnpm test --run`、`pnpm run build` が成功する。
 - DB/schema変更がある場合、代表データと migration/backfill 要否が説明できる。
 
@@ -76,7 +54,7 @@ GitHub Environment `Preview` に以下を設定する。
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
 
 `CONVEX_DEPLOY_KEY` は、固定 staging deployment 用の deploy key を設定する。
-`preview-deploy.yml` と `preview-release.yml` は、この key で staging functions / schema を更新してから Vercel Preview を作成する。
+`preview-deploy.yml` は、この key で staging functions / schema を更新してから Vercel Preview を作成する。
 
 Vercel Preview Environment には `VITE_CLERK_PUBLISHABLE_KEY` を Clerk Development instance の公開鍵で設定する。
 

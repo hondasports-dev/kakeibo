@@ -360,7 +360,7 @@ PR をマージします。
 
 ただし Markdown のみの変更では、GitHub Actions / E2E の成功確認は不要です。
 
-## preview ブランチ / PREVIEW release candidate 運用
+## preview ブランチ / PREVIEW 運用
 
 開発統合は `preview` ブランチで行います。`preview` に merge された変更は、
 GitHub Actions から固定 Convex staging deployment と Vercel Preview へ反映します。
@@ -377,38 +377,20 @@ PREVIEW URLで動作確認
   ↓
 mainへmerge
   ↓
-milestone close
-  ↓
-必要に応じて preview-release.yml を手動実行
-  ↓
 production-release.yml でPROD反映
 ```
-
-マイルストーンを close すると、`milestone-preview-ready.yml` が準備チェックを実行します。
-この workflow はデプロイせず、マイルストーン内の open issue / PR、未merge PR、
-`lint` / `format:check` / `test` / `build` の成功を確認します。
 
 `preview` ブランチの通常デプロイは、`preview-deploy.yml` が `push` を契機に自動実行します。
 この workflow は GitHub Environment `Preview` の secret / variable を使い、
 固定 Convex staging deployment と Vercel Preview deployment を作成します。
 
-マイルストーン単位の release candidate を明示的に再作成したい場合は、
-`preview-release.yml` を手動実行します。この workflow も固定 Convex staging deployment を使います。
-
-手動実行時の入力は次の方針にします。
-
-| 入力               | 例        | 方針                                               |
-| ------------------ | --------- | -------------------------------------------------- |
-| `milestone_number` | `15`      | close済みのGitHub milestone番号                    |
-| `source_ref`       | `preview` | `preview`、`main`、または `release/*` のみを許可する |
-
-PROD 反映は `production-release.yml` を手動実行して行います。PREVIEW で確認した同じ
-commit / ref を指定し、preflight の成功後に GitHub Environment `production` の承認を待ちます。
+PROD 反映は `main` への push で `production-release.yml` が自動起動します。PREVIEW で確認した内容を
+`main` へ merge し、preflight の成功後に GitHub Environment `production` の承認を待ちます。
 承認後は Convex Production、Vercel Production、PROD smoke checklist の順で実行します。
 Actions 以外の Vercel Dashboard、Convex Dashboard、ローカル CLI からの直接 Production deploy は
 正規ルートにしません。
 
-手動実行時の入力は次の方針にします。
+手動リリースや forward-fix で `production-release.yml` を手動実行する場合の入力は次の方針にします。
 
 | 入力 | 例 | 方針 |
 | --- | --- | --- |

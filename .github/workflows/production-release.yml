@@ -45,7 +45,7 @@ jobs:
       SOURCE_REF: ${{ github.event_name == 'push' && github.sha || inputs.source_ref }}
       PREVIEW_CONFIRMED: ${{ github.event_name == 'push' && 'true' || inputs.preview_confirmed }}
       DB_SCHEMA_CHANGE_CHECK: ${{ github.event_name == 'push' && 'main_push_with_production_approval' || inputs.db_schema_change_check }}
-      RELEASE_NOTE: ${{ github.event_name == 'push' && format('main merge auto release candidate {0}', github.sha) || inputs.release_note }}
+      RELEASE_NOTE: ${{ github.event_name == 'push' && format('main merge production release {0}', github.sha) || inputs.release_note }}
     steps:
       - name: Validate release inputs
         run: |
@@ -137,7 +137,7 @@ jobs:
       RELEASE_MODE: ${{ github.event_name == 'push' && 'main_push' || 'manual' }}
       SOURCE_REF: ${{ github.event_name == 'push' && github.sha || inputs.source_ref }}
       DB_SCHEMA_CHANGE_CHECK: ${{ github.event_name == 'push' && 'main_push_with_production_approval' || inputs.db_schema_change_check }}
-      RELEASE_NOTE: ${{ github.event_name == 'push' && format('main merge auto release candidate {0}', github.sha) || inputs.release_note }}
+      RELEASE_NOTE: ${{ github.event_name == 'push' && format('main merge production release {0}', github.sha) || inputs.release_note }}
     steps:
       - name: Validate production configuration
         run: |
