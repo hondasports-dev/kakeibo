@@ -174,6 +174,9 @@ function SignedOutScreen() {
           <MuiLink href="/privacy" underline="hover" variant="body2">
             プライバシーポリシー
           </MuiLink>
+          <MuiLink href="/terms" underline="hover" variant="body2">
+            利用規約
+          </MuiLink>
         </Stack>
       </Paper>
     </Box>

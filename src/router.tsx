@@ -13,6 +13,7 @@ import { InputPage } from "./pages/InputPage";
 import { SummaryPage } from "./pages/SummaryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
+import { TermsPage } from "./pages/TermsPage";
 import { GroupSetupPage } from "./pages/GroupSetupPage";
 import { GroupSelectPage } from "./pages/GroupSelectPage";
 import { GroupInvitationAcceptPage } from "./pages/GroupInvitationAcceptPage";
@@ -259,6 +260,10 @@ export const router = createBrowserRouter([
   {
     path: "/privacy",
     element: <PrivacyPolicyPage />,
+  },
+  {
+    path: "/terms",
+    element: <TermsPage />,
   },
   {
     path: "/group/setup",
