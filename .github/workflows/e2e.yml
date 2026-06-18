@@ -31,9 +31,11 @@ jobs:
     name: E2E (Playwright / Chromium)
     # Vercel の Preview デプロイが成功した時のみ実行
     # Production デプロイ（environment == 'Production'）は除外する
+    # GitHub Environment の deployment_status は target_url が Actions job URL になるため除外する
     if: |
       github.event.deployment_status.state == 'success' &&
-      contains(github.event.deployment_status.environment, 'Preview')
+      contains(github.event.deployment_status.environment, 'Preview') &&
+      contains(github.event.deployment_status.target_url, '.vercel.app')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
