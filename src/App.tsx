@@ -17,13 +17,24 @@ import { useInitializeUser } from "./hooks/useInitializeUser";
 import { router } from "./router";
 import { getClerkErrorMessage } from "./lib/clerkError";
 import { shouldShowMaintenancePage } from "./lib/maintenanceMode";
-import { OAUTH_CALLBACK_PATH, shouldUseRouterBeforeAuth } from "./lib/publicPaths";
+import {
+  OAUTH_CALLBACK_PATH,
+  E2E_APP_ERROR_BOUNDARY_PATH,
+  shouldUseRouterBeforeAuth,
+} from "./lib/publicPaths";
 import { MaintenancePage } from "./pages/MaintenancePage";
 import "./App.css";
+
+function E2eAppErrorBoundaryTrigger(): never {
+  throw new Error("E2E error boundary trigger");
+}
 
 function App() {
   const pathname = window.location.pathname;
 
+  if (import.meta.env.DEV && pathname === E2E_APP_ERROR_BOUNDARY_PATH) {
+    return <E2eAppErrorBoundaryTrigger />;
+  }
   if (pathname === OAUTH_CALLBACK_PATH) {
     return <AuthCallbackScreen />;
   }

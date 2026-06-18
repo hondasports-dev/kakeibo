@@ -1,9 +1,9 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * 公開・異常系ページ E2E（Milestone 23 / #249-#255）
+ * 公開・異常系ページ E2E（Milestone 23 / #249-#255, #266, #268）
  *
- * 未ログインでも閲覧できる公開ページ、404、メンテナンスページを確認する。
+ * 未ログインでも閲覧できる公開ページ、404、メンテナンス、Error Boundary を確認する。
  * 認証は不要なため storageState を空にする。
  */
 
@@ -28,13 +28,21 @@ test.describe("公開・異常系ページ", () => {
     await expect(page.getByText(/家計管理・支出記録の正確性を保証しません/)).toBeVisible();
   });
 
-  test("未ログインで存在しないURLに404を表示する (#253)", async ({ page }) => {
+  test("未ログインで存在しないURLに404を表示する (#253/#266)", async ({ page }) => {
     await page.goto("/this-route-does-not-exist-m23");
 
     await expect(page.getByText("404 Not Found")).toBeVisible();
+    await expect(page.getByRole("img", { name: "Suzumemo" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "利用規約" })).toBeVisible();
+    await expect(
+      page.getByText(/指定されたページは移動または削除された可能性があります/),
+    ).toBeVisible();
+    await expect(page.getByRole("link", { name: "ホームへ戻る" })).toHaveAttribute("href", "/");
+    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
   });
 
   test("未ログインのログイン画面から法務ページへリンクできる (#249/#250)", async ({ page }) => {
@@ -52,11 +60,30 @@ test.describe("公開・異常系ページ", () => {
     await page.goto("/maintenance");
 
     await expect(page.getByText("Maintenance")).toBeVisible();
+    await expect(page.getByRole("img", { name: "Suzumemo スズメモ" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "ただいまメンテナンス中です" })).toBeVisible();
     await expect(
       page.getByText(/Suzumemo を安心して使えるように、ただいま整えています/),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "利用規約" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "再読み込み" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+  });
+
+  test("未ログインで Error Boundary のデザイン画面を表示する (#254/#268)", async ({ page }) => {
+    await page.goto("/__e2e__/app-error-boundary");
+
+    await expect(page.getByRole("alert")).toBeVisible();
+    await expect(page.getByText("Application Error")).toBeVisible();
+    await expect(page.getByRole("img", { name: "Suzumemo" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "問題が発生しました" })).toBeVisible();
+    await expect(
+      page.getByText(/画面の表示中にエラーが発生しました。再読み込みしても直らない場合は/),
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "再読み込み" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "ホームへ戻る" })).toBeVisible();
   });
 });
