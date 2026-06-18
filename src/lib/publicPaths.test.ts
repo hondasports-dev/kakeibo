@@ -10,6 +10,7 @@ describe("publicPaths", () => {
   it("プライバシーポリシーと招待受け入れを公開パスとして扱う", () => {
     expect(PUBLIC_PATHS).toContain("/privacy");
     expect(PUBLIC_PATHS).toContain("/terms");
+    expect(PUBLIC_PATHS).toContain("/maintenance");
     expect(PUBLIC_PATHS).toContain(GROUP_INVITATION_ACCEPT_PATH);
   });
 
