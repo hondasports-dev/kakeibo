@@ -319,6 +319,8 @@ Vercel Git Integration 由来の Preview Deployment に対する補助的な E2E
 - `preview-deploy.yml` では、Vercel CLI が作成した Preview Deployment の URL を対象にします。
 - `e2e.yml` は `deployment_status.target_url` が `.vercel.app` の場合だけ実行し、
   GitHub Environment の deployment_status など、アプリではないURLは対象にしません。
+- `preview` ブランチ由来の Preview Deployment は `preview-deploy.yml` 内で smoke E2E を実行するため、
+  `e2e.yml` の単独 E2E では対象にしません。
 - smoke E2E は GitHub Actions 上で実行し、QA Agent は結果確認と失敗内容の要約のみを担当します。
 - QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
 - Vercel Authentication 付き Preview へのアクセスには、Vercel の
@@ -438,7 +440,8 @@ PROD smoke は初期運用では非破壊確認に限定します。workflow は
 - ブラウザ: Chromium
 - CI: GitHub Actions（ubuntu-latest）、`.github/workflows/preview-deploy.yml` と `.github/workflows/e2e.yml`
 - ローカル: `http://localhost:5173`（`pnpm run dev` 自動起動）
-- Vercel Preview: `preview-deploy.yml` 内で smoke E2E を実行し、補助的に `.vercel.app` の `deployment_status` も対象にする
+- Vercel Preview: `preview` ブランチは `preview-deploy.yml` 内で smoke E2E を実行し、
+  PR Preview などの補助的な `.vercel.app` `deployment_status` は `e2e.yml` の対象にする
 - 失敗時のみ trace / screenshot を保存（retention: 1 日）
 
 ### Vercel Preview と Convex subscription の挙動差異（重要）
