@@ -557,19 +557,19 @@ DEV / PREVIEW / PROD の3環境を分けて構築する。
 
 | 領域           | DEV                                              | PREVIEW                                          | PROD                                              |
 | -------------- | ------------------------------------------------ | ------------------------------------------------ | ------------------------------------------------- |
-| フロントエンド | Vercel Preview URL、またはlocalhost              | 手動実行した Vercel Preview release candidate   | Vercel Production URL                             |
+| フロントエンド | Vercel Preview URL、またはlocalhost              | `preview` branch の Vercel Preview              | Vercel Production URL                             |
 | URL            | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo-*.vercel.app` などのPreview URL | `https://kakeibo.vercel.app` などのProduction URL |
 | Clerk          | Development instance                             | Development instance                             | Production instance                               |
 | Clerk認証方式  | Google OAuth                                     | Google OAuth                                     | Google OAuth                                      |
-| Convex         | dev deployment                                   | preview deployment                               | production deployment                             |
-| データ         | テストデータ                                     | release candidate用の代表データ                 | 実ユーザーデータ                                  |
-| 環境変数       | `.env.local`、Vercel Preview env                 | GitHub Environment `Preview`、Vercel Preview env、Convex Preview default env | GitHub Environment `production`、Vercel Production env、Convex Production env |
+| Convex         | dev deployment                                   | fixed staging deployment                         | production deployment                             |
+| データ         | テストデータ                                     | 統合確認・release candidate用の代表データ        | 実ユーザーデータ                                  |
+| 環境変数       | `.env.local`、Vercel Preview env                 | GitHub Environment `Preview`、Vercel Preview env、Convex staging env | GitHub Environment `production`、Vercel Production env、Convex Production env |
 
 ### 16.1 環境分離方針
 
 - DEV/PREVIEWとPRODでClerk instanceを分ける
 - DEV/PREVIEW/PRODでConvex deploymentを分ける
-- PREVIEWはPR単位の通常Previewと区別し、マイルストーン単位のrelease candidateとして扱う
+- PREVIEWはPR単位の通常Previewと区別し、`preview` branchの統合確認とマイルストーン単位のrelease candidateとして扱う
 - DEVのGoogle OAuth callback URLに本番URLを入れない
 - PRODのGoogle OAuth callback URLにローカルURLを入れない
 - PREVIEWではClerk Development instanceを使い、Clerk Production instanceをPreview URLで使わない
