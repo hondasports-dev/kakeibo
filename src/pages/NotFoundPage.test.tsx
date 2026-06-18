@@ -12,6 +12,7 @@ describe("NotFoundPage", () => {
       "src",
       "/suzumemo-app-icon.png",
     );
+    expect(screen.getByText("スズメモ")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ページが見つかりません" })).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -19,10 +20,8 @@ describe("NotFoundPage", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "ホームへ戻る" })).toHaveAttribute("href", "/");
-    expect(screen.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+    expect(screen.getByRole("link", { name: "プライバシー" })).toHaveAttribute("href", "/privacy");
     expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+    expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
   });
 });

@@ -8,6 +8,7 @@ describe("MaintenancePage", () => {
     renderWithProviders(<MaintenancePage />);
 
     expect(screen.getByText("Maintenance")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Suzumemo スズメモ" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "ただいまメンテナンス中です" })).toBeInTheDocument();
     expect(
       screen.getByText(
@@ -15,10 +16,7 @@ describe("MaintenancePage", () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
-      "href",
-      "/privacy",
-    );
+    expect(screen.getByRole("link", { name: "プライバシー" })).toHaveAttribute("href", "/privacy");
     expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
   });
 });

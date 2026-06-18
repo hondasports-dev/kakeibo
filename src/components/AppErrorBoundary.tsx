@@ -36,9 +36,15 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
 
       return (
         <PublicStatusPage
-          brandImage={{ alt: "Suzumemo", src: "/suzumemo-app-icon.png", width: 56 }}
           description="画面の表示中にエラーが発生しました。再読み込みしても直らない場合は、時間をおいてもう一度お試しください。"
+          headerBrand={{
+            alt: "Suzumemo",
+            src: "/suzumemo-app-icon.png",
+            variant: "panel",
+            width: 56,
+          }}
           label="Application Error"
+          labelTone="error"
           primaryAction={{ label: "再読み込み", onClick: this.handleReload }}
           role="alert"
           secondaryActions={[{ label: "ホームへ戻る", onClick: this.handleGoHome }]}

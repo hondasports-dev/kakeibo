@@ -33,16 +33,18 @@ test.describe("公開・異常系ページ", () => {
 
     await expect(page.getByText("404 Not Found")).toBeVisible();
     await expect(page.getByRole("img", { name: "Suzumemo" })).toBeVisible();
+    await expect(page.getByText("スズメモ")).toBeVisible();
     await expect(page.getByRole("heading", { name: "ページが見つかりません" })).toBeVisible();
     await expect(
       page.getByText(/指定されたページは移動または削除された可能性があります/),
     ).toBeVisible();
     await expect(page.getByRole("link", { name: "ホームへ戻る" })).toHaveAttribute("href", "/");
-    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "プライバシー" })).toHaveAttribute(
       "href",
       "/privacy",
     );
     await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+    await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
   });
 
   test("未ログインのログイン画面から法務ページへリンクできる (#249/#250)", async ({ page }) => {
@@ -66,7 +68,7 @@ test.describe("公開・異常系ページ", () => {
       page.getByText(/Suzumemo を安心して使えるように、ただいま整えています/),
     ).toBeVisible();
     await expect(page.getByRole("button", { name: "再読み込み" })).toBeVisible();
-    await expect(page.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
+    await expect(page.getByRole("link", { name: "プライバシー" })).toHaveAttribute(
       "href",
       "/privacy",
     );

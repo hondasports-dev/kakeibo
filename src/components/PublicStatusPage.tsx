@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Box, Button, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Link as MuiLink, Paper, Stack, Typography } from "@mui/material";
 import { designTokens } from "../designTokens";
 
 type PublicStatusLinkAction = {
@@ -16,17 +16,24 @@ type PublicStatusButtonAction = {
 
 export type PublicStatusAction = PublicStatusLinkAction | PublicStatusButtonAction;
 
-type PublicStatusBrandImage = {
+export type PublicStatusLabelTone = "neutral" | "error";
+
+export type PublicStatusHeaderBrand = {
   alt: string;
   src: string;
   width?: number | string;
+  /** lockup: ロゴ一体型 / panel: 角丸パネル内アイコン / plain: アイコンのみ */
+  variant?: "plain" | "panel" | "lockup";
+  /** plain のとき Suzumemo ワードマークを併記する */
+  showWordmark?: boolean;
 };
 
 export type PublicStatusPageProps = {
   label: string;
+  labelTone?: PublicStatusLabelTone;
   title: string;
   description: string;
-  brandImage?: PublicStatusBrandImage;
+  headerBrand: PublicStatusHeaderBrand;
   primaryAction: PublicStatusAction;
   secondaryActions?: PublicStatusAction[];
   role?: string;
@@ -66,77 +73,225 @@ function renderAction(action: PublicStatusAction, variant: "contained" | "outlin
   );
 }
 
+function StatusBadge({ label, tone }: { label: string; tone: PublicStatusLabelTone }) {
+  const isError = tone === "error";
+
+  return (
+    <Box
+      sx={{
+        alignItems: "center",
+        bgcolor: isError ? "rgba(184, 90, 76, 0.12)" : designTokens.color.surface.sunken,
+        borderRadius: designTokens.radius.pill,
+        color: isError ? designTokens.color.error.main : designTokens.color.text.secondary,
+        display: "inline-flex",
+        gap: designTokens.space.xs,
+        px: designTokens.space.sm,
+        py: designTokens.space["2xs"],
+      }}
+    >
+      <Box
+        aria-hidden
+        sx={{
+          bgcolor: isError ? designTokens.color.error.main : designTokens.color.brand.leaf,
+          borderRadius: "50%",
+          flexShrink: 0,
+          height: 8,
+          width: 8,
+        }}
+      />
+      <Typography
+        component="span"
+        sx={{
+          fontSize: designTokens.typography.caption.fontSize,
+          fontWeight: designTokens.typography.caption.fontWeight,
+          lineHeight: designTokens.typography.caption.lineHeight,
+        }}
+      >
+        {label}
+      </Typography>
+    </Box>
+  );
+}
+
+function AccentBars() {
+  return (
+    <Stack spacing={0.75} sx={{ alignItems: "center", py: 0.5, width: "100%" }}>
+      <Box
+        sx={{
+          bgcolor: designTokens.color.brand.sparrow,
+          borderRadius: designTokens.radius.pill,
+          height: 4,
+          width: 120,
+        }}
+      />
+      <Box
+        sx={{
+          bgcolor: designTokens.color.brand.leaf,
+          borderRadius: designTokens.radius.pill,
+          height: 4,
+          width: 80,
+        }}
+      />
+      <Box
+        sx={{
+          bgcolor: designTokens.color.brand.mist,
+          borderRadius: designTokens.radius.pill,
+          height: 4,
+          width: 48,
+        }}
+      />
+    </Stack>
+  );
+}
+
+function PageFooter() {
+  return (
+    <Stack
+      direction="row"
+      spacing={0.75}
+      sx={{
+        alignItems: "center",
+        color: designTokens.color.text.muted,
+        fontSize: designTokens.typography.caption.fontSize,
+        justifyContent: "center",
+      }}
+    >
+      <MuiLink href="/privacy" underline="hover" variant="caption">
+        Privacy
+      </MuiLink>
+      <Typography component="span" variant="caption">
+        /
+      </Typography>
+      <MuiLink href="/terms" underline="hover" variant="caption">
+        Terms
+      </MuiLink>
+      <Typography component="span" variant="caption">
+        /
+      </Typography>
+      <Typography component="span" variant="caption">
+        Suzumemo
+      </Typography>
+    </Stack>
+  );
+}
+
+function HeaderBrand({ headerBrand }: { headerBrand: PublicStatusHeaderBrand }) {
+  const { alt, src, width = 64, variant = "plain", showWordmark = false } = headerBrand;
+  const image = (
+    <Box
+      alt={alt}
+      component="img"
+      src={src}
+      sx={{
+        display: "block",
+        height: "auto",
+        width,
+      }}
+    />
+  );
+
+  if (variant === "lockup") {
+    return image;
+  }
+
+  if (variant === "panel") {
+    return (
+      <Box
+        sx={{
+          alignItems: "center",
+          bgcolor: designTokens.color.surface.sunken,
+          borderRadius: "12px",
+          display: "inline-flex",
+          justifyContent: "center",
+          p: designTokens.space.sm,
+        }}
+      >
+        {image}
+      </Box>
+    );
+  }
+
+  return (
+    <Stack spacing={0.5} sx={{ alignItems: "center" }}>
+      {image}
+      {showWordmark ? (
+        <Stack spacing={0} sx={{ alignItems: "center" }}>
+          <Typography component="p" sx={{ fontWeight: 700 }} variant="body1">
+            Suzumemo
+          </Typography>
+          <Typography color="text.secondary" variant="caption">
+            スズメモ
+          </Typography>
+        </Stack>
+      ) : null}
+    </Stack>
+  );
+}
+
 export function PublicStatusPage({
   label,
+  labelTone = "neutral",
   title,
   description,
-  brandImage,
+  headerBrand,
   primaryAction,
   secondaryActions = [],
   role,
   children,
 }: PublicStatusPageProps) {
   return (
-    <Box className="auth-screen" component="main" role={role}>
-      <Paper
-        className="paper-panel"
-        elevation={0}
+    <Box className="auth-screen public-status-screen" component="main" role={role}>
+      <Stack
+        spacing={2.5}
         sx={{
-          width: "min(100%, 600px)",
+          alignItems: "center",
           mx: designTokens.layout.shellInsetMd,
-          px: { xs: designTokens.space.lg, sm: designTokens.space.xl },
-          py: { xs: designTokens.space.lg, sm: "calc(var(--space-xl) + var(--space-xs))" },
+          textAlign: "center",
+          width: "min(100%, 600px)",
         }}
       >
-        <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-          <Typography
-            component="p"
-            sx={{
-              color: designTokens.color.text.muted,
-              fontSize: designTokens.typography.caption.fontSize,
-              fontWeight: designTokens.typography.caption.fontWeight,
-              letterSpacing: "0.08em",
-              lineHeight: designTokens.typography.caption.lineHeight,
-              textTransform: "uppercase",
-            }}
-          >
-            {label}
-          </Typography>
+        <HeaderBrand headerBrand={headerBrand} />
 
-          {brandImage ? (
-            <Box
-              alt={brandImage.alt}
-              component="img"
-              src={brandImage.src}
-              sx={{
-                display: "block",
-                height: "auto",
-                width: brandImage.width ?? 64,
-              }}
-            />
-          ) : null}
+        <Paper
+          className="paper-panel"
+          elevation={0}
+          sx={{
+            borderRadius: "16px",
+            boxShadow: "0 12px 40px rgba(61, 44, 34, 0.08)",
+            px: { xs: designTokens.space.lg, sm: designTokens.space.xl },
+            py: { xs: designTokens.space.lg, sm: "calc(var(--space-xl) + var(--space-xs))" },
+            width: "100%",
+          }}
+        >
+          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
+            <StatusBadge label={label} tone={labelTone} />
 
-          <Stack spacing={1.25} sx={{ width: "100%" }}>
-            <Typography component="h1" variant="h5">
-              {title}
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              {description}
-            </Typography>
+            <Stack spacing={1.25} sx={{ width: "100%" }}>
+              <Typography component="h1" variant="h5">
+                {title}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {description}
+              </Typography>
+            </Stack>
+
+            <AccentBars />
+
+            <Stack
+              direction={{ xs: "column", sm: "row" }}
+              spacing={1.5}
+              sx={{ flexWrap: "wrap", justifyContent: "center", width: "100%" }}
+            >
+              {renderAction(primaryAction, "contained")}
+              {secondaryActions.map((action) => renderAction(action, "outlined"))}
+            </Stack>
+
+            {children}
           </Stack>
+        </Paper>
 
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={1.5}
-            sx={{ flexWrap: "wrap", justifyContent: "center", width: "100%" }}
-          >
-            {renderAction(primaryAction, "contained")}
-            {secondaryActions.map((action) => renderAction(action, "outlined"))}
-          </Stack>
-
-          {children}
-        </Stack>
-      </Paper>
+        <PageFooter />
+      </Stack>
     </Box>
   );
 }
