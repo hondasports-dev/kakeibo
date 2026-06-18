@@ -170,5 +170,16 @@ describe("App authentication states", () => {
       "href",
       "/privacy",
     );
+    expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+  });
+
+  it("利用規約pathでは未ログインでもルーターを表示する", () => {
+    window.history.pushState({}, "", "/terms");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByTestId("router-provider")).toBeInTheDocument();
   });
 });

@@ -37,6 +37,9 @@ export function LegalDocumentLayout({ title, effectiveDate, children }: LegalDoc
             <MuiLink component={Link} to="/privacy" underline="hover">
               プライバシーポリシー
             </MuiLink>
+            <MuiLink component={Link} to="/terms" underline="hover">
+              利用規約
+            </MuiLink>
           </Stack>
         </Stack>
       </Box>

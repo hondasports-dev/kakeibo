@@ -4,11 +4,13 @@ import { GROUP_INVITATION_ACCEPT_PATH, isPublicPath, PUBLIC_PATHS } from "./publ
 describe("publicPaths", () => {
   it("プライバシーポリシーと招待受け入れを公開パスとして扱う", () => {
     expect(PUBLIC_PATHS).toContain("/privacy");
+    expect(PUBLIC_PATHS).toContain("/terms");
     expect(PUBLIC_PATHS).toContain(GROUP_INVITATION_ACCEPT_PATH);
   });
 
   it("isPublicPath で公開パスを判定する", () => {
     expect(isPublicPath("/privacy")).toBe(true);
+    expect(isPublicPath("/terms")).toBe(true);
     expect(isPublicPath(GROUP_INVITATION_ACCEPT_PATH)).toBe(true);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/settings")).toBe(false);
