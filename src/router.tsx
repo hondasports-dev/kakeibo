@@ -12,6 +12,7 @@ import { DashboardPage } from "./pages/DashboardPage";
 import { InputPage } from "./pages/InputPage";
 import { SummaryPage } from "./pages/SummaryPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 import { GroupSetupPage } from "./pages/GroupSetupPage";
 import { GroupSelectPage } from "./pages/GroupSelectPage";
 import { GroupInvitationAcceptPage } from "./pages/GroupInvitationAcceptPage";
@@ -255,6 +256,10 @@ if (shouldEnableE2eRoutes()) {
 }
 
 export const router = createBrowserRouter([
+  {
+    path: "/privacy",
+    element: <PrivacyPolicyPage />,
+  },
   {
     path: "/group/setup",
     element: <GroupSetupPage />,

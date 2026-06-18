@@ -1,22 +1,29 @@
 import { useState } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/react";
 import { useSignIn } from "@clerk/react/legacy";
-import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Link as MuiLink,
+  Paper,
+  Stack,
+  Typography,
+} from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { useInitializeUser } from "./hooks/useInitializeUser";
 import { router } from "./router";
 import { getClerkErrorMessage } from "./lib/clerkError";
+import { isPublicPath, OAUTH_CALLBACK_PATH } from "./lib/publicPaths";
 import "./App.css";
-
-const OAUTH_CALLBACK_PATH = "/sso-callback";
-const GROUP_INVITATION_ACCEPT_PATH = "/group/invitations/accept";
 
 function App() {
   if (window.location.pathname === OAUTH_CALLBACK_PATH) {
     return <AuthCallbackScreen />;
   }
-  if (window.location.pathname === GROUP_INVITATION_ACCEPT_PATH) {
+  if (isPublicPath(window.location.pathname)) {
     return <RouterProvider router={router} />;
   }
   return <AuthenticatedApp />;
@@ -163,6 +170,10 @@ function SignedOutScreen() {
           >
             {isRedirecting ? "Googleへ移動しています" : "Googleでログイン"}
           </Button>
+
+          <MuiLink href="/privacy" underline="hover" variant="body2">
+            プライバシーポリシー
+          </MuiLink>
         </Stack>
       </Paper>
     </Box>

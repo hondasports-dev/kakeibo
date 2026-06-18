@@ -149,4 +149,26 @@ describe("App authentication states", () => {
     // Then: 招待受け入れページへ到達できるように、通常の未ログイン画面ではなくルーターへ渡す
     expect(screen.getByTestId("router-provider")).toBeInTheDocument();
   });
+
+  it("プライバシーポリシーpathでは未ログインでもルーターを表示する", () => {
+    window.history.pushState({}, "", "/privacy");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByTestId("router-provider")).toBeInTheDocument();
+  });
+
+  it("未ログイン画面からプライバシーポリシーへのリンクを表示する", () => {
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+  });
 });
