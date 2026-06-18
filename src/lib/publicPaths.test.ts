@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { GROUP_INVITATION_ACCEPT_PATH, isPublicPath, PUBLIC_PATHS } from "./publicPaths";
+import {
+  GROUP_INVITATION_ACCEPT_PATH,
+  isPublicPath,
+  PUBLIC_PATHS,
+  shouldUseRouterBeforeAuth,
+} from "./publicPaths";
 
 describe("publicPaths", () => {
   it("プライバシーポリシーと招待受け入れを公開パスとして扱う", () => {
@@ -14,5 +19,11 @@ describe("publicPaths", () => {
     expect(isPublicPath(GROUP_INVITATION_ACCEPT_PATH)).toBe(true);
     expect(isPublicPath("/")).toBe(false);
     expect(isPublicPath("/settings")).toBe(false);
+  });
+
+  it("shouldUseRouterBeforeAuth で未ログイン時のルーター委譲を判定する", () => {
+    expect(shouldUseRouterBeforeAuth("/privacy")).toBe(true);
+    expect(shouldUseRouterBeforeAuth("/unknown-page")).toBe(true);
+    expect(shouldUseRouterBeforeAuth("/")).toBe(false);
   });
 });
