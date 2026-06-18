@@ -2,7 +2,8 @@
 
 このドキュメントは、kakeibo のリリース経路を DEV / PREVIEW / PROD に分けて扱うための運用手順を定義する。
 
-PROD 反映の正規ルートは `.github/workflows/production-release.yml` の手動実行とし、GitHub Environment `production` の承認後にだけ本番反映を行う。Actions 以外の Vercel Dashboard、Convex Dashboard、ローカル CLI からの直接 Production deploy は正規ルートにしない。
+PROD 反映の正規ルートは `.github/workflows/production-release.yml` とし、`main` への push で自動起動する。
+ただし、GitHub Environment `production` の承認後にだけ本番反映を行う。Actions 以外の Vercel Dashboard、Convex Dashboard、ローカル CLI からの直接 Production deploy は正規ルートにしない。
 
 ## 環境の役割
 
@@ -24,6 +25,12 @@ preview-deploy.yml が固定 staging Convex と Vercel Preview を更新
 PREVIEW URLで候補確認
   ↓
 PRをmainへmerge
+  ↓
+production-release.yml が自動起動
+  ↓
+preflight後、GitHub Environment: production の承認待ち
+  ↓
+承認後にPRODへ反映
   ↓
 マイルストーン内のIssue / PRをすべてclose
   ↓
@@ -89,7 +96,7 @@ PREVIEW 環境をそのまま PROD へ向け替える運用にはしない。PRE
 ```text
 PREVIEWで検証したcommit/refを確定
   ↓
-production-release.yml を手動実行
+main への merge で production-release.yml が自動起動
   ↓
 preflight（入力確認、lint、format、test、build）
   ↓
@@ -104,7 +111,13 @@ PROD smoke checklist
 Actions Summary に結果を残す
 ```
 
-`production-release.yml` の入力値:
+`production-release.yml` は、`main` への push と手動実行の両方を受け付ける。
+
+`main` push では、merge commit の SHA を `source_ref` として扱い、
+`preview -> main` のブランチ運用により PREVIEW 確認済みとみなす。
+実際の Production 反映は GitHub Environment `production` の承認後にだけ実行される。
+
+手動実行時の入力値:
 
 | 入力 | 例 | 説明 |
 | --- | --- | --- |

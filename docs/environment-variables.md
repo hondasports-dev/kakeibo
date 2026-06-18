@@ -192,7 +192,7 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 `preview` branch への push では、`preview-deploy.yml` が固定 Convex staging deployment を更新し、Vercel Preview へデプロイする。
 マイルストーン単位の PREVIEW RC では、`preview-release.yml` が同じ staging deployment を更新し、Vercel Preview へデプロイする。
 
-PROD 反映では、`production-release.yml` を手動実行する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。
+PROD 反映では、`main` への push で `production-release.yml` が自動起動する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。手動リリースや forward-fix では、同じ workflow を `workflow_dispatch` で実行してよい。
 
 `preview-release.yml` の手動実行入力は次の方針にする。
 
