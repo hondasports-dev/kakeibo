@@ -96,20 +96,26 @@ export function GroupSettingsPanel() {
   const members = useQuery(api.groups.getGroupMembers) as GroupMember[] | undefined;
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
+  const updateGroupName = useMutation(api.groups.updateGroupName);
   const inviteMember = useAction(api.groupInvitations.inviteMember);
 
   const [activeGroupId, setActiveGroupId] = useState<Id<"groups"> | "">("");
+  const [groupNameDraft, setGroupNameDraft] = useState("");
   const [email, setEmail] = useState("");
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
   const [pendingRemoveMember, setPendingRemoveMember] = useState<PendingRemoveMember | null>(null);
 
+  const groupId = group?._id;
+  const groupName = group?.name;
+
   useEffect(() => {
-    if (group) {
-      setActiveGroupId(group._id);
+    if (groupId && groupName !== undefined) {
+      setActiveGroupId(groupId);
+      setGroupNameDraft(groupName);
     }
-  }, [group]);
+  }, [groupId, groupName]);
 
   if (group === undefined || members === undefined || groups === undefined) {
     return (
@@ -161,6 +167,25 @@ export function GroupSettingsPanel() {
       setSnackbar("招待メールを送信しました");
     } catch (caughtError) {
       setError(getErrorMessage(caughtError, "招待メールを送信できませんでした。"));
+    } finally {
+      setSavingTarget(null);
+    }
+  };
+
+  const handleUpdateGroupName = async () => {
+    const normalizedName = groupNameDraft.trim();
+    if (!normalizedName) {
+      setError("グループ名を入力してください。");
+      return;
+    }
+
+    setSavingTarget("rename");
+    setError("");
+    try {
+      await updateGroupName({ name: normalizedName });
+      setSnackbar("グループ名を更新しました");
+    } catch (caughtError) {
+      setError(getErrorMessage(caughtError, "グループ名を更新できませんでした。"));
     } finally {
       setSavingTarget(null);
     }
@@ -279,16 +304,21 @@ export function GroupSettingsPanel() {
               ) : isOwner ? (
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                   <TextField
-                    disabled
+                    disabled={savingTarget !== null}
                     fullWidth
-                    helperText="現在は変更できません。"
                     label="グループ名"
-                    slotProps={{
-                      formHelperText: { id: "group-rename-helper" },
-                    }}
-                    value={group.name}
+                    onChange={(event) => setGroupNameDraft(event.target.value)}
+                    slotProps={{ htmlInput: { maxLength: 50 } }}
+                    value={groupNameDraft}
                   />
-                  <Button aria-describedby="group-rename-helper" disabled variant="outlined">
+                  <Button
+                    disabled={savingTarget !== null || groupNameDraft.trim() === group.name.trim()}
+                    onClick={() => void handleUpdateGroupName()}
+                    startIcon={
+                      savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
+                    }
+                    variant="outlined"
+                  >
                     保存
                   </Button>
                 </Stack>
