@@ -127,7 +127,8 @@ gh run watch <run_id> --exit-status
 
 ## Issue対応とロール参照
 
-GitHub Issue を起点に修正、実装、レビュー、PR作成、CI確認、納品を進める場合は、
+単一 GitHub Issue を TDD で対応するときは、`.agents/skills/issue-tdd-run/SKILL.md` を使う。
+マイルストーン横断・複数 Issue・納品まで一括で進める場合は、
 `.agents/skills/issue-delivery/SKILL.md` を参照してください。
 
 Issue の再精査では、実装前に Product Lead A/B/C、Tech Lead、QA Agent の観点を必ず
