@@ -11,12 +11,14 @@ import {
   createGroupHandler,
   createGroupInvitationRecordHandler,
   deletePendingGroupInvitationRecordByTokenHandler,
+  getGroupMembersHandler,
   getGroupMembership,
   invitationEmailsMatch,
   invitationEmailsMatchAny,
   listMyGroupsHandler,
   removeMemberHandler,
   setActiveGroupHandler,
+  sortGroupMembersForDisplay,
   updateGroupNameHandler,
 } from "./groups";
 
@@ -247,6 +249,62 @@ describe("groups", () => {
     expect(invitationEmailsMatchAny(["primary@example.com"], "invitee@example.com")).toBe(false);
   });
 
+  it("sortGroupMembersForDisplay は owner を先頭にし、member を表示名順に並べる", () => {
+    expect(
+      sortGroupMembersForDisplay([
+        {
+          userId: "member-b",
+          role: "member",
+          displayName: "メンバーB",
+          email: "b@example.com",
+          isActiveGroup: false,
+          createdAt: 2000,
+        },
+        {
+          userId: "owner",
+          role: "owner",
+          displayName: "オーナー",
+          email: "owner@example.com",
+          isActiveGroup: true,
+          createdAt: 1000,
+        },
+        {
+          userId: "member-a",
+          role: "member",
+          displayName: "メンバーA",
+          email: "a@example.com",
+          isActiveGroup: false,
+          createdAt: 3000,
+        },
+      ]),
+    ).toEqual([
+      {
+        userId: "owner",
+        role: "owner",
+        displayName: "オーナー",
+        email: "owner@example.com",
+        isActiveGroup: true,
+        createdAt: 1000,
+      },
+      {
+        userId: "member-a",
+        role: "member",
+        displayName: "メンバーA",
+        email: "a@example.com",
+        isActiveGroup: false,
+        createdAt: 3000,
+      },
+      {
+        userId: "member-b",
+        role: "member",
+        displayName: "メンバーB",
+        email: "b@example.com",
+        isActiveGroup: false,
+        createdAt: 2000,
+      },
+    ]);
+  });
+
   it("getGroupMembership は activeGroupId が複数所属でも現在のグループを返す", async () => {
     const userId = "https://issuer.example|user-001";
     const ctx = createMockDb({
@@ -474,6 +532,133 @@ describe("groups", () => {
         isActive: true,
       },
     ]);
+  });
+
+  it("getGroupMembersHandler は active group のメンバーだけを owner 優先で返す", async () => {
+    const userId = "https://issuer.example|owner-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー太郎",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member-a" as Id<"users">,
+          userId: "https://issuer.example|member-a",
+          displayName: "メンバーA",
+          email: "member-a@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member-b" as Id<"users">,
+          userId: "https://issuer.example|member-b",
+          displayName: "メンバーB",
+          email: "member-b@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "group-002" as Id<"groups">,
+          name: "鈴木家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-b" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: "https://issuer.example|member-b",
+          role: "member",
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+        {
+          _id: "member-a" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: "https://issuer.example|member-a",
+          role: "member",
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+        {
+          _id: "member-other-group" as Id<"groupMembers">,
+          groupId: "group-002" as Id<"groups">,
+          userId: "https://issuer.example|other-group-member",
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(getGroupMembersHandler(ctx)).resolves.toEqual([
+      {
+        userId,
+        role: "owner",
+        displayName: "オーナー太郎",
+        email: "owner@example.com",
+        isActiveGroup: true,
+        createdAt: 1000,
+      },
+      {
+        userId: "https://issuer.example|member-a",
+        role: "member",
+        displayName: "メンバーA",
+        email: "member-a@example.com",
+        isActiveGroup: false,
+        createdAt: 3000,
+      },
+      {
+        userId: "https://issuer.example|member-b",
+        role: "member",
+        displayName: "メンバーB",
+        email: "member-b@example.com",
+        isActiveGroup: false,
+        createdAt: 2000,
+      },
+    ]);
+  });
+
+  it("getGroupMembersHandler はグループ未所属ならエラーになる", async () => {
+    const userId = "https://issuer.example|lonely-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-lonely" as Id<"users">,
+          userId,
+          displayName: "ユーザー",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(getGroupMembersHandler(ctx)).rejects.toThrow("グループに所属していません");
   });
 
   it("setActiveGroupHandler は所属しているグループを active に切り替える", async () => {

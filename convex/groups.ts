@@ -284,6 +284,43 @@ export const updateGroupName = mutation({
 // getGroupMembers: グループメンバー一覧を取得
 // ---------------------------------------------------------------------------
 
+export const groupMemberListItemValidator = v.object({
+  userId: v.string(),
+  role: v.union(v.literal("owner"), v.literal("member")),
+  displayName: v.string(),
+  email: v.union(v.string(), v.null()),
+  isActiveGroup: v.boolean(),
+  createdAt: v.number(),
+});
+
+type GroupMemberListItem = {
+  userId: string;
+  role: "owner" | "member";
+  displayName: string;
+  email: string | null;
+  isActiveGroup: boolean;
+  createdAt: number;
+};
+
+function getMemberSortLabel(member: GroupMemberListItem) {
+  return member.displayName.trim() || member.email?.trim() || member.userId;
+}
+
+export function sortGroupMembersForDisplay(members: GroupMemberListItem[]) {
+  return [...members].sort((left, right) => {
+    if (left.role !== right.role) {
+      return left.role === "owner" ? -1 : 1;
+    }
+
+    const labelCompare = getMemberSortLabel(left).localeCompare(getMemberSortLabel(right), "ja");
+    if (labelCompare !== 0) {
+      return labelCompare;
+    }
+
+    return left.createdAt - right.createdAt;
+  });
+}
+
 export async function getGroupMembersHandler(ctx: QueryCtx) {
   const { groupId } = await requireGroupMembership(ctx);
 
@@ -308,11 +345,12 @@ export async function getGroupMembersHandler(ctx: QueryCtx) {
     }),
   );
 
-  return membersWithInfo;
+  return sortGroupMembersForDisplay(membersWithInfo);
 }
 
 export const getGroupMembers = query({
   args: {},
+  returns: v.array(groupMemberListItemValidator),
   handler: getGroupMembersHandler,
 });
 
