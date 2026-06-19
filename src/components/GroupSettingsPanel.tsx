@@ -2,22 +2,18 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Alert,
-  Avatar,
   Box,
   Button,
   Chip,
   CircularProgress,
   Divider,
-  IconButton,
   Paper,
   Snackbar,
   Stack,
   TextField,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import MenuItem from "@mui/material/MenuItem";
-import DeleteIcon from "@mui/icons-material/Delete";
 import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { useAuth, useUser } from "@clerk/react";
@@ -27,20 +23,14 @@ import { MAX_GROUP_NAME_LENGTH } from "../../convex/lib/groupName";
 import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
 import { getConvexErrorMessage } from "../lib/convexError";
 import { ConfirmDangerousActionDialog } from "./groupAdmin/ConfirmDangerousActionDialog";
+import { GroupMemberList } from "./groupAdmin/GroupMemberList";
+import type { GroupMemberListItem } from "./groupAdmin/groupMemberDisplay";
 import { GroupSettingsSection } from "./groupAdmin/GroupSettingsSection";
 
 type GroupInfo = {
   _id: Id<"groups">;
   name: string;
   role: "owner" | "member";
-  createdAt: number;
-};
-
-type GroupMember = {
-  userId: string;
-  role: "owner" | "member";
-  displayName: string;
-  email: string | null;
   createdAt: number;
 };
 
@@ -60,33 +50,6 @@ function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
 }
 
-function getMemberInitial(primaryLabel: string) {
-  return primaryLabel.trim().slice(0, 1).toUpperCase() || "?";
-}
-
-function getMemberPrimaryLabel(member: GroupMember, currentUserDisplayName: string | null) {
-  if (currentUserDisplayName) {
-    return currentUserDisplayName;
-  }
-  if (member.displayName !== "ユーザー") {
-    return member.displayName;
-  }
-  return member.email ?? "ユーザー";
-}
-
-function getMemberSecondaryLabel(member: GroupMember, primaryLabel: string) {
-  if (member.email) {
-    return member.email === primaryLabel ? "メール登録済み" : member.email;
-  }
-  return `ID: ${member.userId.slice(-8)}`;
-}
-
-function isCurrentUserMember(memberUserId: string, clerkUserId: string | null | undefined) {
-  return Boolean(
-    clerkUserId && (memberUserId === clerkUserId || memberUserId.endsWith(`|${clerkUserId}`)),
-  );
-}
-
 export function GroupSettingsPanel() {
   const { userId } = useAuth();
   const { user } = useUser();
@@ -94,7 +57,7 @@ export function GroupSettingsPanel() {
   const groups = useQuery(api.groups.listMyGroups) as
     | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
     | undefined;
-  const members = useQuery(api.groups.getGroupMembers) as GroupMember[] | undefined;
+  const members = useQuery(api.groups.getGroupMembers) as GroupMemberListItem[] | undefined;
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
   const updateGroupName = useMutation(api.groups.updateGroupName);
@@ -208,7 +171,7 @@ export function GroupSettingsPanel() {
     }
   };
 
-  const handleRequestRemoveMember = (member: GroupMember, displayLabel: string) => {
+  const handleRequestRemoveMember = (member: GroupMemberListItem, displayLabel: string) => {
     setPendingRemoveMember({ userId: member.userId, displayLabel });
   };
 
@@ -340,66 +303,14 @@ export function GroupSettingsPanel() {
             testId="member-management-section"
             title="メンバー管理"
           >
-            <Box component="ul" className="group-member-list">
-              {members.map((member) => {
-                const canRemove = isOwner && member.role !== "owner";
-                const isCurrentUser = isCurrentUserMember(member.userId, userId);
-                const primaryLabel = getMemberPrimaryLabel(
-                  member,
-                  isCurrentUser ? currentUserDisplayName : null,
-                );
-                const secondaryLabel = getMemberSecondaryLabel(member, primaryLabel);
-                return (
-                  <Box className="group-member-row" component="li" key={member.userId}>
-                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                      <Avatar sx={{ bgcolor: "primary.light", color: "primary.dark" }}>
-                        {getMemberInitial(primaryLabel)}
-                      </Avatar>
-                      <Box sx={{ minWidth: 0 }}>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                          <Typography sx={{ fontWeight: 700 }} noWrap>
-                            {primaryLabel}
-                          </Typography>
-                          {isCurrentUser ? (
-                            <Chip label="あなた" size="small" variant="outlined" />
-                          ) : null}
-                        </Stack>
-                        <Typography color="text.secondary" variant="body2" noWrap>
-                          {secondaryLabel}
-                        </Typography>
-                      </Box>
-                    </Stack>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      <Chip
-                        color={member.role === "owner" ? "primary" : "secondary"}
-                        label={member.role === "owner" ? "オーナー" : "メンバー"}
-                        size="small"
-                        variant={member.role === "owner" ? "filled" : "outlined"}
-                      />
-                      {isOwner ? (
-                        <Tooltip title={canRemove ? "グループから外す" : "外せません"}>
-                          <span>
-                            <IconButton
-                              aria-label={`${primaryLabel}をグループから外す`}
-                              color="error"
-                              disabled={!canRemove || savingTarget !== null}
-                              onClick={() => handleRequestRemoveMember(member, primaryLabel)}
-                              size="small"
-                            >
-                              {savingTarget === member.userId ? (
-                                <CircularProgress size={18} />
-                              ) : (
-                                <DeleteIcon fontSize="small" />
-                              )}
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      ) : null}
-                    </Stack>
-                  </Box>
-                );
-              })}
-            </Box>
+            <GroupMemberList
+              currentUserDisplayName={currentUserDisplayName}
+              currentUserId={userId}
+              isOwner={isOwner}
+              members={members}
+              onRequestRemove={isOwner ? handleRequestRemoveMember : undefined}
+              savingTarget={savingTarget}
+            />
           </GroupSettingsSection>
 
           {!isOwner ? (
