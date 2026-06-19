@@ -410,6 +410,7 @@ export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: s
 
 export const addMemberByEmail = mutation({
   args: { email: v.string() },
+  returns: v.null(),
   handler: addMemberByEmailHandler,
 });
 
@@ -444,6 +445,7 @@ export async function setActiveGroupHandler(ctx: MutationCtx, args: { groupId: I
 
 export const setActiveGroup = mutation({
   args: { groupId: v.id("groups") },
+  returns: v.id("groups"),
   handler: setActiveGroupHandler,
 });
 
@@ -747,6 +749,7 @@ export async function acceptGroupInvitationHandler(ctx: MutationCtx, args: { tok
 
 export const acceptGroupInvitation = mutation({
   args: { token: v.string() },
+  returns: v.id("groups"),
   handler: acceptGroupInvitationHandler,
 });
 
@@ -802,6 +805,7 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
 
 export const removeMember = mutation({
   args: { targetUserId: v.string() },
+  returns: v.null(),
   handler: removeMemberHandler,
 });
 
