@@ -225,10 +225,11 @@ export const listMyGroups = query({
 
 export async function createGroupHandler(ctx: MutationCtx, args: { name: string }) {
   const userId = await requireAuthenticatedUserId(ctx);
+  const name = normalizeGroupName(args.name);
 
   const now = Date.now();
   const groupId = await ctx.db.insert("groups", {
-    name: args.name,
+    name,
     createdAt: now,
     updatedAt: now,
   });
