@@ -1,6 +1,7 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
+import type { QueryCtx } from "./_generated/server";
 import {
   GROUP_ADMIN_ERRORS,
   assertActiveGroupScope,
@@ -48,7 +49,9 @@ describe("groupAdminGuards", () => {
       },
     };
 
-    await expect(countGroupOwners(ctx, "group-001" as Id<"groups">)).resolves.toBe(2);
+    await expect(
+      countGroupOwners(ctx as unknown as Pick<QueryCtx, "db">, "group-001" as Id<"groups">),
+    ).resolves.toBe(2);
   });
 
   it("assertGroupHasMinimumOwners は owner 不足を拒否する", async () => {
@@ -62,8 +65,12 @@ describe("groupAdminGuards", () => {
       },
     };
 
-    await expect(assertGroupHasMinimumOwners(ctx, "group-001" as Id<"groups">, 2)).rejects.toThrow(
-      GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED,
-    );
+    await expect(
+      assertGroupHasMinimumOwners(
+        ctx as unknown as Pick<QueryCtx, "db">,
+        "group-001" as Id<"groups">,
+        2,
+      ),
+    ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
   });
 });

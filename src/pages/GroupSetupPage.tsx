@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import { api } from "../../convex/_generated/api";
+import { MAX_GROUP_NAME_LENGTH } from "../../convex/groups";
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -75,6 +76,7 @@ export function GroupSetupPage() {
                 label="グループ名"
                 name="groupName"
                 onChange={(event) => setGroupName(event.target.value)}
+                slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
                 value={groupName}
               />
               <Button

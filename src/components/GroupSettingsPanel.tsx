@@ -23,6 +23,7 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { useAuth, useUser } from "@clerk/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
+import { MAX_GROUP_NAME_LENGTH } from "../../convex/groups";
 import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
 import { getConvexErrorMessage } from "../lib/convexError";
 import { ConfirmDangerousActionDialog } from "./groupAdmin/ConfirmDangerousActionDialog";
@@ -308,7 +309,7 @@ export function GroupSettingsPanel() {
                     fullWidth
                     label="グループ名"
                     onChange={(event) => setGroupNameDraft(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: 50 } }}
+                    slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
                     value={groupNameDraft}
                   />
                   <Button

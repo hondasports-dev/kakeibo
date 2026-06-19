@@ -368,6 +368,46 @@ describe("groups", () => {
     );
   });
 
+  it("createGroupHandler は空文字を拒否する", async () => {
+    const userId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(createGroupHandler(ctx, { name: "   " })).rejects.toThrow(
+      "グループ名を入力してください",
+    );
+  });
+
+  it("createGroupHandler は長すぎる名前を拒否する", async () => {
+    const userId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(createGroupHandler(ctx, { name: "あ".repeat(51) })).rejects.toThrow(
+      "グループ名は50文字以内で入力してください",
+    );
+  });
+
   it("listMyGroupsHandler は現在の activeGroup を isActive 付きで返す", async () => {
     const userId = "https://issuer.example|user-003";
     const ctx = createMockDb({
