@@ -38,7 +38,7 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 
 ## 使い方
 
-1. GitHub Issue番号を解決・実装・続行・close・deliverする依頼では、まず `$issue-delivery` を優先する。
+1. GitHub Issue番号を解決・実装・続行・close・deliverする依頼では、まず `$issue-tdd-run` を優先する。
 2. 依頼を分解する必要がある場合は、`.agents/roles/00-company-coordinator.md` から始める。
 3. 現在の作業に必要な役割ファイルだけを読む。
 4. 小さく範囲が明確な実装やレビューでは、すべての役割を使わない。

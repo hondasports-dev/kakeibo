@@ -36,7 +36,7 @@ cd ../kakeibo-worktrees/<branch-name>
 
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
-`issue-delivery` Skill や Implementer ロールで作業ブランチを作成する場合も、
+`issue-tdd-run` / `issue-tdd-workflow` や Implementer ロールで作業ブランチを作成する場合も、
 この `git worktree` 手順に従います。ただし、ドキュメントのみの改善、マージ後の
 `main` 最新化、またはユーザーが既存PRへ混ぜるよう明示した修正では、新しい
 `git worktree` を機械的に作成しません。
@@ -98,7 +98,7 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 
 ### Issue タスク台帳
 
-`issue-delivery` Skill で Issue を処理する場合、Issue は人間と Codex / Devin の
+`issue-tdd-run` / `issue-tdd-workflow` で Issue を処理する場合、Issue は人間と Codex / Devin の
 共通の作業台帳として扱います。作業開始時に Issue 本文へタスクリストを追加できる場合は
 本文を更新し、本文更新ができない場合は「Issue Delivery タスク台帳」コメントを投稿します。
 ただし、一時作業メモとして `e2e-test-case.md`、`implementation-plan.md`、
@@ -122,7 +122,7 @@ PR本文、または既存docsへ集約します。
 
 ### Issue の要件確認（プロダクトリード3エージェント並列評価）
 
-`issue-delivery` Skill を使って Issue を処理する場合、フェーズ0（Product Lead 要件確認）では
+`issue-tdd-run` で Issue を処理する場合、フェーズ0（`issue-gate-0`）では
 **3人のプロダクトリードサブエージェントを並列で起動**して要件を評価します。
 Codexでサブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探し、
 `multi_agent_v1.spawn_agent` が使える場合は次の固定名をプロンプトに含めて起動します。
@@ -196,7 +196,7 @@ Pull Request には次の内容を書きます。
 - 関連する場合は Convex/Auth への影響
 - 追加または更新したテスト、E2Eを追加しない場合はその理由
 
-`issue-delivery` Skill で作成する Pull Request では、PR 本文または PR コメントに
+`issue-tdd-workflow` で作成する Pull Request では、PR 本文または PR コメントに
 終了条件タスクを置きます。PR はこのタスクがすべて完了してからマージします。
 
 終了条件タスク:
@@ -344,7 +344,7 @@ pnpm run e2e:smoke -- --project=chromium
 
 E2E 用環境変数が未設定の場合はスキップしてよく、その場合は CI の E2E 結果に委ねます。
 
-`issue-delivery` Skill で PR マージまで全自動運用する場合は、ローカル E2E を CI 任せに
+`issue-tdd-workflow` で PR マージまで全自動運用する場合は、ローカル E2E を CI 任せに
 しません。PR 作成前および差し戻し修正後に、ローカルで必要な E2E を完走します。
 広い導線や認証・データ保存に触る変更では全 E2E を実行し、変更が限定的なら
 該当 spec または smoke E2E に絞ってよいです。
@@ -406,7 +406,7 @@ PROD smoke は初期運用では非破壊確認に限定します。workflow は
 `PRODUCTION_SMOKE_URL` へ HTTP GET を行い、空でない応答を確認します。データ作成、更新、削除を伴う確認は
 自動 smoke では行わず、必要最小限の手動確認として扱います。
 
-### E2E テスト設計基準（issue-delivery QA Agent 向け）
+### E2E テスト設計基準（issue-gate-0 / QA Agent 向け）
 
 - Product Lead の完了条件と Tech Lead のテスト方針を照合する。
 - 既存テストでカバーできる場合は、新規 E2E を増やさず `e2e/` の該当ファイルを参照する。

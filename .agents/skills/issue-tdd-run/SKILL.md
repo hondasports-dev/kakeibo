@@ -13,7 +13,6 @@ triggers:
 | 用途 | Skill |
 | --- | --- |
 | 単一 Issue・TDD・PR・CI まで | **本 Skill** → **`issue-tdd-workflow`** |
-| マイルストーン・複数 Issue・納品 | `issue-delivery`（本 Skill の対象外） |
 
 ## 引数
 

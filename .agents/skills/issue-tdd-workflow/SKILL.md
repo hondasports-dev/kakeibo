@@ -13,7 +13,6 @@ triggers:
 GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TDD、**コードレビュー**、検証完走まで一続きで進める。
 
 単一 Issue の実装〜公開手順の正本である。起動は `issue-tdd-run`、フェーズ0（仕様ゲート）の正本は `issue-gate-0`。
-マイルストーン横断・複数 Issue の納品は `issue-delivery` を使う（本 Skill の対象外）。
 
 ## 引数
 

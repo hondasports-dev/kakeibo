@@ -129,8 +129,6 @@ gh run watch <run_id> --exit-status
 
 単一 GitHub Issue を TDD で対応するときは、`.agents/skills/issue-tdd-run/SKILL.md` を使う。
 手順の正本は `.agents/skills/issue-tdd-workflow/SKILL.md`（push 前の `code-review` 必須）。
-マイルストーン横断・複数 Issue・納品まで一括で進める場合は、
-`.agents/skills/issue-delivery/SKILL.md` を参照してください。
 
 Issue の再精査では、実装前に Product Lead A/B/C、Tech Lead、QA Agent の観点を必ず
 確認します。UI/UX変更を含む場合は UX/UI Designer の観点も確認します。サブエージェントが
