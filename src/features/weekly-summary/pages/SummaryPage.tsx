@@ -3,16 +3,16 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
-import { WeekNavigator } from "../../../components/WeekNavigator";
+import { WeekNavigator } from "../../week";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
-import { ReviewMemoPanel } from "../../../components/ReviewMemoPanel";
+import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
 import {
   addWeeks,
   getCurrentWeekStartDate,
   getWeekEndDate,
   isFutureWeek,
   normalizeWeekStartDate,
-} from "../../../lib/weekNavigation";
+} from "../../week";
 
 export function SummaryPage() {
   const { weekStartDate: rawWeekStartDate } = useParams<{ weekStartDate: string }>();

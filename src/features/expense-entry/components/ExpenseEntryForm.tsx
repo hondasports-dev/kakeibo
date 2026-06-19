@@ -11,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useExpenseEntryForm } from "../hooks/useExpenseEntryForm";
-import { AnimatedButton } from "../../../components/AnimatedButton";
+import { AnimatedButton } from "../../ui";
 import { AiExpenseQueuePanel } from "../../ai-expense-queue";
 import { CategoryGrid } from "./CategoryGrid";
 import { ConfirmDifferenceDialog } from "./ConfirmDifferenceDialog";

@@ -1,8 +1,8 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Id } from "../../convex/_generated/dataModel";
-import { renderWithProviders } from "../test/render";
+import type { Id } from "../../../../convex/_generated/dataModel";
+import { renderWithProviders } from "../../../test/render";
 import { CategorySettingsPanel } from "./CategorySettingsPanel";
 
 type Category = {
@@ -27,7 +27,7 @@ const {
   useQueryMock: vi.fn(),
 }));
 
-vi.mock("../../convex/_generated/api", () => ({
+vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     categories: {
       createCategory: "categories.createCategory",

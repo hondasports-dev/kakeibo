@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Box, Button, Link as MuiLink, Paper, Stack, Typography } from "@mui/material";
-import { designTokens } from "../designTokens";
+import { designTokens } from "../../../designTokens";
 
 type PublicStatusLinkAction = {
   label: string;

@@ -79,11 +79,14 @@ src/
       types/
       utils/
       index.ts
-    app-shell/                 # 公開・異常系ページ
+    app-shell/                 # レイアウト・公開・異常系ページ
+      components/
+      lib/
       pages/
       index.ts
     auth/
       hooks/
+      lib/
       index.ts
     dashboard/
       pages/
@@ -94,19 +97,30 @@ src/
       hooks/
       pages/
       types/
+      validation/
       index.ts
     group-admin/
       components/
       hooks/
+      lib/
       pages/
       utils/
       index.ts
     receipt/
       components/
       hooks/
+      validation/
       index.ts
     settings/
+      components/
       pages/
+      index.ts
+    ui/                        # 横断 UI（アニメーション等）
+      components/
+      index.ts
+    week/                      # 週ナビ・日付ユーティリティ
+      components/
+      lib/
       index.ts
     weekly-summary/
       components/
@@ -114,13 +128,6 @@ src/
       pages/
       types/
       index.ts
-  components/                  # 複数機能で共有する UI
-    AppLayout.tsx
-    CategorySettingsPanel.tsx
-    WeekDaySettingsPanel.tsx
-    ...
-  lib/
-  validation/
   test/
 
 convex/
@@ -139,7 +146,9 @@ convex/
 フロントエンドは **Feature-based Architecture** を採用する。各 feature は `src/features/<feature-name>/`
 配下に置き、feature 内は **type-based**（`components/`、`hooks/`、`pages/`、`types/`、`utils/`）で整理する。
 画面ルートは各 feature の `pages/` に置き、`router.tsx` から feature の `index.ts` 経由で import する。
-横断的な `lib/`・`validation/`、複数 feature で使う共有 UI は `components/` に残す。
+横断的な UI は `features/ui/`、週ナビ・日付は `features/week/`、アプリシェル・公開ページは
+`features/app-shell/`、認証ユーティリティは `features/auth/lib/` に置く。バリデーションは
+各 feature の `validation/` に置き、feature 外からは `index.ts` 経由で import する。
 
 `CategoriesPage.tsx` は存在するが、現行ルーターでは `/categories` も `SettingsPage` へ向ける。
 

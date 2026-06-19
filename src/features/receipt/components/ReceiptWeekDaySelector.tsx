@@ -1,5 +1,5 @@
 import { Box } from "@mui/material";
-import { generateWeekDays } from "../../../lib/weekNavigation";
+import { generateWeekDays } from "../../week";
 
 export function ReceiptWeekDaySelector({
   selectedDate,

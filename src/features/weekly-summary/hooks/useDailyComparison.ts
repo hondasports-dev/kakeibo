@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { addDays, addWeeks } from "../../../lib/weekNavigation";
+import { addDays, addWeeks } from "../../week";
 import type { ReceiptItem } from "../types/types";
 
 export function useDailyComparison({

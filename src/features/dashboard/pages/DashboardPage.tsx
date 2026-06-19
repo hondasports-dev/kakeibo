@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import { useWeekSession } from "../hooks/useWeekSession";
-import { AnimatedCounter } from "../../../components/AnimatedCounter";
+import { AnimatedCounter } from "../../ui";
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();

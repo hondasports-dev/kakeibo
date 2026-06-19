@@ -1,5 +1,5 @@
 import { Box, Divider, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { AnimatedCounter } from "../../../components/AnimatedCounter";
+import { AnimatedCounter } from "../../ui";
 import { ReceiptRow } from "./ReceiptRow";
 import type { ReceiptItem } from "../types/types";
 

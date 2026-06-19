@@ -2,9 +2,9 @@ import { useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { validateReceiptForm, type ReceiptFormErrors } from "../../../validation/receipt";
+import { validateReceiptForm, type ReceiptFormErrors } from "../validation/receipt";
 import type { ExtractedReceiptResult } from "../components/ReceiptImageExtractor";
-import type { NormalizedReceiptExtraction } from "../../../validation/receiptExtraction";
+import type { NormalizedReceiptExtraction } from "../validation/receiptExtraction";
 
 type ExpenseFormValues = {
   type: "expense";

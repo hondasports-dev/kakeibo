@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { AiExpenseQueuePanel } from "../../ai-expense-queue";
 import { useReceiptForm } from "../hooks/useReceiptForm";
-import { AnimatedButton } from "../../../components/AnimatedButton";
+import { AnimatedButton } from "../../ui";
 import { ReceiptCategorySelector } from "./ReceiptCategorySelector";
 import { ReceiptNameField } from "./ReceiptNameField";
 import { ReceiptWeekDaySelector } from "./ReceiptWeekDaySelector";

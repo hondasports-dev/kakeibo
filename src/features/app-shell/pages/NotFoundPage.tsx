@@ -1,4 +1,4 @@
-import { PublicStatusPage } from "../../../components/PublicStatusPage";
+import { PublicStatusPage } from "../components/PublicStatusPage";
 
 export function NotFoundPage() {
   return (

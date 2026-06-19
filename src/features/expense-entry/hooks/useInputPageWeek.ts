@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
-import {
-  addWeeks,
-  getCurrentWeekStartDate,
-  getWeekEndDate,
-  isFutureWeek,
-} from "../../../lib/weekNavigation";
+import { addWeeks, getCurrentWeekStartDate, getWeekEndDate, isFutureWeek } from "../../week";
 
 export type InputPageWeekSession = {
   weekStartDate: string;

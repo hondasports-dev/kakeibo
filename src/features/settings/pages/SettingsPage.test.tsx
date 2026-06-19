@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
 import { SettingsPage } from "./SettingsPage";
 
-vi.mock("../../../components/CategorySettingsPanel", () => ({
+vi.mock("../components/CategorySettingsPanel", () => ({
   CategorySettingsPanel: () => <div>CategorySettingsPanel</div>,
 }));
 
@@ -11,7 +11,7 @@ vi.mock("../../group-admin", () => ({
   GroupSettingsPanel: () => <div>GroupSettingsPanel</div>,
 }));
 
-vi.mock("../../../components/WeekDaySettingsPanel", () => ({
+vi.mock("../components/WeekDaySettingsPanel", () => ({
   WeekDaySettingsPanel: () => <div>WeekDaySettingsPanel</div>,
 }));
 

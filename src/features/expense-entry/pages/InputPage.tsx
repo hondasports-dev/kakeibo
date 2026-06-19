@@ -2,8 +2,8 @@ import { useQuery } from "convex/react";
 import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import { ExpenseEntryForm } from "../components/ExpenseEntryForm";
-import { WeekNavigator } from "../../../components/WeekNavigator";
-import { WeekStatusPanel } from "../../../components/WeekStatusPanel";
+import { WeekNavigator } from "../../week";
+import { WeekStatusPanel } from "../../week";
 import { useInputPageWeek } from "../hooks/useInputPageWeek";
 
 export function InputPage() {
