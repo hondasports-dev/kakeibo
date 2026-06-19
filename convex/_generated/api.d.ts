@@ -17,6 +17,7 @@ import type * as groupAdminGuards from "../groupAdminGuards.js";
 import type * as groupInvitations from "../groupInvitations.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
+import type * as lib_groupName from "../lib/groupName.js";
 import type * as receiptAnalysisJobs from "../receiptAnalysisJobs.js";
 import type * as receiptImageExtraction from "../receiptImageExtraction.js";
 import type * as receipts from "../receipts.js";
@@ -40,6 +41,7 @@ declare const fullApi: ApiFromModules<{
   groupInvitations: typeof groupInvitations;
   groups: typeof groups;
   http: typeof http;
+  "lib/groupName": typeof lib_groupName;
   receiptAnalysisJobs: typeof receiptAnalysisJobs;
   receiptImageExtraction: typeof receiptImageExtraction;
   receipts: typeof receipts;

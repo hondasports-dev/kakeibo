@@ -11,6 +11,8 @@ import {
   createGroupHandler,
   createGroupInvitationRecordHandler,
   deletePendingGroupInvitationRecordByTokenHandler,
+  dedupePendingGroupInvitationsByEmail,
+  getInvitationEmailKey,
   getGroupMembersHandler,
   getGroupMembership,
   invitationEmailsMatch,
@@ -747,6 +749,92 @@ describe("groups", () => {
     ]);
   });
 
+  it("listPendingGroupInvitationsHandler は同一メールの pending を最新 1 件にまとめる", async () => {
+    const userId = "https://issuer.example|owner-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー太郎",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-old-dup" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "old-dup-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "invite-new-dup" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "new-dup-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(listPendingGroupInvitationsHandler(ctx)).resolves.toEqual([
+      {
+        _id: "invite-new-dup",
+        email: "dup@example.com",
+        status: "pending",
+        createdAt: 3000,
+      },
+    ]);
+  });
+
+  it("dedupePendingGroupInvitationsByEmail は Gmail alias を同一メールとしてまとめる", () => {
+    const invitations = dedupePendingGroupInvitationsByEmail([
+      {
+        _id: "invite-alias-old" as Id<"groupInvitations">,
+        email: "a.b.c@gmail.com",
+        status: "pending",
+        createdAt: 1000,
+      },
+      {
+        _id: "invite-alias-new" as Id<"groupInvitations">,
+        email: "abc@gmail.com",
+        status: "pending",
+        createdAt: 2000,
+      },
+    ]);
+
+    expect(invitations).toEqual([
+      {
+        _id: "invite-alias-new",
+        email: "abc@gmail.com",
+        status: "pending",
+        createdAt: 2000,
+      },
+    ]);
+    expect(getInvitationEmailKey("a.b.c@gmail.com")).toBe(getInvitationEmailKey("abc@gmail.com"));
+  });
+
   it("listPendingGroupInvitationsHandler は member から呼ぶと拒否する", async () => {
     const userId = "https://issuer.example|member-user";
     const ctx = createMockDb({
@@ -871,6 +959,68 @@ describe("groups", () => {
     );
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "invite-001",
+      expect.objectContaining({ status: "accepted" }),
+    );
+  });
+
+  it("acceptGroupInvitationHandler は受け入れ後に同一メールの他 pending を revoked にする", async () => {
+    const userId = "https://issuer.example|invitee";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-invitee" as Id<"users">,
+          userId,
+          displayName: "招待先",
+          email: "invitee@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-100" as Id<"groups">,
+          name: "招待元",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-primary" as Id<"groupInvitations">,
+          groupId: "group-100" as Id<"groups">,
+          email: "invitee@example.com",
+          token: "invite-token",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          clerkInvitationId: "clerk-invite-001",
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+        {
+          _id: "invite-duplicate" as Id<"groupInvitations">,
+          groupId: "group-100" as Id<"groups">,
+          email: "invitee@example.com",
+          token: "old-token",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(userId, "invitee@example.com"));
+
+    await expect(acceptGroupInvitationHandler(ctx, { token: "invite-token" })).resolves.toEqual(
+      "group-100",
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-duplicate",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-primary",
       expect.objectContaining({ status: "accepted" }),
     );
   });
@@ -1097,7 +1247,7 @@ describe("groups", () => {
     ).rejects.toThrow("このユーザーはすでにグループに参加しています");
   });
 
-  it("assertEmailCanBeInvitedToGroupHandler は pending 招待を拒否する", async () => {
+  it("assertEmailCanBeInvitedToGroupHandler は pending だけでは拒否しない（作成時に古い招待を無効化する）", async () => {
     const baseInvitation = {
       groupId: "group-001" as Id<"groups">,
       invitedByUserId: "https://issuer.example|owner",
@@ -1121,7 +1271,7 @@ describe("groups", () => {
         groupId: "group-001" as Id<"groups">,
         email: "pending@example.com",
       }),
-    ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
+    ).resolves.toBeNull();
   });
 
   it("assertEmailCanBeInvitedToGroupHandler は所属中メンバーの accepted 招待を拒否する", async () => {
@@ -1269,7 +1419,7 @@ describe("groups", () => {
     ).resolves.toBeNull();
   });
 
-  it("createGroupInvitationRecordHandler は既存 pending 招待の二重作成を拒否する", async () => {
+  it("createGroupInvitationRecordHandler は既存 pending を無効化してから新しい招待を作成する", async () => {
     const ctx = createMockDb({
       groupInvitations: [
         {
@@ -1293,8 +1443,57 @@ describe("groups", () => {
         invitedByUserId: "https://issuer.example|owner",
         clerkInvitationId: "clerk-new",
       }),
-    ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
-    expect(ctx.db.insert).not.toHaveBeenCalled();
+    ).resolves.toEqual(expect.any(String));
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-pending",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.insert).toHaveBeenCalled();
+  });
+
+  it("createGroupInvitationRecordHandler は複数の pending をまとめて無効化して再招待できる", async () => {
+    const ctx = createMockDb({
+      groupInvitations: [
+        {
+          _id: "invite-pending-1" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "pending-token-1",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "invite-pending-2" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "pending-token-2",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+
+    await expect(
+      createGroupInvitationRecordHandler(ctx, {
+        groupId: "group-001" as Id<"groups">,
+        email: "dup@example.com",
+        token: "new-token",
+        invitedByUserId: "https://issuer.example|owner",
+      }),
+    ).resolves.toEqual(expect.any(String));
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-pending-1",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-pending-2",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.insert).toHaveBeenCalled();
   });
 
   it("deletePendingGroupInvitationRecordByTokenHandler は Clerk ID 未設定の pending 予約だけを削除する", async () => {

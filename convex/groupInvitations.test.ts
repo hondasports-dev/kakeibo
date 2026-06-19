@@ -129,7 +129,7 @@ describe("getVerifiedClerkEmailAddresses", () => {
 });
 
 describe("inviteMemberHandler", () => {
-  it("重複招待時に Clerk invitation 作成へ進まない", async () => {
+  it("ローカル予約の作成に失敗したら Clerk invitation 作成へ進まない", async () => {
     const getClerkClient = vi.fn();
     const createToken = vi.fn(() => "invite-token");
     const ctx = {
@@ -145,7 +145,7 @@ describe("inviteMemberHandler", () => {
         .mockResolvedValueOnce("https://issuer.example|owner"),
       runMutation: vi
         .fn()
-        .mockRejectedValueOnce(new ConvexError("このメールアドレスにはすでに招待を送信しています")),
+        .mockRejectedValueOnce(new ConvexError("このユーザーはすでにグループに参加しています")),
     };
 
     await expect(
@@ -157,7 +157,7 @@ describe("inviteMemberHandler", () => {
         },
         { createToken, getClerkClient },
       ),
-    ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
+    ).rejects.toThrow("このユーザーはすでにグループに参加しています");
 
     expect(createToken).toHaveBeenCalled();
     expect(getClerkClient).not.toHaveBeenCalled();
