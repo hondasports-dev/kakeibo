@@ -2100,7 +2100,7 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity.mockResolvedValue(createIdentity(ownerId));
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
 
     await expect(
       cancelPendingGroupInvitationHandler(ctx, {
@@ -2159,7 +2159,9 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity.mockResolvedValue(createIdentity(memberId, "member@example.com"));
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(
+      createIdentity(memberId, "member@example.com"),
+    );
 
     await expect(
       cancelPendingGroupInvitationHandler(ctx, {
@@ -2206,7 +2208,7 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity.mockResolvedValue(createIdentity(ownerId));
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
 
     await expect(
       cancelPendingGroupInvitationHandler(ctx, {
@@ -2253,7 +2255,7 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity.mockResolvedValue(createIdentity(ownerId));
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
 
     await expect(
       cancelPendingGroupInvitationHandler(ctx, {
