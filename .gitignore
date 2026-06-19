@@ -36,8 +36,6 @@ playwright/.clerk/
 !.agents/skills/browser-verification/**
 !.agents/skills/code-review/
 !.agents/skills/code-review/**
-!.agents/skills/issue-delivery/
-!.agents/skills/issue-delivery/**
 !.agents/skills/issue-gate-0/
 !.agents/skills/issue-gate-0/**
 !.agents/skills/issue-tdd-run/
