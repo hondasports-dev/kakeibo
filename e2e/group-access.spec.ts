@@ -1,12 +1,18 @@
 import { expect, test } from "@playwright/test";
 import { getCurrentClerkTokenIdentifier, gotoAuthenticated } from "./helpers/auth";
-import { cleanupGroupMembershipsByUser, setE2eGroupMemberRole } from "./helpers/cleanup";
+import {
+  cleanupGroupInvitationsByUser,
+  cleanupGroupMembershipsByUser,
+  setE2eGroupMemberRole,
+} from "./helpers/cleanup";
+import { seedPendingGroupInvitationForUser } from "./helpers/seed";
 
 test.describe("グループアクセス", () => {
   let currentUserIdForCleanup: string | undefined;
 
   test.afterEach(async () => {
     if (currentUserIdForCleanup) {
+      await cleanupGroupInvitationsByUser(currentUserIdForCleanup);
       await cleanupGroupMembershipsByUser(currentUserIdForCleanup);
       currentUserIdForCleanup = undefined;
     }
@@ -95,6 +101,30 @@ test.describe("グループアクセス", () => {
     currentUserIdForCleanup = currentUserId;
 
     await expect(page.getByRole("heading", { name: "招待管理", level: 3 })).toBeVisible();
+    await expect(page.getByTestId("group-pending-invitation-list-empty")).toHaveText(
+      "送信済みの招待はありません。",
+    );
+  });
+
+  test("@smoke @group-access owner は pending 招待を確認ダイアログ経由で取り消せる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+
+    const invitationEmail = "e2e-cancel-pending@example.com";
+    await seedPendingGroupInvitationForUser(currentUserId, invitationEmail);
+
+    await page.reload();
+    await expect(page.getByText(invitationEmail)).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: `${invitationEmail}への招待を取り消す` }).click();
+    await expect(page.getByRole("heading", { name: "招待を取り消しますか？" })).toBeVisible();
+    await page.getByRole("button", { name: "招待を取り消す" }).click();
+
+    await expect(page.getByText("招待を取り消しました")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByTestId("group-pending-invitation-list-empty")).toHaveText(
       "送信済みの招待はありません。",
     );

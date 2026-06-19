@@ -161,6 +161,14 @@ export async function cleanupGroupMembershipsByUser(userId?: string): Promise<vo
   });
 }
 
+export async function cleanupGroupInvitationsByUser(userId?: string): Promise<void> {
+  const identity = userId ? { userId } : getCleanupIdentity();
+  await callCleanupEndpoint({
+    ...identity,
+    clearGroupInvitations: true,
+  });
+}
+
 /**
  * E2E テスト用: 指定ユーザーのアクティブグループにおけるロールを変更する。
  */
@@ -184,6 +192,7 @@ async function callCleanupEndpoint(body: {
   clearAiExpenseQueue?: boolean;
   clearE2eExpenseEntries?: boolean;
   clearGroupMemberships?: boolean;
+  clearGroupInvitations?: boolean;
   setGroupMemberRole?: "owner" | "member";
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
