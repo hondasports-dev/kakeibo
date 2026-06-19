@@ -203,7 +203,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | --- | --- | --- | --- |
 | メンバー追加 | `convex/groups.ts` `addMemberByEmail` | あり | |
 | メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
-| グループ管理 UI | `src/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
+| グループ管理 UI | `src/features/group-admin/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
 | グループ運用手順 | `docs/technical-design.md` 6.3 | — | 本ドキュメントを正本とする |
 
 ## 10. 後続 Issue への参照

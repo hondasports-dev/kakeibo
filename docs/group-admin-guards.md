@@ -47,15 +47,15 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 ### 1.3 エラー表示方針
 
 - サーバーは `ConvexError` に **ユーザーが次の行動を取れる日本語** を載せる
-- クライアントは `src/lib/convexError.ts` の `getConvexErrorMessage` で `Error.message` を表示する
+- クライアントは `src/features/auth/lib/convexError.ts` の `getConvexErrorMessage` で `Error.message` を表示する
 - フォールバック文言は操作ごとに UI 側で用意し、サーバーメッセージを優先する
 
 ## 2. UI 側の危険操作パターン
 
 | 部品 | 場所 | 用途 |
 | --- | --- | --- |
-| 確認ダイアログ | `src/components/groupAdmin/ConfirmDangerousActionDialog.tsx` | 不可逆・誤操作リスクのある管理操作前の確認 |
-| エラー取得 | `src/lib/convexError.ts` | mutation / action 失敗メッセージの表示 |
+| 確認ダイアログ | `src/features/group-admin/components/ConfirmDangerousActionDialog.tsx` | 不可逆・誤操作リスクのある管理操作前の確認 |
+| エラー取得 | `src/features/auth/lib/convexError.ts` | mutation / action 失敗メッセージの表示 |
 
 ### 2.1 確認ダイアログが必須な操作（Phase1）
 

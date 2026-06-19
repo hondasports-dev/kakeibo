@@ -8,8 +8,8 @@
 ## 1. 画面位置
 
 - ルート: `/settings`
-- コンポーネント: `src/components/GroupSettingsPanel.tsx`
-- セクション部品: `src/components/groupAdmin/GroupSettingsSection.tsx`
+- コンポーネント: `src/features/group-admin/components/GroupSettingsPanel.tsx`
+- セクション部品: `src/features/group-admin/components/GroupSettingsSection.tsx`
 
 ## 2. セクション構成（上から順）
 

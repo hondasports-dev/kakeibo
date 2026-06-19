@@ -287,7 +287,7 @@ E2E 本体へ進みません。
 | --------------------------------------- | ------------- | ---------------------------------------------------------- |
 | `pnpm run lint`                         | ✅ 必須       | ESLintによるTypeScript/React hooksチェック                 |
 | `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
-| `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数と src/validation/ を対象        |
+| `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数と `src/features/**/validation/` 等を対象 |
 | `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
 
 **注意事項:**
