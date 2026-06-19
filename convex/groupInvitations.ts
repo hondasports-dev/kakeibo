@@ -189,10 +189,7 @@ type CancelPendingGroupInvitationArgs = {
 
 type CancelPendingGroupInvitationDeps = {
   getClerkClient: () => ClerkInvitationClient & {
-    invitations: Pick<
-      ReturnType<typeof getClerkClient>["invitations"],
-      "revokeInvitation"
-    >;
+    invitations: Pick<ReturnType<typeof getClerkClient>["invitations"], "revokeInvitation">;
   };
 };
 

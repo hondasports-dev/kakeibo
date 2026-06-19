@@ -458,8 +458,7 @@ export function GroupSettingsPanel() {
         cancelLabel="戻る"
         confirmLabel="招待を取り消す"
         confirming={
-          pendingCancelInvitation !== null &&
-          savingTarget === pendingCancelInvitation.invitationId
+          pendingCancelInvitation !== null && savingTarget === pendingCancelInvitation.invitationId
         }
         description={
           pendingCancelInvitation

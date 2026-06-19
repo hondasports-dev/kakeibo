@@ -1,12 +1,4 @@
-import {
-  Box,
-  Chip,
-  CircularProgress,
-  IconButton,
-  Stack,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, Chip, CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
 import CancelIcon from "@mui/icons-material/Cancel";
 import {
   getInvitationSentAtLabel,

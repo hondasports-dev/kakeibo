@@ -42,10 +42,7 @@ describe("GroupPendingInvitationList", () => {
     };
 
     renderWithProviders(
-      <GroupPendingInvitationList
-        invitations={[invitation]}
-        onRequestCancel={onRequestCancel}
-      />,
+      <GroupPendingInvitationList invitations={[invitation]} onRequestCancel={onRequestCancel} />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "pending@example.comへの招待を取り消す" }));
