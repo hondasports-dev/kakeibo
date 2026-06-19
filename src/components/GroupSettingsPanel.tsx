@@ -276,16 +276,12 @@ export function GroupSettingsPanel() {
                     切り替え
                   </Button>
                 </Stack>
-              ) : (
-                <Typography variant="body1">{group.name}</Typography>
-              )}
-
-              {isOwner && !canSwitchGroups ? (
+              ) : isOwner ? (
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                   <TextField
                     disabled
                     fullWidth
-                    helperText="グループ名の変更は次の更新で利用できます。"
+                    helperText="現在は変更できません。"
                     label="グループ名"
                     value={group.name}
                   />
@@ -293,7 +289,9 @@ export function GroupSettingsPanel() {
                     保存
                   </Button>
                 </Stack>
-              ) : null}
+              ) : (
+                <Typography variant="body1">{group.name}</Typography>
+              )}
             </Stack>
           </GroupSettingsSection>
 
