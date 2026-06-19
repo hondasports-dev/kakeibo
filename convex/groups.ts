@@ -254,6 +254,7 @@ export async function createGroupHandler(ctx: MutationCtx, args: { name: string 
 
 export const createGroup = mutation({
   args: { name: v.string() },
+  returns: v.id("groups"),
   handler: createGroupHandler,
 });
 
