@@ -1097,7 +1097,7 @@ describe("groups", () => {
     ).rejects.toThrow("このユーザーはすでにグループに参加しています");
   });
 
-  it("assertEmailCanBeInvitedToGroupHandler は現在グループの pending / accepted 招待を拒否する", async () => {
+  it("assertEmailCanBeInvitedToGroupHandler は pending 招待を拒否する", async () => {
     const baseInvitation = {
       groupId: "group-001" as Id<"groups">,
       invitedByUserId: "https://issuer.example|owner",
@@ -1113,13 +1113,6 @@ describe("groups", () => {
           token: "pending-token",
           status: "pending",
         },
-        {
-          _id: "invite-accepted" as Id<"groupInvitations">,
-          ...baseInvitation,
-          email: "accepted@example.com",
-          token: "accepted-token",
-          status: "accepted",
-        },
       ],
     });
 
@@ -1129,12 +1122,69 @@ describe("groups", () => {
         email: "pending@example.com",
       }),
     ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
+  });
+
+  it("assertEmailCanBeInvitedToGroupHandler は所属中メンバーの accepted 招待を拒否する", async () => {
+    const memberUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      groupMembers: [
+        {
+          _id: "member-accepted" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "accepted@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: "https://issuer.example|owner",
+          acceptedByUserId: memberUserId,
+          acceptedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+
     await expect(
       assertEmailCanBeInvitedToGroupHandler(ctx, {
         groupId: "group-001" as Id<"groups">,
         email: "accepted@example.com",
       }),
     ).rejects.toThrow("このメールアドレスの招待はすでに承認済みです");
+  });
+
+  it("assertEmailCanBeInvitedToGroupHandler はグループから外したユーザーの accepted 招待があっても再招待を許可する", async () => {
+    const ctx = createMockDb({
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "removed@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: "https://issuer.example|owner",
+          acceptedByUserId: "https://issuer.example|removed",
+          acceptedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+
+    await expect(
+      assertEmailCanBeInvitedToGroupHandler(ctx, {
+        groupId: "group-001" as Id<"groups">,
+        email: "removed@example.com",
+      }),
+    ).resolves.toBeNull();
   });
 
   it("assertEmailCanBeInvitedToGroupHandler は revoked / expired と別グループの重複を許可する", async () => {
@@ -1724,5 +1774,70 @@ describe("groups", () => {
     expect(ctx.db.delete).toHaveBeenCalledTimes(1);
     expect(ctx.db.delete).toHaveBeenCalledWith("member-target");
     expect(ctx.db.delete).not.toHaveBeenCalledWith("user-member");
+  });
+
+  it("removeMemberHandler は対象メンバーの pending / accepted 招待を revoked にする", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const targetUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member" as Id<"users">,
+          userId: targetUserId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-target" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "member@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: ownerId,
+          acceptedByUserId: targetUserId,
+          acceptedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId })).resolves.toBeUndefined();
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-accepted",
+      expect.objectContaining({ status: "revoked" }),
+    );
   });
 });
