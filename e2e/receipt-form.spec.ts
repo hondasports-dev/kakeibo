@@ -1083,8 +1083,8 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
  *   - 入力元合計と支出項目合計の差額を確認できる
  *   - 複数カテゴリ別支出がカテゴリ別集計と支出一覧に反映される
  *
- * 実装: src/hooks/useExpenseEntryForm.ts (isMultiMode, difference)
- *       src/components/ExpenseEntryForm.tsx (ExpenseItemRow, DifferenceDisplay)
+ * 実装: src/features/expense-entry/hooks/useExpenseEntryForm.ts (isMultiMode, difference)
+ *       src/features/expense-entry/components/ExpenseEntryForm.tsx (ExpenseItemRow, DifferenceDisplay)
  *       convex/expenseEntries.ts (createExpenseEntries)
  */
 test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受け入れ確認）", () => {
