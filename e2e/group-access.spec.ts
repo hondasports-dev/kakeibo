@@ -63,7 +63,7 @@ test.describe("グループアクセス", () => {
     const nameInput = page.getByRole("textbox", { name: "グループ名" });
     await expect(nameInput).toHaveValue("佐藤家");
     await nameInput.fill("鈴木家");
-    await page.getByRole("button", { name: "保存" }).click();
+    await page.getByTestId("group-info-section").getByRole("button", { name: "保存" }).click();
 
     await expect(page.getByText("グループ名を更新しました")).toBeVisible({ timeout: 15_000 });
     await expect(nameInput).toHaveValue("鈴木家");
