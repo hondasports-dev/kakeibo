@@ -153,7 +153,7 @@ describe("GroupSettingsPanel", () => {
   it("現在のグループとメンバー一覧を表示する", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
-    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
+    expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
     expect(screen.getByText("ログイン 太郎")).toBeInTheDocument();
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
     expect(screen.getByText("あなた")).toBeInTheDocument();
@@ -240,8 +240,98 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByTestId("member-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("invite-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("danger-zone-section")).toBeInTheDocument();
-    expect(screen.getByLabelText("グループ名")).toBeInTheDocument();
-    expect(screen.getByTestId("pending-invites-placeholder")).toBeInTheDocument();
+    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pending-invites-placeholder")).toHaveTextContent(
+      "送信済み招待の一覧は準備中です。",
+    );
+    expect(
+      screen.getByText("以下の操作は今後のアップデートで追加予定です。現在は実行できません。"),
+    ).toBeInTheDocument();
+  });
+
+  it("単一グループのオーナーはグループ名変更フォームを表示する", () => {
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "owner",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByText("佐藤家")).toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
+    expect(screen.queryByLabelText("現在のグループ")).not.toBeInTheDocument();
+  });
+
+  it("単一グループのメンバーはグループ名テキストを表示する", () => {
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "member",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "member", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByText("佐藤家")).toBeInTheDocument();
+    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+  });
+
+  it("複数グループのオーナーはグループ名変更フォームを表示しない", () => {
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
+    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+  });
+
+  it("セクション見出しは aria-labelledby で関連付けられる", () => {
+    renderWithProviders(<GroupSettingsPanel />);
+
+    const groupInfoSection = screen.getByTestId("group-info-section");
+    expect(groupInfoSection).toHaveAttribute("aria-labelledby", "group-info-section-heading");
+    expect(screen.getByRole("heading", { level: 3, name: "グループ情報" })).toHaveAttribute(
+      "id",
+      "group-info-section-heading",
+    );
   });
 
   it("メンバーには招待管理と危険な操作セクションを表示しない", () => {

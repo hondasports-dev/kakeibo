@@ -40,6 +40,8 @@ test.describe("グループアクセス", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "グループ管理", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "グループ情報", level: 3 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "メンバー管理", level: 3 })).toBeVisible();
     await expect(page.getByText("佐藤家")).toBeVisible();
   });
 });
