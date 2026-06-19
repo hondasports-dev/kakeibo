@@ -767,6 +767,47 @@ export const setGroupMemberRoleForE2e = internalMutation({
   },
 });
 
+export const seedPendingGroupInvitationForE2e = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    email: v.string(),
+    invitedByUserId: v.string(),
+  },
+  returns: v.id("groupInvitations"),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("groupInvitations", {
+      groupId: args.groupId,
+      email: normalizeEmail(args.email),
+      token: `e2e-pending-${now}`,
+      status: "pending",
+      invitedByUserId: args.invitedByUserId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export const clearGroupInvitationsForE2e = internalMutation({
+  args: { groupId: v.id("groups") },
+  returns: v.object({ deletedCount: v.number() }),
+  handler: async (ctx, { groupId }) => {
+    const invitations = await readQueryDocs(
+      ctx.db
+        .query("groupInvitations")
+        .withIndex("by_group_id_and_status", (q) =>
+          q.eq("groupId", groupId).eq("status", "pending"),
+        ),
+    );
+
+    for (const invitation of invitations) {
+      await ctx.db.delete(invitation._id);
+    }
+
+    return { deletedCount: invitations.length };
+  },
+});
+
 export const getGroupIdByUserId = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
