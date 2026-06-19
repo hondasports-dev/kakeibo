@@ -153,7 +153,7 @@ describe("GroupSettingsPanel", () => {
   it("現在のグループとメンバー一覧を表示する", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
-    expect(screen.getByText("佐藤家")).toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
     expect(screen.getByText("ログイン 太郎")).toBeInTheDocument();
     expect(screen.getByText("owner@example.com")).toBeInTheDocument();
     expect(screen.getByText("あなた")).toBeInTheDocument();
@@ -226,6 +226,69 @@ describe("GroupSettingsPanel", () => {
 
     expect(screen.getByText("member@example.com")).toBeInTheDocument();
     expect(screen.getByText("メール登録済み")).toBeInTheDocument();
+  });
+
+  it("オーナー向けにグループ管理の各セクションを順序どおり表示する", () => {
+    renderWithProviders(<GroupSettingsPanel />);
+
+    const sectionTitles = ["グループ情報", "メンバー管理", "招待管理", "危険な操作"];
+    for (const title of sectionTitles) {
+      expect(screen.getByRole("heading", { level: 3, name: title })).toBeInTheDocument();
+    }
+
+    expect(screen.getByTestId("group-info-section")).toBeInTheDocument();
+    expect(screen.getByTestId("member-management-section")).toBeInTheDocument();
+    expect(screen.getByTestId("invite-management-section")).toBeInTheDocument();
+    expect(screen.getByTestId("danger-zone-section")).toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toBeInTheDocument();
+    expect(screen.getByTestId("pending-invites-placeholder")).toBeInTheDocument();
+  });
+
+  it("メンバーには招待管理と危険な操作セクションを表示しない", () => {
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "member",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "member", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+          {
+            userId: "user-member",
+            role: "member",
+            displayName: "メンバー",
+            email: "member@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByRole("heading", { level: 3, name: "グループ情報" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 3, name: "メンバー管理" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3, name: "招待管理" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { level: 3, name: "危険な操作" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "招待するメールアドレス" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("招待と削除はオーナーのみ操作できます。")).toBeInTheDocument();
   });
 
   it("メンバー削除前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
