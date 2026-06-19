@@ -1483,4 +1483,126 @@ describe("groups", () => {
       "オーナーはグループから外せません",
     );
   });
+
+  it("removeMemberHandler は自分自身の解除を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId: ownerId })).rejects.toThrow(
+      "自分自身に対してこの操作はできません",
+    );
+    expect(ctx.db.delete).not.toHaveBeenCalled();
+  });
+
+  it("removeMemberHandler は active group に所属しないユーザーを拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const otherGroupMemberId = "https://issuer.example|other-group-member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-group" as Id<"groupMembers">,
+          groupId: "group-002" as Id<"groups">,
+          userId: otherGroupMemberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId: otherGroupMemberId })).rejects.toThrow(
+      "指定されたメンバーが見つかりません",
+    );
+    expect(ctx.db.delete).not.toHaveBeenCalled();
+  });
+
+  it("removeMemberHandler は users レコードを削除しない", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const targetUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member" as Id<"users">,
+          userId: targetUserId,
+          displayName: "メンバー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-target" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId })).resolves.toBeUndefined();
+    expect(ctx.db.delete).toHaveBeenCalledTimes(1);
+    expect(ctx.db.delete).toHaveBeenCalledWith("member-target");
+    expect(ctx.db.delete).not.toHaveBeenCalledWith("user-member");
+  });
 });

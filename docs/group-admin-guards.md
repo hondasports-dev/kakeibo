@@ -70,11 +70,11 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 
 セクション構成と owner/member の表示差分は `docs/group-admin-ui-layout.md` を正本とする。
 
-- [ ] `member` には管理ボタン・導線を表示しない
-- [ ] 危険操作は `ConfirmDangerousActionDialog` で確認してから mutation を呼ぶ
-- [ ] 確認中はキャンセル・確定ボタンを無効化する
-- [ ] 失敗時は `getConvexErrorMessage` でサーバーメッセージを表示する
-- [ ] 「ユーザー削除」など Clerk 削除と混同する文言を使わない
+- [x] `member` には管理ボタン・導線を表示しない
+- [x] 危険操作は `ConfirmDangerousActionDialog` で確認してから mutation を呼ぶ
+- [x] 確認中はキャンセル・確定ボタンを無効化する
+- [x] 失敗時は `getConvexErrorMessage` でサーバーメッセージを表示する
+- [x] 「ユーザー削除」など Clerk 削除と混同する文言を使わない
 
 ## 3. 自分自身への操作
 

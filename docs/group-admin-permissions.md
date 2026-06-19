@@ -166,7 +166,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | ルール | 内容 | 実装状況 |
 | --- | --- | --- |
 | owner は自分自身をグループから外せない | 自己 `removeMember` 禁止 | 実装済み（`removeMemberHandler`） |
-| owner ロールのメンバーはグループ解除の対象にしない | 対象は `member` のみ | UI 済み。mutation 側は #217 で明示的に拒否する |
+| owner ロールのメンバーはグループ解除の対象にしない | 対象は `member` のみ | 実装済み（UI + `assertRemovableGroupMemberRole`） |
 | グループ作成時に作成者を `owner` として追加 | 初期 owner を必ず 1 人確保 | 実装済み（`createGroup`） |
 
 ### 8.2 Phase2 へ引き継ぐルール
@@ -190,7 +190,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | 機能 | ファイル | owner 検証 | 備考 |
 | --- | --- | --- | --- |
 | メンバー追加 | `convex/groups.ts` `addMemberByEmail` | あり | |
-| メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否は #217 |
+| メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
 | グループ管理 UI | `src/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
 | グループ運用手順 | `docs/technical-design.md` 6.3 | — | 本ドキュメントを正本とする |
 

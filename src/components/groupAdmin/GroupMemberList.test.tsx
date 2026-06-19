@@ -93,4 +93,19 @@ describe("GroupMemberList", () => {
     await user.click(screen.getByRole("button", { name: "メンバーをグループから外す" }));
     expect(onRequestRemove).toHaveBeenCalledWith(members[1], "メンバー");
   });
+
+  it("owner 自身の解除ボタンは無効で押せない", () => {
+    renderWithProviders(
+      <GroupMemberList
+        currentUserDisplayName="ログイン 太郎"
+        currentUserId="owner-clerk-id"
+        isOwner
+        members={members}
+        onRequestRemove={vi.fn()}
+        savingTarget={null}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "ログイン 太郎をグループから外す" })).toBeDisabled();
+  });
 });
