@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 
 type GroupSettingsSectionProps = {
   children: ReactNode;
@@ -14,7 +14,8 @@ export function GroupSettingsSection({
   testId,
   title,
 }: GroupSettingsSectionProps) {
-  const headingId = testId ? `${testId}-heading` : undefined;
+  const fallbackHeadingId = useId();
+  const headingId = testId ? `${testId}-heading` : fallbackHeadingId;
 
   return (
     <Box aria-labelledby={headingId} component="section" data-testid={testId}>

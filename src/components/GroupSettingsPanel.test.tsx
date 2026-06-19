@@ -278,8 +278,8 @@ describe("GroupSettingsPanel", () => {
 
     renderWithProviders(<GroupSettingsPanel />);
 
-    expect(screen.getByText("佐藤家")).toBeInTheDocument();
     expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
+    expect(screen.getByText("現在は変更できません。")).toBeInTheDocument();
     expect(screen.queryByLabelText("現在のグループ")).not.toBeInTheDocument();
   });
 
