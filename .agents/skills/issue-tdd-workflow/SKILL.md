@@ -86,7 +86,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
    - push 前検証は **AGENTS.md** の並列コマンドを優先する
    - ユーザー導線に触れた場合は `pnpm exec playwright test --project=chromium` も実行する
    - Convexを使うE2Eでは、事前に `convex dev` が起動しているか確認する。
-   - 新規 Convex 関数を追加した PR では、`docs/development-process.md` の「Convex 関数追加 PR の dev deployment 反映」に従い `pnpm exec convex dev --once` を実行する。
+   - 新規の public `mutation` / `query` / `httpAction`（または `internalMutation` / `internalQuery`）を追加した PR、または既存関数のシグネチャ・戻り値を変更した PR では、dev deployment を反映させるため `pnpm exec convex dev --once` を実行する。新規ファイルの有無は問わない。詳細は `docs/development-process.md` の「Convex 関数追加 PR の dev deployment 反映」を参照。
    - 実行できない検証がある場合は、成功扱いにせず、障害、実行したコマンド、再実行条件、残リスクを報告する。
 
 9. **コードレビューと指摘対応（必須・push 前）**

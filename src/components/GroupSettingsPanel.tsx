@@ -23,7 +23,7 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { useAuth, useUser } from "@clerk/react";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
-import { MAX_GROUP_NAME_LENGTH } from "../../convex/groups";
+import { MAX_GROUP_NAME_LENGTH } from "../../convex/lib/groupName";
 import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
 import { getConvexErrorMessage } from "../lib/convexError";
 import { ConfirmDangerousActionDialog } from "./groupAdmin/ConfirmDangerousActionDialog";
