@@ -232,9 +232,8 @@ describe("GroupSettingsPanel", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     const sectionTitles = ["グループ情報", "メンバー管理", "招待管理", "危険な操作"];
-    for (const title of sectionTitles) {
-      expect(screen.getByRole("heading", { level: 3, name: title })).toBeInTheDocument();
-    }
+    const headings = screen.getAllByRole("heading", { level: 3 });
+    expect(headings.map((heading) => heading.textContent)).toEqual(sectionTitles);
 
     expect(screen.getByTestId("group-info-section")).toBeInTheDocument();
     expect(screen.getByTestId("member-management-section")).toBeInTheDocument();
@@ -279,7 +278,11 @@ describe("GroupSettingsPanel", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
-    expect(screen.getByText("現在は変更できません。")).toBeInTheDocument();
+    expect(screen.getByText("現在は変更できません。")).toHaveAttribute("id", "group-rename-helper");
+    expect(screen.getByRole("button", { name: "保存" })).toHaveAttribute(
+      "aria-describedby",
+      "group-rename-helper",
+    );
     expect(screen.queryByLabelText("現在のグループ")).not.toBeInTheDocument();
   });
 

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { getCurrentClerkTokenIdentifier, gotoAuthenticated } from "./helpers/auth";
-import { cleanupGroupMembershipsByUser } from "./helpers/cleanup";
+import { cleanupGroupMembershipsByUser, setE2eGroupMemberRole } from "./helpers/cleanup";
 
 test.describe("グループアクセス", () => {
   let currentUserIdForCleanup: string | undefined;
@@ -43,5 +43,24 @@ test.describe("グループアクセス", () => {
     await expect(page.getByRole("heading", { name: "グループ情報", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "メンバー管理", level: 3 })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "グループ名" })).toHaveValue("佐藤家");
+  });
+
+  test("@smoke @group-access member ロールでは招待管理と危険な操作を表示しない", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+    await setE2eGroupMemberRole(currentUserId, "member");
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "グループ管理", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "グループ情報", level: 3 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "メンバー管理", level: 3 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "招待管理", level: 3 })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "危険な操作", level: 3 })).toHaveCount(0);
+    await expect(page.getByText("招待と削除はオーナーのみ操作できます。")).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "招待するメールアドレス" })).toHaveCount(0);
   });
 });
