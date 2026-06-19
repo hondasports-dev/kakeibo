@@ -70,7 +70,9 @@ describe("GroupMemberList", () => {
       />,
     );
 
-    expect(screen.queryByRole("button", { name: "メンバーをグループから外す" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "メンバーをグループから外す" }),
+    ).not.toBeInTheDocument();
   });
 
   it("owner は member の解除ボタンを押せる", async () => {
@@ -89,9 +91,6 @@ describe("GroupMemberList", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "メンバーをグループから外す" }));
-    expect(onRequestRemove).toHaveBeenCalledWith(
-      members[1],
-      "メンバー",
-    );
+    expect(onRequestRemove).toHaveBeenCalledWith(members[1], "メンバー");
   });
 });
