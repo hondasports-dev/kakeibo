@@ -87,4 +87,16 @@ test.describe("グループアクセス", () => {
     await expect(page.getByText("招待と削除はオーナーのみ操作できます。")).toBeVisible();
     await expect(page.getByRole("textbox", { name: "招待するメールアドレス" })).toHaveCount(0);
   });
+
+  test("@smoke @group-access owner は pending 招待一覧の空状態を表示する", async ({ page }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+
+    await expect(page.getByRole("heading", { name: "招待管理", level: 3 })).toBeVisible();
+    await expect(page.getByTestId("group-pending-invitation-list-empty")).toHaveText(
+      "送信済みの招待はありません。",
+    );
+  });
 });
