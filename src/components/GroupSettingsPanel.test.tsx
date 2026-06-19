@@ -40,6 +40,7 @@ vi.mock("../../convex/_generated/api", () => ({
       getGroupMembers: "groups.getGroupMembers",
       getMyGroup: "groups.getMyGroup",
       listMyGroups: "groups.listMyGroups",
+      listPendingGroupInvitations: "groups.listPendingGroupInvitations",
       removeMember: "groups.removeMember",
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
@@ -123,6 +124,19 @@ describe("GroupSettingsPanel", () => {
             displayName: "メンバー",
             email: "member@example.com",
             createdAt: 1000,
+          },
+        ];
+      }
+      if (
+        typeof reference === "string" &&
+        reference.includes("groups.listPendingGroupInvitations")
+      ) {
+        return [
+          {
+            _id: "invite-001",
+            email: "pending@example.com",
+            status: "pending",
+            createdAt: Date.UTC(2026, 0, 15, 3, 30),
           },
         ];
       }
@@ -246,12 +260,52 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByTestId("invite-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("danger-zone-section")).toBeInTheDocument();
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
-    expect(screen.getByTestId("pending-invites-placeholder")).toHaveTextContent(
-      "送信済み招待の一覧は準備中です。",
-    );
+    expect(screen.getByTestId("group-pending-invitation-list")).toBeInTheDocument();
+    expect(screen.getByText("pending@example.com")).toBeInTheDocument();
+    expect(screen.getByText("招待中")).toBeInTheDocument();
     expect(
       screen.getByText("以下の操作は今後のアップデートで追加予定です。現在は実行できません。"),
     ).toBeInTheDocument();
+  });
+
+  it("pending 招待がない場合は空状態を表示する", () => {
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "owner",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      if (
+        typeof reference === "string" &&
+        reference.includes("groups.listPendingGroupInvitations")
+      ) {
+        return [];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    expect(screen.getByTestId("group-pending-invitation-list-empty")).toHaveTextContent(
+      "送信済みの招待はありません。",
+    );
   });
 
   it("単一グループのオーナーはグループ名変更フォームを表示する", () => {

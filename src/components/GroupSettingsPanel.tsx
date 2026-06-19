@@ -25,6 +25,8 @@ import { getConvexErrorMessage } from "../lib/convexError";
 import { ConfirmDangerousActionDialog } from "./groupAdmin/ConfirmDangerousActionDialog";
 import { GroupMemberList } from "./groupAdmin/GroupMemberList";
 import type { GroupMemberListItem } from "./groupAdmin/groupMemberDisplay";
+import { GroupPendingInvitationList } from "./groupAdmin/GroupPendingInvitationList";
+import type { GroupPendingInvitationListItem } from "./groupAdmin/groupInvitationDisplay";
 import { GroupSettingsSection } from "./groupAdmin/GroupSettingsSection";
 
 type GroupInfo = {
@@ -58,6 +60,10 @@ export function GroupSettingsPanel() {
     | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
     | undefined;
   const members = useQuery(api.groups.getGroupMembers) as GroupMemberListItem[] | undefined;
+  const pendingInvitations = useQuery(
+    api.groups.listPendingGroupInvitations,
+    group?.role === "owner" ? {} : "skip",
+  ) as GroupPendingInvitationListItem[] | undefined;
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
   const updateGroupName = useMutation(api.groups.updateGroupName);
@@ -81,7 +87,12 @@ export function GroupSettingsPanel() {
     }
   }, [groupId, groupName]);
 
-  if (group === undefined || members === undefined || groups === undefined) {
+  if (
+    group === undefined ||
+    members === undefined ||
+    groups === undefined ||
+    (group?.role === "owner" && pendingInvitations === undefined)
+  ) {
     return (
       <Paper className="paper-panel" elevation={0}>
         <Box sx={{ p: 2.5 }}>
@@ -357,19 +368,7 @@ export function GroupSettingsPanel() {
                     </Stack>
                   </Box>
 
-                  <Box
-                    data-testid="pending-invites-placeholder"
-                    sx={{
-                      p: 1.5,
-                      border: "1px dashed",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Typography color="text.secondary" variant="body2">
-                      送信済み招待の一覧は準備中です。
-                    </Typography>
-                  </Box>
+                  <GroupPendingInvitationList invitations={pendingInvitations ?? []} />
                 </Stack>
               </GroupSettingsSection>
 

@@ -355,6 +355,63 @@ export const getGroupMembers = query({
 });
 
 // ---------------------------------------------------------------------------
+// listPendingGroupInvitations: active group の pending 招待一覧（owner のみ）
+// ---------------------------------------------------------------------------
+
+export const groupPendingInvitationListItemValidator = v.object({
+  _id: v.id("groupInvitations"),
+  email: v.string(),
+  status: v.literal("pending"),
+  createdAt: v.number(),
+});
+
+type GroupPendingInvitationListItem = {
+  _id: Id<"groupInvitations">;
+  email: string;
+  status: "pending";
+  createdAt: number;
+};
+
+export function sortPendingGroupInvitationsForDisplay(
+  invitations: GroupPendingInvitationListItem[],
+) {
+  return [...invitations].sort((left, right) => {
+    const createdAtCompare = right.createdAt - left.createdAt;
+    if (createdAtCompare !== 0) {
+      return createdAtCompare;
+    }
+
+    return left.email.localeCompare(right.email, "ja");
+  });
+}
+
+export async function listPendingGroupInvitationsHandler(ctx: QueryCtx) {
+  const { groupId } = await requireGroupOwner(ctx);
+
+  const invitationQuery = ctx.db
+    .query("groupInvitations")
+    .withIndex("by_group_id_and_status", (q) =>
+      q.eq("groupId", groupId).eq("status", "pending"),
+    );
+  const invitations = await readQueryDocs(invitationQuery);
+
+  return sortPendingGroupInvitationsForDisplay(
+    invitations.map((invitation) => ({
+      _id: invitation._id,
+      email: invitation.email,
+      status: invitation.status,
+      createdAt: invitation.createdAt,
+    })),
+  );
+}
+
+export const listPendingGroupInvitations = query({
+  args: {},
+  returns: v.array(groupPendingInvitationListItemValidator),
+  handler: listPendingGroupInvitationsHandler,
+});
+
+// ---------------------------------------------------------------------------
 // addMemberByEmail: Clerk で招待済み・ログイン済みのユーザーをグループへ追加
 // ---------------------------------------------------------------------------
 
