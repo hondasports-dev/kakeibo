@@ -390,16 +390,14 @@ export async function listPendingGroupInvitationsHandler(ctx: QueryCtx) {
 
   const invitationQuery = ctx.db
     .query("groupInvitations")
-    .withIndex("by_group_id_and_status", (q) =>
-      q.eq("groupId", groupId).eq("status", "pending"),
-    );
+    .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending"));
   const invitations = await readQueryDocs(invitationQuery);
 
   return sortPendingGroupInvitationsForDisplay(
     invitations.map((invitation) => ({
       _id: invitation._id,
       email: invitation.email,
-      status: invitation.status,
+      status: "pending" as const,
       createdAt: invitation.createdAt,
     })),
   );

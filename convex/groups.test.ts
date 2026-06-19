@@ -772,7 +772,9 @@ describe("groups", () => {
         },
       ],
     });
-    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId, "member@example.com"));
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(userId, "member@example.com"));
 
     await expect(listPendingGroupInvitationsHandler(ctx)).rejects.toThrow(
       "グループオーナーのみ実行できます",

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  getInvitationSentAtLabel,
-  getInvitationStatusLabel,
-} from "./groupInvitationDisplay";
+import { getInvitationSentAtLabel, getInvitationStatusLabel } from "./groupInvitationDisplay";
 
 describe("groupInvitationDisplay", () => {
   it("pending 招待の状態ラベルを返す", () => {
