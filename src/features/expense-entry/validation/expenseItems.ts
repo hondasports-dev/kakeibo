@@ -1,5 +1,5 @@
 import * as v from "valibot";
-import type { Id } from "../../convex/_generated/dataModel";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
 const categoryIdField = v.pipe(v.string(), v.nonEmpty("カテゴリは必須です"));
 

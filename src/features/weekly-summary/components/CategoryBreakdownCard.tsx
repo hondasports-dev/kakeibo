@@ -1,5 +1,5 @@
 import { Box, LinearProgress, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { AnimatedCounter } from "../../../components/AnimatedCounter";
+import { AnimatedCounter } from "../../ui";
 import type { CategorySummary } from "../types/types";
 
 export function CategoryBreakdownCard({

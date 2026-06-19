@@ -1,7 +1,7 @@
 import { screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
-import { renderWithProviders } from "../test/render";
+import { renderWithProviders } from "../../../test/render";
 import { WeekDaySettingsPanel } from "./WeekDaySettingsPanel";
 
 const { useMutationMock, useQueryMock } = vi.hoisted(() => ({
@@ -9,7 +9,7 @@ const { useMutationMock, useQueryMock } = vi.hoisted(() => ({
   useQueryMock: vi.fn(),
 }));
 
-vi.mock("../../convex/_generated/api", () => ({
+vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     users: {
       getUserProfile: "users.getUserProfile",

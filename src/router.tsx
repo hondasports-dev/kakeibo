@@ -5,7 +5,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { AppLayout } from "./components/AppLayout";
+import { AppLayout } from "./features/app-shell";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./features/ai-expense-queue";
 import { DashboardPage } from "./features/dashboard";
 import { InputPage } from "./features/expense-entry";

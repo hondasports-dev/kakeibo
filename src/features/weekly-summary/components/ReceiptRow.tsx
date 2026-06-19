@@ -1,5 +1,5 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
-import { formatDateForDisplay } from "../../../lib/dateFormat";
+import { formatDateForDisplay } from "../../week";
 import type { ReceiptItem } from "../types/types";
 
 export function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {

@@ -1,6 +1,6 @@
 import { Box, Dialog, DialogContent, DialogTitle, Divider, Stack, Typography } from "@mui/material";
-import { AnimatedCounter } from "../../../components/AnimatedCounter";
-import { formatDateForDisplay } from "../../../lib/dateFormat";
+import { AnimatedCounter } from "../../ui";
+import { formatDateForDisplay } from "../../week";
 import { ReceiptRow } from "./ReceiptRow";
 import type { ReceiptItem } from "../types/types";
 

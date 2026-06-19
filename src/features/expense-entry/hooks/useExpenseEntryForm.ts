@@ -6,7 +6,7 @@ import {
   validateExpenseItems,
   type ExpenseItemEntryErrors,
   type ExpenseItemEntryInput,
-} from "../../../validation/expenseItems";
+} from "../validation/expenseItems";
 
 export type ExpenseItemState = {
   categoryId: Id<"categories"> | "";

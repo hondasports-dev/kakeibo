@@ -15,13 +15,13 @@ import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { useInitializeUser } from "./features/auth";
 import { router } from "./router";
-import { getClerkErrorMessage } from "./lib/clerkError";
-import { shouldShowMaintenancePage } from "./lib/maintenanceMode";
+import { getClerkErrorMessage } from "./features/auth";
+import { shouldShowMaintenancePage } from "./features/app-shell";
 import {
-  OAUTH_CALLBACK_PATH,
   E2E_APP_ERROR_BOUNDARY_PATH,
+  OAUTH_CALLBACK_PATH,
   shouldUseRouterBeforeAuth,
-} from "./lib/publicPaths";
+} from "./features/app-shell";
 import { MaintenancePage } from "./features/app-shell";
 import "./App.css";
 

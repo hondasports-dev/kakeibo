@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
-import { CategorySettingsPanel } from "../../../components/CategorySettingsPanel";
+import { CategorySettingsPanel } from "../components/CategorySettingsPanel";
 
 export function CategoriesPage() {
   return (

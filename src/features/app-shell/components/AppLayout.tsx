@@ -31,10 +31,9 @@ import EditIcon from "@mui/icons-material/Edit";
 import HistoryIcon from "@mui/icons-material/History";
 import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
-import { getCurrentWeekStartDate } from "../lib/weekNavigation";
-import { getClerkErrorMessage } from "../lib/clerkError";
-import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
-import { PageTransition } from "./PageTransition";
+import { getCurrentWeekStartDate } from "../../week";
+import { getClerkErrorMessage, getClerkUserFriendlyDisplayName } from "../../auth";
+import { PageTransition } from "../../ui";
 
 const DRAWER_WIDTH = 220;
 const DRAWER_WIDTH_MINI = 56;

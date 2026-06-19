@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useMutation } from "convex/react";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 import {
   Alert,
   Box,
@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { PreviousWeekComparison } from "../features/weekly-summary";
+import { PreviousWeekComparison } from "./PreviousWeekComparison";
 
 type ReviewMemoPanelProps = {
   weekStartDate: string;

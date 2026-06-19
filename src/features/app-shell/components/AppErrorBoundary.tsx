@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Typography } from "@mui/material";
-import { designTokens } from "../designTokens";
+import { designTokens } from "../../../designTokens";
 import { PublicStatusPage } from "./PublicStatusPage";
 
 type AppErrorBoundaryProps = {

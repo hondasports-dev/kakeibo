@@ -1,5 +1,5 @@
 import { Box, Paper, Skeleton, Stack, Typography } from "@mui/material";
-import { AnimatedCounter } from "../../../components/AnimatedCounter";
+import { AnimatedCounter } from "../../ui";
 import { PreviousWeekComparison } from "./PreviousWeekComparison";
 
 export function TotalSummaryCard({

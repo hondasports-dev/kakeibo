@@ -15,7 +15,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { api } from "../../convex/_generated/api";
+import { api } from "../../../../convex/_generated/api";
 
 const DAY_OPTIONS = [
   { value: 0, label: "日曜日" },

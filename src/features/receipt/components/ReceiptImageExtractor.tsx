@@ -17,7 +17,7 @@ import {
   normalizeReceiptExtraction,
   type NormalizedReceiptExtraction,
   type NormalizedReceiptFields,
-} from "../../../validation/receiptExtraction";
+} from "../validation/receiptExtraction";
 import { resizeImageFileToDataUrl } from "../../../utils/imageDataUrl";
 
 // ---------------------------------------------------------------------------

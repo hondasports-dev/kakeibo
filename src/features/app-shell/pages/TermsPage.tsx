@@ -1,5 +1,5 @@
 import { Typography } from "@mui/material";
-import { LegalDocumentLayout, LegalSection } from "../../../components/LegalDocumentLayout";
+import { LegalDocumentLayout, LegalSection } from "../components/LegalDocumentLayout";
 
 const EFFECTIVE_DATE = "2026年6月18日";
 
