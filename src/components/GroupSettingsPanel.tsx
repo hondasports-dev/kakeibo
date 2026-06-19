@@ -283,9 +283,12 @@ export function GroupSettingsPanel() {
                     fullWidth
                     helperText="現在は変更できません。"
                     label="グループ名"
+                    slotProps={{
+                      formHelperText: { id: "group-rename-helper" },
+                    }}
                     value={group.name}
                   />
-                  <Button disabled variant="outlined">
+                  <Button aria-describedby="group-rename-helper" disabled variant="outlined">
                     保存
                   </Button>
                 </Stack>

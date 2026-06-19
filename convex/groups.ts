@@ -432,6 +432,41 @@ export const deleteGroupMembershipsByUser = internalMutation({
   },
 });
 
+export const setGroupMemberRoleForE2e = internalMutation({
+  args: {
+    userId: v.string(),
+    role: v.union(v.literal("owner"), v.literal("member")),
+  },
+  handler: async (ctx, { userId, role }) => {
+    const user = await readQueryDoc(
+      ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
+    );
+    const memberships = await readQueryDocs(
+      ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", userId)),
+    );
+
+    if (memberships.length === 0) {
+      return { updated: false };
+    }
+
+    const activeMembership =
+      (user?.activeGroupId
+        ? memberships.find((membership) => membership.groupId === user.activeGroupId)
+        : undefined) ?? memberships[0];
+
+    if (!activeMembership) {
+      return { updated: false };
+    }
+
+    await ctx.db.patch(activeMembership._id, {
+      role,
+      updatedAt: Date.now(),
+    });
+
+    return { updated: true };
+  },
+});
+
 export const getGroupIdByUserId = internalQuery({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {

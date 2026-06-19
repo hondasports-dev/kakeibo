@@ -74,6 +74,7 @@ http.route({
       clearAiExpenseQueue?: boolean;
       clearE2eExpenseEntries?: boolean;
       clearGroupMemberships?: boolean;
+      setGroupMemberRole?: "owner" | "member";
     };
     try {
       body = (await req.json()) as {
@@ -87,6 +88,7 @@ http.route({
         clearAiExpenseQueue?: boolean;
         clearE2eExpenseEntries?: boolean;
         clearGroupMemberships?: boolean;
+        setGroupMemberRole?: "owner" | "member";
       };
     } catch {
       return invalidJsonResponse();
@@ -102,7 +104,7 @@ http.route({
         : null);
 
     const requestedUserScopedCleanup = Boolean(
-      body.clearMonthlyIncome || body.clearGroupMemberships,
+      body.clearMonthlyIncome || body.clearGroupMemberships || body.setGroupMemberRole,
     );
 
     if (requestedUserScopedCleanup && !resolvedUserId) {
@@ -221,6 +223,14 @@ http.route({
       }
     }
 
+    let groupMemberRole: { updated: boolean } | null = null;
+    if (body.setGroupMemberRole && resolvedUserId) {
+      groupMemberRole = await ctx.runMutation(internal.groups.setGroupMemberRoleForE2e, {
+        userId: resolvedUserId,
+        role: body.setGroupMemberRole,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         receipts,
@@ -230,6 +240,7 @@ http.route({
         monthlyIncome,
         expenseEntries,
         groupMemberships,
+        groupMemberRole,
       }),
       {
         status: 200,
