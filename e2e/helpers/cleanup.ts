@@ -233,6 +233,7 @@ async function callCleanupEndpoint(body: {
     monthlyIncome?: { cleared: boolean } | null;
     expenseEntries?: { deletedCount: number } | null;
     groupMemberships?: { deletedCount: number } | null;
+    groupInvitations?: { deletedCount: number } | null;
   };
   const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {
@@ -264,6 +265,9 @@ async function callCleanupEndpoint(body: {
     console.log(
       `[cleanup] ${data.expenseEntries.deletedCount} 件の E2E expenseEntries を削除しました。`,
     );
+  }
+  if (data.groupInvitations && data.groupInvitations.deletedCount > 0) {
+    console.log(`[cleanup] ${data.groupInvitations.deletedCount} 件のグループ招待を削除しました。`);
   }
 }
 
