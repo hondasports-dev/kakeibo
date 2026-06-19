@@ -68,6 +68,8 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 
 ### 2.2 UI 実装チェックリスト
 
+セクション構成と owner/member の表示差分は `docs/group-admin-ui-layout.md` を正本とする。
+
 - [ ] `member` には管理ボタン・導線を表示しない
 - [ ] 危険操作は `ConfirmDangerousActionDialog` で確認してから mutation を呼ぶ
 - [ ] 確認中はキャンセル・確定ボタンを無効化する

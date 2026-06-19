@@ -280,7 +280,7 @@ export function GroupSettingsPanel() {
                 <Typography variant="body1">{group.name}</Typography>
               )}
 
-              {isOwner ? (
+              {isOwner && !canSwitchGroups ? (
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                   <TextField
                     disabled
@@ -424,7 +424,7 @@ export function GroupSettingsPanel() {
                     }}
                   >
                     <Typography color="text.secondary" variant="body2">
-                      送信済みの招待はありません。pending 招待一覧は次の更新で表示されます。
+                      送信済み招待の一覧は準備中です。
                     </Typography>
                   </Box>
                 </Stack>
@@ -438,7 +438,7 @@ export function GroupSettingsPanel() {
                 title="危険な操作"
               >
                 <Alert severity="warning" variant="outlined">
-                  以下の操作は Phase2 で追加予定です。Phase1 では実行できません。
+                  以下の操作は今後のアップデートで追加予定です。現在は実行できません。
                 </Alert>
                 <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
                   {PHASE2_DANGER_OPERATIONS.map((operation) => (
