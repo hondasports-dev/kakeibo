@@ -6,7 +6,10 @@ import { Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { AppLayout } from "./components/AppLayout";
-import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./components/AiExpenseQueuePanel";
+import {
+  AiExpenseQueuePanel,
+  type AiExpenseQueueItem,
+} from "./features/ai-expense-queue/components/AiExpenseQueuePanel";
 import { SettingsPage } from "./pages/SettingsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { InputPage } from "./pages/InputPage";

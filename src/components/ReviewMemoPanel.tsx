@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { PreviousWeekComparison } from "./PreviousWeekComparison";
+import { PreviousWeekComparison } from "../features/weekly-summary/components/PreviousWeekComparison";
 
 type ReviewMemoPanelProps = {
   weekStartDate: string;

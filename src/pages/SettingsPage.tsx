@@ -1,6 +1,6 @@
 import { Box, Stack, Typography } from "@mui/material";
 import { CategorySettingsPanel } from "../components/CategorySettingsPanel";
-import { GroupSettingsPanel } from "../components/GroupSettingsPanel";
+import { GroupSettingsPanel } from "../features/group-admin/components/GroupSettingsPanel";
 import { WeekDaySettingsPanel } from "../components/WeekDaySettingsPanel";
 
 export function SettingsPage() {

@@ -4,7 +4,7 @@ import { useMutation, useQuery } from "convex/react";
 import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../convex/_generated/api";
 import { WeekNavigator } from "../components/WeekNavigator";
-import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
+import { WeeklySummaryPanel } from "../features/weekly-summary/components/WeeklySummaryPanel";
 import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
 import {
   addWeeks,

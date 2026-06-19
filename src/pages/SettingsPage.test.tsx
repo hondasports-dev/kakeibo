@@ -7,7 +7,7 @@ vi.mock("../components/CategorySettingsPanel", () => ({
   CategorySettingsPanel: () => <div>CategorySettingsPanel</div>,
 }));
 
-vi.mock("../components/GroupSettingsPanel", () => ({
+vi.mock("../features/group-admin/components/GroupSettingsPanel", () => ({
   GroupSettingsPanel: () => <div>GroupSettingsPanel</div>,
 }));
 

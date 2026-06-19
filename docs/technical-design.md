@@ -72,22 +72,43 @@ src/
   main.tsx
   router.tsx
   theme.ts
-  components/
+  features/                    # 機能単位（Feature-based）
+    ai-expense-queue/
+      components/
+      hooks/
+      types/
+      utils/
+      index.ts
+    expense-entry/
+      components/
+      hooks/
+      types/
+      index.ts
+    group-admin/
+      components/
+      utils/
+      index.ts
+    receipt/
+      components/
+      hooks/
+      index.ts
+    weekly-summary/
+      components/
+      hooks/
+      types/
+      index.ts
+  components/                  # 複数機能で共有する UI
     AppLayout.tsx
-    ReceiptForm.tsx
-    ReceiptImageExtractor.tsx
-    AiExpenseQueuePanel.tsx
-    WeeklySummaryPanel.tsx
-    WeeklyTrendChart.tsx
     CategorySettingsPanel.tsx
     WeekDaySettingsPanel.tsx
+    ...
   pages/
     DashboardPage.tsx
     InputPage.tsx
     SummaryPage.tsx
     SettingsPage.tsx
     NotFoundPage.tsx
-  hooks/
+  hooks/                       # ページ横断の hook（例: useGroupMembership）
   lib/
   validation/
   test/
@@ -105,9 +126,11 @@ convex/
   http.ts
 ```
 
-現行コードは `src/app` や `src/features` に分けず、`components`、`pages`、`hooks`、`lib`、
-`validation` をトップレベルに置く構成である。`CategoriesPage.tsx` は存在するが、現行ルーターでは
-`/categories` も `SettingsPage` へ向ける。
+フロントエンドは **Feature-based Architecture** を採用する。各 feature は `src/features/<feature-name>/`
+配下に置き、feature 内は **type-based**（`components/`、`hooks/`、`types/`、`utils/`）で整理する。
+画面専用の `pages/`、横断的な `lib/`・`validation/`、複数 feature で使う共有 UI は `components/` に残す。
+
+`CategoriesPage.tsx` は存在するが、現行ルーターでは `/categories` も `SettingsPage` へ向ける。
 
 ### 5.1 スタイリング責務
 
