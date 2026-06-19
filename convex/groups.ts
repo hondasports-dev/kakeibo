@@ -393,7 +393,7 @@ export async function listPendingGroupInvitationsHandler(ctx: QueryCtx) {
     .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending"));
   const invitations = await readQueryDocs(invitationQuery);
 
-  return sortPendingGroupInvitationsForDisplay(
+  return dedupePendingGroupInvitationsByEmail(
     invitations.map((invitation) => ({
       _id: invitation._id,
       email: invitation.email,
@@ -436,6 +436,28 @@ function normalizeGmailAddress(email: string) {
   return `${canonicalLocalPart}@${normalizedDomain}`;
 }
 
+export function getInvitationEmailKey(email: string) {
+  const normalized = email.trim().toLowerCase();
+  return normalizeGmailAddress(normalized) ?? normalized;
+}
+
+/** 同一メール（Gmail alias 含む）の pending は最新 1 件だけを表示する */
+export function dedupePendingGroupInvitationsByEmail(
+  invitations: GroupPendingInvitationListItem[],
+) {
+  const sorted = sortPendingGroupInvitationsForDisplay(invitations);
+  const latestByEmail = new Map<string, GroupPendingInvitationListItem>();
+
+  for (const invitation of sorted) {
+    const key = getInvitationEmailKey(invitation.email);
+    if (!latestByEmail.has(key)) {
+      latestByEmail.set(key, invitation);
+    }
+  }
+
+  return sortPendingGroupInvitationsForDisplay([...latestByEmail.values()]);
+}
+
 export function invitationEmailsMatch(identityEmail: string | undefined, invitationEmail: string) {
   const normalizedIdentityEmail = identityEmail?.trim().toLowerCase();
   const normalizedInvitationEmail = invitationEmail.trim().toLowerCase();
@@ -458,51 +480,46 @@ export function invitationEmailsMatchAny(
   return candidateEmails.some((email) => invitationEmailsMatch(email, invitationEmail));
 }
 
-type InvitationReinviteCheck = {
-  status: "pending" | "accepted" | "revoked" | "expired";
-  acceptedByUserId?: string;
-};
-
-async function isReinviteBlockedInvitation(
+async function collectStaleGroupInvitationIdsForEmail(
   ctx: Pick<QueryCtx, "db">,
-  groupId: Id<"groups">,
-  invitation: InvitationReinviteCheck,
-) {
-  if (invitation.status === "pending") {
-    return true;
-  }
-  if (invitation.status !== "accepted") {
-    return false;
-  }
-  if (!invitation.acceptedByUserId) {
-    return false;
-  }
-
-  const membership = await readQueryDoc(
-    ctx.db
-      .query("groupMembers")
-      .withIndex("by_group_id_and_user_id", (q) =>
-        q.eq("groupId", groupId).eq("userId", invitation.acceptedByUserId!),
-      ),
-  );
-  return membership !== null;
-}
-
-function throwIfReinviteBlocked(invitation: InvitationReinviteCheck) {
-  if (invitation.status === "pending") {
-    throw new ConvexError("このメールアドレスにはすでに招待を送信しています");
-  }
-  throw new ConvexError("このメールアドレスの招待はすでに承認済みです");
-}
-
-async function revokeGroupInvitationsForEmailInGroup(
-  ctx: MutationCtx,
   groupId: Id<"groups">,
   email: string,
 ) {
-  const now = Date.now();
   const normalizedEmail = normalizeEmail(email);
   const invitationIds = new Set<Id<"groupInvitations">>();
+
+  const considerInvitation = async (invitation: {
+    _id: Id<"groupInvitations">;
+    status: "pending" | "accepted" | "revoked" | "expired";
+    email: string;
+    acceptedByUserId?: string;
+  }) => {
+    if (!invitationEmailsMatch(normalizedEmail, invitation.email)) {
+      return;
+    }
+    if (invitation.status === "pending") {
+      invitationIds.add(invitation._id);
+      return;
+    }
+    if (invitation.status !== "accepted") {
+      return;
+    }
+    if (!invitation.acceptedByUserId) {
+      invitationIds.add(invitation._id);
+      return;
+    }
+
+    const membership = await readQueryDoc(
+      ctx.db
+        .query("groupMembers")
+        .withIndex("by_group_id_and_user_id", (q) =>
+          q.eq("groupId", groupId).eq("userId", invitation.acceptedByUserId!),
+        ),
+    );
+    if (membership === null) {
+      invitationIds.add(invitation._id);
+    }
+  };
 
   const exactInvitations = await readQueryDocs(
     ctx.db
@@ -512,9 +529,7 @@ async function revokeGroupInvitationsForEmailInGroup(
       ),
   );
   for (const invitation of exactInvitations) {
-    if (invitation.status === "pending" || invitation.status === "accepted") {
-      invitationIds.add(invitation._id);
-    }
+    await considerInvitation(invitation);
   }
 
   for (const status of ["pending", "accepted"] as const) {
@@ -524,11 +539,21 @@ async function revokeGroupInvitationsForEmailInGroup(
         .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", status)),
     );
     for (const invitation of invitations) {
-      if (invitationEmailsMatch(normalizedEmail, invitation.email)) {
-        invitationIds.add(invitation._id);
-      }
+      await considerInvitation(invitation);
     }
   }
+
+  return invitationIds;
+}
+
+/** 再招待・再送前に、同一メールの古い pending と所属外の accepted を無効化する */
+async function revokeGroupInvitationsForEmailInGroup(
+  ctx: MutationCtx,
+  groupId: Id<"groups">,
+  email: string,
+) {
+  const now = Date.now();
+  const invitationIds = await collectStaleGroupInvitationIdsForEmail(ctx, groupId, email);
 
   for (const invitationId of invitationIds) {
     await ctx.db.patch(invitationId, { status: "revoked", updatedAt: now });
@@ -696,6 +721,7 @@ export const getGroupIdByUserId = internalQuery({
   },
 });
 
+/** 所属チェックと承認済み（まだ所属中）チェック。pending の無効化は呼び出し前に revoke すること。 */
 export async function assertEmailCanBeInvitedToGroupHandler(
   ctx: Pick<QueryCtx, "db">,
   args: { groupId: Id<"groups">; email: string },
@@ -714,33 +740,27 @@ export async function assertEmailCanBeInvitedToGroupHandler(
     }
   }
 
-  const exactInvitations = await readQueryDocs(
+  const acceptedInvitations = await readQueryDocs(
     ctx.db
       .query("groupInvitations")
-      .withIndex("by_group_id_and_email", (q) => q.eq("groupId", args.groupId).eq("email", email)),
+      .withIndex("by_group_id_and_status", (q) =>
+        q.eq("groupId", args.groupId).eq("status", "accepted"),
+      ),
   );
-  for (const invitation of exactInvitations) {
-    if (await isReinviteBlockedInvitation(ctx, args.groupId, invitation)) {
-      throwIfReinviteBlocked(invitation);
+  for (const invitation of acceptedInvitations) {
+    if (!invitationEmailsMatch(invitation.email, email) || !invitation.acceptedByUserId) {
+      continue;
     }
-  }
 
-  for (const status of ["pending", "accepted"] as const) {
-    const invitations = await readQueryDocs(
+    const membership = await readQueryDoc(
       ctx.db
-        .query("groupInvitations")
-        .withIndex("by_group_id_and_status", (q) =>
-          q.eq("groupId", args.groupId).eq("status", status),
+        .query("groupMembers")
+        .withIndex("by_group_id_and_user_id", (q) =>
+          q.eq("groupId", args.groupId).eq("userId", invitation.acceptedByUserId!),
         ),
     );
-    const matchingInvitation = invitations.find((invitation) =>
-      invitationEmailsMatch(invitation.email, email),
-    );
-    if (
-      matchingInvitation &&
-      (await isReinviteBlockedInvitation(ctx, args.groupId, matchingInvitation))
-    ) {
-      throwIfReinviteBlocked(matchingInvitation);
+    if (membership !== null) {
+      throw new ConvexError("このメールアドレスの招待はすでに承認済みです");
     }
   }
 
@@ -776,6 +796,7 @@ export async function createGroupInvitationRecordHandler(
     return existing._id;
   }
 
+  await revokeGroupInvitationsForEmailInGroup(ctx, args.groupId, args.email);
   await assertEmailCanBeInvitedToGroupHandler(ctx, {
     groupId: args.groupId,
     email: args.email,
@@ -891,6 +912,8 @@ export async function acceptGroupInvitationForVerifiedEmailsHandler(
     acceptedAt: now,
     updatedAt: now,
   });
+
+  await revokeGroupInvitationsForEmailInGroup(ctx, invite.groupId, invite.email);
 
   return invite.groupId;
 }

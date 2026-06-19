@@ -136,6 +136,18 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 `removeMember` は **対象ユーザーの `users` レコードや Clerk アカウントを削除しない**。
 ドキュメント・UI・エラーメッセージでも「ユーザー削除」と表現しない。
 
+### 7.1.1 メール招待の有効状態（グループ×メール）
+
+| 状態 | ルール |
+| --- | --- |
+| 有効な pending | グループ×メールあたり実質 1 件。再送時は古い pending を `revoked` にしてから新規作成する |
+| 一覧表示 | `listPendingGroupInvitations` は同一メール（Gmail alias 含む）を最新 1 件にまとめて返す |
+| 受け入れ | `acceptGroupInvitation` 成功後、同一メールの他 pending も `revoked` にする |
+| メンバー解除 | `removeMember` 時に対象メールの pending と、所属外となった accepted を `revoked` にする |
+| 再参加 | 上記により削除済みメンバーへ再招待可能 |
+
+`#219` の pending 取り消しは、一覧行の `_id` ではなく **メール単位で同一メールの pending をまとめて無効化** する実装を前提とする（表示は dedupe 済みのため）。
+
 ### 7.2 UI 非表示だけに頼らない
 
 管理操作は次の 2 層で守る。
