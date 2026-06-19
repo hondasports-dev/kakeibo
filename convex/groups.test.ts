@@ -2264,4 +2264,39 @@ describe("groups", () => {
     ).rejects.toThrow("この招待は取り消せません");
     expect(ctx.db.patch).not.toHaveBeenCalled();
   });
+
+  it("cancelPendingGroupInvitationHandler は存在しない招待 ID を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [],
+    });
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
+
+    await expect(
+      cancelPendingGroupInvitationHandler(ctx, {
+        invitationId: "invite-missing" as Id<"groupInvitations">,
+      }),
+    ).rejects.toThrow("招待が見つかりません");
+  });
 });

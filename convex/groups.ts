@@ -792,19 +792,25 @@ export const clearGroupInvitationsForE2e = internalMutation({
   args: { groupId: v.id("groups") },
   returns: v.object({ deletedCount: v.number() }),
   handler: async (ctx, { groupId }) => {
-    const invitations = await readQueryDocs(
-      ctx.db
-        .query("groupInvitations")
-        .withIndex("by_group_id_and_status", (q) =>
-          q.eq("groupId", groupId).eq("status", "pending"),
-        ),
-    );
+    const statuses = ["pending", "revoked", "expired", "accepted"] as const;
+    let deletedCount = 0;
 
-    for (const invitation of invitations) {
-      await ctx.db.delete(invitation._id);
+    for (const status of statuses) {
+      const invitations = await readQueryDocs(
+        ctx.db
+          .query("groupInvitations")
+          .withIndex("by_group_id_and_status", (q) =>
+            q.eq("groupId", groupId).eq("status", status),
+          ),
+      );
+
+      for (const invitation of invitations) {
+        await ctx.db.delete(invitation._id);
+        deletedCount += 1;
+      }
     }
 
-    return { deletedCount: invitations.length };
+    return { deletedCount };
   },
 });
 
