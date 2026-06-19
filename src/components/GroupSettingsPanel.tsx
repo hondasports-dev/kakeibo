@@ -26,6 +26,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { getClerkUserFriendlyDisplayName } from "../lib/clerkUserDisplayName";
 import { getConvexErrorMessage } from "../lib/convexError";
 import { ConfirmDangerousActionDialog } from "./groupAdmin/ConfirmDangerousActionDialog";
+import { GroupSettingsSection } from "./groupAdmin/GroupSettingsSection";
 
 type GroupInfo = {
   _id: Id<"groups">;
@@ -46,6 +47,13 @@ type PendingRemoveMember = {
   userId: string;
   displayLabel: string;
 };
+
+const PHASE2_DANGER_OPERATIONS = [
+  "オーナー権限の譲渡",
+  "メンバーのロール変更",
+  "グループの削除",
+  "管理操作の監査ログ",
+] as const;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
@@ -207,52 +215,15 @@ export function GroupSettingsPanel() {
   return (
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
-        <Stack spacing={2.5}>
+        <Stack spacing={3}>
           <Box>
             <Typography component="h2" variant="h5">
               グループ管理
             </Typography>
             <Typography color="text.secondary" variant="body2">
-              {group.name}
+              グループの基本情報、メンバー、招待をまとめて管理します。
             </Typography>
           </Box>
-
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <Chip
-              label={isOwner ? "オーナー" : "メンバー"}
-              color={isOwner ? "primary" : "secondary"}
-            />
-            <Chip label={`${members.length}人`} variant="outlined" />
-          </Stack>
-
-          {canSwitchGroups ? (
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField
-                select
-                fullWidth
-                label="現在のグループ"
-                onChange={(event) => setActiveGroupId(event.target.value as Id<"groups">)}
-                value={activeGroupId}
-              >
-                {groups.map((item) => (
-                  <MenuItem key={item._id} value={item._id}>
-                    {item.name}
-                    {item.isActive ? "（現在）" : ""}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button
-                disabled={savingTarget !== null || activeGroupId === group._id}
-                onClick={handleSwitchGroup}
-                startIcon={
-                  savingTarget === "switch" ? <CircularProgress size={16} /> : <GroupSwitchIcon />
-                }
-                variant="outlined"
-              >
-                切り替え
-              </Button>
-            </Stack>
-          ) : null}
 
           {error ? (
             <Alert severity="error" variant="outlined">
@@ -260,29 +231,144 @@ export function GroupSettingsPanel() {
             </Alert>
           ) : null}
 
-          <Box component="form" onSubmit={handleInviteMember}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-              <TextField
-                disabled={!isOwner || savingTarget !== null}
-                fullWidth
-                label="招待するメールアドレス"
-                name="memberEmail"
-                onChange={(event) => setEmail(event.target.value)}
-                type="email"
-                value={email}
-              />
-              <Button
-                disabled={!isOwner || savingTarget !== null}
-                startIcon={
-                  savingTarget === "add" ? <CircularProgress size={16} /> : <PersonAddIcon />
-                }
-                type="submit"
-                variant="contained"
-              >
-                招待を送る
-              </Button>
+          <GroupSettingsSection
+            description="現在のグループ名と表示中グループを確認・切り替えします。"
+            testId="group-info-section"
+            title="グループ情報"
+          >
+            <Stack spacing={1.5}>
+              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                <Chip
+                  label={isOwner ? "オーナー" : "メンバー"}
+                  color={isOwner ? "primary" : "secondary"}
+                />
+                <Chip label={`${members.length}人`} variant="outlined" />
+              </Stack>
+
+              {canSwitchGroups ? (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                  <TextField
+                    select
+                    fullWidth
+                    label="現在のグループ"
+                    onChange={(event) => setActiveGroupId(event.target.value as Id<"groups">)}
+                    value={activeGroupId}
+                  >
+                    {groups.map((item) => (
+                      <MenuItem key={item._id} value={item._id}>
+                        {item.name}
+                        {item.isActive ? "（現在）" : ""}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                  <Button
+                    disabled={savingTarget !== null || activeGroupId === group._id}
+                    onClick={handleSwitchGroup}
+                    startIcon={
+                      savingTarget === "switch" ? (
+                        <CircularProgress size={16} />
+                      ) : (
+                        <GroupSwitchIcon />
+                      )
+                    }
+                    variant="outlined"
+                  >
+                    切り替え
+                  </Button>
+                </Stack>
+              ) : (
+                <Typography variant="body1">{group.name}</Typography>
+              )}
+
+              {isOwner ? (
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                  <TextField
+                    disabled
+                    fullWidth
+                    helperText="グループ名の変更は次の更新で利用できます。"
+                    label="グループ名"
+                    value={group.name}
+                  />
+                  <Button disabled variant="outlined">
+                    保存
+                  </Button>
+                </Stack>
+              ) : null}
             </Stack>
-          </Box>
+          </GroupSettingsSection>
+
+          <Divider />
+
+          <GroupSettingsSection
+            description={
+              isOwner
+                ? "所属メンバーを確認し、必要に応じてグループから外します。"
+                : "所属メンバーを確認できます。メンバーの追加・削除はオーナーのみ操作できます。"
+            }
+            testId="member-management-section"
+            title="メンバー管理"
+          >
+            <Box component="ul" className="group-member-list">
+              {members.map((member) => {
+                const canRemove = isOwner && member.role !== "owner";
+                const isCurrentUser = isCurrentUserMember(member.userId, userId);
+                const primaryLabel = getMemberPrimaryLabel(
+                  member,
+                  isCurrentUser ? currentUserDisplayName : null,
+                );
+                const secondaryLabel = getMemberSecondaryLabel(member, primaryLabel);
+                return (
+                  <Box className="group-member-row" component="li" key={member.userId}>
+                    <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
+                      <Avatar sx={{ bgcolor: "primary.light", color: "primary.dark" }}>
+                        {getMemberInitial(primaryLabel)}
+                      </Avatar>
+                      <Box sx={{ minWidth: 0 }}>
+                        <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                          <Typography sx={{ fontWeight: 700 }} noWrap>
+                            {primaryLabel}
+                          </Typography>
+                          {isCurrentUser ? (
+                            <Chip label="あなた" size="small" variant="outlined" />
+                          ) : null}
+                        </Stack>
+                        <Typography color="text.secondary" variant="body2" noWrap>
+                          {secondaryLabel}
+                        </Typography>
+                      </Box>
+                    </Stack>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+                      <Chip
+                        color={member.role === "owner" ? "primary" : "secondary"}
+                        label={member.role === "owner" ? "オーナー" : "メンバー"}
+                        size="small"
+                        variant={member.role === "owner" ? "filled" : "outlined"}
+                      />
+                      {isOwner ? (
+                        <Tooltip title={canRemove ? "グループから外す" : "外せません"}>
+                          <span>
+                            <IconButton
+                              aria-label={`${primaryLabel}をグループから外す`}
+                              color="error"
+                              disabled={!canRemove || savingTarget !== null}
+                              onClick={() => handleRequestRemoveMember(member, primaryLabel)}
+                              size="small"
+                            >
+                              {savingTarget === member.userId ? (
+                                <CircularProgress size={18} />
+                              ) : (
+                                <DeleteIcon fontSize="small" />
+                              )}
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      ) : null}
+                    </Stack>
+                  </Box>
+                );
+              })}
+            </Box>
+          </GroupSettingsSection>
 
           {!isOwner ? (
             <Alert severity="info" variant="outlined">
@@ -290,66 +376,80 @@ export function GroupSettingsPanel() {
             </Alert>
           ) : null}
 
-          <Divider />
+          {isOwner ? (
+            <>
+              <Divider />
 
-          <Box component="ul" className="group-member-list">
-            {members.map((member) => {
-              const canRemove = isOwner && member.role !== "owner";
-              const isCurrentUser = isCurrentUserMember(member.userId, userId);
-              const primaryLabel = getMemberPrimaryLabel(
-                member,
-                isCurrentUser ? currentUserDisplayName : null,
-              );
-              const secondaryLabel = getMemberSecondaryLabel(member, primaryLabel);
-              return (
-                <Box className="group-member-row" component="li" key={member.userId}>
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                    <Avatar sx={{ bgcolor: "primary.light", color: "primary.dark" }}>
-                      {getMemberInitial(primaryLabel)}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                        <Typography sx={{ fontWeight: 700 }} noWrap>
-                          {primaryLabel}
-                        </Typography>
-                        {isCurrentUser ? (
-                          <Chip label="あなた" size="small" variant="outlined" />
-                        ) : null}
-                      </Stack>
-                      <Typography color="text.secondary" variant="body2" noWrap>
-                        {secondaryLabel}
-                      </Typography>
-                    </Box>
-                  </Stack>
-                  <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                    <Chip
-                      color={member.role === "owner" ? "primary" : "secondary"}
-                      label={member.role === "owner" ? "オーナー" : "メンバー"}
-                      size="small"
-                      variant={member.role === "owner" ? "filled" : "outlined"}
-                    />
-                    <Tooltip title={canRemove ? "グループから外す" : "外せません"}>
-                      <span>
-                        <IconButton
-                          aria-label={`${primaryLabel}をグループから外す`}
-                          color="error"
-                          disabled={!canRemove || savingTarget !== null}
-                          onClick={() => handleRequestRemoveMember(member, primaryLabel)}
-                          size="small"
-                        >
-                          {savingTarget === member.userId ? (
-                            <CircularProgress size={18} />
+              <GroupSettingsSection
+                description="メール招待の送信と、送信済み招待の確認・取り消しを行います。"
+                testId="invite-management-section"
+                title="招待管理"
+              >
+                <Stack spacing={1.5}>
+                  <Box component="form" onSubmit={handleInviteMember}>
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                      <TextField
+                        disabled={savingTarget !== null}
+                        fullWidth
+                        label="招待するメールアドレス"
+                        name="memberEmail"
+                        onChange={(event) => setEmail(event.target.value)}
+                        type="email"
+                        value={email}
+                      />
+                      <Button
+                        disabled={savingTarget !== null}
+                        startIcon={
+                          savingTarget === "add" ? (
+                            <CircularProgress size={16} />
                           ) : (
-                            <DeleteIcon fontSize="small" />
-                          )}
-                        </IconButton>
-                      </span>
-                    </Tooltip>
-                  </Stack>
+                            <PersonAddIcon />
+                          )
+                        }
+                        type="submit"
+                        variant="contained"
+                      >
+                        招待を送る
+                      </Button>
+                    </Stack>
+                  </Box>
+
+                  <Box
+                    data-testid="pending-invites-placeholder"
+                    sx={{
+                      p: 1.5,
+                      border: "1px dashed",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  >
+                    <Typography color="text.secondary" variant="body2">
+                      送信済みの招待はありません。pending 招待一覧は次の更新で表示されます。
+                    </Typography>
+                  </Box>
+                </Stack>
+              </GroupSettingsSection>
+
+              <Divider />
+
+              <GroupSettingsSection
+                description="誤操作でデータを失わないよう、不可逆な操作は別セクションにまとめます。"
+                testId="danger-zone-section"
+                title="危険な操作"
+              >
+                <Alert severity="warning" variant="outlined">
+                  以下の操作は Phase2 で追加予定です。Phase1 では実行できません。
+                </Alert>
+                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                  {PHASE2_DANGER_OPERATIONS.map((operation) => (
+                    <Typography component="li" key={operation} variant="body2">
+                      {operation}
+                    </Typography>
+                  ))}
                 </Box>
-              );
-            })}
-          </Box>
+              </GroupSettingsSection>
+            </>
+          ) : null}
         </Stack>
       </Box>
 
