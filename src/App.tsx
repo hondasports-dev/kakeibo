@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
-import { useInitializeUser } from "./hooks/useInitializeUser";
+import { useInitializeUser } from "./features/auth";
 import { router } from "./router";
 import { getClerkErrorMessage } from "./lib/clerkError";
 import { shouldShowMaintenancePage } from "./lib/maintenanceMode";
@@ -22,7 +22,7 @@ import {
   E2E_APP_ERROR_BOUNDARY_PATH,
   shouldUseRouterBeforeAuth,
 } from "./lib/publicPaths";
-import { MaintenancePage } from "./pages/MaintenancePage";
+import { MaintenancePage } from "./features/app-shell";
 import "./App.css";
 
 function E2eAppErrorBoundaryTrigger(): never {

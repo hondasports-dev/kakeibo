@@ -6,22 +6,18 @@ import { Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import { AppLayout } from "./components/AppLayout";
+import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./features/ai-expense-queue";
+import { DashboardPage } from "./features/dashboard";
+import { InputPage } from "./features/expense-entry";
 import {
-  AiExpenseQueuePanel,
-  type AiExpenseQueueItem,
-} from "./features/ai-expense-queue/components/AiExpenseQueuePanel";
-import { SettingsPage } from "./pages/SettingsPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { InputPage } from "./pages/InputPage";
-import { SummaryPage } from "./pages/SummaryPage";
-import { NotFoundPage } from "./pages/NotFoundPage";
-import { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
-import { TermsPage } from "./pages/TermsPage";
-import { MaintenancePage } from "./pages/MaintenancePage";
-import { GroupSetupPage } from "./pages/GroupSetupPage";
-import { GroupSelectPage } from "./pages/GroupSelectPage";
-import { GroupInvitationAcceptPage } from "./pages/GroupInvitationAcceptPage";
-import { useGroupMembership } from "./hooks/useGroupMembership";
+  GroupInvitationAcceptPage,
+  GroupSelectPage,
+  GroupSetupPage,
+  useGroupMembership,
+} from "./features/group-admin";
+import { MaintenancePage, NotFoundPage, PrivacyPolicyPage, TermsPage } from "./features/app-shell";
+import { SettingsPage } from "./features/settings";
+import { SummaryPage } from "./features/weekly-summary";
 
 const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
   {

@@ -12,7 +12,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { AiExpenseQueuePanel } from "../../ai-expense-queue/components/AiExpenseQueuePanel";
+import { AiExpenseQueuePanel } from "../../ai-expense-queue";
 import { useReceiptForm } from "../hooks/useReceiptForm";
 import { AnimatedButton } from "../../../components/AnimatedButton";
 import { ReceiptCategorySelector } from "./ReceiptCategorySelector";

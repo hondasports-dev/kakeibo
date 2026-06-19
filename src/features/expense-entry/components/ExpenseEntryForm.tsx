@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { useExpenseEntryForm } from "../hooks/useExpenseEntryForm";
 import { AnimatedButton } from "../../../components/AnimatedButton";
-import { AiExpenseQueuePanel } from "../../ai-expense-queue/components/AiExpenseQueuePanel";
+import { AiExpenseQueuePanel } from "../../ai-expense-queue";
 import { CategoryGrid } from "./CategoryGrid";
 import { ConfirmDifferenceDialog } from "./ConfirmDifferenceDialog";
 import { DifferenceDisplay } from "./DifferenceDisplay";
