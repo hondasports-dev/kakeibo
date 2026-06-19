@@ -1,4 +1,13 @@
-import { Avatar, Box, Chip, CircularProgress, IconButton, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
   getMemberInitial,
@@ -65,9 +74,7 @@ export function GroupMemberList({
                   <Typography sx={{ fontWeight: 700 }} noWrap>
                     {primaryLabel}
                   </Typography>
-                  {isCurrentUser ? (
-                    <Chip label="あなた" size="small" variant="outlined" />
-                  ) : null}
+                  {isCurrentUser ? <Chip label="あなた" size="small" variant="outlined" /> : null}
                 </Stack>
                 <Typography color="text.secondary" variant="body2" noWrap>
                   {secondaryLabel}
