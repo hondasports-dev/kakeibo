@@ -530,6 +530,7 @@ describe("GroupSettingsPanel", () => {
       screen.queryByRole("textbox", { name: "招待するメールアドレス" }),
     ).not.toBeInTheDocument();
     expect(screen.getByText("招待と削除はオーナーのみ操作できます。")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /をグループから外す/ })).not.toBeInTheDocument();
   });
 
   it("メンバー削除前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {

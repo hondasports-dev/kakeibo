@@ -390,4 +390,82 @@ http.route({
   }),
 });
 
+http.route({
+  path: "/e2e/seed-group-member",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const secret = process.env.E2E_CLEANUP_SECRET;
+    if (!secret) {
+      return new Response(
+        JSON.stringify({ error: "E2E seeding is not enabled in this environment." }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const clientSecret = req.headers.get("X-E2E-Cleanup-Secret");
+    if (clientSecret !== secret) {
+      return new Response(JSON.stringify({ error: "Unauthorized." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let body: {
+      userId?: string;
+      email?: string;
+      groupId?: string;
+      memberDisplayName?: string;
+      memberEmail?: string;
+    };
+    try {
+      body = (await req.json()) as {
+        userId?: string;
+        email?: string;
+        groupId?: string;
+        memberDisplayName?: string;
+        memberEmail?: string;
+      };
+    } catch {
+      return invalidJsonResponse();
+    }
+
+    const userIdByEmail = body.email
+      ? await ctx.runQuery(internal.users.getUserIdByEmail, { email: body.email })
+      : null;
+    const resolvedUserId = userIdByEmail ?? body.userId ?? null;
+    const resolvedGroupId =
+      body.groupId ??
+      (resolvedUserId
+        ? await ctx.runQuery(internal.groups.getGroupIdByUserId, { userId: resolvedUserId })
+        : null);
+
+    if (!resolvedGroupId) {
+      return new Response(JSON.stringify({ error: "groupId is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const memberDisplayName = body.memberDisplayName?.trim();
+    const memberEmail = body.memberEmail?.trim().toLowerCase();
+    if (!memberDisplayName || !memberEmail) {
+      return new Response(
+        JSON.stringify({ error: "memberDisplayName and memberEmail are required." }),
+        { status: 400, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const result = await ctx.runMutation(internal.groups.seedGroupMemberForE2e, {
+      groupId: resolvedGroupId as never,
+      displayName: memberDisplayName,
+      email: memberEmail,
+    });
+
+    return new Response(JSON.stringify(result), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
 export default http;
