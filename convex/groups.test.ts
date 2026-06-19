@@ -2300,3 +2300,83 @@ describe("groups", () => {
     ).rejects.toThrow("招待が見つかりません");
   });
 });
+
+describe("Phase1 owner-only permissions", () => {
+  const OWNER_ONLY_ERROR = "グループオーナーのみ実行できます";
+
+  function createMemberContext() {
+    const memberId = "https://issuer.example|member";
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId: memberId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-only" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-001" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-001",
+          status: "pending",
+          invitedByUserId: ownerId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
+    return { ctx, memberId, ownerId };
+  }
+
+  it.each([
+    ["updateGroupName", (ctx: MutationCtx) => updateGroupNameHandler(ctx, { name: "新しい名前" })],
+    [
+      "removeMember",
+      (ctx: MutationCtx) =>
+        removeMemberHandler(ctx, { targetUserId: "https://issuer.example|other-member" }),
+    ],
+    [
+      "addMemberByEmail",
+      (ctx: MutationCtx) => addMemberByEmailHandler(ctx, { email: "new@example.com" }),
+    ],
+    ["listPendingGroupInvitations", (ctx: QueryCtx) => listPendingGroupInvitationsHandler(ctx)],
+    [
+      "cancelPendingGroupInvitation",
+      (ctx: MutationCtx) =>
+        cancelPendingGroupInvitationHandler(ctx, {
+          invitationId: "invite-001" as Id<"groupInvitations">,
+        }),
+    ],
+  ] as const)("member は %s を拒否される", async (_operation, runHandler) => {
+    const { ctx } = createMemberContext();
+    await expect(runHandler(ctx)).rejects.toThrow(OWNER_ONLY_ERROR);
+  });
+});

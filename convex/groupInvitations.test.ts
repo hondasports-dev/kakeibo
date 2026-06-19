@@ -237,6 +237,36 @@ describe("inviteMemberHandler", () => {
     );
   });
 
+  it("member ロールの呼び出しを拒否する", async () => {
+    const getClerkClient = vi.fn();
+    const createToken = vi.fn();
+    const ctx = {
+      runQuery: vi.fn().mockResolvedValueOnce({
+        _id: "group-001" as Id<"groups">,
+        name: "佐藤家",
+        clerkOrganizationId: null,
+        role: "member",
+        createdAt: 1000,
+      }),
+      runMutation: vi.fn(),
+    };
+
+    await expect(
+      inviteMemberHandler(
+        ctx,
+        {
+          email: "member@example.com",
+          redirectUrl: "http://localhost:5173/group/invitations/accept",
+        },
+        { createToken, getClerkClient },
+      ),
+    ).rejects.toThrow("グループオーナーのみ実行できます");
+
+    expect(createToken).not.toHaveBeenCalled();
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(getClerkClient).not.toHaveBeenCalled();
+  });
+
   it("Clerk invitation 作成に失敗したらローカル予約を削除する", async () => {
     const createInvitation = vi.fn().mockRejectedValue(new Error("Clerk unavailable"));
     const getClerkClient = vi.fn(() => ({

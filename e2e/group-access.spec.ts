@@ -5,12 +5,17 @@ import {
   cleanupGroupMembershipsByUser,
   setE2eGroupMemberRole,
 } from "./helpers/cleanup";
-import { seedPendingGroupInvitationForUser } from "./helpers/seed";
+import { seedGroupMemberForUser, seedPendingGroupInvitationForUser } from "./helpers/seed";
 
 test.describe("グループアクセス", () => {
   let currentUserIdForCleanup: string | undefined;
+  let seededMemberUserIdForCleanup: string | undefined;
 
   test.afterEach(async () => {
+    if (seededMemberUserIdForCleanup) {
+      await cleanupGroupMembershipsByUser(seededMemberUserIdForCleanup);
+      seededMemberUserIdForCleanup = undefined;
+    }
     if (currentUserIdForCleanup) {
       await cleanupGroupInvitationsByUser(currentUserIdForCleanup);
       await cleanupGroupMembershipsByUser(currentUserIdForCleanup);
@@ -128,5 +133,53 @@ test.describe("グループアクセス", () => {
     await expect(page.getByTestId("group-pending-invitation-list-empty")).toHaveText(
       "送信済みの招待はありません。",
     );
+  });
+
+  test("@smoke @group-access member ロールではグループ名入力とメンバー解除ボタンを表示しない", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+    await setE2eGroupMemberRole(currentUserId, "member");
+
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "グループ管理", level: 2 })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: "グループ名" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /をグループから外す/ })).toHaveCount(0);
+    await expect(page.getByTestId("group-pending-invitation-list")).toHaveCount(0);
+  });
+
+  test("@smoke @group-access owner はメンバー解除を確認ダイアログ経由で実行できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+
+    const memberDisplayName = "E2E解除対象メンバー";
+    const memberEmail = "e2e-removable-member@example.com";
+    const { memberUserId } = await seedGroupMemberForUser(
+      currentUserId,
+      memberDisplayName,
+      memberEmail,
+    );
+    seededMemberUserIdForCleanup = memberUserId;
+
+    await page.reload();
+    await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
+
+    await page.getByRole("button", { name: `${memberDisplayName}をグループから外す` }).click();
+    await expect(
+      page.getByRole("heading", { name: "メンバーをグループから外しますか？" }),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "グループから外す" }).click();
+
+    await expect(page.getByText("メンバーをグループから外しました")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(memberDisplayName)).toHaveCount(0);
   });
 });

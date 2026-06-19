@@ -788,6 +788,37 @@ export const seedPendingGroupInvitationForE2e = internalMutation({
   },
 });
 
+export const seedGroupMemberForE2e = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    displayName: v.string(),
+    email: v.string(),
+  },
+  returns: v.object({
+    memberUserId: v.string(),
+  }),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const memberUserId = `e2e-seed|group-member-${now}`;
+    await ctx.db.insert("users", {
+      userId: memberUserId,
+      displayName: args.displayName,
+      email: normalizeEmail(args.email),
+      activeGroupId: args.groupId,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.insert("groupMembers", {
+      groupId: args.groupId,
+      userId: memberUserId,
+      role: "member",
+      createdAt: now,
+      updatedAt: now,
+    });
+    return { memberUserId };
+  },
+});
+
 export const clearGroupInvitationsForE2e = internalMutation({
   args: { groupId: v.id("groups") },
   returns: v.object({ deletedCount: v.number() }),
