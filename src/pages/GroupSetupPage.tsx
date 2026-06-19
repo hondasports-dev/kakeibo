@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
 import { api } from "../../convex/_generated/api";
-import { MAX_GROUP_NAME_LENGTH } from "../../convex/groups";
+import { MAX_GROUP_NAME_LENGTH } from "../../convex/lib/groupName";
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;

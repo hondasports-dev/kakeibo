@@ -8,19 +8,10 @@ import {
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
 } from "./groupAdminGuards";
+import { normalizeGroupName } from "./lib/groupName";
 
-export const MAX_GROUP_NAME_LENGTH = 50;
-
-export function normalizeGroupName(name: string): string {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new ConvexError("グループ名を入力してください");
-  }
-  if (trimmed.length > MAX_GROUP_NAME_LENGTH) {
-    throw new ConvexError(`グループ名は${MAX_GROUP_NAME_LENGTH}文字以内で入力してください`);
-  }
-  return trimmed;
-}
+// 後方互換のため re-export（UI は convex/lib/groupName を直接 import すること）
+export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -262,6 +253,10 @@ export const createGroup = mutation({
 // updateGroupName: グループ名を変更（オーナーのみ）
 // ---------------------------------------------------------------------------
 
+/**
+ * active group の名前を更新する（オーナーのみ）。
+ * @returns 更新したグループ ID
+ */
 export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: string }) {
   const { groupId } = await requireGroupOwner(ctx);
   const name = normalizeGroupName(args.name);

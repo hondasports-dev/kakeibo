@@ -61,7 +61,7 @@ push 前検証は **AGENTS.md** の並列コマンドに従う。
 ```text
 Issue #NN（issue-tdd-run / mode: light|full）
 GATE0: Go | Stop | Revision
-State: TDD | VERIFY | REVIEW | CI | DONE | ESCALATE
+State: TDD | VERIFY | REVIEW(pre-push) | CI | DONE | ESCALATE
 変更: ...
 TDD: RED ... / GREEN ...
 code-review: PASS | FAIL（Must-fix: ...）
