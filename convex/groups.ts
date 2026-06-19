@@ -4,6 +4,7 @@ import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireAuthenticatedUserId } from "./users";
 import {
+  assertActiveGroupScope,
   assertGroupOwnerRole,
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
@@ -407,6 +408,71 @@ export const listPendingGroupInvitations = query({
   args: {},
   returns: v.array(groupPendingInvitationListItemValidator),
   handler: listPendingGroupInvitationsHandler,
+});
+
+// ---------------------------------------------------------------------------
+// cancelPendingGroupInvitation: pending 招待を取り消す（owner のみ）
+// ---------------------------------------------------------------------------
+
+export async function revokePendingGroupInvitationsForEmailInGroup(
+  ctx: MutationCtx,
+  groupId: Id<"groups">,
+  email: string,
+): Promise<string[]> {
+  const normalizedEmail = normalizeEmail(email);
+  const now = Date.now();
+  const clerkInvitationIds: string[] = [];
+
+  const pendingInvitations = await readQueryDocs(
+    ctx.db
+      .query("groupInvitations")
+      .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending")),
+  );
+
+  for (const invitation of pendingInvitations) {
+    if (!invitationEmailsMatch(normalizedEmail, invitation.email)) {
+      continue;
+    }
+
+    await ctx.db.patch(invitation._id, { status: "revoked", updatedAt: now });
+    if (invitation.clerkInvitationId) {
+      clerkInvitationIds.push(invitation.clerkInvitationId);
+    }
+  }
+
+  return clerkInvitationIds;
+}
+
+export async function cancelPendingGroupInvitationHandler(
+  ctx: MutationCtx,
+  args: { invitationId: Id<"groupInvitations"> },
+) {
+  const { groupId } = await requireGroupOwner(ctx);
+  const invitation = await ctx.db.get(args.invitationId);
+
+  if (invitation === null) {
+    throw new ConvexError("招待が見つかりません");
+  }
+
+  assertActiveGroupScope(groupId, invitation.groupId);
+
+  if (invitation.status !== "pending") {
+    throw new ConvexError("この招待は取り消せません");
+  }
+
+  const clerkInvitationIds = await revokePendingGroupInvitationsForEmailInGroup(
+    ctx,
+    groupId,
+    invitation.email,
+  );
+
+  return { clerkInvitationIds };
+}
+
+export const cancelPendingGroupInvitation = mutation({
+  args: { invitationId: v.id("groupInvitations") },
+  returns: v.object({ clerkInvitationIds: v.array(v.string()) }),
+  handler: cancelPendingGroupInvitationHandler,
 });
 
 // ---------------------------------------------------------------------------

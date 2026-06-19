@@ -1,4 +1,13 @@
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Chip,
+  CircularProgress,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import CancelIcon from "@mui/icons-material/Cancel";
 import {
   getInvitationSentAtLabel,
   getInvitationStatusLabel,
@@ -7,9 +16,15 @@ import {
 
 type GroupPendingInvitationListProps = {
   invitations: GroupPendingInvitationListItem[];
+  savingTarget?: string | null;
+  onRequestCancel?: (invitation: GroupPendingInvitationListItem) => void;
 };
 
-export function GroupPendingInvitationList({ invitations }: GroupPendingInvitationListProps) {
+export function GroupPendingInvitationList({
+  invitations,
+  savingTarget = null,
+  onRequestCancel,
+}: GroupPendingInvitationListProps) {
   if (invitations.length === 0) {
     return (
       <Box
@@ -46,12 +61,33 @@ export function GroupPendingInvitationList({ invitations }: GroupPendingInvitati
               </Typography>
             </Box>
           </Stack>
-          <Chip
-            color="warning"
-            label={getInvitationStatusLabel(invitation.status)}
-            size="small"
-            variant="outlined"
-          />
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+            <Chip
+              color="warning"
+              label={getInvitationStatusLabel(invitation.status)}
+              size="small"
+              variant="outlined"
+            />
+            {onRequestCancel ? (
+              <Tooltip title="招待を取り消す">
+                <span>
+                  <IconButton
+                    aria-label={`${invitation.email}への招待を取り消す`}
+                    color="error"
+                    disabled={savingTarget !== null}
+                    onClick={() => onRequestCancel(invitation)}
+                    size="small"
+                  >
+                    {savingTarget === invitation._id ? (
+                      <CircularProgress size={18} />
+                    ) : (
+                      <CancelIcon fontSize="small" />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ) : null}
+          </Stack>
         </Box>
       ))}
     </Box>

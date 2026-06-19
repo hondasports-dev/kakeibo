@@ -5,6 +5,7 @@ import { renderWithProviders } from "../test/render";
 import { GroupSettingsPanel } from "./GroupSettingsPanel";
 
 const {
+  cancelPendingGroupInvitationMock,
   inviteMemberMock,
   removeMemberMock,
   setActiveGroupMock,
@@ -15,6 +16,7 @@ const {
   useQueryMock,
   useUserMock,
 } = vi.hoisted(() => ({
+  cancelPendingGroupInvitationMock: vi.fn(),
   inviteMemberMock: vi.fn(),
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
@@ -34,6 +36,7 @@ vi.mock("@clerk/react", () => ({
 vi.mock("../../convex/_generated/api", () => ({
   api: {
     groupInvitations: {
+      cancelPendingGroupInvitation: "groupInvitations.cancelPendingGroupInvitation",
       inviteMember: "groupInvitations.inviteMember",
     },
     groups: {
@@ -56,6 +59,7 @@ vi.mock("convex/react", () => ({
 
 describe("GroupSettingsPanel", () => {
   beforeEach(() => {
+    cancelPendingGroupInvitationMock.mockReset();
     inviteMemberMock.mockReset();
     removeMemberMock.mockReset();
     setActiveGroupMock.mockReset();
@@ -66,6 +70,7 @@ describe("GroupSettingsPanel", () => {
     useQueryMock.mockReset();
     useUserMock.mockReset();
 
+    cancelPendingGroupInvitationMock.mockResolvedValue(null);
     inviteMemberMock.mockResolvedValue({
       token: "invite-token",
       clerkInvitationId: "clerk-invite-001",
@@ -86,6 +91,9 @@ describe("GroupSettingsPanel", () => {
     });
     useActionMock.mockImplementation((reference: string) => {
       if (reference.includes("groupInvitations.inviteMember")) return inviteMemberMock;
+      if (reference.includes("groupInvitations.cancelPendingGroupInvitation")) {
+        return cancelPendingGroupInvitationMock;
+      }
       return vi.fn();
     });
     useMutationMock.mockImplementation((reference: string) => {
@@ -539,6 +547,24 @@ describe("GroupSettingsPanel", () => {
 
     await waitFor(() => {
       expect(removeMemberMock).toHaveBeenCalledWith({ targetUserId: "user-member" });
+    });
+  });
+
+  it("招待取り消し前に確認ダイアログを表示し、確定後に action を呼ぶ", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupSettingsPanel />);
+
+    await user.click(screen.getByRole("button", { name: "pending@example.comへの招待を取り消す" }));
+
+    expect(screen.getByRole("heading", { name: "招待を取り消しますか？" })).toBeInTheDocument();
+    expect(screen.getByText(/招待リンクは無効になり/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "招待を取り消す" }));
+
+    await waitFor(() => {
+      expect(cancelPendingGroupInvitationMock).toHaveBeenCalledWith({
+        invitationId: "invite-001",
+      });
     });
   });
 });
