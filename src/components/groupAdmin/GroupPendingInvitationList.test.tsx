@@ -1,5 +1,5 @@
-import { screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { fireEvent, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../test/render";
 import { GroupPendingInvitationList } from "./GroupPendingInvitationList";
 
@@ -30,5 +30,26 @@ describe("GroupPendingInvitationList", () => {
     expect(screen.getByText("pending@example.com")).toBeInTheDocument();
     expect(screen.getByText("招待中")).toBeInTheDocument();
     expect(screen.getByText(/^招待日時: /)).toBeInTheDocument();
+  });
+
+  it("取り消しボタンを押すと onRequestCancel を呼ぶ", () => {
+    const onRequestCancel = vi.fn();
+    const invitation = {
+      _id: "invite-001",
+      email: "pending@example.com",
+      status: "pending" as const,
+      createdAt: Date.UTC(2026, 0, 15, 3, 30),
+    };
+
+    renderWithProviders(
+      <GroupPendingInvitationList
+        invitations={[invitation]}
+        onRequestCancel={onRequestCancel}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "pending@example.comへの招待を取り消す" }));
+
+    expect(onRequestCancel).toHaveBeenCalledWith(invitation);
   });
 });

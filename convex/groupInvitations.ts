@@ -183,6 +183,59 @@ export const inviteMember = action({
   handler: inviteMemberHandler,
 });
 
+type CancelPendingGroupInvitationArgs = {
+  invitationId: Id<"groupInvitations">;
+};
+
+type CancelPendingGroupInvitationDeps = {
+  getClerkClient: () => ClerkInvitationClient & {
+    invitations: Pick<
+      ReturnType<typeof getClerkClient>["invitations"],
+      "revokeInvitation"
+    >;
+  };
+};
+
+export const cancelPendingGroupInvitation = action({
+  args: {
+    invitationId: v.id("groupInvitations"),
+  },
+  returns: v.null(),
+  handler: cancelPendingGroupInvitationHandler,
+});
+
+export async function cancelPendingGroupInvitationHandler(
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  args: CancelPendingGroupInvitationArgs,
+  deps: CancelPendingGroupInvitationDeps = {
+    getClerkClient,
+  },
+): Promise<null> {
+  const group: MyGroup = await ctx.runQuery(api.groups.getMyGroup, {});
+  if (!group) {
+    throw new ConvexError("グループを選択してください");
+  }
+  assertGroupOwnerRole(group.role);
+
+  const { clerkInvitationIds } = await ctx.runMutation(api.groups.cancelPendingGroupInvitation, {
+    invitationId: args.invitationId,
+  });
+
+  const clerk = deps.getClerkClient();
+  for (const clerkInvitationId of clerkInvitationIds) {
+    try {
+      await clerk.invitations.revokeInvitation(clerkInvitationId);
+    } catch (caughtError) {
+      console.warn(
+        "[groupInvitations.cancelPendingGroupInvitation] failed to revoke Clerk invitation",
+        caughtError instanceof Error ? caughtError.name : "UnknownError",
+      );
+    }
+  }
+
+  return null;
+}
+
 export async function inviteMemberHandler(
   ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   args: InviteMemberArgs,

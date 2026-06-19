@@ -4,6 +4,7 @@ import type { Id } from "./_generated/dataModel";
 import {
   buildClerkInvitationParams,
   buildInvitationRedirectUrl,
+  cancelPendingGroupInvitationHandler,
   getClerkUserDisplayName,
   getPrimaryVerifiedClerkEmailAddress,
   getVerifiedClerkEmailAddresses,
@@ -269,5 +270,95 @@ describe("inviteMemberHandler", () => {
 
     expect(ctx.runMutation).toHaveBeenCalledTimes(2);
     expect(ctx.runMutation.mock.calls[1]?.[1]).toEqual({ token: "invite-token" });
+  });
+});
+
+describe("cancelPendingGroupInvitationHandler", () => {
+  it("Convex で取り消したあと Clerk invitation を revoke する", async () => {
+    const revokeInvitation = vi.fn().mockResolvedValue(undefined);
+    const getClerkClient = vi.fn(() => ({
+      invitations: { revokeInvitation },
+    }));
+    const ctx = {
+      runQuery: vi.fn().mockResolvedValueOnce({
+        _id: "group-001" as Id<"groups">,
+        name: "佐藤家",
+        clerkOrganizationId: null,
+        role: "owner",
+        createdAt: 1000,
+      }),
+      runMutation: vi.fn().mockResolvedValue({
+        clerkInvitationIds: ["clerk-old", "clerk-new"],
+      }),
+    };
+
+    await expect(
+      cancelPendingGroupInvitationHandler(
+        ctx,
+        { invitationId: "invite-new" as Id<"groupInvitations"> },
+        { getClerkClient },
+      ),
+    ).resolves.toBeNull();
+
+    expect(ctx.runMutation).toHaveBeenCalledWith(expect.anything(), {
+      invitationId: "invite-new",
+    });
+    expect(revokeInvitation).toHaveBeenCalledTimes(2);
+    expect(revokeInvitation).toHaveBeenCalledWith("clerk-old");
+    expect(revokeInvitation).toHaveBeenCalledWith("clerk-new");
+  });
+
+  it("member ロールの呼び出しを拒否する", async () => {
+    const getClerkClient = vi.fn();
+    const ctx = {
+      runQuery: vi.fn().mockResolvedValueOnce({
+        _id: "group-001" as Id<"groups">,
+        name: "佐藤家",
+        clerkOrganizationId: null,
+        role: "member",
+        createdAt: 1000,
+      }),
+      runMutation: vi.fn(),
+    };
+
+    await expect(
+      cancelPendingGroupInvitationHandler(
+        ctx,
+        { invitationId: "invite-001" as Id<"groupInvitations"> },
+        { getClerkClient },
+      ),
+    ).rejects.toThrow("グループオーナーのみ実行できます");
+
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+    expect(getClerkClient).not.toHaveBeenCalled();
+  });
+
+  it("Clerk revoke に失敗しても Convex 取り消しは成功として扱う", async () => {
+    const revokeInvitation = vi.fn().mockRejectedValue(new Error("Clerk unavailable"));
+    const getClerkClient = vi.fn(() => ({
+      invitations: { revokeInvitation },
+    }));
+    const ctx = {
+      runQuery: vi.fn().mockResolvedValueOnce({
+        _id: "group-001" as Id<"groups">,
+        name: "佐藤家",
+        clerkOrganizationId: null,
+        role: "owner",
+        createdAt: 1000,
+      }),
+      runMutation: vi.fn().mockResolvedValue({
+        clerkInvitationIds: ["clerk-old"],
+      }),
+    };
+
+    await expect(
+      cancelPendingGroupInvitationHandler(
+        ctx,
+        { invitationId: "invite-old" as Id<"groupInvitations"> },
+        { getClerkClient },
+      ),
+    ).resolves.toBeNull();
+
+    expect(revokeInvitation).toHaveBeenCalledWith("clerk-old");
   });
 });

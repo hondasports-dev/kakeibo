@@ -41,6 +41,11 @@ type PendingRemoveMember = {
   displayLabel: string;
 };
 
+type PendingCancelInvitation = {
+  invitationId: Id<"groupInvitations">;
+  email: string;
+};
+
 const PHASE2_DANGER_OPERATIONS = [
   "オーナー権限の譲渡",
   "メンバーのロール変更",
@@ -68,6 +73,7 @@ export function GroupSettingsPanel() {
   const removeMember = useMutation(api.groups.removeMember);
   const updateGroupName = useMutation(api.groups.updateGroupName);
   const inviteMember = useAction(api.groupInvitations.inviteMember);
+  const cancelPendingGroupInvitation = useAction(api.groupInvitations.cancelPendingGroupInvitation);
 
   const [activeGroupId, setActiveGroupId] = useState<Id<"groups"> | "">("");
   const [groupNameDraft, setGroupNameDraft] = useState("");
@@ -76,6 +82,8 @@ export function GroupSettingsPanel() {
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
   const [pendingRemoveMember, setPendingRemoveMember] = useState<PendingRemoveMember | null>(null);
+  const [pendingCancelInvitation, setPendingCancelInvitation] =
+    useState<PendingCancelInvitation | null>(null);
 
   const groupId = group?._id;
   const groupName = group?.name;
@@ -207,6 +215,39 @@ export function GroupSettingsPanel() {
       setSnackbar("メンバーをグループから外しました");
     } catch (caughtError) {
       setError(getErrorMessage(caughtError, "メンバーをグループから外せませんでした。"));
+    } finally {
+      setSavingTarget(null);
+    }
+  };
+
+  const handleRequestCancelInvitation = (invitation: GroupPendingInvitationListItem) => {
+    setPendingCancelInvitation({
+      invitationId: invitation._id as Id<"groupInvitations">,
+      email: invitation.email,
+    });
+  };
+
+  const handleCancelCancelInvitation = () => {
+    if (savingTarget !== null) {
+      return;
+    }
+    setPendingCancelInvitation(null);
+  };
+
+  const handleConfirmCancelInvitation = async () => {
+    if (!pendingCancelInvitation) {
+      return;
+    }
+
+    const invitationId = pendingCancelInvitation.invitationId;
+    setSavingTarget(invitationId);
+    setError("");
+    try {
+      await cancelPendingGroupInvitation({ invitationId });
+      setPendingCancelInvitation(null);
+      setSnackbar("招待を取り消しました");
+    } catch (caughtError) {
+      setError(getErrorMessage(caughtError, "招待を取り消せませんでした。"));
     } finally {
       setSavingTarget(null);
     }
@@ -368,7 +409,11 @@ export function GroupSettingsPanel() {
                     </Stack>
                   </Box>
 
-                  <GroupPendingInvitationList invitations={pendingInvitations ?? []} />
+                  <GroupPendingInvitationList
+                    invitations={pendingInvitations ?? []}
+                    onRequestCancel={handleRequestCancelInvitation}
+                    savingTarget={savingTarget}
+                  />
                 </Stack>
               </GroupSettingsSection>
 
@@ -407,6 +452,24 @@ export function GroupSettingsPanel() {
         onConfirm={() => void handleConfirmRemoveMember()}
         open={pendingRemoveMember !== null}
         title="メンバーをグループから外しますか？"
+      />
+
+      <ConfirmDangerousActionDialog
+        cancelLabel="戻る"
+        confirmLabel="招待を取り消す"
+        confirming={
+          pendingCancelInvitation !== null &&
+          savingTarget === pendingCancelInvitation.invitationId
+        }
+        description={
+          pendingCancelInvitation
+            ? `${pendingCancelInvitation.email} への招待を取り消します。送信済みの招待リンクは無効になり、相手はこの招待で参加できなくなります。`
+            : ""
+        }
+        onCancel={handleCancelCancelInvitation}
+        onConfirm={() => void handleConfirmCancelInvitation()}
+        open={pendingCancelInvitation !== null}
+        title="招待を取り消しますか？"
       />
 
       <Snackbar
