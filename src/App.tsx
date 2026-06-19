@@ -13,16 +13,15 @@ import {
 } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
-import { useInitializeUser } from "./features/auth";
+import { getClerkErrorMessage, useInitializeUser } from "./features/auth";
 import { router } from "./router";
-import { getClerkErrorMessage } from "./features/auth";
-import { shouldShowMaintenancePage } from "./features/app-shell";
 import {
   E2E_APP_ERROR_BOUNDARY_PATH,
+  MaintenancePage,
   OAUTH_CALLBACK_PATH,
+  shouldShowMaintenancePage,
   shouldUseRouterBeforeAuth,
 } from "./features/app-shell";
-import { MaintenancePage } from "./features/app-shell";
 import "./App.css";
 
 function E2eAppErrorBoundaryTrigger(): never {

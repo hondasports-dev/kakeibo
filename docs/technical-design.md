@@ -72,6 +72,8 @@ src/
   main.tsx
   router.tsx
   theme.ts
+  designTokens.ts              # MUI sx 用デザイントークン（feature 横断）
+  utils/                       # feature 横断ユーティリティ（例: imageDataUrl）
   features/                    # 機能単位（Feature-based）
     ai-expense-queue/
       components/
@@ -150,9 +152,30 @@ convex/
 `features/app-shell/`、認証ユーティリティは `features/auth/lib/` に置く。バリデーションは
 各 feature の `validation/` に置き、feature 外からは `index.ts` 経由で import する。
 
+`theme.ts` と `designTokens.ts` は MUI theme / sx 用の横断定義として `src/` 直下に置く。
+画像リサイズ等、複数 feature から使う純粋関数は `src/utils/` に置く（例: `imageDataUrl.ts`）。
+
+### 5.1 feature 間の import 方針
+
+- **エントリポイント**（`router.tsx`、`App.tsx`、`main.tsx`）から feature を参照するときは、必ず
+  `features/<name>/index.ts`（barrel）経由にする。
+- **feature 同士**の参照も barrel 経由とする（例: `import { WeekNavigator } from "../../week"`）。
+  feature 内のファイルパス（`../../week/components/...`）への直接 import は避ける。
+- **feature 内**では相対パス（`../components/`、`../hooks/` 等）を使う。
+- **同一 feature 内**で barrel（`index.ts`）を経由して自分自身を import しない。
+  共有 lib は `../lib/<module>` のように直接 import する（循環参照防止）。
+
+現行の feature 間依存（例）:
+
+| 依存元 | 依存先 | 用途 |
+| --- | --- | --- |
+| `app-shell` | `week`, `auth`, `ui` | レイアウト・ナビ・ユーザー表示 |
+| `settings` | `group-admin` | グループ設定パネル |
+| `receipt`, `expense-entry` | `ai-expense-queue`, `ui`, `week` | AI キュー UI・共通 UI・週選択 |
+
 `CategoriesPage.tsx` は存在するが、現行ルーターでは `/categories` も `SettingsPage` へ向ける。
 
-### 5.1 スタイリング責務
+### 5.2 スタイリング責務
 
 MUIとTailwind CSSは併用するが、責務を分ける。
 

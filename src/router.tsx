@@ -5,7 +5,13 @@ import { useMutation, useQuery } from "convex/react";
 import { Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
-import { AppLayout } from "./features/app-shell";
+import {
+  AppLayout,
+  MaintenancePage,
+  NotFoundPage,
+  PrivacyPolicyPage,
+  TermsPage,
+} from "./features/app-shell";
 import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./features/ai-expense-queue";
 import { DashboardPage } from "./features/dashboard";
 import { InputPage } from "./features/expense-entry";
@@ -15,7 +21,6 @@ import {
   GroupSetupPage,
   useGroupMembership,
 } from "./features/group-admin";
-import { MaintenancePage, NotFoundPage, PrivacyPolicyPage, TermsPage } from "./features/app-shell";
 import { SettingsPage } from "./features/settings";
 import { SummaryPage } from "./features/weekly-summary";
 
