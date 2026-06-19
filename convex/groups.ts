@@ -9,6 +9,19 @@ import {
   assertRemovableGroupMemberRole,
 } from "./groupAdminGuards";
 
+export const MAX_GROUP_NAME_LENGTH = 50;
+
+export function normalizeGroupName(name: string): string {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    throw new ConvexError("グループ名を入力してください");
+  }
+  if (trimmed.length > MAX_GROUP_NAME_LENGTH) {
+    throw new ConvexError(`グループ名は${MAX_GROUP_NAME_LENGTH}文字以内で入力してください`);
+  }
+  return trimmed;
+}
+
 // ---------------------------------------------------------------------------
 // 型定義
 // ---------------------------------------------------------------------------
@@ -241,6 +254,33 @@ export async function createGroupHandler(ctx: MutationCtx, args: { name: string 
 export const createGroup = mutation({
   args: { name: v.string() },
   handler: createGroupHandler,
+});
+
+// ---------------------------------------------------------------------------
+// updateGroupName: グループ名を変更（オーナーのみ）
+// ---------------------------------------------------------------------------
+
+export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: string }) {
+  const { groupId } = await requireGroupOwner(ctx);
+  const name = normalizeGroupName(args.name);
+
+  const group = await ctx.db.get(groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
+
+  await ctx.db.patch(groupId, {
+    name,
+    updatedAt: Date.now(),
+  });
+
+  return groupId;
+}
+
+export const updateGroupName = mutation({
+  args: { name: v.string() },
+  returns: v.id("groups"),
+  handler: updateGroupNameHandler,
 });
 
 // ---------------------------------------------------------------------------

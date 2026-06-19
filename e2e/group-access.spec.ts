@@ -45,6 +45,30 @@ test.describe("グループアクセス", () => {
     await expect(page.getByRole("textbox", { name: "グループ名" })).toHaveValue("佐藤家");
   });
 
+  test("@smoke @group-access owner はグループ名を変更できる", async ({ page }) => {
+    await gotoAuthenticated(page, "/", { ensureGroup: false });
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+    await cleanupGroupMembershipsByUser(currentUserId);
+
+    await page.goto("/");
+    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+
+    await page.getByRole("textbox", { name: "グループ名" }).fill("佐藤家");
+    await page.getByRole("button", { name: "グループを作成" }).click();
+    await expect(page).toHaveURL("/");
+
+    await page.goto("/settings");
+    const nameInput = page.getByRole("textbox", { name: "グループ名" });
+    await expect(nameInput).toHaveValue("佐藤家");
+    await nameInput.fill("鈴木家");
+    await page.getByRole("button", { name: "保存" }).click();
+
+    await expect(page.getByText("グループ名を更新しました")).toBeVisible({ timeout: 15_000 });
+    await expect(nameInput).toHaveValue("鈴木家");
+  });
+
   test("@smoke @group-access member ロールでは招待管理と危険な操作を表示しない", async ({
     page,
   }) => {

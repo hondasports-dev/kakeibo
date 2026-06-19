@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../test/render";
@@ -8,6 +8,7 @@ const {
   inviteMemberMock,
   removeMemberMock,
   setActiveGroupMock,
+  updateGroupNameMock,
   useActionMock,
   useAuthMock,
   useMutationMock,
@@ -17,6 +18,7 @@ const {
   inviteMemberMock: vi.fn(),
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
+  updateGroupNameMock: vi.fn(),
   useActionMock: vi.fn(),
   useAuthMock: vi.fn(),
   useMutationMock: vi.fn(),
@@ -40,6 +42,7 @@ vi.mock("../../convex/_generated/api", () => ({
       listMyGroups: "groups.listMyGroups",
       removeMember: "groups.removeMember",
       setActiveGroup: "groups.setActiveGroup",
+      updateGroupName: "groups.updateGroupName",
     },
   },
 }));
@@ -55,6 +58,7 @@ describe("GroupSettingsPanel", () => {
     inviteMemberMock.mockReset();
     removeMemberMock.mockReset();
     setActiveGroupMock.mockReset();
+    updateGroupNameMock.mockReset();
     useActionMock.mockReset();
     useAuthMock.mockReset();
     useMutationMock.mockReset();
@@ -68,6 +72,7 @@ describe("GroupSettingsPanel", () => {
     });
     setActiveGroupMock.mockResolvedValue("group-002");
     removeMemberMock.mockResolvedValue(undefined);
+    updateGroupNameMock.mockResolvedValue("group-001");
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useUserMock.mockReturnValue({
       user: {
@@ -85,6 +90,7 @@ describe("GroupSettingsPanel", () => {
     useMutationMock.mockImplementation((reference: string) => {
       if (reference.includes("groups.setActiveGroup")) return setActiveGroupMock;
       if (reference.includes("groups.removeMember")) return removeMemberMock;
+      if (reference.includes("groups.updateGroupName")) return updateGroupNameMock;
       return vi.fn();
     });
     useQueryMock.mockImplementation((reference: string) => {
@@ -278,12 +284,92 @@ describe("GroupSettingsPanel", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
-    expect(screen.getByText("現在は変更できません。")).toHaveAttribute("id", "group-rename-helper");
-    expect(screen.getByRole("button", { name: "保存" })).toHaveAttribute(
-      "aria-describedby",
-      "group-rename-helper",
-    );
+    expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
     expect(screen.queryByLabelText("現在のグループ")).not.toBeInTheDocument();
+  });
+
+  it("単一グループのオーナーはグループ名を保存できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "owner",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    const nameInput = screen.getByLabelText("グループ名");
+    fireEvent.change(nameInput, { target: { value: "鈴木家" } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => {
+      expect(updateGroupNameMock).toHaveBeenCalledWith({ name: "鈴木家" });
+    });
+    expect(screen.getByText("グループ名を更新しました")).toBeInTheDocument();
+  });
+
+  it("グループ名が空のときは保存せずエラーを表示する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "owner",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      return [];
+    });
+
+    renderWithProviders(<GroupSettingsPanel />);
+
+    const nameInput = screen.getByLabelText("グループ名");
+    fireEvent.change(nameInput, { target: { value: "" } });
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "保存" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(screen.getByText("グループ名を入力してください。")).toBeInTheDocument();
+    expect(updateGroupNameMock).not.toHaveBeenCalled();
   });
 
   it("単一グループのメンバーはグループ名テキストを表示する", () => {
