@@ -58,7 +58,9 @@ export function ConfirmDeleteGroupDialog({
 
           {preview ? (
             <Stack spacing={0.5}>
-              <Typography variant="subtitle2">削除対象: {preview.groupName}</Typography>
+              <Typography data-testid="delete-group-target-name" variant="subtitle2">
+                削除対象: {preview.groupName}
+              </Typography>
               <Typography color="text.secondary" variant="body2">
                 {formatImpactLine("所属メンバー", preview.members)}
               </Typography>
