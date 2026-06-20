@@ -300,6 +300,9 @@ test.describe("グループアクセス", () => {
     await page.getByTestId("delete-group-request-button").click();
 
     await expect(page.getByRole("heading", { name: "グループを削除しますか？" })).toBeVisible();
+    await expect(
+      page.getByText(/グループに紐づく家計データを含めて完全に削除します/),
+    ).toBeVisible();
     await expect(page.getByText(/Clerk アカウントとユーザー情報は削除されません/)).toBeVisible();
     await page.getByRole("button", { name: "グループを削除する" }).click();
 

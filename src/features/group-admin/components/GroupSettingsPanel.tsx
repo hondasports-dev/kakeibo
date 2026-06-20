@@ -631,7 +631,7 @@ export function GroupSettingsPanel() {
                       グループの削除
                     </Typography>
                     <Typography color="text.secondary" sx={{ mb: 1.5 }} variant="body2">
-                      このグループを削除すると、通常の画面からはアクセスできなくなります。家計データは論理削除のため保持されますが、復旧機能はありません。Clerk
+                      このグループと紐づく家計データを完全に削除します。復旧はできません。Clerk
                       アカウントやユーザー情報は削除されません。
                     </Typography>
                     <Button
@@ -672,7 +672,7 @@ export function GroupSettingsPanel() {
         confirming={pendingDeleteGroup && savingTarget === "delete-group"}
         description={
           pendingDeleteGroup
-            ? `対象グループ: ${group.name}。削除後はこのグループの家計データへアクセスできなくなります（データ自体は論理削除で保持）。復旧はできません。Clerk アカウントとユーザー情報は削除されません。${
+            ? `対象グループ: ${group.name}。グループに紐づく家計データを含めて完全に削除します。復旧はできません。Clerk アカウントとユーザー情報は削除されません。${
                 otherActiveGroupsCount > 0
                   ? " 別の所属グループへ切り替えて利用を続けられます。"
                   : " 他に所属グループがない場合は、新しいグループを作成してください。"

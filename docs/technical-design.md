@@ -263,7 +263,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 - `acceptGroupInvitation` は、招待メールとログイン中ユーザーのメールが一致する場合だけ所属を追加する。
 - `setActiveGroup` は、ログイン中ユーザーが所属しているグループだけを active にできる。
 - `removeMember` はユーザー本人の `users` レコードや Clerk アカウントは削除しない。
-- `deleteGroup` はグループを論理削除し、家計データは DB 上保持する。Clerk アカウントや `users` レコードは削除しない（#224）。
+- `deleteGroup` はグループと紐づく家計データを物理削除する。Clerk アカウントや `users` レコードは削除しない（#224）。
 - `transferGroupOwnership` と `deleteGroup` は owner のみが UI と mutation から実行できる。
 - グループ未所属または activeGroupId 未選択のユーザーは、設定や家計データへ進めない。
 
