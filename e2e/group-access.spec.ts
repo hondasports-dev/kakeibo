@@ -304,7 +304,10 @@ test.describe("グループアクセス", () => {
     await expect(page.getByText(/users と Clerk アカウントは削除されません/)).toBeVisible();
     await expect(page.getByRole("button", { name: "グループを削除する" })).toBeDisabled();
 
-    const groupName = await page.getByLabelText("グループ名").inputValue();
+    const groupName = await page
+      .getByTestId("group-info-section")
+      .getByLabelText("グループ名")
+      .inputValue();
     await page.getByLabelText("確認用グループ名").fill(groupName);
     await page.getByRole("button", { name: "グループを削除する" }).click();
 
