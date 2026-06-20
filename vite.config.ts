@@ -22,6 +22,12 @@ export default defineConfig({
           if (id.includes("node_modules/react/") || id.includes("node_modules/react-dom/")) {
             return "react-vendor";
           }
+          if (
+            id.includes("node_modules/@mui/x-charts") ||
+            id.includes("node_modules/@mui/x-internals")
+          ) {
+            return "mui-charts-vendor";
+          }
           if (id.includes("node_modules/@mui/") || id.includes("node_modules/@emotion/")) {
             return "mui-vendor";
           }

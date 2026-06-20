@@ -280,4 +280,3 @@ Must-fixがあれば修正し、Task 5 Step 1から再実行する。最終差�
 - [ ] **Step 5: pushとドラフトPR作成後にCIを監視する**
 
 ブランチをpushし、Issue #232をcloseするドラフトPRを作成する。push後は対象runを `gh run watch <run_id> --exit-status` で監視し、全必須チェックが成功するまで対応する。
-
