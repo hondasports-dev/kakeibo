@@ -54,6 +54,22 @@ describe("buildWeeklyExpenseChartData", () => {
     });
   });
 
+  it("直前2週間の平均が0.5円単位でも平均との差に小数を残さない", () => {
+    const result = buildWeeklyExpenseChartData({
+      currentWeekStartDate: "2026-06-15",
+      targetWeekStartDate: "2026-06-15",
+      weeks: [
+        { weekStartDate: "2026-05-25", totalAmountYen: 8_000 },
+        { weekStartDate: "2026-06-01", totalAmountYen: 10_000 },
+        { weekStartDate: "2026-06-08", totalAmountYen: 10_001 },
+        { weekStartDate: "2026-06-15", totalAmountYen: 15_000 },
+      ],
+    });
+
+    expect(result[2].averageDiff).toBe(5_000);
+    expect(formatWeeklyExpenseTooltip(result[2])).toContain("平均との差 +5,000円");
+  });
+
   it("4週未満でも取得できた週だけを古い順に返す", () => {
     const result = buildWeeklyExpenseChartData({
       currentWeekStartDate: "2026-06-15",

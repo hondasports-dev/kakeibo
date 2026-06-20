@@ -71,7 +71,8 @@ export function buildWeeklyExpenseChartData({
       label,
       amount: week.totalAmountYen,
       previousDiff: previousWeek ? week.totalAmountYen - previousWeek.totalAmountYen : null,
-      averageDiff: average !== null && average !== 0 ? week.totalAmountYen - average : null,
+      averageDiff:
+        average !== null && average !== 0 ? Math.round(week.totalAmountYen - average) : null,
       averageRate:
         average !== null && average !== 0
           ? Math.round(((week.totalAmountYen - average) / average) * 100)
