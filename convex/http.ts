@@ -74,6 +74,9 @@ http.route({
       clearAiExpenseQueue?: boolean;
       clearE2eExpenseEntries?: boolean;
       clearGroupMemberships?: boolean;
+      clearGroupInvitations?: boolean;
+      setGroupMemberRole?: "owner" | "member";
+      seedGroupMember?: { displayName: string; email: string };
     };
     try {
       body = (await req.json()) as {
@@ -87,6 +90,9 @@ http.route({
         clearAiExpenseQueue?: boolean;
         clearE2eExpenseEntries?: boolean;
         clearGroupMemberships?: boolean;
+        clearGroupInvitations?: boolean;
+        setGroupMemberRole?: "owner" | "member";
+        seedGroupMember?: { displayName: string; email: string };
       };
     } catch {
       return invalidJsonResponse();
@@ -102,7 +108,10 @@ http.route({
         : null);
 
     const requestedUserScopedCleanup = Boolean(
-      body.clearMonthlyIncome || body.clearGroupMemberships,
+      body.clearMonthlyIncome ||
+      body.clearGroupMemberships ||
+      body.setGroupMemberRole ||
+      body.seedGroupMember,
     );
 
     if (requestedUserScopedCleanup && !resolvedUserId) {
@@ -221,6 +230,46 @@ http.route({
       }
     }
 
+    let groupMemberRole: { updated: boolean } | null = null;
+    if (body.setGroupMemberRole && resolvedUserId) {
+      groupMemberRole = await ctx.runMutation(internal.groups.setGroupMemberRoleForE2e, {
+        userId: resolvedUserId,
+        role: body.setGroupMemberRole,
+      });
+    }
+
+    let groupInvitations: { deletedCount: number } | null = null;
+    if (resolvedGroupId && body.clearGroupInvitations) {
+      groupInvitations = await ctx.runMutation(internal.groups.clearGroupInvitationsForE2e, {
+        groupId: resolvedGroupId as never,
+      });
+    }
+
+    let seededGroupMember: { memberUserId: string } | null = null;
+    if (body.seedGroupMember) {
+      if (!resolvedGroupId) {
+        return new Response(JSON.stringify({ error: "groupId is required." }), {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      const displayName = body.seedGroupMember.displayName?.trim();
+      const memberEmail = body.seedGroupMember.email?.trim().toLowerCase();
+      if (!displayName || !memberEmail) {
+        return new Response(
+          JSON.stringify({ error: "seedGroupMember.displayName and email are required." }),
+          { status: 400, headers: { "Content-Type": "application/json" } },
+        );
+      }
+
+      seededGroupMember = await ctx.runMutation(internal.groups.seedGroupMemberForE2e, {
+        groupId: resolvedGroupId as never,
+        displayName,
+        email: memberEmail,
+      });
+    }
+
     return new Response(
       JSON.stringify({
         receipts,
@@ -230,6 +279,9 @@ http.route({
         monthlyIncome,
         expenseEntries,
         groupMemberships,
+        groupMemberRole,
+        groupInvitations,
+        seededGroupMember,
       }),
       {
         status: 200,
@@ -293,6 +345,76 @@ http.route({
     });
 
     return new Response(JSON.stringify({ draftId, categoryId }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    });
+  }),
+});
+
+http.route({
+  path: "/e2e/seed-pending-group-invitation",
+  method: "POST",
+  handler: httpAction(async (ctx, req) => {
+    const secret = process.env.E2E_CLEANUP_SECRET;
+    if (!secret) {
+      return new Response(
+        JSON.stringify({ error: "E2E seeding is not enabled in this environment." }),
+        { status: 503, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    const clientSecret = req.headers.get("X-E2E-Cleanup-Secret");
+    if (clientSecret !== secret) {
+      return new Response(JSON.stringify({ error: "Unauthorized." }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    let body: { userId?: string; email?: string; groupId?: string; invitationEmail?: string };
+    try {
+      body = (await req.json()) as {
+        userId?: string;
+        email?: string;
+        groupId?: string;
+        invitationEmail?: string;
+      };
+    } catch {
+      return invalidJsonResponse();
+    }
+
+    const userIdByEmail = body.email
+      ? await ctx.runQuery(internal.users.getUserIdByEmail, { email: body.email })
+      : null;
+    const resolvedUserId = userIdByEmail ?? body.userId ?? null;
+    const resolvedGroupId =
+      body.groupId ??
+      (resolvedUserId
+        ? await ctx.runQuery(internal.groups.getGroupIdByUserId, { userId: resolvedUserId })
+        : null);
+
+    if (!resolvedGroupId || !resolvedUserId) {
+      return new Response(JSON.stringify({ error: "groupId and userId are required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const invitationEmail = body.invitationEmail?.trim().toLowerCase();
+    if (!invitationEmail) {
+      return new Response(JSON.stringify({ error: "invitationEmail is required." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const invitationId = await ctx.runMutation(internal.groups.seedPendingGroupInvitationForE2e, {
+      groupId: resolvedGroupId as never,
+      email: invitationEmail,
+      invitedByUserId: resolvedUserId,
+    });
+
+    return new Response(JSON.stringify({ invitationId }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

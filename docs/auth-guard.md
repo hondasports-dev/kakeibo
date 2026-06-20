@@ -73,7 +73,7 @@ ClerkProvider
 4. `useConvexAuth().isAuthenticated` が `false` → 接続エラー表示
 5. すべて通過 → `KakeiboApp`（家計簿本体）
 
-### useInitializeUser フック（`src/hooks/useInitializeUser.ts`）
+### useInitializeUser フック（`src/features/auth/hooks/useInitializeUser.ts`）
 
 `KakeiboApp` のトップレベルで呼び出す。Convex 認証確立後に 1 回だけ `upsertUser` を呼び出し、
 users テーブルにレコードを作成・更新します。
@@ -103,4 +103,4 @@ function KakeiboApp() {
 | `convex/users.ts`                | 認証ヘルパー・upsertUser mutation                                  |
 | `src/main.tsx`                   | ClerkProvider + ConvexProviderWithClerk の Provider 構成           |
 | `src/App.tsx`                    | 認証状態ガード（AuthenticatedApp）と KakeiboApp での初期化呼び出し |
-| `src/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |
+| `src/features/auth/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |

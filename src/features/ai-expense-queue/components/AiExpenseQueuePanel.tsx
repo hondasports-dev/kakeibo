@@ -1,0 +1,89 @@
+import { Alert, Box, Stack } from "@mui/material";
+import { QueueContent } from "./QueueContent";
+import { QueueHeader } from "./QueueHeader";
+import { ReviewDialog } from "./ReviewDialog";
+import { useAiExpenseQueuePanel } from "../hooks/useAiExpenseQueuePanel";
+import type { AiExpenseQueuePanelProps } from "../types/types";
+
+export type { AiExpenseQueueItem } from "../types/types";
+
+export function AiExpenseQueuePanel({
+  initialItems,
+  categories = [],
+  initialReviewDrafts = {},
+  onReviewSubmit,
+}: AiExpenseQueuePanelProps) {
+  const queue = useAiExpenseQueuePanel({
+    initialItems,
+    categories,
+    initialReviewDrafts,
+    onReviewSubmit,
+  });
+
+  return (
+    <Box
+      aria-labelledby="ai-expense-queue-heading"
+      className="ai-expense-queue"
+      component="section"
+    >
+      <Stack spacing={2}>
+        <QueueHeader
+          inputRef={queue.inputRef}
+          cameraInputRef={queue.cameraInputRef}
+          retryInputRef={queue.retryInputRef}
+          onFilesSelected={queue.handleFilesSelected}
+          onRetryFileSelected={queue.handleRetryFileSelected}
+        />
+
+        {queue.retryError && (
+          <Alert severity="error" variant="outlined" onClose={() => queue.setRetryError("")}>
+            {queue.retryError}
+          </Alert>
+        )}
+
+        {queue.queueDeleteError && (
+          <Alert severity="error" variant="outlined" onClose={() => queue.setQueueDeleteError("")}>
+            {queue.queueDeleteError}
+          </Alert>
+        )}
+
+        {queue.items.length === 0 ? (
+          <Alert severity="info" variant="outlined">
+            追加した画像はここに状態別で表示されます。
+          </Alert>
+        ) : (
+          <QueueContent
+            clearableCount={queue.clearableItems.length}
+            deletingIds={queue.deletingIds}
+            groupedItems={queue.groupedItems}
+            itemCount={queue.items.length}
+            readyItems={queue.readyItems}
+            registeringIds={queue.registeringIds}
+            registrationError={queue.registrationError}
+            selectedReadyIds={queue.selectedReadyIds}
+            onClearOpenQueue={queue.handleClearOpenQueue}
+            onDeleteQueueItem={queue.deleteQueueItem}
+            onOpenReview={queue.handleOpenReview}
+            onRegisterReady={queue.handleRegisterReady}
+            onRetry={queue.handleRetry}
+            onToggleReadySelection={queue.handleToggleReadySelection}
+          />
+        )}
+      </Stack>
+
+      <ReviewDialog
+        open={queue.selectedReviewDraftId !== null}
+        categories={categories}
+        isReviewDraftLoading={queue.isReviewDraftLoading}
+        isReviewDraftNotFound={queue.isReviewDraftNotFound}
+        selectedReviewDraft={queue.selectedReviewDraft}
+        reviewError={queue.reviewError}
+        reviewForm={queue.reviewForm}
+        reviewSubmitting={queue.reviewSubmitting}
+        onClose={queue.handleCloseReview}
+        onFieldChange={queue.handleReviewFieldChange}
+        onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
+      />
+    </Box>
+  );
+}

@@ -152,6 +152,7 @@ export const rootCssVariables: Record<CssVariableName, string> = {
   "--color-surface-canvas": designTokens.color.surface.canvas,
   "--color-surface-panel": designTokens.color.surface.panel,
   "--color-surface-sunken": designTokens.color.surface.sunken,
+  "--color-surface-sunken-rgb": hexToRgbChannel(designTokens.color.surface.sunken),
   "--color-surface-accent": designTokens.color.surface.accent,
   "--color-border-subtle": designTokens.color.border.subtle,
   "--color-border-emphasis": designTokens.color.border.emphasis,

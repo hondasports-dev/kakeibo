@@ -99,6 +99,8 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 
 ### 5.1 Phase1 の共通実装方針
 
+実装パターンとチェックリストの正本は `docs/group-admin-guards.md` を参照する。
+
 - 権限ガードの共通化は #213 で整備する
 - UI でボタンを隠すだけでは完了としない。mutation 直呼びでも拒否する
 - 操作対象は **呼び出し元の active group** に限定する。他グループの ID を渡しても拒否する
@@ -134,6 +136,18 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 `removeMember` は **対象ユーザーの `users` レコードや Clerk アカウントを削除しない**。
 ドキュメント・UI・エラーメッセージでも「ユーザー削除」と表現しない。
 
+### 7.1.1 メール招待の有効状態（グループ×メール）
+
+| 状態 | ルール |
+| --- | --- |
+| 有効な pending | グループ×メールあたり実質 1 件。再送時は古い pending を `revoked` にしてから新規作成する |
+| 一覧表示 | `listPendingGroupInvitations` は同一メール（Gmail alias 含む）を最新 1 件にまとめて返す |
+| 受け入れ | `acceptGroupInvitation` 成功後、同一メールの他 pending も `revoked` にする |
+| メンバー解除 | `removeMember` 時に対象メールの pending と、所属外となった accepted を `revoked` にする |
+| 再参加 | 上記により削除済みメンバーへ再招待可能 |
+
+`#219` の pending 取り消しは、一覧行の `_id` ではなく **メール単位で同一メールの pending をまとめて無効化** する実装を前提とする（表示は dedupe 済みのため）。
+
 ### 7.2 UI 非表示だけに頼らない
 
 管理操作は次の 2 層で守る。
@@ -164,7 +178,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | ルール | 内容 | 実装状況 |
 | --- | --- | --- |
 | owner は自分自身をグループから外せない | 自己 `removeMember` 禁止 | 実装済み（`removeMemberHandler`） |
-| owner ロールのメンバーはグループ解除の対象にしない | 対象は `member` のみ | UI 済み。mutation 側は #217 で明示的に拒否する |
+| owner ロールのメンバーはグループ解除の対象にしない | 対象は `member` のみ | 実装済み（UI + `assertRemovableGroupMemberRole`） |
 | グループ作成時に作成者を `owner` として追加 | 初期 owner を必ず 1 人確保 | 実装済み（`createGroup`） |
 
 ### 8.2 Phase2 へ引き継ぐルール
@@ -188,8 +202,8 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | 機能 | ファイル | owner 検証 | 備考 |
 | --- | --- | --- | --- |
 | メンバー追加 | `convex/groups.ts` `addMemberByEmail` | あり | |
-| メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否は #217 |
-| グループ管理 UI | `src/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
+| メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
+| グループ管理 UI | `src/features/group-admin/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
 | グループ運用手順 | `docs/technical-design.md` 6.3 | — | 本ドキュメントを正本とする |
 
 ## 10. 後続 Issue への参照
@@ -197,8 +211,8 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | 順序 | Issue | 本ドキュメントの参照セクション |
 | --- | --- | --- |
 | 1 | #212（本 Issue） | 全体 |
-| 2 | #213 管理操作共通ガード | 5.1, 7.2, 7.3 |
-| 3 | #214 画面構成 | 4.2, 5 |
+| 2 | #213 管理操作共通ガード | `docs/group-admin-guards.md` |
+| 3 | #214 画面構成 | 4.2, 5, `docs/group-admin-ui-layout.md` |
 | 4 | #215 グループ名変更 | 4.2, 5 |
 | 5 | #216 メンバー一覧 | 4.2, 5 |
 | 6 | #217 メンバー解除 | 7.1, 8.1 |
@@ -213,3 +227,28 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 - [x] owner/member の権限差が整理されている（セクション 4）
 - [x] Phase1 で実装しない危険操作が明記されている（セクション 6）
 - [x] 後続 Issue がこの方針を参照できる（セクション 10）
+
+## 12. 受け入れ確認（#209）
+
+親 Issue [#209](https://github.com/hondasports/kakeibo/issues/209) の受け入れ条件。
+子 Issue #212–#220 の完了後、以下で Phase1 MVP の受け入れを確認する。
+
+| 受け入れ条件 | 確認方法 | 状態 |
+| --- | --- | --- |
+| owner はグループ管理画面でグループ情報・メンバー・pending 招待を確認できる | `GroupSettingsPanel` UI + `e2e/group-access.spec.ts` | [x] |
+| owner は Phase1 対象の管理操作を実行できる | `convex/groups.ts` mutations + E2E smoke | [x] |
+| member は管理操作を実行できない | UI 非表示 + `GroupSettingsPanel.test.tsx` | [x] |
+| member が直接 mutation を呼んでも拒否される | `convex/groups.test.ts` Phase1 owner-only permissions | [x] |
+| グループからのメンバー解除と Clerk ユーザー削除が混同されていない | §7.1 + `removeMemberHandler` unit test | [x] |
+| pending 招待の表示・取り消しができる | `GroupPendingInvitationList` + E2E | [x] |
+| 危険操作には確認導線がある | `ConfirmDangerousActionDialog` + E2E | [x] |
+| Phase2 対象機能は M21 の Issue として分離されている | §6 + `danger-zone-section` プレースホルダ | [x] |
+
+検証コマンド（push 前）:
+
+```bash
+pnpm test --run
+pnpm run lint && pnpm run format:check && pnpm run build
+# Clerk 資格情報がある環境のみ
+pnpm exec playwright test e2e/group-access.spec.ts --grep @group-access
+```

@@ -7,6 +7,7 @@ import type { ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { assertGroupOwnerRole } from "./groupAdminGuards";
 
 type MyGroup = {
   _id: Id<"groups">;
@@ -182,6 +183,58 @@ export const inviteMember = action({
   handler: inviteMemberHandler,
 });
 
+type CancelPendingGroupInvitationArgs = {
+  invitationId: Id<"groupInvitations">;
+};
+
+type CancelPendingGroupInvitationDeps = {
+  getClerkClient: () => {
+    invitations: {
+      revokeInvitation: (invitationId: string) => Promise<unknown>;
+    };
+  };
+};
+
+export const cancelPendingGroupInvitation = action({
+  args: {
+    invitationId: v.id("groupInvitations"),
+  },
+  returns: v.null(),
+  handler: cancelPendingGroupInvitationHandler,
+});
+
+export async function cancelPendingGroupInvitationHandler(
+  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
+  args: CancelPendingGroupInvitationArgs,
+  deps: CancelPendingGroupInvitationDeps = {
+    getClerkClient,
+  },
+): Promise<null> {
+  const group: MyGroup = await ctx.runQuery(api.groups.getMyGroup, {});
+  if (!group) {
+    throw new ConvexError("グループを選択してください");
+  }
+  assertGroupOwnerRole(group.role);
+
+  const { clerkInvitationIds } = await ctx.runMutation(api.groups.cancelPendingGroupInvitation, {
+    invitationId: args.invitationId,
+  });
+
+  const clerk = deps.getClerkClient();
+  for (const clerkInvitationId of clerkInvitationIds) {
+    try {
+      await clerk.invitations.revokeInvitation(clerkInvitationId);
+    } catch (caughtError) {
+      console.warn(
+        "[groupInvitations.cancelPendingGroupInvitation] failed to revoke Clerk invitation",
+        caughtError instanceof Error ? caughtError.name : "UnknownError",
+      );
+    }
+  }
+
+  return null;
+}
+
 export async function inviteMemberHandler(
   ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
   args: InviteMemberArgs,
@@ -194,9 +247,7 @@ export async function inviteMemberHandler(
   if (!group) {
     throw new ConvexError("グループを選択してください");
   }
-  if (group.role !== "owner") {
-    throw new ConvexError("グループオーナーのみメンバーを招待できます");
-  }
+  assertGroupOwnerRole(group.role);
   const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
 
   const email = normalizeEmail(args.email);

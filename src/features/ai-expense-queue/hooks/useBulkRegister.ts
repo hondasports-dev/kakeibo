@@ -1,0 +1,74 @@
+import { useEffect, useRef, useState } from "react";
+import { useMutation } from "convex/react";
+import type { Id } from "../../../../convex/_generated/dataModel";
+import { api } from "../../../../convex/_generated/api";
+
+export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
+  const previousReadyItemIdsRef = useRef<string[]>([]);
+  const [selectedReadyIds, setSelectedReadyIds] = useState<string[]>([]);
+  const [registeringIds, setRegisteringIds] = useState<string[]>([]);
+  const [registrationError, setRegistrationError] = useState("");
+
+  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
+
+  useEffect(() => {
+    const previousReadyItemIds = previousReadyItemIdsRef.current;
+    setSelectedReadyIds((current) => {
+      const retained = current.filter((id) => readyItemIds.includes(id));
+      const additions = readyItemIds.filter(
+        (id) => !previousReadyItemIds.includes(id) && !retained.includes(id),
+      );
+      const next = [...retained, ...additions];
+      if (next.length === current.length && next.every((id, index) => id === current[index])) {
+        return current;
+      }
+      return next;
+    });
+    previousReadyItemIdsRef.current = readyItemIds;
+  }, [readyItemIds]);
+
+  const handleToggleReadySelection = (itemId: string, checked: boolean) => {
+    setSelectedReadyIds((current) => {
+      if (checked) {
+        return current.includes(itemId) ? current : [...current, itemId];
+      }
+      return current.filter((id) => id !== itemId);
+    });
+  };
+
+  const handleRegisterReady = async () => {
+    if (selectedReadyIds.length === 0) {
+      return;
+    }
+    setRegistrationError("");
+    setRegisteringIds(selectedReadyIds);
+    try {
+      await registerReadyDrafts({ draftIds: selectedReadyIds as Id<"aiExpenseDrafts">[] });
+      setSelectedReadyIds([]);
+    } catch (error) {
+      setRegistrationError(
+        error instanceof Error
+          ? error.message
+          : "まとめて登録に失敗しました。もう一度お試しください。",
+      );
+    } finally {
+      setRegisteringIds([]);
+    }
+  };
+
+  const removeFromSelection = (itemId: string) => {
+    setSelectedReadyIds((current) => current.filter((id) => id !== itemId));
+  };
+
+  return {
+    selectedReadyIds,
+    registeringIds,
+    registrationError,
+    setSelectedReadyIds,
+    setRegisteringIds,
+    setRegistrationError,
+    handleToggleReadySelection,
+    handleRegisterReady,
+    removeFromSelection,
+  };
+}

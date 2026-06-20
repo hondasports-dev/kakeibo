@@ -1,6 +1,6 @@
 ---
 name: issue-tdd-workflow
-description: Go 判定後の Issue TDD 手順正本（§3以降）。起動は issue-tdd-run、フェーズ0は issue-gate-0。issue-delivery の代替ではなく、単一 Issue の実装〜PR 手順。
+description: Go 判定後の Issue TDD 手順正本（§3以降）。起動は issue-tdd-run、フェーズ0は issue-gate-0。push 前に code-review 必須。
 argument-hint: "<issue-number>"
 triggers:
   - user
@@ -10,10 +10,9 @@ triggers:
 
 ## 概要
 
-GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TDD、検証完走まで一続きで進める。
+GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TDD、**コードレビュー**、検証完走まで一続きで進める。
 
-`issue-delivery` の代替ではなく、Go 判定後の実装〜公開手順である。
-起動は `issue-tdd-run`、フェーズ0（仕様ゲート）の正本は `issue-gate-0`。
+単一 Issue の実装〜公開手順の正本である。起動は `issue-tdd-run`、フェーズ0（仕様ゲート）の正本は `issue-gate-0`。
 
 ## 引数
 
@@ -87,19 +86,54 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
    - push 前検証は **AGENTS.md** の並列コマンドを優先する
    - ユーザー導線に触れた場合は `pnpm exec playwright test --project=chromium` も実行する
    - Convexを使うE2Eでは、事前に `convex dev` が起動しているか確認する。
+   - 新規の public `mutation` / `query` / `httpAction`（または `internalMutation` / `internalQuery`）を追加した PR、または既存関数のシグネチャ・戻り値を変更した PR では、dev deployment を反映させるため `pnpm exec convex dev --once` を実行する。新規ファイルの有無は問わない。詳細は `docs/development-process.md` の「Convex 関数追加 PR の dev deployment 反映」を参照。
    - 実行できない検証がある場合は、成功扱いにせず、障害、実行したコマンド、再実行条件、残リスクを報告する。
 
-9. **自己レビューとCI対応を行う**
-   - push前に、GATE0 成果物から外れていないか、型安全性、境界条件、認可、非同期状態、重複、テスト不足を確認する。
-   - 変更内容に応じて、`issue-tdd-run` の併用 Skill 一覧に従い専門 Skill でレビューを行う:
-     - **QA Agent の視点**: `virtual-company` Skill の QA Agent ロールで、受け入れ条件、変更したユーザー導線、権限・データ保存・回帰リスクを見直し、既存E2Eで覆えるか、新規E2Eやテスト名の更新が必要かを確認する。
-     - **Reviewer の視点**: `virtual-company` Skill の Reviewer ロールで、コード品質、命名、設計整合性、ドキュメント不足を確認する。
-     - **Convex コードを変更した場合**: `convex-performance-audit` Skill で、過剰なドキュメント読み取り、サブスクリプション過多、OCC競合リスクを確認する。`convex/_generated/ai/guidelines.md` の違反（validator 型、ID 型の厳密性など）も合わせて確認する。
-     - **React コンポーネント / hooks を変更した場合**: `vercel-react-best-practices` Skill で、不要な再レンダリング、ウォーターフォール、バンドルサイズへの影響、`useEffect` の依存配列などを確認する。
-     - **UI / デザインを変更した場合**: `web-design-guidelines` Skill で、アクセシビリティ、コントラスト、インタラクションパターンへの準拠を確認する。
-   - 指摘があれば修正してから push する。レビュー修正は原則として別コミットにする。
+9. **コードレビューと指摘対応（必須・push 前）**
+
+   push する前に、必ず **`.agents/skills/code-review/SKILL.md`** を読み、手順どおりセルフレビューを実行する。
+   `virtual-company` の Reviewer ロールや専門 Skill は補完であり、`code-review` の代替にはしない。
+
+   ### 9.1 差分の取得
+
+   ```bash
+   git fetch origin preview
+   git diff origin/preview...HEAD
+   git log --oneline origin/preview..HEAD
+   ```
+
+   - 比較基準は **`origin/preview`**（開発統合ブランチ）
+   - `preview` が無い、またはユーザー指定時のみ `origin/main`
+
+   ### 9.2 レビュー実施
+
+   1. `code-review` Skill の手順 0–9 を実行する
+   2. 変更対象に応じてチェックリストを読む:
+      - `src/**` → `code-review/frontend-review-checklist.md`
+      - `convex/**` → `code-review/backend-review-checklist.md` + `convex/_generated/ai/guidelines.md`
+      - 共通 → `code-review/security-checklist.md`
+   3. 差分に応じて専門 Skill を**追加**実行する（`code-review` 完了後でも可）:
+      - **QA Agent の視点**: `.agents/roles/04-qa-agent.md` — 受け入れ条件、E2E 要否、回帰
+      - **Convex 変更**: `convex-performance-audit`
+      - **React 変更**: `vercel-react-best-practices`
+      - **UI 変更**: `web-design-guidelines`
+   4. 結果を **`code-review/review-template.md`** の形式で出力する（Must-fix / Nice-to-have を分離）
+
+   ### 9.3 指摘対応ループ
+
+   | 区分 | 対応 |
+   | --- | --- |
+   | **Must-fix** | 即修正 → §8 再検証 → **§9.2 から再レビュー** |
+   | **Nice-to-have** | Issue スコープ内なら修正。本筋外は PR 本文に未対応理由を記録 |
+
+   - **完了条件**: `code-review` 判定 **PASS**（Must-fix 0 件）
+   - **ループ上限**: Must-fix 対応 **3 回**。超えたら **ESCALATE**（ユーザー確認）
+   - レビュー修正は原則別コミットにする
+
+   ### 9.4 CI 対応（push 後）
+
    - push後に CI が失敗したら、`gh run view <run_id> --log-failed` で原因を特定してから修正する。原因を理解せず再pushしない。
-   - 修正後は `pnpm test --run`、必要に応じて `pnpm run format:check` を再実行してから push する。
+   - 修正後は §8 再検証 → **§9 再実行** → push
 
 10. **意図を持って公開する**
     - Issueに属するファイルだけをステージングする。`git add -A` は無関係な変更がないと確認できる場合だけ使う。
@@ -122,6 +156,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 - E2EやCIが失敗したのに、原因を理解せず再実行または再pushしようとしている。
 - `.env.local` をコピーした、またはサービス秘密値に触れたのに `service-ops-safety` を読んでいない。
 - 最新の検証証拠なしに「完了」と言おうとしている。
+- push 前に `code-review` を実行せず、または Must-fix が残ったまま push しようとしている。
 
 ## 報告フォーマット
 
@@ -129,6 +164,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 Issue #NN を対応しました。
 変更: ...
 TDD: RED ... / GREEN ...
+code-review: PASS（Must-fix 0） / FAIL（Must-fix: ...）
 検証: ...
 PR: ...
 残リスク: ...
