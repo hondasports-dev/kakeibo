@@ -709,6 +709,26 @@ export const setActiveGroup = mutation({
 // E2E cleanup: 指定ユーザーのグループ所属を削除
 // ---------------------------------------------------------------------------
 
+async function deleteE2eSeededUserByEmailIfExists(ctx: MutationCtx, email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const existingUser = await readQueryDoc(
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", normalizedEmail)),
+  );
+  if (existingUser === null || !existingUser.userId.startsWith("e2e-seed|")) {
+    return;
+  }
+
+  const memberships = await readQueryDocs(
+    ctx.db
+      .query("groupMembers")
+      .withIndex("by_user_id", (q) => q.eq("userId", existingUser.userId)),
+  );
+  for (const membership of memberships) {
+    await ctx.db.delete(membership._id);
+  }
+  await ctx.db.delete(existingUser._id);
+}
+
 export const deleteGroupMembershipsByUser = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {
@@ -725,7 +745,11 @@ export const deleteGroupMembershipsByUser = internalMutation({
       ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
     );
     if (user !== null) {
-      await ctx.db.patch(user._id, { activeGroupId: undefined, updatedAt: Date.now() });
+      if (userId.startsWith("e2e-seed|")) {
+        await ctx.db.delete(user._id);
+      } else {
+        await ctx.db.patch(user._id, { activeGroupId: undefined, updatedAt: Date.now() });
+      }
     }
 
     return { deletedCount: memberships.length };
@@ -788,6 +812,32 @@ export const seedPendingGroupInvitationForE2e = internalMutation({
   },
 });
 
+export async function seedGroupMemberForE2eHandler(
+  ctx: MutationCtx,
+  args: { groupId: Id<"groups">; displayName: string; email: string },
+) {
+  await deleteE2eSeededUserByEmailIfExists(ctx, args.email);
+
+  const now = Date.now();
+  const memberUserId = `e2e-seed|group-member-${now}`;
+  await ctx.db.insert("users", {
+    userId: memberUserId,
+    displayName: args.displayName,
+    email: normalizeEmail(args.email),
+    activeGroupId: args.groupId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await ctx.db.insert("groupMembers", {
+    groupId: args.groupId,
+    userId: memberUserId,
+    role: "member",
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { memberUserId };
+}
+
 export const seedGroupMemberForE2e = internalMutation({
   args: {
     groupId: v.id("groups"),
@@ -797,26 +847,7 @@ export const seedGroupMemberForE2e = internalMutation({
   returns: v.object({
     memberUserId: v.string(),
   }),
-  handler: async (ctx, args) => {
-    const now = Date.now();
-    const memberUserId = `e2e-seed|group-member-${now}`;
-    await ctx.db.insert("users", {
-      userId: memberUserId,
-      displayName: args.displayName,
-      email: normalizeEmail(args.email),
-      activeGroupId: args.groupId,
-      createdAt: now,
-      updatedAt: now,
-    });
-    await ctx.db.insert("groupMembers", {
-      groupId: args.groupId,
-      userId: memberUserId,
-      role: "member",
-      createdAt: now,
-      updatedAt: now,
-    });
-    return { memberUserId };
-  },
+  handler: seedGroupMemberForE2eHandler,
 });
 
 export const clearGroupInvitationsForE2e = internalMutation({
