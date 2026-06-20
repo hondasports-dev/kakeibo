@@ -2,7 +2,6 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router-do
 import { useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useMutation, useQuery } from "convex/react";
-import { Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import {
@@ -22,6 +21,7 @@ import {
   useGroupMembership,
 } from "./features/group-admin";
 import { SettingsPage } from "./features/settings";
+import { SuzumemoLoadingState } from "./features/ui";
 
 const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
   {
@@ -204,14 +204,11 @@ function GroupRouteGuard() {
 
   if (isLoading) {
     return (
-      <Box className="auth-screen">
-        <Paper className="auth-panel paper-panel" elevation={0}>
-          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-            <CircularProgress aria-label="グループ情報を確認中" />
-            <Typography color="text.secondary">グループ情報を確認しています。</Typography>
-          </Stack>
-        </Paper>
-      </Box>
+      <SuzumemoLoadingState
+        label="グループ情報を確認中"
+        message="グループ情報を確認しています。"
+        variant="fullscreen"
+      />
     );
   }
 
@@ -228,12 +225,11 @@ function GroupRouteGuard() {
 
 function SummaryRouteFallback() {
   return (
-    <Box className="app-main">
-      <Stack spacing={2} sx={{ alignItems: "center", py: 8 }}>
-        <CircularProgress aria-label="週次サマリーを読み込み中" />
-        <Typography color="text.secondary">週次サマリーを読み込んでいます...</Typography>
-      </Stack>
-    </Box>
+    <SuzumemoLoadingState
+      label="週次サマリーを読み込み中"
+      message="週次サマリーを読み込んでいます…"
+      variant="page"
+    />
   );
 }
 

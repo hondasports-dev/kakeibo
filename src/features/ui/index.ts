@@ -1,4 +1,5 @@
 export { AnimatedButton } from "./components/AnimatedButton";
 export { AnimatedCounter } from "./components/AnimatedCounter";
 export { PageTransition } from "./components/PageTransition";
-export { SuzumemoLoadingScreen } from "./components/SuzumemoLoadingScreen";
+export { SuzumemoLoadingLogo } from "./components/SuzumemoLoadingLogo";
+export { SuzumemoLoadingState } from "./components/SuzumemoLoadingState";

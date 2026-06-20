@@ -1,10 +1,11 @@
 import { useQuery } from "convex/react";
-import { Alert, Box, CircularProgress, Stack, Typography } from "@mui/material";
+import { Alert, Box, Stack } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import { ExpenseEntryForm } from "../components/ExpenseEntryForm";
 import { WeekNavigator } from "../../week";
 import { WeekStatusPanel } from "../../week";
 import { useInputPageWeek } from "../hooks/useInputPageWeek";
+import { SuzumemoLoadingState } from "../../ui";
 
 export function InputPage() {
   const {
@@ -23,12 +24,11 @@ export function InputPage() {
 
   if (isLoading && !weekSession) {
     return (
-      <Box className="app-main">
-        <Stack spacing={3} sx={{ alignItems: "center", py: 8 }}>
-          <CircularProgress aria-label="データを読み込み中" />
-          <Typography color="text.secondary">週次セッションを準備しています...</Typography>
-        </Stack>
-      </Box>
+      <SuzumemoLoadingState
+        label="データを読み込み中"
+        message="週次セッションを準備しています…"
+        variant="page"
+      />
     );
   }
 
