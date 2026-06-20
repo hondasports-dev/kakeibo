@@ -2528,10 +2528,7 @@ describe("groups", () => {
       "member-owner",
       expect.objectContaining({ role: "member" }),
     );
-    expect(ctx.db.patch).not.toHaveBeenCalledWith(
-      "member-other-owner",
-      expect.anything(),
-    );
+    expect(ctx.db.patch).not.toHaveBeenCalledWith("member-other-owner", expect.anything());
   });
 
   it("transferGroupOwnershipHandler は member ロールの呼び出しを拒否する", async () => {
