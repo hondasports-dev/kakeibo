@@ -10,7 +10,11 @@ export type GroupManagementAuditLogListItem = {
 };
 
 export function getManagementAuditLogDetailLabel(log: GroupManagementAuditLogListItem): string {
-  if (log.action === "group_name_changed" && log.beforeValue && log.afterValue) {
+  if (
+    (log.action === "group_name_changed" || log.action === "member_role_changed") &&
+    log.beforeValue &&
+    log.afterValue
+  ) {
     return `${log.beforeValue} → ${log.afterValue}`;
   }
 

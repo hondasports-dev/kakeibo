@@ -81,7 +81,7 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | 操作 | 方針 |
 | --- | --- |
 | 自分をグループから外す | 禁止（`assertNotSelfOperator`） |
-| 自分のロール変更 | Phase2 で個別設計（#223） |
+| 自分のロール変更 | **禁止**（`assertNotSelfOperator`）。オーナー譲渡は #222 |
 | 自分へのオーナー譲渡 | Phase2 で個別設計（#222） |
 
 ## 4. 最後の owner 保護（Phase1/Phase2 共通）
@@ -89,7 +89,7 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | ルール | Phase1 実装 | Phase2 実装 |
 | --- | --- | --- |
 | owner ロールの解除禁止 | `assertRemovableGroupMemberRole` | 継続 |
-| 最後の owner の降格禁止 | — | `assertGroupHasMinimumOwners`（#223） |
+| 最後の owner の降格禁止 | — | `assertGroupHasMinimumOwners` + `countGroupOwners`（#223） |
 | オーナー譲渡時の同時更新 | — | #222 |
 
 ## 5. 後続 Issue 実装チェックリスト

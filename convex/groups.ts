@@ -8,6 +8,9 @@ import {
   assertGroupOwnerRole,
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
+  countGroupOwners,
+  GROUP_ADMIN_ERRORS,
+  type GroupAdminRole,
 } from "./groupAdminGuards";
 import { normalizeGroupName } from "./lib/groupName";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
@@ -1208,6 +1211,80 @@ export const removeMember = mutation({
   args: { targetUserId: v.string() },
   returns: v.null(),
   handler: removeMemberHandler,
+});
+
+// ---------------------------------------------------------------------------
+// changeMemberRole: メンバーのロールを変更（オーナーのみ）
+// ---------------------------------------------------------------------------
+
+function formatGroupRoleLabel(role: GroupAdminRole): string {
+  return role === "owner" ? "オーナー" : "メンバー";
+}
+
+export async function changeMemberRoleHandler(
+  ctx: MutationCtx,
+  args: { targetUserId: string; newRole: GroupAdminRole },
+) {
+  const { groupId, userId } = await requireGroupOwner(ctx);
+  assertNotSelfOperator(userId, args.targetUserId);
+
+  const targetMembership = await readQueryDoc(
+    ctx.db
+      .query("groupMembers")
+      .withIndex("by_group_id_and_user_id", (q) =>
+        q.eq("groupId", groupId).eq("userId", args.targetUserId),
+      ),
+  );
+
+  if (targetMembership === null) {
+    throw new ConvexError("指定されたメンバーが見つかりません");
+  }
+
+  const currentRole = targetMembership.role;
+  if (currentRole === args.newRole) {
+    throw new ConvexError("すでに同じロールです");
+  }
+
+  if (currentRole === "owner" && args.newRole === "member") {
+    const ownerCount = await countGroupOwners(ctx, groupId);
+    if (ownerCount <= 1) {
+      throw new ConvexError(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
+    }
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(targetMembership._id, {
+    role: args.newRole,
+    updatedAt: now,
+  });
+
+  const targetUser = await readQueryDoc(
+    ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) => q.eq("userId", args.targetUserId)),
+  );
+  const targetLabel =
+    targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
+
+  await recordManagementAuditLog(ctx, {
+    groupId,
+    actorUserId: userId,
+    action: "member_role_changed",
+    targetKind: "member",
+    targetId: args.targetUserId,
+    targetLabel,
+    beforeValue: formatGroupRoleLabel(currentRole),
+    afterValue: formatGroupRoleLabel(args.newRole),
+  });
+}
+
+export const changeMemberRole = mutation({
+  args: {
+    targetUserId: v.string(),
+    newRole: v.union(v.literal("owner"), v.literal("member")),
+  },
+  returns: v.null(),
+  handler: changeMemberRoleHandler,
 });
 
 // ---------------------------------------------------------------------------
