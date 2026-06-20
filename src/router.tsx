@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import { useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useMutation, useQuery } from "convex/react";
@@ -22,7 +22,6 @@ import {
   useGroupMembership,
 } from "./features/group-admin";
 import { SettingsPage } from "./features/settings";
-import { SummaryPage } from "./features/weekly-summary";
 
 const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
   {
@@ -227,7 +226,18 @@ function GroupRouteGuard() {
   return <AppLayout />;
 }
 
-const appRoutes = [
+function SummaryRouteFallback() {
+  return (
+    <Box className="app-main">
+      <Stack spacing={2} sx={{ alignItems: "center", py: 8 }}>
+        <CircularProgress aria-label="週次サマリーを読み込み中" />
+        <Typography color="text.secondary">週次サマリーを読み込んでいます...</Typography>
+      </Stack>
+    </Box>
+  );
+}
+
+const appRoutes: RouteObject[] = [
   {
     path: "/",
     element: <DashboardPage />,
@@ -238,7 +248,11 @@ const appRoutes = [
   },
   {
     path: "/weeks/:weekStartDate",
-    element: <SummaryPage />,
+    HydrateFallback: SummaryRouteFallback,
+    lazy: async () => {
+      const { SummaryPage } = await import("./features/weekly-summary/pages/SummaryPage");
+      return { Component: SummaryPage };
+    },
   },
   {
     path: "/settings",
