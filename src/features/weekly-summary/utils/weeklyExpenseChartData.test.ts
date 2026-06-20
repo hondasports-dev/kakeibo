@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  buildWeeklyExpenseChartData,
-  formatWeeklyExpenseTooltip,
-} from "./weeklyExpenseChartData";
+import { buildWeeklyExpenseChartData, formatWeeklyExpenseTooltip } from "./weeklyExpenseChartData";
 
 const fourWeeks = [
   { weekStartDate: "2026-05-25", totalAmountYen: 8_000 },
