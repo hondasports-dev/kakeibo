@@ -458,6 +458,8 @@ PR をマージします。
 
 **確認ポイント**
 
+- `e2e.yml` の `VITE_CONVEX_SITE_URL` は `preview-deploy.yml` と同様 **`vars.VITE_CONVEX_SITE_URL`**
+  （staging）を使う。`secrets.VITE_CONVEX_SITE_URL`（dev 向けの古い値）との混在で 401 になる
 - GitHub Actions Secret `E2E_CLEANUP_SECRET` と、Preview が接続する Convex staging deployment
   側の `E2E_CLEANUP_SECRET`（Convex Dashboard 環境変数）が**同一値**か
 - staging deployment に `E2E_CLEANUP_SECRET` が未設定の場合、`convex/http.ts` の E2E エンドポイントは
