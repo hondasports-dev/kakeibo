@@ -63,6 +63,7 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | --- | --- | --- |
 | メンバーのグループ解除 | #217 | Clerk アカウントは削除されないこと |
 | pending 招待取り消し | #219 | 招待が無効になること |
+| オーナー権限譲渡 | #222 | 譲渡先・譲渡後の自分の role・管理操作不可になること |
 
 軽微な変更（グループ名変更 #215）は確認ダイアログ任意。
 
@@ -81,8 +82,8 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | 操作 | 方針 |
 | --- | --- |
 | 自分をグループから外す | 禁止（`assertNotSelfOperator`） |
-| 自分のロール変更 | **禁止**（`assertNotSelfOperator`）。オーナー譲渡は #222 |
-| 自分へのオーナー譲渡 | Phase2 で個別設計（#222） |
+| 自分のロール変更 | **禁止**（`assertNotSelfOperator`）。オーナー譲渡は `transferGroupOwnership`（#222） |
+| 自分へのオーナー譲渡 | **禁止**（`assertNotSelfOperator`） |
 
 ## 4. 最後の owner 保護（Phase1/Phase2 共通）
 
@@ -90,7 +91,7 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | --- | --- | --- |
 | owner ロールの解除禁止 | `assertRemovableGroupMemberRole` | 継続 |
 | 最後の owner の降格禁止 | — | `assertGroupHasMinimumOwners` + `countGroupOwners`（#223） |
-| オーナー譲渡時の同時更新 | — | #222 |
+| オーナー譲渡時の同時更新 | — | `transferGroupOwnership`（#222）。譲渡先を `owner` にしてから譲渡元を `member` に降格 |
 
 ## 5. 後続 Issue 実装チェックリスト
 
@@ -118,4 +119,6 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | --- | --- | --- |
 | メンバー追加 | `addMemberByEmail` + `requireGroupOwner` | `GroupSettingsPanel` 招待フォーム |
 | メンバー解除 | `removeMember` + 共通ガード | `GroupSettingsPanel` + 確認ダイアログ |
+| ロール変更 | `changeMemberRole` + 共通ガード | `GroupMemberList` + 確認ダイアログ |
+| オーナー権限譲渡 | `transferGroupOwnership` + 共通ガード | `GroupSettingsPanel` 危険な操作 + 確認ダイアログ |
 | メンバー招待 | `inviteMember` action + `assertGroupOwnerRole` | `GroupSettingsPanel` 招待フォーム |

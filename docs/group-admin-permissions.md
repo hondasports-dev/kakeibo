@@ -72,8 +72,8 @@
 | メンバーのグループ解除 | 可 | 不可 | Phase1（#217） | 対象は `member` のみ（後述） |
 | active group の切り替え | 可 | 可 | 既存 | 自分が所属するグループに限る |
 | 家計データの閲覧・入力 | 可 | 可 | 既存 | 管理権限とは独立 |
-| オーナー権限譲渡 | 不可 | 不可 | Phase2（#222） | |
-| ロール変更 | 可（自グループ・他メンバー） | 不可 | Phase2（#223） | 自分自身は不可。最後の owner 降格不可 |
+| オーナー権限譲渡 | 可（`member` へ） | 不可 | Phase2（#222 実装済み） | 譲渡元は `member` に降格。`changeMemberRole` とは別 mutation |
+| ロール変更 | 可（自グループ・他メンバー） | 不可 | Phase2（#223 実装済み） | 自分自身は不可。最後の owner 降格不可 |
 | グループ削除 | 不可 | 不可 | Phase2（#224） | |
 | Clerk ユーザー削除 | 不可 | 不可 | Phase2 要否検討（#226） | |
 | アプリ全体管理者操作 | 不可 | 不可 | Phase2 要否検討（#227） | |
@@ -110,15 +110,29 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 以下は Phase1 の UI・mutation・導線に **含めない**。
 プレースホルダや無効化ボタンだけ置く場合も、誤解を招かない文言にする。
 
-| 操作 | Phase2 Issue | 危険度 | Phase1 でやらない理由 |
-| --- | --- | --- | --- |
-| オーナー権限譲渡 | #222 | 高 | 最後の owner 喪失リスク。専用フローと確認が必要 |
-| ロール変更（member ↔ owner） | #223 | 高 | 権限昇格・最後の owner 喪失リスク |
-| グループ削除 | #224 | 高 | 家計データ・所属の一括喪失 |
-| 管理操作の監査ログ | #225 | 中 | Phase1 MVP の必須要件外 |
-| Clerk ユーザー削除 | #226 | 最高 | 認証基盤の破壊的操作。要否から検討 |
-| アプリ全体管理者画面 | #227 | 高 | グループ単位管理とは別プロダクト判断 |
-| 複数グループ横断管理 | #227 | 高 | 同上 |
+| 操作 | Phase2 Issue | 危険度 | Phase1 でやらない理由 | 状態 |
+| --- | --- | --- | --- | --- |
+| ロール変更（member ↔ owner） | #223 | 高 | 権限昇格・最後の owner 喪失リスク | 実装済み |
+| 管理操作の監査ログ | #225 | 中 | Phase1 MVP の必須要件外 | 実装済み |
+| オーナー権限譲渡 | #222 | 高 | 最後の owner 喪失リスク。専用フローと確認が必要 | 実装済み |
+| グループ削除 | #224 | 高 | 家計データ・所属の一括喪失 | 未実装 |
+| Clerk ユーザー削除 | #226 | 最高 | 認証基盤の破壊的操作。要否から検討 | 未実装 |
+| アプリ全体管理者画面 | #227 | 高 | グループ単位管理とは別プロダクト判断 | 未実装 |
+| 複数グループ横断管理 | #227 | 高 | 同上 | 未実装 |
+
+### 6.1 オーナー権限譲渡（#222 実装済み）
+
+`transferGroupOwnership` mutation と危険な操作 UI で提供する。`changeMemberRole` とは責務を分離する。
+
+| ルール | 内容 |
+| --- | --- |
+| 実行権限 | `owner` のみ（`requireGroupOwner`） |
+| 譲渡先 | 同一 active group の `member` ロールのみ。`owner` への昇格は `changeMemberRole` を使う |
+| pending 招待 | `groupMembers` に存在しないため譲渡不可 |
+| 譲渡後の旧 owner | **`member` に降格**（共同 owner 化は譲渡では行わない） |
+| 更新順序 | 譲渡先を `owner` に昇格してから、譲渡元を `member` に降格（最後の owner 不在を避ける） |
+| 監査ログ | `owner_transferred` を記録（#225） |
+| 確認 UI | 現在の owner / 譲渡先 / 譲渡後の旧 owner role を確認ダイアログで表示 |
 
 ## 7. 重要な境界
 
@@ -184,9 +198,9 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 
 | ルール | 内容 | 関連 Issue |
 | --- | --- | --- |
-| 最後の owner の降格禁止 | `owner` → `member` で owner が 0 人になる変更を拒否 | #223 |
+| 最後の owner の降格禁止 | `owner` → `member` で owner が 0 人になる変更を拒否 | #223（`assertGroupHasMinimumOwners`） |
 | 最後の owner のグループ解除禁止 | owner が 1 人のとき、その人を外す操作を拒否 | #217, #222 |
-| オーナー譲渡時の受け渡し | 譲渡先を事前に指定し、譲渡元のロールを同時に更新 | #222 |
+| オーナー譲渡時の受け渡し | 譲渡先を `owner` に昇格し、譲渡元を `member` に降格（同一 mutation） | #222（`transferGroupOwnership`） |
 | グループ削除時の owner 確認 | 削除実行前に owner であることと不可逆性を確認 | #224 |
 
 ### 8.3 エラー方針
@@ -202,6 +216,8 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | --- | --- | --- | --- |
 | メンバー追加 | `convex/groups.ts` `addMemberByEmail` | あり | |
 | メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
+| ロール変更 | `convex/groups.ts` `changeMemberRole` | あり | 最後の owner 保護・監査ログ（#223, #225） |
+| オーナー権限譲渡 | `convex/groups.ts` `transferGroupOwnership` | あり | 譲渡先は member のみ。昇格→降格順（#222, #225） |
 | グループ管理 UI | `src/features/group-admin/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
 | グループ運用手順 | `docs/technical-design.md` 6.3 | — | 本ドキュメントを正本とする |
 
@@ -241,7 +257,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | グループからのメンバー解除と Clerk ユーザー削除が混同されていない | §7.1 + `removeMemberHandler` unit test | [x] |
 | pending 招待の表示・取り消しができる | `GroupPendingInvitationList` + E2E | [x] |
 | 危険操作には確認導線がある | `ConfirmDangerousActionDialog` + E2E | [x] |
-| Phase2 対象機能は M21 の Issue として分離されている | §6 + `danger-zone-section` プレースホルダ | [x] |
+| Phase2 対象機能は M21 の Issue として分離されている | §6 + 危険な操作セクション（#222 譲渡 UI、#224 削除はプレースホルダ） | [x] |
 
 検証コマンド（push 前）:
 
