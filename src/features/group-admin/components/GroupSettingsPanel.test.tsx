@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
@@ -6,6 +6,7 @@ import { GroupSettingsPanel } from "./GroupSettingsPanel";
 
 const {
   cancelPendingGroupInvitationMock,
+  changeMemberRoleMock,
   inviteMemberMock,
   removeMemberMock,
   setActiveGroupMock,
@@ -17,6 +18,7 @@ const {
   useUserMock,
 } = vi.hoisted(() => ({
   cancelPendingGroupInvitationMock: vi.fn(),
+  changeMemberRoleMock: vi.fn(),
   inviteMemberMock: vi.fn(),
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
       listMyGroups: "groups.listMyGroups",
       listPendingGroupInvitations: "groups.listPendingGroupInvitations",
       removeMember: "groups.removeMember",
+      changeMemberRole: "groups.changeMemberRole",
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
     },
@@ -63,6 +66,7 @@ vi.mock("convex/react", () => ({
 describe("GroupSettingsPanel", () => {
   beforeEach(() => {
     cancelPendingGroupInvitationMock.mockReset();
+    changeMemberRoleMock.mockReset();
     inviteMemberMock.mockReset();
     removeMemberMock.mockReset();
     setActiveGroupMock.mockReset();
@@ -81,6 +85,7 @@ describe("GroupSettingsPanel", () => {
     });
     setActiveGroupMock.mockResolvedValue("group-002");
     removeMemberMock.mockResolvedValue(undefined);
+    changeMemberRoleMock.mockResolvedValue(undefined);
     updateGroupNameMock.mockResolvedValue("group-001");
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useUserMock.mockReturnValue({
@@ -102,6 +107,7 @@ describe("GroupSettingsPanel", () => {
     useMutationMock.mockImplementation((reference: string) => {
       if (reference.includes("groups.setActiveGroup")) return setActiveGroupMock;
       if (reference.includes("groups.removeMember")) return removeMemberMock;
+      if (reference.includes("groups.changeMemberRole")) return changeMemberRoleMock;
       if (reference.includes("groups.updateGroupName")) return updateGroupNameMock;
       return vi.fn();
     });
@@ -580,6 +586,30 @@ describe("GroupSettingsPanel", () => {
 
     await waitFor(() => {
       expect(removeMemberMock).toHaveBeenCalledWith({ targetUserId: "user-member" });
+    });
+  });
+
+  it("ロール変更前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupSettingsPanel />);
+
+    await user.click(
+      within(screen.getByTestId("group-member-role-select-user-member")).getByRole("combobox"),
+    );
+    await user.click(await screen.findByRole("option", { name: "オーナー" }));
+
+    expect(
+      screen.getByRole("heading", { name: "メンバーのロールを変更しますか？" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/「メンバー」から「オーナー」/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "ロールを変更する" }));
+
+    await waitFor(() => {
+      expect(changeMemberRoleMock).toHaveBeenCalledWith({
+        targetUserId: "user-member",
+        newRole: "owner",
+      });
     });
   });
 

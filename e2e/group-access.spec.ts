@@ -210,4 +210,46 @@ test.describe("グループアクセス", () => {
     ).toHaveCount(0);
     await expect(page.getByTestId("management-audit-log-section")).toContainText(memberDisplayName);
   });
+
+  test("@smoke @group-access owner はメンバーのロール変更を確認ダイアログ経由で実行できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+
+    const memberDisplayName = "E2Eロール変更対象";
+    const memberEmail = "e2e-role-change-member@example.com";
+    const { memberUserId } = await seedGroupMemberForUser(
+      currentUserId,
+      memberDisplayName,
+      memberEmail,
+    );
+    seededMemberUserIdForCleanup = memberUserId;
+
+    await page.reload();
+    await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
+
+    const roleSelect = page.getByLabel(`${memberDisplayName}のロール`);
+    await roleSelect.click();
+    await page.getByRole("option", { name: "オーナー" }).click();
+
+    await expect(
+      page.getByRole("heading", { name: "メンバーのロールを変更しますか？" }),
+    ).toBeVisible();
+    await expect(page.getByText("「メンバー」から「オーナー」")).toBeVisible();
+    await page.getByRole("button", { name: "ロールを変更する" }).click();
+
+    await expect(page.getByText("メンバーのロールを変更しました")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(roleSelect).toHaveText("オーナー");
+    await expect(page.getByTestId("management-audit-log-section")).toContainText(
+      "メンバーのロールを変更",
+    );
+    await expect(page.getByTestId("management-audit-log-section")).toContainText(
+      "メンバー → オーナー",
+    );
+  });
 });

@@ -48,11 +48,18 @@ type PendingCancelInvitation = {
   email: string;
 };
 
-const PHASE2_DANGER_OPERATIONS = [
-  "オーナー権限の譲渡",
-  "メンバーのロール変更",
-  "グループの削除",
-] as const;
+type PendingRoleChange = {
+  userId: string;
+  displayLabel: string;
+  currentRole: "owner" | "member";
+  newRole: "owner" | "member";
+};
+
+const PHASE2_DANGER_OPERATIONS = ["オーナー権限の譲渡", "グループの削除"] as const;
+
+function formatRoleLabel(role: "owner" | "member") {
+  return role === "owner" ? "オーナー" : "メンバー";
+}
 
 function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
@@ -76,6 +83,7 @@ export function GroupSettingsPanel() {
   ) as GroupManagementAuditLogListItem[] | undefined;
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
+  const changeMemberRole = useMutation(api.groups.changeMemberRole);
   const updateGroupName = useMutation(api.groups.updateGroupName);
   const inviteMember = useAction(api.groupInvitations.inviteMember);
   const cancelPendingGroupInvitation = useAction(api.groupInvitations.cancelPendingGroupInvitation);
@@ -89,9 +97,11 @@ export function GroupSettingsPanel() {
   const [pendingRemoveMember, setPendingRemoveMember] = useState<PendingRemoveMember | null>(null);
   const [pendingCancelInvitation, setPendingCancelInvitation] =
     useState<PendingCancelInvitation | null>(null);
+  const [pendingRoleChange, setPendingRoleChange] = useState<PendingRoleChange | null>(null);
 
   const groupId = group?._id;
   const groupName = group?.name;
+  const ownerCount = members?.filter((member) => member.role === "owner").length ?? 0;
 
   useEffect(() => {
     if (groupId && groupName !== undefined) {
@@ -259,6 +269,45 @@ export function GroupSettingsPanel() {
     }
   };
 
+  const handleRequestRoleChange = (
+    member: GroupMemberListItem,
+    newRole: "owner" | "member",
+    displayLabel: string,
+  ) => {
+    setPendingRoleChange({
+      userId: member.userId,
+      displayLabel,
+      currentRole: member.role,
+      newRole,
+    });
+  };
+
+  const handleCancelRoleChange = () => {
+    if (savingTarget !== null) {
+      return;
+    }
+    setPendingRoleChange(null);
+  };
+
+  const handleConfirmRoleChange = async () => {
+    if (!pendingRoleChange) {
+      return;
+    }
+
+    const { userId: targetUserId, newRole } = pendingRoleChange;
+    setSavingTarget(targetUserId);
+    setError("");
+    try {
+      await changeMemberRole({ targetUserId, newRole });
+      setPendingRoleChange(null);
+      setSnackbar("メンバーのロールを変更しました");
+    } catch (caughtError) {
+      setError(getErrorMessage(caughtError, "ロールを変更できませんでした。"));
+    } finally {
+      setSavingTarget(null);
+    }
+  };
+
   return (
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
@@ -355,7 +404,7 @@ export function GroupSettingsPanel() {
           <GroupSettingsSection
             description={
               isOwner
-                ? "所属メンバーを確認し、必要に応じてグループから外します。"
+                ? "所属メンバーを確認し、ロール変更やグループからの除外を行います。"
                 : "所属メンバーを確認できます。メンバーの追加・削除はオーナーのみ操作できます。"
             }
             testId="member-management-section"
@@ -367,6 +416,8 @@ export function GroupSettingsPanel() {
               isOwner={isOwner}
               members={members}
               onRequestRemove={isOwner ? handleRequestRemoveMember : undefined}
+              onRequestRoleChange={isOwner ? handleRequestRoleChange : undefined}
+              ownerCount={ownerCount}
               savingTarget={savingTarget}
             />
           </GroupSettingsSection>
@@ -455,6 +506,21 @@ export function GroupSettingsPanel() {
           ) : null}
         </Stack>
       </Box>
+
+      <ConfirmDangerousActionDialog
+        cancelLabel="戻る"
+        confirmLabel="ロールを変更する"
+        confirming={pendingRoleChange !== null && savingTarget === pendingRoleChange.userId}
+        description={
+          pendingRoleChange
+            ? `${pendingRoleChange.displayLabel} のロールを「${formatRoleLabel(pendingRoleChange.currentRole)}」から「${formatRoleLabel(pendingRoleChange.newRole)}」に変更します。`
+            : ""
+        }
+        onCancel={handleCancelRoleChange}
+        onConfirm={() => void handleConfirmRoleChange()}
+        open={pendingRoleChange !== null}
+        title="メンバーのロールを変更しますか？"
+      />
 
       <ConfirmDangerousActionDialog
         confirmLabel="グループから外す"

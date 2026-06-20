@@ -5,9 +5,11 @@ import {
   CircularProgress,
   IconButton,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
+import MenuItem from "@mui/material/MenuItem";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
   getMemberInitial,
@@ -22,17 +24,29 @@ type GroupMemberListProps = {
   isOwner: boolean;
   currentUserId: string | null | undefined;
   currentUserDisplayName: string | null;
+  ownerCount: number;
   savingTarget: string | null;
   onRequestRemove?: (member: GroupMemberListItem, displayLabel: string) => void;
+  onRequestRoleChange?: (
+    member: GroupMemberListItem,
+    newRole: "owner" | "member",
+    displayLabel: string,
+  ) => void;
 };
+
+function formatRoleLabel(role: "owner" | "member") {
+  return role === "owner" ? "オーナー" : "メンバー";
+}
 
 export function GroupMemberList({
   members,
   isOwner,
   currentUserId,
   currentUserDisplayName,
+  ownerCount,
   savingTarget,
   onRequestRemove,
+  onRequestRoleChange,
 }: GroupMemberListProps) {
   if (members.length === 0) {
     return (
@@ -62,6 +76,12 @@ export function GroupMemberList({
           isCurrentUser ? currentUserDisplayName : null,
         );
         const secondaryLabel = getMemberSecondaryLabel(member, primaryLabel);
+        const canChangeRole =
+          isOwner &&
+          !isCurrentUser &&
+          onRequestRoleChange !== undefined &&
+          !(member.role === "owner" && ownerCount <= 1);
+        const roleSelectDisabled = savingTarget !== null || !canChangeRole;
 
         return (
           <Box className="group-member-row" component="li" key={member.userId}>
@@ -82,12 +102,43 @@ export function GroupMemberList({
               </Box>
             </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-              <Chip
-                color={member.role === "owner" ? "primary" : "secondary"}
-                label={member.role === "owner" ? "オーナー" : "メンバー"}
-                size="small"
-                variant={member.role === "owner" ? "filled" : "outlined"}
-              />
+              {isOwner && onRequestRoleChange ? (
+                <Tooltip
+                  title={
+                    canChangeRole
+                      ? "ロールを変更"
+                      : isCurrentUser
+                        ? "自分のロールはここでは変更できません"
+                        : "最後のオーナーは変更できません"
+                  }
+                >
+                  <TextField
+                    aria-label={`${primaryLabel}のロール`}
+                    data-testid={`group-member-role-select-${member.userId}`}
+                    disabled={roleSelectDisabled}
+                    onChange={(event) => {
+                      const newRole = event.target.value as "owner" | "member";
+                      if (newRole !== member.role) {
+                        onRequestRoleChange(member, newRole, primaryLabel);
+                      }
+                    }}
+                    select
+                    size="small"
+                    sx={{ minWidth: 120 }}
+                    value={member.role}
+                  >
+                    <MenuItem value="owner">{formatRoleLabel("owner")}</MenuItem>
+                    <MenuItem value="member">{formatRoleLabel("member")}</MenuItem>
+                  </TextField>
+                </Tooltip>
+              ) : (
+                <Chip
+                  color={member.role === "owner" ? "primary" : "secondary"}
+                  label={formatRoleLabel(member.role)}
+                  size="small"
+                  variant={member.role === "owner" ? "filled" : "outlined"}
+                />
+              )}
               {isOwner && onRequestRemove ? (
                 <Tooltip title={canRemove ? "グループから外す" : "外せません"}>
                   <span>

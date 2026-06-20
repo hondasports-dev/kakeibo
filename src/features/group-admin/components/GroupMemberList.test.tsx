@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
@@ -31,6 +31,7 @@ describe("GroupMemberList", () => {
         isOwner
         members={members}
         onRequestRemove={vi.fn()}
+        ownerCount={1}
         savingTarget={null}
       />,
     );
@@ -50,6 +51,7 @@ describe("GroupMemberList", () => {
         currentUserId="owner-clerk-id"
         isOwner
         members={[]}
+        ownerCount={0}
         savingTarget={null}
       />,
     );
@@ -66,6 +68,7 @@ describe("GroupMemberList", () => {
         currentUserId="user-member"
         isOwner={false}
         members={members}
+        ownerCount={1}
         savingTarget={null}
       />,
     );
@@ -86,6 +89,7 @@ describe("GroupMemberList", () => {
         isOwner
         members={members}
         onRequestRemove={onRequestRemove}
+        ownerCount={1}
         savingTarget={null}
       />,
     );
@@ -102,10 +106,49 @@ describe("GroupMemberList", () => {
         isOwner
         members={members}
         onRequestRemove={vi.fn()}
+        ownerCount={1}
         savingTarget={null}
       />,
     );
 
     expect(screen.getByRole("button", { name: "ログイン 太郎をグループから外す" })).toBeDisabled();
+  });
+
+  it("owner は他メンバーのロール変更を要求できる", async () => {
+    const user = userEvent.setup();
+    const onRequestRoleChange = vi.fn();
+
+    renderWithProviders(
+      <GroupMemberList
+        currentUserDisplayName="ログイン 太郎"
+        currentUserId="owner-clerk-id"
+        isOwner
+        members={members}
+        onRequestRoleChange={onRequestRoleChange}
+        ownerCount={1}
+        savingTarget={null}
+      />,
+    );
+
+    await user.click(
+      within(screen.getByTestId("group-member-role-select-user-member")).getByRole("combobox"),
+    );
+    await user.click(await screen.findByRole("option", { name: "オーナー" }));
+    expect(onRequestRoleChange).toHaveBeenCalledWith(members[1], "owner", "メンバー");
+  });
+
+  it("member にはロール変更 UI を表示しない", () => {
+    renderWithProviders(
+      <GroupMemberList
+        currentUserDisplayName={null}
+        currentUserId="user-member"
+        isOwner={false}
+        members={members}
+        ownerCount={1}
+        savingTarget={null}
+      />,
+    );
+
+    expect(screen.queryByLabelText(/のロール$/)).not.toBeInTheDocument();
   });
 });
