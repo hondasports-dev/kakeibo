@@ -15,6 +15,25 @@ async function readQueryDoc<T>(queryHandle: {
   return await queryHandle.unique();
 }
 
+async function loadActorDisplayNamesByUserId(
+  ctx: QueryCtx,
+  actorUserIds: string[],
+): Promise<Map<string, string>> {
+  const uniqueActorUserIds = [...new Set(actorUserIds)];
+  const actorDisplayNamesByUserId = new Map<string, string>();
+
+  await Promise.all(
+    uniqueActorUserIds.map(async (actorUserId) => {
+      const actor = await readQueryDoc(
+        ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", actorUserId)),
+      );
+      actorDisplayNamesByUserId.set(actorUserId, actor?.displayName ?? "ユーザー");
+    }),
+  );
+
+  return actorDisplayNamesByUserId;
+}
+
 export async function listManagementAuditLogsHandler(ctx: QueryCtx) {
   const { groupId } = await requireGroupOwner(ctx);
 
@@ -24,26 +43,21 @@ export async function listManagementAuditLogsHandler(ctx: QueryCtx) {
     .order("desc")
     .take(MANAGEMENT_AUDIT_LOG_LIST_LIMIT);
 
-  return await Promise.all(
-    logs.map(async (log) => {
-      const actor = await readQueryDoc(
-        ctx.db
-          .query("users")
-          .withIndex("by_token_identifier", (q) => q.eq("userId", log.actorUserId)),
-      );
-
-      return {
-        _id: log._id,
-        action: log.action,
-        actionLabel: MANAGEMENT_AUDIT_ACTION_LABELS[log.action],
-        actorDisplayName: actor?.displayName ?? "ユーザー",
-        targetLabel: log.targetLabel ?? null,
-        beforeValue: log.beforeValue ?? null,
-        afterValue: log.afterValue ?? null,
-        createdAt: log.createdAt,
-      };
-    }),
+  const actorDisplayNamesByUserId = await loadActorDisplayNamesByUserId(
+    ctx,
+    logs.map((log) => log.actorUserId),
   );
+
+  return logs.map((log) => ({
+    _id: log._id,
+    action: log.action,
+    actionLabel: MANAGEMENT_AUDIT_ACTION_LABELS[log.action],
+    actorDisplayName: actorDisplayNamesByUserId.get(log.actorUserId) ?? "ユーザー",
+    targetLabel: log.targetLabel ?? null,
+    beforeValue: log.beforeValue ?? null,
+    afterValue: log.afterValue ?? null,
+    createdAt: log.createdAt,
+  }));
 }
 
 export const listManagementAuditLogs = query({

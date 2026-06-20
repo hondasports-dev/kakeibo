@@ -351,4 +351,87 @@ describe("listManagementAuditLogsHandler", () => {
     expect(logs).toHaveLength(MANAGEMENT_AUDIT_LOG_LIST_LIMIT);
     expect(logs[0]?.createdAt).toBe(1000 + MANAGEMENT_AUDIT_LOG_LIST_LIMIT + 4);
   });
+
+  it("同一 actorUserId のログはユーザー lookup を重複しない", async () => {
+    const actorA = "https://issuer.example|owner-a";
+    const actorB = "https://issuer.example|owner-b";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: groupId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-a" as Id<"users">,
+          userId: actorA,
+          displayName: "Actor A",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-b" as Id<"users">,
+          userId: actorB,
+          displayName: "Actor B",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      managementAuditLogs: [
+        {
+          _id: "log-001" as Id<"managementAuditLogs">,
+          groupId,
+          actorUserId: actorA,
+          action: "group_name_changed",
+          targetKind: "group",
+          createdAt: 3000,
+        },
+        {
+          _id: "log-002" as Id<"managementAuditLogs">,
+          groupId,
+          actorUserId: actorA,
+          action: "member_removed",
+          targetKind: "member",
+          createdAt: 2000,
+        },
+        {
+          _id: "log-003" as Id<"managementAuditLogs">,
+          groupId,
+          actorUserId: actorB,
+          action: "invitation_revoked",
+          targetKind: "invitation",
+          createdAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    const userQueryCountBefore = ctx.db.query.mock.calls.filter(
+      ([tableName]) => tableName === "users",
+    ).length;
+
+    const logs = await listManagementAuditLogsHandler(ctx);
+
+    const userQueryCountAfter = ctx.db.query.mock.calls.filter(
+      ([tableName]) => tableName === "users",
+    ).length;
+
+    expect(logs).toHaveLength(3);
+    expect(logs.map((log) => log.actorDisplayName)).toEqual(["Actor A", "Actor A", "Actor B"]);
+    // requireGroupOwner の users lookup 1 回 + 重複排除後の actor lookup 2 回
+    expect(userQueryCountAfter - userQueryCountBefore).toBe(1 + new Set([actorA, actorB]).size);
+  });
 });
