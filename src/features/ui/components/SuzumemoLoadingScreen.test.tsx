@@ -68,4 +68,23 @@ describe("Suzumemo loading Lottie", () => {
 
     expect(css).toContain("width: min(600px, 100%)");
   });
+
+  it("Suzumemoのカラーパレットで半透明のオーバーレイとパネルを描画する", () => {
+    const css = readFileSync(
+      resolve("src/features/ui/components/SuzumemoLoadingScreen.css"),
+      "utf8",
+    );
+    const overlay = css.match(/\.suzumemo-loading-screen\s*\{(?<rules>[^}]*)\}/)?.groups?.rules;
+    const panel = css.match(/\.suzumemo-loading-panel\s*\{(?<rules>[^}]*)\}/)?.groups?.rules;
+
+    expect(overlay).toContain("position: fixed");
+    expect(overlay).toContain("inset: 0");
+    expect(overlay).toContain("box-sizing: border-box");
+    expect(overlay).toContain("var(--color-primary-dark)");
+    expect(overlay).toContain("68%");
+    expect(overlay).toContain("transparent");
+    expect(panel).toContain("var(--color-brand-paper)");
+    expect(panel).toContain("82%");
+    expect(panel).toContain("transparent");
+  });
 });
