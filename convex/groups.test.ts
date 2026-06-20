@@ -3,6 +3,8 @@ import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import * as groupAdminGuards from "./groupAdminGuards";
+import { GROUP_ADMIN_ERRORS } from "./groupAdminGuards";
 import {
   acceptGroupInvitationForVerifiedEmailsHandler,
   acceptGroupInvitationHandler,
@@ -2290,6 +2292,62 @@ describe("groups", () => {
       "member-other-owner",
       expect.objectContaining({ role: "member" }),
     );
+  });
+
+  it("changeMemberRoleHandler は最後の owner の降格を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const otherOwnerId = "https://issuer.example|other-owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "操作者",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-other-owner" as Id<"users">,
+          userId: otherOwnerId,
+          displayName: "共同オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-operator" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: otherOwnerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    const guardSpy = vi
+      .spyOn(groupAdminGuards, "assertGroupHasMinimumOwners")
+      .mockRejectedValue(new ConvexError(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED));
+
+    await expect(
+      changeMemberRoleHandler(ctx, { targetUserId: otherOwnerId, newRole: "member" }),
+    ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
+    expect(guardSpy).toHaveBeenCalledWith(ctx, "group-001", 2);
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+
+    guardSpy.mockRestore();
   });
 
   it("changeMemberRoleHandler は同じロールへの変更を拒否する", async () => {
