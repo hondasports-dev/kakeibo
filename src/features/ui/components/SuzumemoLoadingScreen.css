@@ -8,7 +8,7 @@
   overflow: auto;
   place-items: center;
   padding: var(--space-xl);
-  background: color-mix(in srgb, var(--color-primary-dark) 68%, transparent);
+  background: color-mix(in srgb, var(--color-brand-paper) 82%, transparent);
   backdrop-filter: blur(6px);
 }
 
@@ -21,11 +21,7 @@
   padding: var(--space-lg);
   color: var(--color-text-primary);
   text-align: center;
-  background: color-mix(in srgb, var(--color-brand-paper) 82%, transparent);
-  border: 1px solid color-mix(in srgb, var(--color-brand-paper) 46%, transparent);
-  border-radius: var(--radius-md);
-  box-shadow: 0 16px 48px rgb(61 44 34 / 18%);
-  backdrop-filter: blur(10px);
+  background: transparent;
 }
 
 .suzumemo-loading-stage {
@@ -45,12 +41,58 @@
   object-fit: contain;
 }
 
-.suzumemo-loading-wordmark {
-  animation: suzumemo-logo-rise 3s ease-in-out infinite;
+.suzumemo-loading-letter {
+  animation-duration: 3s;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
 }
 
-.suzumemo-loading-subtitle {
-  animation: suzumemo-subtitle-rise 3s ease-in-out infinite;
+.suzumemo-loading-wordmark-wave-1 {
+  animation-name: suzumemo-wordmark-wave-1;
+}
+
+.suzumemo-loading-wordmark-wave-2 {
+  animation-name: suzumemo-wordmark-wave-2;
+}
+
+.suzumemo-loading-wordmark-wave-3 {
+  animation-name: suzumemo-wordmark-wave-3;
+}
+
+.suzumemo-loading-wordmark-wave-4 {
+  animation-name: suzumemo-wordmark-wave-4;
+}
+
+.suzumemo-loading-wordmark-wave-5 {
+  animation-name: suzumemo-wordmark-wave-5;
+}
+
+.suzumemo-loading-wordmark-wave-6 {
+  animation-name: suzumemo-wordmark-wave-6;
+}
+
+.suzumemo-loading-wordmark-wave-7 {
+  animation-name: suzumemo-wordmark-wave-7;
+}
+
+.suzumemo-loading-wordmark-wave-8 {
+  animation-name: suzumemo-wordmark-wave-8;
+}
+
+.suzumemo-loading-subtitle-wave-1 {
+  animation-name: suzumemo-subtitle-wave-1;
+}
+
+.suzumemo-loading-subtitle-wave-2 {
+  animation-name: suzumemo-subtitle-wave-2;
+}
+
+.suzumemo-loading-subtitle-wave-3 {
+  animation-name: suzumemo-subtitle-wave-3;
+}
+
+.suzumemo-loading-subtitle-wave-4 {
+  animation-name: suzumemo-subtitle-wave-4;
 }
 
 .suzumemo-loading-leaf-left {
@@ -63,16 +105,11 @@
   transform-origin: 76.7% 86.3%;
 }
 
-.suzumemo-loading-dot {
-  animation: suzumemo-dot-glow 3s ease-in-out infinite;
-  transform-origin: 91.7% 44.1%;
-}
-
 @keyframes suzumemo-left-leaf {
   0%,
   3% {
     opacity: 0;
-    transform: translateX(2.2%) scale(0.12) rotate(18deg);
+    transform: translateX(-4%) scale(0.12) rotate(-18deg);
   }
   12% {
     opacity: 1;
@@ -93,7 +130,7 @@
   0%,
   5% {
     opacity: 0;
-    transform: translateX(-2.2%) scale(0.12) rotate(-18deg);
+    transform: translateX(4%) scale(0.12) rotate(18deg);
   }
   16% {
     opacity: 1;
@@ -110,69 +147,215 @@
   }
 }
 
-@keyframes suzumemo-logo-rise {
+@keyframes suzumemo-wordmark-wave-1 {
   0%,
-  9% {
+  12% {
     opacity: 0;
-    transform: translateY(10px);
+    filter: blur(2px);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-wordmark-wave-2 {
+  0%,
+  16% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  24%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-wordmark-wave-3 {
+  0%,
+  18% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  26%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-wordmark-wave-4 {
+  0%,
+  20% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  28%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-wordmark-wave-5 {
+  0%,
+  22% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  30%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-wordmark-wave-6 {
+  0%,
+  24% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  32%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-wordmark-wave-7 {
+  0%,
+  26% {
+    opacity: 0;
+    filter: blur(2px);
   }
   34%,
   80% {
     opacity: 1;
-    transform: translateY(0);
+    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
-@keyframes suzumemo-subtitle-rise {
+@keyframes suzumemo-wordmark-wave-8 {
   0%,
-  16% {
+  28% {
     opacity: 0;
-    transform: translateY(9px);
+    filter: blur(2px);
+  }
+  36%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-subtitle-wave-1 {
+  0%,
+  32% {
+    opacity: 0;
+    filter: blur(2px);
   }
   40%,
   80% {
     opacity: 1;
-    transform: translateY(0);
+    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: translateY(0);
+    filter: blur(0);
   }
 }
 
-@keyframes suzumemo-dot-glow {
+@keyframes suzumemo-subtitle-wave-2 {
   0%,
-  28% {
+  34% {
     opacity: 0;
-    transform: scale(0.72);
-    filter: drop-shadow(0 0 0 transparent);
+    filter: blur(2px);
   }
-  46% {
-    opacity: 1;
-    transform: scale(1.18);
-    filter: drop-shadow(0 0 12px rgb(255 255 255 / 70%));
-  }
-  58%,
+  42%,
   80% {
     opacity: 1;
-    transform: scale(1);
-    filter: drop-shadow(0 0 4px rgb(255 255 255 / 32%));
+    filter: blur(0);
   }
   100% {
     opacity: 0;
-    transform: scale(1);
-    filter: drop-shadow(0 0 0 transparent);
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-subtitle-wave-3 {
+  0%,
+  36% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  44%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
+  }
+}
+
+@keyframes suzumemo-subtitle-wave-4 {
+  0%,
+  38% {
+    opacity: 0;
+    filter: blur(2px);
+  }
+  46%,
+  80% {
+    opacity: 1;
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    filter: blur(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .suzumemo-loading-layer {
-    animation: none;
+    animation: none !important;
     opacity: 1;
     transform: none;
+    filter: none;
   }
 }
