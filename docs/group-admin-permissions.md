@@ -227,3 +227,28 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 - [x] owner/member の権限差が整理されている（セクション 4）
 - [x] Phase1 で実装しない危険操作が明記されている（セクション 6）
 - [x] 後続 Issue がこの方針を参照できる（セクション 10）
+
+## 12. 受け入れ確認（#209）
+
+親 Issue [#209](https://github.com/hondasports/kakeibo/issues/209) の受け入れ条件。
+子 Issue #212–#220 の完了後、以下で Phase1 MVP の受け入れを確認する。
+
+| 受け入れ条件 | 確認方法 | 状態 |
+| --- | --- | --- |
+| owner はグループ管理画面でグループ情報・メンバー・pending 招待を確認できる | `GroupSettingsPanel` UI + `e2e/group-access.spec.ts` | [x] |
+| owner は Phase1 対象の管理操作を実行できる | `convex/groups.ts` mutations + E2E smoke | [x] |
+| member は管理操作を実行できない | UI 非表示 + `GroupSettingsPanel.test.tsx` | [x] |
+| member が直接 mutation を呼んでも拒否される | `convex/groups.test.ts` Phase1 owner-only permissions | [x] |
+| グループからのメンバー解除と Clerk ユーザー削除が混同されていない | §7.1 + `removeMemberHandler` unit test | [x] |
+| pending 招待の表示・取り消しができる | `GroupPendingInvitationList` + E2E | [x] |
+| 危険操作には確認導線がある | `ConfirmDangerousActionDialog` + E2E | [x] |
+| Phase2 対象機能は M21 の Issue として分離されている | §6 + `danger-zone-section` プレースホルダ | [x] |
+
+検証コマンド（push 前）:
+
+```bash
+pnpm test --run
+pnpm run lint && pnpm run format:check && pnpm run build
+# Clerk 資格情報がある環境のみ
+pnpm exec playwright test e2e/group-access.spec.ts --grep @group-access
+```
