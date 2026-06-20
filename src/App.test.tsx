@@ -73,7 +73,7 @@ describe("App authentication states", () => {
     useUserMock.mockReturnValue({ user: null });
   });
 
-  it("Clerkの読み込み中はログイン状態確認画面を表示する", () => {
+  it("Clerkの読み込み中は葉のロゴ付きローディング画面を表示する", () => {
     // Given: Clerkの認証状態がまだ読み込み中
     useAuthMock.mockReturnValue({ isLoaded: false, isSignedIn: false });
     useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
@@ -81,7 +81,9 @@ describe("App authentication states", () => {
     // When: アプリを表示する
     renderWithProviders(<App />);
 
-    // Then: ログイン状態確認中の表示になる
+    // Then: ロゴの葉を含むアクセシブルなローディング表示になる
+    expect(screen.getByRole("status", { name: "ログイン状態を確認中" })).toBeInTheDocument();
+    expect(screen.getAllByTestId("suzumemo-loading-leaf")).toHaveLength(2);
     expect(screen.getByText("ログイン状態を確認しています。")).toBeInTheDocument();
   });
 
@@ -107,7 +109,8 @@ describe("App authentication states", () => {
     // When: アプリを表示する
     renderWithProviders(<App />);
 
-    // Then: データ同期の認証状態確認が表示される
+    // Then: データ同期用のローディング表示になる
+    expect(screen.getByRole("status", { name: "Convex認証状態を確認中" })).toBeInTheDocument();
     expect(screen.getByText("データ同期の認証状態を確認しています。")).toBeInTheDocument();
   });
 

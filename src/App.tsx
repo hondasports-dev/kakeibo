@@ -14,6 +14,7 @@ import {
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { getClerkErrorMessage, useInitializeUser } from "./features/auth";
+import { SuzumemoLoadingScreen } from "./features/ui";
 import { router } from "./router";
 import {
   E2E_APP_ERROR_BOUNDARY_PATH,
@@ -79,15 +80,10 @@ function AuthenticatedApp() {
 
   if (!isLoaded) {
     return (
-      <Box className="auth-screen">
-        <Paper className="auth-panel paper-panel" elevation={0}>
-          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-            <AuthBrand />
-            <CircularProgress aria-label="ログイン状態を確認中" />
-            <Typography color="text.secondary">ログイン状態を確認しています。</Typography>
-          </Stack>
-        </Paper>
-      </Box>
+      <SuzumemoLoadingScreen
+        label="ログイン状態を確認中"
+        message="ログイン状態を確認しています。"
+      />
     );
   }
 
@@ -97,15 +93,10 @@ function AuthenticatedApp() {
 
   if (isConvexAuthLoading) {
     return (
-      <Box className="auth-screen">
-        <Paper className="auth-panel paper-panel" elevation={0}>
-          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-            <AuthBrand />
-            <CircularProgress aria-label="Convex認証状態を確認中" />
-            <Typography color="text.secondary">データ同期の認証状態を確認しています。</Typography>
-          </Stack>
-        </Paper>
-      </Box>
+      <SuzumemoLoadingScreen
+        label="Convex認証状態を確認中"
+        message="データ同期の認証状態を確認しています。"
+      />
     );
   }
 
