@@ -233,7 +233,7 @@ test.describe("グループアクセス", () => {
 
     const roleSelect = page.getByTestId(`group-member-role-select-${memberUserId}`);
     await roleSelect.getByRole("combobox").click();
-    await page.getByRole("option", { name: "オーナー" }).click();
+    await page.locator('[role="listbox"] [data-value="owner"]').click();
 
     await expect(
       page.getByRole("heading", { name: "メンバーのロールを変更しますか？" }),

@@ -81,7 +81,6 @@ export function GroupMemberList({
           !isCurrentUser &&
           onRequestRoleChange !== undefined &&
           !(member.role === "owner" && ownerCount <= 1);
-        const roleSelectDisabled = savingTarget !== null || !canChangeRole;
 
         return (
           <Box className="group-member-row" component="li" key={member.userId}>
@@ -103,19 +102,11 @@ export function GroupMemberList({
             </Stack>
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               {isOwner && onRequestRoleChange ? (
-                <Tooltip
-                  title={
-                    canChangeRole
-                      ? "ロールを変更"
-                      : isCurrentUser
-                        ? "自分のロールはここでは変更できません"
-                        : "最後のオーナーは変更できません"
-                  }
-                >
+                canChangeRole ? (
                   <TextField
                     aria-label={`${primaryLabel}のロール`}
                     data-testid={`group-member-role-select-${member.userId}`}
-                    disabled={roleSelectDisabled}
+                    disabled={savingTarget !== null}
                     onChange={(event) => {
                       const newRole = event.target.value as "owner" | "member";
                       if (newRole !== member.role) {
@@ -130,7 +121,28 @@ export function GroupMemberList({
                     <MenuItem value="owner">{formatRoleLabel("owner")}</MenuItem>
                     <MenuItem value="member">{formatRoleLabel("member")}</MenuItem>
                   </TextField>
-                </Tooltip>
+                ) : (
+                  <Tooltip
+                    title={
+                      isCurrentUser
+                        ? "自分のロールはここでは変更できません"
+                        : "最後のオーナーは変更できません"
+                    }
+                  >
+                    <TextField
+                      aria-label={`${primaryLabel}のロール`}
+                      data-testid={`group-member-role-select-${member.userId}`}
+                      disabled
+                      select
+                      size="small"
+                      sx={{ minWidth: 120 }}
+                      value={member.role}
+                    >
+                      <MenuItem value="owner">{formatRoleLabel("owner")}</MenuItem>
+                      <MenuItem value="member">{formatRoleLabel("member")}</MenuItem>
+                    </TextField>
+                  </Tooltip>
+                )
               ) : (
                 <Chip
                   color={member.role === "owner" ? "primary" : "secondary"}
