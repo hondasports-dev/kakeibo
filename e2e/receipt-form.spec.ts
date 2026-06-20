@@ -711,7 +711,7 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await expect(
       page
         .getByRole("img", { name: "週別支出推移グラフ" })
-        .or(page.getByText("今週または前週の支出データがあると表示されます")),
+        .or(page.getByText("週別の支出データがあると表示されます")),
     ).toBeVisible({ timeout: 20_000 });
     await expect(page.getByRole("button", { name: "次の週へ" })).toBeDisabled();
 
@@ -904,10 +904,10 @@ test.describe("振り返りメモとセッション完了（Issue #16 受け入�
 });
 
 // ---------------------------------------------------------------------------
-// 週別支出推移グラフ（Issue #47）
+// 週別支出推移グラフ（Issue #47, #232）
 // ---------------------------------------------------------------------------
 
-test.describe("週別支出推移グラフ（Issue #47）", () => {
+test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.afterEach(async ({ page }) => {
@@ -927,9 +927,7 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
     });
   });
 
-  test("[Issue #47] データが1週のみの場合プレースホルダーテキストが表示される @smoke", async ({
-    page,
-  }) => {
+  test("[Issue #232] 週別棒グラフまたは空状態が表示される @smoke", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
@@ -938,7 +936,7 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
     await expect(
       page
         .getByRole("img", { name: "週別支出推移グラフ" })
-        .or(page.getByText("今週または前週の支出データがあると表示されます")),
+        .or(page.getByText("週別の支出データがあると表示されます")),
     ).toBeVisible({ timeout: 20_000 });
   });
 
@@ -960,30 +958,23 @@ test.describe("週別支出推移グラフ（Issue #47）", () => {
     await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test("[Issue #82] 週次サマリーページで折れ線グラフが表示されクリックでモーダルが開く", async ({
-    page,
-  }) => {
+  test("[Issue #232] 週別棒グラフに対象週の要約が表示される", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
-    // 折れ線グラフが表示される（またはプレースホルダー）
+    // 週別棒グラフが表示される（またはプレースホルダー）
     await expect(
       page
         .getByRole("img", { name: "週別支出推移グラフ" })
-        .or(page.getByText("今週または前週の支出データがあると表示されます")),
+        .or(page.getByText("週別の支出データがあると表示されます")),
     ).toBeVisible({ timeout: 20_000 });
 
-    // グラフが表示されている場合のみクリックテストを行う
+    // データがある場合はグラフだけでなく要約も読める
     const graph = page.getByRole("img", { name: "週別支出推移グラフ" });
     if (await graph.isVisible().catch(() => false)) {
-      // データポイント（circle）をクリック
-      const point = graph.locator("circle").first();
-      await point.click();
-
-      // モーダルが表示される
-      await expect(page.getByRole("dialog")).toBeVisible();
-      await expect(page.getByText("の入出金比較")).toBeVisible();
+      await expect(page.getByText("対象週の支出")).toBeVisible();
+      await expect(page.getByText("2週平均比")).toBeVisible();
     }
   });
 });
