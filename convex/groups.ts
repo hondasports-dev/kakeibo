@@ -9,6 +9,7 @@ import {
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
   assertGroupHasMinimumOwners,
+  GROUP_ADMIN_ERRORS,
   type GroupAdminRole,
 } from "./groupAdminGuards";
 import { normalizeGroupName } from "./lib/groupName";
@@ -1278,6 +1279,82 @@ export const changeMemberRole = mutation({
   },
   returns: v.null(),
   handler: changeMemberRoleHandler,
+});
+
+// ---------------------------------------------------------------------------
+// transferGroupOwnership: オーナー権限を別メンバーへ譲渡（オーナーのみ）
+// ---------------------------------------------------------------------------
+
+export async function transferGroupOwnershipHandler(
+  ctx: MutationCtx,
+  args: { targetUserId: string },
+) {
+  const { groupId, userId } = await requireGroupOwner(ctx);
+  assertNotSelfOperator(userId, args.targetUserId);
+
+  const actorMembership = await readQueryDoc(
+    ctx.db
+      .query("groupMembers")
+      .withIndex("by_group_id_and_user_id", (q) => q.eq("groupId", groupId).eq("userId", userId)),
+  );
+  if (actorMembership === null) {
+    throw new ConvexError("グループメンバーが見つかりません");
+  }
+
+  const targetMembership = await readQueryDoc(
+    ctx.db
+      .query("groupMembers")
+      .withIndex("by_group_id_and_user_id", (q) =>
+        q.eq("groupId", groupId).eq("userId", args.targetUserId),
+      ),
+  );
+
+  if (targetMembership === null) {
+    throw new ConvexError("指定されたメンバーが見つかりません");
+  }
+
+  if (targetMembership.role !== "member") {
+    throw new ConvexError(GROUP_ADMIN_ERRORS.TRANSFER_TARGET_MUST_BE_MEMBER);
+  }
+
+  const actorUser = await readQueryDoc(
+    ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
+  );
+  const targetUser = await readQueryDoc(
+    ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) => q.eq("userId", args.targetUserId)),
+  );
+  const actorLabel = actorUser?.displayName?.trim() || actorUser?.email?.trim() || userId;
+  const targetLabel =
+    targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
+
+  const now = Date.now();
+  await ctx.db.patch(actorMembership._id, {
+    role: "member",
+    updatedAt: now,
+  });
+  await ctx.db.patch(targetMembership._id, {
+    role: "owner",
+    updatedAt: now,
+  });
+
+  await recordManagementAuditLog(ctx, {
+    groupId,
+    actorUserId: userId,
+    action: "owner_transferred",
+    targetKind: "member",
+    targetId: args.targetUserId,
+    targetLabel,
+    beforeValue: `オーナー: ${actorLabel}`,
+    afterValue: `オーナー: ${targetLabel}（${actorLabel} → ${formatGroupRoleLabel("member")}）`,
+  });
+}
+
+export const transferGroupOwnership = mutation({
+  args: { targetUserId: v.string() },
+  returns: v.null(),
+  handler: transferGroupOwnershipHandler,
 });
 
 // ---------------------------------------------------------------------------

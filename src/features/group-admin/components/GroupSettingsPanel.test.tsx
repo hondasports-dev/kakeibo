@@ -10,6 +10,7 @@ const {
   inviteMemberMock,
   removeMemberMock,
   setActiveGroupMock,
+  transferGroupOwnershipMock,
   updateGroupNameMock,
   useActionMock,
   useAuthMock,
@@ -22,6 +23,7 @@ const {
   inviteMemberMock: vi.fn(),
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
+  transferGroupOwnershipMock: vi.fn(),
   updateGroupNameMock: vi.fn(),
   useActionMock: vi.fn(),
   useAuthMock: vi.fn(),
@@ -48,6 +50,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
       listPendingGroupInvitations: "groups.listPendingGroupInvitations",
       removeMember: "groups.removeMember",
       changeMemberRole: "groups.changeMemberRole",
+      transferGroupOwnership: "groups.transferGroupOwnership",
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
     },
@@ -70,6 +73,7 @@ describe("GroupSettingsPanel", () => {
     inviteMemberMock.mockReset();
     removeMemberMock.mockReset();
     setActiveGroupMock.mockReset();
+    transferGroupOwnershipMock.mockReset();
     updateGroupNameMock.mockReset();
     useActionMock.mockReset();
     useAuthMock.mockReset();
@@ -86,6 +90,7 @@ describe("GroupSettingsPanel", () => {
     setActiveGroupMock.mockResolvedValue("group-002");
     removeMemberMock.mockResolvedValue(undefined);
     changeMemberRoleMock.mockResolvedValue(undefined);
+    transferGroupOwnershipMock.mockResolvedValue(undefined);
     updateGroupNameMock.mockResolvedValue("group-001");
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useUserMock.mockReturnValue({
@@ -108,6 +113,7 @@ describe("GroupSettingsPanel", () => {
       if (reference.includes("groups.setActiveGroup")) return setActiveGroupMock;
       if (reference.includes("groups.removeMember")) return removeMemberMock;
       if (reference.includes("groups.changeMemberRole")) return changeMemberRoleMock;
+      if (reference.includes("groups.transferGroupOwnership")) return transferGroupOwnershipMock;
       if (reference.includes("groups.updateGroupName")) return updateGroupNameMock;
       return vi.fn();
     });
@@ -306,9 +312,8 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByText("招待中")).toBeInTheDocument();
     expect(screen.getByText("グループ名を変更")).toBeInTheDocument();
     expect(screen.getByText("佐藤家 → 鈴木家")).toBeInTheDocument();
-    expect(
-      screen.getByText("以下の操作は今後のアップデートで追加予定です。現在は実行できません。"),
-    ).toBeInTheDocument();
+    expect(screen.getByTestId("ownership-transfer-target-select")).toBeInTheDocument();
+    expect(screen.getByText("グループの削除")).toBeInTheDocument();
   });
 
   it("pending 招待がない場合は空状態を表示する", () => {
@@ -609,6 +614,32 @@ describe("GroupSettingsPanel", () => {
       expect(changeMemberRoleMock).toHaveBeenCalledWith({
         targetUserId: "user-member",
         newRole: "owner",
+      });
+    });
+  });
+
+  it("オーナー権限譲渡前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupSettingsPanel />);
+
+    await user.click(
+      within(screen.getByTestId("ownership-transfer-target-select")).getByRole("combobox"),
+    );
+    await user.click(await screen.findByRole("option", { name: "メンバー" }));
+    await user.click(screen.getByTestId("ownership-transfer-request-button"));
+
+    expect(
+      screen.getByRole("heading", { name: "オーナー権限を譲渡しますか？" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/現在のオーナー: ログイン 太郎/)).toBeInTheDocument();
+    expect(screen.getByText(/譲渡先: メンバー/)).toBeInTheDocument();
+    expect(screen.getByText(/譲渡後のあなたのロール: メンバー/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "オーナー権限を譲渡する" }));
+
+    await waitFor(() => {
+      expect(transferGroupOwnershipMock).toHaveBeenCalledWith({
+        targetUserId: "user-member",
       });
     });
   });
