@@ -84,16 +84,8 @@ describe("App authentication states", () => {
     // Then: ロゴの葉を含むアクセシブルなローディング表示になる
     expect(screen.getByRole("status", { name: "ログイン状態を確認中" })).toBeInTheDocument();
     expect(screen.getAllByTestId("suzumemo-loading-leaf")).toHaveLength(2);
-    const wordmarkLetters = screen.getAllByTestId("suzumemo-loading-wordmark-letter");
-    const subtitleLetters = screen.getAllByTestId("suzumemo-loading-subtitle-letter");
-    expect(wordmarkLetters).toHaveLength(8);
-    expect(subtitleLetters).toHaveLength(4);
-    wordmarkLetters.forEach((letter, index) => {
-      expect(letter).toHaveClass(`suzumemo-loading-wave-${(index % 4) + 1}`);
-    });
-    subtitleLetters.forEach((letter, index) => {
-      expect(letter).toHaveClass(`suzumemo-loading-wave-${index + 1}`);
-    });
+    expect(screen.getAllByTestId("suzumemo-loading-wordmark-letter")).toHaveLength(8);
+    expect(screen.getAllByTestId("suzumemo-loading-subtitle-letter")).toHaveLength(4);
     expect(screen.queryByTestId("suzumemo-loading-dot")).not.toBeInTheDocument();
     expect(screen.getByText("ログイン状態を確認しています。")).toBeInTheDocument();
   });
@@ -148,6 +140,7 @@ describe("App authentication states", () => {
 
     // Then: callback専用画面が表示される
     expect(screen.getByRole("heading", { name: "Googleログインを処理中" })).toBeInTheDocument();
+    expect(screen.getByRole("status", { name: "Googleログイン処理中" })).toBeInTheDocument();
     expect(screen.getByText("OAuth callback mock")).toBeInTheDocument();
   });
 

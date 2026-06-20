@@ -1,20 +1,11 @@
 import { useState } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/react";
 import { useSignIn } from "@clerk/react/legacy";
-import {
-  Alert,
-  Box,
-  Button,
-  CircularProgress,
-  Link as MuiLink,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Link as MuiLink, Paper, Stack, Typography } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { getClerkErrorMessage, useInitializeUser } from "./features/auth";
-import { SuzumemoLoadingScreen } from "./features/ui";
+import { SuzumemoLoadingLogo, SuzumemoLoadingState } from "./features/ui";
 import { router } from "./router";
 import {
   E2E_APP_ERROR_BOUNDARY_PATH,
@@ -53,7 +44,9 @@ function AuthCallbackScreen() {
       <Paper className="auth-panel paper-panel" elevation={0}>
         <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
           <AuthBrand />
-          <CircularProgress aria-label="Googleログイン処理中" />
+          <Box aria-label="Googleログイン処理中" role="status">
+            <SuzumemoLoadingLogo />
+          </Box>
           <Box>
             <Typography component="h1" variant="h5">
               Googleログインを処理中
@@ -80,9 +73,10 @@ function AuthenticatedApp() {
 
   if (!isLoaded) {
     return (
-      <SuzumemoLoadingScreen
+      <SuzumemoLoadingState
         label="ログイン状態を確認中"
         message="ログイン状態を確認しています。"
+        variant="fullscreen"
       />
     );
   }
@@ -93,9 +87,10 @@ function AuthenticatedApp() {
 
   if (isConvexAuthLoading) {
     return (
-      <SuzumemoLoadingScreen
+      <SuzumemoLoadingState
         label="Convex認証状態を確認中"
         message="データ同期の認証状態を確認しています。"
+        variant="fullscreen"
       />
     );
   }

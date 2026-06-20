@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Alert, Box, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import { WeekNavigator } from "../../week";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
 import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
+import { SuzumemoLoadingState } from "../../ui";
 import { buildWeeklyExpenseChartData } from "../utils/weeklyExpenseChartData";
 import {
   addWeeks,
@@ -67,12 +68,11 @@ export function SummaryPage() {
 
   if (weeklySummary === undefined) {
     return (
-      <Box className="app-main">
-        <Stack spacing={3} sx={{ alignItems: "center", py: 8 }}>
-          <CircularProgress aria-label="データを読み込み中" />
-          <Typography color="text.secondary">週次サマリーを読み込んでいます...</Typography>
-        </Stack>
-      </Box>
+      <SuzumemoLoadingState
+        label="データを読み込み中"
+        message="週次サマリーを読み込んでいます…"
+        variant="page"
+      />
     );
   }
 
