@@ -200,8 +200,9 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 - `E2E_CLERK_USER_EMAIL` — E2E テストユーザーのメールアドレス
 - `E2E_CLERK_USER_PASSWORD` — E2E テストユーザーのパスワード
 - `VITE_CONVEX_URL` — Dev deployment の Convex WebSocket URL
-- `VITE_CONVEX_SITE_URL` — Dev deployment の Convex HTTP URL（例: `https://xxx.convex.site`）
-- `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（Convex Dashboard の値と同一）
+- `DEV_VITE_CONVEX_SITE_URL` — PR Preview が接続する Dev deployment の Convex HTTP URL
+- `DEV_E2E_CLEANUP_SECRET` — Dev deployment の E2E クリーンアップ API 認証シークレット
+- `E2E_CLEANUP_SECRET` — 固定 staging deployment の E2E クリーンアップ API 認証シークレット
 - `E2E_CLERK_USER_ID` — テストユーザーの Clerk tokenIdentifier（`https://xxx.clerk.accounts.dev|user_xxx`）
 
 ### GitHub Environment `Preview` に保存する項目
@@ -210,6 +211,7 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 - `CONVEX_DEPLOY_KEY` — Convex Preview Deploy Key
 - `VERCEL_ORG_ID` — GitHub Actions Variable として保存
 - `VERCEL_PROJECT_ID` — GitHub Actions Variable として保存
+- `VITE_CONVEX_SITE_URL` — 固定 staging deployment の HTTP URL を GitHub Actions Variable として保存
 
 ### GitHub Environment `production` に保存する項目
 
