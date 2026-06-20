@@ -141,11 +141,11 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | ルール | 内容 |
 | --- | --- |
 | 実行権限 | `owner` のみ（`requireGroupOwner`） |
-| 削除方式 | グループ・メンバー・招待・家計データ・監査ログ等を物理削除 |
+| 削除方式 | 次を物理削除: `groups`, `groupMembers`, `groupInvitations`, `expenseEntries`, `receipts`, `categories`, `sourceDocuments`（添付画像ストレージ含む）, `weekSessions`, `aiExpenseDrafts`, `aiExpenseDraftItems`, `receiptAnalysisBatches`, `receiptAnalysisImageJobs` |
+| 削除しない | `users`, Clerk アカウント, `managementAuditLogs`（監査証跡として保持） |
 | activeGroupId | 削除対象を active にしていた全メンバーへ、別の所属グループまたは `null` を設定 |
-| Clerk / users | 削除しない |
-| 監査ログ | グループ削除と同時に当該グループの監査ログも削除される |
-| 確認 UI | 対象グループ名・完全削除・復旧不可・Clerk/ユーザー非削除を確認ダイアログで表示 |
+| 監査ログ | 削除実行前に `group_deleted` を記録（`afterValue` に削除件数サマリ `affectedCounts` を含む） |
+| 確認 UI | 対象グループ名、削除対象データの影響範囲（件数付き）、完全削除・復旧不可の警告、Clerk/ユーザー非削除の注記、確認用グループ名入力 |
 | 成功後遷移 | 他に所属グループがあれば `/group/select`、なければ `/group/setup` |
 
 ## 7. 重要な境界

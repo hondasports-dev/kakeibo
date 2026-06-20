@@ -15,10 +15,16 @@ export type GroupDeletionPreview = {
   groupName: string;
   members: number;
   invitations: number;
+  sourceDocuments: number;
   expenseEntries: number;
   receipts: number;
   receiptImages: number;
+  categories: number;
   aiDrafts: number;
+  aiDraftItems: number;
+  analysisBatches: number;
+  analysisJobs: number;
+  weekSessions: number;
 };
 
 type ConfirmDeleteGroupDialogProps = {
@@ -68,14 +74,28 @@ export function ConfirmDeleteGroupDialog({
                 {formatImpactLine("支出/収入データ", preview.expenseEntries)}
               </Typography>
               <Typography color="text.secondary" variant="body2">
-                {formatImpactLine("レシート", preview.receipts)} /{" "}
-                {formatImpactLine("画像", preview.receiptImages)}
-              </Typography>
-              <Typography color="text.secondary" variant="body2">
-                {formatImpactLine("AI解析下書き", preview.aiDrafts)}
+                {formatImpactLine("レシート", preview.receipts)}
               </Typography>
               <Typography color="text.secondary" variant="body2">
                 {formatImpactLine("招待", preview.invitations)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("取り込み元ドキュメント", preview.sourceDocuments)} /{" "}
+                {formatImpactLine("添付画像", preview.receiptImages)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("カテゴリ", preview.categories)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("AI解析下書き", preview.aiDrafts)} /{" "}
+                {formatImpactLine("下書き明細", preview.aiDraftItems)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("AI解析バッチ", preview.analysisBatches)} /{" "}
+                {formatImpactLine("AI解析ジョブ", preview.analysisJobs)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("週次セッション", preview.weekSessions)}
               </Typography>
             </Stack>
           ) : (

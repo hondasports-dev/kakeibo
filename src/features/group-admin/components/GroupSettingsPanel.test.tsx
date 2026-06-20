@@ -144,10 +144,16 @@ describe("GroupSettingsPanel", () => {
           groupName: "佐藤家",
           members: 2,
           invitations: 1,
+          sourceDocuments: 5,
           expenseEntries: 3,
           receipts: 4,
           receiptImages: 2,
+          categories: 6,
           aiDrafts: 1,
+          aiDraftItems: 2,
+          analysisBatches: 1,
+          analysisJobs: 3,
+          weekSessions: 4,
         };
       }
       if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {

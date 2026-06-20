@@ -37,8 +37,9 @@ type GroupDoc = {
   _id: Id<"groups">;
   name: string;
   clerkOrganizationId?: string;
-  status?: "active" | "deleted";
+  status?: "active" | "deleted" | "archived";
   deletedAt?: number;
+  archivedAt?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -3224,6 +3225,29 @@ describe("deleteGroupHandler", () => {
         targetLabel: "佐藤家",
       }),
     );
+    const auditLogCall = vi
+      .mocked(ctx.db.insert)
+      .mock.calls.find(([tableName]) => tableName === "managementAuditLogs");
+    expect(auditLogCall).toBeDefined();
+    const auditLog = auditLogCall?.[1] as { afterValue?: string };
+    expect(JSON.parse(auditLog.afterValue ?? "{}")).toEqual(
+      expect.objectContaining({
+        deletionMode: "immediate",
+        affectedCounts: expect.objectContaining({
+          members: 1,
+          invitations: expect.any(Number),
+          sourceDocuments: expect.any(Number),
+          expenseEntries: expect.any(Number),
+          receipts: expect.any(Number),
+          categories: expect.any(Number),
+          aiDrafts: expect.any(Number),
+          aiDraftItems: expect.any(Number),
+          analysisBatches: expect.any(Number),
+          analysisJobs: expect.any(Number),
+          weekSessions: expect.any(Number),
+        }),
+      }),
+    );
     expect(deleteGroupPhysically.deleteAllGroupScopedData).toHaveBeenCalledWith(ctx, "group-001");
   });
 
@@ -3307,7 +3331,7 @@ describe("deleteGroupHandler", () => {
     );
   });
 
-  it("listMyGroupsHandler は削除済みグループを一覧から除外する", async () => {
+  it("listMyGroupsHandler は deleted / archived グループを一覧から除外する", async () => {
     const ownerId = "https://issuer.example|owner";
     const ctx = createMockDb({
       groups: [
@@ -3316,6 +3340,14 @@ describe("deleteGroupHandler", () => {
           name: "旧グループ",
           status: "deleted",
           deletedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+        {
+          _id: "group-archived" as Id<"groups">,
+          name: "アーカイブ済み",
+          status: "archived",
+          archivedAt: 2000,
           createdAt: 1000,
           updatedAt: 2000,
         },
@@ -3341,6 +3373,14 @@ describe("deleteGroupHandler", () => {
         {
           _id: "member-deleted" as Id<"groupMembers">,
           groupId: "group-deleted" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-archived" as Id<"groupMembers">,
+          groupId: "group-archived" as Id<"groups">,
           userId: ownerId,
           role: "owner",
           createdAt: 1000,
