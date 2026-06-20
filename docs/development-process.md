@@ -450,6 +450,23 @@ PR をマージします。
 
 ただし Markdown のみの変更では、GitHub Actions / E2E の成功確認は不要です。
 
+#### CI Preview E2E で `E2E クリーンアップに失敗しました: 401` が出る場合
+
+`e2e.yml`（Vercel Preview 向け smoke E2E）で global setup / teardown の cleanup が
+`401 Unauthorized` になるとき、テスト本体以前に共有データの初期化に失敗している。
+`receipt-form.spec.ts` など後続 spec が連鎖的に落ちることがある。
+
+**確認ポイント**
+
+- GitHub Actions Secret `E2E_CLEANUP_SECRET` と、Preview が接続する Convex staging deployment
+  側の `E2E_CLEANUP_SECRET`（Convex Dashboard 環境変数）が**同一値**か
+- staging deployment に `E2E_CLEANUP_SECRET` が未設定の場合、`convex/http.ts` の E2E エンドポイントは
+  503 を返す（本番誤操作防止）。Preview E2E では dev/staging 側へ明示設定が必要
+- ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
+  **接続先 deployment** に対して実行する（秘密値はログに出さない）
+
+詳細は `docs/environment-variables.md` の `E2E_CLEANUP_SECRET` を参照。
+
 ## preview ブランチ / PREVIEW 運用
 
 開発統合は `preview` ブランチで行います。`preview` に merge された変更は、
