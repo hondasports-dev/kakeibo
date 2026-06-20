@@ -12,12 +12,9 @@ name: E2E
 #   CLERK_SECRET_KEY                 — Clerk Dev instance の sk_test_...
 #   E2E_CLERK_USER_EMAIL             — テストユーザーのメールアドレス
 #   E2E_CLERK_USER_PASSWORD          — テストユーザーのパスワード
-#   E2E_CLEANUP_SECRET               — E2E クリーンアップ API 認証シークレット
+#   DEV_VITE_CONVEX_SITE_URL         — Dev deployment の Convex HTTP URL
+#   DEV_E2E_CLEANUP_SECRET           — Dev deployment の E2E cleanup 認証シークレット
 #   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
-#
-# 必要な GitHub Environment `Preview` Variables（手動設定が必要）:
-#   VITE_CONVEX_SITE_URL             — Convex staging deployment の HTTP URL (例: https://xxx.convex.site)
-#                                      preview-deploy.yml と同一値を使う（E2E cleanup / seed 用）
 #
 # 詳細: docs/development-process.md「E2E 確認方針」
 #       docs/environment-variables.md「GitHub Actions Secrets に保存する項目」
@@ -42,8 +39,6 @@ jobs:
       contains(github.event.deployment_status.target_url, '.vercel.app') &&
       github.event.deployment.ref != 'preview'
     runs-on: ubuntu-latest
-    # VITE_CONVEX_SITE_URL は GitHub Environment `Preview` の Variable を参照する
-    environment: Preview
     timeout-minutes: 15
     steps:
       - name: Verify trusted deployment source
@@ -194,9 +189,9 @@ jobs:
           # E2E テストユーザー認証情報（ログ出力禁止）
           E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
-          # E2E cleanup / seed 用（preview-deploy.yml と同一の staging site URL）
-          VITE_CONVEX_SITE_URL: ${{ vars.VITE_CONVEX_SITE_URL }}
-          E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
+          # PR Preview が接続する Dev deployment と同じ cleanup / seed 設定
+          VITE_CONVEX_SITE_URL: ${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
+          E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
           E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
 
       # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）

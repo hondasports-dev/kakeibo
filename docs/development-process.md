@@ -458,12 +458,12 @@ PR をマージします。
 
 **確認ポイント**
 
-- `e2e.yml` の `VITE_CONVEX_SITE_URL` は `preview-deploy.yml` と同様 **`vars.VITE_CONVEX_SITE_URL`**
-  （staging）を使う。`secrets.VITE_CONVEX_SITE_URL`（dev 向けの古い値）との混在で 401 になる
-- GitHub Actions Secret `E2E_CLEANUP_SECRET` と、Preview が接続する Convex staging deployment
-  側の `E2E_CLEANUP_SECRET`（Convex Dashboard 環境変数）が**同一値**か
-- staging deployment に `E2E_CLEANUP_SECRET` が未設定の場合、`convex/http.ts` の E2E エンドポイントは
-  503 を返す（本番誤操作防止）。Preview E2E では dev/staging 側へ明示設定が必要
+- `e2e.yml` は PR Preview が接続する dev deployment 用の
+  `DEV_VITE_CONVEX_SITE_URL` / `DEV_E2E_CLEANUP_SECRET` を使う
+- `preview-deploy.yml` は固定 staging deployment 用の `vars.VITE_CONVEX_SITE_URL` /
+  `secrets.E2E_CLEANUP_SECRET` を使う。dev と staging の URL / secret を混在させない
+- 対象 deployment に `E2E_CLEANUP_SECRET` が未設定の場合、`convex/http.ts` の E2E エンドポイントは
+  503 を返す（本番誤操作防止）。dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
   **接続先 deployment** に対して実行する（秘密値はログに出さない）
 
