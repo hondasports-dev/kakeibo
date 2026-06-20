@@ -42,7 +42,7 @@ triggers:
 | `convex/**` 変更 | `convex-performance-audit` + `convex/_generated/ai/guidelines.md` |
 | `src/**` React | `vercel-react-best-practices` |
 | UI/デザイン | `web-design-guidelines` |
-| 画面確認 | `browser-verification` |
+| 画面確認 / ローカル E2E | `browser-verification`（先に `docs/development-process.md` の「`.env.local` 同期」） |
 
 push 前検証は **AGENTS.md** の並列コマンドに従う。
 

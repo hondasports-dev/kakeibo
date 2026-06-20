@@ -10,6 +10,7 @@ import {
   assertRemovableGroupMemberRole,
 } from "./groupAdminGuards";
 import { normalizeGroupName } from "./lib/groupName";
+import { recordManagementAuditLog } from "./lib/managementAuditLog";
 
 // 後方互換のため re-export（UI は convex/lib/groupName を直接 import すること）
 export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
@@ -259,7 +260,7 @@ export const createGroup = mutation({
  * @returns 更新したグループ ID
  */
 export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: string }) {
-  const { groupId } = await requireGroupOwner(ctx);
+  const { groupId, userId } = await requireGroupOwner(ctx);
   const name = normalizeGroupName(args.name);
 
   const group = await ctx.db.get(groupId);
@@ -267,9 +268,22 @@ export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: str
     throw new ConvexError("グループが見つかりません");
   }
 
+  const previousName = group.name;
+
   await ctx.db.patch(groupId, {
     name,
     updatedAt: Date.now(),
+  });
+
+  await recordManagementAuditLog(ctx, {
+    groupId,
+    actorUserId: userId,
+    action: "group_name_changed",
+    targetKind: "group",
+    targetId: groupId,
+    targetLabel: previousName,
+    beforeValue: previousName,
+    afterValue: name,
   });
 
   return groupId;
@@ -447,7 +461,7 @@ export async function cancelPendingGroupInvitationHandler(
   ctx: MutationCtx,
   args: { invitationId: Id<"groupInvitations"> },
 ) {
-  const { groupId } = await requireGroupOwner(ctx);
+  const { groupId, userId } = await requireGroupOwner(ctx);
   const invitation = await ctx.db.get(args.invitationId);
 
   if (invitation === null) {
@@ -465,6 +479,15 @@ export async function cancelPendingGroupInvitationHandler(
     groupId,
     invitation.email,
   );
+
+  await recordManagementAuditLog(ctx, {
+    groupId,
+    actorUserId: userId,
+    action: "invitation_revoked",
+    targetKind: "invitation",
+    targetId: invitation._id,
+    targetLabel: invitation.email,
+  });
 
   return { clerkInvitationIds };
 }
@@ -1143,26 +1166,39 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
 
   assertRemovableGroupMemberRole(targetMembership.role);
 
-  await ctx.db.delete(targetMembership._id);
-
-  const remainingMemberships = await readQueryDocs(
-    ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", args.targetUserId)),
-  );
   const targetUser = await readQueryDoc(
     ctx.db
       .query("users")
       .withIndex("by_token_identifier", (q) => q.eq("userId", args.targetUserId)),
   );
-  if (targetUser !== null) {
+  const targetLabel =
+    targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
+
+  await ctx.db.delete(targetMembership._id);
+
+  const remainingMemberships = await readQueryDocs(
+    ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", args.targetUserId)),
+  );
+  const removedTargetUser = targetUser;
+  if (removedTargetUser !== null) {
     const nextActiveGroupId = remainingMemberships[0]?.groupId ?? undefined;
-    await ctx.db.patch(targetUser._id, {
+    await ctx.db.patch(removedTargetUser._id, {
       activeGroupId: nextActiveGroupId,
       updatedAt: Date.now(),
     });
-    if (targetUser.email) {
-      await revokeGroupInvitationsForEmailInGroup(ctx, groupId, targetUser.email);
+    if (removedTargetUser.email) {
+      await revokeGroupInvitationsForEmailInGroup(ctx, groupId, removedTargetUser.email);
     }
   }
+
+  await recordManagementAuditLog(ctx, {
+    groupId,
+    actorUserId: userId,
+    action: "member_removed",
+    targetKind: "member",
+    targetId: args.targetUserId,
+    targetLabel,
+  });
 }
 
 export const removeMember = mutation({

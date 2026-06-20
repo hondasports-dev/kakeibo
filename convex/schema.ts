@@ -8,6 +8,10 @@ import {
   aiExpenseDraftSourceTypeValidator,
   aiExpenseDraftStatusValidator,
 } from "./aiExpenseDraftsModel";
+import {
+  managementAuditActionValidator,
+  managementAuditTargetKindValidator,
+} from "./lib/managementAuditLogModel";
 
 export default defineSchema({
   users: defineTable({
@@ -77,6 +81,18 @@ export default defineSchema({
     .index("by_token", ["token"])
     .index("by_group_id_and_email", ["groupId", "email"])
     .index("by_group_id_and_status", ["groupId", "status"]),
+
+  managementAuditLogs: defineTable({
+    groupId: v.id("groups"),
+    actorUserId: v.string(),
+    action: managementAuditActionValidator,
+    targetKind: managementAuditTargetKindValidator,
+    targetId: v.optional(v.string()),
+    targetLabel: v.optional(v.string()),
+    beforeValue: v.optional(v.string()),
+    afterValue: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_group_id_and_created_at", ["groupId", "createdAt"]),
 
   // ---------------------------------------------------------------------------
   // データテーブル（userId → groupId に変更済み）
