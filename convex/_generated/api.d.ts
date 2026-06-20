@@ -19,6 +19,7 @@ import type * as groups from "../groups.js";
 import type * as http from "../http.js";
 import type * as lib_groupName from "../lib/groupName.js";
 import type * as lib_groupRoleLabel from "../lib/groupRoleLabel.js";
+import type * as lib_groupStatus from "../lib/groupStatus.js";
 import type * as lib_managementAuditLog from "../lib/managementAuditLog.js";
 import type * as lib_managementAuditLogModel from "../lib/managementAuditLogModel.js";
 import type * as managementAuditLogs from "../managementAuditLogs.js";
@@ -47,6 +48,7 @@ declare const fullApi: ApiFromModules<{
   http: typeof http;
   "lib/groupName": typeof lib_groupName;
   "lib/groupRoleLabel": typeof lib_groupRoleLabel;
+  "lib/groupStatus": typeof lib_groupStatus;
   "lib/managementAuditLog": typeof lib_managementAuditLog;
   "lib/managementAuditLogModel": typeof lib_managementAuditLogModel;
   managementAuditLogs: typeof managementAuditLogs;

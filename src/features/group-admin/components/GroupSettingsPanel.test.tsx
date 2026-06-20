@@ -5,9 +5,11 @@ import { renderWithProviders } from "../../../test/render";
 import { GroupSettingsPanel } from "./GroupSettingsPanel";
 
 const {
+  archiveGroupMock,
   cancelPendingGroupInvitationMock,
   changeMemberRoleMock,
   inviteMemberMock,
+  navigateMock,
   removeMemberMock,
   setActiveGroupMock,
   transferGroupOwnershipMock,
@@ -18,9 +20,11 @@ const {
   useQueryMock,
   useUserMock,
 } = vi.hoisted(() => ({
+  archiveGroupMock: vi.fn(),
   cancelPendingGroupInvitationMock: vi.fn(),
   changeMemberRoleMock: vi.fn(),
   inviteMemberMock: vi.fn(),
+  navigateMock: vi.fn(),
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
   transferGroupOwnershipMock: vi.fn(),
@@ -30,6 +34,14 @@ const {
   useMutationMock: vi.fn(),
   useQueryMock: vi.fn(),
   useUserMock: vi.fn(),
+}));
+
+function renderGroupSettingsPanel() {
+  return renderWithProviders(<GroupSettingsPanel />);
+}
+
+vi.mock("react-router-dom", () => ({
+  useNavigate: () => navigateMock,
 }));
 
 vi.mock("@clerk/react", () => ({
@@ -51,6 +63,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
       removeMember: "groups.removeMember",
       changeMemberRole: "groups.changeMemberRole",
       transferGroupOwnership: "groups.transferGroupOwnership",
+      archiveGroup: "groups.archiveGroup",
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
     },
@@ -68,6 +81,7 @@ vi.mock("convex/react", () => ({
 
 describe("GroupSettingsPanel", () => {
   beforeEach(() => {
+    archiveGroupMock.mockReset();
     cancelPendingGroupInvitationMock.mockReset();
     changeMemberRoleMock.mockReset();
     inviteMemberMock.mockReset();
@@ -91,6 +105,7 @@ describe("GroupSettingsPanel", () => {
     removeMemberMock.mockResolvedValue(undefined);
     changeMemberRoleMock.mockResolvedValue(undefined);
     transferGroupOwnershipMock.mockResolvedValue(undefined);
+    archiveGroupMock.mockResolvedValue(undefined);
     updateGroupNameMock.mockResolvedValue("group-001");
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useUserMock.mockReturnValue({
@@ -114,6 +129,7 @@ describe("GroupSettingsPanel", () => {
       if (reference.includes("groups.removeMember")) return removeMemberMock;
       if (reference.includes("groups.changeMemberRole")) return changeMemberRoleMock;
       if (reference.includes("groups.transferGroupOwnership")) return transferGroupOwnershipMock;
+      if (reference.includes("groups.archiveGroup")) return archiveGroupMock;
       if (reference.includes("groups.updateGroupName")) return updateGroupNameMock;
       return vi.fn();
     });
@@ -185,7 +201,7 @@ describe("GroupSettingsPanel", () => {
   });
 
   it("複数グループがあると切替 UI を表示する", () => {
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByRole("heading", { name: "グループ管理", level: 2 })).toBeInTheDocument();
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
@@ -194,7 +210,7 @@ describe("GroupSettingsPanel", () => {
 
   it("メールアドレスを入力して招待を送れる", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     await user.type(
       screen.getByRole("textbox", { name: "招待するメールアドレス" }),
@@ -211,7 +227,7 @@ describe("GroupSettingsPanel", () => {
   });
 
   it("現在のグループとメンバー一覧を表示する", () => {
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
     expect(screen.getByText("ログイン 太郎")).toBeInTheDocument();
@@ -233,7 +249,7 @@ describe("GroupSettingsPanel", () => {
       },
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByText("friendly-owner")).toBeInTheDocument();
     expect(screen.queryByText("名 姓")).not.toBeInTheDocument();
@@ -250,7 +266,7 @@ describe("GroupSettingsPanel", () => {
       },
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByText("名 姓")).toBeInTheDocument();
   });
@@ -282,14 +298,14 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByText("member@example.com")).toBeInTheDocument();
     expect(screen.getByText("メール登録済み")).toBeInTheDocument();
   });
 
   it("オーナー向けにグループ管理の各セクションを順序どおり表示する", () => {
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     const sectionTitles = [
       "グループ情報",
@@ -313,7 +329,8 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByText("グループ名を変更")).toBeInTheDocument();
     expect(screen.getByText("佐藤家 → 鈴木家")).toBeInTheDocument();
     expect(screen.getByTestId("ownership-transfer-target-select")).toBeInTheDocument();
-    expect(screen.getByText("グループの削除")).toBeInTheDocument();
+    expect(screen.getByText("グループのアーカイブ")).toBeInTheDocument();
+    expect(screen.getByTestId("archive-group-request-button")).toBeInTheDocument();
   });
 
   it("pending 招待がない場合は空状態を表示する", () => {
@@ -349,7 +366,7 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByTestId("group-pending-invitation-list-empty")).toHaveTextContent(
       "送信済みの招待はありません。",
@@ -383,7 +400,7 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
     expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
@@ -418,7 +435,7 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     const nameInput = screen.getByLabelText("グループ名");
     fireEvent.change(nameInput, { target: { value: "鈴木家" } });
@@ -461,7 +478,7 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     const nameInput = screen.getByLabelText("グループ名");
     fireEvent.change(nameInput, { target: { value: "" } });
@@ -501,21 +518,21 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByText("佐藤家")).toBeInTheDocument();
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
   });
 
   it("複数グループのオーナーはグループ名変更フォームを表示しない", () => {
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
   });
 
   it("セクション見出しは aria-labelledby で関連付けられる", () => {
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     const groupInfoSection = screen.getByTestId("group-info-section");
     expect(groupInfoSection).toHaveAttribute("aria-labelledby", "group-info-section-heading");
@@ -559,7 +576,7 @@ describe("GroupSettingsPanel", () => {
       return [];
     });
 
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     expect(screen.getByRole("heading", { level: 3, name: "グループ情報" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "メンバー管理" })).toBeInTheDocument();
@@ -578,7 +595,7 @@ describe("GroupSettingsPanel", () => {
 
   it("メンバー削除前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     await user.click(screen.getByRole("button", { name: "メンバーをグループから外す" }));
 
@@ -596,7 +613,7 @@ describe("GroupSettingsPanel", () => {
 
   it("ロール変更前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     await user.click(
       within(screen.getByTestId("group-member-role-select-user-member")).getByRole("combobox"),
@@ -620,7 +637,7 @@ describe("GroupSettingsPanel", () => {
 
   it("オーナー権限譲渡前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     await user.click(
       within(screen.getByTestId("ownership-transfer-target-select")).getByRole("combobox"),
@@ -646,7 +663,7 @@ describe("GroupSettingsPanel", () => {
 
   it("招待取り消し前に確認ダイアログを表示し、確定後に action を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderGroupSettingsPanel();
 
     await user.click(screen.getByRole("button", { name: "pending@example.comへの招待を取り消す" }));
 
@@ -659,6 +676,65 @@ describe("GroupSettingsPanel", () => {
       expect(cancelPendingGroupInvitationMock).toHaveBeenCalledWith({
         invitationId: "invite-001",
       });
+    });
+  });
+
+  it("グループアーカイブ前に確認ダイアログを表示し、確定後に mutation を呼んでグループ作成へ遷移する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string) => {
+      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+        return {
+          _id: "group-001",
+          name: "佐藤家",
+          role: "owner",
+          createdAt: 1000,
+        };
+      }
+      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+        return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+        return [
+          {
+            userId: "https://issuer.example|owner-clerk-id",
+            role: "owner",
+            displayName: "オーナー",
+            email: "owner@example.com",
+            createdAt: 1000,
+          },
+        ];
+      }
+      if (
+        typeof reference === "string" &&
+        reference.includes("groups.listPendingGroupInvitations")
+      ) {
+        return [];
+      }
+      if (
+        typeof reference === "string" &&
+        reference.includes("managementAuditLogs.listManagementAuditLogs")
+      ) {
+        return [];
+      }
+      return [];
+    });
+
+    renderGroupSettingsPanel();
+
+    await user.click(screen.getByTestId("archive-group-request-button"));
+
+    expect(
+      screen.getByRole("heading", { name: "グループをアーカイブしますか？" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText(/対象グループ: 佐藤家/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Clerk アカウント、ユーザー情報、家計データ自体は削除されません/),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "グループをアーカイブする" }));
+
+    await waitFor(() => {
+      expect(archiveGroupMock).toHaveBeenCalledWith({});
     });
   });
 });

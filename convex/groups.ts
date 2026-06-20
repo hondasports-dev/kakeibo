@@ -15,6 +15,7 @@ import {
 import { normalizeGroupName } from "./lib/groupName";
 import { formatGroupRoleLabel } from "./lib/groupRoleLabel";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
+import { assertGroupNotArchived, isGroupArchived } from "./lib/groupStatus";
 
 // 後方互換のため re-export（UI は convex/lib/groupName を直接 import すること）
 export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
@@ -34,6 +35,8 @@ type GroupDoc = {
   _id: Id<"groups">;
   name: string;
   clerkOrganizationId?: string;
+  status?: "active" | "archived";
+  archivedAt?: number;
   createdAt: number;
   updatedAt: number;
 };
@@ -134,14 +137,76 @@ async function getResolvedMemberships(ctx: Pick<QueryCtx, "auth" | "db">) {
   const memberships = await getAllGroupMemberships(ctx);
   const user = await getCurrentUserDoc(ctx);
   const activeGroupId = user?.activeGroupId ?? null;
+
+  const nonArchivedMemberships: typeof memberships = [];
+  for (const membership of memberships) {
+    const group = (await ctx.db.get(membership.groupId)) as GroupDoc | null;
+    if (group === null || isGroupArchived(group)) {
+      continue;
+    }
+    nonArchivedMemberships.push(membership);
+  }
+
   const activeMembership =
     activeGroupId === null
-      ? memberships.length === 1
-        ? memberships[0]
+      ? nonArchivedMemberships.length === 1
+        ? nonArchivedMemberships[0]
         : null
-      : (memberships.find((membership) => membership.groupId === activeGroupId) ?? null);
+      : (nonArchivedMemberships.find((membership) => membership.groupId === activeGroupId) ?? null);
 
+  return { memberships: nonArchivedMemberships, activeMembership };
+}
+
+function resolveActiveMembershipFromList<T extends { groupId: Id<"groups"> }>(
+  memberships: T[],
+  activeGroupId: Id<"groups"> | null,
+): T | null {
+  if (activeGroupId === null) {
+    return memberships.length === 1 ? (memberships[0] ?? null) : null;
+  }
+  return memberships.find((membership) => membership.groupId === activeGroupId) ?? null;
+}
+
+async function getRawResolvedMemberships(ctx: Pick<QueryCtx, "auth" | "db">) {
+  const memberships = await getAllGroupMemberships(ctx);
+  const user = await getCurrentUserDoc(ctx);
+  const activeGroupId = user?.activeGroupId ?? null;
+  const activeMembership = resolveActiveMembershipFromList(memberships, activeGroupId);
   return { memberships, activeMembership };
+}
+
+async function findNextActiveGroupIdForUser(
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+  excludedGroupId: Id<"groups">,
+): Promise<Id<"groups"> | undefined> {
+  const memberships = await readQueryDocs(
+    ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", userId)),
+  );
+
+  for (const membership of memberships) {
+    if (membership.groupId === excludedGroupId) {
+      continue;
+    }
+    const group = (await ctx.db.get(membership.groupId)) as GroupDoc | null;
+    if (group !== null && !isGroupArchived(group)) {
+      return membership.groupId;
+    }
+  }
+
+  return undefined;
+}
+
+async function revokeAllPendingGroupInvitations(ctx: MutationCtx, groupId: Id<"groups">) {
+  const now = Date.now();
+  const pendingInvitations = await ctx.db
+    .query("groupInvitations")
+    .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending"))
+    .collect();
+
+  for (const invitation of pendingInvitations) {
+    await ctx.db.patch(invitation._id, { status: "revoked", updatedAt: now });
+  }
 }
 
 /**
@@ -233,6 +298,7 @@ export async function createGroupHandler(ctx: MutationCtx, args: { name: string 
   const now = Date.now();
   const groupId = await ctx.db.insert("groups", {
     name,
+    status: "active",
     createdAt: now,
     updatedAt: now,
   });
@@ -277,6 +343,7 @@ export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: str
   if (group === null) {
     throw new ConvexError("グループが見つかりません");
   }
+  assertGroupNotArchived(group);
 
   const previousName = group.name;
   if (previousName === name) {
@@ -719,6 +786,12 @@ export async function setActiveGroupHandler(ctx: MutationCtx, args: { groupId: I
   if (membership === null) {
     throw new ConvexError("指定されたグループに所属していません");
   }
+
+  const group = await ctx.db.get(args.groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
+  assertGroupNotArchived(group);
 
   const user = await readQueryDoc(
     ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
@@ -1353,6 +1426,74 @@ export const transferGroupOwnership = mutation({
   args: { targetUserId: v.string() },
   returns: v.null(),
   handler: transferGroupOwnershipHandler,
+});
+
+// ---------------------------------------------------------------------------
+// archiveGroup: グループをアーカイブ（オーナーのみ）
+// ---------------------------------------------------------------------------
+
+export async function archiveGroupHandler(ctx: MutationCtx) {
+  const userId = await requireAuthenticatedUserId(ctx);
+  const { activeMembership } = await getRawResolvedMemberships(ctx);
+  if (activeMembership === null) {
+    throw new ConvexError("グループに所属していません");
+  }
+  assertGroupOwnerRole(activeMembership.role);
+
+  const groupId = activeMembership.groupId;
+  const group = (await ctx.db.get(groupId)) as GroupDoc | null;
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
+  if (isGroupArchived(group)) {
+    throw new ConvexError(GROUP_ADMIN_ERRORS.GROUP_ALREADY_ARCHIVED);
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(groupId, {
+    status: "archived",
+    archivedAt: now,
+    updatedAt: now,
+  });
+
+  await revokeAllPendingGroupInvitations(ctx, groupId);
+
+  const members = await ctx.db
+    .query("groupMembers")
+    .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
+    .collect();
+
+  for (const member of members) {
+    const memberUser = await readQueryDoc(
+      ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", member.userId)),
+    );
+    if (memberUser?.activeGroupId !== groupId) {
+      continue;
+    }
+
+    const nextActiveGroupId = await findNextActiveGroupIdForUser(ctx, member.userId, groupId);
+    await ctx.db.patch(memberUser._id, {
+      activeGroupId: nextActiveGroupId,
+      updatedAt: now,
+    });
+  }
+
+  await recordManagementAuditLog(ctx, {
+    groupId,
+    actorUserId: userId,
+    action: "group_archived",
+    targetKind: "group",
+    targetId: groupId,
+    targetLabel: group.name,
+    beforeValue: "利用中",
+    afterValue: "アーカイブ済み",
+  });
+}
+
+export const archiveGroup = mutation({
+  args: {},
+  returns: v.null(),
+  handler: archiveGroupHandler,
 });
 
 // ---------------------------------------------------------------------------

@@ -64,6 +64,7 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | メンバーのグループ解除 | #217 | Clerk アカウントは削除されないこと |
 | pending 招待取り消し | #219 | 招待が無効になること |
 | オーナー権限譲渡 | #222 | 譲渡先・譲渡後の自分の role・管理操作不可になること |
+| グループアーカイブ | #224 | Clerk/ユーザー/家計データは削除されないこと、アクセス喪失、遷移先 |
 
 軽微な変更（グループ名変更 #215）は確認ダイアログ任意。
 
@@ -121,4 +122,5 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | メンバー解除 | `removeMember` + 共通ガード | `GroupSettingsPanel` + 確認ダイアログ |
 | ロール変更 | `changeMemberRole` + 共通ガード | `GroupMemberList` + 確認ダイアログ |
 | オーナー権限譲渡 | `transferGroupOwnership` + 共通ガード | `GroupSettingsPanel` 危険な操作 + 確認ダイアログ |
+| グループアーカイブ | `archiveGroup` + 共通ガード | `GroupSettingsPanel` 危険な操作 + 確認ダイアログ |
 | メンバー招待 | `inviteMember` action + `assertGroupOwnerRole` | `GroupSettingsPanel` 招待フォーム |

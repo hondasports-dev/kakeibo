@@ -288,4 +288,37 @@ test.describe("グループアクセス", () => {
     await expect(page.getByTestId("danger-zone-section")).toHaveCount(0);
     await expect(page.getByText("メンバー", { exact: true }).first()).toBeVisible();
   });
+
+  test("@smoke @group-access owner はグループアーカイブを確認ダイアログ経由で実行できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/", { ensureGroup: false });
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+    await cleanupGroupMembershipsByUser(currentUserId);
+
+    await page.goto("/");
+    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+    await page.getByRole("textbox", { name: "グループ名" }).fill("アーカイブ検証用");
+    await page.getByRole("button", { name: "グループを作成" }).click();
+    await expect(page).toHaveURL("/");
+
+    await page.goto("/settings");
+    await page.getByTestId("archive-group-request-button").click();
+
+    await expect(
+      page.getByRole("heading", { name: "グループをアーカイブしますか？" }),
+    ).toBeVisible();
+    await expect(page.getByText(/対象グループ: アーカイブ検証用/)).toBeVisible();
+    await expect(
+      page.getByText(/Clerk アカウント、ユーザー情報、家計データ自体は削除されません/),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "グループをアーカイブする" }).click();
+
+    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "家族グループを作成" })).toBeVisible({
+      timeout: 15_000,
+    });
+  });
 });
