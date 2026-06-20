@@ -101,15 +101,6 @@ export async function deleteAllGroupScopedData(ctx: MutationCtx, groupId: Id<"gr
     await ctx.db.delete(category._id);
   }
 
-  const managementAuditLogs = await readQueryDocs(
-    ctx.db
-      .query("managementAuditLogs")
-      .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId)),
-  );
-  for (const auditLog of managementAuditLogs) {
-    await ctx.db.delete(auditLog._id);
-  }
-
   const invitationStatuses = ["pending", "accepted", "revoked", "expired"] as const;
   for (const status of invitationStatuses) {
     const invitations = await readQueryDocs(

@@ -66,6 +66,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
       deleteGroup: "groups.deleteGroup",
+      getGroupDeletionPreview: "groups.getGroupDeletionPreview",
     },
     managementAuditLogs: {
       listManagementAuditLogs: "managementAuditLogs.listManagementAuditLogs",
@@ -134,7 +135,21 @@ describe("GroupSettingsPanel", () => {
       if (reference.includes("groups.deleteGroup")) return deleteGroupMock;
       return vi.fn();
     });
-    useQueryMock.mockImplementation((reference: string) => {
+    useQueryMock.mockImplementation((reference: string, args?: unknown) => {
+      if (args === "skip") {
+        return undefined;
+      }
+      if (typeof reference === "string" && reference.includes("groups.getGroupDeletionPreview")) {
+        return {
+          groupName: "佐藤家",
+          members: 2,
+          invitations: 1,
+          expenseEntries: 3,
+          receipts: 4,
+          receiptImages: 2,
+          aiDrafts: 1,
+        };
+      }
       if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
         return {
           _id: "group-001",
@@ -635,24 +650,24 @@ describe("GroupSettingsPanel", () => {
     });
   });
 
-  it("グループ削除前に確認ダイアログを表示し、確定後に mutation を呼んで遷移する", async () => {
+  it("グループ削除前に影響範囲と確認用グループ名入力を表示し、一致後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
     renderWithProviders(<GroupSettingsPanel />);
 
     await user.click(screen.getByTestId("delete-group-request-button"));
 
     expect(screen.getByRole("heading", { name: "グループを削除しますか？" })).toBeInTheDocument();
-    expect(screen.getByText(/対象グループ: 佐藤家/)).toBeInTheDocument();
-    expect(screen.getByText(/Clerk アカウントとユーザー情報は削除されません/)).toBeInTheDocument();
-    expect(
-      screen.getByText(/グループに紐づく家計データを含めて完全に削除します/),
-    ).toBeInTheDocument();
-    expect(screen.getByText(/別の所属グループへ切り替えて利用を続けられます/)).toBeInTheDocument();
+    expect(screen.getByText(/削除対象: 佐藤家/)).toBeInTheDocument();
+    expect(screen.getByText(/所属メンバー: 2件/)).toBeInTheDocument();
+    expect(screen.getByText(/支出\/収入データ: 3件/)).toBeInTheDocument();
+    expect(screen.getByText(/users と Clerk アカウントは削除されません/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "グループを削除する" })).toBeDisabled();
 
+    await user.type(screen.getByLabelText("確認用グループ名"), "佐藤家");
     await user.click(screen.getByRole("button", { name: "グループを削除する" }));
 
     await waitFor(() => {
-      expect(deleteGroupMock).toHaveBeenCalledWith({});
+      expect(deleteGroupMock).toHaveBeenCalledWith({ confirmationGroupName: "佐藤家" });
       expect(navigateMock).toHaveBeenCalledWith("/group/select");
     });
   });
