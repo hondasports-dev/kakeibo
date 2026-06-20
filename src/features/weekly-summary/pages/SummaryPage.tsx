@@ -6,6 +6,7 @@ import { api } from "../../../../convex/_generated/api";
 import { WeekNavigator } from "../../week";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
 import { ReviewMemoPanel } from "../components/ReviewMemoPanel";
+import { buildWeeklyExpenseChartData } from "../utils/weeklyExpenseChartData";
 import {
   addWeeks,
   getCurrentWeekStartDate,
@@ -39,11 +40,15 @@ export function SummaryPage() {
 
   const summaryWeekSession = useQuery(api.weekSessions.getWeekSession, { weekStartDate });
   const weeklySummary = useQuery(api.receipts.getWeekSummaryWithCategories, { weekStartDate });
-  const dailySpendingTrend = useQuery(api.receipts.getDailySpendingTrend, { weekStartDate });
-  const prevWeekStartDate = addWeeks(weekStartDate, -1);
-  const prevWeekSummary = useQuery(api.receipts.getWeekSummaryWithCategories, {
-    weekStartDate: prevWeekStartDate,
-  });
+  const fourWeeksSummary = useQuery(api.receipts.getFourWeeksSummary, { weekStartDate });
+  const weeklyExpenseTrend =
+    fourWeeksSummary === undefined
+      ? undefined
+      : buildWeeklyExpenseChartData({
+          weeks: fourWeeksSummary.weeks,
+          targetWeekStartDate: weekStartDate,
+          currentWeekStartDate,
+        });
 
   // 今週のサマリーページでセッションが未作成の場合は自動作成する
   // （InputPage を経由せず SummaryPage に直接アクセスした場合に ReviewMemoPanel が機能するように）
@@ -102,10 +107,9 @@ export function SummaryPage() {
           byCategory={weeklySummary.byCategory}
           prevWeekTotalAmountYen={weeklySummary.prevWeekTotalAmountYen ?? null}
           receipts={weeklySummary.receipts}
-          prevWeekReceipts={prevWeekSummary?.receipts ?? []}
           isLoading={false}
           weekStartDate={weekStartDate}
-          dailySpendingTrend={dailySpendingTrend ?? null}
+          weeklyExpenseTrend={weeklyExpenseTrend}
         />
 
         {summaryWeekSession !== undefined &&

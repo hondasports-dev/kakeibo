@@ -1,4 +1,4 @@
-import type { DailySpendingTrendData } from "../../../../convex/receipts";
+import type { WeeklyExpenseChartItem } from "../utils/weeklyExpenseChartData";
 
 export type CategorySummary = {
   categoryId: string;
@@ -27,8 +27,7 @@ export type WeeklySummaryPanelProps = {
   byCategory: CategorySummary[];
   prevWeekTotalAmountYen: number | null;
   receipts: ReceiptItem[];
-  prevWeekReceipts?: ReceiptItem[];
   isLoading?: boolean;
   weekStartDate: string;
-  dailySpendingTrend?: DailySpendingTrendData | null;
+  weeklyExpenseTrend?: WeeklyExpenseChartItem[] | null;
 };

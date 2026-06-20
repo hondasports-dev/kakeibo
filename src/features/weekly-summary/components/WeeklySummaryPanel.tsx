@@ -1,10 +1,8 @@
 import { Stack } from "@mui/material";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
 import { CategoryBreakdownCard } from "./CategoryBreakdownCard";
-import { DailyComparisonDialog } from "./DailyComparisonDialog";
 import { ReceiptListCard } from "./ReceiptListCard";
 import { TotalSummaryCard } from "./TotalSummaryCard";
-import { useDailyComparison } from "../hooks/useDailyComparison";
 import type { WeeklySummaryPanelProps } from "../types/types";
 
 export function WeeklySummaryPanel({
@@ -13,13 +11,9 @@ export function WeeklySummaryPanel({
   byCategory,
   prevWeekTotalAmountYen,
   receipts,
-  prevWeekReceipts = [],
   isLoading = false,
-  weekStartDate,
-  dailySpendingTrend,
+  weeklyExpenseTrend,
 }: WeeklySummaryPanelProps) {
-  const comparison = useDailyComparison({ prevWeekReceipts, receipts, weekStartDate });
-
   return (
     <Stack spacing={2.5}>
       <TotalSummaryCard
@@ -28,13 +22,8 @@ export function WeeklySummaryPanel({
         totalAmountYen={totalAmountYen}
       />
 
-      {dailySpendingTrend !== null && (
-        <WeeklyTrendChart
-          currentWeek={dailySpendingTrend?.currentWeek}
-          previousWeek={dailySpendingTrend?.previousWeek}
-          isLoading={dailySpendingTrend === undefined}
-          onPointClick={comparison.handlePointClick}
-        />
+      {weeklyExpenseTrend !== null && (
+        <WeeklyTrendChart items={weeklyExpenseTrend} isLoading={weeklyExpenseTrend === undefined} />
       )}
 
       <CategoryBreakdownCard
@@ -45,17 +34,6 @@ export function WeeklySummaryPanel({
       />
 
       <ReceiptListCard count={count} isLoading={isLoading} receipts={receipts} />
-
-      <DailyComparisonDialog
-        currentDayReceipts={comparison.currentDayReceipts}
-        currentDayTotal={comparison.currentDayTotal}
-        dialogOpen={comparison.dialogOpen}
-        onClose={comparison.handleClose}
-        previousDate={comparison.previousDate}
-        previousDayReceipts={comparison.previousDayReceipts}
-        previousDayTotal={comparison.previousDayTotal}
-        selectedDate={comparison.selectedDate}
-      />
     </Stack>
   );
 }
