@@ -16,6 +16,7 @@ import { normalizeGroupName } from "./lib/groupName";
 import { formatGroupRoleLabel } from "./lib/groupRoleLabel";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
 import { assertGroupNotDeleted, isGroupDeleted } from "./lib/groupLifecycle";
+import { deleteAllGroupScopedData } from "./lib/deleteGroupPhysically";
 
 // 後方互換のため re-export（UI は convex/lib/groupName を直接 import すること）
 export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
@@ -195,18 +196,6 @@ async function findNextActiveGroupIdForUser(
   }
 
   return undefined;
-}
-
-async function revokeAllPendingGroupInvitations(ctx: MutationCtx, groupId: Id<"groups">) {
-  const now = Date.now();
-  const pendingInvitations = await ctx.db
-    .query("groupInvitations")
-    .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending"))
-    .collect();
-
-  for (const invitation of pendingInvitations) {
-    await ctx.db.patch(invitation._id, { status: "revoked", updatedAt: now });
-  }
 }
 
 /**
@@ -1429,11 +1418,11 @@ export const transferGroupOwnership = mutation({
 });
 
 // ---------------------------------------------------------------------------
-// deleteGroup: グループを論理削除（オーナーのみ）
+// deleteGroup: グループを物理削除（オーナーのみ）
 // ---------------------------------------------------------------------------
 
 export async function deleteGroupHandler(ctx: MutationCtx) {
-  const userId = await requireAuthenticatedUserId(ctx);
+  await requireAuthenticatedUserId(ctx);
   const { activeMembership } = await getRawResolvedMemberships(ctx);
   if (activeMembership === null) {
     throw new ConvexError("グループに所属していません");
@@ -1450,14 +1439,6 @@ export async function deleteGroupHandler(ctx: MutationCtx) {
   }
 
   const now = Date.now();
-  await ctx.db.patch(groupId, {
-    status: "deleted",
-    deletedAt: now,
-    updatedAt: now,
-  });
-
-  await revokeAllPendingGroupInvitations(ctx, groupId);
-
   const members = await ctx.db
     .query("groupMembers")
     .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
@@ -1478,16 +1459,7 @@ export async function deleteGroupHandler(ctx: MutationCtx) {
     });
   }
 
-  await recordManagementAuditLog(ctx, {
-    groupId,
-    actorUserId: userId,
-    action: "group_deleted",
-    targetKind: "group",
-    targetId: groupId,
-    targetLabel: group.name,
-    beforeValue: "利用中",
-    afterValue: "削除済み（論理削除）",
-  });
+  await deleteAllGroupScopedData(ctx, groupId);
 }
 
 export const deleteGroup = mutation({
@@ -1503,15 +1475,6 @@ export const deleteGroup = mutation({
 export const deleteGroupForE2e = internalMutation({
   args: { groupId: v.id("groups") },
   handler: async (ctx, { groupId }) => {
-    // groupMembers を削除
-    const memberQuery = ctx.db
-      .query("groupMembers")
-      .withIndex("by_group_id", (q) => q.eq("groupId", groupId));
-    const members = await readQueryDocs(memberQuery);
-    for (const m of members) {
-      await ctx.db.delete(m._id);
-    }
-
-    await ctx.db.delete(groupId);
+    await deleteAllGroupScopedData(ctx, groupId);
   },
 });

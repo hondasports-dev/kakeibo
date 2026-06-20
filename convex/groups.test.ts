@@ -148,6 +148,9 @@ function createMockDb(state: {
       builder(q);
 
       const isSupportedIndex = () => {
+        if (indexName.startsWith("by_group_id")) {
+          return true;
+        }
         if (tableName === "users") {
           return indexName === "by_token_identifier" || indexName === "by_email";
         }
@@ -180,9 +183,26 @@ function createMockDb(state: {
               ? users
               : tableName === "groupMembers"
                 ? groupMembers
-                : groupInvitations;
+                : tableName === "groupInvitations"
+                  ? groupInvitations
+                  : [];
 
         return source.filter((doc) => {
+          if (indexName.startsWith("by_group_id") && "groupId" in doc) {
+            if (doc.groupId !== filters.groupId) {
+              return false;
+            }
+            if ("userId" in filters && "userId" in doc && doc.userId !== filters.userId) {
+              return false;
+            }
+            if ("email" in filters && "email" in doc && doc.email !== filters.email) {
+              return false;
+            }
+            if ("status" in filters && "status" in doc && doc.status !== filters.status) {
+              return false;
+            }
+            return true;
+          }
           if (indexName === "by_token_identifier" && "userId" in doc) {
             return doc.userId === filters.userId;
           }
@@ -192,20 +212,8 @@ function createMockDb(state: {
           if (indexName === "by_user_id" && "userId" in doc) {
             return doc.userId === filters.userId;
           }
-          if (indexName === "by_group_id" && "groupId" in doc) {
-            return doc.groupId === filters.groupId;
-          }
-          if (indexName === "by_group_id_and_user_id" && "groupId" in doc && "userId" in doc) {
-            return doc.groupId === filters.groupId && doc.userId === filters.userId;
-          }
           if (indexName === "by_token" && "token" in doc) {
             return doc.token === filters.token;
-          }
-          if (indexName === "by_group_id_and_email" && "groupId" in doc && "email" in doc) {
-            return doc.groupId === filters.groupId && doc.email === filters.email;
-          }
-          if (indexName === "by_group_id_and_status" && "groupId" in doc && "status" in doc) {
-            return doc.groupId === filters.groupId && doc.status === filters.status;
           }
           return false;
         });
@@ -230,6 +238,9 @@ function createMockDb(state: {
   return {
     auth: {
       getUserIdentity: vi.fn(),
+    },
+    storage: {
+      delete: vi.fn(async () => undefined),
     },
     db: {
       get,
@@ -3139,7 +3150,7 @@ describe("seedGroupMemberForE2eHandler", () => {
 });
 
 describe("deleteGroupHandler", () => {
-  it("owner は active group を論理削除し、監査ログと pending 招待の取消を行う", async () => {
+  it("owner は active group を物理削除し、関連データと activeGroupId を補正する", async () => {
     const ownerId = "https://issuer.example|owner";
     const ctx = createMockDb({
       groups: [
@@ -3188,26 +3199,14 @@ describe("deleteGroupHandler", () => {
 
     await expect(deleteGroupHandler(ctx)).resolves.toBeUndefined();
 
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "group-001",
-      expect.objectContaining({ status: "deleted", deletedAt: expect.any(Number) }),
-    );
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "invite-001",
-      expect.objectContaining({ status: "revoked" }),
-    );
+    expect(ctx.db.delete).toHaveBeenCalledWith("group-001");
+    expect(ctx.db.delete).toHaveBeenCalledWith("member-owner");
+    expect(ctx.db.delete).toHaveBeenCalledWith("invite-001");
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "user-owner",
       expect.objectContaining({ activeGroupId: undefined }),
     );
-    expect(ctx.db.insert).toHaveBeenCalledWith(
-      "managementAuditLogs",
-      expect.objectContaining({
-        action: "group_deleted",
-        targetLabel: "佐藤家",
-        afterValue: "削除済み（論理削除）",
-      }),
-    );
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
   it("member ロールの呼び出しを拒否する", async () => {

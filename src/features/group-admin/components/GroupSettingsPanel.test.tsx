@@ -644,6 +644,9 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByRole("heading", { name: "グループを削除しますか？" })).toBeInTheDocument();
     expect(screen.getByText(/対象グループ: 佐藤家/)).toBeInTheDocument();
     expect(screen.getByText(/Clerk アカウントとユーザー情報は削除されません/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/グループに紐づく家計データを含めて完全に削除します/),
+    ).toBeInTheDocument();
     expect(screen.getByText(/別の所属グループへ切り替えて利用を続けられます/)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "グループを削除する" }));
