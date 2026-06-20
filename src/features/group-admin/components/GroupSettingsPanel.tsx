@@ -29,6 +29,7 @@ import { GroupPendingInvitationList } from "./GroupPendingInvitationList";
 import type { GroupPendingInvitationListItem } from "../utils/groupInvitationDisplay";
 import { GroupManagementAuditLogList } from "./GroupManagementAuditLogList";
 import type { GroupManagementAuditLogListItem } from "../utils/groupManagementAuditLogDisplay";
+import { formatGroupRoleLabel } from "../utils/groupRoleDisplay";
 import { GroupSettingsSection } from "./GroupSettingsSection";
 
 type GroupInfo = {
@@ -56,10 +57,6 @@ type PendingRoleChange = {
 };
 
 const PHASE2_DANGER_OPERATIONS = ["オーナー権限の譲渡", "グループの削除"] as const;
-
-function formatRoleLabel(role: "owner" | "member") {
-  return role === "owner" ? "オーナー" : "メンバー";
-}
 
 function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
@@ -513,7 +510,7 @@ export function GroupSettingsPanel() {
         confirming={pendingRoleChange !== null && savingTarget === pendingRoleChange.userId}
         description={
           pendingRoleChange
-            ? `${pendingRoleChange.displayLabel} のロールを「${formatRoleLabel(pendingRoleChange.currentRole)}」から「${formatRoleLabel(pendingRoleChange.newRole)}」に変更します。`
+            ? `${pendingRoleChange.displayLabel} のロールを「${formatGroupRoleLabel(pendingRoleChange.currentRole)}」から「${formatGroupRoleLabel(pendingRoleChange.newRole)}」に変更します。`
             : ""
         }
         onCancel={handleCancelRoleChange}

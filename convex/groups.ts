@@ -8,11 +8,11 @@ import {
   assertGroupOwnerRole,
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
-  countGroupOwners,
-  GROUP_ADMIN_ERRORS,
+  assertGroupHasMinimumOwners,
   type GroupAdminRole,
 } from "./groupAdminGuards";
 import { normalizeGroupName } from "./lib/groupName";
+import { formatGroupRoleLabel } from "./lib/groupRoleLabel";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
 
 // 後方互換のため re-export（UI は convex/lib/groupName を直接 import すること）
@@ -1217,10 +1217,6 @@ export const removeMember = mutation({
 // changeMemberRole: メンバーのロールを変更（オーナーのみ）
 // ---------------------------------------------------------------------------
 
-function formatGroupRoleLabel(role: GroupAdminRole): string {
-  return role === "owner" ? "オーナー" : "メンバー";
-}
-
 export async function changeMemberRoleHandler(
   ctx: MutationCtx,
   args: { targetUserId: string; newRole: GroupAdminRole },
@@ -1246,10 +1242,7 @@ export async function changeMemberRoleHandler(
   }
 
   if (currentRole === "owner" && args.newRole === "member") {
-    const ownerCount = await countGroupOwners(ctx, groupId);
-    if (ownerCount <= 1) {
-      throw new ConvexError(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
-    }
+    await assertGroupHasMinimumOwners(ctx, groupId, 2);
   }
 
   const now = Date.now();

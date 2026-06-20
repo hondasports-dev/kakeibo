@@ -18,6 +18,7 @@ import {
   isCurrentUserMember,
   type GroupMemberListItem,
 } from "../utils/groupMemberDisplay";
+import { formatGroupRoleLabel } from "../utils/groupRoleDisplay";
 
 type GroupMemberListProps = {
   members: GroupMemberListItem[];
@@ -33,10 +34,6 @@ type GroupMemberListProps = {
     displayLabel: string,
   ) => void;
 };
-
-function formatRoleLabel(role: "owner" | "member") {
-  return role === "owner" ? "オーナー" : "メンバー";
-}
 
 export function GroupMemberList({
   members,
@@ -118,8 +115,8 @@ export function GroupMemberList({
                     sx={{ minWidth: 120 }}
                     value={member.role}
                   >
-                    <MenuItem value="owner">{formatRoleLabel("owner")}</MenuItem>
-                    <MenuItem value="member">{formatRoleLabel("member")}</MenuItem>
+                    <MenuItem value="owner">{formatGroupRoleLabel("owner")}</MenuItem>
+                    <MenuItem value="member">{formatGroupRoleLabel("member")}</MenuItem>
                   </TextField>
                 ) : (
                   <Tooltip
@@ -129,24 +126,26 @@ export function GroupMemberList({
                         : "最後のオーナーは変更できません"
                     }
                   >
-                    <TextField
-                      aria-label={`${primaryLabel}のロール`}
-                      data-testid={`group-member-role-select-${member.userId}`}
-                      disabled
-                      select
-                      size="small"
-                      sx={{ minWidth: 120 }}
-                      value={member.role}
-                    >
-                      <MenuItem value="owner">{formatRoleLabel("owner")}</MenuItem>
-                      <MenuItem value="member">{formatRoleLabel("member")}</MenuItem>
-                    </TextField>
+                    <span>
+                      <TextField
+                        aria-label={`${primaryLabel}のロール`}
+                        data-testid={`group-member-role-select-${member.userId}`}
+                        disabled
+                        select
+                        size="small"
+                        sx={{ minWidth: 120 }}
+                        value={member.role}
+                      >
+                        <MenuItem value="owner">{formatGroupRoleLabel("owner")}</MenuItem>
+                        <MenuItem value="member">{formatGroupRoleLabel("member")}</MenuItem>
+                      </TextField>
+                    </span>
                   </Tooltip>
                 )
               ) : (
                 <Chip
                   color={member.role === "owner" ? "primary" : "secondary"}
-                  label={formatRoleLabel(member.role)}
+                  label={formatGroupRoleLabel(member.role)}
                   size="small"
                   variant={member.role === "owner" ? "filled" : "outlined"}
                 />
