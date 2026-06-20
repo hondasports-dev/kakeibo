@@ -1,80 +1,75 @@
 import { screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/render";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
+import type { WeeklyExpenseChartItem } from "../utils/weeklyExpenseChartData";
 
-const baseCurrentWeek = [
-  { date: "2024-01-08", totalAmountYen: 1000 },
-  { date: "2024-01-09", totalAmountYen: 2000 },
-  { date: "2024-01-10", totalAmountYen: 0 },
-  { date: "2024-01-11", totalAmountYen: 500 },
-  { date: "2024-01-12", totalAmountYen: 0 },
-  { date: "2024-01-13", totalAmountYen: 3000 },
-  { date: "2024-01-14", totalAmountYen: 0 },
-];
-
-const basePreviousWeek = [
-  { date: "2024-01-01", totalAmountYen: 500 },
-  { date: "2024-01-02", totalAmountYen: 1500 },
-  { date: "2024-01-03", totalAmountYen: 0 },
-  { date: "2024-01-04", totalAmountYen: 2000 },
-  { date: "2024-01-05", totalAmountYen: 0 },
-  { date: "2024-01-06", totalAmountYen: 1000 },
-  { date: "2024-01-07", totalAmountYen: 0 },
+const items: WeeklyExpenseChartItem[] = [
+  {
+    weekStartDate: "2026-06-01",
+    weekEndDate: "2026-06-07",
+    label: "2週前",
+    amount: 10_000,
+    previousDiff: 2_000,
+    averageDiff: 2_000,
+    averageRate: 25,
+  },
+  {
+    weekStartDate: "2026-06-08",
+    weekEndDate: "2026-06-14",
+    label: "先週",
+    amount: 12_000,
+    previousDiff: 2_000,
+    averageDiff: 3_000,
+    averageRate: 33,
+  },
+  {
+    weekStartDate: "2026-06-15",
+    weekEndDate: "2026-06-21",
+    label: "今週",
+    amount: 15_000,
+    previousDiff: 3_000,
+    averageDiff: 4_000,
+    averageRate: 36,
+  },
 ];
 
 describe("WeeklyTrendChart", () => {
-  it("今週または前週にデータがあるとき SVG グラフが表示される", () => {
-    renderWithProviders(
-      <WeeklyTrendChart currentWeek={baseCurrentWeek} previousWeek={basePreviousWeek} />,
-    );
+  it("対象週の要約と週別棒グラフを表示する", () => {
+    renderWithProviders(<WeeklyTrendChart items={items} />);
 
-    expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
+    expect(screen.getByText("対象週の支出")).toBeInTheDocument();
+    expect(screen.getByText("15,000円")).toBeInTheDocument();
+    expect(screen.getByText("+3,000円")).toBeInTheDocument();
+    expect(screen.getByText("+36%")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
   });
 
-  it("今週も前週もデータがないときプレースホルダーテキストが表示される", () => {
-    renderWithProviders(<WeeklyTrendChart currentWeek={[]} previousWeek={[]} />);
+  it("全週0円のとき空状態を表示する", () => {
+    renderWithProviders(<WeeklyTrendChart items={items.map((item) => ({ ...item, amount: 0 }))} />);
 
-    expect(screen.getByText("今週または前週の支出データがあると表示されます")).toBeInTheDocument();
+    expect(screen.getByText("週別の支出データがあると表示されます")).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
   });
 
-  it("isLoading が true のとき heading と Skeleton が表示される", () => {
+  it("isLoadingがtrueのとき見出しとSkeletonを表示する", () => {
     renderWithProviders(<WeeklyTrendChart isLoading />);
 
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
     expect(screen.queryByRole("img", { name: "週別支出推移グラフ" })).not.toBeInTheDocument();
-    expect(
-      screen.queryByText("今週または前週の支出データがあると表示されます"),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText("週別の支出データがあると表示されます")).not.toBeInTheDocument();
   });
 
-  it("SVG がレスポンシブ対応: viewBox が設定され width が 100% である", () => {
+  it("平均を計算できないとき比較データなしと表示する", () => {
     renderWithProviders(
-      <WeeklyTrendChart currentWeek={baseCurrentWeek} previousWeek={basePreviousWeek} />,
-    );
-
-    const svg = screen.getByRole("img", { name: "週別支出推移グラフ" });
-    expect(svg).toHaveAttribute("viewBox");
-    expect(svg).toHaveAttribute("width", "100%");
-    expect(svg).toHaveAttribute("height", "auto");
-  });
-
-  it("データポイントをクリックすると onPointClick が呼ばれる", async () => {
-    const handleClick = vi.fn();
-    const { container } = renderWithProviders(
       <WeeklyTrendChart
-        currentWeek={baseCurrentWeek}
-        previousWeek={basePreviousWeek}
-        onPointClick={handleClick}
+        items={items.map((item, index) =>
+          index === items.length - 1 ? { ...item, averageRate: null, averageDiff: null } : item,
+        )}
       />,
     );
 
-    const circles = container.querySelectorAll("circle");
-    expect(circles.length).toBeGreaterThan(0);
-    await userEvent.click(circles[0]);
-    expect(handleClick).toHaveBeenCalledWith("2024-01-08");
+    expect(screen.getByText("比較データなし")).toBeInTheDocument();
   });
 });

@@ -27,6 +27,7 @@
     "@emotion/styled": "^11.14.1",
     "@mui/icons-material": "^9.0.1",
     "@mui/material": "^9.1.0",
+    "@mui/x-charts": "^9.6.0",
     "convex": "^1.39.1",
     "framer-motion": "^12.40.0",
     "react": "^19.2.7",
