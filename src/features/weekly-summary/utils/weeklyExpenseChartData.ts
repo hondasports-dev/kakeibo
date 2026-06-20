@@ -41,9 +41,7 @@ export function buildWeeklyExpenseChartData({
   targetWeekStartDate: string;
   currentWeekStartDate: string;
 }): WeeklyExpenseChartItem[] {
-  const sortedWeeks = [...weeks].sort((a, b) =>
-    a.weekStartDate.localeCompare(b.weekStartDate),
-  );
+  const sortedWeeks = [...weeks].sort((a, b) => a.weekStartDate.localeCompare(b.weekStartDate));
   const displayStartIndex = Math.max(0, sortedWeeks.length - 3);
   const isCurrentWeek = targetWeekStartDate === currentWeekStartDate;
 
@@ -53,8 +51,7 @@ export function buildWeeklyExpenseChartData({
     const averageSources = sortedWeeks.slice(Math.max(0, sourceIndex - 2), sourceIndex);
     const average =
       averageSources.length > 0
-        ? averageSources.reduce((sum, item) => sum + item.totalAmountYen, 0) /
-          averageSources.length
+        ? averageSources.reduce((sum, item) => sum + item.totalAmountYen, 0) / averageSources.length
         : null;
     const distanceFromTarget = displayedWeeks.length - 1 - displayIndex;
 
@@ -73,9 +70,7 @@ export function buildWeeklyExpenseChartData({
       weekEndDate: addDays(week.weekStartDate, 6),
       label,
       amount: week.totalAmountYen,
-      previousDiff: previousWeek
-        ? week.totalAmountYen - previousWeek.totalAmountYen
-        : null,
+      previousDiff: previousWeek ? week.totalAmountYen - previousWeek.totalAmountYen : null,
       averageDiff: average !== null && average !== 0 ? week.totalAmountYen - average : null,
       averageRate:
         average !== null && average !== 0
