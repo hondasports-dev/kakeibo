@@ -1,18 +1,9 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
-import {
-  Alert,
-  Box,
-  Button,
-  Chip,
-  CircularProgress,
-  Paper,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import { useWeekSession } from "../hooks/useWeekSession";
-import { AnimatedCounter } from "../../ui";
+import { AnimatedCounter, SuzumemoLoadingState } from "../../ui";
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
@@ -25,12 +16,11 @@ export function DashboardPage() {
 
   if (!weekSession && !sessionError) {
     return (
-      <Box className="app-main">
-        <Stack spacing={3} sx={{ alignItems: "center", py: 8 }}>
-          <CircularProgress aria-label="データを読み込み中" />
-          <Typography color="text.secondary">今週のセッションを準備しています...</Typography>
-        </Stack>
-      </Box>
+      <SuzumemoLoadingState
+        label="データを読み込み中"
+        message="今週のセッションを準備しています…"
+        variant="page"
+      />
     );
   }
 

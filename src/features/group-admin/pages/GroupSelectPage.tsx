@@ -1,9 +1,10 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import { useMutation } from "convex/react";
-import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import { api } from "../../../../convex/_generated/api";
 import { useGroupMembership } from "../hooks/useGroupMembership";
+import { SuzumemoLoadingState } from "../../ui";
 
 type MyGroup = {
   _id: string;
@@ -20,14 +21,11 @@ export function GroupSelectPage() {
 
   if (isLoading) {
     return (
-      <Box className="auth-screen">
-        <Paper className="auth-panel paper-panel" elevation={0}>
-          <Stack spacing={2.5} sx={{ alignItems: "center", textAlign: "center" }}>
-            <CircularProgress aria-label="所属グループを確認中" />
-            <Typography color="text.secondary">所属グループを確認しています。</Typography>
-          </Stack>
-        </Paper>
-      </Box>
+      <SuzumemoLoadingState
+        label="所属グループを確認中"
+        message="所属グループを確認しています。"
+        variant="fullscreen"
+      />
     );
   }
 
