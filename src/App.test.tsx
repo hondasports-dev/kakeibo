@@ -84,6 +84,9 @@ describe("App authentication states", () => {
     // Then: ロゴの葉を含むアクセシブルなローディング表示になる
     expect(screen.getByRole("status", { name: "ログイン状態を確認中" })).toBeInTheDocument();
     expect(screen.getAllByTestId("suzumemo-loading-leaf")).toHaveLength(2);
+    expect(screen.getAllByTestId("suzumemo-loading-wordmark-letter")).toHaveLength(8);
+    expect(screen.getAllByTestId("suzumemo-loading-subtitle-letter")).toHaveLength(4);
+    expect(screen.queryByTestId("suzumemo-loading-dot")).not.toBeInTheDocument();
     expect(screen.getByText("ログイン状態を確認しています。")).toBeInTheDocument();
   });
 

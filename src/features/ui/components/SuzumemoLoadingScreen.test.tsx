@@ -69,7 +69,7 @@ describe("Suzumemo loading Lottie", () => {
     expect(css).toContain("width: min(600px, 100%)");
   });
 
-  it("Suzumemoのカラーパレットで半透明のオーバーレイとパネルを描画する", () => {
+  it("ペーパーカラー1色の半透明オーバーレイとして描画する", () => {
     const css = readFileSync(
       resolve("src/features/ui/components/SuzumemoLoadingScreen.css"),
       "utf8",
@@ -80,11 +80,41 @@ describe("Suzumemo loading Lottie", () => {
     expect(overlay).toContain("position: fixed");
     expect(overlay).toContain("inset: 0");
     expect(overlay).toContain("box-sizing: border-box");
-    expect(overlay).toContain("var(--color-primary-dark)");
-    expect(overlay).toContain("68%");
+    expect(overlay).toContain("var(--color-brand-paper)");
+    expect(overlay).toContain("82%");
     expect(overlay).toContain("transparent");
-    expect(panel).toContain("var(--color-brand-paper)");
-    expect(panel).toContain("82%");
-    expect(panel).toContain("transparent");
+    expect(overlay).not.toContain("var(--color-primary-dark)");
+    expect(panel).toContain("background: transparent");
+    expect(panel).not.toContain("border:");
+    expect(panel).not.toContain("box-shadow:");
+  });
+
+  it("既存SVGを文字ごとにマスクして波状に表示し、dot専用レイヤーを持たない", () => {
+    const lottie = JSON.parse(
+      readFileSync(resolve(animationDirectory, "lottie.json"), "utf8"),
+    ) as {
+      layers: Array<{
+        refId?: string;
+        masksProperties?: unknown[];
+        ks: { o: { k?: Array<{ t: number; s: number[] }> } };
+      }>;
+    };
+    const wordmarkLayers = lottie.layers.filter((layer) => layer.refId === "wordmark");
+    const subtitleLayers = lottie.layers.filter((layer) => layer.refId === "subtitle");
+    const firstVisibleFrames = wordmarkLayers.map(
+      (layer) => layer.ks.o.k?.find((frame) => frame.s[0] === 100)?.t,
+    );
+
+    expect(wordmarkLayers).toHaveLength(8);
+    expect(subtitleLayers).toHaveLength(4);
+    expect(
+      [...wordmarkLayers, ...subtitleLayers].every(
+        (layer) => layer.masksProperties?.length === 1,
+      ),
+    ).toBe(true);
+    expect(firstVisibleFrames.every((frame) => typeof frame === "number")).toBe(true);
+    expect(firstVisibleFrames).toEqual([...firstVisibleFrames].sort((a, b) => (a ?? 0) - (b ?? 0)));
+    expect(new Set(firstVisibleFrames).size).toBe(8);
+    expect(lottie.layers.some((layer) => layer.refId === "dot")).toBe(false);
   });
 });
