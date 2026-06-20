@@ -1408,10 +1408,16 @@ export const groupDeletionPreviewValidator = v.object({
   groupName: v.string(),
   members: v.number(),
   invitations: v.number(),
+  sourceDocuments: v.number(),
   expenseEntries: v.number(),
   receipts: v.number(),
   receiptImages: v.number(),
+  categories: v.number(),
   aiDrafts: v.number(),
+  aiDraftItems: v.number(),
+  analysisBatches: v.number(),
+  analysisJobs: v.number(),
+  weekSessions: v.number(),
 });
 
 export async function getGroupDeletionPreviewHandler(ctx: QueryCtx) {
@@ -1423,23 +1429,10 @@ export async function getGroupDeletionPreviewHandler(ctx: QueryCtx) {
   assertGroupNotDeleted(group);
 
   const counts = await countGroupDeletionImpact(ctx, groupId);
-  const sourceDocuments = await readQueryDocs(
-    ctx.db
-      .query("sourceDocuments")
-      .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId)),
-  );
-  const receiptImages = sourceDocuments.filter(
-    (document) => document.imageStorageId !== undefined,
-  ).length;
 
   return {
     groupName: group.name,
-    members: counts.members,
-    invitations: counts.invitations,
-    expenseEntries: counts.expenseEntries,
-    receipts: counts.receipts,
-    receiptImages,
-    aiDrafts: counts.aiDrafts,
+    ...counts,
   };
 }
 

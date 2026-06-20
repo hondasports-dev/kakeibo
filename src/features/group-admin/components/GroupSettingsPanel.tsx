@@ -396,6 +396,7 @@ export function GroupSettingsPanel() {
       setSnackbar("グループを削除しました");
       navigate(groups.length > 1 ? "/group/select" : "/group/setup");
     } catch (caughtError) {
+      setPendingDeleteGroup(false);
       setError(getErrorMessage(caughtError, "グループを削除できませんでした。"));
     } finally {
       setSavingTarget(null);
