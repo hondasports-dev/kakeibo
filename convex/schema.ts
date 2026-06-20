@@ -45,6 +45,11 @@ export default defineSchema({
   groups: defineTable({
     name: v.string(),
     clerkOrganizationId: v.optional(v.string()),
+    status: v.optional(
+      v.union(v.literal("active"), v.literal("deleted"), v.literal("archived")),
+    ),
+    deletedAt: v.optional(v.number()),
+    archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }),

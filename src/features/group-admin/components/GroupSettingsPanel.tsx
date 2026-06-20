@@ -1,4 +1,5 @@
 import { type FormEvent, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Alert,
@@ -62,13 +63,12 @@ type PendingOwnershipTransfer = {
   displayLabel: string;
 };
 
-const PHASE2_PLACEHOLDER_OPERATIONS = ["グループの削除"] as const;
-
 function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
 }
 
 export function GroupSettingsPanel() {
+  const navigate = useNavigate();
   const { userId } = useAuth();
   const { user } = useUser();
   const group = useQuery(api.groups.getMyGroup) as GroupInfo | null | undefined;
@@ -88,6 +88,7 @@ export function GroupSettingsPanel() {
   const removeMember = useMutation(api.groups.removeMember);
   const changeMemberRole = useMutation(api.groups.changeMemberRole);
   const transferGroupOwnership = useMutation(api.groups.transferGroupOwnership);
+  const deleteGroup = useMutation(api.groups.deleteGroup);
   const updateGroupName = useMutation(api.groups.updateGroupName);
   const inviteMember = useAction(api.groupInvitations.inviteMember);
   const cancelPendingGroupInvitation = useAction(api.groupInvitations.cancelPendingGroupInvitation);
@@ -104,6 +105,7 @@ export function GroupSettingsPanel() {
   const [pendingRoleChange, setPendingRoleChange] = useState<PendingRoleChange | null>(null);
   const [pendingOwnershipTransfer, setPendingOwnershipTransfer] =
     useState<PendingOwnershipTransfer | null>(null);
+  const [pendingDeleteGroup, setPendingDeleteGroup] = useState(false);
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
 
   const groupId = group?._id;
@@ -364,6 +366,35 @@ export function GroupSettingsPanel() {
     }
   };
 
+  const handleRequestDeleteGroup = () => {
+    setError("");
+    setPendingDeleteGroup(true);
+  };
+
+  const handleCancelDeleteGroup = () => {
+    if (savingTarget !== null) {
+      return;
+    }
+    setPendingDeleteGroup(false);
+  };
+
+  const handleConfirmDeleteGroup = async () => {
+    setSavingTarget("delete-group");
+    setError("");
+    try {
+      await deleteGroup({});
+      setPendingDeleteGroup(false);
+      setSnackbar("グループを削除しました");
+      navigate(groups.length > 1 ? "/group/select" : "/group/setup");
+    } catch (caughtError) {
+      setError(getErrorMessage(caughtError, "グループを削除できませんでした。"));
+    } finally {
+      setSavingTarget(null);
+    }
+  };
+
+  const otherActiveGroupsCount = groups.filter((item) => item._id !== group._id).length;
+
   return (
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
@@ -597,18 +628,21 @@ export function GroupSettingsPanel() {
 
                   <Box>
                     <Typography sx={{ mb: 1 }} variant="subtitle2">
-                      今後追加予定
+                      グループの削除
                     </Typography>
-                    <Alert severity="warning" variant="outlined">
-                      以下の操作は今後のアップデートで追加予定です。現在は実行できません。
-                    </Alert>
-                    <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-                      {PHASE2_PLACEHOLDER_OPERATIONS.map((operation) => (
-                        <Typography component="li" key={operation} variant="body2">
-                          {operation}
-                        </Typography>
-                      ))}
-                    </Box>
+                    <Typography color="text.secondary" sx={{ mb: 1.5 }} variant="body2">
+                      このグループを削除すると、通常の画面からはアクセスできなくなります。家計データは論理削除のため保持されますが、復旧機能はありません。Clerk
+                      アカウントやユーザー情報は削除されません。
+                    </Typography>
+                    <Button
+                      color="error"
+                      data-testid="delete-group-request-button"
+                      disabled={savingTarget !== null}
+                      onClick={handleRequestDeleteGroup}
+                      variant="outlined"
+                    >
+                      削除を開始
+                    </Button>
                   </Box>
                 </Stack>
               </GroupSettingsSection>
@@ -630,6 +664,25 @@ export function GroupSettingsPanel() {
         onConfirm={() => void handleConfirmRoleChange()}
         open={pendingRoleChange !== null}
         title="メンバーのロールを変更しますか？"
+      />
+
+      <ConfirmDangerousActionDialog
+        cancelLabel="戻る"
+        confirmLabel="グループを削除する"
+        confirming={pendingDeleteGroup && savingTarget === "delete-group"}
+        description={
+          pendingDeleteGroup
+            ? `対象グループ: ${group.name}。削除後はこのグループの家計データへアクセスできなくなります（データ自体は論理削除で保持）。復旧はできません。Clerk アカウントとユーザー情報は削除されません。${
+                otherActiveGroupsCount > 0
+                  ? " 別の所属グループへ切り替えて利用を続けられます。"
+                  : " 他に所属グループがない場合は、新しいグループを作成してください。"
+              }`
+            : ""
+        }
+        onCancel={handleCancelDeleteGroup}
+        onConfirm={() => void handleConfirmDeleteGroup()}
+        open={pendingDeleteGroup}
+        title="グループを削除しますか？"
       />
 
       <ConfirmDangerousActionDialog
