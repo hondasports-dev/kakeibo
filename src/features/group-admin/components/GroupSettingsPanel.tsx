@@ -25,6 +25,7 @@ import { getConvexErrorMessage } from "../../auth";
 import { ConfirmDangerousActionDialog } from "./ConfirmDangerousActionDialog";
 import { GroupMemberList } from "./GroupMemberList";
 import type { GroupMemberListItem } from "../utils/groupMemberDisplay";
+import { getMemberPrimaryLabel, isCurrentUserMember } from "../utils/groupMemberDisplay";
 import { GroupPendingInvitationList } from "./GroupPendingInvitationList";
 import type { GroupPendingInvitationListItem } from "../utils/groupInvitationDisplay";
 import { GroupManagementAuditLogList } from "./GroupManagementAuditLogList";
@@ -56,7 +57,12 @@ type PendingRoleChange = {
   newRole: "owner" | "member";
 };
 
-const PHASE2_DANGER_OPERATIONS = ["オーナー権限の譲渡", "グループの削除"] as const;
+type PendingOwnershipTransfer = {
+  userId: string;
+  displayLabel: string;
+};
+
+const PHASE2_PLACEHOLDER_OPERATIONS = ["グループの削除"] as const;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
@@ -81,6 +87,7 @@ export function GroupSettingsPanel() {
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
   const changeMemberRole = useMutation(api.groups.changeMemberRole);
+  const transferGroupOwnership = useMutation(api.groups.transferGroupOwnership);
   const updateGroupName = useMutation(api.groups.updateGroupName);
   const inviteMember = useAction(api.groupInvitations.inviteMember);
   const cancelPendingGroupInvitation = useAction(api.groupInvitations.cancelPendingGroupInvitation);
@@ -95,6 +102,9 @@ export function GroupSettingsPanel() {
   const [pendingCancelInvitation, setPendingCancelInvitation] =
     useState<PendingCancelInvitation | null>(null);
   const [pendingRoleChange, setPendingRoleChange] = useState<PendingRoleChange | null>(null);
+  const [pendingOwnershipTransfer, setPendingOwnershipTransfer] =
+    useState<PendingOwnershipTransfer | null>(null);
+  const [transferTargetUserId, setTransferTargetUserId] = useState("");
 
   const groupId = group?._id;
   const groupName = group?.name;
@@ -305,6 +315,54 @@ export function GroupSettingsPanel() {
     }
   };
 
+  const transferableMembers =
+    members?.filter(
+      (member) =>
+        member.role === "member" && !isCurrentUserMember(member.userId, userId ?? undefined),
+    ) ?? [];
+
+  const handleRequestOwnershipTransfer = () => {
+    const selectedMember = transferableMembers.find(
+      (member) => member.userId === transferTargetUserId,
+    );
+    if (!selectedMember) {
+      setError("譲渡先のメンバーを選択してください。");
+      return;
+    }
+
+    setPendingOwnershipTransfer({
+      userId: selectedMember.userId,
+      displayLabel: getMemberPrimaryLabel(selectedMember, null),
+    });
+  };
+
+  const handleCancelOwnershipTransfer = () => {
+    if (savingTarget !== null) {
+      return;
+    }
+    setPendingOwnershipTransfer(null);
+  };
+
+  const handleConfirmOwnershipTransfer = async () => {
+    if (!pendingOwnershipTransfer) {
+      return;
+    }
+
+    const { userId: targetUserId } = pendingOwnershipTransfer;
+    setSavingTarget(targetUserId);
+    setError("");
+    try {
+      await transferGroupOwnership({ targetUserId });
+      setPendingOwnershipTransfer(null);
+      setTransferTargetUserId("");
+      setSnackbar("オーナー権限を譲渡しました");
+    } catch (caughtError) {
+      setError(getErrorMessage(caughtError, "オーナー権限を譲渡できませんでした。"));
+    } finally {
+      setSavingTarget(null);
+    }
+  };
+
   return (
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
@@ -488,16 +546,70 @@ export function GroupSettingsPanel() {
                 testId="danger-zone-section"
                 title="危険な操作"
               >
-                <Alert severity="warning" variant="outlined">
-                  以下の操作は今後のアップデートで追加予定です。現在は実行できません。
-                </Alert>
-                <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
-                  {PHASE2_DANGER_OPERATIONS.map((operation) => (
-                    <Typography component="li" key={operation} variant="body2">
-                      {operation}
+                <Stack spacing={2}>
+                  <Box>
+                    <Typography sx={{ mb: 1 }} variant="subtitle2">
+                      オーナー権限の譲渡
                     </Typography>
-                  ))}
-                </Box>
+                    <Typography color="text.secondary" sx={{ mb: 1.5 }} variant="body2">
+                      グループの管理責任を別のメンバーへ引き渡します。譲渡後、あなたはメンバーになり、管理操作は実行できなくなります。
+                    </Typography>
+                    {transferableMembers.length === 0 ? (
+                      <Alert severity="info" variant="outlined">
+                        譲渡先となるメンバーがいません。
+                      </Alert>
+                    ) : (
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                        <TextField
+                          aria-label="譲渡先メンバー"
+                          data-testid="ownership-transfer-target-select"
+                          disabled={savingTarget !== null}
+                          fullWidth
+                          onChange={(event) => setTransferTargetUserId(event.target.value)}
+                          select
+                          size="small"
+                          value={transferTargetUserId}
+                        >
+                          <MenuItem disabled value="">
+                            譲渡先を選択
+                          </MenuItem>
+                          {transferableMembers.map((member) => (
+                            <MenuItem key={member.userId} value={member.userId}>
+                              {getMemberPrimaryLabel(member, null)}
+                            </MenuItem>
+                          ))}
+                        </TextField>
+                        <Button
+                          color="error"
+                          data-testid="ownership-transfer-request-button"
+                          disabled={savingTarget !== null || transferTargetUserId === ""}
+                          onClick={handleRequestOwnershipTransfer}
+                          variant="outlined"
+                        >
+                          譲渡を開始
+                        </Button>
+                      </Stack>
+                    )}
+                  </Box>
+
+                  <Divider />
+
+                  <Box>
+                    <Typography sx={{ mb: 1 }} variant="subtitle2">
+                      今後追加予定
+                    </Typography>
+                    <Alert severity="warning" variant="outlined">
+                      以下の操作は今後のアップデートで追加予定です。現在は実行できません。
+                    </Alert>
+                    <Box component="ul" sx={{ m: 0, pl: 2.5 }}>
+                      {PHASE2_PLACEHOLDER_OPERATIONS.map((operation) => (
+                        <Typography component="li" key={operation} variant="body2">
+                          {operation}
+                        </Typography>
+                      ))}
+                    </Box>
+                  </Box>
+                </Stack>
               </GroupSettingsSection>
             </>
           ) : null}
@@ -517,6 +629,23 @@ export function GroupSettingsPanel() {
         onConfirm={() => void handleConfirmRoleChange()}
         open={pendingRoleChange !== null}
         title="メンバーのロールを変更しますか？"
+      />
+
+      <ConfirmDangerousActionDialog
+        cancelLabel="戻る"
+        confirmLabel="オーナー権限を譲渡する"
+        confirming={
+          pendingOwnershipTransfer !== null && savingTarget === pendingOwnershipTransfer.userId
+        }
+        description={
+          pendingOwnershipTransfer
+            ? `現在のオーナー: ${currentUserDisplayName}。譲渡先: ${pendingOwnershipTransfer.displayLabel}。譲渡後のあなたのロール: ${formatGroupRoleLabel("member")}。譲渡後は管理操作を実行できなくなります。`
+            : ""
+        }
+        onCancel={handleCancelOwnershipTransfer}
+        onConfirm={() => void handleConfirmOwnershipTransfer()}
+        open={pendingOwnershipTransfer !== null}
+        title="オーナー権限を譲渡しますか？"
       />
 
       <ConfirmDangerousActionDialog

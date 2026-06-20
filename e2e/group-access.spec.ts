@@ -252,4 +252,40 @@ test.describe("グループアクセス", () => {
       "メンバー → オーナー",
     );
   });
+
+  test("@smoke @group-access owner はオーナー権限譲渡を確認ダイアログ経由で実行できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+
+    const memberDisplayName = "E2E譲渡先";
+    const memberEmail = "e2e-transfer-target@example.com";
+    const { memberUserId } = await seedGroupMemberForUser(
+      currentUserId,
+      memberDisplayName,
+      memberEmail,
+    );
+    seededMemberUserIdForCleanup = memberUserId;
+
+    await page.reload();
+    await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
+
+    await page.getByTestId("ownership-transfer-target-select").getByRole("combobox").click();
+    await page.getByRole("option", { name: memberDisplayName }).click();
+    await page.getByTestId("ownership-transfer-request-button").click();
+
+    await expect(page.getByRole("heading", { name: "オーナー権限を譲渡しますか？" })).toBeVisible();
+    await expect(page.getByText(/譲渡先: E2E譲渡先/)).toBeVisible();
+    await expect(page.getByText(/譲渡後のあなたのロール: メンバー/)).toBeVisible();
+    await page.getByRole("button", { name: "オーナー権限を譲渡する" }).click();
+
+    await expect(page.getByText("オーナー権限を譲渡しました")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("danger-zone-section")).toHaveCount(0);
+    await expect(page.getByText("メンバー", { exact: true }).first()).toBeVisible();
+  });
 });
