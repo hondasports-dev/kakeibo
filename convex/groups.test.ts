@@ -21,6 +21,7 @@ import {
   listMyGroupsHandler,
   cancelPendingGroupInvitationHandler,
   removeMemberHandler,
+  seedGroupMemberForE2eHandler,
   setActiveGroupHandler,
   sortGroupMembersForDisplay,
   updateGroupNameHandler,
@@ -2378,5 +2379,54 @@ describe("Phase1 owner-only permissions", () => {
   ] as const)("member は %s を拒否される", async (_operation, runHandler) => {
     const { ctx } = createMemberContext();
     await expect(runHandler(ctx)).rejects.toThrow(OWNER_ONLY_ERROR);
+  });
+});
+
+describe("seedGroupMemberForE2eHandler", () => {
+  it("同じメールの e2e-seed ユーザーを置き換えて seed する", async () => {
+    const existingMemberId = "e2e-seed|group-member-old";
+    const ctx = createMockDb({
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      users: [
+        {
+          _id: "user-existing" as Id<"users">,
+          userId: existingMemberId,
+          displayName: "旧メンバー",
+          email: "e2e-removable-member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-existing" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: existingMemberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+
+    const result = await seedGroupMemberForE2eHandler(ctx, {
+      groupId: "group-001" as Id<"groups">,
+      displayName: "E2E解除対象メンバー",
+      email: "e2e-removable-member@example.com",
+    });
+
+    expect(result.memberUserId).toMatch(/^e2e-seed\|group-member-/);
+    expect(result.memberUserId).not.toBe(existingMemberId);
+    expect(ctx.db.delete).toHaveBeenCalledWith("member-existing");
+    expect(ctx.db.delete).toHaveBeenCalledWith("user-existing");
+    expect(ctx.db.insert).toHaveBeenCalledTimes(2);
   });
 });

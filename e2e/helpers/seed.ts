@@ -58,13 +58,16 @@ export async function seedGroupMemberForUser(
 ): Promise<{ memberUserId: string }> {
   const siteUrl = getRequiredEnv("VITE_CONVEX_SITE_URL");
   const secret = getRequiredEnv("E2E_CLEANUP_SECRET");
-  const res = await fetch(`${siteUrl}/e2e/seed-group-member`, {
+  const res = await fetch(`${siteUrl}/e2e/cleanup`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-E2E-Cleanup-Secret": secret,
     },
-    body: JSON.stringify({ userId, memberDisplayName, memberEmail }),
+    body: JSON.stringify({
+      userId,
+      seedGroupMember: { displayName: memberDisplayName, email: memberEmail },
+    }),
   });
 
   if (!res.ok) {
@@ -72,5 +75,11 @@ export async function seedGroupMemberForUser(
     throw new Error(`グループメンバー seed に失敗しました: ${res.status} ${text}`);
   }
 
-  return (await res.json()) as { memberUserId: string };
+  const data = (await res.json()) as { seededGroupMember?: { memberUserId: string } };
+  const memberUserId = data.seededGroupMember?.memberUserId;
+  if (!memberUserId) {
+    throw new Error("グループメンバー seed のレスポンスに memberUserId がありません");
+  }
+
+  return { memberUserId };
 }
