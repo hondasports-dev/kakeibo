@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Locator } from "@playwright/test";
 import { barClasses } from "@mui/x-charts/BarChart";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
@@ -7,6 +7,25 @@ import {
   cleanupTestReceipts,
   resetTestWeekSession,
 } from "./helpers/cleanup";
+
+async function expectChartLabelsWithinBounds(graph: Locator) {
+  const graphBounds = await graph.boundingBox();
+  const overflowingLabels = await graph.locator("svg text").evaluateAll((labels, bounds) => {
+    if (!bounds) return ["グラフ領域を取得できません"];
+    return labels.flatMap((label) => {
+      const text = label.textContent?.trim();
+      const rect = label.getBoundingClientRect();
+      const isOutside =
+        rect.left < bounds.x - 1 ||
+        rect.right > bounds.x + bounds.width + 1 ||
+        rect.top < bounds.y - 1 ||
+        rect.bottom > bounds.y + bounds.height + 1;
+      return text && isOutside ? [text] : [];
+    });
+  }, graphBounds);
+
+  expect(overflowingLabels, "グラフの軸ラベルが表示領域から見切れない").toEqual([]);
+}
 
 /**
  * 支出項目入力フォーム E2E テスト（QA Agent 担当）
@@ -976,6 +995,7 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     if (await graph.isVisible().catch(() => false)) {
       await expect(page.getByText("対象週の支出")).toBeVisible();
       await expect(page.getByText("2週平均比")).toBeVisible();
+      await expectChartLabelsWithinBounds(graph);
       const bar = graph.locator(`.${barClasses.element}`).last();
       await expect(bar).toBeVisible();
       await bar.hover();
@@ -985,6 +1005,7 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     const mobileBar = graph.locator(`.${barClasses.element}`).last();
     if (await mobileBar.isVisible().catch(() => false)) {
+      await expectChartLabelsWithinBounds(graph);
       await mobileBar.click();
       await expect(page.getByText(/支出合計 .*円/)).toBeVisible();
     }
