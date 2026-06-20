@@ -17,6 +17,14 @@ function formatAmount(amount: number): string {
   return `${currencyFormatter.format(amount)}円`;
 }
 
+function formatAxisAmount(amount: number): string {
+  if (Math.abs(amount) >= 10_000) {
+    const amountInTenThousands = Number((amount / 10_000).toFixed(1));
+    return `${amountInTenThousands}万円`;
+  }
+  return formatAmount(amount);
+}
+
 function formatDiff(amount: number | null): string {
   if (amount === null) return "比較データなし";
   return `${amount > 0 ? "+" : ""}${currencyFormatter.format(amount)}円`;
@@ -98,7 +106,7 @@ export function WeeklyTrendChart({ items = [], isLoading = false }: WeeklyTrendC
             dataset={items}
             height={220}
             hideLegend
-            margin={{ bottom: 8, left: 8, right: 8, top: 16 }}
+            margin={{ bottom: 28, left: 64, right: 12, top: 16 }}
             series={[
               {
                 dataKey: "amount",
@@ -113,8 +121,8 @@ export function WeeklyTrendChart({ items = [], isLoading = false }: WeeklyTrendC
             xAxis={[{ dataKey: "label", scaleType: "band" }]}
             yAxis={[
               {
-                valueFormatter: (value: number) => `${Math.round(value / 1000)}千円`,
-                width: 44,
+                valueFormatter: formatAxisAmount,
+                width: 56,
               },
             ]}
           />

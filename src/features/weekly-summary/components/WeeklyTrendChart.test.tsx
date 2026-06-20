@@ -46,6 +46,13 @@ describe("WeeklyTrendChart", () => {
     expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
   });
 
+  it("Y軸の金額を直感的な円・万円表記で表示する", () => {
+    renderWithProviders(<WeeklyTrendChart items={items} />);
+
+    expect(screen.queryByText(/千円$/)).not.toBeInTheDocument();
+    expect(screen.getByText("1万円")).toBeInTheDocument();
+  });
+
   it("全週0円のとき空状態を表示する", () => {
     renderWithProviders(<WeeklyTrendChart items={items.map((item) => ({ ...item, amount: 0 }))} />);
 
