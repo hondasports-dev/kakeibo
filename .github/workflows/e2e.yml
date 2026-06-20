@@ -15,7 +15,7 @@ name: E2E
 #   E2E_CLEANUP_SECRET               — E2E クリーンアップ API 認証シークレット
 #   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
 #
-# 必要な GitHub Actions Variables（手動設定が必要）:
+# 必要な GitHub Environment `Preview` Variables（手動設定が必要）:
 #   VITE_CONVEX_SITE_URL             — Convex staging deployment の HTTP URL (例: https://xxx.convex.site)
 #                                      preview-deploy.yml と同一値を使う（E2E cleanup / seed 用）
 #
@@ -42,6 +42,8 @@ jobs:
       contains(github.event.deployment_status.target_url, '.vercel.app') &&
       github.event.deployment.ref != 'preview'
     runs-on: ubuntu-latest
+    # VITE_CONVEX_SITE_URL は GitHub Environment `Preview` の Variable を参照する
+    environment: Preview
     timeout-minutes: 15
     steps:
       - name: Verify trusted deployment source
