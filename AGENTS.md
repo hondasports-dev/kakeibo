@@ -32,7 +32,8 @@ Convex agent skills for common tasks can be installed by running
 | フォーマット確認 | `pnpm run format:check`                                                        |
 | フォーマット適用 | `pnpm run format`                                                              |
 | ビルド         | `pnpm run build`                                                                 |
-| push前検証     | `pnpm test --run & pnpm run lint & pnpm run format:check & pnpm run build & wait` |
+| push前検証（基本） | `pnpm test --run & pnpm run lint & pnpm run format:check & pnpm run build & wait` |
+| push前検証（UI/E2E） | 基本4本 + 下記「Push前検証」の追加条件 |
 | パッケージ追加 | `pnpm add <pkg>`                                                                 |
 | Convex CLI     | `pnpm exec convex <cmd>` または `npx convex <cmd>`（convex は例外として npx 可） |
 
@@ -40,13 +41,40 @@ Convex agent skills for common tasks can be installed by running
 
 コード変更後は以下の自動検証フローに従うこと。
 
-### Push前検証（並列実行）
+### Push前検証
+
+#### 基本（常に並列実行）
 
 ```bash
-# 全て並列で実行し、全て成功してからpushする
+# 全て並列で実行し、全て成功してから push する
 pnpm test --run & pnpm run lint & pnpm run format:check & pnpm run build &
 wait
 ```
+
+#### 追加条件（該当 diff があるときは基本のあと必須）
+
+| 変更パス | 追加で実行するコマンド |
+| -------- | ---------------------- |
+| `convex/**`（`_generated/` 除く） | `pnpm exec convex dev --once`（dev deployment へ反映。E2E 前に必須） |
+| `src/**` または `e2e/**` | ローカル E2E（下記） |
+
+**`src/**` / `e2e/**` を触った PR では、CI E2E 任せにせず push 前にローカル E2E を完走する。**
+手順の正本は `docs/development-process.md` の「ローカル E2E 実行」（`.env.local` 同期、
+Playwright ブラウザ導入、`convex dev --once` など）。
+
+```bash
+# 変更が限定的なら該当 spec または smoke（例: グループ管理）
+pnpm exec playwright test e2e/group-access.spec.ts --project=chromium
+
+# 広い導線・認証・保存に触れたら全 E2E
+pnpm run e2e -- --project=chromium
+
+# smoke のみで足りる場合（CI と同じ grep）
+pnpm run e2e:smoke -- --project=chromium
+```
+
+`.env.local` が無い worktree では E2E をスキップせず、先に `docs/development-process.md`
+の「`.env.local` 同期」を実施する。実行不能な場合のみ Issue/PR に理由を記録し CI に委ねる。
 
 ### Push後CI自動監視
 
@@ -67,12 +95,13 @@ gh run watch <run_id> --exit-status
    |--------------|------------------|------------------|
    | フォーマット違反 | `oxfmt`, `format`, `prettier` | `pnpm run format` → 再commit → 再push |
    | lint警告 | `oxlint`, `eslint`, `warning` | 修正 → `pnpm run lint` → 再commit |
-   | テスト失敗 | `FAIL`, `Error`, `expected` | 失敗テスト名を報告 → ユーザー確認 |
+   | E2E 失敗（Playwright） | `Timeout`, `strict mode`, `FunctionNotFound` | ローカルで該当 spec を再実行 → `convex dev --once` 未反映なら実行 → 修正 → 再 push |
    | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
 
 3. **修正後は必ず再検証してから再push**
    ```bash
-   pnpm test --run && pnpm run lint && pnpm run format:check && git push
+   pnpm test --run && pnpm run lint && pnpm run format:check && pnpm run build
+   # src/** または e2e/** を変更している場合は、上記に加えローカル E2E も成功してから push
    ```
 
 4. **学習の自動反映（AGENTS.md自己更新）**
