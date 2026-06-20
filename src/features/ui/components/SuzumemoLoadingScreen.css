@@ -1,18 +1,31 @@
 .suzumemo-loading-screen {
+  position: fixed;
+  z-index: 1400;
+  inset: 0;
   display: grid;
+  box-sizing: border-box;
   min-height: 100dvh;
+  overflow: auto;
   place-items: center;
   padding: var(--space-xl);
-  background: #0c1117;
+  background: color-mix(in srgb, var(--color-primary-dark) 68%, transparent);
+  backdrop-filter: blur(6px);
 }
 
 .suzumemo-loading-panel {
   display: grid;
+  box-sizing: border-box;
   width: min(600px, 100%);
   justify-items: center;
   gap: var(--space-md);
-  color: #f4eee8;
+  padding: var(--space-lg);
+  color: var(--color-text-primary);
   text-align: center;
+  background: color-mix(in srgb, var(--color-brand-paper) 82%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-brand-paper) 46%, transparent);
+  border-radius: var(--radius-md);
+  box-shadow: 0 16px 48px rgb(61 44 34 / 18%);
+  backdrop-filter: blur(10px);
 }
 
 .suzumemo-loading-stage {
