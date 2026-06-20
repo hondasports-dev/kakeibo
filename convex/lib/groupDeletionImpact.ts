@@ -5,12 +5,15 @@ export type GroupDeletionImpactCounts = {
   members: number;
   invitations: number;
   sourceDocuments: number;
+  receiptImages: number;
   expenseEntries: number;
   receipts: number;
   categories: number;
   aiDrafts: number;
+  aiDraftItems: number;
   analysisBatches: number;
   analysisJobs: number;
+  weekSessions: number;
 };
 
 async function readQueryDocs<T>(query: {
@@ -68,6 +71,11 @@ export async function countGroupDeletionImpact(
       .query("aiExpenseDrafts")
       .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId)),
   );
+  const aiDraftItems = await readQueryDocs(
+    ctx.db
+      .query("aiExpenseDraftItems")
+      .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId)),
+  );
   const analysisBatches = await readQueryDocs(
     ctx.db
       .query("receiptAnalysisBatches")
@@ -78,16 +86,25 @@ export async function countGroupDeletionImpact(
       .query("receiptAnalysisImageJobs")
       .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId)),
   );
+  const weekSessions = await readQueryDocs(
+    ctx.db
+      .query("weekSessions")
+      .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId)),
+  );
 
   return {
     members: members.length,
     invitations,
     sourceDocuments: sourceDocuments.length,
+    receiptImages: sourceDocuments.filter((document) => document.imageStorageId !== undefined)
+      .length,
     expenseEntries: expenseEntries.length,
     receipts: receipts.length,
     categories: categories.length,
     aiDrafts: aiDrafts.length,
+    aiDraftItems: aiDraftItems.length,
     analysisBatches: analysisBatches.length,
     analysisJobs: analysisJobs.length,
+    weekSessions: weekSessions.length,
   };
 }
