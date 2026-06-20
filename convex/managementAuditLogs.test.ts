@@ -419,14 +419,15 @@ describe("listManagementAuditLogsHandler", () => {
     });
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
 
-    const userQueryCountBefore = ctx.db.query.mock.calls.filter(
-      ([tableName]) => tableName === "users",
+    const queryMock = vi.mocked(ctx.db.query);
+    const userQueryCountBefore = queryMock.mock.calls.filter(
+      ([tableName]: [string]) => tableName === "users",
     ).length;
 
     const logs = await listManagementAuditLogsHandler(ctx);
 
-    const userQueryCountAfter = ctx.db.query.mock.calls.filter(
-      ([tableName]) => tableName === "users",
+    const userQueryCountAfter = queryMock.mock.calls.filter(
+      ([tableName]: [string]) => tableName === "users",
     ).length;
 
     expect(logs).toHaveLength(3);
