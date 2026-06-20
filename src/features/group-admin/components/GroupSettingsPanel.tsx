@@ -27,6 +27,8 @@ import { GroupMemberList } from "./GroupMemberList";
 import type { GroupMemberListItem } from "../utils/groupMemberDisplay";
 import { GroupPendingInvitationList } from "./GroupPendingInvitationList";
 import type { GroupPendingInvitationListItem } from "../utils/groupInvitationDisplay";
+import { GroupManagementAuditLogList } from "./GroupManagementAuditLogList";
+import type { GroupManagementAuditLogListItem } from "../utils/groupManagementAuditLogDisplay";
 import { GroupSettingsSection } from "./GroupSettingsSection";
 
 type GroupInfo = {
@@ -50,7 +52,6 @@ const PHASE2_DANGER_OPERATIONS = [
   "オーナー権限の譲渡",
   "メンバーのロール変更",
   "グループの削除",
-  "管理操作の監査ログ",
 ] as const;
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -69,6 +70,10 @@ export function GroupSettingsPanel() {
     api.groups.listPendingGroupInvitations,
     group?.role === "owner" ? {} : "skip",
   ) as GroupPendingInvitationListItem[] | undefined;
+  const managementAuditLogs = useQuery(
+    api.managementAuditLogs.listManagementAuditLogs,
+    group?.role === "owner" ? {} : "skip",
+  ) as GroupManagementAuditLogListItem[] | undefined;
   const setActiveGroup = useMutation(api.groups.setActiveGroup);
   const removeMember = useMutation(api.groups.removeMember);
   const updateGroupName = useMutation(api.groups.updateGroupName);
@@ -99,7 +104,8 @@ export function GroupSettingsPanel() {
     group === undefined ||
     members === undefined ||
     groups === undefined ||
-    (group?.role === "owner" && pendingInvitations === undefined)
+    (group?.role === "owner" &&
+      (pendingInvitations === undefined || managementAuditLogs === undefined))
   ) {
     return (
       <Paper className="paper-panel" elevation={0}>
@@ -415,6 +421,16 @@ export function GroupSettingsPanel() {
                     savingTarget={savingTarget}
                   />
                 </Stack>
+              </GroupSettingsSection>
+
+              <Divider />
+
+              <GroupSettingsSection
+                description="グループ名変更、メンバー解除、招待取り消しなどの管理操作履歴を確認できます。"
+                testId="management-audit-log-section"
+                title="管理操作ログ"
+              >
+                <GroupManagementAuditLogList logs={managementAuditLogs ?? []} />
               </GroupSettingsSection>
 
               <Divider />

@@ -211,6 +211,9 @@ build=`pnpm run build`、dev=`pnpm run dev`、convex=`pnpm run convex:dev`）。
   別途 `pnpm run dev` を起動しておく必要はありません。必要な env は `.env.local`
   （`VITE_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` / `E2E_CLERK_USER_EMAIL` /
   `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` / `E2E_CLEANUP_SECRET`）です。
+- Issue 用 worktree では `.env.local` が自動では入らない。**ローカル E2E の前に**
+  `docs/development-process.md` の「ローカル E2E 実行 → `.env.local` 同期」に従い、
+  `../kakeibo-worktrees/preview` の `.env.local` をコピーする。
 - E2E は**単一の Clerk テストユーザーと共有 Dev DB**を直列で使うため、
   `e2e/ai-expense-queue.spec.ts` の AI処理キュー系テストは非同期ジョブの subscription
   反映タイミングで稀に flaky になります（同名ファイルの過去ジョブ残りが原因）。

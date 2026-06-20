@@ -55,7 +55,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
    - 別Issueのブランチに新しい作業を混ぜない。ブランチ名は `codex/issue-73-weekly-chart` のようにする。
    - 既存チェックアウトに無関係な変更や未追跡ファイルがある場合は、別worktreeを作り、それらをステージングしない。
    - `.env.local`、`dist/`、`test-results/`、`playwright-report/`、`node_modules/` などのローカル状態が未追跡のまま除外されていることを確認する。
-   - worktreeでE2Eが必要な場合は `.env.local` の有無だけ確認し、必要なら main 側からコピーする。コピー後は `service-ops-safety` を読む。
+   - Issue 用 worktree を新規作成した直後は、`docs/development-process.md` の「ローカル E2E 実行 → `.env.local` 同期」に従い、`preview` 用 worktree から `.env.local` をコピーする（git では取得できない）。
    - Windows環境で作業する場合は、`cd` がブロックされる可能性を考慮し、必要に応じて `cmd /c "cd /d <path> && command"` または PowerShell の `Set-Location` を使う。
 
 5. **Issueを再検討する**
@@ -84,7 +84,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 
 8. **完了前に検証する**
    - push 前検証は **AGENTS.md** の並列コマンドを優先する
-   - ユーザー導線に触れた場合は `pnpm exec playwright test --project=chromium` も実行する
+   - ユーザー導線に触れた場合は、先に `docs/development-process.md` の「ローカル E2E 実行 → `.env.local` 同期」を実施し、そのうえで `pnpm exec playwright test --project=chromium` を実行する（コマンド例も同セクション参照）
    - Convexを使うE2Eでは、事前に `convex dev` が起動しているか確認する。
    - 新規の public `mutation` / `query` / `httpAction`（または `internalMutation` / `internalQuery`）を追加した PR、または既存関数のシグネチャ・戻り値を変更した PR では、dev deployment を反映させるため `pnpm exec convex dev --once` を実行する。新規ファイルの有無は問わない。詳細は `docs/development-process.md` の「Convex 関数追加 PR の dev deployment 反映」を参照。
    - 実行できない検証がある場合は、成功扱いにせず、障害、実行したコマンド、再実行条件、残リスクを報告する。
@@ -154,6 +154,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 - 別Issueの機能ブランチにいる。
 - `git status` に無関係なファイルがあるのに `git add -A` しようとしている。
 - E2EやCIが失敗したのに、原因を理解せず再実行または再pushしようとしている。
+- UI 変更・E2E 実行前に `docs/development-process.md` の「`.env.local` 同期」を省略している。
 - `.env.local` をコピーした、またはサービス秘密値に触れたのに `service-ops-safety` を読んでいない。
 - 最新の検証証拠なしに「完了」と言おうとしている。
 - push 前に `code-review` を実行せず、または Must-fix が残ったまま push しようとしている。
