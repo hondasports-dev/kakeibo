@@ -17,6 +17,8 @@ import type * as groupAdminGuards from "../groupAdminGuards.js";
 import type * as groupInvitations from "../groupInvitations.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
+import type * as lib_deleteGroupPhysically from "../lib/deleteGroupPhysically.js";
+import type * as lib_groupDeletionImpact from "../lib/groupDeletionImpact.js";
 import type * as lib_groupLifecycle from "../lib/groupLifecycle.js";
 import type * as lib_groupName from "../lib/groupName.js";
 import type * as lib_groupRoleLabel from "../lib/groupRoleLabel.js";
@@ -46,6 +48,8 @@ declare const fullApi: ApiFromModules<{
   groupInvitations: typeof groupInvitations;
   groups: typeof groups;
   http: typeof http;
+  "lib/deleteGroupPhysically": typeof lib_deleteGroupPhysically;
+  "lib/groupDeletionImpact": typeof lib_groupDeletionImpact;
   "lib/groupLifecycle": typeof lib_groupLifecycle;
   "lib/groupName": typeof lib_groupName;
   "lib/groupRoleLabel": typeof lib_groupRoleLabel;

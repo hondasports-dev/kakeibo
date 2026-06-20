@@ -13,6 +13,7 @@ export const GROUP_ADMIN_ERRORS = {
   TRANSFER_TARGET_MUST_BE_MEMBER: "譲渡先はメンバーロールのユーザーに限定されます",
   GROUP_DELETED: "削除済みのグループにはアクセスできません",
   GROUP_ALREADY_DELETED: "このグループはすでに削除されています",
+  GROUP_NAME_MISMATCH: "入力されたグループ名が一致しません",
 } as const;
 
 export function assertGroupOwnerRole(role: GroupAdminRole): void {
