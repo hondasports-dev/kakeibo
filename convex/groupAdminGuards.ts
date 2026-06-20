@@ -10,6 +10,7 @@ export const GROUP_ADMIN_ERRORS = {
   SELF_OPERATION_FORBIDDEN: "自分自身に対してこの操作はできません",
   OWNER_MEMBER_NOT_REMOVABLE: "オーナーはグループから外せません",
   LAST_OWNER_PROTECTED: "最後のオーナーは変更できません",
+  TRANSFER_TARGET_MUST_BE_MEMBER: "譲渡先はメンバーロールのユーザーに限定されます",
 } as const;
 
 export function assertGroupOwnerRole(role: GroupAdminRole): void {
