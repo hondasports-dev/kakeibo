@@ -11,6 +11,8 @@ export const GROUP_ADMIN_ERRORS = {
   OWNER_MEMBER_NOT_REMOVABLE: "オーナーはグループから外せません",
   LAST_OWNER_PROTECTED: "最後のオーナーは変更できません",
   TRANSFER_TARGET_MUST_BE_MEMBER: "譲渡先はメンバーロールのユーザーに限定されます",
+  GROUP_DELETED: "削除済みのグループにはアクセスできません",
+  GROUP_ALREADY_DELETED: "このグループはすでに削除されています",
 } as const;
 
 export function assertGroupOwnerRole(role: GroupAdminRole): void {

@@ -7,7 +7,9 @@ import { GroupSettingsPanel } from "./GroupSettingsPanel";
 const {
   cancelPendingGroupInvitationMock,
   changeMemberRoleMock,
+  deleteGroupMock,
   inviteMemberMock,
+  navigateMock,
   removeMemberMock,
   setActiveGroupMock,
   transferGroupOwnershipMock,
@@ -20,7 +22,9 @@ const {
 } = vi.hoisted(() => ({
   cancelPendingGroupInvitationMock: vi.fn(),
   changeMemberRoleMock: vi.fn(),
+  deleteGroupMock: vi.fn(),
   inviteMemberMock: vi.fn(),
+  navigateMock: vi.fn(),
   removeMemberMock: vi.fn(),
   setActiveGroupMock: vi.fn(),
   transferGroupOwnershipMock: vi.fn(),
@@ -31,6 +35,14 @@ const {
   useQueryMock: vi.fn(),
   useUserMock: vi.fn(),
 }));
+
+vi.mock("react-router-dom", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-router-dom")>();
+  return {
+    ...actual,
+    useNavigate: () => navigateMock,
+  };
+});
 
 vi.mock("@clerk/react", () => ({
   useAuth: useAuthMock,
@@ -53,6 +65,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
       transferGroupOwnership: "groups.transferGroupOwnership",
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
+      deleteGroup: "groups.deleteGroup",
     },
     managementAuditLogs: {
       listManagementAuditLogs: "managementAuditLogs.listManagementAuditLogs",
@@ -70,7 +83,9 @@ describe("GroupSettingsPanel", () => {
   beforeEach(() => {
     cancelPendingGroupInvitationMock.mockReset();
     changeMemberRoleMock.mockReset();
+    deleteGroupMock.mockReset();
     inviteMemberMock.mockReset();
+    navigateMock.mockReset();
     removeMemberMock.mockReset();
     setActiveGroupMock.mockReset();
     transferGroupOwnershipMock.mockReset();
@@ -91,6 +106,7 @@ describe("GroupSettingsPanel", () => {
     removeMemberMock.mockResolvedValue(undefined);
     changeMemberRoleMock.mockResolvedValue(undefined);
     transferGroupOwnershipMock.mockResolvedValue(undefined);
+    deleteGroupMock.mockResolvedValue(null);
     updateGroupNameMock.mockResolvedValue("group-001");
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useUserMock.mockReturnValue({
@@ -115,6 +131,7 @@ describe("GroupSettingsPanel", () => {
       if (reference.includes("groups.changeMemberRole")) return changeMemberRoleMock;
       if (reference.includes("groups.transferGroupOwnership")) return transferGroupOwnershipMock;
       if (reference.includes("groups.updateGroupName")) return updateGroupNameMock;
+      if (reference.includes("groups.deleteGroup")) return deleteGroupMock;
       return vi.fn();
     });
     useQueryMock.mockImplementation((reference: string) => {
@@ -313,7 +330,7 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByText("グループ名を変更")).toBeInTheDocument();
     expect(screen.getByText("佐藤家 → 鈴木家")).toBeInTheDocument();
     expect(screen.getByTestId("ownership-transfer-target-select")).toBeInTheDocument();
-    expect(screen.getByText("グループの削除")).toBeInTheDocument();
+    expect(screen.getByTestId("delete-group-request-button")).toBeInTheDocument();
   });
 
   it("pending 招待がない場合は空状態を表示する", () => {
@@ -615,6 +632,25 @@ describe("GroupSettingsPanel", () => {
         targetUserId: "user-member",
         newRole: "owner",
       });
+    });
+  });
+
+  it("グループ削除前に確認ダイアログを表示し、確定後に mutation を呼んで遷移する", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupSettingsPanel />);
+
+    await user.click(screen.getByTestId("delete-group-request-button"));
+
+    expect(screen.getByRole("heading", { name: "グループを削除しますか？" })).toBeInTheDocument();
+    expect(screen.getByText(/対象グループ: 佐藤家/)).toBeInTheDocument();
+    expect(screen.getByText(/Clerk アカウントとユーザー情報は削除されません/)).toBeInTheDocument();
+    expect(screen.getByText(/別の所属グループへ切り替えて利用を続けられます/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "グループを削除する" }));
+
+    await waitFor(() => {
+      expect(deleteGroupMock).toHaveBeenCalledWith({});
+      expect(navigateMock).toHaveBeenCalledWith("/group/select");
     });
   });
 

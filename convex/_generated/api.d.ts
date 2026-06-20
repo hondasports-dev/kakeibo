@@ -17,6 +17,7 @@ import type * as groupAdminGuards from "../groupAdminGuards.js";
 import type * as groupInvitations from "../groupInvitations.js";
 import type * as groups from "../groups.js";
 import type * as http from "../http.js";
+import type * as lib_groupLifecycle from "../lib/groupLifecycle.js";
 import type * as lib_groupName from "../lib/groupName.js";
 import type * as lib_groupRoleLabel from "../lib/groupRoleLabel.js";
 import type * as lib_managementAuditLog from "../lib/managementAuditLog.js";
@@ -45,6 +46,7 @@ declare const fullApi: ApiFromModules<{
   groupInvitations: typeof groupInvitations;
   groups: typeof groups;
   http: typeof http;
+  "lib/groupLifecycle": typeof lib_groupLifecycle;
   "lib/groupName": typeof lib_groupName;
   "lib/groupRoleLabel": typeof lib_groupRoleLabel;
   "lib/managementAuditLog": typeof lib_managementAuditLog;

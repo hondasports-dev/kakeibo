@@ -288,4 +288,27 @@ test.describe("グループアクセス", () => {
     await expect(page.getByTestId("danger-zone-section")).toHaveCount(0);
     await expect(page.getByText("メンバー", { exact: true }).first()).toBeVisible();
   });
+
+  test("@smoke @group-access owner はグループ削除を確認ダイアログ経由で実行できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/settings");
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+
+    await page.getByTestId("delete-group-request-button").click();
+
+    await expect(page.getByRole("heading", { name: "グループを削除しますか？" })).toBeVisible();
+    await expect(page.getByText(/Clerk アカウントとユーザー情報は削除されません/)).toBeVisible();
+    await page.getByRole("button", { name: "グループを削除する" }).click();
+
+    await expect(page.getByText("グループを削除しました")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "家族グループを作成" })).toBeVisible({
+      timeout: 15_000,
+    });
+  });
 });
