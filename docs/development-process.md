@@ -34,6 +34,15 @@ git worktree add ../kakeibo-worktrees/<branch-name> -b <branch-name>
 cd ../kakeibo-worktrees/<branch-name>
 ```
 
+Issue や UI 変更でローカル E2E を回す場合は、**`preview` 用 worktree** も同じ
+`<worktrees-dir>`（既定: リポジトリルートの `../kakeibo-worktrees`）に 1 本用意し、
+そこにある `.env.local` を正本にします（初回のみ）:
+
+```bash
+git fetch origin preview
+git worktree add ../kakeibo-worktrees/preview preview
+```
+
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
 `issue-tdd-run` / `issue-tdd-workflow` や Implementer ロールで作業ブランチを作成する場合も、
@@ -335,23 +344,104 @@ Vercel Git Integration 由来の Preview Deployment に対する補助的な E2E
 
 ### ローカル E2E 実行
 
-`.env.local` に E2E 用環境変数が設定済みの場合、ローカルでも smoke E2E を実行できます。
+`.env.local` は git 管理外のため、**Issue 用 worktree には自動では入りません**。
+ローカル E2E のたびに環境差分で詰まらないよう、下記「`.env.local` 同期」を毎回実施してから
+テストを実行します。秘密値の扱いは `service-ops-safety` に従い、チャット・ログ・PR へ
+出力しません。
+
+#### `.env.local` 同期（ローカル E2E 前に毎回）
+
+**正本**: `preview` ブランチ用 worktree の `.env.local`（[ブランチ運用](#ブランチ運用) の
+`<worktrees-dir>/preview`）。`git checkout preview -- .env.local` では取得できません。
+
+**レイアウト例**（`<repo>` はリポジトリルート、`<worktrees-dir>` は既定で
+`<repo>` の 1 つ上の `kakeibo-worktrees`）:
+
+```text
+<parent>/
+  <repo>/                         # 最初に clone したディレクトリ
+  kakeibo-worktrees/              # worktree 置き場（名前は任意だが手順内で統一する）
+    preview/                      # .env.local の正本
+    <branch-name>/                # Issue 作業用 worktree
+```
+
+**1. `preview` 用 worktree を用意する**（未作成時のみ、`<repo>` で実行）
+
+```bash
+git fetch origin preview
+git worktree add ../kakeibo-worktrees/preview preview
+```
+
+**2. 作業ディレクトリへコピーする**（E2E の直前に毎回）
+
+Issue 用 worktree（`<worktrees-dir>/<branch-name>`）にいる場合:
+
+```bash
+cp ../preview/.env.local .env.local
+```
+
+リポジトリルート `<repo>` で作業している場合:
+
+```bash
+cp ../kakeibo-worktrees/preview/.env.local .env.local
+```
+
+PowerShell の例（Issue 用 worktree 内）:
+
+```powershell
+Copy-Item ../preview/.env.local .env.local -Force
+```
+
+**3. 付随チェック**（E2E 実行前）
+
+- Playwright ブラウザ未導入なら一度だけ: `pnpm exec playwright install chromium`
+- `convex/**` を変更した PR では: `pnpm exec convex dev --once`
+- E2E cleanup / seed が `401 Unauthorized` のときは、`.env.local` の `E2E_CLEANUP_SECRET` を
+  dev deployment へ反映する（値は表示しない）:
+
+  ```powershell
+  # PowerShell 例: 値をログに出さず convex env set する
+  $secret = (Get-Content .env.local | Where-Object { $_ -match '^E2E_CLEANUP_SECRET=' }) -replace '^E2E_CLEANUP_SECRET=',''
+  pnpm exec convex env set E2E_CLEANUP_SECRET $secret
+  ```
+
+**4. Clerk 鍵が無効なとき**（global setup が `clerk_key_invalid` / `Unauthorized`）
+
+`preview` 用 worktree 側で Development instance から再取得し、再度手順 2 を繰り返す。
+
+```bash
+cd ../preview
+pnpm exec clerk env pull --instance dev --file .env.local
+```
+
+`E2E_*` など pull で消えたキーがある場合は、コピー前の `.env.local.bak` から必要な行だけ
+マージする（秘密値は公開しない）。
+
+**やらないこと**
+
+- Issue 用 worktree だけで `.env.local` 未コピーのまま E2E を試行して詰まる原因調査を長引かせない
+- `.env.local` を git commit しない
+- production の secret をローカルへコピーしない
+
+#### 実行コマンド
+
 E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を自動起動します。
 
 ```bash
 pnpm run e2e:smoke -- --project=chromium
 ```
 
-E2E 用環境変数が未設定の場合はスキップしてよく、その場合は CI の E2E 結果に委ねます。
-
 `issue-tdd-workflow` で PR マージまで全自動運用する場合は、ローカル E2E を CI 任せに
-しません。PR 作成前および差し戻し修正後に、ローカルで必要な E2E を完走します。
+しません。PR 作成前および差し戻し修正後に、上記同期のあとローカルで必要な E2E を完走します。
 広い導線や認証・データ保存に触る変更では全 E2E を実行し、変更が限定的なら
 該当 spec または smoke E2E に絞ってよいです。
 
 ```bash
+pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 pnpm run e2e -- --project=chromium
 ```
+
+E2E 用環境変数を意図的に用意しない場合のみスキップしてよく、その場合は CI の E2E 結果に委ねます。
 
 環境変数不足、Clerk/Convex/Vercel の一時的な問題などでローカル E2E が実行不能な場合は、
 先へ進まず、Issue と PR に実行不能理由、必要な設定、再実行条件を記録して判断します。

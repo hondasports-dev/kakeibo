@@ -48,6 +48,9 @@ vi.mock("../../../../convex/_generated/api", () => ({
       setActiveGroup: "groups.setActiveGroup",
       updateGroupName: "groups.updateGroupName",
     },
+    managementAuditLogs: {
+      listManagementAuditLogs: "managementAuditLogs.listManagementAuditLogs",
+    },
   },
 }));
 
@@ -145,6 +148,23 @@ describe("GroupSettingsPanel", () => {
             email: "pending@example.com",
             status: "pending",
             createdAt: Date.UTC(2026, 0, 15, 3, 30),
+          },
+        ];
+      }
+      if (
+        typeof reference === "string" &&
+        reference.includes("managementAuditLogs.listManagementAuditLogs")
+      ) {
+        return [
+          {
+            _id: "log-001",
+            action: "group_name_changed",
+            actionLabel: "グループ名を変更",
+            actorDisplayName: "オーナー",
+            targetLabel: "佐藤家",
+            beforeValue: "佐藤家",
+            afterValue: "鈴木家",
+            createdAt: Date.UTC(2026, 0, 10, 12, 0),
           },
         ];
       }
@@ -259,18 +279,27 @@ describe("GroupSettingsPanel", () => {
   it("オーナー向けにグループ管理の各セクションを順序どおり表示する", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
-    const sectionTitles = ["グループ情報", "メンバー管理", "招待管理", "危険な操作"];
+    const sectionTitles = [
+      "グループ情報",
+      "メンバー管理",
+      "招待管理",
+      "管理操作ログ",
+      "危険な操作",
+    ];
     const headings = screen.getAllByRole("heading", { level: 3 });
     expect(headings.map((heading) => heading.textContent)).toEqual(sectionTitles);
 
     expect(screen.getByTestId("group-info-section")).toBeInTheDocument();
     expect(screen.getByTestId("member-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("invite-management-section")).toBeInTheDocument();
+    expect(screen.getByTestId("management-audit-log-section")).toBeInTheDocument();
     expect(screen.getByTestId("danger-zone-section")).toBeInTheDocument();
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
     expect(screen.getByTestId("group-pending-invitation-list")).toBeInTheDocument();
     expect(screen.getByText("pending@example.com")).toBeInTheDocument();
     expect(screen.getByText("招待中")).toBeInTheDocument();
+    expect(screen.getByText("グループ名を変更")).toBeInTheDocument();
+    expect(screen.getByText("佐藤家 → 鈴木家")).toBeInTheDocument();
     expect(
       screen.getByText("以下の操作は今後のアップデートで追加予定です。現在は実行できません。"),
     ).toBeInTheDocument();
@@ -524,6 +553,9 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByRole("heading", { level: 3, name: "グループ情報" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "メンバー管理" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 3, name: "招待管理" })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { level: 3, name: "管理操作ログ" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 3, name: "危険な操作" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
     expect(

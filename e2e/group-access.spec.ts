@@ -78,6 +78,30 @@ test.describe("グループアクセス", () => {
 
     await expect(page.getByText("グループ名を更新しました")).toBeVisible({ timeout: 15_000 });
     await expect(nameInput).toHaveValue("鈴木家");
+    await expect(page.getByRole("heading", { name: "管理操作ログ", level: 3 })).toBeVisible();
+    await expect(page.getByText("グループ名を変更")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("佐藤家 → 鈴木家")).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("@smoke @group-access owner は管理操作ログの空状態を表示する", async ({ page }) => {
+    await gotoAuthenticated(page, "/", { ensureGroup: false });
+
+    const currentUserId = await getCurrentClerkTokenIdentifier(page);
+    currentUserIdForCleanup = currentUserId;
+    await cleanupGroupMembershipsByUser(currentUserId);
+
+    await page.goto("/");
+    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+
+    await page.getByRole("textbox", { name: "グループ名" }).fill("監査ログ空状態テスト");
+    await page.getByRole("button", { name: "グループを作成" }).click();
+    await expect(page).toHaveURL("/");
+
+    await page.goto("/settings");
+    await expect(page.getByRole("heading", { name: "管理操作ログ", level: 3 })).toBeVisible();
+    await expect(page.getByTestId("group-management-audit-log-list-empty")).toHaveText(
+      "管理操作の履歴はまだありません。",
+    );
   });
 
   test("@smoke @group-access member ロールでは招待管理と危険な操作を表示しない", async ({
@@ -94,6 +118,7 @@ test.describe("グループアクセス", () => {
     await expect(page.getByRole("heading", { name: "グループ情報", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "メンバー管理", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "招待管理", level: 3 })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "管理操作ログ", level: 3 })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "危険な操作", level: 3 })).toHaveCount(0);
     await expect(page.getByText("招待と削除はオーナーのみ操作できます。")).toBeVisible();
     await expect(page.getByRole("textbox", { name: "招待するメールアドレス" })).toHaveCount(0);
@@ -180,6 +205,9 @@ test.describe("グループアクセス", () => {
     await expect(page.getByText("メンバーをグループから外しました")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText(memberDisplayName)).toHaveCount(0);
+    await expect(
+      page.getByTestId("member-management-section").getByText(memberDisplayName),
+    ).toHaveCount(0);
+    await expect(page.getByTestId("management-audit-log-section")).toContainText(memberDisplayName);
   });
 });
