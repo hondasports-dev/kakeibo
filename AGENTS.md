@@ -128,8 +128,7 @@ gh run watch <run_id> --exit-status
 ## Issue対応とロール参照
 
 単一 GitHub Issue を TDD で対応するときは、`.agents/skills/issue-tdd-run/SKILL.md` を使う。
-マイルストーン横断・複数 Issue・納品まで一括で進める場合は、
-`.agents/skills/issue-delivery/SKILL.md` を参照してください。
+手順の正本は `.agents/skills/issue-tdd-workflow/SKILL.md`（push 前の `code-review` 必須）。
 
 Issue の再精査では、実装前に Product Lead A/B/C、Tech Lead、QA Agent の観点を必ず
 確認します。UI/UX変更を含む場合は UX/UI Designer の観点も確認します。サブエージェントが
@@ -175,6 +174,12 @@ build=`pnpm run build`、dev=`pnpm run dev`、convex=`pnpm run convex:dev`）。
   `.env.local` に自動で書き込みます（ローカルバックエンドは VM 単位で揮発し、
   起動のたびに作り直されます）。ローカルダッシュボードは `http://127.0.0.1:6790`。
 - **フロントエンド**: `pnpm run dev`（Vite、`http://localhost:5173`）。
+- **補足（cloud dev deployment が secret で注入されている場合）**: `CONVEX_DEPLOYMENT` /
+  `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` などが env として注入されている環境では、
+  SPA はその cloud dev deployment に直接接続して動作します（`.env.local` にこれらを書き
+  出せば OK）。アプリの起動・テストだけなら `convex dev` をローカルで常駐させる必要は
+  ありません。ただしローカルの `convex/` 変更を push するには convex のログインまたは
+  deploy key が必要で、それが無い場合は anonymous モードを使ってください。
 
 ### 非自明な注意点（ハマりどころ）
 
@@ -190,6 +195,26 @@ build=`pnpm run build`、dev=`pnpm run dev`、convex=`pnpm run convex:dev`）。
 - **GUI / E2E の完全な動作確認には本物の Clerk 資格情報が必須**です
   （`VITE_CLERK_PUBLISHABLE_KEY`、`CLERK_SECRET_KEY`、`CLERK_JWT_ISSUER_DOMAIN`）。
   これらが無い場合、ログインおよび認証必須の query/mutation は実行できません。
+
+### E2E（Playwright）と認証必須フローの確認方法
+
+- ログイン UI は **Google OAuth 専用**（`src/App.tsx` の `Googleでログイン`）です。
+  そのため Desktop / computerUse での手動ログインや、フォーム入力によるログインは
+  できません。認証済みフローの確認は **Playwright + `@clerk/testing` の Testing Token**
+  方式で行います（`e2e/helpers/auth.ts` の `gotoAuthenticated`）。これは
+  `CLERK_SECRET_KEY` で signInToken を発行してボット検出を回避するため、ブラウザ操作
+  なしでログインできます。
+- Playwright のブラウザはリポジトリ依存ではないため更新スクリプトには含めていません。
+  E2E を回す前に一度だけ `pnpm exec playwright install chromium` が必要です。
+- 実行コマンドは `package.json` を参照（全体=`pnpm e2e`、smoke=`pnpm run e2e:smoke`）。
+  `playwright.config.ts` の `webServer` が Vite を自動起動・再利用するため、E2E のために
+  別途 `pnpm run dev` を起動しておく必要はありません。必要な env は `.env.local`
+  （`VITE_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` / `E2E_CLERK_USER_EMAIL` /
+  `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` / `E2E_CLEANUP_SECRET`）です。
+- E2E は**単一の Clerk テストユーザーと共有 Dev DB**を直列で使うため、
+  `e2e/ai-expense-queue.spec.ts` の AI処理キュー系テストは非同期ジョブの subscription
+  反映タイミングで稀に flaky になります（同名ファイルの過去ジョブ残りが原因）。
+  単発再実行で通る場合は環境問題ではありません。
 
 ### Clerk なしでバックエンドだけ疎通確認する方法
 

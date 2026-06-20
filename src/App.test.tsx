@@ -201,7 +201,7 @@ describe("App authentication states", () => {
 
     renderWithProviders(<App />);
 
-    expect(screen.getByRole("heading", { name: "メンテナンス中です" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "ただいまメンテナンス中です" })).toBeInTheDocument();
     vi.unstubAllEnvs();
   });
 

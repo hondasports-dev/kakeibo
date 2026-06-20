@@ -161,6 +161,27 @@ export async function cleanupGroupMembershipsByUser(userId?: string): Promise<vo
   });
 }
 
+export async function cleanupGroupInvitationsByUser(userId?: string): Promise<void> {
+  const identity = userId ? { userId } : getCleanupIdentity();
+  await callCleanupEndpoint({
+    ...identity,
+    clearGroupInvitations: true,
+  });
+}
+
+/**
+ * E2E テスト用: 指定ユーザーのアクティブグループにおけるロールを変更する。
+ */
+export async function setE2eGroupMemberRole(
+  userId: string,
+  role: "owner" | "member",
+): Promise<void> {
+  await callCleanupEndpoint({
+    userId,
+    setGroupMemberRole: role,
+  });
+}
+
 async function callCleanupEndpoint(body: {
   userId?: string;
   email?: string;
@@ -171,6 +192,8 @@ async function callCleanupEndpoint(body: {
   clearAiExpenseQueue?: boolean;
   clearE2eExpenseEntries?: boolean;
   clearGroupMemberships?: boolean;
+  clearGroupInvitations?: boolean;
+  setGroupMemberRole?: "owner" | "member";
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
@@ -210,6 +233,7 @@ async function callCleanupEndpoint(body: {
     monthlyIncome?: { cleared: boolean } | null;
     expenseEntries?: { deletedCount: number } | null;
     groupMemberships?: { deletedCount: number } | null;
+    groupInvitations?: { deletedCount: number } | null;
   };
   const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {
@@ -241,6 +265,9 @@ async function callCleanupEndpoint(body: {
     console.log(
       `[cleanup] ${data.expenseEntries.deletedCount} 件の E2E expenseEntries を削除しました。`,
     );
+  }
+  if (data.groupInvitations && data.groupInvitations.deletedCount > 0) {
+    console.log(`[cleanup] ${data.groupInvitations.deletedCount} 件のグループ招待を削除しました。`);
   }
 }
 

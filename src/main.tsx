@@ -6,7 +6,7 @@ import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import "./index.css";
 import App from "./App.tsx";
-import { AppErrorBoundary } from "./components/AppErrorBoundary.tsx";
+import { AppErrorBoundary } from "./features/app-shell";
 import { theme } from "./theme.ts";
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;

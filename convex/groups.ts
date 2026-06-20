@@ -3,6 +3,16 @@ import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireAuthenticatedUserId } from "./users";
+import {
+  assertActiveGroupScope,
+  assertGroupOwnerRole,
+  assertNotSelfOperator,
+  assertRemovableGroupMemberRole,
+} from "./groupAdminGuards";
+import { normalizeGroupName } from "./lib/groupName";
+
+// 後方互換のため re-export（UI は convex/lib/groupName を直接 import すること）
+export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -137,6 +147,18 @@ export async function requireGroupMembership(
   return membership;
 }
 
+/**
+ * active group のオーナー権限を要求する。
+ * 管理系 mutation はこのヘルパーまたは groupAdminGuards の assertion を使う。
+ */
+export async function requireGroupOwner(
+  ctx: Pick<QueryCtx, "auth" | "db">,
+): Promise<GroupMembership> {
+  const membership = await requireGroupMembership(ctx);
+  assertGroupOwnerRole(membership.role);
+  return membership;
+}
+
 // ---------------------------------------------------------------------------
 // getMyGroup: 自分のグループ情報を取得
 // ---------------------------------------------------------------------------
@@ -195,10 +217,11 @@ export const listMyGroups = query({
 
 export async function createGroupHandler(ctx: MutationCtx, args: { name: string }) {
   const userId = await requireAuthenticatedUserId(ctx);
+  const name = normalizeGroupName(args.name);
 
   const now = Date.now();
   const groupId = await ctx.db.insert("groups", {
-    name: args.name,
+    name,
     createdAt: now,
     updatedAt: now,
   });
@@ -223,12 +246,81 @@ export async function createGroupHandler(ctx: MutationCtx, args: { name: string 
 
 export const createGroup = mutation({
   args: { name: v.string() },
+  returns: v.id("groups"),
   handler: createGroupHandler,
+});
+
+// ---------------------------------------------------------------------------
+// updateGroupName: グループ名を変更（オーナーのみ）
+// ---------------------------------------------------------------------------
+
+/**
+ * active group の名前を更新する（オーナーのみ）。
+ * @returns 更新したグループ ID
+ */
+export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: string }) {
+  const { groupId } = await requireGroupOwner(ctx);
+  const name = normalizeGroupName(args.name);
+
+  const group = await ctx.db.get(groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
+
+  await ctx.db.patch(groupId, {
+    name,
+    updatedAt: Date.now(),
+  });
+
+  return groupId;
+}
+
+export const updateGroupName = mutation({
+  args: { name: v.string() },
+  returns: v.id("groups"),
+  handler: updateGroupNameHandler,
 });
 
 // ---------------------------------------------------------------------------
 // getGroupMembers: グループメンバー一覧を取得
 // ---------------------------------------------------------------------------
+
+export const groupMemberListItemValidator = v.object({
+  userId: v.string(),
+  role: v.union(v.literal("owner"), v.literal("member")),
+  displayName: v.string(),
+  email: v.union(v.string(), v.null()),
+  isActiveGroup: v.boolean(),
+  createdAt: v.number(),
+});
+
+type GroupMemberListItem = {
+  userId: string;
+  role: "owner" | "member";
+  displayName: string;
+  email: string | null;
+  isActiveGroup: boolean;
+  createdAt: number;
+};
+
+function getMemberSortLabel(member: GroupMemberListItem) {
+  return member.displayName.trim() || member.email?.trim() || member.userId;
+}
+
+export function sortGroupMembersForDisplay(members: GroupMemberListItem[]) {
+  return [...members].sort((left, right) => {
+    if (left.role !== right.role) {
+      return left.role === "owner" ? -1 : 1;
+    }
+
+    const labelCompare = getMemberSortLabel(left).localeCompare(getMemberSortLabel(right), "ja");
+    if (labelCompare !== 0) {
+      return labelCompare;
+    }
+
+    return left.createdAt - right.createdAt;
+  });
+}
 
 export async function getGroupMembersHandler(ctx: QueryCtx) {
   const { groupId } = await requireGroupMembership(ctx);
@@ -254,12 +346,133 @@ export async function getGroupMembersHandler(ctx: QueryCtx) {
     }),
   );
 
-  return membersWithInfo;
+  return sortGroupMembersForDisplay(membersWithInfo);
 }
 
 export const getGroupMembers = query({
   args: {},
+  returns: v.array(groupMemberListItemValidator),
   handler: getGroupMembersHandler,
+});
+
+// ---------------------------------------------------------------------------
+// listPendingGroupInvitations: active group の pending 招待一覧（owner のみ）
+// ---------------------------------------------------------------------------
+
+export const groupPendingInvitationListItemValidator = v.object({
+  _id: v.id("groupInvitations"),
+  email: v.string(),
+  status: v.literal("pending"),
+  createdAt: v.number(),
+});
+
+type GroupPendingInvitationListItem = {
+  _id: Id<"groupInvitations">;
+  email: string;
+  status: "pending";
+  createdAt: number;
+};
+
+export function sortPendingGroupInvitationsForDisplay(
+  invitations: GroupPendingInvitationListItem[],
+) {
+  return [...invitations].sort((left, right) => {
+    const createdAtCompare = right.createdAt - left.createdAt;
+    if (createdAtCompare !== 0) {
+      return createdAtCompare;
+    }
+
+    return left.email.localeCompare(right.email, "ja");
+  });
+}
+
+export async function listPendingGroupInvitationsHandler(ctx: QueryCtx) {
+  const { groupId } = await requireGroupOwner(ctx);
+
+  const invitationQuery = ctx.db
+    .query("groupInvitations")
+    .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending"));
+  const invitations = await readQueryDocs(invitationQuery);
+
+  return dedupePendingGroupInvitationsByEmail(
+    invitations.map((invitation) => ({
+      _id: invitation._id,
+      email: invitation.email,
+      status: "pending" as const,
+      createdAt: invitation.createdAt,
+    })),
+  );
+}
+
+export const listPendingGroupInvitations = query({
+  args: {},
+  returns: v.array(groupPendingInvitationListItemValidator),
+  handler: listPendingGroupInvitationsHandler,
+});
+
+// ---------------------------------------------------------------------------
+// cancelPendingGroupInvitation: pending 招待を取り消す（owner のみ）
+// ---------------------------------------------------------------------------
+
+export async function revokePendingGroupInvitationsForEmailInGroup(
+  ctx: MutationCtx,
+  groupId: Id<"groups">,
+  email: string,
+): Promise<string[]> {
+  const normalizedEmail = normalizeEmail(email);
+  const now = Date.now();
+  const clerkInvitationIds: string[] = [];
+
+  const pendingInvitations = await readQueryDocs(
+    ctx.db
+      .query("groupInvitations")
+      .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", "pending")),
+  );
+
+  for (const invitation of pendingInvitations) {
+    if (!invitationEmailsMatch(normalizedEmail, invitation.email)) {
+      continue;
+    }
+
+    await ctx.db.patch(invitation._id, { status: "revoked", updatedAt: now });
+    if (invitation.clerkInvitationId) {
+      clerkInvitationIds.push(invitation.clerkInvitationId);
+    }
+  }
+
+  return clerkInvitationIds;
+}
+
+export async function cancelPendingGroupInvitationHandler(
+  ctx: MutationCtx,
+  args: { invitationId: Id<"groupInvitations"> },
+) {
+  const { groupId } = await requireGroupOwner(ctx);
+  const invitation = await ctx.db.get(args.invitationId);
+
+  if (invitation === null) {
+    throw new ConvexError("招待が見つかりません");
+  }
+
+  assertActiveGroupScope(groupId, invitation.groupId);
+
+  if (invitation.status !== "pending") {
+    throw new ConvexError("この招待は取り消せません");
+  }
+
+  const clerkInvitationIds = await revokePendingGroupInvitationsForEmailInGroup(
+    ctx,
+    groupId,
+    invitation.email,
+  );
+
+  return { clerkInvitationIds };
+}
+
+export const cancelPendingGroupInvitation = mutation({
+  args: { invitationId: v.id("groupInvitations") },
+  returns: v.object({ clerkInvitationIds: v.array(v.string()) }),
+  handler: cancelPendingGroupInvitationHandler,
 });
 
 // ---------------------------------------------------------------------------
@@ -289,6 +502,28 @@ function normalizeGmailAddress(email: string) {
   return `${canonicalLocalPart}@${normalizedDomain}`;
 }
 
+export function getInvitationEmailKey(email: string) {
+  const normalized = email.trim().toLowerCase();
+  return normalizeGmailAddress(normalized) ?? normalized;
+}
+
+/** 同一メール（Gmail alias 含む）の pending は最新 1 件だけを表示する */
+export function dedupePendingGroupInvitationsByEmail(
+  invitations: GroupPendingInvitationListItem[],
+) {
+  const sorted = sortPendingGroupInvitationsForDisplay(invitations);
+  const latestByEmail = new Map<string, GroupPendingInvitationListItem>();
+
+  for (const invitation of sorted) {
+    const key = getInvitationEmailKey(invitation.email);
+    if (!latestByEmail.has(key)) {
+      latestByEmail.set(key, invitation);
+    }
+  }
+
+  return sortPendingGroupInvitationsForDisplay([...latestByEmail.values()]);
+}
+
 export function invitationEmailsMatch(identityEmail: string | undefined, invitationEmail: string) {
   const normalizedIdentityEmail = identityEmail?.trim().toLowerCase();
   const normalizedInvitationEmail = invitationEmail.trim().toLowerCase();
@@ -311,12 +546,88 @@ export function invitationEmailsMatchAny(
   return candidateEmails.some((email) => invitationEmailsMatch(email, invitationEmail));
 }
 
-export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: string }) {
-  const { groupId, role } = await requireGroupMembership(ctx);
+async function collectStaleGroupInvitationIdsForEmail(
+  ctx: Pick<QueryCtx, "db">,
+  groupId: Id<"groups">,
+  email: string,
+) {
+  const normalizedEmail = normalizeEmail(email);
+  const invitationIds = new Set<Id<"groupInvitations">>();
 
-  if (role !== "owner") {
-    throw new ConvexError("グループオーナーのみメンバーを追加できます");
+  const considerInvitation = async (invitation: {
+    _id: Id<"groupInvitations">;
+    status: "pending" | "accepted" | "revoked" | "expired";
+    email: string;
+    acceptedByUserId?: string;
+  }) => {
+    if (!invitationEmailsMatch(normalizedEmail, invitation.email)) {
+      return;
+    }
+    if (invitation.status === "pending") {
+      invitationIds.add(invitation._id);
+      return;
+    }
+    if (invitation.status !== "accepted") {
+      return;
+    }
+    if (!invitation.acceptedByUserId) {
+      invitationIds.add(invitation._id);
+      return;
+    }
+
+    const membership = await readQueryDoc(
+      ctx.db
+        .query("groupMembers")
+        .withIndex("by_group_id_and_user_id", (q) =>
+          q.eq("groupId", groupId).eq("userId", invitation.acceptedByUserId!),
+        ),
+    );
+    if (membership === null) {
+      invitationIds.add(invitation._id);
+    }
+  };
+
+  const exactInvitations = await readQueryDocs(
+    ctx.db
+      .query("groupInvitations")
+      .withIndex("by_group_id_and_email", (q) =>
+        q.eq("groupId", groupId).eq("email", normalizedEmail),
+      ),
+  );
+  for (const invitation of exactInvitations) {
+    await considerInvitation(invitation);
   }
+
+  for (const status of ["pending", "accepted"] as const) {
+    const invitations = await readQueryDocs(
+      ctx.db
+        .query("groupInvitations")
+        .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", status)),
+    );
+    for (const invitation of invitations) {
+      await considerInvitation(invitation);
+    }
+  }
+
+  return invitationIds;
+}
+
+/** 再招待・再送前に、同一メールの古い pending と所属外の accepted を無効化する */
+async function revokeGroupInvitationsForEmailInGroup(
+  ctx: MutationCtx,
+  groupId: Id<"groups">,
+  email: string,
+) {
+  const now = Date.now();
+  const invitationIds = await collectStaleGroupInvitationIdsForEmail(ctx, groupId, email);
+
+  for (const invitationId of invitationIds) {
+    await ctx.db.patch(invitationId, { status: "revoked", updatedAt: now });
+  }
+}
+
+export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: string }) {
+  const { groupId } = await requireGroupOwner(ctx);
 
   const email = normalizeEmail(args.email);
   const user = await readQueryDoc(
@@ -355,6 +666,7 @@ export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: s
 
 export const addMemberByEmail = mutation({
   args: { email: v.string() },
+  returns: v.null(),
   handler: addMemberByEmailHandler,
 });
 
@@ -389,12 +701,33 @@ export async function setActiveGroupHandler(ctx: MutationCtx, args: { groupId: I
 
 export const setActiveGroup = mutation({
   args: { groupId: v.id("groups") },
+  returns: v.id("groups"),
   handler: setActiveGroupHandler,
 });
 
 // ---------------------------------------------------------------------------
 // E2E cleanup: 指定ユーザーのグループ所属を削除
 // ---------------------------------------------------------------------------
+
+async function deleteE2eSeededUserByEmailIfExists(ctx: MutationCtx, email: string) {
+  const normalizedEmail = normalizeEmail(email);
+  const existingUser = await readQueryDoc(
+    ctx.db.query("users").withIndex("by_email", (q) => q.eq("email", normalizedEmail)),
+  );
+  if (existingUser === null || !existingUser.userId.startsWith("e2e-seed|")) {
+    return;
+  }
+
+  const memberships = await readQueryDocs(
+    ctx.db
+      .query("groupMembers")
+      .withIndex("by_user_id", (q) => q.eq("userId", existingUser.userId)),
+  );
+  for (const membership of memberships) {
+    await ctx.db.delete(membership._id);
+  }
+  await ctx.db.delete(existingUser._id);
+}
 
 export const deleteGroupMembershipsByUser = internalMutation({
   args: { userId: v.string() },
@@ -412,10 +745,134 @@ export const deleteGroupMembershipsByUser = internalMutation({
       ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
     );
     if (user !== null) {
-      await ctx.db.patch(user._id, { activeGroupId: undefined, updatedAt: Date.now() });
+      if (userId.startsWith("e2e-seed|")) {
+        await ctx.db.delete(user._id);
+      } else {
+        await ctx.db.patch(user._id, { activeGroupId: undefined, updatedAt: Date.now() });
+      }
     }
 
     return { deletedCount: memberships.length };
+  },
+});
+
+export const setGroupMemberRoleForE2e = internalMutation({
+  args: {
+    userId: v.string(),
+    role: v.union(v.literal("owner"), v.literal("member")),
+  },
+  handler: async (ctx, { userId, role }) => {
+    const user = await readQueryDoc(
+      ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
+    );
+    const memberships = await readQueryDocs(
+      ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", userId)),
+    );
+
+    if (memberships.length === 0) {
+      return { updated: false };
+    }
+
+    const activeMembership =
+      (user?.activeGroupId
+        ? memberships.find((membership) => membership.groupId === user.activeGroupId)
+        : undefined) ?? memberships[0];
+
+    if (!activeMembership) {
+      return { updated: false };
+    }
+
+    await ctx.db.patch(activeMembership._id, {
+      role,
+      updatedAt: Date.now(),
+    });
+
+    return { updated: true };
+  },
+});
+
+export const seedPendingGroupInvitationForE2e = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    email: v.string(),
+    invitedByUserId: v.string(),
+  },
+  returns: v.id("groupInvitations"),
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    return await ctx.db.insert("groupInvitations", {
+      groupId: args.groupId,
+      email: normalizeEmail(args.email),
+      token: `e2e-pending-${now}`,
+      status: "pending",
+      invitedByUserId: args.invitedByUserId,
+      createdAt: now,
+      updatedAt: now,
+    });
+  },
+});
+
+export async function seedGroupMemberForE2eHandler(
+  ctx: MutationCtx,
+  args: { groupId: Id<"groups">; displayName: string; email: string },
+) {
+  await deleteE2eSeededUserByEmailIfExists(ctx, args.email);
+
+  const now = Date.now();
+  const memberUserId = `e2e-seed|group-member-${now}`;
+  await ctx.db.insert("users", {
+    userId: memberUserId,
+    displayName: args.displayName,
+    email: normalizeEmail(args.email),
+    activeGroupId: args.groupId,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await ctx.db.insert("groupMembers", {
+    groupId: args.groupId,
+    userId: memberUserId,
+    role: "member",
+    createdAt: now,
+    updatedAt: now,
+  });
+  return { memberUserId };
+}
+
+export const seedGroupMemberForE2e = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    displayName: v.string(),
+    email: v.string(),
+  },
+  returns: v.object({
+    memberUserId: v.string(),
+  }),
+  handler: seedGroupMemberForE2eHandler,
+});
+
+export const clearGroupInvitationsForE2e = internalMutation({
+  args: { groupId: v.id("groups") },
+  returns: v.object({ deletedCount: v.number() }),
+  handler: async (ctx, { groupId }) => {
+    const statuses = ["pending", "revoked", "expired", "accepted"] as const;
+    let deletedCount = 0;
+
+    for (const status of statuses) {
+      const invitations = await readQueryDocs(
+        ctx.db
+          .query("groupInvitations")
+          .withIndex("by_group_id_and_status", (q) =>
+            q.eq("groupId", groupId).eq("status", status),
+          ),
+      );
+
+      for (const invitation of invitations) {
+        await ctx.db.delete(invitation._id);
+        deletedCount += 1;
+      }
+    }
+
+    return { deletedCount };
   },
 });
 
@@ -439,6 +896,7 @@ export const getGroupIdByUserId = internalQuery({
   },
 });
 
+/** 所属チェックと承認済み（まだ所属中）チェック。pending の無効化は呼び出し前に revoke すること。 */
 export async function assertEmailCanBeInvitedToGroupHandler(
   ctx: Pick<QueryCtx, "db">,
   args: { groupId: Id<"groups">; email: string },
@@ -457,36 +915,26 @@ export async function assertEmailCanBeInvitedToGroupHandler(
     }
   }
 
-  const exactInvitations = await readQueryDocs(
+  const acceptedInvitations = await readQueryDocs(
     ctx.db
       .query("groupInvitations")
-      .withIndex("by_group_id_and_email", (q) => q.eq("groupId", args.groupId).eq("email", email)),
+      .withIndex("by_group_id_and_status", (q) =>
+        q.eq("groupId", args.groupId).eq("status", "accepted"),
+      ),
   );
-  const matchingExactInvitation = exactInvitations.find(
-    (invitation) => invitation.status === "pending" || invitation.status === "accepted",
-  );
-  if (matchingExactInvitation?.status === "pending") {
-    throw new ConvexError("このメールアドレスにはすでに招待を送信しています");
-  }
-  if (matchingExactInvitation?.status === "accepted") {
-    throw new ConvexError("このメールアドレスの招待はすでに承認済みです");
-  }
+  for (const invitation of acceptedInvitations) {
+    if (!invitationEmailsMatch(invitation.email, email) || !invitation.acceptedByUserId) {
+      continue;
+    }
 
-  for (const status of ["pending", "accepted"] as const) {
-    const invitations = await readQueryDocs(
+    const membership = await readQueryDoc(
       ctx.db
-        .query("groupInvitations")
-        .withIndex("by_group_id_and_status", (q) =>
-          q.eq("groupId", args.groupId).eq("status", status),
+        .query("groupMembers")
+        .withIndex("by_group_id_and_user_id", (q) =>
+          q.eq("groupId", args.groupId).eq("userId", invitation.acceptedByUserId!),
         ),
     );
-    const matchingInvitation = invitations.find((invitation) =>
-      invitationEmailsMatch(invitation.email, email),
-    );
-    if (matchingInvitation && status === "pending") {
-      throw new ConvexError("このメールアドレスにはすでに招待を送信しています");
-    }
-    if (matchingInvitation && status === "accepted") {
+    if (membership !== null) {
       throw new ConvexError("このメールアドレスの招待はすでに承認済みです");
     }
   }
@@ -523,6 +971,7 @@ export async function createGroupInvitationRecordHandler(
     return existing._id;
   }
 
+  await revokeGroupInvitationsForEmailInGroup(ctx, args.groupId, args.email);
   await assertEmailCanBeInvitedToGroupHandler(ctx, {
     groupId: args.groupId,
     email: args.email,
@@ -639,6 +1088,8 @@ export async function acceptGroupInvitationForVerifiedEmailsHandler(
     updatedAt: now,
   });
 
+  await revokeGroupInvitationsForEmailInGroup(ctx, invite.groupId, invite.email);
+
   return invite.groupId;
 }
 
@@ -657,6 +1108,7 @@ export async function acceptGroupInvitationHandler(ctx: MutationCtx, args: { tok
 
 export const acceptGroupInvitation = mutation({
   args: { token: v.string() },
+  returns: v.id("groups"),
   handler: acceptGroupInvitationHandler,
 });
 
@@ -674,15 +1126,8 @@ export const acceptGroupInvitationForVerifiedEmails = internalMutation({
 // ---------------------------------------------------------------------------
 
 export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId: string }) {
-  const { groupId, userId, role } = await requireGroupMembership(ctx);
-
-  if (role !== "owner") {
-    throw new ConvexError("グループオーナーのみメンバーを削除できます");
-  }
-
-  if (userId === args.targetUserId) {
-    throw new ConvexError("自分自身をグループから削除することはできません");
-  }
+  const { groupId, userId } = await requireGroupOwner(ctx);
+  assertNotSelfOperator(userId, args.targetUserId);
 
   const targetMembership = await readQueryDoc(
     ctx.db
@@ -695,6 +1140,8 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
   if (targetMembership === null) {
     throw new ConvexError("指定されたメンバーが見つかりません");
   }
+
+  assertRemovableGroupMemberRole(targetMembership.role);
 
   await ctx.db.delete(targetMembership._id);
 
@@ -712,11 +1159,15 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
       activeGroupId: nextActiveGroupId,
       updatedAt: Date.now(),
     });
+    if (targetUser.email) {
+      await revokeGroupInvitationsForEmailInGroup(ctx, groupId, targetUser.email);
+    }
   }
 }
 
 export const removeMember = mutation({
   args: { targetUserId: v.string() },
+  returns: v.null(),
   handler: removeMemberHandler,
 });
 

@@ -1,4 +1,14 @@
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig, devices } from "@playwright/test";
+import dotenv from "dotenv";
+
+const projectRoot = dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: resolve(projectRoot, ".env.local") });
+
+if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.VITE_CLERK_PUBLISHABLE_KEY) {
+  process.env.CLERK_PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY;
+}
 
 /**
  * E2E テスト設定

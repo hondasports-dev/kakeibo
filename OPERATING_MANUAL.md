@@ -8,7 +8,7 @@ Codex / Devinでは、まず `$virtual-company` を使って依頼を分解す�
 
 Codexで実行時サブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探す。`multi_agent_v1.spawn_agent` が使える場合はそれを使い、プロンプトに「xxx サブエージェントを起動」という役割名を明記する。
 
-通常の `$virtual-company` では、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」とある場合に実行時サブエージェントを起動する。`$issue-delivery` では、Issue処理フロー自体が複数ロールのサブエージェント起動を要求するため、ユーザーが追加で許可文を書いていなくても Product Lead A/B/C、Tech Lead、QA Agent などを起動する。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
+通常の `$virtual-company` では、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」とある場合に実行時サブエージェントを起動する。`$issue-tdd-run` では、Issue処理フロー自体が `issue-gate-0` による複数ロール確認を要求するため、ユーザーが追加で許可文を書いていなくても Product Lead A/B/C、Tech Lead、QA Agent などを起動する。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 
 ## Issue を1つ解決する場合（推奨）
 
@@ -16,32 +16,22 @@ GitHub Issue番号を渡すだけで、仕様検討→E2Eテスト設計レビ�
 までを自動ループして解決する。
 
 ```text
-/issue-delivery 21
+/issue-tdd-run 21
 ```
 
-内部フロー:
+内部フロー（正本: `.agents/skills/issue-tdd-run/SKILL.md` → `issue-tdd-workflow`）:
 
-1. **プロダクトリードA/B/C サブエージェント** が Issue のユーザー価値、最小スコープ、検証可能な完了条件を確認する。
-   - UI/UX変更を含む場合は **UX/UIデザイナー サブエージェント** も同じゲートで確認する。
+1. **`issue-gate-0`** — プロダクトリードA/B/C、Tech Lead、QA Agent（UI変更時は UX/UIデザイナー）が要件を確認する。
    - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
-2. **技術リード サブエージェント** が仕様・実装タスク・テスト方針・E2E候補シナリオを確定する。
-3. **QAエージェント サブエージェント** が実装前にE2Eテスト設計をレビューする。
-   - 不足があれば Tech Lead へ差し戻す（最大2回）。
-   - 完了条件が曖昧なら Product Lead またはユーザー確認へ戻す。
-4. **Implementer** がTDDサイクルで実装する。
-   - Codex の Implementer サブエージェントは実装だけを担当し、branch作成、stage、commit、push、PR作成はメインエージェントが行う。
-   - 新規E2Eが必要な場合は `e2e/` に追加し、追加理由と対象導線をPR本文またはIssueコメントに記録する。
-   - テストケース判断のためだけに `e2e-test-case.md`、`implementation-plan.md`、`delivery-notes.md` のような一時メモファイルは作らない。
-5. **Reviewer** が差分をレビューし、GitHubのPRにインラインコメントを投稿する。
-   - 指摘があれば Implementer へ差し戻す（最大3回）。
-6. **GitHub Actions** が自動でVercel PreviewにデプロイしてE2Eを実行する。
-7. **QA Agent** が GitHub MCP でE2E Checkの結果を確認する。
-   - E2Eテストコードの問題なら修正してpush → 再実行。
-   - 実装の問題なら Implementer へ差し戻す（最大2回）。
-8. すべてのチェックが通ったら完了報告を返す。
+2. **TDD 実装** — `issue-tdd-workflow` §6 に従い、RED → GREEN で進める。
+3. **検証** — §8 の push 前検証、必要ならローカル E2E。
+4. **`code-review`** — §9 で preview 差分のセルフレビューと Must-fix 対応ループ。
+5. **PR 作成・push** — §10。
+6. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → §9 再レビュー → 再 push。
+7. すべてのチェックが通ったら完了報告を返す。
 
 ループ上限を超えた場合や環境起因のエラーは、自動的に中断してユーザーに報告する。
-詳細は `.agents/skills/issue-delivery/SKILL.md` を参照。
+詳細は `.agents/skills/issue-tdd-workflow/SKILL.md` を参照。
 
 ## Codex / Devinでの使い方
 

@@ -11,12 +11,20 @@ import {
   createGroupHandler,
   createGroupInvitationRecordHandler,
   deletePendingGroupInvitationRecordByTokenHandler,
+  dedupePendingGroupInvitationsByEmail,
+  getInvitationEmailKey,
+  getGroupMembersHandler,
   getGroupMembership,
   invitationEmailsMatch,
   invitationEmailsMatchAny,
+  listPendingGroupInvitationsHandler,
   listMyGroupsHandler,
+  cancelPendingGroupInvitationHandler,
   removeMemberHandler,
+  seedGroupMemberForE2eHandler,
   setActiveGroupHandler,
+  sortGroupMembersForDisplay,
+  updateGroupNameHandler,
 } from "./groups";
 
 type GroupDoc = {
@@ -246,6 +254,62 @@ describe("groups", () => {
     expect(invitationEmailsMatchAny(["primary@example.com"], "invitee@example.com")).toBe(false);
   });
 
+  it("sortGroupMembersForDisplay は owner を先頭にし、member を表示名順に並べる", () => {
+    expect(
+      sortGroupMembersForDisplay([
+        {
+          userId: "member-b",
+          role: "member",
+          displayName: "メンバーB",
+          email: "b@example.com",
+          isActiveGroup: false,
+          createdAt: 2000,
+        },
+        {
+          userId: "owner",
+          role: "owner",
+          displayName: "オーナー",
+          email: "owner@example.com",
+          isActiveGroup: true,
+          createdAt: 1000,
+        },
+        {
+          userId: "member-a",
+          role: "member",
+          displayName: "メンバーA",
+          email: "a@example.com",
+          isActiveGroup: false,
+          createdAt: 3000,
+        },
+      ]),
+    ).toEqual([
+      {
+        userId: "owner",
+        role: "owner",
+        displayName: "オーナー",
+        email: "owner@example.com",
+        isActiveGroup: true,
+        createdAt: 1000,
+      },
+      {
+        userId: "member-a",
+        role: "member",
+        displayName: "メンバーA",
+        email: "a@example.com",
+        isActiveGroup: false,
+        createdAt: 3000,
+      },
+      {
+        userId: "member-b",
+        role: "member",
+        displayName: "メンバーB",
+        email: "b@example.com",
+        isActiveGroup: false,
+        createdAt: 2000,
+      },
+    ]);
+  });
+
   it("getGroupMembership は activeGroupId が複数所属でも現在のグループを返す", async () => {
     const userId = "https://issuer.example|user-001";
     const ctx = createMockDb({
@@ -367,6 +431,46 @@ describe("groups", () => {
     );
   });
 
+  it("createGroupHandler は空文字を拒否する", async () => {
+    const userId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(createGroupHandler(ctx, { name: "   " })).rejects.toThrow(
+      "グループ名を入力してください",
+    );
+  });
+
+  it("createGroupHandler は長すぎる名前を拒否する", async () => {
+    const userId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(createGroupHandler(ctx, { name: "あ".repeat(51) })).rejects.toThrow(
+      "グループ名は50文字以内で入力してください",
+    );
+  });
+
   it("listMyGroupsHandler は現在の activeGroup を isActive 付きで返す", async () => {
     const userId = "https://issuer.example|user-003";
     const ctx = createMockDb({
@@ -433,6 +537,338 @@ describe("groups", () => {
         isActive: true,
       },
     ]);
+  });
+
+  it("getGroupMembersHandler は active group のメンバーだけを owner 優先で返す", async () => {
+    const userId = "https://issuer.example|owner-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー太郎",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member-a" as Id<"users">,
+          userId: "https://issuer.example|member-a",
+          displayName: "メンバーA",
+          email: "member-a@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member-b" as Id<"users">,
+          userId: "https://issuer.example|member-b",
+          displayName: "メンバーB",
+          email: "member-b@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "group-002" as Id<"groups">,
+          name: "鈴木家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-b" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: "https://issuer.example|member-b",
+          role: "member",
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+        {
+          _id: "member-a" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: "https://issuer.example|member-a",
+          role: "member",
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+        {
+          _id: "member-other-group" as Id<"groupMembers">,
+          groupId: "group-002" as Id<"groups">,
+          userId: "https://issuer.example|other-group-member",
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(getGroupMembersHandler(ctx)).resolves.toEqual([
+      {
+        userId,
+        role: "owner",
+        displayName: "オーナー太郎",
+        email: "owner@example.com",
+        isActiveGroup: true,
+        createdAt: 1000,
+      },
+      {
+        userId: "https://issuer.example|member-a",
+        role: "member",
+        displayName: "メンバーA",
+        email: "member-a@example.com",
+        isActiveGroup: false,
+        createdAt: 3000,
+      },
+      {
+        userId: "https://issuer.example|member-b",
+        role: "member",
+        displayName: "メンバーB",
+        email: "member-b@example.com",
+        isActiveGroup: false,
+        createdAt: 2000,
+      },
+    ]);
+  });
+
+  it("getGroupMembersHandler はグループ未所属ならエラーになる", async () => {
+    const userId = "https://issuer.example|lonely-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-lonely" as Id<"users">,
+          userId,
+          displayName: "ユーザー",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(getGroupMembersHandler(ctx)).rejects.toThrow("グループに所属していません");
+  });
+
+  it("listPendingGroupInvitationsHandler は active group の pending 招待だけを新しい順で返す", async () => {
+    const userId = "https://issuer.example|owner-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー太郎",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-old" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "old@example.com",
+          token: "old-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "invite-new" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "new@example.com",
+          token: "new-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "accepted@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: userId,
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+        {
+          _id: "invite-other-group" as Id<"groupInvitations">,
+          groupId: "group-002" as Id<"groups">,
+          email: "other@example.com",
+          token: "other-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 4000,
+          updatedAt: 4000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(listPendingGroupInvitationsHandler(ctx)).resolves.toEqual([
+      {
+        _id: "invite-new",
+        email: "new@example.com",
+        status: "pending",
+        createdAt: 3000,
+      },
+      {
+        _id: "invite-old",
+        email: "old@example.com",
+        status: "pending",
+        createdAt: 1000,
+      },
+    ]);
+  });
+
+  it("listPendingGroupInvitationsHandler は同一メールの pending を最新 1 件にまとめる", async () => {
+    const userId = "https://issuer.example|owner-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId,
+          displayName: "オーナー太郎",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-old-dup" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "old-dup-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "invite-new-dup" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "new-dup-token",
+          status: "pending",
+          invitedByUserId: userId,
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(listPendingGroupInvitationsHandler(ctx)).resolves.toEqual([
+      {
+        _id: "invite-new-dup",
+        email: "dup@example.com",
+        status: "pending",
+        createdAt: 3000,
+      },
+    ]);
+  });
+
+  it("dedupePendingGroupInvitationsByEmail は Gmail alias を同一メールとしてまとめる", () => {
+    const invitations = dedupePendingGroupInvitationsByEmail([
+      {
+        _id: "invite-alias-old" as Id<"groupInvitations">,
+        email: "a.b.c@gmail.com",
+        status: "pending",
+        createdAt: 1000,
+      },
+      {
+        _id: "invite-alias-new" as Id<"groupInvitations">,
+        email: "abc@gmail.com",
+        status: "pending",
+        createdAt: 2000,
+      },
+    ]);
+
+    expect(invitations).toEqual([
+      {
+        _id: "invite-alias-new",
+        email: "abc@gmail.com",
+        status: "pending",
+        createdAt: 2000,
+      },
+    ]);
+    expect(getInvitationEmailKey("a.b.c@gmail.com")).toBe(getInvitationEmailKey("abc@gmail.com"));
+  });
+
+  it("listPendingGroupInvitationsHandler は member から呼ぶと拒否する", async () => {
+    const userId = "https://issuer.example|member-user";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-user" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(userId, "member@example.com"));
+
+    await expect(listPendingGroupInvitationsHandler(ctx)).rejects.toThrow(
+      "グループオーナーのみ実行できます",
+    );
   });
 
   it("setActiveGroupHandler は所属しているグループを active に切り替える", async () => {
@@ -525,6 +961,68 @@ describe("groups", () => {
     );
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "invite-001",
+      expect.objectContaining({ status: "accepted" }),
+    );
+  });
+
+  it("acceptGroupInvitationHandler は受け入れ後に同一メールの他 pending を revoked にする", async () => {
+    const userId = "https://issuer.example|invitee";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-invitee" as Id<"users">,
+          userId,
+          displayName: "招待先",
+          email: "invitee@example.com",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-100" as Id<"groups">,
+          name: "招待元",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-primary" as Id<"groupInvitations">,
+          groupId: "group-100" as Id<"groups">,
+          email: "invitee@example.com",
+          token: "invite-token",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          clerkInvitationId: "clerk-invite-001",
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+        {
+          _id: "invite-duplicate" as Id<"groupInvitations">,
+          groupId: "group-100" as Id<"groups">,
+          email: "invitee@example.com",
+          token: "old-token",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(userId, "invitee@example.com"));
+
+    await expect(acceptGroupInvitationHandler(ctx, { token: "invite-token" })).resolves.toEqual(
+      "group-100",
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-duplicate",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-primary",
       expect.objectContaining({ status: "accepted" }),
     );
   });
@@ -751,7 +1249,7 @@ describe("groups", () => {
     ).rejects.toThrow("このユーザーはすでにグループに参加しています");
   });
 
-  it("assertEmailCanBeInvitedToGroupHandler は現在グループの pending / accepted 招待を拒否する", async () => {
+  it("assertEmailCanBeInvitedToGroupHandler は pending だけでは拒否しない（作成時に古い招待を無効化する）", async () => {
     const baseInvitation = {
       groupId: "group-001" as Id<"groups">,
       invitedByUserId: "https://issuer.example|owner",
@@ -767,13 +1265,6 @@ describe("groups", () => {
           token: "pending-token",
           status: "pending",
         },
-        {
-          _id: "invite-accepted" as Id<"groupInvitations">,
-          ...baseInvitation,
-          email: "accepted@example.com",
-          token: "accepted-token",
-          status: "accepted",
-        },
       ],
     });
 
@@ -782,13 +1273,70 @@ describe("groups", () => {
         groupId: "group-001" as Id<"groups">,
         email: "pending@example.com",
       }),
-    ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
+    ).resolves.toBeNull();
+  });
+
+  it("assertEmailCanBeInvitedToGroupHandler は所属中メンバーの accepted 招待を拒否する", async () => {
+    const memberUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      groupMembers: [
+        {
+          _id: "member-accepted" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "accepted@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: "https://issuer.example|owner",
+          acceptedByUserId: memberUserId,
+          acceptedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+
     await expect(
       assertEmailCanBeInvitedToGroupHandler(ctx, {
         groupId: "group-001" as Id<"groups">,
         email: "accepted@example.com",
       }),
     ).rejects.toThrow("このメールアドレスの招待はすでに承認済みです");
+  });
+
+  it("assertEmailCanBeInvitedToGroupHandler はグループから外したユーザーの accepted 招待があっても再招待を許可する", async () => {
+    const ctx = createMockDb({
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "removed@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: "https://issuer.example|owner",
+          acceptedByUserId: "https://issuer.example|removed",
+          acceptedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+
+    await expect(
+      assertEmailCanBeInvitedToGroupHandler(ctx, {
+        groupId: "group-001" as Id<"groups">,
+        email: "removed@example.com",
+      }),
+    ).resolves.toBeNull();
   });
 
   it("assertEmailCanBeInvitedToGroupHandler は revoked / expired と別グループの重複を許可する", async () => {
@@ -873,7 +1421,7 @@ describe("groups", () => {
     ).resolves.toBeNull();
   });
 
-  it("createGroupInvitationRecordHandler は既存 pending 招待の二重作成を拒否する", async () => {
+  it("createGroupInvitationRecordHandler は既存 pending を無効化してから新しい招待を作成する", async () => {
     const ctx = createMockDb({
       groupInvitations: [
         {
@@ -897,8 +1445,57 @@ describe("groups", () => {
         invitedByUserId: "https://issuer.example|owner",
         clerkInvitationId: "clerk-new",
       }),
-    ).rejects.toThrow("このメールアドレスにはすでに招待を送信しています");
-    expect(ctx.db.insert).not.toHaveBeenCalled();
+    ).resolves.toEqual(expect.any(String));
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-pending",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.insert).toHaveBeenCalled();
+  });
+
+  it("createGroupInvitationRecordHandler は複数の pending をまとめて無効化して再招待できる", async () => {
+    const ctx = createMockDb({
+      groupInvitations: [
+        {
+          _id: "invite-pending-1" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "pending-token-1",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "invite-pending-2" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "dup@example.com",
+          token: "pending-token-2",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+
+    await expect(
+      createGroupInvitationRecordHandler(ctx, {
+        groupId: "group-001" as Id<"groups">,
+        email: "dup@example.com",
+        token: "new-token",
+        invitedByUserId: "https://issuer.example|owner",
+      }),
+    ).resolves.toEqual(expect.any(String));
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-pending-1",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-pending-2",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.insert).toHaveBeenCalled();
   });
 
   it("deletePendingGroupInvitationRecordByTokenHandler は Clerk ID 未設定の pending 予約だけを削除する", async () => {
@@ -995,5 +1592,841 @@ describe("groups", () => {
       "user-member",
       expect.objectContaining({ activeGroupId: "group-002" }),
     );
+  });
+
+  it("addMemberByEmailHandler は member ロールの呼び出しを拒否する", async () => {
+    const memberId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId: memberId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-only" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
+
+    await expect(addMemberByEmailHandler(ctx, { email: "new@example.com" })).rejects.toThrow(
+      "グループオーナーのみ実行できます",
+    );
+  });
+
+  it("removeMemberHandler は member ロールの呼び出しを拒否する", async () => {
+    const memberId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId: memberId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-only" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
+
+    await expect(
+      removeMemberHandler(ctx, { targetUserId: "https://issuer.example|other" }),
+    ).rejects.toThrow("グループオーナーのみ実行できます");
+  });
+
+  it("updateGroupNameHandler は owner が active group の名前を更新する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(updateGroupNameHandler(ctx, { name: " 鈴木家 " })).resolves.toEqual("group-001");
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "group-001",
+      expect.objectContaining({ name: "鈴木家" }),
+    );
+  });
+
+  it("updateGroupNameHandler は空文字を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(updateGroupNameHandler(ctx, { name: "   " })).rejects.toThrow(
+      "グループ名を入力してください",
+    );
+  });
+
+  it("updateGroupNameHandler は長すぎる名前を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(updateGroupNameHandler(ctx, { name: "あ".repeat(51) })).rejects.toThrow(
+      "グループ名は50文字以内で入力してください",
+    );
+  });
+
+  it("updateGroupNameHandler は member ロールの呼び出しを拒否する", async () => {
+    const memberId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId: memberId,
+          displayName: "メンバー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-only" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
+
+    await expect(updateGroupNameHandler(ctx, { name: "新しい名前" })).rejects.toThrow(
+      "グループオーナーのみ実行できます",
+    );
+  });
+
+  it("removeMemberHandler は owner ロールの対象メンバーを拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const otherOwnerId = "https://issuer.example|other-owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: otherOwnerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId: otherOwnerId })).rejects.toThrow(
+      "オーナーはグループから外せません",
+    );
+  });
+
+  it("removeMemberHandler は自分自身の解除を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId: ownerId })).rejects.toThrow(
+      "自分自身に対してこの操作はできません",
+    );
+    expect(ctx.db.delete).not.toHaveBeenCalled();
+  });
+
+  it("removeMemberHandler は active group に所属しないユーザーを拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const otherGroupMemberId = "https://issuer.example|other-group-member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-group" as Id<"groupMembers">,
+          groupId: "group-002" as Id<"groups">,
+          userId: otherGroupMemberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId: otherGroupMemberId })).rejects.toThrow(
+      "指定されたメンバーが見つかりません",
+    );
+    expect(ctx.db.delete).not.toHaveBeenCalled();
+  });
+
+  it("removeMemberHandler は users レコードを削除しない", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const targetUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member" as Id<"users">,
+          userId: targetUserId,
+          displayName: "メンバー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-target" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId })).resolves.toBeUndefined();
+    expect(ctx.db.delete).toHaveBeenCalledTimes(1);
+    expect(ctx.db.delete).toHaveBeenCalledWith("member-target");
+    expect(ctx.db.delete).not.toHaveBeenCalledWith("user-member");
+  });
+
+  it("removeMemberHandler は対象メンバーの pending / accepted 招待を revoked にする", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const targetUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member" as Id<"users">,
+          userId: targetUserId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-target" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "member@example.com",
+          token: "accepted-token",
+          status: "accepted",
+          invitedByUserId: ownerId,
+          acceptedByUserId: targetUserId,
+          acceptedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(removeMemberHandler(ctx, { targetUserId })).resolves.toBeUndefined();
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-accepted",
+      expect.objectContaining({ status: "revoked" }),
+    );
+  });
+
+  it("cancelPendingGroupInvitationHandler は owner が pending 招待をメール単位で revoked にする", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-old" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-old",
+          status: "pending",
+          invitedByUserId: ownerId,
+          clerkInvitationId: "clerk-old",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "invite-new" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-new",
+          status: "pending",
+          invitedByUserId: ownerId,
+          clerkInvitationId: "clerk-new",
+          createdAt: 2000,
+          updatedAt: 2000,
+        },
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-accepted",
+          status: "accepted",
+          invitedByUserId: ownerId,
+          createdAt: 3000,
+          updatedAt: 3000,
+        },
+      ],
+    });
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
+
+    await expect(
+      cancelPendingGroupInvitationHandler(ctx, {
+        invitationId: "invite-new" as Id<"groupInvitations">,
+      }),
+    ).resolves.toEqual({ clerkInvitationIds: ["clerk-old", "clerk-new"] });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-old",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "invite-new",
+      expect.objectContaining({ status: "revoked" }),
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalledWith(
+      "invite-accepted",
+      expect.objectContaining({ status: "revoked" }),
+    );
+  });
+
+  it("cancelPendingGroupInvitationHandler は member ロールの呼び出しを拒否する", async () => {
+    const memberId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId: memberId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-member" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-001" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-001",
+          status: "pending",
+          invitedByUserId: "https://issuer.example|owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(
+      createIdentity(memberId, "member@example.com"),
+    );
+
+    await expect(
+      cancelPendingGroupInvitationHandler(ctx, {
+        invitationId: "invite-001" as Id<"groupInvitations">,
+      }),
+    ).rejects.toThrow("グループオーナーのみ実行できます");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("cancelPendingGroupInvitationHandler は他グループの招待を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-other" as Id<"groupInvitations">,
+          groupId: "group-002" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-other",
+          status: "pending",
+          invitedByUserId: ownerId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
+
+    await expect(
+      cancelPendingGroupInvitationHandler(ctx, {
+        invitationId: "invite-other" as Id<"groupInvitations">,
+      }),
+    ).rejects.toThrow("現在選択中のグループでのみ実行できます");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("cancelPendingGroupInvitationHandler は accepted 済み招待を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-accepted" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "accepted@example.com",
+          token: "token-accepted",
+          status: "accepted",
+          invitedByUserId: ownerId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
+
+    await expect(
+      cancelPendingGroupInvitationHandler(ctx, {
+        invitationId: "invite-accepted" as Id<"groupInvitations">,
+      }),
+    ).rejects.toThrow("この招待は取り消せません");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("cancelPendingGroupInvitationHandler は存在しない招待 ID を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          email: "owner@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [],
+    });
+    vi.mocked(ctx.auth.getUserIdentity).mockResolvedValue(createIdentity(ownerId));
+
+    await expect(
+      cancelPendingGroupInvitationHandler(ctx, {
+        invitationId: "invite-missing" as Id<"groupInvitations">,
+      }),
+    ).rejects.toThrow("招待が見つかりません");
+  });
+});
+
+describe("Phase1 owner-only permissions", () => {
+  const OWNER_ONLY_ERROR = "グループオーナーのみ実行できます";
+
+  function createMemberContext() {
+    const memberId = "https://issuer.example|member";
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      users: [
+        {
+          _id: "user-member" as Id<"users">,
+          userId: memberId,
+          displayName: "メンバー",
+          email: "member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-only" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: memberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-001" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-001",
+          status: "pending",
+          invitedByUserId: ownerId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi
+      .fn()
+      .mockResolvedValue(createIdentity(memberId, "member@example.com"));
+    return { ctx, memberId, ownerId };
+  }
+
+  it.each([
+    ["updateGroupName", (ctx: MutationCtx) => updateGroupNameHandler(ctx, { name: "新しい名前" })],
+    [
+      "removeMember",
+      (ctx: MutationCtx) =>
+        removeMemberHandler(ctx, { targetUserId: "https://issuer.example|other-member" }),
+    ],
+    [
+      "addMemberByEmail",
+      (ctx: MutationCtx) => addMemberByEmailHandler(ctx, { email: "new@example.com" }),
+    ],
+    ["listPendingGroupInvitations", (ctx: QueryCtx) => listPendingGroupInvitationsHandler(ctx)],
+    [
+      "cancelPendingGroupInvitation",
+      (ctx: MutationCtx) =>
+        cancelPendingGroupInvitationHandler(ctx, {
+          invitationId: "invite-001" as Id<"groupInvitations">,
+        }),
+    ],
+  ] as const)("member は %s を拒否される", async (_operation, runHandler) => {
+    const { ctx } = createMemberContext();
+    await expect(runHandler(ctx)).rejects.toThrow(OWNER_ONLY_ERROR);
+  });
+});
+
+describe("seedGroupMemberForE2eHandler", () => {
+  it("同じメールの e2e-seed ユーザーを置き換えて seed する", async () => {
+    const existingMemberId = "e2e-seed|group-member-old";
+    const ctx = createMockDb({
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      users: [
+        {
+          _id: "user-existing" as Id<"users">,
+          userId: existingMemberId,
+          displayName: "旧メンバー",
+          email: "e2e-removable-member@example.com",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-existing" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: existingMemberId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+
+    const result = await seedGroupMemberForE2eHandler(ctx, {
+      groupId: "group-001" as Id<"groups">,
+      displayName: "E2E解除対象メンバー",
+      email: "e2e-removable-member@example.com",
+    });
+
+    expect(result.memberUserId).toMatch(/^e2e-seed\|group-member-/);
+    expect(result.memberUserId).not.toBe(existingMemberId);
+    expect(ctx.db.delete).toHaveBeenCalledWith("member-existing");
+    expect(ctx.db.delete).toHaveBeenCalledWith("user-existing");
+    expect(ctx.db.insert).toHaveBeenCalledTimes(2);
   });
 });

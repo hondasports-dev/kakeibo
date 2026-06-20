@@ -167,9 +167,9 @@ AIの結果は、最初から確定値として扱うのではなく、信頼度
   - ユーザーごとのカテゴリ管理
 - `convex/schema.ts`
   - `receipts` と `categories` の既存テーブル
-- `src/components/ReceiptImageExtractor.tsx`
+- `src/features/receipt/components/ReceiptImageExtractor.tsx`
   - 画像選択、リサイズ、プレビュー、同意、読み取り実行
-- `src/hooks/useReceiptForm.ts`
+- `src/features/receipt/hooks/useReceiptForm.ts`
   - 読み取り結果をフォームに反映する処理
 
 ただし、現在は「画像から店名、日付、金額を抽出してフォームへ流し込むPoC」に近い。今後は、フォーム補助ではなく、AI処理キューと下書き登録の方向へ寄せる必要がある。
