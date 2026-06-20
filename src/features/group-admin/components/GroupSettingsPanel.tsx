@@ -330,6 +330,7 @@ export function GroupSettingsPanel() {
       return;
     }
 
+    setError("");
     setPendingOwnershipTransfer({
       userId: selectedMember.userId,
       displayLabel: getMemberPrimaryLabel(selectedMember, null),

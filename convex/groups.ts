@@ -24,6 +24,7 @@ export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
 // ---------------------------------------------------------------------------
 
 export type GroupMembership = {
+  membershipId: Id<"groupMembers">;
   groupId: Id<"groups">;
   userId: string;
   role: "owner" | "member";
@@ -105,7 +106,12 @@ export async function getGroupMembership(
 
   if (activeMembership === null) return null;
 
-  return { groupId: activeMembership.groupId, userId, role: activeMembership.role };
+  return {
+    membershipId: activeMembership._id,
+    groupId: activeMembership.groupId,
+    userId,
+    role: activeMembership.role,
+  };
 }
 
 async function getAllGroupMemberships(ctx: Pick<QueryCtx, "auth" | "db">) {
@@ -1289,17 +1295,8 @@ export async function transferGroupOwnershipHandler(
   ctx: MutationCtx,
   args: { targetUserId: string },
 ) {
-  const { groupId, userId } = await requireGroupOwner(ctx);
+  const { groupId, userId, membershipId: actorMembershipId } = await requireGroupOwner(ctx);
   assertNotSelfOperator(userId, args.targetUserId);
-
-  const actorMembership = await readQueryDoc(
-    ctx.db
-      .query("groupMembers")
-      .withIndex("by_group_id_and_user_id", (q) => q.eq("groupId", groupId).eq("userId", userId)),
-  );
-  if (actorMembership === null) {
-    throw new ConvexError("グループメンバーが見つかりません");
-  }
 
   const targetMembership = await readQueryDoc(
     ctx.db
@@ -1330,12 +1327,13 @@ export async function transferGroupOwnershipHandler(
     targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
 
   const now = Date.now();
-  await ctx.db.patch(actorMembership._id, {
-    role: "member",
-    updatedAt: now,
-  });
+  // 最後の owner 不在を避けるため、先に譲渡先を owner に昇格してから譲渡元を member に降格する
   await ctx.db.patch(targetMembership._id, {
     role: "owner",
+    updatedAt: now,
+  });
+  await ctx.db.patch(actorMembershipId, {
+    role: "member",
     updatedAt: now,
   });
 

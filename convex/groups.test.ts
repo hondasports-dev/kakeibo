@@ -349,6 +349,7 @@ describe("groups", () => {
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
 
     await expect(getGroupMembership(ctx)).resolves.toEqual({
+      membershipId: "member-002",
       groupId: "group-002",
       userId,
       role: "owner",
@@ -2436,13 +2437,15 @@ describe("groups", () => {
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
 
     await expect(transferGroupOwnershipHandler(ctx, { targetUserId })).resolves.toBeUndefined();
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "member-owner",
-      expect.objectContaining({ role: "member" }),
-    );
-    expect(ctx.db.patch).toHaveBeenCalledWith(
+    expect(ctx.db.patch).toHaveBeenNthCalledWith(
+      1,
       "member-target",
       expect.objectContaining({ role: "owner" }),
+    );
+    expect(ctx.db.patch).toHaveBeenNthCalledWith(
+      2,
+      "member-owner",
+      expect.objectContaining({ role: "member" }),
     );
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "managementAuditLogs",
@@ -2453,6 +2456,81 @@ describe("groups", () => {
         beforeValue: "オーナー: 現オーナー",
         afterValue: "オーナー: 譲渡先（現オーナー → メンバー）",
       }),
+    );
+  });
+
+  it("transferGroupOwnershipHandler は共同 owner がいる場合も譲渡できる", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const otherOwnerId = "https://issuer.example|other-owner";
+    const targetUserId = "https://issuer.example|member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー1",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-other-owner" as Id<"users">,
+          userId: otherOwnerId,
+          displayName: "オーナー2",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "user-member" as Id<"users">,
+          userId: targetUserId,
+          displayName: "譲渡先",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: otherOwnerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-target" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(transferGroupOwnershipHandler(ctx, { targetUserId })).resolves.toBeUndefined();
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "member-target",
+      expect.objectContaining({ role: "owner" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "member-owner",
+      expect.objectContaining({ role: "member" }),
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalledWith(
+      "member-other-owner",
+      expect.anything(),
     );
   });
 
@@ -2556,6 +2634,50 @@ describe("groups", () => {
 
     await expect(
       transferGroupOwnershipHandler(ctx, { targetUserId: otherGroupMemberId }),
+    ).rejects.toThrow("指定されたメンバーが見つかりません");
+  });
+
+  it("transferGroupOwnershipHandler は pending 招待中ユーザー（groupMembers 不在）への譲渡を拒否する", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const pendingInviteUserId = "https://issuer.example|pending-only";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupInvitations: [
+        {
+          _id: "invite-pending" as Id<"groupInvitations">,
+          groupId: "group-001" as Id<"groups">,
+          email: "pending@example.com",
+          token: "token-pending",
+          status: "pending",
+          invitedByUserId: ownerId,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(
+      transferGroupOwnershipHandler(ctx, { targetUserId: pendingInviteUserId }),
     ).rejects.toThrow("指定されたメンバーが見つかりません");
   });
 
