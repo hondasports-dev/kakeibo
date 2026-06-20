@@ -304,11 +304,10 @@ test.describe("グループアクセス", () => {
     await expect(page.getByText(/users と Clerk アカウントは削除されません/)).toBeVisible();
     await expect(page.getByRole("button", { name: "グループを削除する" })).toBeDisabled();
 
-    const groupName = await page
-      .getByTestId("group-info-section")
-      .getByLabelText("グループ名")
-      .inputValue();
-    await page.getByLabelText("確認用グループ名").fill(groupName);
+    await expect(page.getByText(/削除対象:/)).toBeVisible({ timeout: 15_000 });
+    const deletionTargetText = await page.getByText(/削除対象:/).textContent();
+    const groupName = deletionTargetText?.replace("削除対象:", "").trim() ?? "";
+    await page.getByRole("textbox", { name: "確認用グループ名" }).fill(groupName);
     await page.getByRole("button", { name: "グループを削除する" }).click();
 
     await expect(page.getByText("グループを削除しました")).toBeVisible({
