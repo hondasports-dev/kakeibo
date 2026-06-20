@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const animationDirectory = resolve("public/animations/suzumemo-loading");
 
 describe("Suzumemo loading Lottie", () => {
-  it("3秒ループと左右独立のSVG葉レイヤーを持つ", () => {
+  it("4秒ループと左右独立のSVG葉レイヤーを持つ", () => {
     const lottiePath = resolve(animationDirectory, "lottie.json");
     const leftLeafPath = resolve(animationDirectory, "leaf-left.svg");
     const rightLeafPath = resolve(animationDirectory, "leaf-right.svg");
@@ -22,7 +22,7 @@ describe("Suzumemo loading Lottie", () => {
     };
 
     expect(lottie.fr).toBe(30);
-    expect(lottie.op).toBe(90);
+    expect(lottie.op).toBe(120);
     expect(lottie.assets.map((asset) => asset.p)).toEqual(
       expect.arrayContaining(["leaf-left.svg", "leaf-right.svg"]),
     );
@@ -39,6 +39,7 @@ describe("Suzumemo loading Lottie", () => {
 
     expect(css).toContain("@media (prefers-reduced-motion: reduce)");
     expect(css).toContain("animation: none");
+    expect(css).toContain("animation-duration: 4s");
   });
 
   it("英字と日本語ロゴをフォント非依存のSVGパスで描画する", () => {
@@ -96,13 +97,21 @@ describe("Suzumemo loading Lottie", () => {
       layers: Array<{
         refId?: string;
         masksProperties?: unknown[];
-        ks: { o: { k?: Array<{ t: number; s: number[] }> } };
+        ks: {
+          o: { k?: Array<{ t: number; s: number[] }> };
+          s: { a: number; k: Array<{ t: number; s: number[] }> };
+        };
       }>;
     };
     const wordmarkLayers = lottie.layers.filter((layer) => layer.refId === "wordmark");
     const subtitleLayers = lottie.layers.filter((layer) => layer.refId === "subtitle");
     const firstVisibleFrames = wordmarkLayers.map(
       (layer) => layer.ks.o.k?.find((frame) => frame.s[0] === 100)?.t,
+    );
+    const firstHiddenFramesAfterVisible = wordmarkLayers.map((layer, index) =>
+      layer.ks.o.k?.find(
+        (frame) => frame.s[0] === 0 && frame.t > (firstVisibleFrames[index] ?? 0),
+      )?.t,
     );
 
     expect(wordmarkLayers).toHaveLength(8);
@@ -113,8 +122,14 @@ describe("Suzumemo loading Lottie", () => {
       ),
     ).toBe(true);
     expect(firstVisibleFrames.every((frame) => typeof frame === "number")).toBe(true);
-    expect(firstVisibleFrames).toEqual([...firstVisibleFrames].sort((a, b) => (a ?? 0) - (b ?? 0)));
-    expect(new Set(firstVisibleFrames).size).toBe(8);
+    expect(firstVisibleFrames).toEqual([32, 38, 44, 50, 32, 38, 44, 50]);
+    expect(firstHiddenFramesAfterVisible).toEqual([54, 60, 66, 72, 54, 60, 66, 72]);
+    expect(new Set(firstHiddenFramesAfterVisible).size).toBe(4);
+    expect(
+      [...wordmarkLayers, ...subtitleLayers].every(
+        (layer) => layer.ks.s.a === 1 && layer.ks.s.k.some((frame) => frame.s[0] === 94),
+      ),
+    ).toBe(true);
     expect(lottie.layers.some((layer) => layer.refId === "dot")).toBe(false);
   });
 });

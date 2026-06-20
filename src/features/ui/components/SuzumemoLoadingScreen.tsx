@@ -33,12 +33,13 @@ export function SuzumemoLoadingScreen({ label, message }: SuzumemoLoadingScreenP
             <Box
               key={`wordmark-${left}`}
               alt=""
-              className={`suzumemo-loading-layer suzumemo-loading-letter suzumemo-loading-wordmark-wave-${index + 1}`}
+              className={`suzumemo-loading-layer suzumemo-loading-letter suzumemo-loading-wave-${(index % 4) + 1}`}
               component="img"
               data-testid="suzumemo-loading-wordmark-letter"
               src={`${animationBasePath}/wordmark.svg`}
               style={{
                 clipPath: `inset(0 ${100 - right}% 0 ${left}%)`,
+                transformOrigin: `${(left + right) / 2}% 50%`,
               }}
             />
           ))}
@@ -46,12 +47,13 @@ export function SuzumemoLoadingScreen({ label, message }: SuzumemoLoadingScreenP
             <Box
               key={`subtitle-${left}`}
               alt=""
-              className={`suzumemo-loading-layer suzumemo-loading-letter suzumemo-loading-subtitle-wave-${index + 1}`}
+              className={`suzumemo-loading-layer suzumemo-loading-letter suzumemo-loading-wave-${index + 1}`}
               component="img"
               data-testid="suzumemo-loading-subtitle-letter"
               src={`${animationBasePath}/subtitle.svg`}
               style={{
                 clipPath: `inset(0 ${100 - right}% 0 ${left}%)`,
+                transformOrigin: `${(left + right) / 2}% 50%`,
               }}
             />
           ))}
