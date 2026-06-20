@@ -113,6 +113,7 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 ただし、一時作業メモとして `e2e-test-case.md`、`implementation-plan.md`、
 `delivery-notes.md` のようなファイルは作りません。検討内容は Issue コメント、
 PR本文、または既存docsへ集約します。
+特に `docs/superpowers/` 配下へ設計書や実装計画を作成することは禁止します。
 
 台帳には少なくとも次を含めます。
 
