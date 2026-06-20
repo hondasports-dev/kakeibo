@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { barClasses } from "@mui/x-charts/BarChart";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
   cleanupE2eExpenseEntries,
@@ -958,7 +959,7 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
   });
 
-  test("[Issue #232] 週別棒グラフに対象週の要約が表示される", async ({ page }) => {
+  test("[Issue #232] 週別棒グラフに対象週の要約とTooltipが表示される", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
@@ -975,6 +976,17 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     if (await graph.isVisible().catch(() => false)) {
       await expect(page.getByText("対象週の支出")).toBeVisible();
       await expect(page.getByText("2週平均比")).toBeVisible();
+      const bar = graph.locator(`.${barClasses.element}`).last();
+      await expect(bar).toBeVisible();
+      await bar.hover();
+      await expect(page.getByText(/支出合計 .*円/)).toBeVisible();
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    const mobileBar = graph.locator(`.${barClasses.element}`).last();
+    if (await mobileBar.isVisible().catch(() => false)) {
+      await mobileBar.click();
+      await expect(page.getByText(/支出合計 .*円/)).toBeVisible();
     }
   });
 });
