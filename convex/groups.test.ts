@@ -1588,6 +1588,17 @@ describe("groups", () => {
 
     await expect(removeMemberHandler(ctx, { targetUserId })).resolves.toBeUndefined();
     expect(ctx.db.delete).toHaveBeenCalledWith("member-target");
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "managementAuditLogs",
+      expect.objectContaining({
+        groupId: "group-001",
+        actorUserId: ownerId,
+        action: "member_removed",
+        targetKind: "member",
+        targetId: targetUserId,
+        targetLabel: "メンバー",
+      }),
+    );
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "user-member",
       expect.objectContaining({ activeGroupId: "group-002" }),
@@ -1701,6 +1712,55 @@ describe("groups", () => {
       "group-001",
       expect.objectContaining({ name: "鈴木家" }),
     );
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "managementAuditLogs",
+      expect.objectContaining({
+        groupId: "group-001",
+        actorUserId: ownerId,
+        action: "group_name_changed",
+        beforeValue: "佐藤家",
+        afterValue: "鈴木家",
+      }),
+    );
+  });
+
+  it("updateGroupNameHandler は同名の再保存で patch も監査ログも残さない", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-001" as Id<"groups">,
+          name: "佐藤家",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(updateGroupNameHandler(ctx, { name: "佐藤家" })).resolves.toEqual("group-001");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
   it("updateGroupNameHandler は空文字を拒否する", async () => {
@@ -2036,6 +2096,16 @@ describe("groups", () => {
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
 
     await expect(removeMemberHandler(ctx, { targetUserId })).resolves.toBeUndefined();
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "managementAuditLogs",
+      expect.objectContaining({
+        groupId: "group-001",
+        actorUserId: ownerId,
+        action: "member_removed",
+        targetKind: "member",
+        targetId: targetUserId,
+      }),
+    );
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "invite-accepted",
       expect.objectContaining({ status: "revoked" }),
@@ -2109,6 +2179,17 @@ describe("groups", () => {
       }),
     ).resolves.toEqual({ clerkInvitationIds: ["clerk-old", "clerk-new"] });
 
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "managementAuditLogs",
+      expect.objectContaining({
+        groupId: "group-001",
+        actorUserId: ownerId,
+        action: "invitation_revoked",
+        targetKind: "invitation",
+        targetId: "invite-new",
+        targetLabel: "pending@example.com",
+      }),
+    );
     expect(ctx.db.patch).toHaveBeenCalledWith(
       "invite-old",
       expect.objectContaining({ status: "revoked" }),

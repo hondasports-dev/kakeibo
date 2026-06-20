@@ -269,6 +269,9 @@ export async function updateGroupNameHandler(ctx: MutationCtx, args: { name: str
   }
 
   const previousName = group.name;
+  if (previousName === name) {
+    return groupId;
+  }
 
   await ctx.db.patch(groupId, {
     name,
