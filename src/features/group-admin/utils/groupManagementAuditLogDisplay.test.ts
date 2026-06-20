@@ -20,6 +20,21 @@ describe("getManagementAuditLogDetailLabel", () => {
     expect(getManagementAuditLogDetailLabel(log)).toBe("佐藤家 → 鈴木家");
   });
 
+  it("ロール変更は before/after を表示する", () => {
+    const log: GroupManagementAuditLogListItem = {
+      _id: "log-003",
+      action: "member_role_changed",
+      actionLabel: "メンバーのロールを変更",
+      actorDisplayName: "オーナー",
+      targetLabel: "メンバーA",
+      beforeValue: "メンバー",
+      afterValue: "オーナー",
+      createdAt: 1000,
+    };
+
+    expect(getManagementAuditLogDetailLabel(log)).toBe("メンバー → オーナー");
+  });
+
   it("対象ラベルがある場合はそれを表示する", () => {
     const log: GroupManagementAuditLogListItem = {
       _id: "log-002",
