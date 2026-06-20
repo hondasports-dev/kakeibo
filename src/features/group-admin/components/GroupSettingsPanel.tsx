@@ -24,6 +24,7 @@ import { MAX_GROUP_NAME_LENGTH } from "../../../../convex/lib/groupName";
 import { getClerkUserFriendlyDisplayName } from "../../auth";
 import { getConvexErrorMessage } from "../../auth";
 import { ConfirmDangerousActionDialog } from "./ConfirmDangerousActionDialog";
+import { ConfirmDeleteGroupDialog } from "./ConfirmDeleteGroupDialog";
 import { GroupMemberList } from "./GroupMemberList";
 import type { GroupMemberListItem } from "../utils/groupMemberDisplay";
 import { getMemberPrimaryLabel, isCurrentUserMember } from "../utils/groupMemberDisplay";
@@ -106,7 +107,12 @@ export function GroupSettingsPanel() {
   const [pendingOwnershipTransfer, setPendingOwnershipTransfer] =
     useState<PendingOwnershipTransfer | null>(null);
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState(false);
+  const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
+  const deletionPreview = useQuery(
+    api.groups.getGroupDeletionPreview,
+    group?.role === "owner" && pendingDeleteGroup ? {} : "skip",
+  );
 
   const groupId = group?._id;
   const groupName = group?.name;
@@ -368,6 +374,7 @@ export function GroupSettingsPanel() {
 
   const handleRequestDeleteGroup = () => {
     setError("");
+    setDeleteConfirmationName("");
     setPendingDeleteGroup(true);
   };
 
@@ -376,14 +383,16 @@ export function GroupSettingsPanel() {
       return;
     }
     setPendingDeleteGroup(false);
+    setDeleteConfirmationName("");
   };
 
   const handleConfirmDeleteGroup = async () => {
     setSavingTarget("delete-group");
     setError("");
     try {
-      await deleteGroup({});
+      await deleteGroup({ confirmationGroupName: deleteConfirmationName });
       setPendingDeleteGroup(false);
+      setDeleteConfirmationName("");
       setSnackbar("グループを削除しました");
       navigate(groups.length > 1 ? "/group/select" : "/group/setup");
     } catch (caughtError) {
@@ -392,8 +401,6 @@ export function GroupSettingsPanel() {
       setSavingTarget(null);
     }
   };
-
-  const otherActiveGroupsCount = groups.filter((item) => item._id !== group._id).length;
 
   return (
     <Paper className="paper-panel" elevation={0}>
@@ -666,23 +673,14 @@ export function GroupSettingsPanel() {
         title="メンバーのロールを変更しますか？"
       />
 
-      <ConfirmDangerousActionDialog
-        cancelLabel="戻る"
-        confirmLabel="グループを削除する"
+      <ConfirmDeleteGroupDialog
+        confirmationName={deleteConfirmationName}
         confirming={pendingDeleteGroup && savingTarget === "delete-group"}
-        description={
-          pendingDeleteGroup
-            ? `対象グループ: ${group.name}。グループに紐づく家計データを含めて完全に削除します。復旧はできません。Clerk アカウントとユーザー情報は削除されません。${
-                otherActiveGroupsCount > 0
-                  ? " 別の所属グループへ切り替えて利用を続けられます。"
-                  : " 他に所属グループがない場合は、新しいグループを作成してください。"
-              }`
-            : ""
-        }
         onCancel={handleCancelDeleteGroup}
         onConfirm={() => void handleConfirmDeleteGroup()}
+        onConfirmationNameChange={setDeleteConfirmationName}
         open={pendingDeleteGroup}
-        title="グループを削除しますか？"
+        preview={deletionPreview ?? null}
       />
 
       <ConfirmDangerousActionDialog
