@@ -231,8 +231,8 @@ test.describe("グループアクセス", () => {
     await page.reload();
     await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
 
-    const roleSelect = page.getByLabel(`${memberDisplayName}のロール`);
-    await roleSelect.click();
+    const roleSelect = page.getByTestId(`group-member-role-select-${memberUserId}`);
+    await roleSelect.getByRole("combobox").click();
     await page.getByRole("option", { name: "オーナー" }).click();
 
     await expect(
@@ -244,7 +244,7 @@ test.describe("グループアクセス", () => {
     await expect(page.getByText("メンバーのロールを変更しました")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(roleSelect).toHaveText("オーナー");
+    await expect(roleSelect.getByRole("combobox")).toHaveText("オーナー");
     await expect(page.getByTestId("management-audit-log-section")).toContainText(
       "メンバーのロールを変更",
     );
