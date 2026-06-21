@@ -2,9 +2,8 @@
 // @vitest-environment edge-runtime
 
 import { convexTest } from "convex-test";
-import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import type { Id } from "./_generated/dataModel";
+import { api, internal } from "./_generated/api";
 import schema from "./schema";
 
 const modules = import.meta.glob("./**/*.ts");
@@ -18,111 +17,11 @@ afterAll(() => {
   process.env.APP_ENV = originalAppEnvironment;
 });
 
-type PaginationOpts = { numItems: number; cursor: string | null };
-type SearchUsersArgs = {
-  queryType: "displayName" | "email" | "userId";
-  query: string;
-  paginationOpts: PaginationOpts;
-};
-type SearchGroupsArgs = {
-  queryType: "name" | "groupId";
-  query: string;
-  paginationOpts: PaginationOpts;
-};
-
-const searchUsers = makeFunctionReference<"action", SearchUsersArgs, SearchResponse<UserListItem>>(
-  "systemAdmin/actions:searchUsers",
-);
-const searchGroups = makeFunctionReference<
-  "action",
-  SearchGroupsArgs,
-  SearchResponse<GroupListItem>
->("systemAdmin/actions:searchGroups");
-const getUserDetail = makeFunctionReference<"action", { userId: Id<"users"> }, UserDetail | null>(
-  "systemAdmin/actions:getUserDetail",
-);
-const getGroupDetail = makeFunctionReference<
-  "action",
-  { groupId: Id<"groups"> },
-  GroupDetail | null
->("systemAdmin/actions:getGroupDetail");
-const bootstrapSystemAdmin = makeFunctionReference<
-  "mutation",
-  {
-    targetUserId: Id<"users">;
-    reason: string;
-    expectedEnvironment: "development" | "preview" | "production";
-  },
-  Id<"systemAdmins">
->("systemAdmin/internal:bootstrapSystemAdmin");
-
-type SearchResponse<T> = {
-  environment: "development" | "preview" | "production";
-  page: T[];
-  isDone: boolean;
-  continueCursor: string;
-};
-
-type UserListItem = {
-  id: Id<"users">;
-  clerkUserId: string;
-  displayName: string;
-  email: string | null;
-  activeGroupId: Id<"groups"> | null;
-  createdAt: number;
-  updatedAt: number;
-};
-
-type GroupListItem = {
-  id: Id<"groups">;
-  name: string;
-  status: "active" | "deleted" | "archived";
-  createdAt: number;
-  updatedAt: number;
-};
-
-type UserDetail = UserListItem & {
-  environment: "development" | "preview" | "production";
-  memberships: Array<{
-    groupId: Id<"groups">;
-    groupName: string;
-    role: "owner" | "member";
-    createdAt: number;
-    updatedAt: number;
-  }>;
-  invitations: Array<{
-    id: Id<"groupInvitations">;
-    groupId: Id<"groups">;
-    groupName: string;
-    status: "pending" | "accepted" | "revoked" | "expired";
-    createdAt: number;
-    updatedAt: number;
-  }>;
-  membershipsTruncated: boolean;
-  invitationsTruncated: boolean;
-};
-
-type GroupDetail = GroupListItem & {
-  environment: "development" | "preview" | "production";
-  members: Array<{
-    userId: Id<"users"> | null;
-    clerkUserId: string;
-    displayName: string | null;
-    email: string | null;
-    role: "owner" | "member";
-    createdAt: number;
-    updatedAt: number;
-  }>;
-  invitations: Array<{
-    id: Id<"groupInvitations">;
-    email: string;
-    status: "pending" | "accepted" | "revoked" | "expired";
-    createdAt: number;
-    updatedAt: number;
-  }>;
-  membersTruncated: boolean;
-  invitationsTruncated: boolean;
-};
+const searchUsers = api.systemAdmin.actions.searchUsers;
+const searchGroups = api.systemAdmin.actions.searchGroups;
+const getUserDetail = api.systemAdmin.actions.getUserDetail;
+const getGroupDetail = api.systemAdmin.actions.getGroupDetail;
+const bootstrapSystemAdmin = internal.systemAdmin.internal.bootstrapSystemAdmin;
 
 async function seedSystemAdminScenario() {
   const t = convexTest(schema, modules);
@@ -264,15 +163,7 @@ describe("system admin search API", () => {
     expect(firstPage.environment).toBe("development");
     expect(firstPage.page).toHaveLength(1);
     expect(Object.keys(firstPage.page[0] ?? {}).sort()).toEqual(
-      [
-        "activeGroupId",
-        "clerkUserId",
-        "createdAt",
-        "displayName",
-        "email",
-        "id",
-        "updatedAt",
-      ].sort(),
+      ["activeGroupId", "createdAt", "displayName", "email", "id", "userId", "updatedAt"].sort(),
     );
     expect(firstPage.isDone).toBe(false);
 
@@ -343,6 +234,42 @@ describe("system admin search API", () => {
         paginationOpts: { numItems: 10, cursor: null },
       }),
     ).rejects.toThrow("APP_ENVが正しく設定されていません");
+  });
+
+  it("検索語とページ件数が範囲外なら拒否する", async () => {
+    const { admin } = await seedSystemAdminScenario();
+
+    await expect(
+      admin.action(searchUsers, {
+        queryType: "displayName",
+        query: "   ",
+        paginationOpts: { numItems: 10, cursor: null },
+      }),
+    ).rejects.toThrow("検索語は1〜200文字で入力してください");
+
+    await expect(
+      admin.action(searchGroups, {
+        queryType: "name",
+        query: "あ".repeat(201),
+        paginationOpts: { numItems: 10, cursor: null },
+      }),
+    ).rejects.toThrow("検索語は1〜200文字で入力してください");
+
+    await expect(
+      admin.action(searchUsers, {
+        queryType: "displayName",
+        query: "山田",
+        paginationOpts: { numItems: 101, cursor: null },
+      }),
+    ).rejects.toThrow("ページ件数は1〜100件で指定してください");
+
+    await expect(
+      admin.action(searchGroups, {
+        queryType: "name",
+        query: "山田家",
+        paginationOpts: { numItems: 0, cursor: null },
+      }),
+    ).rejects.toThrow("ページ件数は1〜100件で指定してください");
   });
 
   it("ユーザーIDとグループ名・グループIDで検索できる", async () => {

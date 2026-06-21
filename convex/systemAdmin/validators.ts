@@ -18,7 +18,7 @@ export const groupSearchTypeValidator = v.union(v.literal("name"), v.literal("gr
 
 export const systemAdminUserListItemValidator = v.object({
   id: v.id("users"),
-  clerkUserId: v.string(),
+  userId: v.string(),
   displayName: v.string(),
   email: v.union(v.string(), v.null()),
   activeGroupId: v.union(v.id("groups"), v.null()),
@@ -76,8 +76,8 @@ export const systemAdminUserDetailValidator = v.object({
 });
 
 const groupMemberValidator = v.object({
-  userId: v.union(v.id("users"), v.null()),
-  clerkUserId: v.string(),
+  userDocumentId: v.union(v.id("users"), v.null()),
+  userId: v.string(),
   displayName: v.union(v.string(), v.null()),
   email: v.union(v.string(), v.null()),
   role: v.union(v.literal("owner"), v.literal("member")),

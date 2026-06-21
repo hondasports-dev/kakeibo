@@ -15,6 +15,13 @@ import {
 
 const DETAIL_LIST_LIMIT = 50;
 const MAX_SEARCH_QUERY_LENGTH = 200;
+const MAX_SEARCH_PAGE_SIZE = 100;
+
+function validateSearchPageSize(numItems: number) {
+  if (!Number.isInteger(numItems) || numItems < 1 || numItems > MAX_SEARCH_PAGE_SIZE) {
+    throw new ConvexError("ページ件数は1〜100件で指定してください");
+  }
+}
 
 function normalizeSearchQuery(query: string) {
   const normalized = query.trim();
@@ -35,7 +42,7 @@ function mapUserListItem(user: {
 }) {
   return {
     id: user._id,
-    clerkUserId: user.userId,
+    userId: user.userId,
     displayName: user.displayName,
     email: user.email ?? null,
     activeGroupId: user.activeGroupId ?? null,
@@ -69,6 +76,7 @@ export const searchUsersData = internalQuery({
   returns: systemAdminUserSearchResultValidator,
   handler: async (ctx, args) => {
     await requireSystemAdmin(ctx);
+    validateSearchPageSize(args.paginationOpts.numItems);
     const searchQuery = normalizeSearchQuery(args.query);
 
     const result =
@@ -104,6 +112,7 @@ export const searchGroupsData = internalQuery({
   returns: systemAdminGroupSearchResultValidator,
   handler: async (ctx, args) => {
     await requireSystemAdmin(ctx);
+    validateSearchPageSize(args.paginationOpts.numItems);
     const searchQuery = normalizeSearchQuery(args.query);
 
     if (args.queryType === "groupId") {
@@ -218,8 +227,8 @@ export const getGroupDetailData = internalQuery({
           .withIndex("by_token_identifier", (q) => q.eq("userId", membership.userId))
           .unique();
         return {
-          userId: user?._id ?? null,
-          clerkUserId: membership.userId,
+          userDocumentId: user?._id ?? null,
+          userId: membership.userId,
           displayName: user?.displayName ?? null,
           email: user?.email ?? null,
           role: membership.role,

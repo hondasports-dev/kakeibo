@@ -1,6 +1,6 @@
 import { paginationOptsValidator } from "convex/server";
-import { makeFunctionReference } from "convex/server";
 import { v } from "convex/values";
+import { internal } from "../_generated/api";
 import { action } from "../_generated/server";
 import type {
   SystemAdminGroupDetail,
@@ -28,40 +28,7 @@ type GroupSearchArgs = {
   query: string;
   paginationOpts: PaginationOpts;
 };
-type AuditArgs = {
-  action:
-    | "system_admin_user_searched"
-    | "system_admin_group_searched"
-    | "system_admin_user_viewed"
-    | "system_admin_group_viewed";
-  targetKind: "user" | "group";
-  targetId?: string;
-  queryType?: "user_display_name" | "user_email" | "user_id" | "group_name" | "group_id";
-  queryHash?: string;
-  resultCount?: number;
-};
-
-const searchUsersData = makeFunctionReference<"query", UserSearchArgs, SystemAdminUserSearchResult>(
-  "systemAdmin/queries:searchUsersData",
-);
-const searchGroupsData = makeFunctionReference<
-  "query",
-  GroupSearchArgs,
-  SystemAdminGroupSearchResult
->("systemAdmin/queries:searchGroupsData");
-const getUserDetailData = makeFunctionReference<
-  "query",
-  { userId: import("../_generated/dataModel").Id<"users"> },
-  SystemAdminUserDetail | null
->("systemAdmin/queries:getUserDetailData");
-const getGroupDetailData = makeFunctionReference<
-  "query",
-  { groupId: import("../_generated/dataModel").Id<"groups"> },
-  SystemAdminGroupDetail | null
->("systemAdmin/queries:getGroupDetailData");
-const recordAuditLog = makeFunctionReference<"mutation", AuditArgs, null>(
-  "systemAdmin/audit:recordSystemAdminAuditLog",
-);
+type AuditQueryType = "user_display_name" | "user_email" | "user_id" | "group_name" | "group_id";
 
 async function hashSearchQuery(query: string) {
   const normalized = query.trim().toLowerCase();
@@ -69,13 +36,13 @@ async function hashSearchQuery(query: string) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function toUserAuditQueryType(queryType: UserSearchArgs["queryType"]): AuditArgs["queryType"] {
+function toUserAuditQueryType(queryType: UserSearchArgs["queryType"]): AuditQueryType {
   if (queryType === "displayName") return "user_display_name";
   if (queryType === "email") return "user_email";
   return "user_id";
 }
 
-function toGroupAuditQueryType(queryType: GroupSearchArgs["queryType"]): AuditArgs["queryType"] {
+function toGroupAuditQueryType(queryType: GroupSearchArgs["queryType"]): AuditQueryType {
   return queryType === "name" ? "group_name" : "group_id";
 }
 
@@ -87,8 +54,11 @@ export const searchUsers = action({
   },
   returns: systemAdminUserSearchResultValidator,
   handler: async (ctx, args) => {
-    const result: SystemAdminUserSearchResult = await ctx.runQuery(searchUsersData, args);
-    await ctx.runMutation(recordAuditLog, {
+    const result: SystemAdminUserSearchResult = await ctx.runQuery(
+      internal.systemAdmin.queries.searchUsersData,
+      args,
+    );
+    await ctx.runMutation(internal.systemAdmin.audit.recordSystemAdminAuditLog, {
       action: "system_admin_user_searched",
       targetKind: "user",
       queryType: toUserAuditQueryType(args.queryType),
@@ -107,8 +77,11 @@ export const searchGroups = action({
   },
   returns: systemAdminGroupSearchResultValidator,
   handler: async (ctx, args) => {
-    const result: SystemAdminGroupSearchResult = await ctx.runQuery(searchGroupsData, args);
-    await ctx.runMutation(recordAuditLog, {
+    const result: SystemAdminGroupSearchResult = await ctx.runQuery(
+      internal.systemAdmin.queries.searchGroupsData,
+      args,
+    );
+    await ctx.runMutation(internal.systemAdmin.audit.recordSystemAdminAuditLog, {
       action: "system_admin_group_searched",
       targetKind: "group",
       queryType: toGroupAuditQueryType(args.queryType),
@@ -123,8 +96,11 @@ export const getUserDetail = action({
   args: { userId: v.id("users") },
   returns: v.union(systemAdminUserDetailValidator, v.null()),
   handler: async (ctx, args) => {
-    const result: SystemAdminUserDetail | null = await ctx.runQuery(getUserDetailData, args);
-    await ctx.runMutation(recordAuditLog, {
+    const result: SystemAdminUserDetail | null = await ctx.runQuery(
+      internal.systemAdmin.queries.getUserDetailData,
+      args,
+    );
+    await ctx.runMutation(internal.systemAdmin.audit.recordSystemAdminAuditLog, {
       action: "system_admin_user_viewed",
       targetKind: "user",
       targetId: args.userId,
@@ -138,8 +114,11 @@ export const getGroupDetail = action({
   args: { groupId: v.id("groups") },
   returns: v.union(systemAdminGroupDetailValidator, v.null()),
   handler: async (ctx, args) => {
-    const result: SystemAdminGroupDetail | null = await ctx.runQuery(getGroupDetailData, args);
-    await ctx.runMutation(recordAuditLog, {
+    const result: SystemAdminGroupDetail | null = await ctx.runQuery(
+      internal.systemAdmin.queries.getGroupDetailData,
+      args,
+    );
+    await ctx.runMutation(internal.systemAdmin.audit.recordSystemAdminAuditLog, {
       action: "system_admin_group_viewed",
       targetKind: "group",
       targetId: args.groupId,
