@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from "react";
-import { useAction, useMutation } from "convex/react";
+import { useAction, useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../../../utils/imageDataUrl";
 
@@ -7,10 +7,45 @@ export function useImageUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [pendingImageDataUrls, setPendingImageDataUrls] = useState<Map<string, string>>(new Map());
+  const [pendingConsentFiles, setPendingConsentFiles] = useState<File[] | null>(null);
+  const [consentStatus, setConsentStatus] = useState<"idle" | "saving">("idle");
   const [uploadError, setUploadError] = useState("");
 
   const createBatch = useMutation(api.receiptAnalysisJobs.mutations.createBatch);
   const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
+  const acceptReceiptImageExternalApiConsent = useMutation(
+    api.users.mutations.acceptReceiptImageExternalApiConsent,
+  );
+  const receiptImageConsent = useQuery(api.users.queries.getReceiptImageConsent);
+
+  const processFiles = async (files: File[]) => {
+    let fileDataUrls: string[];
+    try {
+      fileDataUrls = await Promise.all(files.map(resizeImageFileToDataUrl));
+    } catch (err) {
+      setUploadError(getImageFileErrorMessage(err));
+      return;
+    }
+
+    const result = await createBatch({ fileNames: files.map((f) => f.name) });
+    if (!result) {
+      return;
+    }
+
+    setPendingImageDataUrls((current) => {
+      const nextPending = new Map(current);
+      for (let i = 0; i < result.jobs.length; i++) {
+        nextPending.set(result.jobs[i]._id, fileDataUrls[i]);
+      }
+      return nextPending;
+    });
+
+    for (let i = 0; i < result.jobs.length; i++) {
+      analyzeImageJob({ jobId: result.jobs[i]._id, imageDataUrl: fileDataUrls[i] }).catch(() => {
+        // fire-and-forget: job failures update status via listJobs subscription and show in UI
+      });
+    }
+  };
 
   const handleFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
@@ -18,43 +53,55 @@ export function useImageUpload() {
       return;
     }
 
-    let fileDataUrls: string[];
-    try {
-      fileDataUrls = await Promise.all(files.map(resizeImageFileToDataUrl));
-    } catch (err) {
-      setUploadError(getImageFileErrorMessage(err));
+    if (receiptImageConsent?.hasAcceptedExternalApiConsent !== true) {
+      setPendingConsentFiles(files);
       event.target.value = "";
       return;
     }
 
-    const result = await createBatch({ fileNames: files.map((f) => f.name) });
-    if (!result) {
-      event.target.value = "";
-      return;
-    }
-
-    const nextPending = new Map(pendingImageDataUrls);
-    for (let i = 0; i < result.jobs.length; i++) {
-      nextPending.set(result.jobs[i]._id, fileDataUrls[i]);
-    }
-    setPendingImageDataUrls(nextPending);
-
-    for (let i = 0; i < result.jobs.length; i++) {
-      analyzeImageJob({ jobId: result.jobs[i]._id, imageDataUrl: fileDataUrls[i] }).catch(() => {
-        // fire-and-forget: job failures update status via listJobs subscription and show in UI
-      });
-    }
-
+    await processFiles(files);
     event.target.value = "";
+  };
+
+  const handleAcceptConsent = async () => {
+    if (!pendingConsentFiles || consentStatus === "saving") {
+      return;
+    }
+
+    setConsentStatus("saving");
+    setUploadError("");
+    try {
+      await acceptReceiptImageExternalApiConsent();
+      const files = pendingConsentFiles;
+      setPendingConsentFiles(null);
+      await processFiles(files);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error
+          ? err.message
+          : "同意状態を保存できませんでした。手入力をお試しください。",
+      );
+    } finally {
+      setConsentStatus("idle");
+    }
+  };
+
+  const handleDeclineConsent = () => {
+    setPendingConsentFiles(null);
   };
 
   return {
     cameraInputRef,
+    consentIsLoading: receiptImageConsent === undefined,
+    consentDialogOpen: pendingConsentFiles !== null,
+    consentStatus,
     inputRef,
     pendingImageDataUrls,
     uploadError,
     setPendingImageDataUrls,
     setUploadError,
+    handleAcceptConsent,
+    handleDeclineConsent,
     handleFilesSelected,
   };
 }
