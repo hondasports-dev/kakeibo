@@ -1,11 +1,11 @@
 import { v } from "convex/values";
-import { query } from "./_generated/server";
-import type { QueryCtx } from "./_generated/server";
+import { query } from "../_generated/server";
+import type { QueryCtx } from "../_generated/server";
 import {
   MANAGEMENT_AUDIT_ACTION_LABELS,
   managementAuditLogListItemValidator,
 } from "./lib/managementAuditLogModel";
-import { requireGroupOwner } from "./groups/membership";
+import { requireGroupOwner } from "./membership";
 
 export const MANAGEMENT_AUDIT_LOG_LIST_LIMIT = 50;
 

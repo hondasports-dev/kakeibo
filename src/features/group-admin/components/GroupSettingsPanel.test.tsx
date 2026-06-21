@@ -75,9 +75,9 @@ vi.mock("../../../../convex/_generated/api", () => ({
         deleteGroup: "groups.deletion.deleteGroup",
         getGroupDeletionPreview: "groups.deletion.getGroupDeletionPreview",
       },
-    },
-    managementAuditLogs: {
-      listManagementAuditLogs: "managementAuditLogs.listManagementAuditLogs",
+      auditLogs: {
+        listManagementAuditLogs: "groups.auditLogs.listManagementAuditLogs",
+      },
     },
   },
 }));
@@ -215,7 +215,7 @@ describe("GroupSettingsPanel", () => {
       }
       if (
         typeof reference === "string" &&
-        reference.includes("managementAuditLogs.listManagementAuditLogs")
+        reference.includes("groups.auditLogs.listManagementAuditLogs")
       ) {
         return [
           {

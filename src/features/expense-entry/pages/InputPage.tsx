@@ -19,7 +19,7 @@ export function InputPage() {
     goToNextWeek,
   } = useInputPageWeek();
 
-  const categories = useQuery(api.categories.listActive) ?? [];
+  const categories = useQuery(api.categories.queries.listActive) ?? [];
   const weekSummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
     weekStartDate,
   });

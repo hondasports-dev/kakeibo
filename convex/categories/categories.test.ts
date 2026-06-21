@@ -1,16 +1,15 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import {
   createCategoryHandler,
   deactivateCategoryHandler,
-  listForSettingsHandler,
   seedDefaultCategoriesHandler,
-  listActiveHandler,
   updateCategoryHandler,
-} from "./categories";
+} from "./mutations";
+import { listForSettingsHandler, listActiveHandler } from "./queries";
 
 // ---------------------------------------------------------------------------
 // テスト用ヘルパー

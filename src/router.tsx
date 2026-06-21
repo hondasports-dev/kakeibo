@@ -125,10 +125,13 @@ function E2eAiExpenseQueuePage() {
 function E2eRegisterAsExpenseEntriesPage() {
   const draftId = new URLSearchParams(window.location.search).get("draftId");
   const { isLoaded, isSignedIn } = useAuth();
-  const categories = useQuery(api.categories.listActive, isLoaded && isSignedIn ? {} : "skip");
+  const categories = useQuery(
+    api.categories.queries.listActive,
+    isLoaded && isSignedIn ? {} : "skip",
+  );
   const group = useQuery(api.groups.queries.getMyGroup, isLoaded && isSignedIn ? {} : "skip");
   const authenticatedUserId = useQuery(
-    api.users.getAuthenticatedUserId,
+    api.users.queries.getAuthenticatedUserId,
     isLoaded && isSignedIn ? {} : "skip",
   );
   const [result, setResult] = useState<{

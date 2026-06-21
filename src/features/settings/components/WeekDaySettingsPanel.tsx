@@ -28,8 +28,8 @@ const DAY_OPTIONS = [
 ];
 
 export function WeekDaySettingsPanel() {
-  const userProfile = useQuery(api.users.getUserProfile);
-  const updateWeeklyDays = useMutation(api.users.updateWeeklyDays);
+  const userProfile = useQuery(api.users.queries.getUserProfile);
+  const updateWeeklyDays = useMutation(api.users.mutations.updateWeeklyDays);
 
   const [startDay, setStartDay] = useState<number>(1);
   const [endDay, setEndDay] = useState<number>(0);

@@ -32,10 +32,10 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function CategorySettingsPanel() {
-  const categories = useQuery(api.categories.listForSettings) as Category[] | undefined;
-  const createCategory = useMutation(api.categories.createCategory);
-  const updateCategory = useMutation(api.categories.updateCategory);
-  const deactivateCategory = useMutation(api.categories.deactivateCategory);
+  const categories = useQuery(api.categories.queries.listForSettings) as Category[] | undefined;
+  const createCategory = useMutation(api.categories.mutations.createCategory);
+  const updateCategory = useMutation(api.categories.mutations.updateCategory);
+  const deactivateCategory = useMutation(api.categories.mutations.deactivateCategory);
 
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState<string>(DEFAULT_NEW_COLOR);
