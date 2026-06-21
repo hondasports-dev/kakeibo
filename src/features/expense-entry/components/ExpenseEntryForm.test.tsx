@@ -28,7 +28,8 @@ vi.mock("../../../../convex/_generated/api", () => ({
     },
     users: {
       mutations: {
-        acceptReceiptImageExternalApiConsent: "users.mutations.acceptReceiptImageExternalApiConsent",
+        acceptReceiptImageExternalApiConsent:
+          "users.mutations.acceptReceiptImageExternalApiConsent",
       },
       queries: {
         getReceiptImageConsent: "users.queries.getReceiptImageConsent",
