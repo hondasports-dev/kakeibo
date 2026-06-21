@@ -1,18 +1,16 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { getAuthStateFromIdentity, requireAuthenticatedUserId } from "./auth";
+import { getReceiptImageConsentHandler, getUserProfileHandler } from "./queries";
 import {
-  getAuthStateFromIdentity,
-  getReceiptImageConsentHandler,
-  getUserProfileHandler,
-  requireAuthenticatedUserId,
+  upsertUserHandler,
   acceptReceiptImageExternalApiConsentHandler,
   updateMonthlyIncomeHandler,
   updateWeeklyDaysHandler,
-  upsertUserHandler,
-  upsertUserProfileHandler,
-} from "./users";
+} from "./mutations";
+import { upsertUserProfileHandler } from "./internal";
 
 type AuthContext = Parameters<typeof requireAuthenticatedUserId>[0];
 

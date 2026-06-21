@@ -5,7 +5,7 @@ import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import * as groupAdminGuards from "./adminGuards";
 import { GROUP_ADMIN_ERRORS } from "./adminGuards";
-import * as deleteGroupPhysically from "../lib/deleteGroupPhysically";
+import * as deleteGroupPhysically from "./lib/deleteGroupPhysically";
 import {
   acceptGroupInvitationForVerifiedEmailsHandler,
   acceptGroupInvitationHandler,

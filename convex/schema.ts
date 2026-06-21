@@ -11,7 +11,7 @@ import {
 import {
   managementAuditActionValidator,
   managementAuditTargetKindValidator,
-} from "./lib/managementAuditLogModel";
+} from "./groups/lib/managementAuditLogModel";
 
 export default defineSchema({
   users: defineTable({

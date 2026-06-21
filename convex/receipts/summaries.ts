@@ -3,7 +3,7 @@ import { v } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
-import { calculateRelativeWeekStartDate } from "../utils";
+import { calculateRelativeWeekStartDate } from "../lib/weekDates";
 import {
   addDays,
   getDateSpendingEntries,

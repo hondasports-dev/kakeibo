@@ -42,7 +42,7 @@ export function useExpenseEntryForm({ weekStartDate, categories }: UseExpenseEnt
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [pendingDifference, setPendingDifference] = useState(0);
 
-  const createExpenseEntries = useMutation(api.expenseEntries.createExpenseEntries);
+  const createExpenseEntries = useMutation(api.expenseEntries.mutations.createExpenseEntries);
 
   // BUG#1: weekStartDate が変わったら date をリセット（WeekNavigator 週移動時のstale防止）
   useEffect(() => {

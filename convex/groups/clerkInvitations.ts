@@ -251,7 +251,7 @@ export async function inviteMemberHandler(
     throw new ConvexError("グループを選択してください");
   }
   assertGroupOwnerRole(group.role);
-  const currentUserId: string = await ctx.runQuery(api.users.getAuthenticatedUserId, {});
+  const currentUserId: string = await ctx.runQuery(api.users.queries.getAuthenticatedUserId, {});
 
   const email = normalizeEmail(args.email);
   const token = deps.createToken();
@@ -332,7 +332,7 @@ export const acceptInvitation = action({
       );
     }
 
-    await ctx.runMutation(internal.users.upsertUserProfile, {
+    await ctx.runMutation(internal.users.internal.upsertUserProfile, {
       userId: identity.tokenIdentifier,
       displayName,
       ...(profileEmail ? { email: profileEmail } : {}),

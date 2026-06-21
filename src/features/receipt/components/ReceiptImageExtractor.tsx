@@ -51,9 +51,9 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
     api.receiptImageExtraction.extraction.extractReceiptFields,
   );
   const acceptReceiptImageExternalApiConsent = useMutation(
-    api.users.acceptReceiptImageExternalApiConsent,
+    api.users.mutations.acceptReceiptImageExternalApiConsent,
   );
-  const receiptImageConsent = useQuery(api.users.getReceiptImageConsent);
+  const receiptImageConsent = useQuery(api.users.queries.getReceiptImageConsent);
 
   const consentIsLoading = receiptImageConsent === undefined;
   const hasAcceptedExternalApiConsent = receiptImageConsent?.hasAcceptedExternalApiConsent === true;

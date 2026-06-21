@@ -3,7 +3,7 @@ import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
-import { calculateWeekStartDate } from "../utils";
+import { calculateWeekStartDate } from "../lib/weekDates";
 
 export type CreateReceiptArgs =
   | {

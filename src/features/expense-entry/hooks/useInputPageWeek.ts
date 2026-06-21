@@ -15,7 +15,7 @@ export type InputPageWeekSession = {
  * 前週・次週ナビゲーションもサポートする。
  */
 export function useInputPageWeek() {
-  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateWeekSession);
+  const getOrCreateSession = useMutation(api.weekSessions.mutations.getOrCreateWeekSession);
 
   // マウント時点の今週開始日を固定する（毎レンダーで再計算しないよう useMemo を使う）
   const currentWeekStartDate = useMemo(() => getCurrentWeekStartDate(), []);

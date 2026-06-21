@@ -34,8 +34,8 @@ export function ReviewMemoPanel({
   isSummaryLoading = false,
   onComplete,
 }: ReviewMemoPanelProps) {
-  const updateReviewMemo = useMutation(api.weekSessions.updateReviewMemo);
-  const completeWeekSession = useMutation(api.weekSessions.completeWeekSession);
+  const updateReviewMemo = useMutation(api.weekSessions.mutations.updateReviewMemo);
+  const completeWeekSession = useMutation(api.weekSessions.mutations.completeWeekSession);
   const [reviewMemo, setReviewMemo] = useState(initialReviewMemo ?? "");
   const [status, setStatus] = useState<"idle" | "saving" | "completing">("idle");
   const [error, setError] = useState("");

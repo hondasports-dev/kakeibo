@@ -17,7 +17,7 @@ export type WeekSession = {
  * Strict Mode での二重実行については、mutation の冪等性（同じ週のセッションは1回のみ作成）で担保している。
  */
 export function useWeekSession() {
-  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateCurrentWeekSession);
+  const getOrCreateSession = useMutation(api.weekSessions.mutations.getOrCreateCurrentWeekSession);
   const [weekSession, setWeekSession] = useState<WeekSession | null>(null);
   const [sessionError, setSessionError] = useState("");
 

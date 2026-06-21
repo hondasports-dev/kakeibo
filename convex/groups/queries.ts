@@ -5,9 +5,9 @@ import {
   groupMemberListItemValidator,
   groupPendingInvitationListItemValidator,
 } from "./validators";
-import type { GroupDoc } from "../lib/groupTypes";
-import { dedupePendingGroupInvitationsByEmail } from "../lib/groupEmailMatching";
-import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
+import type { GroupDoc } from "./lib/groupTypes";
+import { dedupePendingGroupInvitationsByEmail } from "./lib/groupEmailMatching";
+import { readQueryDoc, readQueryDocs } from "./lib/groupQueryHelpers";
 import { sortGroupMembersForDisplay } from "./memberDisplay";
 import {
   getGroupMembership,

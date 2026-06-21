@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { GROUP_ADMIN_ERRORS } from "../groups/adminGuards";
+import { GROUP_ADMIN_ERRORS } from "../adminGuards";
 
 export type GroupLifecycleStatus = "active" | "deleted" | "archived";
 

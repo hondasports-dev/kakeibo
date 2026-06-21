@@ -1,4 +1,4 @@
-import type { Id } from "./_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 
 // ---------------------------------------------------------------------------
 // カテゴリ候補生成ロジック
@@ -35,14 +35,6 @@ type BuildCategoryCandidatesInput = {
   categories: CategoryLike[];
 };
 
-// ---------------------------------------------------------------------------
-// 内部ヘルパー
-// ---------------------------------------------------------------------------
-
-/**
- * キーワードとカテゴリ名の部分一致スコアを返す。
- * 完全一致: 2点 / 部分一致: 1点 / 不一致: 0点
- */
 function matchScore(keyword: string, categoryName: string): number {
   const kw = keyword.trim().toLowerCase();
   const cn = categoryName.trim().toLowerCase();
@@ -52,37 +44,20 @@ function matchScore(keyword: string, categoryName: string): number {
   return 0;
 }
 
-/** スコアを積算して候補リストを並び替え、上位 CATEGORY_CANDIDATE_MAX 件を返す */
 function rankAndLimit(
   categories: CategoryLike[],
   scoreFn: (cat: CategoryLike) => number,
 ): CategoryLike[] {
   const scored = categories.map((cat) => ({ cat, score: scoreFn(cat) }));
-  // スコア降順 → 元の順序（sortOrder）安定
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, CATEGORY_CANDIDATE_MAX).map((s) => s.cat);
 }
 
-// ---------------------------------------------------------------------------
-// 公開関数
-// ---------------------------------------------------------------------------
-
-/**
- * 画像認識の抽出結果をもとに、カテゴリ候補リストを生成する。
- *
- * - コンビニ払込票では paymentPurpose / payeeName を優先し、
- *   paymentPlace（支払場所）をカテゴリ判定の主軸にしない。
- * - categoryName が与えられた場合は完全一致カテゴリを先頭に置く。
- * - 全カテゴリが CATEGORY_CANDIDATE_MAX 以下なら全件を返す。
- */
 export function buildCategoryCandidates(input: BuildCategoryCandidatesInput): CategoryLike[] {
   const { documentType, categoryName, shopName, payeeName, paymentPurpose, categories } = input;
-  // 注: paymentPlace は input に含まれるが、コンビニ払込票では意図的に使用しない
 
   if (categories.length === 0) return [];
 
-  // スコアリングのキーワードを収集
-  // コンビニ払込票では paymentPlace を主軸にせず、paymentPurpose / payeeName を使う
   const keywords: string[] = [];
 
   if (categoryName?.trim()) {
@@ -92,14 +67,11 @@ export function buildCategoryCandidates(input: BuildCategoryCandidatesInput): Ca
   if (documentType === "convenience_payment") {
     if (paymentPurpose?.trim()) keywords.push(paymentPurpose.trim());
     if (payeeName?.trim()) keywords.push(payeeName.trim());
-    // paymentPlace は意図的に除外（コンビニ店名がカテゴリにならないよう）
   } else {
-    // receipt / unknown では shopName / payeeName を利用
     if (shopName?.trim()) keywords.push(shopName.trim());
     if (payeeName?.trim()) keywords.push(payeeName.trim());
   }
 
-  // キーワードがなければ全件を元の順序で返す（上限あり）
   if (keywords.length === 0) {
     return categories.slice(0, CATEGORY_CANDIDATE_MAX);
   }
@@ -109,10 +81,6 @@ export function buildCategoryCandidates(input: BuildCategoryCandidatesInput): Ca
   );
 }
 
-/**
- * 候補リストの中から AI が推定した categoryName に完全一致するカテゴリの ID を返す。
- * 一致なし・空文字・undefined の場合は undefined を返す。
- */
 export function resolveCategoryIdFromCandidates(
   categoryName: string | undefined,
   candidates: CategoryLike[],
