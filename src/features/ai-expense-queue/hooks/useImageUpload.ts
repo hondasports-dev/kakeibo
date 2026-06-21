@@ -9,8 +9,8 @@ export function useImageUpload() {
   const [pendingImageDataUrls, setPendingImageDataUrls] = useState<Map<string, string>>(new Map());
   const [uploadError, setUploadError] = useState("");
 
-  const createBatch = useMutation(api.receiptAnalysisJobs.createBatch);
-  const analyzeImageJob = useAction(api.receiptAnalysisJobs.analyzeImageJob);
+  const createBatch = useMutation(api.receiptAnalysisJobs.mutations.createBatch);
+  const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
 
   const handleFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);

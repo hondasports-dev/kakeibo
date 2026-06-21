@@ -1,7 +1,8 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { query } from "../_generated/server";
 import type { QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { requireGroupMembership } from "../groups";
+import { requireGroupMembership } from "../groups/membership";
 
 export async function listBatchesHandler(ctx: QueryCtx) {
   const { groupId } = await requireGroupMembership(ctx);
@@ -51,3 +52,27 @@ export async function getJobByDraftIdHandler(
   }
   return job;
 }
+
+export const listBatches = query({
+  args: {},
+  handler: listBatchesHandler,
+});
+
+export const listJobs = query({
+  args: {},
+  handler: listJobsHandler,
+});
+
+export const listJobsByBatch = query({
+  args: {
+    batchId: v.id("receiptAnalysisBatches"),
+  },
+  handler: listJobsByBatchHandler,
+});
+
+export const getJobByDraftId = query({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: getJobByDraftIdHandler,
+});

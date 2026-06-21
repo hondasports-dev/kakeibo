@@ -1,9 +1,10 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categoryCandidate";
-import { extractReceiptFieldsHandler } from "../receiptImageExtraction";
+import { extractReceiptFieldsHandler } from "../receiptImageExtraction/extraction";
 
 type AnalyzeReceiptImageToDraftArgs = {
   imageDataUrl: string;
@@ -36,7 +37,7 @@ export async function analyzeReceiptImageToDraftHandler(
     extracted = await extractReceiptFieldsHandler(ctx, args);
   } catch (err) {
     const draft: Doc<"aiExpenseDrafts"> = await ctx.runMutation(
-      internal.aiExpenseDrafts.createFailedDraftFromImageAnalysis,
+      internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
       {
         warning: getSafeFailureWarning(err),
       },
@@ -59,7 +60,7 @@ export async function analyzeReceiptImageToDraftHandler(
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
 
   const draft: Doc<"aiExpenseDrafts"> = await ctx.runMutation(
-    internal.aiExpenseDrafts.createFromExtraction,
+    internal.aiExpenseDrafts.internal.createFromExtraction,
     {
       documentType: extracted.documentType,
       shopName: extracted.shopName || undefined,
@@ -84,3 +85,10 @@ export async function analyzeReceiptImageToDraftHandler(
   );
   return draft;
 }
+
+export const analyzeReceiptImageToDraft = action({
+  args: {
+    imageDataUrl: v.string(),
+  },
+  handler: analyzeReceiptImageToDraftHandler,
+});

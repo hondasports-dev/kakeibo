@@ -1,17 +1,12 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi, beforeEach } from "vitest";
-import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
-import type { Doc, Id } from "./_generated/dataModel";
-import {
-  analyzeImageJobHandler,
-  cancelImageJobHandler,
-  createBatchHandler,
-  listBatchesHandler,
-  listJobsByBatchHandler,
-  retryImageJobHandler,
-  updateJobStatusHandler,
-} from "./receiptAnalysisJobs";
+import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
+import type { Doc, Id } from "../_generated/dataModel";
+import { analyzeImageJobHandler } from "./actions";
+import { updateJobStatusHandler } from "./internal";
+import { cancelImageJobHandler, createBatchHandler, retryImageJobHandler } from "./mutations";
+import { listBatchesHandler, listJobsByBatchHandler } from "./queries";
 
 // ---------------------------------------------------------------------------
 // Helpers

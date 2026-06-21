@@ -1,7 +1,7 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 import {
   GROUP_ADMIN_ERRORS,
   assertActiveGroupScope,
@@ -10,7 +10,7 @@ import {
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
   countGroupOwners,
-} from "./groupAdminGuards";
+} from "./adminGuards";
 
 describe("groupAdminGuards", () => {
   it("assertGroupOwnerRole は member を拒否する", () => {

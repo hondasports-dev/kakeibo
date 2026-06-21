@@ -2,7 +2,7 @@ import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { requireGroupMembership } from "./groups";
+import { requireGroupMembership } from "./groups/membership";
 
 const DEFAULT_CATEGORIES = [
   { name: "食費", color: "#8B5E3C", sortOrder: 1 },

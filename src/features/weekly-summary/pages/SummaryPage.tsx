@@ -40,8 +40,10 @@ export function SummaryPage() {
   }, [rawWeekStartDate, weekStartDate, navigate]);
 
   const summaryWeekSession = useQuery(api.weekSessions.getWeekSession, { weekStartDate });
-  const weeklySummary = useQuery(api.receipts.getWeekSummaryWithCategories, { weekStartDate });
-  const fourWeeksSummary = useQuery(api.receipts.getFourWeeksSummary, { weekStartDate });
+  const weeklySummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
+    weekStartDate,
+  });
+  const fourWeeksSummary = useQuery(api.receipts.summaries.getFourWeeksSummary, { weekStartDate });
   const weeklyExpenseTrend =
     fourWeeksSummary === undefined
       ? undefined

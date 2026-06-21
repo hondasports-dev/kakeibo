@@ -1,7 +1,8 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, internalQuery, mutation } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { assertActiveGroupScope } from "../groupAdminGuards";
+import { assertActiveGroupScope } from "./adminGuards";
 import {
   invitationEmailsMatch,
   invitationEmailsMatchAny,
@@ -10,6 +11,7 @@ import {
 import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
 import { recordManagementAuditLog } from "../lib/managementAuditLog";
 import { requireGroupOwner } from "./membership";
+import { setGroupClerkOrganizationIdHandler } from "./e2e";
 
 export {
   dedupePendingGroupInvitationsByEmail,
@@ -336,3 +338,50 @@ export async function acceptGroupInvitationHandler(ctx: MutationCtx, args: { tok
     acceptedEmails: [identity.email ?? ""],
   });
 }
+
+export const cancelPendingGroupInvitation = mutation({
+  args: { invitationId: v.id("groupInvitations") },
+  returns: v.object({ clerkInvitationIds: v.array(v.string()) }),
+  handler: cancelPendingGroupInvitationHandler,
+});
+
+export const assertEmailCanBeInvitedToGroup = internalQuery({
+  args: { groupId: v.id("groups"), email: v.string() },
+  handler: assertEmailCanBeInvitedToGroupHandler,
+});
+
+export const createGroupInvitationRecord = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    email: v.string(),
+    token: v.string(),
+    invitedByUserId: v.string(),
+    clerkInvitationId: v.optional(v.string()),
+  },
+  handler: createGroupInvitationRecordHandler,
+});
+
+export const deletePendingGroupInvitationRecordByToken = internalMutation({
+  args: { token: v.string() },
+  handler: deletePendingGroupInvitationRecordByTokenHandler,
+});
+
+export const setGroupClerkOrganizationId = internalMutation({
+  args: { groupId: v.id("groups"), clerkOrganizationId: v.string() },
+  handler: setGroupClerkOrganizationIdHandler,
+});
+
+export const acceptGroupInvitation = mutation({
+  args: { token: v.string() },
+  returns: v.id("groups"),
+  handler: acceptGroupInvitationHandler,
+});
+
+export const acceptGroupInvitationForVerifiedEmails = internalMutation({
+  args: {
+    token: v.string(),
+    acceptedUserId: v.string(),
+    acceptedEmails: v.array(v.string()),
+  },
+  handler: acceptGroupInvitationForVerifiedEmailsHandler,
+});

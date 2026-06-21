@@ -9,7 +9,7 @@ export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const [registrationError, setRegistrationError] = useState("");
 
-  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
+  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.mutations.registerReadyDrafts);
 
   useEffect(() => {
     const previousReadyItemIds = previousReadyItemIdsRef.current;

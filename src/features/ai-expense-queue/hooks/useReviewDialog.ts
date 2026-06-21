@@ -30,7 +30,7 @@ export function useReviewDialog({
     ? initialReviewDrafts[selectedReviewDraftId]
     : undefined;
   const selectedReviewDraftDetails = useQuery(
-    api.aiExpenseDrafts.getWithItems,
+    api.aiExpenseDrafts.queries.getWithItems,
     selectedReviewDraftId && !localReviewDraft
       ? { draftId: selectedReviewDraftId as Id<"aiExpenseDrafts"> }
       : "skip",
@@ -46,8 +46,8 @@ export function useReviewDialog({
   const isReviewDraftLoading =
     selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === undefined;
 
-  const updateForReview = useMutation(api.aiExpenseDrafts.updateForReview);
-  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.registerReadyDrafts);
+  const updateForReview = useMutation(api.aiExpenseDrafts.mutations.updateForReview);
+  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.mutations.registerReadyDrafts);
 
   useEffect(() => {
     if (

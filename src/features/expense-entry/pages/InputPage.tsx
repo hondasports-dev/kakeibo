@@ -20,7 +20,9 @@ export function InputPage() {
   } = useInputPageWeek();
 
   const categories = useQuery(api.categories.listActive) ?? [];
-  const weekSummary = useQuery(api.receipts.getWeekSummaryWithCategories, { weekStartDate });
+  const weekSummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
+    weekStartDate,
+  });
 
   if (isLoading && !weekSession) {
     return (

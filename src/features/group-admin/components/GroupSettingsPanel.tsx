@@ -72,27 +72,29 @@ export function GroupSettingsPanel() {
   const navigate = useNavigate();
   const { userId } = useAuth();
   const { user } = useUser();
-  const group = useQuery(api.groups.getMyGroup) as GroupInfo | null | undefined;
-  const groups = useQuery(api.groups.listMyGroups) as
+  const group = useQuery(api.groups.queries.getMyGroup) as GroupInfo | null | undefined;
+  const groups = useQuery(api.groups.queries.listMyGroups) as
     | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
     | undefined;
-  const members = useQuery(api.groups.getGroupMembers) as GroupMemberListItem[] | undefined;
+  const members = useQuery(api.groups.queries.getGroupMembers) as GroupMemberListItem[] | undefined;
   const pendingInvitations = useQuery(
-    api.groups.listPendingGroupInvitations,
+    api.groups.queries.listPendingGroupInvitations,
     group?.role === "owner" ? {} : "skip",
   ) as GroupPendingInvitationListItem[] | undefined;
   const managementAuditLogs = useQuery(
     api.managementAuditLogs.listManagementAuditLogs,
     group?.role === "owner" ? {} : "skip",
   ) as GroupManagementAuditLogListItem[] | undefined;
-  const setActiveGroup = useMutation(api.groups.setActiveGroup);
-  const removeMember = useMutation(api.groups.removeMember);
-  const changeMemberRole = useMutation(api.groups.changeMemberRole);
-  const transferGroupOwnership = useMutation(api.groups.transferGroupOwnership);
-  const deleteGroup = useMutation(api.groups.deleteGroup);
-  const updateGroupName = useMutation(api.groups.updateGroupName);
-  const inviteMember = useAction(api.groupInvitations.inviteMember);
-  const cancelPendingGroupInvitation = useAction(api.groupInvitations.cancelPendingGroupInvitation);
+  const setActiveGroup = useMutation(api.groups.mutations.setActiveGroup);
+  const removeMember = useMutation(api.groups.members.removeMember);
+  const changeMemberRole = useMutation(api.groups.members.changeMemberRole);
+  const transferGroupOwnership = useMutation(api.groups.members.transferGroupOwnership);
+  const deleteGroup = useMutation(api.groups.deletion.deleteGroup);
+  const updateGroupName = useMutation(api.groups.mutations.updateGroupName);
+  const inviteMember = useAction(api.groups.clerkInvitations.inviteMember);
+  const cancelPendingGroupInvitation = useAction(
+    api.groups.clerkInvitations.cancelPendingGroupInvitation,
+  );
 
   const [activeGroupId, setActiveGroupId] = useState<Id<"groups"> | "">("");
   const [groupNameDraft, setGroupNameDraft] = useState("");
@@ -110,7 +112,7 @@ export function GroupSettingsPanel() {
   const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
   const deletionPreview = useQuery(
-    api.groups.getGroupDeletionPreview,
+    api.groups.deletion.getGroupDeletionPreview,
     group?.role === "owner" && pendingDeleteGroup ? {} : "skip",
   );
 

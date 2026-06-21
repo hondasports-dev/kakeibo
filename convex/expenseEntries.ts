@@ -2,7 +2,7 @@ import { internalMutation, mutation } from "./_generated/server";
 import type { MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import { requireGroupMembership } from "./groups";
+import { requireGroupMembership } from "./groups/membership";
 import type { Id } from "./_generated/dataModel";
 
 // ---------------------------------------------------------------------------

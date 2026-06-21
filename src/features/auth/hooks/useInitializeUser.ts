@@ -19,7 +19,7 @@ export function useInitializeUser() {
   const { isAuthenticated } = useConvexAuth();
   const upsertUser = useMutation(api.users.upsertUser);
   const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories);
-  const group = useQuery(api.groups.getMyGroup, isAuthenticated ? {} : "skip");
+  const group = useQuery(api.groups.queries.getMyGroup, isAuthenticated ? {} : "skip");
   const hasInitialized = useRef(false);
   const seededGroupIds = useRef(new Set<string>());
   const [isInitializing, setIsInitializing] = useState(false);

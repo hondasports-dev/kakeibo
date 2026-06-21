@@ -2,12 +2,12 @@
 
 import { randomUUID } from "node:crypto";
 import { createClerkClient } from "@clerk/backend";
-import { action } from "./_generated/server";
-import type { ActionCtx } from "./_generated/server";
-import { api, internal } from "./_generated/api";
+import { action } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
+import { api, internal } from "../_generated/api";
 import { ConvexError, v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import { assertGroupOwnerRole } from "./groupAdminGuards";
+import type { Id } from "../_generated/dataModel";
+import { assertGroupOwnerRole } from "./adminGuards";
 
 type MyGroup = {
   _id: Id<"groups">;
@@ -210,15 +210,18 @@ export async function cancelPendingGroupInvitationHandler(
     getClerkClient,
   },
 ): Promise<null> {
-  const group: MyGroup = await ctx.runQuery(api.groups.getMyGroup, {});
+  const group: MyGroup = await ctx.runQuery(api.groups.queries.getMyGroup, {});
   if (!group) {
     throw new ConvexError("グループを選択してください");
   }
   assertGroupOwnerRole(group.role);
 
-  const { clerkInvitationIds } = await ctx.runMutation(api.groups.cancelPendingGroupInvitation, {
-    invitationId: args.invitationId,
-  });
+  const { clerkInvitationIds } = await ctx.runMutation(
+    api.groups.invitations.cancelPendingGroupInvitation,
+    {
+      invitationId: args.invitationId,
+    },
+  );
 
   const clerk = deps.getClerkClient();
   for (const clerkInvitationId of clerkInvitationIds) {
@@ -226,7 +229,7 @@ export async function cancelPendingGroupInvitationHandler(
       await clerk.invitations.revokeInvitation(clerkInvitationId);
     } catch (caughtError) {
       console.warn(
-        "[groupInvitations.cancelPendingGroupInvitation] failed to revoke Clerk invitation",
+        "[groups.clerkInvitations.cancelPendingGroupInvitation] failed to revoke Clerk invitation",
         caughtError instanceof Error ? caughtError.name : "UnknownError",
       );
     }
@@ -243,7 +246,7 @@ export async function inviteMemberHandler(
     getClerkClient,
   },
 ): Promise<InviteMemberResult> {
-  const group: MyGroup = await ctx.runQuery(api.groups.getMyGroup, {});
+  const group: MyGroup = await ctx.runQuery(api.groups.queries.getMyGroup, {});
   if (!group) {
     throw new ConvexError("グループを選択してください");
   }
@@ -254,7 +257,7 @@ export async function inviteMemberHandler(
   const token = deps.createToken();
   const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
 
-  await ctx.runMutation(internal.groups.createGroupInvitationRecord, {
+  await ctx.runMutation(internal.groups.invitations.createGroupInvitationRecord, {
     groupId: group._id,
     email,
     token,
@@ -269,17 +272,19 @@ export async function inviteMemberHandler(
     );
   } catch (caughtError) {
     try {
-      await ctx.runMutation(internal.groups.deletePendingGroupInvitationRecordByToken, { token });
+      await ctx.runMutation(internal.groups.invitations.deletePendingGroupInvitationRecordByToken, {
+        token,
+      });
     } catch (cleanupError) {
       console.warn(
-        "[groupInvitations.inviteMember] failed to clean up reserved invitation",
+        "[groups.clerkInvitations.inviteMember] failed to clean up reserved invitation",
         cleanupError instanceof Error ? cleanupError.name : "UnknownError",
       );
     }
     throw caughtError;
   }
 
-  await ctx.runMutation(internal.groups.createGroupInvitationRecord, {
+  await ctx.runMutation(internal.groups.invitations.createGroupInvitationRecord, {
     groupId: group._id,
     email,
     token,
@@ -322,7 +327,7 @@ export const acceptInvitation = action({
       displayName = getClerkUserDisplayName(user, profileEmail);
     } catch (caughtError) {
       console.warn(
-        "[groupInvitations.acceptInvitation] failed to fetch Clerk user emails; falling back to identity email only",
+        "[groups.clerkInvitations.acceptInvitation] failed to fetch Clerk user emails; falling back to identity email only",
         caughtError instanceof Error ? caughtError.name : "UnknownError",
       );
     }
@@ -333,10 +338,13 @@ export const acceptInvitation = action({
       ...(profileEmail ? { email: profileEmail } : {}),
     });
 
-    return await ctx.runMutation(internal.groups.acceptGroupInvitationForVerifiedEmails, {
-      token: args.token,
-      acceptedUserId: identity.tokenIdentifier,
-      acceptedEmails: [...acceptedEmails],
-    });
+    return await ctx.runMutation(
+      internal.groups.invitations.acceptGroupInvitationForVerifiedEmails,
+      {
+        token: args.token,
+        acceptedUserId: identity.tokenIdentifier,
+        acceptedEmails: [...acceptedEmails],
+      },
+    );
   },
 });

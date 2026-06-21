@@ -1,7 +1,9 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { query } from "../_generated/server";
 import type { QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { requireGroupMembership } from "../groups";
+import { aiExpenseDraftStatusValidator } from "./model";
+import { requireGroupMembership } from "../groups/membership";
 
 const LIST_LIMIT = 100;
 
@@ -52,3 +54,17 @@ export async function getWithItemsHandler(ctx: QueryCtx, args: GetWithItemsArgs)
 
   return { draft, items };
 }
+
+export const listByStatus = query({
+  args: {
+    status: aiExpenseDraftStatusValidator,
+  },
+  handler: listByStatusHandler,
+});
+
+export const getWithItems = query({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: getWithItemsHandler,
+});

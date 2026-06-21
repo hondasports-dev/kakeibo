@@ -7,7 +7,7 @@ import {
   aiExpenseDraftReviewReasonValidator,
   aiExpenseDraftSourceTypeValidator,
   aiExpenseDraftStatusValidator,
-} from "./aiExpenseDraftsModel";
+} from "./aiExpenseDrafts/model";
 import {
   managementAuditActionValidator,
   managementAuditTargetKindValidator,

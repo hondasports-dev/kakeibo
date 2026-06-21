@@ -56,7 +56,7 @@ export function useReceiptForm({ weekStartDate, weekEndDate, categories }: UseRe
     message: string;
   }>({ open: false, severity: "success", message: "" });
 
-  const createReceipt = useMutation(api.receipts.createReceipt);
+  const createReceipt = useMutation(api.receipts.crud.createReceipt);
 
   const firstCategoryId = categories[0]?._id ?? "";
   const selectedCategoryId =
