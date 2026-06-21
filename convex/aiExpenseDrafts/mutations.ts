@@ -1,13 +1,15 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  aiExpenseDraftDocumentTypeValidator,
   resolveReceiptShopNameFromDraft,
   type AiExpenseDraftDocumentType,
-} from "../aiExpenseDraftsModel";
+} from "./model";
 import { createExpenseEntriesFromDraftHandler } from "../expenseEntries";
-import { insertReceiptForGroup } from "../receipts";
-import { requireGroupMembership } from "../groups";
+import { insertReceiptForGroup } from "../receipts/crud";
+import { requireGroupMembership } from "../groups/membership";
 import { deleteDraftAndItems } from "./internal";
 
 type RegisterReadyDraftsArgs = {
@@ -323,3 +325,39 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
     alreadyRegisteredDraftIds,
   };
 }
+
+export const deleteDraft = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: deleteDraftHandler,
+});
+
+export const updateForReview = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    documentType: aiExpenseDraftDocumentTypeValidator,
+    shopName: v.optional(v.string()),
+    paymentPlace: v.optional(v.string()),
+    payeeName: v.optional(v.string()),
+    paymentPurpose: v.optional(v.string()),
+    date: v.string(),
+    amountYen: v.number(),
+    categoryId: v.id("categories"),
+  },
+  handler: updateForReviewHandler,
+});
+
+export const registerReadyDrafts = mutation({
+  args: {
+    draftIds: v.array(v.id("aiExpenseDrafts")),
+  },
+  handler: registerReadyDraftsHandler,
+});
+
+export const registerReadyDraftsAsExpenseEntries = mutation({
+  args: {
+    draftIds: v.array(v.id("aiExpenseDrafts")),
+  },
+  handler: registerReadyDraftsAsExpenseEntriesHandler,
+});

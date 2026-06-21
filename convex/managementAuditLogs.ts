@@ -5,7 +5,7 @@ import {
   MANAGEMENT_AUDIT_ACTION_LABELS,
   managementAuditLogListItemValidator,
 } from "./lib/managementAuditLogModel";
-import { requireGroupOwner } from "./groups";
+import { requireGroupOwner } from "./groups/membership";
 
 export const MANAGEMENT_AUDIT_LOG_LIST_LIMIT = 50;
 

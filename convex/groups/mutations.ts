@@ -1,4 +1,5 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { assertGroupNotDeleted } from "../lib/groupLifecycle";
@@ -110,3 +111,21 @@ export async function setActiveGroupHandler(ctx: MutationCtx, args: { groupId: I
 
   return args.groupId;
 }
+
+export const createGroup = mutation({
+  args: { name: v.string() },
+  returns: v.id("groups"),
+  handler: createGroupHandler,
+});
+
+export const updateGroupName = mutation({
+  args: { name: v.string() },
+  returns: v.id("groups"),
+  handler: updateGroupNameHandler,
+});
+
+export const setActiveGroup = mutation({
+  args: { groupId: v.id("groups") },
+  returns: v.id("groups"),
+  handler: setActiveGroupHandler,
+});

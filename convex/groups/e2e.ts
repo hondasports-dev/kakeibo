@@ -1,4 +1,5 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { deleteAllGroupScopedData } from "../lib/deleteGroupPhysically";
@@ -189,3 +190,54 @@ export async function setGroupClerkOrganizationIdHandler(
 export async function deleteGroupForE2eHandler(ctx: MutationCtx, args: { groupId: Id<"groups"> }) {
   await deleteAllGroupScopedData(ctx, args.groupId);
 }
+
+export const deleteGroupMembershipsByUser = internalMutation({
+  args: { userId: v.string() },
+  handler: deleteGroupMembershipsByUserHandler,
+});
+
+export const setGroupMemberRoleForE2e = internalMutation({
+  args: {
+    userId: v.string(),
+    role: v.union(v.literal("owner"), v.literal("member")),
+  },
+  handler: setGroupMemberRoleForE2eHandler,
+});
+
+export const seedPendingGroupInvitationForE2e = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    email: v.string(),
+    invitedByUserId: v.string(),
+  },
+  returns: v.id("groupInvitations"),
+  handler: seedPendingGroupInvitationForE2eHandler,
+});
+
+export const seedGroupMemberForE2e = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    displayName: v.string(),
+    email: v.string(),
+  },
+  returns: v.object({
+    memberUserId: v.string(),
+  }),
+  handler: seedGroupMemberForE2eHandler,
+});
+
+export const clearGroupInvitationsForE2e = internalMutation({
+  args: { groupId: v.id("groups") },
+  returns: v.object({ deletedCount: v.number() }),
+  handler: clearGroupInvitationsForE2eHandler,
+});
+
+export const getGroupIdByUserId = internalQuery({
+  args: { userId: v.string() },
+  handler: getGroupIdByUserIdHandler,
+});
+
+export const deleteGroupForE2e = internalMutation({
+  args: { groupId: v.id("groups") },
+  handler: deleteGroupForE2eHandler,
+});

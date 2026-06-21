@@ -1,8 +1,9 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { extractReceiptFieldsHandler } from "../receiptImageExtraction";
+import { extractReceiptFieldsHandler } from "../receiptImageExtraction/extraction";
 
 export type AnalyzeImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
@@ -18,16 +19,18 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     throw new ConvexError("Receipt image external API consent is required");
   }
 
-  const group: { _id: Id<"groups"> } | null = await ctx.runQuery(api.groups.getMyGroup, {});
+  const group: { _id: Id<"groups"> } | null = await ctx.runQuery(api.groups.queries.getMyGroup, {});
   if (!group) {
     throw new ConvexError("グループを選択してください");
   }
-  const job = await ctx.runQuery(internal.receiptAnalysisJobs.getJobById, { jobId: args.jobId });
+  const job = await ctx.runQuery(internal.receiptAnalysisJobs.internal.getJobById, {
+    jobId: args.jobId,
+  });
   if (job.groupId !== group._id) {
     throw new ConvexError("Job not found");
   }
 
-  await ctx.runMutation(internal.receiptAnalysisJobs.updateJobStatus, {
+  await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
     jobId: args.jobId,
     status: "running",
   });
@@ -35,7 +38,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   const isRetry = job.draftId !== undefined;
 
   if (isRetry && job.draftId) {
-    await ctx.runMutation(internal.aiExpenseDrafts.deleteOrphanedDraft, {
+    await ctx.runMutation(internal.aiExpenseDrafts.internal.deleteOrphanedDraft, {
       draftId: job.draftId,
     });
   }
@@ -55,7 +58,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
       }
     }
 
-    draft = await ctx.runMutation(internal.aiExpenseDrafts.createFromExtraction, {
+    draft = await ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
       documentType: extracted.documentType,
       shopName: extracted.shopName || undefined,
       paymentPlace: extracted.paymentPlace || undefined,
@@ -80,11 +83,14 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   } catch (err) {
     jobFailed = true;
     const safeError = err instanceof Error ? err.message : "画像解析に失敗しました";
-    draft = await ctx.runMutation(internal.aiExpenseDrafts.createFailedDraftFromImageAnalysis, {
-      warning: safeError,
-      imageFileName: job.fileName,
-    });
-    await ctx.runMutation(internal.receiptAnalysisJobs.updateJobStatus, {
+    draft = await ctx.runMutation(
+      internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
+      {
+        warning: safeError,
+        imageFileName: job.fileName,
+      },
+    );
+    await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
       jobId: args.jobId,
       status: "failed",
       draftId: draft._id,
@@ -93,7 +99,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   }
 
   if (!jobFailed) {
-    await ctx.runMutation(internal.receiptAnalysisJobs.updateJobStatus, {
+    await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
       jobId: args.jobId,
       status: draft.status as "ready" | "needs_review",
       draftId: draft._id,
@@ -101,11 +107,19 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   }
 
   if (!isRetry) {
-    await ctx.runMutation(internal.receiptAnalysisJobs.incrementBatchProcessedCount, {
+    await ctx.runMutation(internal.receiptAnalysisJobs.internal.incrementBatchProcessedCount, {
       batchId: job.batchId,
     });
   }
-  await ctx.runMutation(internal.receiptAnalysisJobs.finalizeBatchStatus, {
+  await ctx.runMutation(internal.receiptAnalysisJobs.internal.finalizeBatchStatus, {
     batchId: job.batchId,
   });
 }
+
+export const analyzeImageJob = action({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+    imageDataUrl: v.string(),
+  },
+  handler: analyzeImageJobHandler,
+});

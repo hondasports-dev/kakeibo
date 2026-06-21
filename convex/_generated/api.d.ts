@@ -8,18 +8,16 @@
  * @module
  */
 
-import type * as aiExpenseDrafts from "../aiExpenseDrafts.js";
-import type * as aiExpenseDraftsModel from "../aiExpenseDraftsModel.js";
 import type * as aiExpenseDrafts_actions from "../aiExpenseDrafts/actions.js";
 import type * as aiExpenseDrafts_internal from "../aiExpenseDrafts/internal.js";
+import type * as aiExpenseDrafts_model from "../aiExpenseDrafts/model.js";
 import type * as aiExpenseDrafts_mutations from "../aiExpenseDrafts/mutations.js";
 import type * as aiExpenseDrafts_queries from "../aiExpenseDrafts/queries.js";
 import type * as categories from "../categories.js";
 import type * as categoryCandidate from "../categoryCandidate.js";
 import type * as expenseEntries from "../expenseEntries.js";
-import type * as groupAdminGuards from "../groupAdminGuards.js";
-import type * as groupInvitations from "../groupInvitations.js";
-import type * as groups from "../groups.js";
+import type * as groups_adminGuards from "../groups/adminGuards.js";
+import type * as groups_clerkInvitations from "../groups/clerkInvitations.js";
 import type * as groups_deletion from "../groups/deletion.js";
 import type * as groups_e2e from "../groups/e2e.js";
 import type * as groups_invitations from "../groups/invitations.js";
@@ -41,14 +39,11 @@ import type * as lib_groupTypes from "../lib/groupTypes.js";
 import type * as lib_managementAuditLog from "../lib/managementAuditLog.js";
 import type * as lib_managementAuditLogModel from "../lib/managementAuditLogModel.js";
 import type * as managementAuditLogs from "../managementAuditLogs.js";
-import type * as receiptAnalysisJobs from "../receiptAnalysisJobs.js";
 import type * as receiptAnalysisJobs_actions from "../receiptAnalysisJobs/actions.js";
 import type * as receiptAnalysisJobs_internal from "../receiptAnalysisJobs/internal.js";
 import type * as receiptAnalysisJobs_mutations from "../receiptAnalysisJobs/mutations.js";
 import type * as receiptAnalysisJobs_queries from "../receiptAnalysisJobs/queries.js";
-import type * as receiptImageExtraction from "../receiptImageExtraction.js";
 import type * as receiptImageExtraction_extraction from "../receiptImageExtraction/extraction.js";
-import type * as receipts from "../receipts.js";
 import type * as receipts_crud from "../receipts/crud.js";
 import type * as receipts_spendingEntries from "../receipts/spendingEntries.js";
 import type * as receipts_summaries from "../receipts/summaries.js";
@@ -63,18 +58,16 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
-  aiExpenseDrafts: typeof aiExpenseDrafts;
-  aiExpenseDraftsModel: typeof aiExpenseDraftsModel;
   "aiExpenseDrafts/actions": typeof aiExpenseDrafts_actions;
   "aiExpenseDrafts/internal": typeof aiExpenseDrafts_internal;
+  "aiExpenseDrafts/model": typeof aiExpenseDrafts_model;
   "aiExpenseDrafts/mutations": typeof aiExpenseDrafts_mutations;
   "aiExpenseDrafts/queries": typeof aiExpenseDrafts_queries;
   categories: typeof categories;
   categoryCandidate: typeof categoryCandidate;
   expenseEntries: typeof expenseEntries;
-  groupAdminGuards: typeof groupAdminGuards;
-  groupInvitations: typeof groupInvitations;
-  groups: typeof groups;
+  "groups/adminGuards": typeof groups_adminGuards;
+  "groups/clerkInvitations": typeof groups_clerkInvitations;
   "groups/deletion": typeof groups_deletion;
   "groups/e2e": typeof groups_e2e;
   "groups/invitations": typeof groups_invitations;
@@ -96,14 +89,11 @@ declare const fullApi: ApiFromModules<{
   "lib/managementAuditLog": typeof lib_managementAuditLog;
   "lib/managementAuditLogModel": typeof lib_managementAuditLogModel;
   managementAuditLogs: typeof managementAuditLogs;
-  receiptAnalysisJobs: typeof receiptAnalysisJobs;
   "receiptAnalysisJobs/actions": typeof receiptAnalysisJobs_actions;
   "receiptAnalysisJobs/internal": typeof receiptAnalysisJobs_internal;
   "receiptAnalysisJobs/mutations": typeof receiptAnalysisJobs_mutations;
   "receiptAnalysisJobs/queries": typeof receiptAnalysisJobs_queries;
-  receiptImageExtraction: typeof receiptImageExtraction;
   "receiptImageExtraction/extraction": typeof receiptImageExtraction_extraction;
-  receipts: typeof receipts;
   "receipts/crud": typeof receipts_crud;
   "receipts/spendingEntries": typeof receipts_spendingEntries;
   "receipts/summaries": typeof receipts_summaries;

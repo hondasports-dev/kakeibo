@@ -1,6 +1,6 @@
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import {
   buildClerkInvitationParams,
   buildInvitationRedirectUrl,
@@ -9,7 +9,7 @@ import {
   getPrimaryVerifiedClerkEmailAddress,
   getVerifiedClerkEmailAddresses,
   inviteMemberHandler,
-} from "./groupInvitations";
+} from "./clerkInvitations";
 
 describe("buildInvitationRedirectUrl", () => {
   it("本番ドメインの招待受け入れURLを許可する", () => {

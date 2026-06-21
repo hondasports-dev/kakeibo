@@ -47,7 +47,9 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
   const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [consentStatus, setConsentStatus] = useState<"idle" | "saving">("idle");
 
-  const extractReceiptFields = useAction(api.receiptImageExtraction.extractReceiptFields);
+  const extractReceiptFields = useAction(
+    api.receiptImageExtraction.extraction.extractReceiptFields,
+  );
   const acceptReceiptImageExternalApiConsent = useMutation(
     api.users.acceptReceiptImageExternalApiConsent,
   );

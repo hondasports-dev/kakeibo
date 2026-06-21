@@ -1,5 +1,6 @@
 import type { ActionCtx } from "../_generated/server";
-import { ConvexError } from "convex/values";
+import { action } from "../_generated/server";
+import { ConvexError, v } from "convex/values";
 import { requireAuthenticatedUserId } from "../users";
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */
@@ -432,3 +433,12 @@ function getExtractorMode(appEnv: string): "mock" | "real" {
   }
   return mode;
 }
+
+export const extractReceiptFields = action({
+  args: {
+    imageDataUrl: v.string(),
+  },
+  handler: async (ctx, args) => {
+    return extractReceiptFieldsHandler(ctx, args);
+  },
+});

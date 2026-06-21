@@ -1,7 +1,8 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { requireGroupMembership } from "../groups";
+import { requireGroupMembership } from "../groups/membership";
 import { deleteDraftAndItems } from "./internal";
 
 export type CreateBatchArgs = {
@@ -98,3 +99,24 @@ export async function cancelImageJobHandler(ctx: MutationCtx, args: CancelImageJ
     updatedAt: Date.now(),
   });
 }
+
+export const createBatch = mutation({
+  args: {
+    fileNames: v.array(v.string()),
+  },
+  handler: createBatchHandler,
+});
+
+export const retryImageJob = mutation({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+  },
+  handler: retryImageJobHandler,
+});
+
+export const cancelImageJob = mutation({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+  },
+  handler: cancelImageJobHandler,
+});

@@ -1,4 +1,5 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import {
   assertGroupHasMinimumOwners,
@@ -6,7 +7,7 @@ import {
   assertRemovableGroupMemberRole,
   GROUP_ADMIN_ERRORS,
   type GroupAdminRole,
-} from "../groupAdminGuards";
+} from "./adminGuards";
 import { normalizeEmail } from "../lib/groupEmailMatching";
 import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
 import { formatGroupRoleLabel } from "../lib/groupRoleLabel";
@@ -216,3 +217,30 @@ export async function transferGroupOwnershipHandler(
     afterValue: `オーナー: ${targetLabel}（${actorLabel} → ${formatGroupRoleLabel("member")}）`,
   });
 }
+
+export const addMemberByEmail = mutation({
+  args: { email: v.string() },
+  returns: v.null(),
+  handler: addMemberByEmailHandler,
+});
+
+export const removeMember = mutation({
+  args: { targetUserId: v.string() },
+  returns: v.null(),
+  handler: removeMemberHandler,
+});
+
+export const changeMemberRole = mutation({
+  args: {
+    targetUserId: v.string(),
+    newRole: v.union(v.literal("owner"), v.literal("member")),
+  },
+  returns: v.null(),
+  handler: changeMemberRoleHandler,
+});
+
+export const transferGroupOwnership = mutation({
+  args: { targetUserId: v.string() },
+  returns: v.null(),
+  handler: transferGroupOwnershipHandler,
+});

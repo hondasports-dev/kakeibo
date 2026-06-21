@@ -10,7 +10,7 @@ export function DashboardPage() {
   const navigate = useNavigate();
 
   const currentWeekSummary = useQuery(
-    api.receipts.getWeekSummary,
+    api.receipts.summaries.getWeekSummary,
     weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
   );
 

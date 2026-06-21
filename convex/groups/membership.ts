@@ -1,13 +1,15 @@
 import { ConvexError } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { assertGroupOwnerRole } from "../groupAdminGuards";
+import { assertGroupOwnerRole } from "./adminGuards";
 import { isGroupDeleted } from "../lib/groupLifecycle";
 import type { GroupDoc, GroupMembership, UserDoc } from "../lib/groupTypes";
 import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
 import { requireAuthenticatedUserId } from "../users";
 
 export type { GroupMembership } from "../lib/groupTypes";
+
+export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "../lib/groupName";
 
 /**
  * 認証済みユーザーのグループメンバーシップ一覧を取得する。

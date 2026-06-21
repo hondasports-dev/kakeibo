@@ -17,8 +17,8 @@ export function useRetry({
     null,
   );
 
-  const retryImageJob = useMutation(api.receiptAnalysisJobs.retryImageJob);
-  const analyzeImageJob = useAction(api.receiptAnalysisJobs.analyzeImageJob);
+  const retryImageJob = useMutation(api.receiptAnalysisJobs.mutations.retryImageJob);
+  const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
 
   const runRetry = async (job: Doc<"receiptAnalysisImageJobs">, imageDataUrl: string) => {
     setRetryError("");

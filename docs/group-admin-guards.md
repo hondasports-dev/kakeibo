@@ -12,19 +12,19 @@
 
 | 部品 | 場所 | 用途 |
 | --- | --- | --- |
-| エラーメッセージ定数 | `convex/groupAdminGuards.ts` `GROUP_ADMIN_ERRORS` | owner 拒否、自己操作拒否などの統一文言 |
+| エラーメッセージ定数 | `convex/groups/adminGuards.ts` `GROUP_ADMIN_ERRORS` | owner 拒否、自己操作拒否などの統一文言 |
 | owner ロール検証 | `assertGroupOwnerRole` | 既知の `role` を検証 |
 | active group 検証 | `assertActiveGroupScope` | 操作対象 `groupId` が active group と一致するか |
 | 自己操作拒否 | `assertNotSelfOperator` | 自分自身を対象にしない |
 | member のみ解除 | `assertRemovableGroupMemberRole` | owner ロールの解除を拒否 |
 | 最後の owner 保護 | `assertGroupHasMinimumOwners` | Phase2 のロール変更・譲渡で利用 |
-| owner 必須ヘルパー | `convex/groups.ts` `requireGroupOwner` | mutation 入口で active group + owner を要求 |
+| owner 必須ヘルパー | `convex/groups/membership.ts` `requireGroupOwner` | mutation 入口で active group + owner を要求 |
 
 ### 1.1 owner-only mutation の実装パターン
 
 ```typescript
-import { requireGroupOwner } from "./groups";
-import { assertActiveGroupScope } from "./groupAdminGuards";
+import { requireGroupOwner } from "./groups/membership";
+import { assertActiveGroupScope } from "./groups/adminGuards";
 
 export async function exampleAdminMutationHandler(
   ctx: MutationCtx,
@@ -41,8 +41,8 @@ active group 以外を操作できないよう、明示的な `groupId` 引数�
 
 ### 1.2 action 側の owner 検証
 
-Clerk API を呼ぶ action は DB コンテキストを持たないため、`api.groups.getMyGroup` の結果に対して
-`assertGroupOwnerRole(group.role)` を使う（`convex/groupInvitations.ts` `inviteMember` 参照）。
+Clerk API を呼ぶ action は DB コンテキストを持たないため、`api.groups.queries.getMyGroup` の結果に対して
+`assertGroupOwnerRole(group.role)` を使う（`convex/groups/clerkInvitations.ts` `inviteMember` 参照）。
 
 ### 1.3 エラー表示方針
 

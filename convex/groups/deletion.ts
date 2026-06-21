@@ -1,6 +1,7 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { GROUP_ADMIN_ERRORS } from "../groupAdminGuards";
+import { GROUP_ADMIN_ERRORS } from "./adminGuards";
 import { deleteAllGroupScopedData } from "../lib/deleteGroupPhysically";
 import { countGroupDeletionImpact } from "../lib/groupDeletionImpact";
 import { assertGroupNotDeleted, isGroupDeleted } from "../lib/groupLifecycle";
@@ -9,6 +10,7 @@ import { normalizeGroupName } from "../lib/groupName";
 import { readQueryDoc } from "../lib/groupQueryHelpers";
 import { recordManagementAuditLog } from "../lib/managementAuditLog";
 import { findNextActiveGroupIdForUser, requireGroupOwner } from "./membership";
+import { groupDeletionPreviewValidator } from "./validators";
 
 export async function getGroupDeletionPreviewHandler(ctx: QueryCtx) {
   const { groupId } = await requireGroupOwner(ctx);
@@ -81,3 +83,15 @@ export async function deleteGroupHandler(
 
   await deleteAllGroupScopedData(ctx, groupId);
 }
+
+export const getGroupDeletionPreview = query({
+  args: {},
+  returns: groupDeletionPreviewValidator,
+  handler: getGroupDeletionPreviewHandler,
+});
+
+export const deleteGroup = mutation({
+  args: { confirmationGroupName: v.string() },
+  returns: v.null(),
+  handler: deleteGroupHandler,
+});

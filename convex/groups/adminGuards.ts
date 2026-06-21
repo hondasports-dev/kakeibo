@@ -1,6 +1,6 @@
 import { ConvexError } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import type { QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { QueryCtx } from "../_generated/server";
 
 export type GroupAdminRole = "owner" | "member";
 

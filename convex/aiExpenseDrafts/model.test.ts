@@ -5,7 +5,7 @@ import {
   AI_EXPENSE_DRAFT_STATUSES,
   classifyAiExpenseDraft,
   resolveReceiptShopNameFromDraft,
-} from "./aiExpenseDraftsModel";
+} from "./model";
 
 describe("AI expense draft model", () => {
   it("下書き状態はキューから登録済みまでの固定状態に限定する", () => {

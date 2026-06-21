@@ -15,19 +15,19 @@ export function useAiExpenseQueueData({
   hiddenItemIds: string[];
   initialItems?: AiExpenseQueueItem[];
 }) {
-  const readyDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "ready" }) as
+  const readyDrafts = useQuery(api.aiExpenseDrafts.queries.listByStatus, { status: "ready" }) as
     | AiExpenseDraft[]
     | undefined;
-  const needsReviewDrafts = useQuery(api.aiExpenseDrafts.listByStatus, {
+  const needsReviewDrafts = useQuery(api.aiExpenseDrafts.queries.listByStatus, {
     status: "needs_review",
   }) as AiExpenseDraft[] | undefined;
-  const failedDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "failed" }) as
+  const failedDrafts = useQuery(api.aiExpenseDrafts.queries.listByStatus, { status: "failed" }) as
     | AiExpenseDraft[]
     | undefined;
-  const registeredDrafts = useQuery(api.aiExpenseDrafts.listByStatus, { status: "registered" }) as
-    | AiExpenseDraft[]
-    | undefined;
-  const jobs = useQuery(api.receiptAnalysisJobs.listJobs) as
+  const registeredDrafts = useQuery(api.aiExpenseDrafts.queries.listByStatus, {
+    status: "registered",
+  }) as AiExpenseDraft[] | undefined;
+  const jobs = useQuery(api.receiptAnalysisJobs.queries.listJobs) as
     | Doc<"receiptAnalysisImageJobs">[]
     | undefined;
 

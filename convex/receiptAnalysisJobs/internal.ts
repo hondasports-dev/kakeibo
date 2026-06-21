@@ -1,4 +1,5 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 
@@ -144,3 +145,51 @@ export async function deleteReceiptAnalysisDataByUserBatchHandler(
     hasMore: batches.length === limit,
   };
 }
+
+const jobStatusValidator = v.union(
+  v.literal("queued"),
+  v.literal("running"),
+  v.literal("ready"),
+  v.literal("needs_review"),
+  v.literal("failed"),
+  v.literal("cancelled"),
+);
+
+export const updateJobStatus = internalMutation({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+    status: jobStatusValidator,
+    draftId: v.optional(v.id("aiExpenseDrafts")),
+    error: v.optional(v.string()),
+  },
+  handler: updateJobStatusHandler,
+});
+
+export const incrementBatchProcessedCount = internalMutation({
+  args: {
+    batchId: v.id("receiptAnalysisBatches"),
+  },
+  handler: incrementBatchProcessedCountHandler,
+});
+
+export const finalizeBatchStatus = internalMutation({
+  args: {
+    batchId: v.id("receiptAnalysisBatches"),
+  },
+  handler: finalizeBatchStatusHandler,
+});
+
+export const getJobById = internalQuery({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+  },
+  handler: getJobByIdHandler,
+});
+
+export const deleteReceiptAnalysisDataByUserBatch = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    limit: v.optional(v.number()),
+  },
+  handler: deleteReceiptAnalysisDataByUserBatchHandler,
+});
