@@ -125,6 +125,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_token", ["token"])
+    .index("by_email", ["email"])
     .index("by_group_id_and_email", ["groupId", "email"])
     .index("by_group_id_and_status", ["groupId", "status"]),
 

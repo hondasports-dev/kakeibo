@@ -121,7 +121,7 @@ Clerk metadata、自動メール判定から bootstrap してはいけない。
 対象deploymentの管理権限を持つ担当者が、次の形式で明示的に実行する。
 
 ```bash
-pnpm exec convex run internal.systemAdmins.bootstrapSystemAdmin \
+pnpm exec convex run internal.systemAdmin.internal.bootstrapSystemAdmin \
   '{"targetUserId":"<users._id>","reason":"<登録理由>","expectedEnvironment":"<development|preview|production>"}' \
   --deployment <exact-deployment-name>
 ```
@@ -156,7 +156,8 @@ Production の管理者IDやseedファイルを Preview / Developmentへコピ�
 
 1. active admin が0人であることと、通常の付与 mutation を実行できないことを確認する
 2. 対象環境、復旧対象者、理由を2人で確認し、Production は運用責任者の承認を記録する
-3. `internalMutation` の `recoverSystemAdmin` を `internal.systemAdmins.recoverSystemAdmin` として
+3. `internalMutation` の `recoverSystemAdmin` を
+   `internal.systemAdmin.internal.recoverSystemAdmin` として
    `--deployment <exact-deployment-name>` 付きで実行し、既存レコードを再有効化するか、未登録なら作成する
 4. 同一 mutation で `system_admin_recovered` 監査ログを作成する
 5. active admin、対象レコード、監査ログ、環境表示を再確認する
@@ -237,6 +238,19 @@ Convex のトランザクション競合時の再試行後にも不変条件を�
 記録される旨を表示する。剥奪では復旧に別の active admin が必要であることも明示する。
 
 ## 11. テスト方針
+
+### 検索・詳細API（#289）
+
+検索・詳細閲覧は監査ログを必須とするため、クライアントから直接呼べる public query は公開しない。
+public action が認可済み internal query で管理情報だけを読み、専用 internal mutation で監査ログを
+保存してから結果を返す。監査保存に失敗した場合は検索・詳細結果をクライアントへ返さない。
+
+公開API:
+
+- `systemAdmin/actions:searchUsers`
+- `systemAdmin/actions:searchGroups`
+- `systemAdmin/actions:getUserDetail`
+- `systemAdmin/actions:getGroupDetail`
 
 ### Convex test（#289 / #292）
 
