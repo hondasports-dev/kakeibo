@@ -53,7 +53,7 @@ export const searchUsers = action({
     paginationOpts: paginationOptsValidator,
   },
   returns: systemAdminUserSearchResultValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SystemAdminUserSearchResult> => {
     const result: SystemAdminUserSearchResult = await ctx.runQuery(
       internal.systemAdmin.queries.searchUsersData,
       args,
@@ -76,7 +76,7 @@ export const searchGroups = action({
     paginationOpts: paginationOptsValidator,
   },
   returns: systemAdminGroupSearchResultValidator,
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SystemAdminGroupSearchResult> => {
     const result: SystemAdminGroupSearchResult = await ctx.runQuery(
       internal.systemAdmin.queries.searchGroupsData,
       args,
@@ -95,7 +95,7 @@ export const searchGroups = action({
 export const getUserDetail = action({
   args: { userId: v.id("users") },
   returns: v.union(systemAdminUserDetailValidator, v.null()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SystemAdminUserDetail | null> => {
     const result: SystemAdminUserDetail | null = await ctx.runQuery(
       internal.systemAdmin.queries.getUserDetailData,
       args,
@@ -113,7 +113,7 @@ export const getUserDetail = action({
 export const getGroupDetail = action({
   args: { groupId: v.id("groups") },
   returns: v.union(systemAdminGroupDetailValidator, v.null()),
-  handler: async (ctx, args) => {
+  handler: async (ctx, args): Promise<SystemAdminGroupDetail | null> => {
     const result: SystemAdminGroupDetail | null = await ctx.runQuery(
       internal.systemAdmin.queries.getGroupDetailData,
       args,
