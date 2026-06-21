@@ -51,6 +51,13 @@ import type * as receiptImageExtraction_extraction from "../receiptImageExtracti
 import type * as receipts_crud from "../receipts/crud.js";
 import type * as receipts_spendingEntries from "../receipts/spendingEntries.js";
 import type * as receipts_summaries from "../receipts/summaries.js";
+import type * as systemAdmin_actions from "../systemAdmin/actions.js";
+import type * as systemAdmin_audit from "../systemAdmin/audit.js";
+import type * as systemAdmin_auth from "../systemAdmin/auth.js";
+import type * as systemAdmin_internal from "../systemAdmin/internal.js";
+import type * as systemAdmin_model from "../systemAdmin/model.js";
+import type * as systemAdmin_queries from "../systemAdmin/queries.js";
+import type * as systemAdmin_validators from "../systemAdmin/validators.js";
 import type * as users_auth from "../users/auth.js";
 import type * as users_internal from "../users/internal.js";
 import type * as users_mutations from "../users/mutations.js";
@@ -109,6 +116,13 @@ declare const fullApi: ApiFromModules<{
   "receipts/crud": typeof receipts_crud;
   "receipts/spendingEntries": typeof receipts_spendingEntries;
   "receipts/summaries": typeof receipts_summaries;
+  "systemAdmin/actions": typeof systemAdmin_actions;
+  "systemAdmin/audit": typeof systemAdmin_audit;
+  "systemAdmin/auth": typeof systemAdmin_auth;
+  "systemAdmin/internal": typeof systemAdmin_internal;
+  "systemAdmin/model": typeof systemAdmin_model;
+  "systemAdmin/queries": typeof systemAdmin_queries;
+  "systemAdmin/validators": typeof systemAdmin_validators;
   "users/auth": typeof users_auth;
   "users/internal": typeof users_internal;
   "users/mutations": typeof users_mutations;

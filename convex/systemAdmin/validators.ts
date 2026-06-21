@@ -112,7 +112,7 @@ export type SystemAdminGroupSearchResult = Infer<typeof systemAdminGroupSearchRe
 export type SystemAdminUserDetail = Infer<typeof systemAdminUserDetailValidator>;
 export type SystemAdminGroupDetail = Infer<typeof systemAdminGroupDetailValidator>;
 
-export function getSystemAdminEnvironment() {
+export function getSystemAdminEnvironment(): "development" | "preview" | "production" {
   const environment = process.env.APP_ENV;
   if (environment === "development" || environment === "preview" || environment === "production") {
     return environment;
