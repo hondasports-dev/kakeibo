@@ -18,7 +18,9 @@ vi.mock("../hooks/useGroupMembership", () => ({
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     groups: {
-      setActiveGroup: "groups.setActiveGroup",
+      mutations: {
+        setActiveGroup: "groups.mutations.setActiveGroup",
+      },
     },
   },
 }));

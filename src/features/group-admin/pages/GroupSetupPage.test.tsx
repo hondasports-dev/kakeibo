@@ -14,7 +14,9 @@ const { createGroupMock, useMutationMock, useNavigateMock } = vi.hoisted(() => (
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     groups: {
-      createGroup: "groups.createGroup",
+      mutations: {
+        createGroup: "groups.mutations.createGroup",
+      },
     },
   },
 }));
@@ -48,7 +50,7 @@ describe("GroupSetupPage", () => {
 
     createGroupMock.mockResolvedValue("group-001");
     useMutationMock.mockImplementation((mutationRef: string) => {
-      if (mutationRef.includes("groups.createGroup")) return createGroupMock;
+      if (mutationRef.includes("groups.mutations.createGroup")) return createGroupMock;
       return vi.fn();
     });
     useNavigateMock.mockReturnValue(vi.fn());

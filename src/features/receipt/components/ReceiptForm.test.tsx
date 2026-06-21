@@ -24,66 +24,84 @@ const {
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     receipts: {
-      createReceipt: "receipts.createReceipt",
+      crud: {
+        createReceipt: "receipts.crud.createReceipt",
+      },
     },
     aiExpenseDrafts: {
-      deleteDraft: "aiExpenseDrafts.deleteDraft",
-      listByStatus: "aiExpenseDrafts.listByStatus",
-      registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
+      mutations: {
+        deleteDraft: "aiExpenseDrafts.mutations.deleteDraft",
+        registerReadyDrafts: "aiExpenseDrafts.mutations.registerReadyDrafts",
+      },
+      queries: {
+        listByStatus: "aiExpenseDrafts.queries.listByStatus",
+      },
     },
     users: {
-      acceptReceiptImageExternalApiConsent: "users.acceptReceiptImageExternalApiConsent",
-      getReceiptImageConsent: "users.getReceiptImageConsent",
+      mutations: {
+        acceptReceiptImageExternalApiConsent: "users.mutations.acceptReceiptImageExternalApiConsent",
+      },
+      queries: {
+        getReceiptImageConsent: "users.queries.getReceiptImageConsent",
+      },
     },
     receiptImageExtraction: {
-      extractReceiptFields: "receiptImageExtraction.extractReceiptFields",
+      extraction: {
+        extractReceiptFields: "receiptImageExtraction.extraction.extractReceiptFields",
+      },
     },
     receiptAnalysisJobs: {
-      listJobs: "receiptAnalysisJobs.listJobs",
-      createBatch: "receiptAnalysisJobs.createBatch",
-      analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
-      retryImageJob: "receiptAnalysisJobs.retryImageJob",
-      cancelImageJob: "receiptAnalysisJobs.cancelImageJob",
+      queries: {
+        listJobs: "receiptAnalysisJobs.queries.listJobs",
+      },
+      mutations: {
+        createBatch: "receiptAnalysisJobs.mutations.createBatch",
+        retryImageJob: "receiptAnalysisJobs.mutations.retryImageJob",
+        cancelImageJob: "receiptAnalysisJobs.mutations.cancelImageJob",
+      },
+      actions: {
+        analyzeImageJob: "receiptAnalysisJobs.actions.analyzeImageJob",
+      },
     },
   },
 }));
 
 vi.mock("convex/react", () => ({
   useMutation: (functionRef: string) => {
-    if (functionRef === "users.acceptReceiptImageExternalApiConsent") {
+    if (functionRef === "users.mutations.acceptReceiptImageExternalApiConsent") {
       return acceptReceiptImageConsentMock;
     }
-    if (functionRef === "aiExpenseDrafts.registerReadyDrafts") {
+    if (functionRef === "aiExpenseDrafts.mutations.registerReadyDrafts") {
       return registerReadyDraftsMock;
     }
-    if (functionRef === "aiExpenseDrafts.deleteDraft") {
+    if (functionRef === "aiExpenseDrafts.mutations.deleteDraft") {
       return vi.fn().mockResolvedValue({ deleted: true });
     }
-    if (functionRef === "receiptAnalysisJobs.createBatch") {
+    if (functionRef === "receiptAnalysisJobs.mutations.createBatch") {
       return vi.fn().mockResolvedValue({ batch: { _id: "batch-1" }, jobs: [] });
     }
-    if (functionRef === "receiptAnalysisJobs.retryImageJob") {
+    if (functionRef === "receiptAnalysisJobs.mutations.retryImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
-    if (functionRef === "receiptAnalysisJobs.cancelImageJob") {
+    if (functionRef === "receiptAnalysisJobs.mutations.cancelImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
     return createReceiptMock;
   },
   useAction: (functionRef: string) => {
-    if (functionRef === "receiptAnalysisJobs.analyzeImageJob") {
+    if (functionRef === "receiptAnalysisJobs.actions.analyzeImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
     return extractReceiptFieldsMock;
   },
   useQuery: (functionRef: string, args?: unknown) => {
-    if (functionRef === "users.getReceiptImageConsent") {
+    if (functionRef === "users.queries.getReceiptImageConsent") {
       return receiptImageConsentQueryMock();
     }
-    if (functionRef === "aiExpenseDrafts.listByStatus") {
+    if (functionRef === "aiExpenseDrafts.queries.listByStatus") {
       return aiExpenseDraftsByStatusQueryMock(args);
     }
-    if (functionRef === "receiptAnalysisJobs.listJobs") {
+    if (functionRef === "receiptAnalysisJobs.queries.listJobs") {
       return [];
     }
     return undefined;

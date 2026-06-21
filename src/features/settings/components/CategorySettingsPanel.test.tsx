@@ -30,10 +30,14 @@ const {
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     categories: {
-      createCategory: "categories.createCategory",
-      deactivateCategory: "categories.deactivateCategory",
-      listForSettings: "categories.listForSettings",
-      updateCategory: "categories.updateCategory",
+      queries: {
+        listForSettings: "categories.queries.listForSettings",
+      },
+      mutations: {
+        createCategory: "categories.mutations.createCategory",
+        deactivateCategory: "categories.mutations.deactivateCategory",
+        updateCategory: "categories.mutations.updateCategory",
+      },
     },
   },
 }));
@@ -72,9 +76,9 @@ describe("CategorySettingsPanel", () => {
     deactivateCategoryMock.mockResolvedValue(undefined);
     useQueryMock.mockReturnValue(categories);
     useMutationMock.mockImplementation((reference: string) => {
-      if (reference === "categories.createCategory") return createCategoryMock;
-      if (reference === "categories.updateCategory") return updateCategoryMock;
-      if (reference === "categories.deactivateCategory") return deactivateCategoryMock;
+      if (reference === "categories.mutations.createCategory") return createCategoryMock;
+      if (reference === "categories.mutations.updateCategory") return updateCategoryMock;
+      if (reference === "categories.mutations.deactivateCategory") return deactivateCategoryMock;
       throw new Error(`Unexpected mutation reference: ${reference}`);
     });
   });
