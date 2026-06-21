@@ -1,12 +1,9 @@
 import type { UserIdentity } from "convex/server";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
-import {
-  listManagementAuditLogsHandler,
-  MANAGEMENT_AUDIT_LOG_LIST_LIMIT,
-} from "./managementAuditLogs";
+import { listManagementAuditLogsHandler, MANAGEMENT_AUDIT_LOG_LIST_LIMIT } from "./auditLogs";
 
 type ManagementAuditLogDoc = {
   _id: Id<"managementAuditLogs">;

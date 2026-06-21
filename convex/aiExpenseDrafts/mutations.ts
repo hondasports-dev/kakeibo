@@ -7,7 +7,7 @@ import {
   resolveReceiptShopNameFromDraft,
   type AiExpenseDraftDocumentType,
 } from "./model";
-import { createExpenseEntriesFromDraftHandler } from "../expenseEntries";
+import { createExpenseEntriesFromDraftHandler } from "../expenseEntries/mutations";
 import { insertReceiptForGroup } from "../receipts/crud";
 import { requireGroupMembership } from "../groups/membership";
 import { deleteDraftAndItems } from "./internal";

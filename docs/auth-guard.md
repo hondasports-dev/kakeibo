@@ -21,7 +21,7 @@ Convex 側では必ず `ctx.auth.getUserIdentity()` を使い、
 | userId の解決    | クライアント引数を信用せず、サーバー側で `identity.tokenIdentifier` から解決する |
 | データ所有者分離 | receipt / category / weekSession などの家計データは `userId` で所有者を分離する  |
 
-### 共通ヘルパー（`convex/users.ts`）
+### 共通ヘルパー（`convex/users/auth.ts`）
 
 ```typescript
 // 未認証時は ConvexError をスロー、認証時は tokenIdentifier を返す
@@ -37,7 +37,7 @@ export const upsertUser = mutation({ args: {}, handler: async (ctx) => { ... } }
 ### query / mutation での使用例
 
 ```typescript
-import { requireAuthenticatedUserId } from "./users";
+import { requireAuthenticatedUserId } from "./users/auth";
 
 export const listReceipts = query({
   args: {},
@@ -100,7 +100,8 @@ function KakeiboApp() {
 | -------------------------------- | ------------------------------------------------------------------ |
 | `convex/auth.config.ts`          | Convex の JWT issuer 設定（CLERK_JWT_ISSUER_DOMAIN を参照）        |
 | `convex/schema.ts`               | users テーブル定義（`by_token_identifier` インデックス）           |
-| `convex/users.ts`                | 認証ヘルパー・upsertUser mutation                                  |
+| `convex/users/auth.ts`           | 認証ヘルパー（`requireAuthenticatedUserId` 等）                    |
+| `convex/users/mutations.ts`      | ユーザー向け mutation（`upsertUser` 等）                           |
 | `src/main.tsx`                   | ClerkProvider + ConvexProviderWithClerk の Provider 構成           |
 | `src/App.tsx`                    | 認証状態ガード（AuthenticatedApp）と KakeiboApp での初期化呼び出し |
 | `src/features/auth/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |

@@ -385,7 +385,7 @@ describe("analyzeImageJobHandler", () => {
     await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
       const ctx = createActionCtx(null, {
         runQueryResults: {
-          "api.users.getReceiptImageConsent": { hasAcceptedExternalApiConsent: true },
+          "api.users.queries.getReceiptImageConsent": { hasAcceptedExternalApiConsent: true },
         },
       });
       await expect(

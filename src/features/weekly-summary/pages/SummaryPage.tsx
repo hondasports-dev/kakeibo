@@ -39,7 +39,7 @@ export function SummaryPage() {
     }
   }, [rawWeekStartDate, weekStartDate, navigate]);
 
-  const summaryWeekSession = useQuery(api.weekSessions.getWeekSession, { weekStartDate });
+  const summaryWeekSession = useQuery(api.weekSessions.queries.getWeekSession, { weekStartDate });
   const weeklySummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
     weekStartDate,
   });
@@ -55,7 +55,7 @@ export function SummaryPage() {
 
   // 今週のサマリーページでセッションが未作成の場合は自動作成する
   // （InputPage を経由せず SummaryPage に直接アクセスした場合に ReviewMemoPanel が機能するように）
-  const getOrCreateSession = useMutation(api.weekSessions.getOrCreateWeekSession);
+  const getOrCreateSession = useMutation(api.weekSessions.mutations.getOrCreateWeekSession);
   useEffect(() => {
     if (isCurrentWeek && summaryWeekSession === null) {
       getOrCreateSession({ weekStartDate }).catch(console.error);

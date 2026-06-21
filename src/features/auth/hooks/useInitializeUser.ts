@@ -17,8 +17,8 @@ import { api } from "../../../../convex/_generated/api";
  */
 export function useInitializeUser() {
   const { isAuthenticated } = useConvexAuth();
-  const upsertUser = useMutation(api.users.upsertUser);
-  const seedDefaultCategories = useMutation(api.categories.seedDefaultCategories);
+  const upsertUser = useMutation(api.users.mutations.upsertUser);
+  const seedDefaultCategories = useMutation(api.categories.mutations.seedDefaultCategories);
   const group = useQuery(api.groups.queries.getMyGroup, isAuthenticated ? {} : "skip");
   const hasInitialized = useRef(false);
   const seededGroupIds = useRef(new Set<string>());

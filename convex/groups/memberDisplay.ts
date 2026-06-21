@@ -1,4 +1,4 @@
-import type { GroupMemberListItem } from "../lib/groupTypes";
+import type { GroupMemberListItem } from "./lib/groupTypes";
 
 function getMemberSortLabel(member: GroupMemberListItem) {
   return member.displayName.trim() || member.email?.trim() || member.userId;

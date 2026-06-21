@@ -7,9 +7,9 @@ import {
   invitationEmailsMatch,
   invitationEmailsMatchAny,
   normalizeEmail,
-} from "../lib/groupEmailMatching";
-import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
-import { recordManagementAuditLog } from "../lib/managementAuditLog";
+} from "./lib/groupEmailMatching";
+import { readQueryDoc, readQueryDocs } from "./lib/groupQueryHelpers";
+import { recordManagementAuditLog } from "./lib/managementAuditLog";
 import { requireGroupOwner } from "./membership";
 import { setGroupClerkOrganizationIdHandler } from "./e2e";
 
@@ -19,7 +19,7 @@ export {
   invitationEmailsMatch,
   invitationEmailsMatchAny,
   sortPendingGroupInvitationsForDisplay,
-} from "../lib/groupEmailMatching";
+} from "./lib/groupEmailMatching";
 
 export async function revokePendingGroupInvitationsForEmailInGroup(
   ctx: MutationCtx,

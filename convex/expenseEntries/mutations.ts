@@ -1,13 +1,9 @@
-import { internalMutation, mutation } from "./_generated/server";
-import type { MutationCtx } from "./_generated/server";
+import { mutation } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
-import { requireGroupMembership } from "./groups/membership";
-import type { Id } from "./_generated/dataModel";
-
-// ---------------------------------------------------------------------------
-// createExpenseEntries
-// ---------------------------------------------------------------------------
+import { requireGroupMembership } from "../groups/membership";
+import type { Id } from "../_generated/dataModel";
 
 type ExpenseEntryItemArg = {
   categoryId: Id<"categories">;
@@ -76,10 +72,6 @@ export const createExpenseEntries = mutation({
   },
 });
 
-// ---------------------------------------------------------------------------
-// createExpenseEntriesFromDraft
-// ---------------------------------------------------------------------------
-
 type DraftItemArg = {
   itemName?: string;
   amountYen: number;
@@ -133,7 +125,7 @@ export async function createExpenseEntriesFromDraftHandler(
 
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
-      sourceDocumentId: undefined, // sourceDocuments未実装のため当面undefined
+      sourceDocumentId: undefined,
       date: draft.date,
       amount: item.amountYen,
       categoryId,
@@ -162,20 +154,5 @@ export const createExpenseEntriesFromDraft = mutation({
   },
   handler: async (ctx, args) => {
     return await createExpenseEntriesFromDraftHandler(ctx, args);
-  },
-});
-
-export const deleteE2eExpenseEntriesByUser = internalMutation({
-  args: {
-    groupId: v.id("groups"),
-  },
-  handler: async (ctx, { groupId }) => {
-    const entries = await ctx.db
-      .query("expenseEntries")
-      .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
-      .take(500);
-
-    await Promise.all(entries.map((entry) => ctx.db.delete(entry._id)));
-    return { deletedCount: entries.length };
   },
 });

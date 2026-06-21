@@ -1,12 +1,9 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx } from "./_generated/server";
-import {
-  createExpenseEntriesFromDraftHandler,
-  createExpenseEntriesHandler,
-} from "./expenseEntries";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx } from "../_generated/server";
+import { createExpenseEntriesFromDraftHandler, createExpenseEntriesHandler } from "./mutations";
 
 // ---------------------------------------------------------------------------
 // テスト用型定義

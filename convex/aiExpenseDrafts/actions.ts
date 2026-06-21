@@ -3,7 +3,7 @@ import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Doc } from "../_generated/dataModel";
-import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categoryCandidate";
+import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categories/candidate";
 import { extractReceiptFieldsHandler } from "../receiptImageExtraction/extraction";
 
 type AnalyzeReceiptImageToDraftArgs = {
@@ -25,7 +25,7 @@ export async function analyzeReceiptImageToDraftHandler(
   args: AnalyzeReceiptImageToDraftArgs,
 ): Promise<Doc<"aiExpenseDrafts">> {
   const consent: { hasAcceptedExternalApiConsent: boolean } = await ctx.runQuery(
-    api.users.getReceiptImageConsent,
+    api.users.queries.getReceiptImageConsent,
     {},
   );
   if (!consent.hasAcceptedExternalApiConsent) {
@@ -48,7 +48,7 @@ export async function analyzeReceiptImageToDraftHandler(
   // カテゴリ候補を生成し、AI が推定したカテゴリ名を候補の中で解決する。
   // - コンビニ払込票では paymentPlace を主根拠にせず paymentPurpose / payeeName を優先する。
   // - 候補にないカテゴリ名は採用しない（存在しないカテゴリIDを保存しない）。
-  const categories = await ctx.runQuery(api.categories.listActive, {});
+  const categories = await ctx.runQuery(api.categories.queries.listActive, {});
   const candidates = buildCategoryCandidates({
     documentType: extracted.documentType,
     categoryName: extracted.categoryName,

@@ -1,4 +1,4 @@
-import type { Id } from "../_generated/dataModel";
+import type { Id } from "../../_generated/dataModel";
 
 export type GroupMembership = {
   membershipId: Id<"groupMembers">;

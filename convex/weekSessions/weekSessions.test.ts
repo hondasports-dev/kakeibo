@@ -1,16 +1,16 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+import { getWeekSessionHandler } from "./queries";
 import {
   getOrCreateCurrentWeekSessionHandler,
   getOrCreateWeekSessionHandler,
-  getWeekSessionHandler,
-  resetWeekSessionForUserHandler,
   updateReviewMemoHandler,
   completeWeekSessionHandler,
-} from "./weekSessions";
+} from "./mutations";
+import { resetWeekSessionForUserHandler } from "./internal";
 
 // ---------------------------------------------------------------------------
 // テスト用型定義

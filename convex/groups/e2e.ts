@@ -2,9 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { deleteAllGroupScopedData } from "../lib/deleteGroupPhysically";
-import { normalizeEmail } from "../lib/groupEmailMatching";
-import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
+import { deleteAllGroupScopedData } from "./lib/deleteGroupPhysically";
+import { normalizeEmail } from "./lib/groupEmailMatching";
+import { readQueryDoc, readQueryDocs } from "./lib/groupQueryHelpers";
 
 async function deleteE2eSeededUserByEmailIfExists(ctx: MutationCtx, email: string) {
   const normalizedEmail = normalizeEmail(email);

@@ -12,7 +12,7 @@ export type AnalyzeImageJobArgs = {
 
 export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJobArgs) {
   const consent: { hasAcceptedExternalApiConsent: boolean } = await ctx.runQuery(
-    api.users.getReceiptImageConsent,
+    api.users.queries.getReceiptImageConsent,
     {},
   );
   if (!consent.hasAcceptedExternalApiConsent) {
@@ -50,7 +50,10 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
 
     let categoryId = undefined;
     if (extracted.categoryName && extracted.categoryName.trim().length > 0) {
-      const categories: Doc<"categories">[] = await ctx.runQuery(api.categories.listActive, {});
+      const categories: Doc<"categories">[] = await ctx.runQuery(
+        api.categories.queries.listActive,
+        {},
+      );
       const targetName = extracted.categoryName.trim();
       const matched = categories.find((cat) => cat.name === targetName);
       if (matched) {

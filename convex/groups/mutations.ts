@@ -2,11 +2,11 @@ import { ConvexError, v } from "convex/values";
 import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { assertGroupNotDeleted } from "../lib/groupLifecycle";
-import { normalizeGroupName } from "../lib/groupName";
-import { recordManagementAuditLog } from "../lib/managementAuditLog";
-import { readQueryDoc } from "../lib/groupQueryHelpers";
-import { requireAuthenticatedUserId } from "../users";
+import { assertGroupNotDeleted } from "./lib/groupLifecycle";
+import { normalizeGroupName } from "./lib/groupName";
+import { recordManagementAuditLog } from "./lib/managementAuditLog";
+import { readQueryDoc } from "./lib/groupQueryHelpers";
+import { requireAuthenticatedUserId } from "../users/auth";
 import { requireGroupOwner } from "./membership";
 
 export async function createGroupHandler(ctx: MutationCtx, args: { name: string }) {

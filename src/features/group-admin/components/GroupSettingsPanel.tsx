@@ -20,7 +20,7 @@ import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { useAuth, useUser } from "@clerk/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { MAX_GROUP_NAME_LENGTH } from "../../../../convex/lib/groupName";
+import { MAX_GROUP_NAME_LENGTH } from "../../../../convex/groups/lib/groupName";
 import { getClerkUserFriendlyDisplayName } from "../../auth";
 import { getConvexErrorMessage } from "../../auth";
 import { ConfirmDangerousActionDialog } from "./ConfirmDangerousActionDialog";
@@ -82,7 +82,7 @@ export function GroupSettingsPanel() {
     group?.role === "owner" ? {} : "skip",
   ) as GroupPendingInvitationListItem[] | undefined;
   const managementAuditLogs = useQuery(
-    api.managementAuditLogs.listManagementAuditLogs,
+    api.groups.auditLogs.listManagementAuditLogs,
     group?.role === "owner" ? {} : "skip",
   ) as GroupManagementAuditLogListItem[] | undefined;
   const setActiveGroup = useMutation(api.groups.mutations.setActiveGroup);

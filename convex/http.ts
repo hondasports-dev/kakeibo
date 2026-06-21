@@ -98,7 +98,7 @@ http.route({
       return invalidJsonResponse();
     }
     const userIdByEmail = body.email
-      ? await ctx.runQuery(internal.users.getUserIdByEmail, { email: body.email })
+      ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
       : null;
     const resolvedUserId = userIdByEmail ?? body.userId ?? null;
     const resolvedGroupId =
@@ -194,7 +194,7 @@ http.route({
         );
       }
 
-      weekSession = await ctx.runMutation(internal.weekSessions.resetWeekSessionForUser, {
+      weekSession = await ctx.runMutation(internal.weekSessions.internal.resetWeekSessionForUser, {
         groupId: resolvedGroupId as never,
         weekStartDate: body.weekStartDate,
       });
@@ -202,14 +202,14 @@ http.route({
 
     let categories: { deletedCount: number } | null = null;
     if (resolvedGroupId && body.deleteE2eCategories) {
-      categories = await ctx.runMutation(internal.categories.deleteE2eCategoriesByUser, {
+      categories = await ctx.runMutation(internal.categories.internal.deleteE2eCategoriesByUser, {
         groupId: resolvedGroupId as never,
       });
     }
 
     let monthlyIncome: { cleared: boolean } | null = null;
     if (body.clearMonthlyIncome && resolvedUserId) {
-      monthlyIncome = await ctx.runMutation(internal.users.clearUserMonthlyIncome, {
+      monthlyIncome = await ctx.runMutation(internal.users.internal.clearUserMonthlyIncome, {
         userId: resolvedUserId,
       });
     }
@@ -217,7 +217,7 @@ http.route({
     let expenseEntries: { deletedCount: number } | null = null;
     if (resolvedGroupId && body.clearE2eExpenseEntries) {
       expenseEntries = await ctx.runMutation(
-        internal.expenseEntries.deleteE2eExpenseEntriesByUser,
+        internal.expenseEntries.internal.deleteE2eExpenseEntriesByUser,
         {
           groupId: resolvedGroupId as never,
         },
@@ -321,7 +321,7 @@ http.route({
       return invalidJsonResponse();
     }
     const userIdByEmail = body.email
-      ? await ctx.runQuery(internal.users.getUserIdByEmail, { email: body.email })
+      ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
       : null;
     const resolvedUserId = userIdByEmail ?? body.userId ?? null;
     const resolvedGroupId =
@@ -337,7 +337,7 @@ http.route({
       });
     }
 
-    const categoryId = await ctx.runMutation(internal.categories.ensureE2eCategoryByUser, {
+    const categoryId = await ctx.runMutation(internal.categories.internal.ensureE2eCategoryByUser, {
       groupId: resolvedGroupId as never,
       name: "E2Eカテゴリ-Issue179",
       color: "#AAB7C4",
@@ -390,7 +390,7 @@ http.route({
     }
 
     const userIdByEmail = body.email
-      ? await ctx.runQuery(internal.users.getUserIdByEmail, { email: body.email })
+      ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
       : null;
     const resolvedUserId = userIdByEmail ?? body.userId ?? null;
     const resolvedGroupId =

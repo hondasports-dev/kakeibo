@@ -2,7 +2,7 @@ import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import { calculateWeekStartDate } from "../utils";
+import { calculateWeekStartDate } from "../lib/weekDates";
 import {
   createReceiptHandler,
   deleteReceiptHandler,

@@ -1,7 +1,7 @@
 import type { ActionCtx } from "../_generated/server";
 import { action } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
-import { requireAuthenticatedUserId } from "../users";
+import { requireAuthenticatedUserId } from "../users/auth";
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */
 const MAX_IMAGE_DATA_URL_LENGTH = 900_000;

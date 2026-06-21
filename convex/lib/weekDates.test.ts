@@ -3,7 +3,7 @@ import {
   calculateWeekStartDate,
   calculateWeekEndDate,
   calculateRelativeWeekStartDate,
-} from "./utils";
+} from "./weekDates";
 
 describe("calculateWeekStartDate", () => {
   // 月曜日 → その日

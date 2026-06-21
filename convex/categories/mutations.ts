@@ -1,10 +1,10 @@
-import { internalMutation, mutation, query } from "./_generated/server";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { mutation } from "../_generated/server";
+import type { MutationCtx } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
-import { requireGroupMembership } from "./groups/membership";
+import type { Id } from "../_generated/dataModel";
+import { requireGroupMembership } from "../groups/membership";
 
-const DEFAULT_CATEGORIES = [
+export const DEFAULT_CATEGORIES = [
   { name: "食費", color: "#8B5E3C", sortOrder: 1 },
   { name: "日用品", color: "#A6B28B", sortOrder: 2 },
   { name: "外食", color: "#F4A27A", sortOrder: 3 },
@@ -26,8 +26,8 @@ const LEGACY_DEFAULT_CATEGORY_COLORS_BY_SORT_ORDER = new Map<number, string>([
   [8, "#A8DADC"],
 ]);
 
-const MAX_CATEGORIES_PER_GROUP = 100;
-const E2E_CATEGORY_NAME_PREFIX = "E2Eカテゴリ-";
+export const MAX_CATEGORIES_PER_GROUP = 100;
+export const E2E_CATEGORY_NAME_PREFIX = "E2Eカテゴリ-";
 
 function shouldRefreshLegacyDefaultCategoryColor(
   existing: { name: string; color: string; sortOrder: number },
@@ -39,6 +39,42 @@ function shouldRefreshLegacyDefaultCategoryColor(
     existing.sortOrder === nextDefault.sortOrder &&
     existing.color.toUpperCase() === legacyColor
   );
+}
+
+export function normalizeCategoryName(name: string) {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    throw new ConvexError("Category name is required");
+  }
+  if (trimmed.length > 40) {
+    throw new ConvexError("Category name must be 40 characters or fewer");
+  }
+  return trimmed;
+}
+
+export function normalizeCategoryColor(color: string) {
+  const trimmed = color.trim();
+  if (!/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+    throw new ConvexError("Category color must be a hex color");
+  }
+  return trimmed.toUpperCase();
+}
+
+async function getOwnedCategory(
+  ctx: Pick<MutationCtx, "auth" | "db">,
+  categoryId: Id<"categories">,
+) {
+  const { groupId } = await requireGroupMembership(ctx);
+  const category = await ctx.db.get(categoryId);
+
+  if (category === null) {
+    throw new ConvexError("Category not found");
+  }
+  if (category.groupId !== groupId) {
+    throw new ConvexError("Category does not belong to the current group");
+  }
+
+  return { category, groupId };
 }
 
 /** seedDefaultCategories mutation の handler ロジック（テスト用に export） */
@@ -82,66 +118,6 @@ export async function seedDefaultCategoriesHandler(ctx: MutationCtx) {
   }
 
   return { created, skipped };
-}
-
-/** listActive query の handler ロジック（テスト用に export） */
-export async function listActiveHandler(ctx: QueryCtx) {
-  const { groupId } = await requireGroupMembership(ctx);
-
-  return await ctx.db
-    .query("categories")
-    .withIndex("by_group_id_and_is_active_and_sort_order", (q) =>
-      q.eq("groupId", groupId).eq("isActive", true),
-    )
-    .order("asc")
-    .collect();
-}
-
-/** listForSettings query の handler ロジック（テスト用に export） */
-export async function listForSettingsHandler(ctx: QueryCtx) {
-  const { groupId } = await requireGroupMembership(ctx);
-
-  return await ctx.db
-    .query("categories")
-    .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
-    .order("asc")
-    .take(MAX_CATEGORIES_PER_GROUP);
-}
-
-function normalizeCategoryName(name: string) {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new ConvexError("Category name is required");
-  }
-  if (trimmed.length > 40) {
-    throw new ConvexError("Category name must be 40 characters or fewer");
-  }
-  return trimmed;
-}
-
-function normalizeCategoryColor(color: string) {
-  const trimmed = color.trim();
-  if (!/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
-    throw new ConvexError("Category color must be a hex color");
-  }
-  return trimmed.toUpperCase();
-}
-
-async function getOwnedCategory(
-  ctx: Pick<MutationCtx, "auth" | "db">,
-  categoryId: Id<"categories">,
-) {
-  const { groupId } = await requireGroupMembership(ctx);
-  const category = await ctx.db.get(categoryId);
-
-  if (category === null) {
-    throw new ConvexError("Category not found");
-  }
-  if (category.groupId !== groupId) {
-    throw new ConvexError("Category does not belong to the current group");
-  }
-
-  return { category, groupId };
 }
 
 type CreateCategoryArgs = {
@@ -226,25 +202,6 @@ export const seedDefaultCategories = mutation({
   handler: seedDefaultCategoriesHandler,
 });
 
-/**
- * ログインユーザーのグループのアクティブなカテゴリを sortOrder 昇順で返す query。
- * groupId はサーバー側でグループメンバーシップから解決するため、
- * クライアントから groupId を渡さない。
- */
-export const listActive = query({
-  args: {},
-  handler: listActiveHandler,
-});
-
-/**
- * カテゴリ設定画面用に、無効化済みを含むカテゴリを sortOrder 昇順で返す。
- * 既存 receipt は categoryId 参照を維持するため、カテゴリは削除せず無効化する。
- */
-export const listForSettings = query({
-  args: {},
-  handler: listForSettingsHandler,
-});
-
 export const createCategory = mutation({
   args: {
     name: v.string(),
@@ -267,71 +224,4 @@ export const deactivateCategory = mutation({
     categoryId: v.id("categories"),
   },
   handler: deactivateCategoryHandler,
-});
-
-export const deleteE2eCategoriesByUser = internalMutation({
-  args: {
-    groupId: v.id("groups"),
-  },
-  handler: async (ctx, { groupId }) => {
-    const categories = await ctx.db
-      .query("categories")
-      .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
-      .take(MAX_CATEGORIES_PER_GROUP);
-
-    const targets = categories.filter((category) =>
-      category.name.startsWith(E2E_CATEGORY_NAME_PREFIX),
-    );
-
-    await Promise.all(targets.map((category) => ctx.db.delete(category._id)));
-
-    return { deletedCount: targets.length };
-  },
-});
-
-export const ensureE2eCategoryByUser = internalMutation({
-  args: {
-    groupId: v.id("groups"),
-    name: v.string(),
-    color: v.string(),
-  },
-  handler: async (ctx, { groupId, name, color }) => {
-    if (!name.startsWith(E2E_CATEGORY_NAME_PREFIX)) {
-      throw new ConvexError("E2E category name must start with the E2E prefix");
-    }
-
-    const normalizedName = normalizeCategoryName(name);
-    const normalizedColor = normalizeCategoryColor(color);
-    const existing = await ctx.db
-      .query("categories")
-      .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
-      .take(MAX_CATEGORIES_PER_GROUP);
-
-    const matched = existing.find((category) => category.name === normalizedName);
-    const now = Date.now();
-
-    if (matched) {
-      await ctx.db.patch(matched._id, {
-        color: normalizedColor,
-        isActive: true,
-        updatedAt: now,
-      });
-      return matched._id;
-    }
-
-    if (existing.length >= MAX_CATEGORIES_PER_GROUP) {
-      throw new ConvexError("Category limit reached");
-    }
-
-    const sortOrder = existing.reduce((max, category) => Math.max(max, category.sortOrder), 0) + 1;
-    return await ctx.db.insert("categories", {
-      groupId,
-      name: normalizedName,
-      color: normalizedColor,
-      isActive: true,
-      sortOrder,
-      createdAt: now,
-      updatedAt: now,
-    });
-  },
 });

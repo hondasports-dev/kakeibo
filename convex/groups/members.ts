@@ -8,10 +8,10 @@ import {
   GROUP_ADMIN_ERRORS,
   type GroupAdminRole,
 } from "./adminGuards";
-import { normalizeEmail } from "../lib/groupEmailMatching";
-import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
-import { formatGroupRoleLabel } from "../lib/groupRoleLabel";
-import { recordManagementAuditLog } from "../lib/managementAuditLog";
+import { normalizeEmail } from "./lib/groupEmailMatching";
+import { readQueryDoc, readQueryDocs } from "./lib/groupQueryHelpers";
+import { formatGroupRoleLabel } from "./lib/groupRoleLabel";
+import { recordManagementAuditLog } from "./lib/managementAuditLog";
 import { revokeGroupInvitationsForEmailInGroup } from "./invitations";
 import { requireGroupOwner } from "./membership";
 

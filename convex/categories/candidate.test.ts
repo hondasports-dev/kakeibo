@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import type { Id } from "./_generated/dataModel";
+import type { Id } from "../_generated/dataModel";
 import {
   CATEGORY_CANDIDATE_MAX,
   buildCategoryCandidates,
   resolveCategoryIdFromCandidates,
-} from "./categoryCandidate";
+} from "./candidate";
 
 // ---------------------------------------------------------------------------
 // テスト用カテゴリリスト
