@@ -2,12 +2,14 @@ import { Box, Stack, Typography } from "@mui/material";
 import { ImageInputButton } from "./ImageInputButton";
 
 export function QueueHeader({
+  disabled,
   inputRef,
   cameraInputRef,
   retryInputRef,
   onFilesSelected,
   onRetryFileSelected,
 }: {
+  disabled: boolean;
   inputRef: React.RefObject<HTMLInputElement | null>;
   cameraInputRef: React.RefObject<HTMLInputElement | null>;
   retryInputRef: React.RefObject<HTMLInputElement | null>;
@@ -34,6 +36,7 @@ export function QueueHeader({
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <ImageInputButton
           buttonLabel="撮影する"
+          disabled={disabled}
           inputLabel="AI処理キューへカメラで追加"
           inputRef={cameraInputRef}
           onFilesSelected={onFilesSelected}
@@ -42,6 +45,7 @@ export function QueueHeader({
         />
         <ImageInputButton
           buttonLabel="画像を追加"
+          disabled={disabled}
           inputLabel="AI処理キューへ画像を追加"
           inputRef={inputRef}
           onFilesSelected={onFilesSelected}

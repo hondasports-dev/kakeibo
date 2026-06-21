@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
@@ -13,6 +13,7 @@ const {
   retryImageJobMock,
   cancelImageJobMock,
   deleteDraftMock,
+  acceptReceiptImageExternalApiConsentMock,
   useQueryMock,
 } = vi.hoisted(() => ({
   registerReadyDraftsMock: vi.fn(),
@@ -22,6 +23,7 @@ const {
   retryImageJobMock: vi.fn(),
   cancelImageJobMock: vi.fn(),
   deleteDraftMock: vi.fn(),
+  acceptReceiptImageExternalApiConsentMock: vi.fn(),
   useQueryMock: vi.fn(),
 }));
 
@@ -51,6 +53,15 @@ vi.mock("../../../../convex/_generated/api", () => ({
         analyzeImageJob: "receiptAnalysisJobs.actions.analyzeImageJob",
       },
     },
+    users: {
+      queries: {
+        getReceiptImageConsent: "users.queries.getReceiptImageConsent",
+      },
+      mutations: {
+        acceptReceiptImageExternalApiConsent:
+          "users.mutations.acceptReceiptImageExternalApiConsent",
+      },
+    },
   },
 }));
 
@@ -61,6 +72,9 @@ vi.mock("convex/react", () => ({
     if (reference === "receiptAnalysisJobs.mutations.createBatch") return createBatchMock;
     if (reference === "receiptAnalysisJobs.mutations.retryImageJob") return retryImageJobMock;
     if (reference === "receiptAnalysisJobs.mutations.cancelImageJob") return cancelImageJobMock;
+    if (reference === "users.mutations.acceptReceiptImageExternalApiConsent") {
+      return acceptReceiptImageExternalApiConsentMock;
+    }
     return registerReadyDraftsMock;
   },
   useAction: (reference: string) => {
@@ -98,9 +112,14 @@ describe("AiExpenseQueuePanel", () => {
     cancelImageJobMock.mockResolvedValue(undefined);
     deleteDraftMock.mockReset();
     deleteDraftMock.mockResolvedValue({ deleted: true });
+    acceptReceiptImageExternalApiConsentMock.mockReset();
+    acceptReceiptImageExternalApiConsentMock.mockResolvedValue(undefined);
     useQueryMock.mockReset();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
       if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
+      }
       return [];
     });
   });
@@ -122,6 +141,21 @@ describe("AiExpenseQueuePanel", () => {
     expect(screen.getByText("追加した画像はここに状態別で表示されます。")).toBeInTheDocument();
   });
 
+  it("画像送信の同意状態を読み込み中は画像追加導線を無効化する", () => {
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") return undefined;
+      return [];
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    expect(screen.getByRole("button", { name: "撮影する" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "画像を追加" })).toBeDisabled();
+    expect(screen.getByLabelText("AI処理キューへカメラで追加")).toBeDisabled();
+    expect(screen.getByLabelText("AI処理キューへ画像を追加")).toBeDisabled();
+  });
+
   it("複数画像を選ぶとキューへ解析待ちとして追加される", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
@@ -130,6 +164,9 @@ describe("AiExpenseQueuePanel", () => {
           { _id: "job-1", fileName: "first-receipt.png", status: "queued" },
           { _id: "job-2", fileName: "second-payment.png", status: "queued" },
         ];
+      }
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
       }
       return [];
     });
@@ -156,6 +193,139 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
+  it("画像送信に未同意なら同意ダイアログを表示して解析を開始しない", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: false, acceptedAt: null };
+      }
+      return [];
+    });
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["receipt"], "receipt.png", { type: "image/png" }),
+    );
+
+    expect(
+      await screen.findByRole("dialog", { name: "画像の外部API送信に同意しますか" }),
+    ).toBeInTheDocument();
+    expect(createBatchMock).not.toHaveBeenCalled();
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
+  });
+
+  it("画像送信に同意すると保留した画像の解析を開始する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: false, acceptedAt: null };
+      }
+      return [];
+    });
+    createBatchMock.mockResolvedValueOnce({
+      batch: { _id: "batch-consent-1" },
+      jobs: [{ _id: "job-consent-1" }],
+    });
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["receipt"], "receipt.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "同意して読み取る" }));
+
+    await waitFor(() => {
+      expect(acceptReceiptImageExternalApiConsentMock).toHaveBeenCalledTimes(1);
+      expect(createBatchMock).toHaveBeenCalledWith({ fileNames: ["receipt.png"] });
+      expect(analyzeImageJobMock).toHaveBeenCalledWith({
+        jobId: "job-consent-1",
+        imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
+      });
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+  });
+
+  it("画像送信への同意を断ると保留した画像を破棄する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: false, acceptedAt: null };
+      }
+      return [];
+    });
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["receipt"], "receipt.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "手入力する" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    expect(acceptReceiptImageExternalApiConsentMock).not.toHaveBeenCalled();
+    expect(createBatchMock).not.toHaveBeenCalled();
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
+  });
+
+  it("画像送信の同意保存に失敗したら解析せずエラーを表示する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: false, acceptedAt: null };
+      }
+      return [];
+    });
+    acceptReceiptImageExternalApiConsentMock.mockRejectedValueOnce(
+      new Error("同意状態の保存に失敗しました"),
+    );
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["receipt"], "receipt.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "同意して読み取る" }));
+
+    expect(await screen.findByText("同意状態の保存に失敗しました")).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(createBatchMock).not.toHaveBeenCalled();
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
+  });
+
+  it("画像送信の同意保存中はダイアログを閉じない", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: false, acceptedAt: null };
+      }
+      return [];
+    });
+    acceptReceiptImageExternalApiConsentMock.mockReturnValueOnce(new Promise(() => {}));
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["receipt"], "receipt.png", { type: "image/png" }),
+    );
+    await user.click(screen.getByRole("button", { name: "同意して読み取る" }));
+    fireEvent.keyDown(screen.getAllByRole("presentation")[0], { key: "Escape", code: "Escape" });
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "保存中..." })).toBeDisabled();
+    expect(createBatchMock).not.toHaveBeenCalled();
+  });
+
   it("撮影導線から画像を追加してもキューへ解析待ちとして追加される", async () => {
     const user = userEvent.setup();
     createBatchMock.mockResolvedValueOnce({
@@ -165,6 +335,9 @@ describe("AiExpenseQueuePanel", () => {
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
       if (reference === "receiptAnalysisJobs.queries.listJobs") {
         return [{ _id: "job-camera-1", fileName: "camera-receipt.png", status: "queued" }];
+      }
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
       }
       return [];
     });
