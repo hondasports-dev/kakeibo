@@ -1,3 +1,11 @@
+/** 件数集計用。truncate しないよう常に collect() を使う。 */
+export async function countQueryDocs<T>(query: { collect?: () => Promise<T[]> }) {
+  if (typeof query.collect === "function") {
+    return await query.collect();
+  }
+  throw new Error("countQueryDocs requires a query with collect()");
+}
+
 export async function readQueryDocs<T>(query: {
   collect?: () => Promise<T[]>;
   take?: (count: number) => Promise<T[]>;

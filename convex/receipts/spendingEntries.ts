@@ -138,10 +138,9 @@ export async function getDateSpendingEntries(ctx: QueryCtx, groupId: Id<"groups"
     .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId).eq("date", date))) {
     expenseEntries.push(entry);
   }
-  if (expenseEntries.length > 0) {
-    return expenseEntries
-      .filter((entry) => entry.entryType !== "income")
-      .map((entry) => mapExpenseEntryToSpendingEntry(entry));
+  const expenseEntriesForDate = expenseEntries.filter((entry) => entry.entryType !== "income");
+  if (expenseEntriesForDate.length > 0) {
+    return expenseEntriesForDate.map((entry) => mapExpenseEntryToSpendingEntry(entry));
   }
 
   const receipts: Array<{
