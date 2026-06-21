@@ -28,33 +28,43 @@ const {
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     aiExpenseDrafts: {
-      getWithItems: "aiExpenseDrafts.getWithItems",
-      listByStatus: "aiExpenseDrafts.listByStatus",
-      registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
-      updateForReview: "aiExpenseDrafts.updateForReview",
-      deleteDraft: "aiExpenseDrafts.deleteDraft",
+      queries: {
+        getWithItems: "aiExpenseDrafts.queries.getWithItems",
+        listByStatus: "aiExpenseDrafts.queries.listByStatus",
+      },
+      mutations: {
+        registerReadyDrafts: "aiExpenseDrafts.mutations.registerReadyDrafts",
+        updateForReview: "aiExpenseDrafts.mutations.updateForReview",
+        deleteDraft: "aiExpenseDrafts.mutations.deleteDraft",
+      },
     },
     receiptAnalysisJobs: {
-      listJobs: "receiptAnalysisJobs.listJobs",
-      createBatch: "receiptAnalysisJobs.createBatch",
-      analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
-      retryImageJob: "receiptAnalysisJobs.retryImageJob",
-      cancelImageJob: "receiptAnalysisJobs.cancelImageJob",
+      queries: {
+        listJobs: "receiptAnalysisJobs.queries.listJobs",
+      },
+      mutations: {
+        createBatch: "receiptAnalysisJobs.mutations.createBatch",
+        retryImageJob: "receiptAnalysisJobs.mutations.retryImageJob",
+        cancelImageJob: "receiptAnalysisJobs.mutations.cancelImageJob",
+      },
+      actions: {
+        analyzeImageJob: "receiptAnalysisJobs.actions.analyzeImageJob",
+      },
     },
   },
 }));
 
 vi.mock("convex/react", () => ({
   useMutation: (reference: string) => {
-    if (reference === "aiExpenseDrafts.updateForReview") return updateForReviewMock;
-    if (reference === "aiExpenseDrafts.deleteDraft") return deleteDraftMock;
-    if (reference === "receiptAnalysisJobs.createBatch") return createBatchMock;
-    if (reference === "receiptAnalysisJobs.retryImageJob") return retryImageJobMock;
-    if (reference === "receiptAnalysisJobs.cancelImageJob") return cancelImageJobMock;
+    if (reference === "aiExpenseDrafts.mutations.updateForReview") return updateForReviewMock;
+    if (reference === "aiExpenseDrafts.mutations.deleteDraft") return deleteDraftMock;
+    if (reference === "receiptAnalysisJobs.mutations.createBatch") return createBatchMock;
+    if (reference === "receiptAnalysisJobs.mutations.retryImageJob") return retryImageJobMock;
+    if (reference === "receiptAnalysisJobs.mutations.cancelImageJob") return cancelImageJobMock;
     return registerReadyDraftsMock;
   },
   useAction: (reference: string) => {
-    if (reference === "receiptAnalysisJobs.analyzeImageJob") return analyzeImageJobMock;
+    if (reference === "receiptAnalysisJobs.actions.analyzeImageJob") return analyzeImageJobMock;
     return vi.fn();
   },
   useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
@@ -90,7 +100,7 @@ describe("AiExpenseQueuePanel", () => {
     deleteDraftMock.mockResolvedValue({ deleted: true });
     useQueryMock.mockReset();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.listJobs") return [];
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
       return [];
     });
   });
@@ -115,7 +125,7 @@ describe("AiExpenseQueuePanel", () => {
   it("複数画像を選ぶとキューへ解析待ちとして追加される", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.listJobs") {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
         return [
           { _id: "job-1", fileName: "first-receipt.png", status: "queued" },
           { _id: "job-2", fileName: "second-payment.png", status: "queued" },
@@ -153,7 +163,7 @@ describe("AiExpenseQueuePanel", () => {
       jobs: [{ _id: "job-camera-1" }, { _id: "job-camera-2" }],
     });
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.listJobs") {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
         return [{ _id: "job-camera-1", fileName: "camera-receipt.png", status: "queued" }];
       }
       return [];
@@ -230,7 +240,7 @@ describe("AiExpenseQueuePanel", () => {
   it("失敗ジョブの画像を選び直して再試行できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.listJobs") {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
         return [
           {
             _id: "job-failed",
@@ -275,7 +285,7 @@ describe("AiExpenseQueuePanel", () => {
   it("処理中ジョブをキューから削除できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.listJobs") {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
         return [
           {
             _id: "job-running",
@@ -319,7 +329,7 @@ describe("AiExpenseQueuePanel", () => {
     const user = userEvent.setup();
     const createImageBitmapSpy = rejectImageDecoding();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.listJobs") {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
         return [
           {
             _id: "job-failed",
@@ -368,7 +378,7 @@ describe("AiExpenseQueuePanel", () => {
   it("確認が必要な下書きを理由表示つきで編集し、そのまま登録する", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
-      if (reference !== "aiExpenseDrafts.getWithItems" || args === "skip") {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
         return [];
       }
       return {
@@ -423,7 +433,7 @@ describe("AiExpenseQueuePanel", () => {
   it("確認下書きの詳細読み込み前はフォーム送信できない", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
-      if (reference === "aiExpenseDrafts.getWithItems" && args !== "skip") {
+      if (reference === "aiExpenseDrafts.queries.getWithItems" && args !== "skip") {
         return undefined;
       }
       return [];
@@ -445,7 +455,7 @@ describe("AiExpenseQueuePanel", () => {
   it("確認下書きが見つからない場合はローディングを続けずエラーを表示する", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
-      if (reference === "aiExpenseDrafts.getWithItems" && args !== "skip") {
+      if (reference === "aiExpenseDrafts.queries.getWithItems" && args !== "skip") {
         return null;
       }
       return [];

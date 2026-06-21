@@ -13,66 +13,82 @@ const { createExpenseEntriesMock, aiExpenseDraftsByStatusQueryMock } = vi.hoiste
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     expenseEntries: {
-      createExpenseEntries: "expenseEntries.createExpenseEntries",
+      mutations: {
+        createExpenseEntries: "expenseEntries.mutations.createExpenseEntries",
+      },
     },
     aiExpenseDrafts: {
-      deleteDraft: "aiExpenseDrafts.deleteDraft",
-      listByStatus: "aiExpenseDrafts.listByStatus",
-      registerReadyDrafts: "aiExpenseDrafts.registerReadyDrafts",
+      mutations: {
+        deleteDraft: "aiExpenseDrafts.mutations.deleteDraft",
+        registerReadyDrafts: "aiExpenseDrafts.mutations.registerReadyDrafts",
+      },
+      queries: {
+        listByStatus: "aiExpenseDrafts.queries.listByStatus",
+      },
     },
     users: {
-      acceptReceiptImageExternalApiConsent: "users.acceptReceiptImageExternalApiConsent",
-      getReceiptImageConsent: "users.getReceiptImageConsent",
+      mutations: {
+        acceptReceiptImageExternalApiConsent: "users.mutations.acceptReceiptImageExternalApiConsent",
+      },
+      queries: {
+        getReceiptImageConsent: "users.queries.getReceiptImageConsent",
+      },
     },
     receiptAnalysisJobs: {
-      listJobs: "receiptAnalysisJobs.listJobs",
-      createBatch: "receiptAnalysisJobs.createBatch",
-      analyzeImageJob: "receiptAnalysisJobs.analyzeImageJob",
-      retryImageJob: "receiptAnalysisJobs.retryImageJob",
-      cancelImageJob: "receiptAnalysisJobs.cancelImageJob",
+      queries: {
+        listJobs: "receiptAnalysisJobs.queries.listJobs",
+      },
+      mutations: {
+        createBatch: "receiptAnalysisJobs.mutations.createBatch",
+        retryImageJob: "receiptAnalysisJobs.mutations.retryImageJob",
+        cancelImageJob: "receiptAnalysisJobs.mutations.cancelImageJob",
+      },
+      actions: {
+        analyzeImageJob: "receiptAnalysisJobs.actions.analyzeImageJob",
+      },
     },
   },
 }));
 
 vi.mock("convex/react", () => ({
   useMutation: (functionRef: string) => {
-    if (functionRef === "expenseEntries.createExpenseEntries") {
+    if (functionRef === "expenseEntries.mutations.createExpenseEntries") {
       return createExpenseEntriesMock;
     }
-    if (functionRef === "aiExpenseDrafts.deleteDraft") {
+    if (functionRef === "aiExpenseDrafts.mutations.deleteDraft") {
       return vi.fn().mockResolvedValue({ deleted: true });
     }
-    if (functionRef === "aiExpenseDrafts.registerReadyDrafts") {
+    if (functionRef === "aiExpenseDrafts.mutations.registerReadyDrafts") {
       return vi.fn().mockResolvedValue(undefined);
     }
-    if (functionRef === "receiptAnalysisJobs.createBatch") {
+    if (functionRef === "receiptAnalysisJobs.mutations.createBatch") {
       return vi.fn().mockResolvedValue({ batch: { _id: "batch-1" }, jobs: [] });
     }
-    if (functionRef === "receiptAnalysisJobs.retryImageJob") {
+    if (functionRef === "receiptAnalysisJobs.mutations.retryImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
-    if (functionRef === "receiptAnalysisJobs.cancelImageJob") {
+    if (functionRef === "receiptAnalysisJobs.mutations.cancelImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
-    if (functionRef === "users.acceptReceiptImageExternalApiConsent") {
+    if (functionRef === "users.mutations.acceptReceiptImageExternalApiConsent") {
       return vi.fn().mockResolvedValue(undefined);
     }
     return vi.fn().mockResolvedValue(undefined);
   },
   useAction: (functionRef: string) => {
-    if (functionRef === "receiptAnalysisJobs.analyzeImageJob") {
+    if (functionRef === "receiptAnalysisJobs.actions.analyzeImageJob") {
       return vi.fn().mockResolvedValue(undefined);
     }
     return vi.fn().mockResolvedValue(undefined);
   },
   useQuery: (functionRef: string, args?: unknown) => {
-    if (functionRef === "users.getReceiptImageConsent") {
+    if (functionRef === "users.queries.getReceiptImageConsent") {
       return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
     }
-    if (functionRef === "aiExpenseDrafts.listByStatus") {
+    if (functionRef === "aiExpenseDrafts.queries.listByStatus") {
       return aiExpenseDraftsByStatusQueryMock(args);
     }
-    if (functionRef === "receiptAnalysisJobs.listJobs") {
+    if (functionRef === "receiptAnalysisJobs.queries.listJobs") {
       return [];
     }
     return undefined;
