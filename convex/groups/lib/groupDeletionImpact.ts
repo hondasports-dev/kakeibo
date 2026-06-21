@@ -1,5 +1,6 @@
 import type { Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
+import { countQueryDocs } from "./groupQueryHelpers";
 
 export type GroupDeletionImpactCounts = {
   members: number;
@@ -16,31 +17,18 @@ export type GroupDeletionImpactCounts = {
   weekSessions: number;
 };
 
-async function readQueryDocs<T>(query: {
-  collect?: () => Promise<T[]>;
-  take?: (count: number) => Promise<T[]>;
-}) {
-  if (typeof query.collect === "function") {
-    return await query.collect();
-  }
-  if (typeof query.take === "function") {
-    return await query.take(100);
-  }
-  return [];
-}
-
 export async function countGroupDeletionImpact(
   ctx: Pick<QueryCtx, "db">,
   groupId: Id<"groups">,
 ): Promise<GroupDeletionImpactCounts> {
-  const members = await readQueryDocs(
+  const members = await countQueryDocs(
     ctx.db.query("groupMembers").withIndex("by_group_id", (q) => q.eq("groupId", groupId)),
   );
 
   const invitationStatuses = ["pending", "accepted", "revoked", "expired"] as const;
   let invitations = 0;
   for (const status of invitationStatuses) {
-    const statusInvitations = await readQueryDocs(
+    const statusInvitations = await countQueryDocs(
       ctx.db
         .query("groupInvitations")
         .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId).eq("status", status)),
@@ -48,45 +36,45 @@ export async function countGroupDeletionImpact(
     invitations += statusInvitations.length;
   }
 
-  const sourceDocuments = await readQueryDocs(
+  const sourceDocuments = await countQueryDocs(
     ctx.db
       .query("sourceDocuments")
       .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId)),
   );
-  const expenseEntries = await readQueryDocs(
+  const expenseEntries = await countQueryDocs(
     ctx.db
       .query("expenseEntries")
       .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId)),
   );
-  const receipts = await readQueryDocs(
+  const receipts = await countQueryDocs(
     ctx.db.query("receipts").withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId)),
   );
-  const categories = await readQueryDocs(
+  const categories = await countQueryDocs(
     ctx.db
       .query("categories")
       .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId)),
   );
-  const aiDrafts = await readQueryDocs(
+  const aiDrafts = await countQueryDocs(
     ctx.db
       .query("aiExpenseDrafts")
       .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId)),
   );
-  const aiDraftItems = await readQueryDocs(
+  const aiDraftItems = await countQueryDocs(
     ctx.db
       .query("aiExpenseDraftItems")
       .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId)),
   );
-  const analysisBatches = await readQueryDocs(
+  const analysisBatches = await countQueryDocs(
     ctx.db
       .query("receiptAnalysisBatches")
       .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId)),
   );
-  const analysisJobs = await readQueryDocs(
+  const analysisJobs = await countQueryDocs(
     ctx.db
       .query("receiptAnalysisImageJobs")
       .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId)),
   );
-  const weekSessions = await readQueryDocs(
+  const weekSessions = await countQueryDocs(
     ctx.db
       .query("weekSessions")
       .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId)),

@@ -410,6 +410,45 @@ describe("groups", () => {
     await expect(getGroupMembership(ctx)).resolves.toBeNull();
   });
 
+  it("getGroupMembership は削除済み activeGroupId のグループを返さない", async () => {
+    const userId = "https://issuer.example|user-deleted-active";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-deleted-active" as Id<"users">,
+          userId,
+          displayName: "ユーザー",
+          activeGroupId: "group-deleted" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groups: [
+        {
+          _id: "group-deleted" as Id<"groups">,
+          name: "削除済み",
+          status: "deleted",
+          deletedAt: 2000,
+          createdAt: 1000,
+          updatedAt: 2000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-deleted" as Id<"groupMembers">,
+          groupId: "group-deleted" as Id<"groups">,
+          userId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(userId));
+
+    await expect(getGroupMembership(ctx)).resolves.toBeNull();
+  });
+
   it("createGroupHandler は既存の所属があっても新しいグループを作り、activeGroupId を更新する", async () => {
     const userId = "https://issuer.example|owner";
     const ctx = createMockDb({
