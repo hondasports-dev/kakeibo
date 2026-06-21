@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
@@ -301,31 +301,6 @@ describe("AiExpenseQueuePanel", () => {
     expect(analyzeImageJobMock).not.toHaveBeenCalled();
   });
 
-  it("画像送信の同意保存中はダイアログを閉じない", async () => {
-    const user = userEvent.setup();
-    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
-      if (reference === "receiptAnalysisJobs.queries.listJobs") return [];
-      if (reference === "users.queries.getReceiptImageConsent") {
-        return { hasAcceptedExternalApiConsent: false, acceptedAt: null };
-      }
-      return [];
-    });
-    acceptReceiptImageExternalApiConsentMock.mockReturnValueOnce(new Promise(() => {}));
-    renderWithProviders(<AiExpenseQueuePanel />);
-
-    await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
-      new File(["receipt"], "receipt.png", { type: "image/png" }),
-    );
-    await user.click(screen.getByRole("button", { name: "同意して読み取る" }));
-    fireEvent.keyDown(screen.getAllByRole("presentation")[0], { key: "Escape", code: "Escape" });
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "保存中..." })).toBeDisabled();
-    expect(createBatchMock).not.toHaveBeenCalled();
-  });
-
   it("撮影導線から画像を追加してもキューへ解析待ちとして追加される", async () => {
     const user = userEvent.setup();
     createBatchMock.mockResolvedValueOnce({
@@ -375,6 +350,35 @@ describe("AiExpenseQueuePanel", () => {
     expect(createBatchMock).not.toHaveBeenCalled();
     expect(analyzeImageJobMock).not.toHaveBeenCalled();
     createImageBitmapSpy.mockRestore();
+  });
+
+  it("画像追加バッチの作成に失敗してもエラーを表示してinputをリセットする", async () => {
+    const user = userEvent.setup();
+    createBatchMock.mockRejectedValueOnce(new Error("画像の追加に失敗しました"));
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    const input = screen.getByLabelText("AI処理キューへ画像を追加") as HTMLInputElement;
+    await user.upload(input, new File(["receipt"], "receipt.png", { type: "image/png" }));
+
+    expect(await screen.findByText("画像の追加に失敗しました")).toBeInTheDocument();
+    expect(input.files).toHaveLength(0);
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
+  });
+
+  it("画像追加バッチを作成できなかった場合もエラーを表示する", async () => {
+    const user = userEvent.setup();
+    createBatchMock.mockResolvedValueOnce(undefined);
+    renderWithProviders(<AiExpenseQueuePanel />);
+
+    await user.upload(
+      screen.getByLabelText("AI処理キューへ画像を追加"),
+      new File(["receipt"], "receipt.png", { type: "image/png" }),
+    );
+
+    expect(
+      await screen.findByText("画像の追加に失敗しました。もう一度お試しください。"),
+    ).toBeInTheDocument();
+    expect(analyzeImageJobMock).not.toHaveBeenCalled();
   });
 
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {

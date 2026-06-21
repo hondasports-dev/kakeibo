@@ -29,6 +29,7 @@ export function useImageUpload() {
 
     const result = await createBatch({ fileNames: files.map((f) => f.name) });
     if (!result) {
+      setUploadError("画像の追加に失敗しました。もう一度お試しください。");
       return;
     }
 
@@ -48,19 +49,26 @@ export function useImageUpload() {
   };
 
   const handleFilesSelected = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
     if (files.length === 0) {
       return;
     }
 
-    if (receiptImageConsent?.hasAcceptedExternalApiConsent !== true) {
-      setPendingConsentFiles(files);
-      event.target.value = "";
-      return;
-    }
+    try {
+      if (receiptImageConsent?.hasAcceptedExternalApiConsent !== true) {
+        setPendingConsentFiles(files);
+        return;
+      }
 
-    await processFiles(files);
-    event.target.value = "";
+      await processFiles(files);
+    } catch (err) {
+      setUploadError(
+        err instanceof Error ? err.message : "画像の追加に失敗しました。もう一度お試しください。",
+      );
+    } finally {
+      input.value = "";
+    }
   };
 
   const handleAcceptConsent = async () => {
