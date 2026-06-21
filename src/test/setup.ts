@@ -3,7 +3,9 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
 afterEach(() => {
-  cleanup();
+  if (typeof document !== "undefined") {
+    cleanup();
+  }
 });
 
 // jsdom は createImageBitmap / HTMLCanvasElement.toDataURL を実装していないため
@@ -16,18 +18,20 @@ if (typeof globalThis.createImageBitmap !== "function") {
   });
 }
 
-// Canvas の getContext と toDataURL のスタブ
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-(HTMLCanvasElement.prototype as any).getContext = function (contextId: string) {
-  if (contextId === "2d") {
-    return {
-      clearRect: vi.fn(),
-      drawImage: vi.fn(),
-    } as unknown as CanvasRenderingContext2D;
-  }
-  return null;
-};
+if (typeof HTMLCanvasElement !== "undefined") {
+  // Canvas の getContext と toDataURL のスタブ
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (HTMLCanvasElement.prototype as any).getContext = function (contextId: string) {
+    if (contextId === "2d") {
+      return {
+        clearRect: vi.fn(),
+        drawImage: vi.fn(),
+      } as unknown as CanvasRenderingContext2D;
+    }
+    return null;
+  };
 
-HTMLCanvasElement.prototype.toDataURL = vi
-  .fn()
-  .mockReturnValue("data:image/jpeg;base64,mockBase64Data");
+  HTMLCanvasElement.prototype.toDataURL = vi
+    .fn()
+    .mockReturnValue("data:image/jpeg;base64,mockBase64Data");
+}

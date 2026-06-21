@@ -12,6 +12,13 @@ import {
   managementAuditActionValidator,
   managementAuditTargetKindValidator,
 } from "./groups/lib/managementAuditLogModel";
+import {
+  systemAdminAuditActionValidator,
+  systemAdminAuditActorTypeValidator,
+  systemAdminAuditTargetKindValidator,
+  systemAdminSearchQueryTypeValidator,
+  systemAdminStatusValidator,
+} from "./systemAdmin/model";
 
 export default defineSchema({
   users: defineTable({
@@ -36,7 +43,43 @@ export default defineSchema({
     // Issue #8 要件: users には by_token_identifier index を定義する。
     // 旧 by_user_id インデックスはこのインデックスに一本化した。
     .index("by_token_identifier", ["userId"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .searchIndex("search_display_name", { searchField: "displayName" })
+    .searchIndex("search_email", { searchField: "email" }),
+
+  systemAdmins: defineTable({
+    userId: v.id("users"),
+    status: systemAdminStatusValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    grantedAt: v.number(),
+    grantedByUserId: v.optional(v.id("users")),
+    grantReason: v.string(),
+    revokedAt: v.optional(v.number()),
+    revokedByUserId: v.optional(v.id("users")),
+    revokeReason: v.optional(v.string()),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_status", ["status"]),
+
+  systemAdminAuditLogs: defineTable({
+    action: systemAdminAuditActionValidator,
+    actorType: systemAdminAuditActorTypeValidator,
+    actorUserId: v.optional(v.id("users")),
+    targetKind: systemAdminAuditTargetKindValidator,
+    targetUserId: v.optional(v.id("users")),
+    targetId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    queryType: v.optional(systemAdminSearchQueryTypeValidator),
+    queryHash: v.optional(v.string()),
+    resultCount: v.optional(v.number()),
+    previousStatus: v.optional(systemAdminStatusValidator),
+    newStatus: v.optional(systemAdminStatusValidator),
+    createdAt: v.number(),
+  })
+    .index("by_created_at", ["createdAt"])
+    .index("by_actor_user_id_and_created_at", ["actorUserId", "createdAt"])
+    .index("by_target_kind_and_target_id_and_created_at", ["targetKind", "targetId", "createdAt"]),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）
@@ -50,7 +93,7 @@ export default defineSchema({
     archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }),
+  }).searchIndex("search_name", { searchField: "name" }),
 
   groupMembers: defineTable({
     groupId: v.id("groups"),

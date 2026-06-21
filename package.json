@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@clerk/testing": "^2.0.35",
+    "@edge-runtime/vm": "^5.0.0",
     "@playwright/test": "^1.61.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -47,6 +48,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "chrome-devtools-mcp": "^1.2.0",
     "clerk": "^1.5.0",
+    "convex-test": "^0.0.53",
     "dotenv": "^17.4.2",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
