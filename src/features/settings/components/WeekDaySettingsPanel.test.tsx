@@ -12,8 +12,12 @@ const { useMutationMock, useQueryMock } = vi.hoisted(() => ({
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     users: {
-      getUserProfile: "users.getUserProfile",
-      updateWeeklyDays: "users.updateWeeklyDays",
+      queries: {
+        getUserProfile: "users.queries.getUserProfile",
+      },
+      mutations: {
+        updateWeeklyDays: "users.mutations.updateWeeklyDays",
+      },
     },
   },
 }));

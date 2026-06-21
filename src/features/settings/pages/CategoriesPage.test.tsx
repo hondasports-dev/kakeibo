@@ -11,10 +11,14 @@ const { useMutationMock, useQueryMock } = vi.hoisted(() => ({
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     categories: {
-      createCategory: "categories.createCategory",
-      deactivateCategory: "categories.deactivateCategory",
-      listForSettings: "categories.listForSettings",
-      updateCategory: "categories.updateCategory",
+      queries: {
+        listForSettings: "categories.queries.listForSettings",
+      },
+      mutations: {
+        createCategory: "categories.mutations.createCategory",
+        deactivateCategory: "categories.mutations.deactivateCategory",
+        updateCategory: "categories.mutations.updateCategory",
+      },
     },
   },
 }));
