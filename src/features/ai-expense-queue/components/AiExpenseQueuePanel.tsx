@@ -2,6 +2,7 @@ import { Alert, Box, Stack } from "@mui/material";
 import { QueueContent } from "./QueueContent";
 import { QueueHeader } from "./QueueHeader";
 import { ReviewDialog } from "./ReviewDialog";
+import { ReceiptImageConsentDialog } from "./ReceiptImageConsentDialog";
 import { useAiExpenseQueuePanel } from "../hooks/useAiExpenseQueuePanel";
 import type { AiExpenseQueuePanelProps } from "../types/types";
 
@@ -28,6 +29,7 @@ export function AiExpenseQueuePanel({
     >
       <Stack spacing={2}>
         <QueueHeader
+          disabled={queue.consentIsLoading}
           inputRef={queue.inputRef}
           cameraInputRef={queue.cameraInputRef}
           retryInputRef={queue.retryInputRef}
@@ -83,6 +85,13 @@ export function AiExpenseQueuePanel({
         onClose={queue.handleCloseReview}
         onFieldChange={queue.handleReviewFieldChange}
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
+      />
+
+      <ReceiptImageConsentDialog
+        open={queue.consentDialogOpen}
+        saving={queue.consentStatus === "saving"}
+        onAccept={() => void queue.handleAcceptConsent()}
+        onDecline={queue.handleDeclineConsent}
       />
     </Box>
   );

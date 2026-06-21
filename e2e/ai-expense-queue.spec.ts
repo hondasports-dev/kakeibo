@@ -78,7 +78,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
 
     const queue = page.getByRole("region", { name: "AI処理キュー" });
     await expect(queue).toBeVisible();
-    await expect(queue.getByRole("button", { name: "撮影する" })).toBeVisible();
+    await expect(queue.getByRole("button", { name: "撮影する" })).toBeEnabled();
     await expect(page.getByLabel("AI処理キューへカメラで追加")).toHaveAttribute(
       "capture",
       "environment",
@@ -99,6 +99,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
 
     const queue = page.getByRole("region", { name: "AI処理キュー" });
     await expect(queue).toBeVisible();
+    await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
     const stamp = Date.now();
     const queueFiles = [
       await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),
