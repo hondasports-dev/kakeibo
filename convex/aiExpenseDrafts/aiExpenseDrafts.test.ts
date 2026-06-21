@@ -1,19 +1,17 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { ActionCtx, MutationCtx, QueryCtx } from "./_generated/server";
+import type { Id } from "../_generated/dataModel";
+import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
+import { analyzeReceiptImageToDraftHandler } from "./actions";
+import { createFailedDraftFromImageAnalysisHandler, createFromExtractionHandler } from "./internal";
+import { getWithItemsHandler, listByStatusHandler } from "./queries";
 import {
-  analyzeReceiptImageToDraftHandler,
-  createFailedDraftFromImageAnalysisHandler,
-  createFromExtractionHandler,
   deleteDraftHandler,
-  getWithItemsHandler,
-  listByStatusHandler,
   registerReadyDraftsAsExpenseEntriesHandler,
   registerReadyDraftsHandler,
   updateForReviewHandler,
-} from "./aiExpenseDrafts";
+} from "./mutations";
 
 type DraftDoc = {
   _id: string;

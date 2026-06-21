@@ -9,8 +9,8 @@ export function useQueueDelete() {
   const [hiddenItemIds, setHiddenItemIds] = useState<string[]>([]);
   const [queueDeleteError, setQueueDeleteError] = useState("");
 
-  const cancelImageJob = useMutation(api.receiptAnalysisJobs.cancelImageJob);
-  const deleteDraft = useMutation(api.aiExpenseDrafts.deleteDraft);
+  const cancelImageJob = useMutation(api.receiptAnalysisJobs.mutations.cancelImageJob);
+  const deleteDraft = useMutation(api.aiExpenseDrafts.mutations.deleteDraft);
 
   const deleteQueueItem = async (item: AiExpenseQueueItem) => {
     if (deletingIds.includes(item.id)) {

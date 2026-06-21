@@ -17,7 +17,7 @@ type MyGroup = {
 export function GroupSelectPage() {
   const navigate = useNavigate();
   const { groups, hasGroups, isLoading } = useGroupMembership();
-  const setActiveGroup = useMutation(api.groups.setActiveGroup);
+  const setActiveGroup = useMutation(api.groups.mutations.setActiveGroup);
 
   if (isLoading) {
     return (

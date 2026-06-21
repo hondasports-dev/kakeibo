@@ -1,6 +1,8 @@
+import { query } from "../_generated/server";
+import { v } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { requireGroupMembership } from "../groups";
+import { requireGroupMembership } from "../groups/membership";
 import { calculateRelativeWeekStartDate } from "../utils";
 import {
   addDays,
@@ -276,3 +278,38 @@ export async function getMonthlyExpensesSummaryHandler(
     remainingBalanceYen,
   };
 }
+
+export const getWeekSummary = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getWeekSummaryHandler,
+});
+
+export const getWeekSummaryWithCategories = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getWeekSummaryWithCategoriesHandler,
+});
+
+export const getFourWeeksSummary = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getFourWeeksSummaryHandler,
+});
+
+export const getDailySpendingTrend = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getDailySpendingTrendHandler,
+});
+
+export const getMonthlyExpensesSummary = query({
+  args: {
+    monthStartDate: v.string(),
+  },
+  handler: getMonthlyExpensesSummaryHandler,
+});

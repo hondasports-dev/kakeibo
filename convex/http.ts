@@ -104,7 +104,7 @@ http.route({
     const resolvedGroupId =
       body.groupId ??
       (resolvedUserId
-        ? await ctx.runQuery(internal.groups.getGroupIdByUserId, { userId: resolvedUserId })
+        ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
         : null);
 
     const requestedUserScopedCleanup = Boolean(
@@ -130,7 +130,7 @@ http.route({
 
     let receipts: { deletedCount: number } | null = null;
     if (resolvedGroupId) {
-      receipts = await ctx.runMutation(internal.receipts.deleteReceiptsByUser, {
+      receipts = await ctx.runMutation(internal.receipts.crud.deleteReceiptsByUser, {
         groupId: resolvedGroupId as never,
       });
     }
@@ -152,7 +152,7 @@ http.route({
           deletedDraftCount: number;
           deletedItemCount: number;
           hasMore: boolean;
-        } = await ctx.runMutation(internal.aiExpenseDrafts.deleteDraftsByUserBatch, {
+        } = await ctx.runMutation(internal.aiExpenseDrafts.internal.deleteDraftsByUserBatch, {
           groupId: resolvedGroupId as never,
         });
         deletedDraftCount += draftResult.deletedDraftCount;
@@ -164,9 +164,12 @@ http.route({
 
       while (true) {
         const jobResult: { deletedBatchCount: number; deletedJobCount: number; hasMore: boolean } =
-          await ctx.runMutation(internal.receiptAnalysisJobs.deleteReceiptAnalysisDataByUserBatch, {
-            groupId: resolvedGroupId as never,
-          });
+          await ctx.runMutation(
+            internal.receiptAnalysisJobs.internal.deleteReceiptAnalysisDataByUserBatch,
+            {
+              groupId: resolvedGroupId as never,
+            },
+          );
         deletedBatchCount += jobResult.deletedBatchCount;
         deletedJobCount += jobResult.deletedJobCount;
         if (!jobResult.hasMore) {
@@ -224,7 +227,7 @@ http.route({
     let groupMemberships: { deletedCount: number } | null = null;
     if (body.clearGroupMemberships) {
       if (resolvedUserId) {
-        groupMemberships = await ctx.runMutation(internal.groups.deleteGroupMembershipsByUser, {
+        groupMemberships = await ctx.runMutation(internal.groups.e2e.deleteGroupMembershipsByUser, {
           userId: resolvedUserId,
         });
       }
@@ -232,7 +235,7 @@ http.route({
 
     let groupMemberRole: { updated: boolean } | null = null;
     if (body.setGroupMemberRole && resolvedUserId) {
-      groupMemberRole = await ctx.runMutation(internal.groups.setGroupMemberRoleForE2e, {
+      groupMemberRole = await ctx.runMutation(internal.groups.e2e.setGroupMemberRoleForE2e, {
         userId: resolvedUserId,
         role: body.setGroupMemberRole,
       });
@@ -240,7 +243,7 @@ http.route({
 
     let groupInvitations: { deletedCount: number } | null = null;
     if (resolvedGroupId && body.clearGroupInvitations) {
-      groupInvitations = await ctx.runMutation(internal.groups.clearGroupInvitationsForE2e, {
+      groupInvitations = await ctx.runMutation(internal.groups.e2e.clearGroupInvitationsForE2e, {
         groupId: resolvedGroupId as never,
       });
     }
@@ -263,7 +266,7 @@ http.route({
         );
       }
 
-      seededGroupMember = await ctx.runMutation(internal.groups.seedGroupMemberForE2e, {
+      seededGroupMember = await ctx.runMutation(internal.groups.e2e.seedGroupMemberForE2e, {
         groupId: resolvedGroupId as never,
         displayName,
         email: memberEmail,
@@ -324,7 +327,7 @@ http.route({
     const resolvedGroupId =
       body.groupId ??
       (resolvedUserId
-        ? await ctx.runQuery(internal.groups.getGroupIdByUserId, { userId: resolvedUserId })
+        ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
         : null);
 
     if (!resolvedGroupId) {
@@ -339,10 +342,13 @@ http.route({
       name: "E2Eカテゴリ-Issue179",
       color: "#AAB7C4",
     });
-    const draftId = await ctx.runMutation(internal.aiExpenseDrafts.createE2eReadyDraftForUser, {
-      groupId: resolvedGroupId as never,
-      categoryId,
-    });
+    const draftId = await ctx.runMutation(
+      internal.aiExpenseDrafts.internal.createE2eReadyDraftForUser,
+      {
+        groupId: resolvedGroupId as never,
+        categoryId,
+      },
+    );
 
     return new Response(JSON.stringify({ draftId, categoryId }), {
       status: 200,
@@ -390,7 +396,7 @@ http.route({
     const resolvedGroupId =
       body.groupId ??
       (resolvedUserId
-        ? await ctx.runQuery(internal.groups.getGroupIdByUserId, { userId: resolvedUserId })
+        ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
         : null);
 
     if (!resolvedGroupId || !resolvedUserId) {
@@ -408,11 +414,14 @@ http.route({
       });
     }
 
-    const invitationId = await ctx.runMutation(internal.groups.seedPendingGroupInvitationForE2e, {
-      groupId: resolvedGroupId as never,
-      email: invitationEmail,
-      invitedByUserId: resolvedUserId,
-    });
+    const invitationId = await ctx.runMutation(
+      internal.groups.e2e.seedPendingGroupInvitationForE2e,
+      {
+        groupId: resolvedGroupId as never,
+        email: invitationEmail,
+        invitedByUserId: resolvedUserId,
+      },
+    );
 
     return new Response(JSON.stringify({ invitationId }), {
       status: 200,

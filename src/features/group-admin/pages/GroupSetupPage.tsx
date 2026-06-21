@@ -21,7 +21,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function GroupSetupPage() {
   const navigate = useNavigate();
-  const createGroup = useMutation(api.groups.createGroup);
+  const createGroup = useMutation(api.groups.mutations.createGroup);
   const [groupName, setGroupName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");

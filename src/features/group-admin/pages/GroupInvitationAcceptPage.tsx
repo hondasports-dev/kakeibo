@@ -121,7 +121,7 @@ export function GroupInvitationAcceptPage() {
   const signIn = rawSignIn as unknown as ClerkSignIn | undefined;
   const signUp = rawSignUp as unknown as ClerkSignUp | undefined;
   const { isAuthenticated } = useConvexAuth();
-  const acceptInvitation = useAction(api.groupInvitations.acceptInvitation);
+  const acceptInvitation = useAction(api.groups.clerkInvitations.acceptInvitation);
   const [error, setError] = useState("");
   const [needsProfileDetails, setNeedsProfileDetails] = useState(false);
   const [missingProfileFields, setMissingProfileFields] = useState<string[]>([]);

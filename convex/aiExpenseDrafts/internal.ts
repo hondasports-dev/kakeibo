@@ -1,14 +1,19 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import {
   AI_EXPENSE_DRAFT_REVIEW_REASONS,
+  aiExpenseDraftConfidenceValidator,
+  aiExpenseDraftDocumentTypeValidator,
+  aiExpenseDraftItemConfidenceValidator,
+  aiExpenseDraftReviewReasonValidator,
   classifyAiExpenseDraft,
   type AiExpenseDraftConfidence,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
-} from "../aiExpenseDraftsModel";
-import { requireGroupMembership } from "../groups";
+} from "./model";
+import { requireGroupMembership } from "../groups/membership";
 
 type AiExpenseDraftItemInput = {
   itemName: string;
@@ -294,3 +299,62 @@ export async function createE2eReadyDraftForUserHandler(
 
   return draftId;
 }
+
+export const createFromExtraction = internalMutation({
+  args: {
+    documentType: aiExpenseDraftDocumentTypeValidator,
+    shopName: v.optional(v.string()),
+    paymentPlace: v.optional(v.string()),
+    payeeName: v.optional(v.string()),
+    paymentPurpose: v.optional(v.string()),
+    date: v.optional(v.string()),
+    amountYen: v.optional(v.number()),
+    categoryId: v.optional(v.id("categories")),
+    imageFileName: v.optional(v.string()),
+    confidence: aiExpenseDraftConfidenceValidator,
+    warnings: v.array(v.string()),
+    reviewReasons: v.optional(v.array(aiExpenseDraftReviewReasonValidator)),
+    items: v.optional(
+      v.array(
+        v.object({
+          itemName: v.string(),
+          amountYen: v.number(),
+          categoryId: v.optional(v.id("categories")),
+          confidence: aiExpenseDraftItemConfidenceValidator,
+        }),
+      ),
+    ),
+  },
+  handler: createFromExtractionHandler,
+});
+
+export const createFailedDraftFromImageAnalysis = internalMutation({
+  args: {
+    warning: v.string(),
+    imageFileName: v.optional(v.string()),
+  },
+  handler: createFailedDraftFromImageAnalysisHandler,
+});
+
+export const deleteOrphanedDraft = internalMutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: deleteOrphanedDraftHandler,
+});
+
+export const deleteDraftsByUserBatch = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    limit: v.optional(v.number()),
+  },
+  handler: deleteDraftsByUserBatchHandler,
+});
+
+export const createE2eReadyDraftForUser = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    categoryId: v.id("categories"),
+  },
+  handler: createE2eReadyDraftForUserHandler,
+});

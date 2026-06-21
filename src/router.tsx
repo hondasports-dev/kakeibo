@@ -126,7 +126,7 @@ function E2eRegisterAsExpenseEntriesPage() {
   const draftId = new URLSearchParams(window.location.search).get("draftId");
   const { isLoaded, isSignedIn } = useAuth();
   const categories = useQuery(api.categories.listActive, isLoaded && isSignedIn ? {} : "skip");
-  const group = useQuery(api.groups.getMyGroup, isLoaded && isSignedIn ? {} : "skip");
+  const group = useQuery(api.groups.queries.getMyGroup, isLoaded && isSignedIn ? {} : "skip");
   const authenticatedUserId = useQuery(
     api.users.getAuthenticatedUserId,
     isLoaded && isSignedIn ? {} : "skip",
@@ -138,7 +138,9 @@ function E2eRegisterAsExpenseEntriesPage() {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const registerMutation = useMutation(api.aiExpenseDrafts.registerReadyDraftsAsExpenseEntries);
+  const registerMutation = useMutation(
+    api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
+  );
   const isAuthReady = isLoaded && isSignedIn;
   const isConvexReady =
     categories !== undefined && group !== undefined && authenticatedUserId !== undefined;

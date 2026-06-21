@@ -1,7 +1,8 @@
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
+import { internalMutation, mutation, query } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { requireGroupMembership } from "../groups";
+import { requireGroupMembership } from "../groups/membership";
 import { calculateWeekStartDate } from "../utils";
 
 export type CreateReceiptArgs =
@@ -215,3 +216,62 @@ export async function deleteReceiptsByUserHandler(
 
   return { deletedCount: receipts.length };
 }
+
+export const createReceipt = mutation({
+  args: {
+    date: v.string(),
+    type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
+    shopName: v.optional(v.string()),
+    bankName: v.optional(v.string()),
+    amountYen: v.number(),
+    categoryId: v.id("categories"),
+    memo: v.optional(v.string()),
+  },
+  handler: createReceiptHandler,
+});
+
+export const getReceiptsByWeek = query({
+  args: {
+    weekStartDate: v.string(),
+  },
+  handler: getReceiptsByWeekHandler,
+});
+
+export const getReceiptsByDate = query({
+  args: {
+    date: v.string(),
+  },
+  handler: getReceiptsByDateHandler,
+});
+
+export const updateReceipt = mutation({
+  args: {
+    receiptId: v.id("receipts"),
+    date: v.optional(v.string()),
+    shopName: v.optional(v.string()),
+    amountYen: v.optional(v.number()),
+    categoryId: v.optional(v.id("categories")),
+    memo: v.optional(v.string()),
+  },
+  handler: updateReceiptHandler,
+});
+
+export const deleteReceipt = mutation({
+  args: {
+    receiptId: v.id("receipts"),
+  },
+  handler: deleteReceiptHandler,
+});
+
+/**
+ * 指定グループのレシートを全件削除する。
+ *
+ * この mutation は internalMutation として定義されており、外部クライアントから
+ * 直接呼び出せない。E2E テスト用の HTTP エンドポイント（convex/http.ts）経由でのみ呼び出す。
+ */
+export const deleteReceiptsByUser = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+  },
+  handler: deleteReceiptsByUserHandler,
+});

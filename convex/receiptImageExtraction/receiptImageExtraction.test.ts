@@ -1,8 +1,8 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import type { ActionCtx } from "./_generated/server";
-import { extractReceiptFieldsHandler } from "./receiptImageExtraction";
+import type { ActionCtx } from "../_generated/server";
+import { extractReceiptFieldsHandler } from "./extraction";
 
 // ---------------------------------------------------------------------------
 // テスト用ヘルパー

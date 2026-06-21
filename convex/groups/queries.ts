@@ -1,4 +1,10 @@
+import { query } from "../_generated/server";
+import { v } from "convex/values";
 import type { QueryCtx } from "../_generated/server";
+import {
+  groupMemberListItemValidator,
+  groupPendingInvitationListItemValidator,
+} from "./validators";
 import type { GroupDoc } from "../lib/groupTypes";
 import { dedupePendingGroupInvitationsByEmail } from "../lib/groupEmailMatching";
 import { readQueryDoc, readQueryDocs } from "../lib/groupQueryHelpers";
@@ -92,3 +98,25 @@ export async function listPendingGroupInvitationsHandler(ctx: QueryCtx) {
     })),
   );
 }
+
+export const getMyGroup = query({
+  args: {},
+  handler: getMyGroupHandler,
+});
+
+export const listMyGroups = query({
+  args: {},
+  handler: listMyGroupsHandler,
+});
+
+export const getGroupMembers = query({
+  args: {},
+  returns: v.array(groupMemberListItemValidator),
+  handler: getGroupMembersHandler,
+});
+
+export const listPendingGroupInvitations = query({
+  args: {},
+  returns: v.array(groupPendingInvitationListItemValidator),
+  handler: listPendingGroupInvitationsHandler,
+});

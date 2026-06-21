@@ -1,11 +1,11 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Id } from "./_generated/dataModel";
-import type { MutationCtx, QueryCtx } from "./_generated/server";
-import * as groupAdminGuards from "./groupAdminGuards";
-import { GROUP_ADMIN_ERRORS } from "./groupAdminGuards";
-import * as deleteGroupPhysically from "./lib/deleteGroupPhysically";
+import type { Id } from "../_generated/dataModel";
+import type { MutationCtx, QueryCtx } from "../_generated/server";
+import * as groupAdminGuards from "./adminGuards";
+import { GROUP_ADMIN_ERRORS } from "./adminGuards";
+import * as deleteGroupPhysically from "../lib/deleteGroupPhysically";
 import {
   acceptGroupInvitationForVerifiedEmailsHandler,
   acceptGroupInvitationHandler,
@@ -17,27 +17,23 @@ import {
   invitationEmailsMatch,
   invitationEmailsMatchAny,
   cancelPendingGroupInvitationHandler,
-} from "./groups/invitations";
-import { deleteGroupHandler } from "./groups/deletion";
-import { seedGroupMemberForE2eHandler } from "./groups/e2e";
-import { sortGroupMembersForDisplay } from "./groups/memberDisplay";
-import { getGroupMembership } from "./groups/membership";
+} from "./invitations";
+import { deleteGroupHandler } from "./deletion";
+import { seedGroupMemberForE2eHandler } from "./e2e";
+import { sortGroupMembersForDisplay } from "./memberDisplay";
+import { getGroupMembership } from "./membership";
 import {
   addMemberByEmailHandler,
   changeMemberRoleHandler,
   removeMemberHandler,
   transferGroupOwnershipHandler,
-} from "./groups/members";
-import {
-  createGroupHandler,
-  setActiveGroupHandler,
-  updateGroupNameHandler,
-} from "./groups/mutations";
+} from "./members";
+import { createGroupHandler, setActiveGroupHandler, updateGroupNameHandler } from "./mutations";
 import {
   getGroupMembersHandler,
   listMyGroupsHandler,
   listPendingGroupInvitationsHandler,
-} from "./groups/queries";
+} from "./queries";
 
 type GroupDoc = {
   _id: Id<"groups">;

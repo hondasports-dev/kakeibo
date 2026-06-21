@@ -51,22 +51,30 @@ vi.mock("@clerk/react", () => ({
 
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
-    groupInvitations: {
-      cancelPendingGroupInvitation: "groupInvitations.cancelPendingGroupInvitation",
-      inviteMember: "groupInvitations.inviteMember",
-    },
     groups: {
-      getGroupMembers: "groups.getGroupMembers",
-      getMyGroup: "groups.getMyGroup",
-      listMyGroups: "groups.listMyGroups",
-      listPendingGroupInvitations: "groups.listPendingGroupInvitations",
-      removeMember: "groups.removeMember",
-      changeMemberRole: "groups.changeMemberRole",
-      transferGroupOwnership: "groups.transferGroupOwnership",
-      setActiveGroup: "groups.setActiveGroup",
-      updateGroupName: "groups.updateGroupName",
-      deleteGroup: "groups.deleteGroup",
-      getGroupDeletionPreview: "groups.getGroupDeletionPreview",
+      clerkInvitations: {
+        cancelPendingGroupInvitation: "groups.clerkInvitations.cancelPendingGroupInvitation",
+        inviteMember: "groups.clerkInvitations.inviteMember",
+      },
+      queries: {
+        getGroupMembers: "groups.queries.getGroupMembers",
+        getMyGroup: "groups.queries.getMyGroup",
+        listMyGroups: "groups.queries.listMyGroups",
+        listPendingGroupInvitations: "groups.queries.listPendingGroupInvitations",
+      },
+      members: {
+        removeMember: "groups.members.removeMember",
+        changeMemberRole: "groups.members.changeMemberRole",
+        transferGroupOwnership: "groups.members.transferGroupOwnership",
+      },
+      mutations: {
+        setActiveGroup: "groups.mutations.setActiveGroup",
+        updateGroupName: "groups.mutations.updateGroupName",
+      },
+      deletion: {
+        deleteGroup: "groups.deletion.deleteGroup",
+        getGroupDeletionPreview: "groups.deletion.getGroupDeletionPreview",
+      },
     },
     managementAuditLogs: {
       listManagementAuditLogs: "managementAuditLogs.listManagementAuditLogs",
@@ -120,26 +128,30 @@ describe("GroupSettingsPanel", () => {
       },
     });
     useActionMock.mockImplementation((reference: string) => {
-      if (reference.includes("groupInvitations.inviteMember")) return inviteMemberMock;
-      if (reference.includes("groupInvitations.cancelPendingGroupInvitation")) {
+      if (reference.includes("groups.clerkInvitations.inviteMember")) return inviteMemberMock;
+      if (reference.includes("groups.clerkInvitations.cancelPendingGroupInvitation")) {
         return cancelPendingGroupInvitationMock;
       }
       return vi.fn();
     });
     useMutationMock.mockImplementation((reference: string) => {
-      if (reference.includes("groups.setActiveGroup")) return setActiveGroupMock;
-      if (reference.includes("groups.removeMember")) return removeMemberMock;
-      if (reference.includes("groups.changeMemberRole")) return changeMemberRoleMock;
-      if (reference.includes("groups.transferGroupOwnership")) return transferGroupOwnershipMock;
-      if (reference.includes("groups.updateGroupName")) return updateGroupNameMock;
-      if (reference.includes("groups.deleteGroup")) return deleteGroupMock;
+      if (reference.includes("groups.mutations.setActiveGroup")) return setActiveGroupMock;
+      if (reference.includes("groups.members.removeMember")) return removeMemberMock;
+      if (reference.includes("groups.members.changeMemberRole")) return changeMemberRoleMock;
+      if (reference.includes("groups.members.transferGroupOwnership"))
+        return transferGroupOwnershipMock;
+      if (reference.includes("groups.mutations.updateGroupName")) return updateGroupNameMock;
+      if (reference.includes("groups.deletion.deleteGroup")) return deleteGroupMock;
       return vi.fn();
     });
     useQueryMock.mockImplementation((reference: string, args?: unknown) => {
       if (args === "skip") {
         return undefined;
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupDeletionPreview")) {
+      if (
+        typeof reference === "string" &&
+        reference.includes("groups.deletion.getGroupDeletionPreview")
+      ) {
         return {
           groupName: "佐藤家",
           members: 2,
@@ -156,7 +168,7 @@ describe("GroupSettingsPanel", () => {
           weekSessions: 4,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -164,13 +176,13 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [
           { _id: "group-001", name: "佐藤家", role: "owner", isActive: true },
           { _id: "group-002", name: "鈴木家", role: "member", isActive: false },
         ];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
@@ -190,7 +202,7 @@ describe("GroupSettingsPanel", () => {
       }
       if (
         typeof reference === "string" &&
-        reference.includes("groups.listPendingGroupInvitations")
+        reference.includes("groups.queries.listPendingGroupInvitations")
       ) {
         return [
           {
@@ -295,7 +307,7 @@ describe("GroupSettingsPanel", () => {
 
   it("表示名が未設定ならメールアドレスを主表示に使う", () => {
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -303,10 +315,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "user-member",
@@ -356,7 +368,7 @@ describe("GroupSettingsPanel", () => {
 
   it("pending 招待がない場合は空状態を表示する", () => {
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -364,10 +376,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
@@ -380,7 +392,7 @@ describe("GroupSettingsPanel", () => {
       }
       if (
         typeof reference === "string" &&
-        reference.includes("groups.listPendingGroupInvitations")
+        reference.includes("groups.queries.listPendingGroupInvitations")
       ) {
         return [];
       }
@@ -396,7 +408,7 @@ describe("GroupSettingsPanel", () => {
 
   it("単一グループのオーナーはグループ名変更フォームを表示する", () => {
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -404,10 +416,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
@@ -431,7 +443,7 @@ describe("GroupSettingsPanel", () => {
   it("単一グループのオーナーはグループ名を保存できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -439,10 +451,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
@@ -474,7 +486,7 @@ describe("GroupSettingsPanel", () => {
   it("グループ名が空のときは保存せずエラーを表示する", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -482,10 +494,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "owner", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
@@ -514,7 +526,7 @@ describe("GroupSettingsPanel", () => {
 
   it("単一グループのメンバーはグループ名テキストを表示する", () => {
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -522,10 +534,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "member", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
@@ -565,7 +577,7 @@ describe("GroupSettingsPanel", () => {
 
   it("メンバーには招待管理と危険な操作セクションを表示しない", () => {
     useQueryMock.mockImplementation((reference: string) => {
-      if (typeof reference === "string" && reference.includes("groups.getMyGroup")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
         return {
           _id: "group-001",
           name: "佐藤家",
@@ -573,10 +585,10 @@ describe("GroupSettingsPanel", () => {
           createdAt: 1000,
         };
       }
-      if (typeof reference === "string" && reference.includes("groups.listMyGroups")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.listMyGroups")) {
         return [{ _id: "group-001", name: "佐藤家", role: "member", isActive: true }];
       }
-      if (typeof reference === "string" && reference.includes("groups.getGroupMembers")) {
+      if (typeof reference === "string" && reference.includes("groups.queries.getGroupMembers")) {
         return [
           {
             userId: "https://issuer.example|owner-clerk-id",
