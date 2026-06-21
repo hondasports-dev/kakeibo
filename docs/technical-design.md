@@ -267,6 +267,16 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 - `transferGroupOwnership` と `deleteGroup` は owner のみが UI と mutation から実行できる。
 - グループ未所属または activeGroupId 未選択のユーザーは、設定や家計データへ進めない。
 
+### 6.4 システム管理者の認可
+
+システム管理者権限は `groupMembers.role` や Clerk metadata から分離し、Convex の
+`systemAdmins` を正本とする。全管理 API は `requireSystemAdmin` を入口で実行し、
+active record が確認できない場合は fail closed にする。
+
+システム管理者は管理情報だけを扱い、家計データのグループ認可を迂回できない。
+schema、bootstrap、付与・剥奪、監査、環境分離の詳細は
+`docs/system-admin-authorization.md` を正本とする。
+
 ## 7. 画面とルーティング
 
 | パス                           | 画面               | 目的                                       |

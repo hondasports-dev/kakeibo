@@ -52,6 +52,15 @@ export const listReceipts = query({
 });
 ```
 
+### システム管理者の認可
+
+システム管理者向け query / mutation は、通常ユーザー向けの認証ヘルパーに加えて
+`requireSystemAdmin(ctx)` を入口で実行する。`systemAdmins` の active record だけを許可し、
+クライアント引数、Clerk metadata、メールアドレスを権限根拠にしない。
+
+この認可は家計データのグループ認可を置き換えない。詳細は
+`docs/system-admin-authorization.md` を参照する。
+
 ## フロントエンド側の認証ガード
 
 ### Provider 構成（`src/main.tsx`）
