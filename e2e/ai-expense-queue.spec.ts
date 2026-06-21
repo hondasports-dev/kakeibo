@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
   cleanupAiExpenseQueue,
@@ -20,6 +20,22 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  */
 
 const INPUT_PATH = "/weeks/current/input";
+
+async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: string) {
+  const consentDialog = page.getByRole("dialog", {
+    name: "画像の外部API送信に同意しますか",
+  });
+  const firstQueueItem = page
+    .getByRole("region", { name: "AI処理キュー" })
+    .getByText(firstFileName)
+    .first();
+
+  await expect(consentDialog.or(firstQueueItem).first()).toBeVisible({ timeout: 15000 });
+  if (await consentDialog.isVisible()) {
+    await consentDialog.getByRole("button", { name: "同意して読み取る" }).click();
+  }
+}
+
 test.describe("Issue #144 AI処理キューUI", () => {
   test.beforeEach(async () => {
     await cleanupAiExpenseQueue();
@@ -38,6 +54,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
       await createSyntheticReceiptImage(page, `ai-queue-payment-${stamp}.jpg`),
     ];
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
+    await acceptReceiptImageConsentIfNeeded(page, `ai-queue-receipt-${stamp}.jpg`);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
     // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
@@ -87,6 +104,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
     const stamp = Date.now();
     const cameraFiles = [await createSyntheticReceiptImage(page, `ai-queue-camera-${stamp}.jpg`)];
     await page.getByLabel("AI処理キューへカメラで追加").setInputFiles(cameraFiles);
+    await acceptReceiptImageConsentIfNeeded(page, `ai-queue-camera-${stamp}.jpg`);
 
     await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
       timeout: 15000,
@@ -106,6 +124,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
       await createSyntheticReceiptImage(page, `ai-queue-payment-${stamp}.jpg`),
     ];
     await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
+    await acceptReceiptImageConsentIfNeeded(page, `ai-queue-receipt-${stamp}.jpg`);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
     // dev DB に同名ファイルの過去ジョブが残っている可能性があるため .first() で限定する。
