@@ -254,6 +254,7 @@ function createQueryCtx(
       getUserIdentity: vi.fn<() => Promise<UserIdentity | null>>().mockResolvedValue(identity),
     },
     db: {
+      get: vi.fn().mockResolvedValue(null),
       query: queryMock,
     },
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

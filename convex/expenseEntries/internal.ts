@@ -6,12 +6,22 @@ export const deleteE2eExpenseEntriesByUser = internalMutation({
     groupId: v.id("groups"),
   },
   handler: async (ctx, { groupId }) => {
-    const entries = await ctx.db
-      .query("expenseEntries")
-      .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
-      .take(500);
+    let totalDeleted = 0;
 
-    await Promise.all(entries.map((entry) => ctx.db.delete(entry._id)));
-    return { deletedCount: entries.length };
+    while (true) {
+      const entries = await ctx.db
+        .query("expenseEntries")
+        .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
+        .take(500);
+
+      if (entries.length === 0) {
+        break;
+      }
+
+      await Promise.all(entries.map((entry) => ctx.db.delete(entry._id)));
+      totalDeleted += entries.length;
+    }
+
+    return { deletedCount: totalDeleted };
   },
 });

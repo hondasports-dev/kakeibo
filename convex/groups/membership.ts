@@ -26,6 +26,17 @@ export async function getGroupMembership(
 
   if (memberships.length === 0) return null;
 
+  const activeMemberships: typeof memberships = [];
+  for (const membership of memberships) {
+    const group = (await ctx.db.get(membership.groupId)) as GroupDoc | null;
+    if (group !== null && isGroupDeleted(group)) {
+      continue;
+    }
+    activeMemberships.push(membership);
+  }
+
+  if (activeMemberships.length === 0) return null;
+
   const user = await readQueryDoc(
     ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
   );
@@ -33,10 +44,10 @@ export async function getGroupMembership(
   const activeGroupId = user?.activeGroupId ?? null;
   const activeMembership =
     activeGroupId === null
-      ? memberships.length === 1
-        ? memberships[0]
+      ? activeMemberships.length === 1
+        ? activeMemberships[0]
         : null
-      : (memberships.find((membership) => membership.groupId === activeGroupId) ?? null);
+      : (activeMemberships.find((membership) => membership.groupId === activeGroupId) ?? null);
 
   if (activeMembership === null) return null;
 
