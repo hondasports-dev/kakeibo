@@ -117,6 +117,18 @@ systemAdminAuditLogs: defineTable({
 初期管理者は各 Convex deployment で個別に登録する。通常 UI、public query / mutation / action、
 Clerk metadata、自動メール判定から bootstrap してはいけない。
 
+`bootstrapSystemAdmin` は `internalMutation` として実装し、public function から呼ぶ wrapper は作らない。
+対象deploymentの管理権限を持つ担当者が、次の形式で明示的に実行する。
+
+```bash
+pnpm exec convex run internal.systemAdmins.bootstrapSystemAdmin \
+  '{"targetUserId":"<users._id>","reason":"<登録理由>","expectedEnvironment":"<development|preview|production>"}' \
+  --deployment <exact-deployment-name>
+```
+
+`--prod` のような短縮指定ではなく deployment 名を指定し、mutation 内でも `expectedEnvironment` と
+`APP_ENV` の完全一致を検証する。不一致、`APP_ENV` 未設定、未知の値では書き込み前に拒否する。
+
 手順:
 
 1. 対象環境と `APP_ENV` が一致することを二者確認する
@@ -144,7 +156,8 @@ Production の管理者IDやseedファイルを Preview / Developmentへコピ�
 
 1. active admin が0人であることと、通常の付与 mutation を実行できないことを確認する
 2. 対象環境、復旧対象者、理由を2人で確認し、Production は運用責任者の承認を記録する
-3. `recoverSystemAdmin` operation で既存レコードを再有効化するか、未登録なら作成する
+3. `internalMutation` の `recoverSystemAdmin` を `internal.systemAdmins.recoverSystemAdmin` として
+   `--deployment <exact-deployment-name>` 付きで実行し、既存レコードを再有効化するか、未登録なら作成する
 4. 同一 mutation で `system_admin_recovered` 監査ログを作成する
 5. active admin、対象レコード、監査ログ、環境表示を再確認する
 
@@ -184,6 +197,7 @@ Convex のトランザクション競合時の再試行後にも不変条件を�
 
 - Development / Preview / Production は別の Convex deployment とデータを使う
 - `systemAdmins` と `systemAdminAuditLogs` を環境間で同期・複製しない
+- Development / Preview では専用テストアカウントを使い、Production の管理者アカウントをテストに流用しない
 - 管理画面のヘッダーに現在の環境を常時表示する
 - Production では強い警告色と環境名を表示し、確認ダイアログでも再掲する
 - サーバーが返す環境情報を表示に使い、クライアントの表示フラグを認可根拠にしない
