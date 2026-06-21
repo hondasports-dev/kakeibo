@@ -9,29 +9,35 @@ import * as deleteGroupPhysically from "./lib/deleteGroupPhysically";
 import {
   acceptGroupInvitationForVerifiedEmailsHandler,
   acceptGroupInvitationHandler,
-  addMemberByEmailHandler,
   assertEmailCanBeInvitedToGroupHandler,
-  createGroupHandler,
   createGroupInvitationRecordHandler,
   deletePendingGroupInvitationRecordByTokenHandler,
   dedupePendingGroupInvitationsByEmail,
   getInvitationEmailKey,
-  getGroupMembersHandler,
-  getGroupMembership,
   invitationEmailsMatch,
   invitationEmailsMatchAny,
-  listPendingGroupInvitationsHandler,
-  listMyGroupsHandler,
   cancelPendingGroupInvitationHandler,
+} from "./groups/invitations";
+import { deleteGroupHandler } from "./groups/deletion";
+import { seedGroupMemberForE2eHandler } from "./groups/e2e";
+import { sortGroupMembersForDisplay } from "./groups/memberDisplay";
+import { getGroupMembership } from "./groups/membership";
+import {
+  addMemberByEmailHandler,
   changeMemberRoleHandler,
-  deleteGroupHandler,
-  transferGroupOwnershipHandler,
   removeMemberHandler,
-  seedGroupMemberForE2eHandler,
+  transferGroupOwnershipHandler,
+} from "./groups/members";
+import {
+  createGroupHandler,
   setActiveGroupHandler,
-  sortGroupMembersForDisplay,
   updateGroupNameHandler,
-} from "./groups";
+} from "./groups/mutations";
+import {
+  getGroupMembersHandler,
+  listMyGroupsHandler,
+  listPendingGroupInvitationsHandler,
+} from "./groups/queries";
 
 type GroupDoc = {
   _id: Id<"groups">;
