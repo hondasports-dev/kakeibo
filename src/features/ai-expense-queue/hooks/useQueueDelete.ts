@@ -29,7 +29,7 @@ export function useQueueDelete() {
       setQueueDeleteError(
         error instanceof Error
           ? error.message
-          : "キューから削除できませんでした。もう一度お試しください。",
+          : "一覧から削除できませんでした。もう一度お試しください。",
       );
     } finally {
       setDeletingIds((current) => current.filter((id) => id !== item.id));

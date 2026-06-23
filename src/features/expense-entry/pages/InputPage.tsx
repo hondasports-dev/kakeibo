@@ -20,7 +20,7 @@ export function InputPage() {
   } = useInputPageWeek();
 
   const categories = useQuery(api.categories.queries.listActive) ?? [];
-  const weekSummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
+  const weekSummary = useQuery(api.receipts.summaries.getWeekSummary, {
     weekStartDate,
   });
 
@@ -55,10 +55,7 @@ export function InputPage() {
           onNextWeek={goToNextWeek}
         />
 
-        <WeekStatusPanel
-          receipts={weekSummary?.receipts ?? []}
-          isLoading={weekSummary === undefined}
-        />
+        <WeekStatusPanel count={weekSummary?.count ?? 0} />
 
         <ExpenseEntryForm
           weekStartDate={weekStartDate}

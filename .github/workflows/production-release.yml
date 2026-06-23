@@ -182,14 +182,25 @@ jobs:
         id: smoke
         run: |
           smoke_target="${PRODUCTION_SMOKE_URL:-${{ steps.vercel.outputs.url }}}"
-          curl --fail --show-error --location --max-time 30 "$smoke_target" > /tmp/prod-smoke.html
+          curl --fail --show-error --location --max-time 30 \
+            --header "Cache-Control: no-cache" \
+            "$smoke_target" > /tmp/prod-smoke.html
           byte_count="$(wc -c < /tmp/prod-smoke.html | tr -d ' ')"
           if [ "$byte_count" -le 0 ]; then
             echo "::error::PROD smoke target returned an empty response."
             exit 1
           fi
+
+          expected_title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' index.html | head -n 1)"
+          deployed_title="$(sed -n 's:.*<title>\(.*\)</title>.*:\1:p' /tmp/prod-smoke.html | head -n 1)"
+          if [ -z "$expected_title" ] || [ "$deployed_title" != "$expected_title" ]; then
+            echo "::error::PROD title mismatch. expected='$expected_title' actual='$deployed_title'"
+            exit 1
+          fi
+
           echo "target=$smoke_target" >> "$GITHUB_OUTPUT"
           echo "bytes=$byte_count" >> "$GITHUB_OUTPUT"
+          echo "title=$deployed_title" >> "$GITHUB_OUTPUT"
 
       - name: Write release summary
         run: |
@@ -204,6 +215,7 @@ jobs:
             echo "| Vercel Production URL | ${{ steps.vercel.outputs.url }} |"
             echo "| PROD smoke target | ${{ steps.smoke.outputs.target }} |"
             echo "| PROD smoke response bytes | ${{ steps.smoke.outputs.bytes }} |"
+            echo "| PROD title | ${{ steps.smoke.outputs.title }} |"
             echo "| Release note | $RELEASE_NOTE |"
             echo
             echo "Convex Production was deployed before Vercel Production. Treat follow-up fixes as forward-fix releases."

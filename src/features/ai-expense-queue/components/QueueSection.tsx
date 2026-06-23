@@ -189,7 +189,7 @@ function DeleteQueueButton({
       variant="text"
       sx={sx}
     >
-      キューから削除
+      一覧から削除
     </Button>
   );
 }

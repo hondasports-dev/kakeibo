@@ -35,4 +35,13 @@ describe("production-release workflow", () => {
     expect(smokeIndex).toBeGreaterThan(vercelIndex);
     expect(summaryIndex).toBeGreaterThan(smokeIndex);
   });
+
+  test("revalidates the production HTML and verifies the deployed title", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain('--header "Cache-Control: no-cache"');
+    expect(yaml).toContain('expected_title="$(sed');
+    expect(yaml).toContain('deployed_title="$(sed');
+    expect(yaml).toContain('[ "$deployed_title" != "$expected_title" ]');
+  });
 });

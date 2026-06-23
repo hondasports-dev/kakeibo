@@ -6,7 +6,8 @@ import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
 import { categories, queueItems, rejectImageDecoding } from "../utils/testFixtures";
 
 const {
-  registerReadyDraftsMock,
+  registerReadyDraftsAsExpenseEntriesMock,
+  legacyRegisterReadyDraftsMock,
   updateForReviewMock,
   createBatchMock,
   analyzeImageJobMock,
@@ -16,7 +17,8 @@ const {
   acceptReceiptImageExternalApiConsentMock,
   useQueryMock,
 } = vi.hoisted(() => ({
-  registerReadyDraftsMock: vi.fn(),
+  registerReadyDraftsAsExpenseEntriesMock: vi.fn(),
+  legacyRegisterReadyDraftsMock: vi.fn(),
   updateForReviewMock: vi.fn(),
   createBatchMock: vi.fn(),
   analyzeImageJobMock: vi.fn(),
@@ -36,6 +38,8 @@ vi.mock("../../../../convex/_generated/api", () => ({
       },
       mutations: {
         registerReadyDrafts: "aiExpenseDrafts.mutations.registerReadyDrafts",
+        registerReadyDraftsAsExpenseEntries:
+          "aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries",
         updateForReview: "aiExpenseDrafts.mutations.updateForReview",
         deleteDraft: "aiExpenseDrafts.mutations.deleteDraft",
       },
@@ -68,6 +72,12 @@ vi.mock("../../../../convex/_generated/api", () => ({
 vi.mock("convex/react", () => ({
   useMutation: (reference: string) => {
     if (reference === "aiExpenseDrafts.mutations.updateForReview") return updateForReviewMock;
+    if (reference === "aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries") {
+      return registerReadyDraftsAsExpenseEntriesMock;
+    }
+    if (reference === "aiExpenseDrafts.mutations.registerReadyDrafts") {
+      return legacyRegisterReadyDraftsMock;
+    }
     if (reference === "aiExpenseDrafts.mutations.deleteDraft") return deleteDraftMock;
     if (reference === "receiptAnalysisJobs.mutations.createBatch") return createBatchMock;
     if (reference === "receiptAnalysisJobs.mutations.retryImageJob") return retryImageJobMock;
@@ -75,7 +85,7 @@ vi.mock("convex/react", () => ({
     if (reference === "users.mutations.acceptReceiptImageExternalApiConsent") {
       return acceptReceiptImageExternalApiConsentMock;
     }
-    return registerReadyDraftsMock;
+    return vi.fn();
   },
   useAction: (reference: string) => {
     if (reference === "receiptAnalysisJobs.actions.analyzeImageJob") return analyzeImageJobMock;
@@ -95,8 +105,10 @@ describe("AiExpenseQueuePanel", () => {
       height: 100,
       close: vi.fn(),
     } as unknown as ImageBitmap);
-    registerReadyDraftsMock.mockReset();
-    registerReadyDraftsMock.mockResolvedValue(undefined);
+    registerReadyDraftsAsExpenseEntriesMock.mockReset();
+    registerReadyDraftsAsExpenseEntriesMock.mockResolvedValue(undefined);
+    legacyRegisterReadyDraftsMock.mockReset();
+    legacyRegisterReadyDraftsMock.mockResolvedValue(undefined);
     updateForReviewMock.mockReset();
     updateForReviewMock.mockResolvedValue(undefined);
     createBatchMock.mockReset();
@@ -127,14 +139,14 @@ describe("AiExpenseQueuePanel", () => {
   it("空状態では連続追加できる導線とキューの説明を表示する", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
-    expect(screen.getByRole("heading", { name: "AI処理キュー" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "読み取り" })).toBeInTheDocument();
     expect(screen.getByText("レシート・払込票をまとめて追加できます。")).toBeInTheDocument();
     expect(
       screen.getByText("スマートフォンでは撮影、PCでは画像選択から追加できます。"),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "撮影する" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "画像を追加" })).toBeEnabled();
-    expect(screen.getByLabelText("AI処理キューへカメラで追加")).toHaveAttribute(
+    expect(screen.getByLabelText("読み取り用カメラ画像を追加")).toHaveAttribute(
       "capture",
       "environment",
     );
@@ -152,8 +164,8 @@ describe("AiExpenseQueuePanel", () => {
 
     expect(screen.getByRole("button", { name: "撮影する" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "画像を追加" })).toBeDisabled();
-    expect(screen.getByLabelText("AI処理キューへカメラで追加")).toBeDisabled();
-    expect(screen.getByLabelText("AI処理キューへ画像を追加")).toBeDisabled();
+    expect(screen.getByLabelText("読み取り用カメラ画像を追加")).toBeDisabled();
+    expect(screen.getByLabelText("読み取り用画像を追加")).toBeDisabled();
   });
 
   it("複数画像を選ぶとキューへ解析待ちとして追加される", async () => {
@@ -172,7 +184,7 @@ describe("AiExpenseQueuePanel", () => {
     });
     renderWithProviders(<AiExpenseQueuePanel />);
 
-    await user.upload(screen.getByLabelText("AI処理キューへ画像を追加"), [
+    await user.upload(screen.getByLabelText("読み取り用画像を追加"), [
       new File(["first"], "first-receipt.png", { type: "image/png" }),
       new File(["second"], "second-payment.png", { type: "image/png" }),
     ]);
@@ -205,7 +217,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
+      screen.getByLabelText("読み取り用画像を追加"),
       new File(["receipt"], "receipt.png", { type: "image/png" }),
     );
 
@@ -232,7 +244,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
+      screen.getByLabelText("読み取り用画像を追加"),
       new File(["receipt"], "receipt.png", { type: "image/png" }),
     );
     await user.click(screen.getByRole("button", { name: "同意して読み取る" }));
@@ -262,7 +274,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
+      screen.getByLabelText("読み取り用画像を追加"),
       new File(["receipt"], "receipt.png", { type: "image/png" }),
     );
     await user.click(screen.getByRole("button", { name: "手入力する" }));
@@ -290,7 +302,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
+      screen.getByLabelText("読み取り用画像を追加"),
       new File(["receipt"], "receipt.png", { type: "image/png" }),
     );
     await user.click(screen.getByRole("button", { name: "同意して読み取る" }));
@@ -318,7 +330,7 @@ describe("AiExpenseQueuePanel", () => {
     });
     renderWithProviders(<AiExpenseQueuePanel />);
 
-    await user.upload(screen.getByLabelText("AI処理キューへカメラで追加"), [
+    await user.upload(screen.getByLabelText("読み取り用カメラ画像を追加"), [
       new File(["camera"], "camera-receipt.png", { type: "image/png" }),
     ]);
 
@@ -342,7 +354,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
+      screen.getByLabelText("読み取り用画像を追加"),
       new File(["broken"], "broken-receipt.png", { type: "image/png" }),
     );
 
@@ -357,7 +369,7 @@ describe("AiExpenseQueuePanel", () => {
     createBatchMock.mockRejectedValueOnce(new Error("画像の追加に失敗しました"));
     renderWithProviders(<AiExpenseQueuePanel />);
 
-    const input = screen.getByLabelText("AI処理キューへ画像を追加") as HTMLInputElement;
+    const input = screen.getByLabelText("読み取り用画像を追加") as HTMLInputElement;
     await user.upload(input, new File(["receipt"], "receipt.png", { type: "image/png" }));
 
     expect(await screen.findByText("画像の追加に失敗しました")).toBeInTheDocument();
@@ -371,7 +383,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     await user.upload(
-      screen.getByLabelText("AI処理キューへ画像を追加"),
+      screen.getByLabelText("読み取り用画像を追加"),
       new File(["receipt"], "receipt.png", { type: "image/png" }),
     );
 
@@ -406,7 +418,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(failedSection).getByRole("button", { name: "手入力へ戻る" })).toBeEnabled();
     expect(within(failedSection).getByRole("button", { name: "再試行" })).toBeEnabled();
 
-    const processingSection = screen.getByRole("region", { name: "AI処理中" });
+    const processingSection = screen.getByRole("region", { name: "読み取り中" });
     expect(within(processingSection).getByText("registering-receipt.png")).toBeInTheDocument();
     expect(within(processingSection).getByText("登録中")).toBeInTheDocument();
 
@@ -447,7 +459,7 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
-  it("失敗下書きから手入力へ戻るとキューから削除する", async () => {
+  it("失敗下書きから手入力へ戻ると一覧から削除する", async () => {
     const user = userEvent.setup();
     renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
 
@@ -459,7 +471,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(screen.queryByText("failed-receipt.png")).not.toBeInTheDocument();
   });
 
-  it("処理中ジョブをキューから削除できる", async () => {
+  it("処理中ジョブを一覧から削除できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
       if (reference === "receiptAnalysisJobs.queries.listJobs") {
@@ -476,8 +488,8 @@ describe("AiExpenseQueuePanel", () => {
 
     renderWithProviders(<AiExpenseQueuePanel />);
 
-    const processingSection = screen.getByRole("region", { name: "AI処理中" });
-    await user.click(within(processingSection).getByRole("button", { name: "キューから削除" }));
+    const processingSection = screen.getByRole("region", { name: "読み取り中" });
+    await user.click(within(processingSection).getByRole("button", { name: "一覧から削除" }));
 
     await waitFor(() => {
       expect(cancelImageJobMock).toHaveBeenCalledWith({ jobId: "job-running" });
@@ -485,11 +497,11 @@ describe("AiExpenseQueuePanel", () => {
     expect(screen.queryByText("running-receipt.png")).not.toBeInTheDocument();
   });
 
-  it("未登録のキューをまとめてクリアできる", async () => {
+  it("未登録の画像をまとめてクリアできる", async () => {
     const user = userEvent.setup();
     renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
 
-    await user.click(screen.getByRole("button", { name: "未登録のキューをクリア（3件）" }));
+    await user.click(screen.getByRole("button", { name: "未登録の画像をクリア（3件）" }));
 
     await waitFor(() => {
       expect(deleteDraftMock).toHaveBeenCalledWith({ draftId: "draft-ready" });
@@ -549,7 +561,9 @@ describe("AiExpenseQueuePanel", () => {
       screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（1件）" }),
     );
 
-    expect(registerReadyDraftsMock).toHaveBeenCalledWith({ draftIds: ["draft-ready"] });
+    expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
+      draftIds: ["draft-ready"],
+    });
   });
 
   it("確認が必要な下書きを理由表示つきで編集し、そのまま登録する", async () => {
@@ -588,7 +602,11 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(dialog).getByText("信頼度が低い項目があります")).toBeInTheDocument();
     expect(within(dialog).getByText("必須項目を確認してください")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("店名"), "スーパー青葉");
+    expect(within(dialog).queryByLabelText("支払場所")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("支払先")).not.toBeInTheDocument();
+    expect(within(dialog).queryByLabelText("支払内容")).not.toBeInTheDocument();
+    await user.clear(screen.getByLabelText("店名・内容"));
+    await user.type(screen.getByLabelText("店名・内容"), "スーパー青葉");
     await user.clear(screen.getByLabelText("合計金額"));
     await user.type(screen.getByLabelText("合計金額"), "1680");
     await user.click(screen.getByRole("button", { name: "修正して登録" }));
@@ -597,14 +615,13 @@ describe("AiExpenseQueuePanel", () => {
       draftId: "draft-review",
       documentType: "receipt",
       shopName: "スーパー青葉",
-      paymentPlace: "",
-      payeeName: "スーパー青葉",
-      paymentPurpose: "",
       date: "2026-06-01",
       amountYen: 1680,
       categoryId: "cat-daily",
     });
-    expect(registerReadyDraftsMock).toHaveBeenCalledWith({ draftIds: ["draft-review"] });
+    expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
+      draftIds: ["draft-review"],
+    });
   });
 
   it("確認下書きの詳細読み込み前はフォーム送信できない", async () => {
@@ -647,9 +664,7 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByText("下書きを読み込んでいます。")).not.toBeInTheDocument();
     expect(
-      within(dialog).getByText(
-        "下書きが見つかりません。キューを更新してもう一度確認してください。",
-      ),
+      within(dialog).getByText("下書きが見つかりません。一覧を更新してもう一度確認してください。"),
     ).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "登録準備OKに戻す" })).toBeDisabled();
     expect(within(dialog).getByRole("button", { name: "修正して登録" })).toBeDisabled();
@@ -706,6 +721,7 @@ describe("AiExpenseQueuePanel", () => {
             _id: "draft-review",
             status: "needs_review",
             documentType: "convenience_payment",
+            shopName: "コンビニ北浜",
             paymentPlace: "コンビニ北浜",
             payeeName: "大阪市水道局",
             paymentPurpose: "",
@@ -720,21 +736,23 @@ describe("AiExpenseQueuePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "下書きを確認" }));
-    await user.type(screen.getByLabelText("支払内容"), "水道料金");
+    const nameInput = screen.getByLabelText("店名・内容");
+    expect(nameInput).toHaveValue("大阪市水道局");
+    await user.clear(nameInput);
+    await user.type(nameInput, "大阪市水道局 水道料金");
     await user.click(screen.getByRole("button", { name: "登録準備OKに戻す" }));
 
     expect(onReviewSubmit).toHaveBeenCalledWith(
       "draft-review",
       expect.objectContaining({
         documentType: "convenience_payment",
-        payeeName: "大阪市水道局",
-        paymentPurpose: "水道料金",
+        shopName: "大阪市水道局 水道料金",
         amountYen: 9120,
         categoryId: "cat-daily",
       }),
       false,
     );
-    expect(registerReadyDraftsMock).not.toHaveBeenCalled();
+    expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
   });
 
   it("登録済みアイテムに日付とカテゴリが表示される", () => {

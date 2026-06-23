@@ -58,7 +58,7 @@ export function ReviewDialog({
 
           {isReviewDraftNotFound && (
             <Alert severity="error" variant="outlined">
-              下書きが見つかりません。キューを更新してもう一度確認してください。
+              下書きが見つかりません。一覧を更新してもう一度確認してください。
             </Alert>
           )}
 
@@ -143,30 +143,9 @@ export function ReviewDialog({
 
               <TextField
                 fullWidth
-                label="店名"
+                label="店名・内容"
                 onChange={(event) => onFieldChange("shopName", event.target.value)}
                 value={reviewForm.shopName}
-              />
-
-              <TextField
-                fullWidth
-                label="支払場所"
-                onChange={(event) => onFieldChange("paymentPlace", event.target.value)}
-                value={reviewForm.paymentPlace}
-              />
-
-              <TextField
-                fullWidth
-                label="支払先"
-                onChange={(event) => onFieldChange("payeeName", event.target.value)}
-                value={reviewForm.payeeName}
-              />
-
-              <TextField
-                fullWidth
-                label="支払内容"
-                onChange={(event) => onFieldChange("paymentPurpose", event.target.value)}
-                value={reviewForm.paymentPurpose}
               />
 
               <TextField

@@ -41,9 +41,6 @@ export type AiExpenseQueuePanelProps = {
     values: {
       documentType: AiExpenseQueueDocumentType;
       shopName: string;
-      paymentPlace: string;
-      payeeName: string;
-      paymentPurpose: string;
       date: string;
       amountYen: number;
       categoryId: string;
@@ -78,9 +75,6 @@ export type AiExpenseDraftWithItems = {
 export type ReviewFormValues = {
   documentType: AiExpenseQueueDocumentType;
   shopName: string;
-  paymentPlace: string;
-  payeeName: string;
-  paymentPurpose: string;
   date: string;
   amountYen: string;
   categoryId: string;

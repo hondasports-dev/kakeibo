@@ -240,13 +240,13 @@ describe("ReceiptForm", () => {
     expect(screen.getByText("レシートを保存しました")).toBeInTheDocument();
   });
 
-  it("旧の画像から入力セクションを表示せず、AI処理キューと手入力導線を見せる", () => {
+  it("旧の画像から入力セクションを表示せず、読み取りと手入力導線を見せる", () => {
     renderWithProviders(
       <ReceiptForm weekStartDate="2026-05-18" weekEndDate="2026-05-24" categories={categories} />,
     );
 
     expect(screen.queryByRole("heading", { name: "画像から入力" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "AI処理キュー" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "読み取り" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存して次へ" })).toBeEnabled();
   });
 

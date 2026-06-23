@@ -880,7 +880,7 @@ describe("aiExpenseDrafts", () => {
     expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
-  it("払込票の支払先と支払内容が不足している場合は専用メッセージで拒否する", async () => {
+  it("払込票は統合した店名・内容で登録準備OKへ戻せる", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
         "draft-owned": ownedDraft,
@@ -891,24 +891,28 @@ describe("aiExpenseDrafts", () => {
       },
     });
 
-    await expect(
-      updateForReviewHandler(ctx, {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        draftId: "draft-owned" as any,
-        documentType: "convenience_payment",
-        payeeName: "大阪市水道局",
-        paymentPurpose: "",
-        date: "2026-06-02",
-        amountYen: 1680,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        categoryId: "cat-food" as any,
-      }),
-    ).rejects.toMatchObject({
-      data: "Draft payee and payment purpose are required to mark ready",
+    await updateForReviewHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftId: "draft-owned" as any,
+      documentType: "convenience_payment",
+      shopName: "大阪市水道局 水道料金",
+      date: "2026-06-02",
+      amountYen: 1680,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-food" as any,
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
+      "draft-owned",
+      expect.objectContaining({
+        status: "ready",
+        shopName: "大阪市水道局 水道料金",
+        paymentPlace: undefined,
+        payeeName: undefined,
+        paymentPurpose: undefined,
+      }),
+    );
   });
 
   it("無効化済みカテゴリでは確認下書きを登録準備OKへ戻せない", async () => {

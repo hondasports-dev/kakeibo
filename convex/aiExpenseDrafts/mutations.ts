@@ -39,7 +39,10 @@ function trimOptional(value: string | undefined) {
 
 function hasCounterparty(args: UpdateForReviewArgs) {
   if (args.documentType === "convenience_payment") {
-    return !!trimOptional(args.payeeName) && !!trimOptional(args.paymentPurpose);
+    return (
+      !!trimOptional(args.shopName) ||
+      (!!trimOptional(args.payeeName) && !!trimOptional(args.paymentPurpose))
+    );
   }
   return (
     !!trimOptional(args.shopName) ||
@@ -60,7 +63,7 @@ function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
   }
   if (!hasCounterparty(args)) {
     if (args.documentType === "convenience_payment") {
-      throw new ConvexError("Draft payee and payment purpose are required to mark ready");
+      throw new ConvexError("Draft shop name or payment details are required to mark ready");
     }
     throw new ConvexError("Draft shop, payment place, or payee is required to mark ready");
   }

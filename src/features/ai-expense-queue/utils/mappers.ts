@@ -10,9 +10,6 @@ import type {
 export const emptyReviewForm: ReviewFormValues = {
   documentType: "receipt",
   shopName: "",
-  paymentPlace: "",
-  payeeName: "",
-  paymentPurpose: "",
   date: "",
   amountYen: "",
   categoryId: "",
@@ -20,8 +17,12 @@ export const emptyReviewForm: ReviewFormValues = {
 
 function resolveDraftTitle(draft: AiExpenseDraft) {
   if (draft.documentType === "convenience_payment") {
+    const paymentDescription = [draft.payeeName, draft.paymentPurpose]
+      .map((value) => value?.trim())
+      .filter(Boolean)
+      .join(" ");
     return (
-      [draft.payeeName, draft.paymentPurpose, draft.paymentPlace].find(Boolean) ?? "AI支出下書き"
+      paymentDescription || draft.shopName?.trim() || draft.paymentPlace?.trim() || "AI支出下書き"
     );
   }
   return draft.shopName || draft.payeeName || draft.paymentPlace || "AI支出下書き";
@@ -47,12 +48,23 @@ export function mapDraftToQueueItem(
 }
 
 export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
+  const paymentDescription =
+    draft.documentType === "convenience_payment"
+      ? [draft.payeeName, draft.paymentPurpose]
+          .map((value) => value?.trim())
+          .filter(Boolean)
+          .join(" ")
+      : "";
+  const shopName =
+    paymentDescription ||
+    draft.shopName?.trim() ||
+    draft.payeeName?.trim() ||
+    draft.paymentPlace?.trim() ||
+    "";
+
   return {
     documentType: draft.documentType,
-    shopName: draft.shopName ?? "",
-    paymentPlace: draft.paymentPlace ?? "",
-    payeeName: draft.payeeName ?? "",
-    paymentPurpose: draft.paymentPurpose ?? "",
+    shopName,
     date: draft.date ?? "",
     amountYen: draft.amountYen?.toString() ?? "",
     categoryId: draft.categoryId ?? "",

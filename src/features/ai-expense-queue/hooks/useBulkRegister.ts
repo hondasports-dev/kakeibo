@@ -9,7 +9,9 @@ export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const [registrationError, setRegistrationError] = useState("");
 
-  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.mutations.registerReadyDrafts);
+  const registerReadyDraftsAsExpenseEntries = useMutation(
+    api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
+  );
 
   useEffect(() => {
     const previousReadyItemIds = previousReadyItemIdsRef.current;
@@ -43,7 +45,9 @@ export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
     setRegistrationError("");
     setRegisteringIds(selectedReadyIds);
     try {
-      await registerReadyDrafts({ draftIds: selectedReadyIds as Id<"aiExpenseDrafts">[] });
+      await registerReadyDraftsAsExpenseEntries({
+        draftIds: selectedReadyIds as Id<"aiExpenseDrafts">[],
+      });
       setSelectedReadyIds([]);
     } catch (error) {
       setRegistrationError(
