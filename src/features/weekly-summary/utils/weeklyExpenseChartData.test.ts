@@ -67,7 +67,6 @@ describe("buildWeeklyExpenseChartData", () => {
     });
 
     expect(result[2].averageDiff).toBe(5_000);
-    expect(formatWeeklyExpenseTooltip(result[2])).toContain("平均との差 +5,000円");
   });
 
   it("4週未満でも取得できた週だけを古い順に返す", () => {
@@ -83,15 +82,13 @@ describe("buildWeeklyExpenseChartData", () => {
 });
 
 describe("formatWeeklyExpenseTooltip", () => {
-  it("週範囲、合計、前週差、平均との差を日本円でまとめる", () => {
+  it("週範囲と支出合計だけを日本円でまとめる", () => {
     const [item] = buildWeeklyExpenseChartData({
       currentWeekStartDate: "2026-06-15",
       targetWeekStartDate: "2026-06-15",
       weeks: fourWeeks,
     }).slice(-1);
 
-    expect(formatWeeklyExpenseTooltip(item)).toBe(
-      "6/15〜6/21｜支出合計 15,000円｜前週差 +3,000円｜平均との差 +4,000円",
-    );
+    expect(formatWeeklyExpenseTooltip(item)).toBe("6/15〜6/21｜支出合計 15,000円");
   });
 });

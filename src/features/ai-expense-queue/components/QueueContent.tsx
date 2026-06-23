@@ -43,7 +43,7 @@ export function QueueContent({
         </Alert>
       )}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Chip label={`キュー ${itemCount}件`} size="small" variant="outlined" />
+        <Chip label={`追加済み ${itemCount}件`} size="small" variant="outlined" />
         <Chip label={`登録準備OK ${readyItems.length}件`} size="small" color="success" />
         <Chip
           label={`確認が必要 ${groupedItems.needs_review.length}件`}
@@ -63,7 +63,7 @@ export function QueueContent({
           variant="outlined"
           sx={{ alignSelf: "flex-start" }}
         >
-          未登録のキューをクリア（{clearableCount}件）
+          未登録の画像をクリア（{clearableCount}件）
         </Button>
       )}
 
@@ -84,7 +84,7 @@ export function QueueContent({
       <Divider />
 
       <QueueSection
-        label="AI処理中"
+        label="読み取り中"
         items={groupedItems.processing}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}

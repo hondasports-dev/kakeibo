@@ -24,7 +24,7 @@ export function QueueHeader({
     >
       <Box>
         <Typography component="h2" id="ai-expense-queue-heading" variant="h5">
-          AI処理キュー
+          読み取り
         </Typography>
         <Typography color="text.secondary" variant="body2">
           レシート・払込票をまとめて追加できます。
@@ -37,7 +37,7 @@ export function QueueHeader({
         <ImageInputButton
           buttonLabel="撮影する"
           disabled={disabled}
-          inputLabel="AI処理キューへカメラで追加"
+          inputLabel="読み取り用カメラ画像を追加"
           inputRef={cameraInputRef}
           onFilesSelected={onFilesSelected}
           variant="contained"
@@ -46,7 +46,7 @@ export function QueueHeader({
         <ImageInputButton
           buttonLabel="画像を追加"
           disabled={disabled}
-          inputLabel="AI処理キューへ画像を追加"
+          inputLabel="読み取り用画像を追加"
           inputRef={inputRef}
           onFilesSelected={onFilesSelected}
           variant="outlined"

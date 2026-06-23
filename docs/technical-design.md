@@ -293,7 +293,8 @@ schema、bootstrap、付与・剥奪、監査、環境分離の詳細は
 | `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
 
 現行コードには `/sign-in`、`/weeks/:weekStartDate/review`、`/export` の個別ルートはない。
-サインイン画面は `App.tsx` の未認証表示で扱い、振り返りメモは週次サマリー画面に埋め込む。
+サインイン画面は `App.tsx` の未認証表示で扱う。振り返りメモとセッション完了UIは表示せず、
+既存データ互換のためバックエンドのフィールドとmutationだけを維持する。
 
 ## 8. データ設計
 
@@ -384,8 +385,9 @@ schema、bootstrap、付与・剥奪、監査、環境分離の詳細は
 
 分類ロジックでは、主要フィールドの信頼度しきい値を `0.8` とする。レシート下書きは
 日付、1円以上の金額、店名または支払先相当の名称、カテゴリ候補、主要フィールドの信頼度が
-揃っている場合に `ready` とする。コンビニ払込票は支払先と支払内容の両方が必要であり、
-不足する場合は `needs_review` として `missing_required_field` を付与する。
+揃っている場合に `ready` とする。自動解析されたコンビニ払込票は支払先と支払内容の両方が必要であり、
+不足する場合は `needs_review` として `missing_required_field` を付与する。レビュー編集時はこれらを
+「店名・内容」へ統合した `shopName` で補正できる。
 
 `unknown` の書類種別、カテゴリ未確定、AI警告、主要フィールドの低信頼度、下書き金額と明細合計の
 不一致がある場合も `needs_review` とし、該当する `reviewReasons` を保存する。
@@ -497,7 +499,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 - `aiExpenseDrafts.listByStatus(status)`
 - `aiExpenseDrafts.getWithItems(draftId)`
 - `aiExpenseDrafts.updateForReview(draftId, input)`
-- `aiExpenseDrafts.registerReadyDrafts(draftIds)`
+- `aiExpenseDrafts.registerReadyDraftsAsExpenseEntries(draftIds)`
 - `aiExpenseDrafts.analyzeReceiptImageToDraft(input)`
 - `aiExpenseDrafts.createFromExtraction(input)`（internal）
 - `aiExpenseDrafts.createFailedDraftFromImageAnalysis(input)`（internal）
@@ -507,10 +509,10 @@ active group を解決する。`draftId` や `categoryId` を受け取る処理�
 `groupId` と認証ユーザーの active group が一致することを確認する。`aiExpenseDraftItems` は
 `draftId` だけでなく `groupId` も保存し、明細単体の取得でもグループ境界を確認できるようにする。
 
-`receipts` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
+`expenseEntries` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
 
-| 下書き種別 | `receipts.shopName` 変換方針 |
-| ---------- | ---------------------------- |
+| 下書き種別 | 明細がない場合の `expenseEntries.itemName` 変換方針 |
+| ---------- | --------------------------------------------------- |
 | `receipt` | `shopName` を使う。空の場合は `payeeName`、`paymentPlace` の順に補完する。 |
 | `convenience_payment` | `payeeName` と `paymentPurpose` を連結する。空の場合は `paymentPlace`、`shopName` の順に補完する。 |
 | `unknown` | 確認が必要な下書きとして扱い、登録前にユーザーが必要項目を確定する。 |
@@ -568,7 +570,7 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 - 新しい3週間を `@mui/x-charts` の `BarChart` で表示する
 - 最古の1週間は、表示週の前週差と直前2週間平均との差を計算するためだけに使う
 - 対象週自身は平均へ含めず、直前2週間の算術平均と比較する
-- Tooltipには週範囲、支出合計、前週差、平均との差を表示する
+- Tooltipには週範囲と支出合計を表示する
 - schema、認可、保存処理は変更しない
 - 空状態: 「週別の支出データがあると表示されます」
 
@@ -716,7 +718,6 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - レシート入力フォーム
 - カテゴリ選択
 - 週次サマリー表示
-- 振り返りメモ
 
 ### 17.3 Convex function test
 
@@ -737,9 +738,8 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 2. 今週の入力を開始する
 3. 支出と収入を複数件入力する
 4. ダッシュボードで集計を確認する
-5. 週次振り返りメモを保存する
-6. 設定画面でカテゴリと週の曜日設定を確認する
-7. 必要に応じてレシート画像補助やAI支出下書きキューを確認する
+5. 設定画面でカテゴリと週の曜日設定を確認する
+6. 必要に応じてレシート画像補助やAI支出下書きキューを確認する
 
 スマートフォン幅でも同じ主要フローが完了できることを確認する。
 
@@ -759,9 +759,9 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 12. 初期カテゴリseed
 13. 週開始日、週終了日のdate utility
 14. レシート入力、編集、削除
-15. 週次セッション作成、再開、完了
+15. 週次セッション作成、再開
 16. ダッシュボード集計
-17. 週次振り返りメモ
+17. 週次振り返りメモ（既存データ互換のみ、UIなし）
 18. カテゴリ管理
 19. レシート画像入力PoC
 20. AI支出下書きキュー

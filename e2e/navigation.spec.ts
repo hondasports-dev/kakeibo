@@ -14,7 +14,7 @@ import { gotoAuthenticated } from "./helpers/auth";
  *   - シナリオ N-5: SP幅でInputPageを開くとフォームのみが表示される (P1 / validation)
  *   - シナリオ N-6: PC幅でInputPageを開くと左右2ペインレイアウトになる (P1 / validation)
  *   - シナリオ N-7: SummaryPageに週次サマリーが表示される (P1 / validation)
- *   - シナリオ N-8: SummaryPageに週次レビューへの遷移ボタンがある (P1 / validation)
+ *   - シナリオ N-8: SummaryPageに週移動導線がある (P1 / validation)
  *   - シナリオ N-9: SPで入力フローを一通り完走できる (P0 / validation)
  *   - シナリオ N-10: 既存のURL構造が維持されている (P0 / regression)
  */
@@ -258,14 +258,11 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page.getByRole("button", { name: /次の週/ })).toBeVisible();
   });
 
-  test("@navigation シナリオN-8: SummaryPageに週次レビューへの遷移ボタンがある", async ({
-    page,
-  }) => {
+  test("@navigation シナリオN-8: SummaryPageに週移動導線がある", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
 
-    // SummaryPage には DashboardPage への導線（「入力を再開」または「今週のサマリーを見る」）と
-    // WeekNavigator（前/次の週ボタン）が表示される
+    // SummaryPage には WeekNavigator（前/次の週ボタン）が表示される
     await expect(
       page
         .getByRole("button", { name: "前の週へ" })

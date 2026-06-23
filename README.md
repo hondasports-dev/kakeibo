@@ -1,6 +1,6 @@
 ![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/hondasports/kakeibo?utm_source=oss&utm_medium=github&utm_campaign=hondasports%2Fkakeibo&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
 
-# kakeibo
+# Suzumemo
 
 レシート画像をAIで読み取り、まとめて支出を記録・振り返るための個人向けWeb家計簿アプリです。
 

@@ -154,7 +154,9 @@ Vercel Production Environment には Clerk Production instance と Convex Produc
 
 初期の PROD smoke は非破壊確認に限定する。Production データの作成、更新、削除を自動テストで行わない。
 
-- `production-release.yml` が Vercel Production deployment URL または `PRODUCTION_SMOKE_URL` へ HTTP GET を行い、空でない応答を確認する。
+- `production-release.yml` が Vercel Production deployment URL または `PRODUCTION_SMOKE_URL` へ `Cache-Control: no-cache` 付きで HTTP GET を行い、キャッシュを再検証する。
+- 取得したHTMLの `<title>` が、デプロイ対象refの `index.html` と一致することを確認する。これにより、Production aliasやCDNが旧HTMLを返した場合はリリースを失敗させる。
+- Previewや通常のブラウザアクセスに対するレスポンスヘッダーは変更せず、既存のブラウザキャッシュを利用する。
 - Clerk Production のサインイン画面またはアプリ shell が表示可能であることを手動確認する。
 - Convex / Clerk / Vercel の接続先が PROD 用であり、DEV/PREVIEW と混在していないことを確認する。
 - 主要CRUDなどデータ変更を伴う確認は、自動 smoke ではなくリリース後の手動確認として必要最小限で行う。

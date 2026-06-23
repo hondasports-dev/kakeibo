@@ -12,7 +12,7 @@ import { seedAiExpenseDraftForExpenseEntriesByUser } from "./helpers/seed";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
- * Issue #144: 支出AI登録のAI処理キューUI
+ * Issue #144: 支出画像の読み取りUI
  *
  * カバーするシナリオ:
  * - 複数画像を連続追加すると、各画像が解析待ちとしてキューに表示される。
@@ -26,7 +26,7 @@ async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: stri
     name: "画像の外部API送信に同意しますか",
   });
   const firstQueueItem = page
-    .getByRole("region", { name: "AI処理キュー" })
+    .getByRole("region", { name: "読み取り" })
     .getByText(firstFileName)
     .first();
 
@@ -36,15 +36,15 @@ async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: stri
   }
 }
 
-test.describe("Issue #144 AI処理キューUI", () => {
+test.describe("Issue #144 読み取りUI", () => {
   test.beforeEach(async () => {
     await cleanupAiExpenseQueue();
   });
 
-  test("@smoke 複数画像をAI処理キューに解析待ちとして追加できる", async ({ page }) => {
+  test("@smoke 複数画像を解析待ちとして追加できる", async ({ page }) => {
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    const queue = page.getByRole("region", { name: "読み取り" });
     await expect(queue).toBeVisible();
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
 
@@ -53,7 +53,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
       await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),
       await createSyntheticReceiptImage(page, `ai-queue-payment-${stamp}.jpg`),
     ];
-    await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
+    await page.getByLabel("読み取り用画像を追加").setInputFiles(queueFiles);
     await acceptReceiptImageConsentIfNeeded(page, `ai-queue-receipt-${stamp}.jpg`);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
@@ -77,7 +77,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
         { timeout: 15000 },
       )
       .toBeGreaterThanOrEqual(2);
-    const processingSection = queue.getByRole("region", { name: "AI処理中" });
+    const processingSection = queue.getByRole("region", { name: "読み取り中" });
     await expect(processingSection).toBeVisible();
     await expect(processingSection.getByText("2件")).toBeVisible();
 
@@ -93,17 +93,17 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    const queue = page.getByRole("region", { name: "読み取り" });
     await expect(queue).toBeVisible();
     await expect(queue.getByRole("button", { name: "撮影する" })).toBeEnabled();
-    await expect(page.getByLabel("AI処理キューへカメラで追加")).toHaveAttribute(
+    await expect(page.getByLabel("読み取り用カメラ画像を追加")).toHaveAttribute(
       "capture",
       "environment",
     );
 
     const stamp = Date.now();
     const cameraFiles = [await createSyntheticReceiptImage(page, `ai-queue-camera-${stamp}.jpg`)];
-    await page.getByLabel("AI処理キューへカメラで追加").setInputFiles(cameraFiles);
+    await page.getByLabel("読み取り用カメラ画像を追加").setInputFiles(cameraFiles);
     await acceptReceiptImageConsentIfNeeded(page, `ai-queue-camera-${stamp}.jpg`);
 
     await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
@@ -115,7 +115,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    const queue = page.getByRole("region", { name: "読み取り" });
     await expect(queue).toBeVisible();
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
     const stamp = Date.now();
@@ -123,7 +123,7 @@ test.describe("Issue #144 AI処理キューUI", () => {
       await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),
       await createSyntheticReceiptImage(page, `ai-queue-payment-${stamp}.jpg`),
     ];
-    await page.getByLabel("AI処理キューへ画像を追加").setInputFiles(queueFiles);
+    await page.getByLabel("読み取り用画像を追加").setInputFiles(queueFiles);
     await acceptReceiptImageConsentIfNeeded(page, `ai-queue-receipt-${stamp}.jpg`);
 
     // Issue #152: 非同期ジョブの subscription 反映を待つ。
@@ -156,7 +156,7 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
   test("確認が必要な下書きの reviewReasons を日本語で表示する", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
-    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    const queue = page.getByRole("region", { name: "読み取り" });
     await expect(queue).toBeVisible();
     await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
     await expect(queue.getByText("確認が必要 1件")).toBeVisible();
@@ -178,7 +178,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
   test("確認が必要な下書きを編集して登録準備OKに戻せる", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
-    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    const queue = page.getByRole("region", { name: "読み取り" });
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
@@ -186,7 +186,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
-    await dialog.getByLabel("支払内容").fill("水道料金");
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("9160");
     await dialog.getByRole("button", { name: "登録準備OKに戻す" }).click();
 
@@ -201,7 +201,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
   test("確認が必要な下書きを編集して登録済みにできる", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
-    const queue = page.getByRole("region", { name: "AI処理キュー" });
+    const queue = page.getByRole("region", { name: "読み取り" });
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
@@ -213,9 +213,9 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await expect(dialog.getByText("必須項目を確認してください")).toBeVisible();
     await expect(dialog.getByLabel("日付")).toHaveValue("2026-06-01");
     await expect(dialog.getByLabel("合計金額")).toHaveValue("9120");
-    await expect(dialog.getByLabel("支払先")).toHaveValue("大阪市水道局");
+    await expect(dialog.getByLabel("店名・内容")).toHaveValue("大阪市水道局");
 
-    await dialog.getByLabel("支払内容").fill("水道料金");
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("9160");
     await dialog.getByRole("button", { name: "修正して登録" }).click();
 

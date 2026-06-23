@@ -4,6 +4,7 @@ import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 import { emptyReviewForm, mapDraftToReviewForm } from "../utils/mappers";
 import { isDraftWithItems } from "../utils/mappers";
+import { getReviewFormError } from "../utils/reviewValidation";
 import type {
   AiExpenseQueuePanelProps,
   AiExpenseDraft,
@@ -47,7 +48,9 @@ export function useReviewDialog({
     selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === undefined;
 
   const updateForReview = useMutation(api.aiExpenseDrafts.mutations.updateForReview);
-  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.mutations.registerReadyDrafts);
+  const registerReadyDraftsAsExpenseEntries = useMutation(
+    api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
+  );
 
   useEffect(() => {
     if (
@@ -85,20 +88,16 @@ export function useReviewDialog({
     if (!selectedReviewDraftId) {
       return;
     }
-    const amountYen = Number(reviewForm.amountYen);
     if (reviewForm.documentType === "unknown") {
       setReviewError("書類種別を選択してください。");
       return;
     }
-    if (
-      !reviewForm.date ||
-      !Number.isInteger(amountYen) ||
-      amountYen <= 0 ||
-      !reviewForm.categoryId
-    ) {
-      setReviewError("日付、金額、カテゴリを確認してください。");
+    const validationError = getReviewFormError(reviewForm);
+    if (validationError) {
+      setReviewError(validationError);
       return;
     }
+    const amountYen = Number(reviewForm.amountYen);
 
     setReviewSubmitting(true);
     setReviewError("");
@@ -109,9 +108,6 @@ export function useReviewDialog({
           {
             documentType: reviewForm.documentType,
             shopName: reviewForm.shopName,
-            paymentPlace: reviewForm.paymentPlace,
-            payeeName: reviewForm.payeeName,
-            paymentPurpose: reviewForm.paymentPurpose,
             date: reviewForm.date,
             amountYen,
             categoryId: reviewForm.categoryId,
@@ -123,9 +119,6 @@ export function useReviewDialog({
           draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
           documentType: reviewForm.documentType,
           shopName: reviewForm.shopName,
-          paymentPlace: reviewForm.paymentPlace,
-          payeeName: reviewForm.payeeName,
-          paymentPurpose: reviewForm.paymentPurpose,
           date: reviewForm.date,
           amountYen,
           categoryId: reviewForm.categoryId as Id<"categories">,
@@ -133,7 +126,7 @@ export function useReviewDialog({
 
         if (registerAfterUpdate) {
           onRegister?.(selectedReviewDraftId);
-          await registerReadyDrafts({
+          await registerReadyDraftsAsExpenseEntries({
             draftIds: [selectedReviewDraftId as Id<"aiExpenseDrafts">],
           });
         }
