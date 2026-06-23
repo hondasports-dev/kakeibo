@@ -5,16 +5,16 @@ import { gotoAuthenticated } from "./helpers/auth";
  * Issue #174: UIから「画像から入力」以下を削除
  *
  * 旧「画像から入力」セクションが支出入力画面に残っていないこと、
- * 代わりに AI処理キュー と手入力フォームが見えていることを確認する。
+ * 代わりに読み取りと手入力フォームが見えていることを確認する。
  */
 
 const INPUT_PATH = "/weeks/current/input";
 
-test("I-5: 画像入力セクションが削除され、AI処理キューと手入力導線が見える", async ({ page }) => {
+test("I-5: 画像入力セクションが削除され、読み取りと手入力導線が見える", async ({ page }) => {
   await gotoAuthenticated(page, INPUT_PATH);
 
   await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "AI処理キュー" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "読み取り" })).toBeVisible();
   await expect(page.getByLabel("店舗名")).toBeVisible();
   await expect(page.getByLabel("合計金額")).toBeVisible();
   await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();

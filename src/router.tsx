@@ -106,7 +106,7 @@ function E2eAiExpenseQueuePage() {
                   ...item,
                   status: registerAfterUpdate ? "registered" : "ready",
                   documentType: values.documentType,
-                  title: values.shopName || values.payeeName || values.paymentPlace,
+                  title: values.shopName,
                   amountYen: values.amountYen,
                   reviewReasons: [],
                 }

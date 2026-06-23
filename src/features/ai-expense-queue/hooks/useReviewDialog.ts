@@ -47,7 +47,9 @@ export function useReviewDialog({
     selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === undefined;
 
   const updateForReview = useMutation(api.aiExpenseDrafts.mutations.updateForReview);
-  const registerReadyDrafts = useMutation(api.aiExpenseDrafts.mutations.registerReadyDrafts);
+  const registerReadyDraftsAsExpenseEntries = useMutation(
+    api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
+  );
 
   useEffect(() => {
     if (
@@ -109,9 +111,6 @@ export function useReviewDialog({
           {
             documentType: reviewForm.documentType,
             shopName: reviewForm.shopName,
-            paymentPlace: reviewForm.paymentPlace,
-            payeeName: reviewForm.payeeName,
-            paymentPurpose: reviewForm.paymentPurpose,
             date: reviewForm.date,
             amountYen,
             categoryId: reviewForm.categoryId,
@@ -123,9 +122,6 @@ export function useReviewDialog({
           draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
           documentType: reviewForm.documentType,
           shopName: reviewForm.shopName,
-          paymentPlace: reviewForm.paymentPlace,
-          payeeName: reviewForm.payeeName,
-          paymentPurpose: reviewForm.paymentPurpose,
           date: reviewForm.date,
           amountYen,
           categoryId: reviewForm.categoryId as Id<"categories">,
@@ -133,7 +129,7 @@ export function useReviewDialog({
 
         if (registerAfterUpdate) {
           onRegister?.(selectedReviewDraftId);
-          await registerReadyDrafts({
+          await registerReadyDraftsAsExpenseEntries({
             draftIds: [selectedReviewDraftId as Id<"aiExpenseDrafts">],
           });
         }

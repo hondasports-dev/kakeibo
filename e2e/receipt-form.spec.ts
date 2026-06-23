@@ -59,10 +59,9 @@ async function expectChartLabelsWithinBounds(graph: Locator) {
  *   - [Issue #51] シナリオ 11: 金額に数字を入力すると3桁カンマ区切りで表示される (P1 / validation)
  *   - [Issue #14] 入力状況パネルが表示される (P0 / smoke) ※PC幅のみ
  *   - [Issue #14] 保存後にサマリーがリアルタイム更新される (P0 / issue #14 完了条件) ※DashboardPage
- *   - [Issue #14] 保存後に直近の入力一覧にレシートが表示される (P0 / issue #14 完了条件) ※PC幅のみ
  *   - [Issue #14] 保存後に WeekStatusPanel の件数表示がリアルタイム更新される (P0 / issue #14 完了条件) ※PC幅のみ
- *   - [Issue #16] 振り返りメモを保存してセッションを完了できる (P0 / issue #16 完了条件)
- *   - [Issue #16] 完了後もメモ再編集方針が表示され、メモを更新できる (P1 / regression)
+ *   - [Issue #308] 入力画面に直近の入力一覧を表示しない (P0 / regression)
+ *   - [Issue #309] 週次サマリーに振り返り・完了UIを表示しない (P0 / regression)
  *   - [Issue #45] 週次サマリーを前後週ナビゲーションで切り替えられる (P0 / regression)
  *   - [Issue #45] 未来週URLは今週の週次サマリーへ正規化される (P0 / error-handling)
  *   - [Issue #46] 入力画面・週次サマリーに前週比が表示される (P1 / regression)
@@ -223,7 +222,7 @@ test.describe("支出項目保存フロー（Issue #13 / #181 受け入れ確認
 
   test("[Issue #64] 旧の画像入力UIがなくても手入力保存フローは維持される", async ({ page }) => {
     await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "AI処理キュー" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "読み取り" })).toBeVisible();
 
     // Issue #181: ExpenseEntryForm セレクターに変更
     await page.getByLabel("店舗名 / 支払先").fill("画像確認スーパー");
@@ -571,9 +570,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     );
   });
 
-  test("[Issue #175] 保存後に入力画面の直近の入力一覧に日付とカテゴリが表示される", async ({
-    page,
-  }) => {
+  test("[Issue #308] 保存後も入力画面に直近の入力一覧を表示しない", async ({ page }) => {
     const shopName = `QA入力画面確認_${Date.now()}`;
 
     // カテゴリ名を事前に取得
@@ -589,32 +586,8 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
 
     await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
 
-    // InputPage の WeekStatusPanel（直近の入力）を確認
-    const receiptRows = page.locator('[class*="receipt-row"]');
-    await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(receiptRows.filter({ hasText: "1,500円" }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    // 日付が表示されることを確認（M/D形式）— 週日選択UIの選択中の日付
-    const selectedDateOption = page.locator(
-      '[role="listbox"][aria-label="週内の日付候補"] [role="option"][aria-selected="true"]',
-    );
-    const selectedDateText = await selectedDateOption.textContent();
-    const dateMatch = selectedDateText?.match(/\d+\/\d+/);
-    const dateText = dateMatch
-      ? dateMatch[0]
-      : `${new Date().getMonth() + 1}/${new Date().getDate()}`;
-    await expect(receiptRows.filter({ hasText: dateText }).first()).toBeVisible({
-      timeout: 15_000,
-    });
-    // カテゴリ名が表示されることを確認
-    if (categoryName) {
-      await expect(receiptRows.filter({ hasText: categoryName }).first()).toBeVisible({
-        timeout: 15_000,
-      });
-    }
+    await expect(page.getByRole("heading", { name: "直近の入力" })).toHaveCount(0);
+    expect(categoryName).toBeTruthy();
   });
 });
 
@@ -627,27 +600,12 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await cleanupTestReceipts();
   });
 
-  test("@smoke [Issue #15] 週次サマリーページにReviewMemoPanelが表示される (P0 / smoke)", async ({
-    page,
-  }) => {
-    // Issue #77: ReviewMemoPanel は InputPage から SummaryPage に移動した
-    // 未完了セッションでは「セッションを完了」ボタンが表示される
+  test("@smoke [Issue #309] 週次サマリーに振り返りと完了操作を表示しない", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
-    // SummaryPage では summaryWeekSession が null の場合に自動作成するため、ロード完了を待つ
-    await expect(page.getByRole("heading", { name: "週次振り返り" })).toBeVisible({
-      timeout: 15_000,
-    });
-    // セッション状態により「メモを保存」「セッションを完了」「メモを更新」のいずれかが表示される
-    // .first() で strict mode violation（複数ボタン同時表示時）を回避
-    await expect(
-      page
-        .getByRole("button", { name: "セッションを完了" })
-        .or(page.getByRole("button", { name: "メモを保存" }))
-        .or(page.getByRole("button", { name: "メモを更新" }))
-        .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "週次振り返り" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "セッションを完了" })).toHaveCount(0);
   });
 
   test("@smoke [Issue #15] 週次サマリーページに遷移できる (P0 / smoke)", async ({ page }) => {
@@ -739,14 +697,7 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
 
     await expect(page).toHaveURL(new RegExp(`/weeks/${previousWeekStartDate}$`));
     await expect(page.getByRole("button", { name: "次の週へ" })).toBeEnabled();
-    // 前の週へ移動後、週次振り返りセクションが表示される
-    // （セッションがなければプレースホルダー、あれば ReviewMemoPanel が表示される）
-    await expect(
-      page
-        .getByRole("heading", { name: "週次振り返り" })
-        .or(page.getByText("この週の振り返りメモはまだありません"))
-        .first(),
-    ).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole("heading", { name: "週次振り返り" })).toHaveCount(0);
   });
 
   test("@smoke [Issue #45] 未来週URLは今週の週次サマリーへ正規化される", async ({ page }) => {
@@ -819,17 +770,7 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     //     前週比コンポーネントが表示されること（数値または「前週データなし」）を確認する
     await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
 
-    // ReviewMemoPanel の前週比確認（Issue #77: ReviewMemoPanel は SummaryPage に移動済み）
-    await expect(page.getByRole("heading", { name: "週次振り返り", level: 2 })).toBeVisible({
-      timeout: 15_000,
-    });
-    const reviewPanel = page
-      .getByRole("heading", { name: "週次振り返り", level: 2 })
-      .locator("../../..");
-    await expect(reviewPanel.getByLabel("前週比")).toBeVisible();
-
-    // WeeklySummaryPanel と ReviewMemoPanel の両方に前週比が表示されること（2件）
-    await expect(page.getByLabel("前週比")).toHaveCount(2);
+    await expect(page.getByLabel("前週比")).toHaveCount(1);
     // 前週の 7,000円 はカテゴリ別支出・支出一覧には表示されない（グラフバーラベルを除く）
     const categorySection = page
       .getByRole("heading", { name: "カテゴリ別", level: 2 })
@@ -839,87 +780,6 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await expect(categorySection.getByText(/\b7,000\b/)).toHaveCount(0);
     const receiptListSection = page.getByLabel("週次サマリーの支出一覧");
     await expect(receiptListSection.getByText(/\b7,000\b/)).toHaveCount(0);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// 振り返りメモとセッション完了（Issue #16）
-// ---------------------------------------------------------------------------
-
-test.describe("振り返りメモとセッション完了（Issue #16 受け入れ確認）", () => {
-  test.use({ viewport: { width: 1280, height: 800 } });
-
-  test.beforeEach(async ({ page }) => {
-    // Issue #77: ReviewMemoPanel は SummaryPage に移動したため、SummaryPage を起点にする
-    await gotoAuthenticated(page, "/weeks/current/input");
-    await resetTestWeekSession(getCurrentWeekStartDate(), { page });
-    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
-      timeout: 15_000,
-    });
-    const weekStartDate = getCurrentWeekStartDate();
-    await page.goto(`/weeks/${weekStartDate}`);
-    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible({
-      timeout: 15_000,
-    });
-    // ReviewMemoPanel が表示されるまで待機（セッション状態は問わない）
-    await expect(page.getByRole("heading", { name: "週次振り返り", level: 2 })).toBeVisible({
-      timeout: 15_000,
-    });
-  });
-
-  test.afterEach(async ({ page }) => {
-    await resetTestWeekSession(getCurrentWeekStartDate(), { page });
-    await cleanupTestReceipts({ page });
-  });
-
-  test("[Issue #16] 振り返りメモ保存からセッション完了、完了後のメモ更新まで確認できる", async ({
-    page,
-  }) => {
-    const reviewMemoInput = page.getByLabel("振り返りメモ");
-    const updatedMemo = `E2E振り返りメモ_${Date.now()}_更新`;
-
-    // ReviewMemoPanel は SummaryPage に表示される
-    await expect(page.getByRole("heading", { name: "週次振り返り", level: 2 })).toBeVisible();
-
-    // セッション状態に応じてフローを実行（resetTestWeekSession が完了してない場合も考慮）
-    const isAlreadyCompleted = await page
-      .getByRole("button", { name: "メモを更新" })
-      .isVisible()
-      .catch(() => false);
-
-    if (!isAlreadyCompleted) {
-      // draft 状態: メモを保存してからセッションを完了
-      const firstMemo = `E2E振り返りメモ_${Date.now()}`;
-      await reviewMemoInput.fill(firstMemo);
-      await page.getByRole("button", { name: "メモを保存" }).click();
-      await expect(page.getByText("振り返りメモを保存しました")).toBeVisible({
-        timeout: 10_000,
-      });
-
-      await page.getByRole("button", { name: "セッションを完了" }).click();
-      // セッション完了後もSummaryPageに留まる（onCompleteが未設定のため）
-      await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
-    }
-
-    // 完了後はReviewMemoPanelが「完了済み」モードになりメモ再編集可能
-    await expect(
-      page.getByText("この週は完了済みです。振り返りメモは完了後も再編集できます。"),
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("button", { name: "メモを更新" })).toBeVisible();
-
-    // 完了後のメモ更新確認
-    await reviewMemoInput.fill(updatedMemo);
-    await page.getByRole("button", { name: "メモを更新" }).click();
-
-    await expect(page.getByText("振り返りメモを更新しました")).toBeVisible({ timeout: 10_000 });
-    await expect(reviewMemoInput).toHaveValue(updatedMemo);
-
-    // リロードしてもメモが維持される
-    await page.reload();
-    await expect(page.getByRole("heading", { name: "週次振り返り", level: 2 })).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByLabel("振り返りメモ")).toHaveValue(updatedMemo);
   });
 });
 

@@ -26,12 +26,6 @@ function formatMonthDay(date: string): string {
   return `${month}/${day}`;
 }
 
-function formatDiff(value: number | null): string {
-  if (value === null) return "比較データなし";
-  const sign = value > 0 ? "+" : "";
-  return `${sign}${currencyFormatter.format(value)}円`;
-}
-
 export function buildWeeklyExpenseChartData({
   weeks,
   targetWeekStartDate,
@@ -85,7 +79,5 @@ export function formatWeeklyExpenseTooltip(item: WeeklyExpenseChartItem): string
   return [
     `${formatMonthDay(item.weekStartDate)}〜${formatMonthDay(item.weekEndDate)}`,
     `支出合計 ${currencyFormatter.format(item.amount)}円`,
-    `前週差 ${formatDiff(item.previousDiff)}`,
-    `平均との差 ${formatDiff(item.averageDiff)}`,
   ].join("｜");
 }

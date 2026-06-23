@@ -243,6 +243,5 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.getByText("収入")).toBeInTheDocument();
   });
 
-  // 振り返りメモ表示・編集は ReviewMemoPanel に移譲し、SummaryPage でレンダリングする。
-  // WeeklySummaryPanel は振り返りメモセクションを持たないため、このテストは削除。
+  // 振り返りメモとセッション完了UIは Issue #309 で削除済み。
 });
