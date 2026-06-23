@@ -43,5 +43,8 @@ describe("production-release workflow", () => {
     expect(yaml).toContain('expected_title="$(sed');
     expect(yaml).toContain('deployed_title="$(sed');
     expect(yaml).toContain('[ "$deployed_title" != "$expected_title" ]');
+    expect(yaml).toContain("PROD_TITLE: ${{ steps.smoke.outputs.title }}");
+    expect(yaml).toContain('echo "| PROD title | $PROD_TITLE |"');
+    expect(yaml).not.toContain('echo "| PROD title | ${{ steps.smoke.outputs.title }} |"');
   });
 });
