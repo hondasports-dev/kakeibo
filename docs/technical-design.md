@@ -499,7 +499,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 - `aiExpenseDrafts.listByStatus(status)`
 - `aiExpenseDrafts.getWithItems(draftId)`
 - `aiExpenseDrafts.updateForReview(draftId, input)`
-- `aiExpenseDrafts.registerReadyDrafts(draftIds)`
+- `aiExpenseDrafts.registerReadyDraftsAsExpenseEntries(draftIds)`
 - `aiExpenseDrafts.analyzeReceiptImageToDraft(input)`
 - `aiExpenseDrafts.createFromExtraction(input)`（internal）
 - `aiExpenseDrafts.createFailedDraftFromImageAnalysis(input)`（internal）
@@ -509,10 +509,10 @@ active group を解決する。`draftId` や `categoryId` を受け取る処理�
 `groupId` と認証ユーザーの active group が一致することを確認する。`aiExpenseDraftItems` は
 `draftId` だけでなく `groupId` も保存し、明細単体の取得でもグループ境界を確認できるようにする。
 
-`receipts` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
+`expenseEntries` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
 
-| 下書き種別 | `receipts.shopName` 変換方針 |
-| ---------- | ---------------------------- |
+| 下書き種別 | 明細がない場合の `expenseEntries.itemName` 変換方針 |
+| ---------- | --------------------------------------------------- |
 | `receipt` | `shopName` を使う。空の場合は `payeeName`、`paymentPlace` の順に補完する。 |
 | `convenience_payment` | `payeeName` と `paymentPurpose` を連結する。空の場合は `paymentPlace`、`shopName` の順に補完する。 |
 | `unknown` | 確認が必要な下書きとして扱い、登録前にユーザーが必要項目を確定する。 |

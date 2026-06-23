@@ -180,8 +180,10 @@ jobs:
 
       - name: PROD smoke checklist
         id: smoke
+        env:
+          VERCEL_DEPLOYMENT_URL: ${{ steps.vercel.outputs.url }}
         run: |
-          smoke_target="${PRODUCTION_SMOKE_URL:-${{ steps.vercel.outputs.url }}}"
+          smoke_target="${PRODUCTION_SMOKE_URL:-$VERCEL_DEPLOYMENT_URL}"
           curl --fail --show-error --location --max-time 30 \
             --header "Cache-Control: no-cache" \
             "$smoke_target" > /tmp/prod-smoke.html
@@ -203,6 +205,11 @@ jobs:
           echo "title=$deployed_title" >> "$GITHUB_OUTPUT"
 
       - name: Write release summary
+        env:
+          VERCEL_PRODUCTION_URL: ${{ steps.vercel.outputs.url }}
+          PROD_SMOKE_TARGET: ${{ steps.smoke.outputs.target }}
+          PROD_SMOKE_BYTES: ${{ steps.smoke.outputs.bytes }}
+          PROD_TITLE: ${{ steps.smoke.outputs.title }}
         run: |
           {
             echo "## Production release"
@@ -212,10 +219,10 @@ jobs:
             echo "| Source ref | \`$SOURCE_REF\` |"
             echo "| Release mode | \`$RELEASE_MODE\` |"
             echo "| DB/schema check | \`$DB_SCHEMA_CHANGE_CHECK\` |"
-            echo "| Vercel Production URL | ${{ steps.vercel.outputs.url }} |"
-            echo "| PROD smoke target | ${{ steps.smoke.outputs.target }} |"
-            echo "| PROD smoke response bytes | ${{ steps.smoke.outputs.bytes }} |"
-            echo "| PROD title | ${{ steps.smoke.outputs.title }} |"
+            echo "| Vercel Production URL | $VERCEL_PRODUCTION_URL |"
+            echo "| PROD smoke target | $PROD_SMOKE_TARGET |"
+            echo "| PROD smoke response bytes | $PROD_SMOKE_BYTES |"
+            echo "| PROD title | $PROD_TITLE |"
             echo "| Release note | $RELEASE_NOTE |"
             echo
             echo "Convex Production was deployed before Vercel Production. Treat follow-up fixes as forward-fix releases."
