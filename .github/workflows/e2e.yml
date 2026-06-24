@@ -139,7 +139,7 @@ jobs:
               core.notice(`Skipping secrets-backed E2E: ${reason}`)
             }
 
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: steps.trust.outputs.trusted == 'true'
         with:
           # trust判定で検証したcommitをcheckoutし、Preview URLとE2Eコードのずれを避ける
