@@ -41,7 +41,7 @@ const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
     documentType: "convenience_payment",
     title: "公共料金",
     amountYen: 9120,
-    reviewReasons: ["low_confidence", "missing_required_field"],
+    reviewReasons: ["low_confidence", "missing_required_field", "ambiguous_category"],
     date: "2026-06-01",
     categoryName: "水道光熱費",
   },
@@ -90,14 +90,36 @@ const devAiExpenseReviewDrafts = {
   },
 };
 
+const devAiExpenseReviewDraftItems = {
+  "e2e-review-draft": [
+    {
+      _id: "e2e-item-food",
+      itemName: "パン",
+      amountYen: 120,
+      categoryId: "e2e-cat-food",
+      confidence: { itemName: 0.92, amountYen: 0.95, categoryId: 0.86 },
+      warnings: [],
+    },
+    {
+      _id: "e2e-item-unknown",
+      itemName: "胃薬",
+      amountYen: 980,
+      confidence: { itemName: 0.72, amountYen: 0.95, categoryName: 0.4 },
+      warnings: ["品名が不鮮明です"],
+    },
+  ],
+};
+
 function E2eAiExpenseQueuePage() {
   const [items, setItems] = useState(devAiExpenseQueueItems);
+  const includesReviewItems = new URLSearchParams(window.location.search).get("withItems") === "1";
 
   return (
     <AiExpenseQueuePanel
       categories={devAiExpenseQueueCategories}
       initialItems={items}
       initialReviewDrafts={devAiExpenseReviewDrafts}
+      initialReviewDraftItems={includesReviewItems ? devAiExpenseReviewDraftItems : {}}
       onReviewSubmit={(draftId, values, registerAfterUpdate) => {
         setItems((current) =>
           current.map((item) =>

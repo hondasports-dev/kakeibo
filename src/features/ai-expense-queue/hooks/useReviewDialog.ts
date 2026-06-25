@@ -2,33 +2,45 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
-import { emptyReviewForm, mapDraftToReviewForm } from "../utils/mappers";
+import {
+  emptyReviewForm,
+  mapDraftItemsToReviewItems,
+  mapDraftToReviewForm,
+} from "../utils/mappers";
 import { isDraftWithItems } from "../utils/mappers";
 import { getReviewFormError } from "../utils/reviewValidation";
 import type {
   AiExpenseQueuePanelProps,
   AiExpenseDraft,
+  AiExpenseDraftItem,
   AiExpenseDraftWithItems,
+  ReviewItemValues,
   ReviewFormValues,
 } from "../types/types";
 
 export function useReviewDialog({
   initialReviewDrafts,
+  initialReviewDraftItems,
   onReviewSubmit,
   onRegister,
 }: {
   initialReviewDrafts: Record<string, AiExpenseDraft>;
+  initialReviewDraftItems: Record<string, AiExpenseDraftItem[]>;
   onReviewSubmit?: AiExpenseQueuePanelProps["onReviewSubmit"];
   onRegister?: (draftId: string) => void;
 }) {
   const [selectedReviewDraftId, setSelectedReviewDraftId] = useState<string | null>(null);
   const [initializedReviewDraftId, setInitializedReviewDraftId] = useState<string | null>(null);
   const [reviewForm, setReviewForm] = useState<ReviewFormValues>(emptyReviewForm);
+  const [reviewItems, setReviewItems] = useState<ReviewItemValues[]>([]);
   const [reviewError, setReviewError] = useState("");
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const localReviewDraft = selectedReviewDraftId
     ? initialReviewDrafts[selectedReviewDraftId]
+    : undefined;
+  const localReviewItems = selectedReviewDraftId
+    ? initialReviewDraftItems[selectedReviewDraftId]
     : undefined;
   const selectedReviewDraftDetails = useQuery(
     api.aiExpenseDrafts.queries.getWithItems,
@@ -59,14 +71,28 @@ export function useReviewDialog({
       initializedReviewDraftId !== selectedReviewDraft._id
     ) {
       setReviewForm(mapDraftToReviewForm(selectedReviewDraft));
+      setReviewItems(
+        localReviewItems
+          ? mapDraftItemsToReviewItems(localReviewItems)
+          : isDraftWithItems(selectedReviewDraftDetails)
+            ? mapDraftItemsToReviewItems(selectedReviewDraftDetails.items)
+            : [],
+      );
       setInitializedReviewDraftId(selectedReviewDraft._id);
     }
-  }, [initializedReviewDraftId, selectedReviewDraft, selectedReviewDraftId]);
+  }, [
+    initializedReviewDraftId,
+    localReviewItems,
+    selectedReviewDraft,
+    selectedReviewDraftDetails,
+    selectedReviewDraftId,
+  ]);
 
   const handleOpenReview = (itemId: string) => {
     setSelectedReviewDraftId(itemId);
     setInitializedReviewDraftId(null);
     setReviewForm(emptyReviewForm);
+    setReviewItems([]);
     setReviewError("");
   };
 
@@ -77,11 +103,38 @@ export function useReviewDialog({
     setSelectedReviewDraftId(null);
     setInitializedReviewDraftId(null);
     setReviewForm(emptyReviewForm);
+    setReviewItems([]);
     setReviewError("");
   };
 
   const handleReviewFieldChange = (field: keyof ReviewFormValues, value: string) => {
     setReviewForm((current) => ({ ...current, [field]: value }));
+  };
+
+  const handleReviewItemChange = (
+    itemId: string,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    value: string,
+  ) => {
+    setReviewItems((current) =>
+      current.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)),
+    );
+  };
+
+  const handleAddReviewItem = () => {
+    setReviewItems((current) => [
+      ...current,
+      {
+        id: `new-${Date.now()}-${current.length}`,
+        itemName: "",
+        amountYen: "",
+        categoryId: "",
+      },
+    ]);
+  };
+
+  const handleRemoveReviewItem = (itemId: string) => {
+    setReviewItems((current) => current.filter((item) => item.id !== itemId));
   };
 
   const handleSubmitReview = async (registerAfterUpdate: boolean) => {
@@ -98,6 +151,19 @@ export function useReviewDialog({
       return;
     }
     const amountYen = Number(reviewForm.amountYen);
+    const invalidItem = reviewItems.find((item) => {
+      const itemAmount = Number(item.amountYen);
+      return (
+        !item.itemName.trim() ||
+        !Number.isInteger(itemAmount) ||
+        itemAmount <= 0 ||
+        !item.categoryId
+      );
+    });
+    if (invalidItem) {
+      setReviewError("明細名、明細金額、明細カテゴリを確認してください。");
+      return;
+    }
 
     setReviewSubmitting(true);
     setReviewError("");
@@ -111,6 +177,11 @@ export function useReviewDialog({
             date: reviewForm.date,
             amountYen,
             categoryId: reviewForm.categoryId,
+            items: reviewItems.map((item) => ({
+              ...item,
+              itemName: item.itemName.trim(),
+              amountYen: Number(item.amountYen),
+            })),
           },
           registerAfterUpdate,
         );
@@ -122,6 +193,18 @@ export function useReviewDialog({
           date: reviewForm.date,
           amountYen,
           categoryId: reviewForm.categoryId as Id<"categories">,
+          items: reviewItems.map((item) => ({
+            itemName: item.itemName.trim(),
+            amountYen: Number(item.amountYen),
+            categoryId: item.categoryId as Id<"categories">,
+            confidence: {
+              ...item.confidence,
+              itemName: 1,
+              amountYen: 1,
+              categoryId: 1,
+            },
+            warnings: item.warnings ?? [],
+          })),
         });
 
         if (registerAfterUpdate) {
@@ -135,6 +218,7 @@ export function useReviewDialog({
       setSelectedReviewDraftId(null);
       setInitializedReviewDraftId(null);
       setReviewForm(emptyReviewForm);
+      setReviewItems([]);
     } catch (error) {
       setReviewError(
         error instanceof Error
@@ -153,16 +237,21 @@ export function useReviewDialog({
     isReviewDraftLoading,
     isReviewDraftNotFound,
     reviewForm,
+    reviewItems,
     reviewError,
     reviewSubmitting,
     setSelectedReviewDraftId,
     setInitializedReviewDraftId,
     setReviewForm,
+    setReviewItems,
     setReviewError,
     setReviewSubmitting,
     handleOpenReview,
     handleCloseReview,
     handleReviewFieldChange,
+    handleReviewItemChange,
+    handleAddReviewItem,
+    handleRemoveReviewItem,
     handleSubmitReview,
   };
 }

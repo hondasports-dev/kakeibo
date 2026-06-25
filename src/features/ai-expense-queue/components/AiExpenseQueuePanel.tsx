@@ -12,12 +12,14 @@ export function AiExpenseQueuePanel({
   initialItems,
   categories = [],
   initialReviewDrafts = {},
+  initialReviewDraftItems = {},
   onReviewSubmit,
 }: AiExpenseQueuePanelProps) {
   const queue = useAiExpenseQueuePanel({
     initialItems,
     categories,
     initialReviewDrafts,
+    initialReviewDraftItems,
     onReviewSubmit,
   });
 
@@ -81,9 +83,13 @@ export function AiExpenseQueuePanel({
         selectedReviewDraft={queue.selectedReviewDraft}
         reviewError={queue.reviewError}
         reviewForm={queue.reviewForm}
+        reviewItems={queue.reviewItems}
         reviewSubmitting={queue.reviewSubmitting}
+        onAddItem={queue.handleAddReviewItem}
         onClose={queue.handleCloseReview}
         onFieldChange={queue.handleReviewFieldChange}
+        onItemChange={queue.handleReviewItemChange}
+        onRemoveItem={queue.handleRemoveReviewItem}
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
       />
 
