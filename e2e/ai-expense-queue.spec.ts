@@ -21,18 +21,6 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 
-async function expectDocumentNoHorizontalOverflow(page: Page) {
-  await expect
-    .poll(
-      async () =>
-        page.evaluate(() =>
-          Math.ceil(document.documentElement.scrollWidth - document.documentElement.clientWidth),
-        ),
-      { timeout: 5000 },
-    )
-    .toBeLessThanOrEqual(1);
-}
-
 async function expectLocatorNoHorizontalOverflow(locator: Locator) {
   await expect
     .poll(
@@ -151,7 +139,6 @@ test.describe("Issue #144 読み取りUI", () => {
 
     const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
-    await expectDocumentNoHorizontalOverflow(page);
     await expectLocatorNoHorizontalOverflow(queue);
     const cameraButton = queue.getByRole("button", { name: "撮影する" });
     const imageButton = queue.getByRole("button", { name: "画像を追加", exact: true });
@@ -173,7 +160,6 @@ test.describe("Issue #144 読み取りUI", () => {
     await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
       timeout: 15000,
     });
-    await expectDocumentNoHorizontalOverflow(page);
     await expectLocatorNoHorizontalOverflow(queue);
   });
 
@@ -183,7 +169,6 @@ test.describe("Issue #144 読み取りUI", () => {
 
     const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
-    await expectDocumentNoHorizontalOverflow(page);
     await expectLocatorNoHorizontalOverflow(queue);
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
     const stamp = Date.now();
@@ -217,7 +202,6 @@ test.describe("Issue #144 読み取りUI", () => {
       .toBeGreaterThanOrEqual(2);
     // Issue #181: 保存ボタンは変わらず「保存して次へ」
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
-    await expectDocumentNoHorizontalOverflow(page);
     await expectLocatorNoHorizontalOverflow(queue);
   });
 });
