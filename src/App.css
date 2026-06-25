@@ -274,6 +274,7 @@
   gap: var(--space-xs);
   min-width: 0;
   max-width: 240px;
+  overflow: hidden;
 }
 
 .user-menu-button span {
@@ -346,6 +347,14 @@
   .group-member-row {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .user-menu-button {
+    max-width: calc(100vw - 32px);
+  }
+
+  .user-menu-button > span {
+    display: none;
   }
 }
 

@@ -19,11 +19,25 @@ export function ImageInputButton({
   capture?: boolean;
 }) {
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+    <Box
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+        width: { xs: "100%", sm: "auto" },
+      }}
+    >
       <Button
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
         startIcon={<AddPhotoAlternateIcon />}
+        sx={{
+          justifyContent: "center",
+          minWidth: 0,
+          overflowWrap: "anywhere",
+          whiteSpace: "normal",
+          width: "100%",
+        }}
         type="button"
         variant={variant}
       >
