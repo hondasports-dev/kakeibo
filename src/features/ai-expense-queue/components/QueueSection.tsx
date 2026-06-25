@@ -115,6 +115,34 @@ function QueueItemCard({
           </Stack>
         )}
 
+        {item.categoryAggregates && item.categoryAggregates.length > 0 && (
+          <Stack spacing={0.75}>
+            <Typography color="text.secondary" variant="body2">
+              カテゴリ別登録候補
+              {item.itemTotalYen !== undefined && ` ${item.itemTotalYen.toLocaleString("ja-JP")}円`}
+              {item.itemDifferenceYen !== undefined &&
+                item.itemDifferenceYen !== 0 &&
+                ` / 差額 ${item.itemDifferenceYen.toLocaleString("ja-JP")}円`}
+            </Typography>
+            <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+              {item.categoryAggregates.map((aggregate) => (
+                <Chip
+                  key={aggregate.categoryId}
+                  label={`${aggregate.categoryName ?? "カテゴリ"} ${aggregate.amountYen.toLocaleString("ja-JP")}円`}
+                  size="small"
+                  variant="outlined"
+                />
+              ))}
+              {item.hasUncategorizedItems && (
+                <Chip color="warning" label="未分類あり" size="small" variant="outlined" />
+              )}
+              {item.hasLowConfidenceItems && (
+                <Chip color="warning" label="確認必要あり" size="small" variant="outlined" />
+              )}
+            </Stack>
+          </Stack>
+        )}
+
         {item.status === "needs_review" && (
           <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
             <Button

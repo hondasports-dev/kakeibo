@@ -127,6 +127,7 @@ export default defineSchema({
   expenseEntries: defineTable({
     groupId: v.id("groups"),
     sourceDocumentId: v.optional(v.id("sourceDocuments")),
+    aiExpenseDraftId: v.optional(v.id("aiExpenseDrafts")),
     date: v.string(),
     amount: v.number(),
     categoryId: v.id("categories"),
@@ -139,7 +140,8 @@ export default defineSchema({
   })
     .index("by_group_id_and_date", ["groupId", "date"])
     .index("by_group_id_and_category_id_and_date", ["groupId", "categoryId", "date"])
-    .index("by_group_id_and_source_document_id", ["groupId", "sourceDocumentId"]),
+    .index("by_group_id_and_source_document_id", ["groupId", "sourceDocumentId"])
+    .index("by_group_id_and_ai_expense_draft_id", ["groupId", "aiExpenseDraftId"]),
 
   receipts: defineTable({
     groupId: v.id("groups"),

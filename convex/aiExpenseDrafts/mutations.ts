@@ -3,6 +3,7 @@ import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   aiExpenseDraftItemConfidenceValidator,
   aiExpenseDraftDocumentTypeValidator,
   classifyAiExpenseDraft,
@@ -114,6 +115,61 @@ function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
   if (!draft.categoryId) {
     throw new ConvexError("Draft category is required to register");
   }
+}
+
+function hasLowConfidenceDraftItem(item: Doc<"aiExpenseDraftItems">) {
+  return (
+    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
+    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
+    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
+      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
+  );
+}
+
+function aggregateDraftItemsByCategory(
+  draft: Doc<"aiExpenseDrafts">,
+  items: Doc<"aiExpenseDraftItems">[],
+) {
+  if (items.length === 0) {
+    return [
+      {
+        itemName: resolveReceiptShopNameFromDraft(draft),
+        amountYen: draft.amountYen!,
+        categoryId: draft.categoryId!,
+      },
+    ];
+  }
+
+  let itemTotal = 0;
+  const categoryAmounts = new Map<Id<"categories">, number>();
+  for (const item of items) {
+    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+      throw new ConvexError("Draft item amount is required to register");
+    }
+    if (item.categoryId === undefined) {
+      throw new ConvexError("Draft item category is required to register");
+    }
+    if (hasLowConfidenceDraftItem(item)) {
+      throw new ConvexError("Low confidence draft items must be reviewed before register");
+    }
+
+    itemTotal += item.amountYen;
+    categoryAmounts.set(
+      item.categoryId,
+      (categoryAmounts.get(item.categoryId) ?? 0) + item.amountYen,
+    );
+  }
+
+  if (itemTotal !== draft.amountYen) {
+    throw new ConvexError("Draft item total must match draft amount");
+  }
+
+  const title = resolveReceiptShopNameFromDraft(draft);
+  return Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
+    itemName: title,
+    amountYen,
+    categoryId,
+  }));
 }
 
 async function replaceDraftItemsForReview(
@@ -380,21 +436,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
       .order("asc")
       .take(100);
 
-    // itemsが存在する場合は各itemからexpenseEntriesを作成、空の場合はdraft全体を1つ作成
-    const itemsToRegister =
-      items.length > 0
-        ? items.map((item) => ({
-            itemName: item.itemName,
-            amountYen: item.amountYen,
-            categoryId: item.categoryId,
-          }))
-        : [
-            {
-              itemName: resolveReceiptShopNameFromDraft(draft),
-              amountYen: draft.amountYen!,
-              categoryId: draft.categoryId!,
-            },
-          ];
+    const itemsToRegister = aggregateDraftItemsByCategory(draft, items);
 
     const entryIds = await createExpenseEntriesFromDraftHandler(ctx, {
       draftId: draft._id,

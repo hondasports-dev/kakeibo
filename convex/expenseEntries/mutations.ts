@@ -126,6 +126,7 @@ export async function createExpenseEntriesFromDraftHandler(
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
       sourceDocumentId: undefined,
+      aiExpenseDraftId: args.draftId,
       date: draft.date,
       amount: item.amountYen,
       categoryId,
