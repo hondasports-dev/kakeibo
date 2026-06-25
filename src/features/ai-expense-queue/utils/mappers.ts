@@ -5,6 +5,7 @@ import type {
   AiExpenseQueueItem,
   AiExpenseQueueStatus,
   ReviewFormValues,
+  ReviewItemValues,
 } from "../types/types";
 
 export const emptyReviewForm: ReviewFormValues = {
@@ -69,6 +70,19 @@ export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
     amountYen: draft.amountYen?.toString() ?? "",
     categoryId: draft.categoryId ?? "",
   };
+}
+
+export function mapDraftItemsToReviewItems(
+  items: AiExpenseDraftWithItems["items"],
+): ReviewItemValues[] {
+  return items.map((item, index) => ({
+    id: item._id ?? `item-${index}`,
+    itemName: item.itemName,
+    amountYen: item.amountYen.toString(),
+    categoryId: item.categoryId ?? "",
+    confidence: item.confidence,
+    warnings: item.warnings,
+  }));
 }
 
 export function isDraftWithItems(value: unknown): value is AiExpenseDraftWithItems {

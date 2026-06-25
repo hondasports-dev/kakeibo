@@ -3,7 +3,9 @@ import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
+  aiExpenseDraftItemConfidenceValidator,
   aiExpenseDraftDocumentTypeValidator,
+  classifyAiExpenseDraft,
   resolveReceiptShopNameFromDraft,
   type AiExpenseDraftDocumentType,
 } from "./model";
@@ -26,6 +28,18 @@ type UpdateForReviewArgs = {
   date: string;
   amountYen: number;
   categoryId: Id<"categories">;
+  items?: Array<{
+    itemName: string;
+    amountYen: number;
+    categoryId: Id<"categories">;
+    confidence?: {
+      itemName?: number;
+      amountYen?: number;
+      categoryName?: number;
+      categoryId?: number;
+    };
+    warnings?: string[];
+  }>;
 };
 
 type DeleteDraftArgs = {
@@ -102,6 +116,48 @@ function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
   }
 }
 
+async function replaceDraftItemsForReview(
+  ctx: Pick<MutationCtx, "db">,
+  draftId: Id<"aiExpenseDrafts">,
+  groupId: Id<"groups">,
+  items: NonNullable<UpdateForReviewArgs["items"]>,
+  now: number,
+) {
+  if (items.length > 100) {
+    throw new ConvexError("Draft items must be 100 or fewer");
+  }
+  const existingItems = await ctx.db
+    .query("aiExpenseDraftItems")
+    .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId).eq("draftId", draftId))
+    .order("asc")
+    .take(100);
+  for (const item of existingItems) {
+    await ctx.db.delete(item._id);
+  }
+  for (const item of items) {
+    const itemName = trimOptional(item.itemName);
+    if (!itemName || !Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+      throw new ConvexError("Draft item name and amount are required");
+    }
+    await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
+    await ctx.db.insert("aiExpenseDraftItems", {
+      groupId,
+      draftId,
+      itemName,
+      amountYen: item.amountYen,
+      categoryId: item.categoryId,
+      confidence: item.confidence ?? {
+        itemName: 1,
+        amountYen: 1,
+        categoryId: 1,
+      },
+      warnings: item.warnings,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+}
+
 export async function deleteDraftHandler(ctx: MutationCtx, args: DeleteDraftArgs) {
   const { groupId } = await requireGroupMembership(ctx);
   const draft = await ctx.db.get(args.draftId);
@@ -139,8 +195,43 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   assertReviewUpdateCanBecomeReady(args);
 
   const now = Date.now();
+  if (args.items !== undefined) {
+    await replaceDraftItemsForReview(ctx, args.draftId, groupId, args.items, now);
+  }
+  const classification = classifyAiExpenseDraft({
+    documentType: args.documentType,
+    shopName: trimOptional(args.shopName),
+    paymentPlace: trimOptional(args.paymentPlace),
+    payeeName: trimOptional(args.payeeName) ?? trimOptional(args.shopName),
+    paymentPurpose: trimOptional(args.paymentPurpose) ?? trimOptional(args.shopName),
+    date: trimOptional(args.date),
+    amountYen: args.amountYen,
+    categoryId: args.categoryId,
+    confidence: {
+      ...draft.confidence,
+      documentType: 1,
+      shopName: trimOptional(args.shopName) ? 1 : draft.confidence.shopName,
+      paymentPlace: trimOptional(args.paymentPlace) ? 1 : draft.confidence.paymentPlace,
+      payeeName:
+        trimOptional(args.payeeName) || trimOptional(args.shopName)
+          ? 1
+          : draft.confidence.payeeName,
+      paymentPurpose:
+        trimOptional(args.paymentPurpose) || trimOptional(args.shopName)
+          ? 1
+          : draft.confidence.paymentPurpose,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    },
+    warnings: [],
+    items: args.items?.map((item) => ({
+      amountYen: item.amountYen,
+      categoryId: item.categoryId,
+    })),
+  });
   await ctx.db.patch(args.draftId, {
-    status: "ready",
+    status: classification.status,
     documentType: args.documentType,
     shopName: trimOptional(args.shopName),
     paymentPlace: trimOptional(args.paymentPlace),
@@ -160,7 +251,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
       amountYen: 1,
       categoryId: 1,
     },
-    reviewReasons: [],
+    reviewReasons: classification.reviewReasons,
     updatedAt: now,
   });
 
@@ -347,6 +438,17 @@ export const updateForReview = mutation({
     date: v.string(),
     amountYen: v.number(),
     categoryId: v.id("categories"),
+    items: v.optional(
+      v.array(
+        v.object({
+          itemName: v.string(),
+          amountYen: v.number(),
+          categoryId: v.id("categories"),
+          confidence: v.optional(aiExpenseDraftItemConfidenceValidator),
+          warnings: v.optional(v.array(v.string())),
+        }),
+      ),
+    ),
   },
   handler: updateForReviewHandler,
 });
