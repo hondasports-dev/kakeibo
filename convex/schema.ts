@@ -216,8 +216,10 @@ export default defineSchema({
     draftId: v.id("aiExpenseDrafts"),
     itemName: v.string(),
     amountYen: v.number(),
+    categoryName: v.optional(v.string()),
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftItemConfidenceValidator,
+    warnings: v.optional(v.array(v.string())),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
