@@ -28,11 +28,11 @@
     "@mui/icons-material": "^9.0.1",
     "@mui/material": "^9.1.0",
     "@mui/x-charts": "^9.6.0",
-    "convex": "^1.39.1",
+    "convex": "^1.41.0",
     "framer-motion": "^12.40.0",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.17.0",
+    "react-router-dom": "^7.18.0",
     "valibot": "^1.4.0"
   },
   "devDependencies": {
@@ -42,7 +42,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.9.1",
-    "@types/react": "^19.2.15",
+    "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "chrome-devtools-mcp": "^1.2.0",
@@ -57,7 +57,7 @@
     "typescript": "~6.0.2",
     "vercel": "^54.10.3",
     "vite": "^8.0.16",
-    "vitest": "^4.1.7"
+    "vitest": "^4.1.9"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
