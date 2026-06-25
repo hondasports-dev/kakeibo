@@ -35,6 +35,10 @@ export function mapDraftToQueueItem(
   categories?: Array<{ _id: Id<"categories"> | string; name: string }>,
 ): AiExpenseQueueItem {
   const categoryName = categories?.find((c) => c._id === draft.categoryId)?.name;
+  const categoryAggregates = draft.itemSummary?.categoryAggregates.map((aggregate) => ({
+    ...aggregate,
+    categoryName: categories?.find((category) => category._id === aggregate.categoryId)?.name,
+  }));
   return {
     id: draft._id,
     fileName: draft.imageFileName ?? "AI支出下書き",
@@ -45,6 +49,11 @@ export function mapDraftToQueueItem(
     date: draft.date,
     categoryName,
     reviewReasons: draft.reviewReasons,
+    itemTotalYen: draft.itemSummary?.itemTotalYen,
+    itemDifferenceYen: draft.itemSummary?.itemDifferenceYen,
+    hasUncategorizedItems: draft.itemSummary?.hasUncategorizedItems,
+    hasLowConfidenceItems: draft.itemSummary?.hasLowConfidenceItems,
+    categoryAggregates,
   };
 }
 

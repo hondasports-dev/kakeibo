@@ -58,6 +58,7 @@ export type DeleteDraftsByUserBatchArgs = {
 export type CreateE2eReadyDraftForUserArgs = {
   groupId: Id<"groups">;
   categoryId: Id<"categories">;
+  secondaryCategoryId?: Id<"categories">;
 };
 
 function mergeReviewReasons(
@@ -282,7 +283,17 @@ export async function createE2eReadyDraftForUserHandler(
     [
       {
         itemName: "E2E項目-食料品",
-        amountYen: 1000,
+        amountYen: 700,
+        categoryId: args.categoryId,
+        confidence: {
+          itemName: 0.99,
+          amountYen: 0.99,
+          categoryId: 0.99,
+        },
+      },
+      {
+        itemName: "E2E項目-パン",
+        amountYen: 300,
         categoryId: args.categoryId,
         confidence: {
           itemName: 0.99,
@@ -293,9 +304,11 @@ export async function createE2eReadyDraftForUserHandler(
       {
         itemName: "E2E項目-日用品",
         amountYen: 500,
+        categoryId: args.secondaryCategoryId ?? args.categoryId,
         confidence: {
           itemName: 0.99,
           amountYen: 0.99,
+          categoryId: 0.99,
         },
       },
     ],
@@ -362,6 +375,7 @@ export const createE2eReadyDraftForUser = internalMutation({
   args: {
     groupId: v.id("groups"),
     categoryId: v.id("categories"),
+    secondaryCategoryId: v.optional(v.id("categories")),
   },
   handler: createE2eReadyDraftForUserHandler,
 });

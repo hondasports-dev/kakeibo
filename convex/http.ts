@@ -339,18 +339,27 @@ http.route({
 
     const categoryId = await ctx.runMutation(internal.categories.internal.ensureE2eCategoryByUser, {
       groupId: resolvedGroupId as never,
-      name: "E2Eカテゴリ-Issue179",
+      name: "E2Eカテゴリ-食費-Issue322",
       color: "#AAB7C4",
     });
+    const secondaryCategoryId = await ctx.runMutation(
+      internal.categories.internal.ensureE2eCategoryByUser,
+      {
+        groupId: resolvedGroupId as never,
+        name: "E2Eカテゴリ-日用品-Issue322",
+        color: "#A6B28B",
+      },
+    );
     const draftId = await ctx.runMutation(
       internal.aiExpenseDrafts.internal.createE2eReadyDraftForUser,
       {
         groupId: resolvedGroupId as never,
         categoryId,
+        secondaryCategoryId,
       },
     );
 
-    return new Response(JSON.stringify({ draftId, categoryId }), {
+    return new Response(JSON.stringify({ draftId, categoryId, secondaryCategoryId }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });

@@ -367,6 +367,46 @@ const readyDraftItems: DraftItemDoc[] = [
     draftId: "draft-ready",
     itemName: "日用品",
     amountYen: 500,
+    categoryId: "cat-food",
+    confidence: { itemName: 0.99, amountYen: 0.99, categoryId: 0.99 },
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
+
+const mixedCategoryDraftItems: DraftItemDoc[] = [
+  {
+    _id: "draft-item-food-1",
+    _creationTime: 0,
+    groupId: GROUP_ID,
+    draftId: "draft-ready",
+    itemName: "パン",
+    amountYen: 150,
+    categoryId: "cat-food",
+    confidence: { itemName: 0.99, amountYen: 0.99, categoryId: 0.99 },
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    _id: "draft-item-food-2",
+    _creationTime: 0,
+    groupId: GROUP_ID,
+    draftId: "draft-ready",
+    itemName: "牛乳",
+    amountYen: 250,
+    categoryId: "cat-food",
+    confidence: { itemName: 0.99, amountYen: 0.99, categoryId: 0.99 },
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    _id: "draft-item-medical",
+    _creationTime: 0,
+    groupId: GROUP_ID,
+    draftId: "draft-ready",
+    itemName: "胃薬",
+    amountYen: 980,
+    categoryId: "cat-medical",
     confidence: { itemName: 0.99, amountYen: 0.99 },
     createdAt: 0,
     updatedAt: 0,
@@ -1203,6 +1243,48 @@ describe("aiExpenseDrafts", () => {
     expect(result).toEqual([ownedDraft]);
   });
 
+  it("listByStatus は明細のカテゴリ別集約サマリーを返す", async () => {
+    const draft = {
+      ...readyDraft,
+      amountYen: 1500,
+    };
+    const ctx = createQueryCtx(createIdentity(), {
+      drafts: [draft],
+      items: [
+        ...mixedCategoryDraftItems,
+        {
+          _id: "draft-item-uncategorized",
+          _creationTime: 0,
+          groupId: GROUP_ID,
+          draftId: "draft-ready",
+          itemName: "未分類品",
+          amountYen: 120,
+          confidence: { itemName: 0.99, amountYen: 0.99, categoryId: 0.7 },
+          createdAt: 0,
+          updatedAt: 0,
+        },
+      ],
+    });
+
+    const result = await listByStatusHandler(ctx, { status: "ready" });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        _id: "draft-ready",
+        itemSummary: {
+          itemTotalYen: 1500,
+          itemDifferenceYen: 0,
+          hasUncategorizedItems: true,
+          hasLowConfidenceItems: true,
+          categoryAggregates: [
+            { categoryId: "cat-food", amountYen: 400 },
+            { categoryId: "cat-medical", amountYen: 980 },
+          ],
+        },
+      }),
+    ]);
+  });
+
   it("getWithItems は他ユーザーの下書きを参照できない", async () => {
     const ctx = createQueryCtx(createIdentity(), {
       getDocById: {
@@ -1415,14 +1497,18 @@ describe("aiExpenseDrafts", () => {
   });
 
   describe("registerReadyDraftsAsExpenseEntries", () => {
-    it("ready状態の下書きをexpenseEntriesに登録できる", async () => {
+    it("明細ありのready下書きはカテゴリ別に集約してexpenseEntriesに登録できる", async () => {
       const ctx = createMutationCtx(createIdentity(), {
         getDocById: {
-          "draft-ready": readyDraft,
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 1380,
+          },
           "cat-food": { groupId: GROUP_ID, isActive: true },
+          "cat-medical": { groupId: GROUP_ID, isActive: true },
         },
-        insertedIds: ["entry-1", "entry-2"],
-        items: readyDraftItems,
+        insertedIds: ["entry-food", "entry-medical"],
+        items: mixedCategoryDraftItems,
       });
 
       const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
@@ -1431,11 +1517,136 @@ describe("aiExpenseDrafts", () => {
 
       expect(result.registeredDraftIds).toContain("draft-ready");
       expect(result.createdExpenseEntryIds).toHaveLength(2);
-      expect(result.createdExpenseEntryIds).toEqual(["entry-1", "entry-2"]);
+      expect(result.createdExpenseEntryIds).toEqual(["entry-food", "entry-medical"]);
+      expect(ctx.db.insert).toHaveBeenCalledTimes(2);
+      expect(ctx.db.insert).toHaveBeenNthCalledWith(
+        1,
+        "expenseEntries",
+        expect.objectContaining({
+          amount: 400,
+          aiExpenseDraftId: "draft-ready",
+          categoryId: "cat-food",
+          source: "ai_suggested",
+        }),
+      );
+      expect(ctx.db.insert).toHaveBeenNthCalledWith(
+        2,
+        "expenseEntries",
+        expect.objectContaining({
+          amount: 980,
+          aiExpenseDraftId: "draft-ready",
+          categoryId: "cat-medical",
+          source: "ai_suggested",
+        }),
+      );
       expect(ctx.db.patch).toHaveBeenCalledWith(
         "draft-ready",
-        expect.objectContaining({ status: "registered" }),
+        expect.objectContaining({
+          status: "registered",
+        }),
       );
+    });
+
+    it("明細なしのready下書きは既存どおり単一expenseEntryに登録できる", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": readyDraft,
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+        },
+        insertedIds: ["entry-1"],
+        items: [],
+      });
+
+      const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+        draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+      });
+
+      expect(result.createdExpenseEntryIds).toEqual(["entry-1"]);
+      expect(ctx.db.insert).toHaveBeenCalledWith(
+        "expenseEntries",
+        expect.objectContaining({
+          amount: 1200,
+          categoryId: "cat-food",
+          title: "スーパー青葉",
+        }),
+      );
+    });
+
+    it("未分類の明細があるready下書きはexpenseEntries登録できない", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 1500,
+          },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+        },
+        items: [
+          readyDraftItems[0],
+          {
+            ...readyDraftItems[1],
+            categoryId: undefined,
+          },
+        ],
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toMatchObject({ data: "Draft item category is required to register" });
+      expect(ctx.db.insert).not.toHaveBeenCalled();
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+    });
+
+    it("明細合計と下書き合計が一致しないready下書きはexpenseEntries登録できない", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 9999,
+          },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+        },
+        items: readyDraftItems,
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toMatchObject({ data: "Draft item total must match draft amount" });
+      expect(ctx.db.insert).not.toHaveBeenCalled();
+      expect(ctx.db.patch).not.toHaveBeenCalled();
+    });
+
+    it("低信頼度の明細が残るready下書きはexpenseEntries登録できない", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 1500,
+          },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+        },
+        items: [
+          readyDraftItems[0],
+          {
+            ...readyDraftItems[1],
+            confidence: { itemName: 0.99, amountYen: 0.99, categoryId: 0.7 },
+          },
+        ],
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toMatchObject({
+        data: "Low confidence draft items must be reviewed before register",
+      });
+      expect(ctx.db.insert).not.toHaveBeenCalled();
+      expect(ctx.db.patch).not.toHaveBeenCalled();
     });
 
     it("既にregisteredの下書きはスキップする", async () => {
