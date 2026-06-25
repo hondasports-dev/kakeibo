@@ -43,6 +43,7 @@ type ExpenseEntryDoc = {
   _creationTime: number;
   groupId: string;
   sourceDocumentId?: string;
+  aiExpenseDraftId?: string;
   date: string;
   amount: number;
   categoryId: string;
@@ -1379,6 +1380,96 @@ describe("getWeekSummaryWithCategories", () => {
       categoryColor: "#AAB7C4",
       amountYen: 4280,
     });
+  });
+
+  it("AI下書き由来のカテゴリ別expenseEntriesが週次カテゴリ別集計に反映される", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "entry-ai-food-1",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        aiExpenseDraftId: "draft-ai-receipt",
+        date: "2024-01-10",
+        amount: 400,
+        categoryId: "cat-food",
+        title: "ドラッグストアA",
+        entryType: "expense",
+        source: "ai_suggested",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "entry-ai-medical",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        aiExpenseDraftId: "draft-ai-receipt",
+        date: "2024-01-10",
+        amount: 980,
+        categoryId: "cat-medical",
+        title: "ドラッグストアA",
+        entryType: "expense",
+        source: "ai_suggested",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+    ];
+    const foodCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-food",
+      name: "食費",
+      color: "#AAB7C4",
+    };
+    const medicalCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-medical",
+      name: "医療費",
+      color: "#C4AAB7",
+      sortOrder: 2,
+    };
+    const ctx = createQueryCtxForSummary(
+      identity,
+      [],
+      [foodCategory, medicalCategory],
+      expenseEntries,
+    );
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.totalAmountYen).toBe(1380);
+    expect(result.count).toBe(2);
+    expect(result.byCategory).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          categoryId: "cat-food",
+          categoryName: "食費",
+          totalAmountYen: 400,
+        }),
+        expect.objectContaining({
+          categoryId: "cat-medical",
+          categoryName: "医療費",
+          totalAmountYen: 980,
+        }),
+      ]),
+    );
+    expect(result.receipts).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          _id: "entry-ai-food-1",
+          amountYen: 400,
+          categoryName: "食費",
+          shopName: "ドラッグストアA",
+        }),
+        expect.objectContaining({
+          _id: "entry-ai-medical",
+          amountYen: 980,
+          categoryName: "医療費",
+          shopName: "ドラッグストアA",
+        }),
+      ]),
+    );
   });
 
   it("前週レシートがあるとき: prevWeekTotalAmountYen が含まれる", async () => {

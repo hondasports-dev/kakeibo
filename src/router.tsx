@@ -218,6 +218,8 @@ function E2eRegisterAsExpenseEntriesPage() {
             <dd data-testid="registered-draft-count">{result.registeredDraftIds.length}</dd>
             <dt>createdExpenseEntryCount</dt>
             <dd data-testid="created-entry-count">{result.createdExpenseEntryIds.length}</dd>
+            <dt>createdExpenseEntryIds</dt>
+            <dd data-testid="created-entry-ids">{result.createdExpenseEntryIds.join(",")}</dd>
           </dl>
           <pre>{JSON.stringify(result, null, 2)}</pre>
         </div>

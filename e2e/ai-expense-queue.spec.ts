@@ -306,5 +306,11 @@ test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
     await expect(page.getByTestId("result")).toBeVisible({ timeout: 15000 });
     await expect(page.getByTestId("registered-draft-count")).toHaveText("1");
     await expect(page.getByTestId("created-entry-count")).toHaveText("2");
+    await expect
+      .poll(async () => {
+        const ids = (await page.getByTestId("created-entry-ids").textContent()) ?? "";
+        return ids.split(",").filter(Boolean).length;
+      })
+      .toBe(2);
   });
 });
