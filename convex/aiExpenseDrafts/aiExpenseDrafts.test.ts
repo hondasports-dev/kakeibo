@@ -892,6 +892,95 @@ describe("aiExpenseDrafts", () => {
     );
   });
 
+  it("確認下書きの明細を置き換えて登録準備OKへ戻す", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-food": {
+          groupId: GROUP_ID,
+          isActive: true,
+        },
+      },
+      items: [
+        {
+          _id: "old-item-1",
+          _creationTime: 1,
+          groupId: GROUP_ID,
+          draftId: "draft-owned",
+          itemName: "古い明細",
+          amountYen: 100,
+          categoryId: "cat-food",
+          confidence: {},
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      insertedIds: ["new-item-1", "new-item-2"],
+    });
+
+    await updateForReviewHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftId: "draft-owned" as any,
+      documentType: "receipt",
+      shopName: "ドラッグストアA",
+      date: "2026-06-21",
+      amountYen: 1380,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-food" as any,
+      items: [
+        {
+          itemName: "パン",
+          amountYen: 400,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          categoryId: "cat-food" as any,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          warnings: [],
+        },
+        {
+          itemName: "胃薬",
+          amountYen: 980,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          categoryId: "cat-food" as any,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          warnings: [],
+        },
+      ],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbDelete = (ctx.db as any).delete as ReturnType<typeof vi.fn>;
+    expect(dbDelete).toHaveBeenCalledWith("old-item-1");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        draftId: "draft-owned",
+        itemName: "パン",
+        amountYen: 400,
+        categoryId: "cat-food",
+      }),
+    );
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        draftId: "draft-owned",
+        itemName: "胃薬",
+        amountYen: 980,
+        categoryId: "cat-food",
+      }),
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-owned",
+      expect.objectContaining({
+        status: "ready",
+        reviewReasons: [],
+      }),
+    );
+  });
+
   it("他ユーザーの確認下書きは編集できない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {

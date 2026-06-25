@@ -618,9 +618,99 @@ describe("AiExpenseQueuePanel", () => {
       date: "2026-06-01",
       amountYen: 1680,
       categoryId: "cat-daily",
+      items: [],
     });
     expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
       draftIds: ["draft-review"],
+    });
+  });
+
+  it("確認が必要な下書きの明細を表示し、編集・追加・削除して保存できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "ドラッグストアA",
+          date: "2026-06-21",
+          amountYen: 1380,
+          categoryId: "cat-daily",
+          reviewReasons: ["ambiguous_category", "amount_mismatch"],
+          warnings: [],
+        },
+        items: [
+          {
+            _id: "item-food",
+            itemName: "パン",
+            amountYen: 150,
+            categoryId: "cat-food",
+            confidence: { itemName: 0.9, amountYen: 0.95, categoryId: 0.8 },
+            warnings: [],
+          },
+          {
+            _id: "item-medical",
+            itemName: "胃薬",
+            amountYen: 980,
+            confidence: { itemName: 0.85, amountYen: 0.95, categoryName: 0.5 },
+            warnings: ["品名が不鮮明です"],
+          },
+        ],
+      };
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "明細" })).toBeInTheDocument();
+    expect(within(dialog).getByText("明細合計 1,130円 / 差額 250円")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("レシート合計と明細合計に差額があります。"),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByText("未分類")).toBeInTheDocument();
+    expect(within(dialog).getByText("低信頼度")).toBeInTheDocument();
+
+    await user.clear(within(dialog).getByDisplayValue("150"));
+    await user.type(within(dialog).getAllByLabelText("金額")[0], "400");
+    await user.click(within(dialog).getByRole("button", { name: "胃薬を削除" }));
+    await user.click(within(dialog).getByRole("button", { name: "明細を追加" }));
+
+    const itemNameInputs = within(dialog).getAllByLabelText("明細名");
+    const amountInputs = within(dialog).getAllByLabelText("金額");
+    const categoryInputs = within(dialog).getAllByLabelText("明細カテゴリ");
+    await user.type(itemNameInputs[1], "牛乳");
+    await user.type(amountInputs[1], "980");
+    await user.click(categoryInputs[1]);
+    await user.click(screen.getByRole("option", { name: "食費" }));
+    await user.click(within(dialog).getByRole("button", { name: "登録準備OKに戻す" }));
+
+    expect(updateForReviewMock).toHaveBeenCalledWith({
+      draftId: "draft-review",
+      documentType: "receipt",
+      shopName: "ドラッグストアA",
+      date: "2026-06-21",
+      amountYen: 1380,
+      categoryId: "cat-daily",
+      items: [
+        expect.objectContaining({
+          itemName: "パン",
+          amountYen: 400,
+          categoryId: "cat-food",
+        }),
+        expect.objectContaining({
+          itemName: "牛乳",
+          amountYen: 980,
+          categoryId: "cat-food",
+        }),
+      ],
     });
   });
 

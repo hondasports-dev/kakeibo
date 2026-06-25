@@ -230,6 +230,42 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
   });
 });
 
+test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
+  test("明細のカテゴリ・金額・追加・削除を操作できる", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
+
+    const queue = page.getByRole("region", { name: "読み取り" });
+    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
+
+    await reviewSection.getByRole("button", { name: "下書きを確認" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
+    await expect(dialog.getByText("明細合計 1,100円 / 差額 8,020円")).toBeVisible();
+    await expect(dialog.getByText("未分類")).toBeVisible();
+    await expect(dialog.getByText("低信頼度")).toBeVisible();
+
+    await dialog.getByLabel("金額", { exact: true }).first().fill("400");
+    await dialog.getByRole("button", { name: "胃薬を削除" }).click();
+    await dialog.getByRole("button", { name: "明細を追加" }).click();
+
+    await dialog.getByLabel("明細名").nth(1).fill("牛乳");
+    await dialog.getByLabel("金額", { exact: true }).nth(1).fill("520");
+    await dialog.getByLabel("明細カテゴリ").nth(1).click();
+    await page.getByRole("option", { name: "食費" }).click();
+
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
+    await dialog.getByLabel("合計金額").fill("920");
+    await dialog.getByRole("button", { name: "登録準備OKに戻す" }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(queue.getByText("確認が必要 0件")).toBeVisible();
+    await expect(queue.getByText("登録準備OK 2件")).toBeVisible();
+  });
+});
+
 test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
   test.beforeEach(async () => {
     await cleanupE2eExpenseEntries();

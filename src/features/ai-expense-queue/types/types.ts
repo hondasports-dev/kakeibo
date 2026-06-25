@@ -36,6 +36,7 @@ export type AiExpenseQueuePanelProps = {
   initialItems?: AiExpenseQueueItem[];
   categories?: AiExpenseQueueCategory[];
   initialReviewDrafts?: Record<string, AiExpenseDraft>;
+  initialReviewDraftItems?: Record<string, AiExpenseDraftItem[]>;
   onReviewSubmit?: (
     draftId: string,
     values: {
@@ -44,6 +45,11 @@ export type AiExpenseQueuePanelProps = {
       date: string;
       amountYen: number;
       categoryId: string;
+      items?: Array<{
+        itemName: string;
+        amountYen: number;
+        categoryId: string;
+      }>;
     },
     registerAfterUpdate: boolean,
   ) => Promise<void> | void;
@@ -67,9 +73,24 @@ export type AiExpenseDraft = {
   warnings?: string[];
 };
 
+export type AiExpenseDraftItem = {
+  _id?: string;
+  itemName: string;
+  amountYen: number;
+  categoryName?: string;
+  categoryId?: string;
+  confidence?: {
+    itemName?: number;
+    amountYen?: number;
+    categoryName?: number;
+    categoryId?: number;
+  };
+  warnings?: string[];
+};
+
 export type AiExpenseDraftWithItems = {
   draft: AiExpenseDraft;
-  items: unknown[];
+  items: AiExpenseDraftItem[];
 };
 
 export type ReviewFormValues = {
@@ -78,4 +99,13 @@ export type ReviewFormValues = {
   date: string;
   amountYen: string;
   categoryId: string;
+};
+
+export type ReviewItemValues = {
+  id: string;
+  itemName: string;
+  amountYen: string;
+  categoryId: string;
+  confidence?: AiExpenseDraftItem["confidence"];
+  warnings?: string[];
 };

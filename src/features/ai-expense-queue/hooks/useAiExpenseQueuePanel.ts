@@ -10,9 +10,10 @@ export function useAiExpenseQueuePanel({
   initialItems,
   categories,
   initialReviewDrafts,
+  initialReviewDraftItems,
   onReviewSubmit,
 }: Required<Pick<AiExpenseQueuePanelProps, "categories" | "initialReviewDrafts">> &
-  Pick<AiExpenseQueuePanelProps, "initialItems" | "onReviewSubmit">) {
+  Pick<AiExpenseQueuePanelProps, "initialItems" | "initialReviewDraftItems" | "onReviewSubmit">) {
   const imageUpload = useImageUpload();
   const queueDelete = useQueueDelete();
   const queueData = useAiExpenseQueueData({
@@ -25,6 +26,7 @@ export function useAiExpenseQueuePanel({
   });
   const reviewDialog = useReviewDialog({
     initialReviewDrafts,
+    initialReviewDraftItems: initialReviewDraftItems ?? {},
     onReviewSubmit,
   });
   const retry = useRetry({
@@ -67,6 +69,7 @@ export function useAiExpenseQueuePanel({
     retryInputRef: retry.retryInputRef,
     reviewError: reviewDialog.reviewError,
     reviewForm: reviewDialog.reviewForm,
+    reviewItems: reviewDialog.reviewItems,
     reviewSubmitting: reviewDialog.reviewSubmitting,
     selectedReadyIds: bulkRegister.selectedReadyIds,
     selectedReviewDraft: reviewDialog.selectedReviewDraft,
@@ -78,6 +81,7 @@ export function useAiExpenseQueuePanel({
     },
     handleClearOpenQueue: wrappedHandleClearOpenQueue,
     handleAcceptConsent: imageUpload.handleAcceptConsent,
+    handleAddReviewItem: reviewDialog.handleAddReviewItem,
     handleCloseReview: reviewDialog.handleCloseReview,
     handleFilesSelected: imageUpload.handleFilesSelected,
     handleDeclineConsent: imageUpload.handleDeclineConsent,
@@ -86,6 +90,8 @@ export function useAiExpenseQueuePanel({
     handleRetry: wrappedHandleRetry,
     handleRetryFileSelected: retry.handleRetryFileSelected,
     handleReviewFieldChange: reviewDialog.handleReviewFieldChange,
+    handleReviewItemChange: reviewDialog.handleReviewItemChange,
+    handleRemoveReviewItem: reviewDialog.handleRemoveReviewItem,
     handleSubmitReview: reviewDialog.handleSubmitReview,
     handleToggleReadySelection: bulkRegister.handleToggleReadySelection,
     deleteQueueItem: wrappedDeleteQueueItem,
