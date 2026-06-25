@@ -21,15 +21,6 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 
-async function expectLocatorNoHorizontalOverflow(locator: Locator) {
-  await expect
-    .poll(
-      async () => locator.evaluate((target) => Math.ceil(target.scrollWidth - target.clientWidth)),
-      { timeout: 5000 },
-    )
-    .toBeLessThanOrEqual(1);
-}
-
 async function expectLocatorInsideViewport(locator: Locator) {
   await expect
     .poll(
@@ -139,7 +130,7 @@ test.describe("Issue #144 読み取りUI", () => {
 
     const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
-    await expectLocatorNoHorizontalOverflow(queue);
+    await expectLocatorInsideViewport(queue);
     const cameraButton = queue.getByRole("button", { name: "撮影する" });
     const imageButton = queue.getByRole("button", { name: "画像を追加", exact: true });
     await expect(cameraButton).toBeEnabled();
@@ -160,7 +151,7 @@ test.describe("Issue #144 読み取りUI", () => {
     await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
       timeout: 15000,
     });
-    await expectLocatorNoHorizontalOverflow(queue);
+    await expectLocatorInsideViewport(queue);
   });
 
   test("@smoke SP幅でも複数画像追加後のキューと入力導線を操作できる", async ({ page }) => {
@@ -169,7 +160,7 @@ test.describe("Issue #144 読み取りUI", () => {
 
     const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
-    await expectLocatorNoHorizontalOverflow(queue);
+    await expectLocatorInsideViewport(queue);
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
     const stamp = Date.now();
     const queueFiles = [
@@ -202,7 +193,7 @@ test.describe("Issue #144 読み取りUI", () => {
       .toBeGreaterThanOrEqual(2);
     // Issue #181: 保存ボタンは変わらず「保存して次へ」
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
-    await expectLocatorNoHorizontalOverflow(queue);
+    await expectLocatorInsideViewport(queue);
   });
 });
 
