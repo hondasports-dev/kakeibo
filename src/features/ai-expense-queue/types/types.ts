@@ -22,6 +22,15 @@ export type AiExpenseQueueItem = {
   date?: string;
   categoryName?: string;
   reviewReasons?: string[];
+  itemTotalYen?: number;
+  itemDifferenceYen?: number;
+  hasUncategorizedItems?: boolean;
+  hasLowConfidenceItems?: boolean;
+  categoryAggregates?: Array<{
+    categoryId: string;
+    categoryName?: string;
+    amountYen: number;
+  }>;
 };
 
 export type QueueSectionKey = "processing" | "ready" | "needs_review" | "failed" | "registered";
@@ -71,6 +80,16 @@ export type AiExpenseDraft = {
   categoryId?: string;
   reviewReasons: string[];
   warnings?: string[];
+  itemSummary?: {
+    itemTotalYen: number;
+    itemDifferenceYen?: number;
+    hasUncategorizedItems: boolean;
+    hasLowConfidenceItems: boolean;
+    categoryAggregates: Array<{
+      categoryId: string;
+      amountYen: number;
+    }>;
+  };
 };
 
 export type AiExpenseDraftItem = {

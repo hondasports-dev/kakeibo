@@ -426,6 +426,30 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();
   });
 
+  it("登録準備OKの下書きにカテゴリ別登録候補を表示する", () => {
+    renderWithProviders(
+      <AiExpenseQueuePanel
+        initialItems={[
+          {
+            ...queueItems[0],
+            amountYen: 1380,
+            itemTotalYen: 1380,
+            itemDifferenceYen: 0,
+            categoryAggregates: [
+              { categoryId: "cat-food", categoryName: "食費", amountYen: 400 },
+              { categoryId: "cat-medical", categoryName: "医療費", amountYen: 980 },
+            ],
+          },
+        ]}
+      />,
+    );
+
+    const readySection = screen.getByRole("region", { name: "登録準備OK" });
+    expect(within(readySection).getByText("カテゴリ別登録候補 1,380円")).toBeInTheDocument();
+    expect(within(readySection).getByText("食費 400円")).toBeInTheDocument();
+    expect(within(readySection).getByText("医療費 980円")).toBeInTheDocument();
+  });
+
   it("失敗ジョブの画像を選び直して再試行できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
