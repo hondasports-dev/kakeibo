@@ -248,15 +248,49 @@ describe("AI expense draft model", () => {
         items: [
           {
             amountYen: 500,
+            categoryId: "category-food",
           },
           {
             amountYen: 600,
+            categoryId: "category-food",
           },
         ],
       }),
     ).toEqual({
       status: "needs_review",
       reviewReasons: ["amount_mismatch"],
+    });
+  });
+
+  it("カテゴリ未確定の明細がある場合は確認が必要に分類する", () => {
+    expect(
+      classifyAiExpenseDraft({
+        documentType: "receipt",
+        shopName: "ドラッグストアA",
+        date: "2026-06-21",
+        amountYen: 1380,
+        categoryId: "category-daily",
+        confidence: {
+          documentType: 0.9,
+          shopName: 0.9,
+          date: 0.9,
+          amountYen: 0.9,
+          categoryId: 0.9,
+        },
+        warnings: [],
+        items: [
+          {
+            amountYen: 400,
+            categoryId: "category-food",
+          },
+          {
+            amountYen: 980,
+          },
+        ],
+      }),
+    ).toEqual({
+      status: "needs_review",
+      reviewReasons: ["ambiguous_category"],
     });
   });
 });

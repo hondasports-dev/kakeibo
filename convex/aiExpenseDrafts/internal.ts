@@ -18,12 +18,15 @@ import { requireGroupMembership } from "../groups/membership";
 type AiExpenseDraftItemInput = {
   itemName: string;
   amountYen: number;
+  categoryName?: string;
   categoryId?: Id<"categories">;
   confidence: {
     itemName?: number;
     amountYen?: number;
+    categoryName?: number;
     categoryId?: number;
   };
+  warnings?: string[];
 };
 
 export type CreateFromExtractionArgs = {
@@ -108,8 +111,10 @@ async function insertDraftItems(
       draftId,
       itemName: item.itemName,
       amountYen: item.amountYen,
+      categoryName: item.categoryName,
       categoryId: item.categoryId,
       confidence: item.confidence,
+      warnings: item.warnings,
       createdAt: now,
       updatedAt: now,
     });
@@ -319,8 +324,10 @@ export const createFromExtraction = internalMutation({
         v.object({
           itemName: v.string(),
           amountYen: v.number(),
+          categoryName: v.optional(v.string()),
           categoryId: v.optional(v.id("categories")),
           confidence: aiExpenseDraftItemConfidenceValidator,
+          warnings: v.optional(v.array(v.string())),
         }),
       ),
     ),

@@ -68,6 +68,7 @@ export const aiExpenseDraftConfidenceValidator = v.object({
 export const aiExpenseDraftItemConfidenceValidator = v.object({
   itemName: v.optional(v.number()),
   amountYen: v.optional(v.number()),
+  categoryName: v.optional(v.number()),
   categoryId: v.optional(v.number()),
 });
 
@@ -98,6 +99,7 @@ type AiExpenseDraftClassificationInput = {
   warnings: string[];
   items?: Array<{
     amountYen: number;
+    categoryId?: unknown;
   }>;
 };
 
@@ -189,6 +191,10 @@ function hasAmountMismatch(input: AiExpenseDraftClassificationInput) {
   return itemTotal !== input.amountYen;
 }
 
+function hasAmbiguousItemCategory(input: AiExpenseDraftClassificationInput) {
+  return input.items?.some((item) => item.categoryId === undefined) ?? false;
+}
+
 function addReason(reasons: Set<AiExpenseDraftReviewReason>, reason: AiExpenseDraftReviewReason) {
   if (AI_EXPENSE_DRAFT_REVIEW_REASONS.includes(reason)) {
     reasons.add(reason);
@@ -214,7 +220,7 @@ export function classifyAiExpenseDraft(input: AiExpenseDraftClassificationInput)
     addReason(reasons, "ambiguous_document_type");
   }
 
-  if (input.categoryId === undefined) {
+  if (input.categoryId === undefined || hasAmbiguousItemCategory(input)) {
     addReason(reasons, "ambiguous_category");
   }
 

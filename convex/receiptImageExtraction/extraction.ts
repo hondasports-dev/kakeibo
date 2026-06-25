@@ -5,6 +5,7 @@ import { requireAuthenticatedUserId } from "../users/auth";
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */
 const MAX_IMAGE_DATA_URL_LENGTH = 900_000;
+const MAX_EXTRACTED_LINE_ITEMS = 100;
 const JAPAN_TIME_ZONE = "Asia/Tokyo";
 
 export type ExtractionConfidence = {
@@ -18,6 +19,18 @@ export type ExtractionConfidence = {
   categoryName?: number;
 };
 
+export type ExtractReceiptItemResult = {
+  itemName: string;
+  amountYen: number;
+  categoryName?: string;
+  confidence: {
+    itemName?: number;
+    amountYen?: number;
+    categoryName?: number;
+  };
+  warnings: string[];
+};
+
 export type ExtractReceiptFieldsResult = {
   shopName: string;
   date: string;
@@ -27,6 +40,7 @@ export type ExtractReceiptFieldsResult = {
   payeeName?: string;
   paymentPurpose?: string;
   categoryName?: string;
+  items?: ExtractReceiptItemResult[];
   confidence: ExtractionConfidence;
   warnings: string[];
 };
@@ -72,6 +86,7 @@ type ExtractedFields = {
   payeeName?: string;
   paymentPurpose?: string;
   categoryName?: string;
+  items?: ExtractReceiptItemResult[];
   confidence: ExtractionConfidence;
   warnings: string[];
 };
@@ -116,6 +131,7 @@ function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ExtractedFields 
   const payeeName = parseOptionalString(obj.payeeName, "payeeName");
   const paymentPurpose = parseOptionalString(obj.paymentPurpose, "paymentPurpose");
   const categoryName = parseOptionalString(obj.categoryName, "categoryName");
+  const items = parseOptionalItems(obj.items);
 
   return {
     shopName: obj.shopName,
@@ -126,10 +142,78 @@ function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ExtractedFields 
     payeeName,
     paymentPurpose,
     categoryName,
+    items,
     confidence,
     warnings: Array.isArray(obj.warnings)
       ? (obj.warnings as string[]).filter((w) => typeof w === "string")
       : [],
+  };
+}
+
+function parseOptionalItems(value: unknown): ExtractReceiptItemResult[] | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (!Array.isArray(value)) {
+    throw new ConvexError("OpenAI レスポンスの items が配列ではありません");
+  }
+  if (value.length > MAX_EXTRACTED_LINE_ITEMS) {
+    throw new ConvexError(
+      `OpenAI レスポンスの items は ${MAX_EXTRACTED_LINE_ITEMS} 件以下である必要があります`,
+    );
+  }
+  return value.map((rawItem, index) => parseReceiptItem(rawItem, index));
+}
+
+function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResult {
+  if (typeof value !== "object" || value === null) {
+    throw new ConvexError(`OpenAI レスポンスの items[${index}] がオブジェクトではありません`);
+  }
+  const item = value as Record<string, unknown>;
+  if (typeof item.itemName !== "string") {
+    throw new ConvexError(`OpenAI レスポンスの items[${index}].itemName が文字列ではありません`);
+  }
+  if (typeof item.amountYen !== "number") {
+    throw new ConvexError(`OpenAI レスポンスの items[${index}].amountYen が数値ではありません`);
+  }
+  if (!Number.isInteger(item.amountYen) || item.amountYen < 0) {
+    throw new ConvexError(
+      `OpenAI レスポンスの items[${index}].amountYen は 0 以上の整数である必要があります`,
+    );
+  }
+
+  const confidence = parseItemConfidence(item.confidence, index);
+  return {
+    itemName: item.itemName,
+    amountYen: item.amountYen,
+    categoryName: parseOptionalString(item.categoryName, `items[${index}].categoryName`),
+    confidence,
+    warnings: Array.isArray(item.warnings)
+      ? (item.warnings as string[]).filter((warning) => typeof warning === "string")
+      : [],
+  };
+}
+
+function parseItemConfidence(
+  value: unknown,
+  index: number,
+): ExtractReceiptItemResult["confidence"] {
+  if (value === undefined || value === null) {
+    return {};
+  }
+  if (typeof value !== "object") {
+    throw new ConvexError(
+      `OpenAI レスポンスの items[${index}].confidence がオブジェクトではありません`,
+    );
+  }
+  const confidence = value as Record<string, unknown>;
+  return {
+    itemName: parseOptionalConfidenceScore(confidence.itemName, `items[${index}].itemName`),
+    amountYen: parseOptionalConfidenceScore(confidence.amountYen, `items[${index}].amountYen`),
+    categoryName: parseOptionalConfidenceScore(
+      confidence.categoryName,
+      `items[${index}].categoryName`,
+    ),
   };
 }
 
@@ -238,6 +322,30 @@ function getMockResult(): ExtractReceiptFieldsResult {
     amountYen: 1234,
     documentType: "receipt",
     categoryName: "食費",
+    items: [
+      {
+        itemName: "サンプル食品",
+        amountYen: 734,
+        categoryName: "食費",
+        confidence: {
+          itemName: 0.92,
+          amountYen: 0.96,
+          categoryName: 0.86,
+        },
+        warnings: [],
+      },
+      {
+        itemName: "サンプル日用品",
+        amountYen: 500,
+        categoryName: "日用品",
+        confidence: {
+          itemName: 0.88,
+          amountYen: 0.95,
+          categoryName: 0.82,
+        },
+        warnings: [],
+      },
+    ],
     confidence: {
       shopName: 0.95,
       date: 0.98,
@@ -318,7 +426,9 @@ async function callOpenAIReceiptExtractor({
               "コンビニ払込票の場合は、shopName（店舗名）ではなく paymentPlace（支払場所）・payeeName（支払先）・paymentPurpose（支払内容）を優先して読み取ってください。",
               "カテゴリ推定は、レシートなら shopName、払込票なら payeeName と paymentPurpose を重視してください。",
               "結果は以下の JSON スキーマに従って返してください：",
-              '{"documentType": "receipt | convenience_payment | unknown", "shopName": "店名（文字列）", "paymentPlace": "支払場所（文字列）", "payeeName": "支払先（文字列）", "paymentPurpose": "支払内容（文字列）", "date": "日付（YYYY-MM-DD形式の文字列）", "amountYen": 合計金額（整数）, "categoryName": "推定カテゴリ名（文字列）", "confidence": {"documentType": 0.0〜1.0, "shopName": 0.0〜1.0, "paymentPlace": 0.0〜1.0, "payeeName": 0.0〜1.0, "paymentPurpose": 0.0〜1.0, "date": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["注意事項（配列）"]}',
+              '{"documentType": "receipt | convenience_payment | unknown", "shopName": "店名（文字列）", "paymentPlace": "支払場所（文字列）", "payeeName": "支払先（文字列）", "paymentPurpose": "支払内容（文字列）", "date": "日付（YYYY-MM-DD形式の文字列）", "amountYen": 合計金額（整数）, "categoryName": "推定カテゴリ名（文字列）", "items": [{"itemName": "明細名（文字列）", "amountYen": 明細金額（整数）, "categoryName": "明細の推定カテゴリ名（文字列）", "confidence": {"itemName": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["明細の注意事項（配列）"]}], "confidence": {"documentType": 0.0〜1.0, "shopName": 0.0〜1.0, "paymentPlace": 0.0〜1.0, "payeeName": 0.0〜1.0, "paymentPurpose": 0.0〜1.0, "date": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["注意事項（配列）"]}',
+              "レシート内の明細が読み取れる場合は items に itemName、amountYen、categoryName、confidence、warnings を入れてください。",
+              "明細が読み取れない場合も items は空配列 [] にしてください。",
               "読み取れない項目は空文字列または0を使用し、該当項目の confidence を低くしてください。",
             ].join("\n"),
           },
@@ -344,6 +454,30 @@ async function callOpenAIReceiptExtractor({
             date: { type: "string", pattern: "^$|^\\d{4}-\\d{2}-\\d{2}$" },
             amountYen: { type: "integer", minimum: 0 },
             categoryName: { type: "string" },
+            items: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  itemName: { type: "string" },
+                  amountYen: { type: "integer", minimum: 0 },
+                  categoryName: { type: "string" },
+                  confidence: {
+                    type: "object",
+                    properties: {
+                      itemName: { type: "number", minimum: 0, maximum: 1 },
+                      amountYen: { type: "number", minimum: 0, maximum: 1 },
+                      categoryName: { type: "number", minimum: 0, maximum: 1 },
+                    },
+                    required: ["itemName", "amountYen", "categoryName"],
+                    additionalProperties: false,
+                  },
+                  warnings: { type: "array", items: { type: "string" } },
+                },
+                required: ["itemName", "amountYen", "categoryName", "confidence", "warnings"],
+                additionalProperties: false,
+              },
+            },
             confidence: {
               type: "object",
               properties: {
@@ -379,6 +513,7 @@ async function callOpenAIReceiptExtractor({
             "date",
             "amountYen",
             "categoryName",
+            "items",
             "confidence",
             "warnings",
           ],

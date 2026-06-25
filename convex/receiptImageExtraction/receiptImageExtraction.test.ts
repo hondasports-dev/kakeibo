@@ -741,6 +741,170 @@ describe("extractReceiptFieldsHandler", () => {
       );
     });
 
+    it("レシート明細 items をパースして返す", async () => {
+      const mockApiResponse = {
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify({
+                  documentType: "receipt",
+                  shopName: "ドラッグストアA",
+                  paymentPlace: "",
+                  payeeName: "",
+                  paymentPurpose: "",
+                  date: "2026-06-21",
+                  amountYen: 1380,
+                  categoryName: "日用品",
+                  items: [
+                    {
+                      itemName: "パン",
+                      amountYen: 150,
+                      categoryName: "食費",
+                      confidence: {
+                        itemName: 0.9,
+                        amountYen: 0.95,
+                        categoryName: 0.8,
+                      },
+                      warnings: [],
+                    },
+                    {
+                      itemName: "胃薬",
+                      amountYen: 980,
+                      categoryName: "医療費",
+                      confidence: {
+                        itemName: 0.85,
+                        amountYen: 0.95,
+                        categoryName: 0.82,
+                      },
+                      warnings: ["品名の一部が不鮮明です"],
+                    },
+                  ],
+                  confidence: {
+                    documentType: 0.92,
+                    shopName: 0.85,
+                    paymentPlace: 0.1,
+                    payeeName: 0.1,
+                    paymentPurpose: 0.1,
+                    date: 0.9,
+                    amountYen: 0.98,
+                    categoryName: 0.7,
+                  },
+                  warnings: [],
+                }),
+              },
+            ],
+          },
+        ],
+      };
+
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockApiResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      await withEnv(
+        {
+          RECEIPT_IMAGE_EXTRACTOR_MODE: "real",
+          APP_ENV: "production",
+          OPENAI_API_KEY: "sk-test-key",
+        },
+        async () => {
+          const ctx = createActionCtx(createIdentity());
+          const result = await extractReceiptFieldsHandler(ctx, {
+            imageDataUrl: VALID_IMAGE_DATA_URL,
+          });
+
+          expect(result.items).toEqual([
+            {
+              itemName: "パン",
+              amountYen: 150,
+              categoryName: "食費",
+              confidence: {
+                itemName: 0.9,
+                amountYen: 0.95,
+                categoryName: 0.8,
+              },
+              warnings: [],
+            },
+            {
+              itemName: "胃薬",
+              amountYen: 980,
+              categoryName: "医療費",
+              confidence: {
+                itemName: 0.85,
+                amountYen: 0.95,
+                categoryName: 0.82,
+              },
+              warnings: ["品名の一部が不鮮明です"],
+            },
+          ]);
+        },
+      );
+    });
+
+    it("明細 items が多すぎるレスポンスは ConvexError を投げる", async () => {
+      const mockApiResponse = {
+        output: [
+          {
+            type: "message",
+            content: [
+              {
+                type: "output_text",
+                text: JSON.stringify({
+                  shopName: "ABC",
+                  date: "2024-03-15",
+                  amountYen: 1500,
+                  items: Array.from({ length: 101 }, (_, index) => ({
+                    itemName: `item-${index}`,
+                    amountYen: 1,
+                    categoryName: "食費",
+                    confidence: {
+                      itemName: 0.8,
+                      amountYen: 0.8,
+                      categoryName: 0.8,
+                    },
+                    warnings: [],
+                  })),
+                  confidence: {
+                    shopName: 0.8,
+                    date: 0.8,
+                    amountYen: 0.8,
+                  },
+                  warnings: [],
+                }),
+              },
+            ],
+          },
+        ],
+      };
+
+      fetchSpy.mockResolvedValueOnce(
+        new Response(JSON.stringify(mockApiResponse), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+
+      await withEnv(
+        {
+          RECEIPT_IMAGE_EXTRACTOR_MODE: "real",
+          APP_ENV: "production",
+          OPENAI_API_KEY: "sk-test-key",
+        },
+        async () => {
+          const ctx = createActionCtx(createIdentity());
+          await expect(
+            extractReceiptFieldsHandler(ctx, { imageDataUrl: VALID_IMAGE_DATA_URL }),
+          ).rejects.toThrow(ConvexError);
+        },
+      );
+    });
+
     it("オプション confidence スコアが 0.0〜1.0 の範囲外なら ConvexError を投げる", async () => {
       const mockApiResponse = {
         output: [
