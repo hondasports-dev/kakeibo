@@ -58,12 +58,15 @@ type DraftItemDoc = {
   draftId: string;
   itemName: string;
   amountYen: number;
+  categoryName?: string;
   categoryId?: string;
   confidence: {
     itemName?: number;
     amountYen?: number;
+    categoryName?: number;
     categoryId?: number;
   };
+  warnings?: string[];
   createdAt: number;
   updatedAt: number;
 };
@@ -457,6 +460,104 @@ describe("aiExpenseDrafts", () => {
       expect.objectContaining({
         status: "ready",
         reviewReasons: [],
+      }),
+    );
+  });
+
+  it("下書き保存時に明細項目のカテゴリ名・カテゴリID・警告を保存する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "category-food": {
+          groupId: GROUP_ID,
+        },
+        "category-medical": {
+          groupId: GROUP_ID,
+        },
+      },
+      insertedDoc: {
+        ...ownedDraft,
+        _id: "new-draft-id",
+        status: "ready",
+        reviewReasons: [],
+      },
+      insertedIds: ["new-draft-id", "item-food", "item-medical"],
+    });
+
+    await createFromExtractionHandler(ctx, {
+      documentType: "receipt",
+      shopName: "ドラッグストアA",
+      date: "2026-06-21",
+      amountYen: 1130,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "category-food" as any,
+      confidence: {
+        documentType: 0.92,
+        shopName: 0.91,
+        date: 0.93,
+        amountYen: 0.96,
+        categoryId: 0.9,
+      },
+      warnings: [],
+      items: [
+        {
+          itemName: "パン",
+          amountYen: 150,
+          categoryName: "食費",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          categoryId: "category-food" as any,
+          confidence: {
+            itemName: 0.9,
+            amountYen: 0.95,
+            categoryName: 0.8,
+            categoryId: 0.8,
+          },
+          warnings: [],
+        },
+        {
+          itemName: "胃薬",
+          amountYen: 980,
+          categoryName: "医療費",
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          categoryId: "category-medical" as any,
+          confidence: {
+            itemName: 0.85,
+            amountYen: 0.95,
+            categoryName: 0.82,
+            categoryId: 0.82,
+          },
+          warnings: ["品名が不鮮明です"],
+        },
+      ],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenNthCalledWith(
+      2,
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        groupId: GROUP_ID,
+        draftId: "new-draft-id",
+        itemName: "パン",
+        amountYen: 150,
+        categoryName: "食費",
+        categoryId: "category-food",
+        confidence: expect.objectContaining({
+          categoryName: 0.8,
+          categoryId: 0.8,
+        }),
+        warnings: [],
+      }),
+    );
+    expect(dbInsert).toHaveBeenNthCalledWith(
+      3,
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        itemName: "胃薬",
+        amountYen: 980,
+        categoryName: "医療費",
+        categoryId: "category-medical",
+        warnings: ["品名が不鮮明です"],
       }),
     );
   });
@@ -1096,6 +1197,132 @@ describe("aiExpenseDrafts", () => {
       const [, callArgs] = runMutation.mock.calls[0];
       expect(callArgs.categoryId).toBe("cat-food");
     });
+  });
+
+  it("画像解析の明細ごとに categoryId を解決して下書き明細へ渡す", async () => {
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        hasAcceptedExternalApiConsent: true,
+        acceptedAt: 1234567890,
+      })
+      .mockResolvedValueOnce([
+        { _id: "cat-food", name: "食費", color: "#F4A27A", isActive: true, sortOrder: 1 },
+        { _id: "cat-medical", name: "医療費", color: "#C8D9A2", isActive: true, sortOrder: 2 },
+      ]);
+    const runMutation = vi.fn().mockResolvedValue({
+      _id: "draft-line-items",
+      status: "needs_review",
+    });
+    const ctx = createActionCtx(createIdentity(), true, { runQuery, runMutation });
+    const extractionSpy = vi.spyOn(globalThis, "fetch");
+    extractionSpy.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          output: [
+            {
+              type: "message",
+              content: [
+                {
+                  type: "output_text",
+                  text: JSON.stringify({
+                    documentType: "receipt",
+                    shopName: "ドラッグストアA",
+                    paymentPlace: "",
+                    payeeName: "",
+                    paymentPurpose: "",
+                    date: "2026-06-21",
+                    amountYen: 1130,
+                    categoryName: "日用品",
+                    items: [
+                      {
+                        itemName: "パン",
+                        amountYen: 150,
+                        categoryName: "食費",
+                        confidence: {
+                          itemName: 0.9,
+                          amountYen: 0.95,
+                          categoryName: 0.8,
+                        },
+                        warnings: [],
+                      },
+                      {
+                        itemName: "胃薬",
+                        amountYen: 980,
+                        categoryName: "医療費",
+                        confidence: {
+                          itemName: 0.85,
+                          amountYen: 0.95,
+                          categoryName: 0.82,
+                        },
+                        warnings: ["品名が不鮮明です"],
+                      },
+                    ],
+                    confidence: {
+                      documentType: 0.92,
+                      shopName: 0.85,
+                      paymentPlace: 0.1,
+                      payeeName: 0.1,
+                      paymentPurpose: 0.1,
+                      date: 0.9,
+                      amountYen: 0.98,
+                      categoryName: 0.7,
+                    },
+                    warnings: [],
+                  }),
+                },
+              ],
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    try {
+      await withEnv(
+        {
+          RECEIPT_IMAGE_EXTRACTOR_MODE: "real",
+          APP_ENV: "production",
+          OPENAI_API_KEY: "sk-test-key",
+        },
+        async () => {
+          await analyzeReceiptImageToDraftHandler(ctx, {
+            imageDataUrl: "data:image/jpeg;base64,AAA",
+          });
+        },
+      );
+    } finally {
+      extractionSpy.mockRestore();
+    }
+
+    expect(runMutation).toHaveBeenCalledTimes(1);
+    const [, callArgs] = runMutation.mock.calls[0];
+    expect(callArgs.items).toEqual([
+      expect.objectContaining({
+        itemName: "パン",
+        amountYen: 150,
+        categoryName: "食費",
+        categoryId: "cat-food",
+        confidence: expect.objectContaining({
+          itemName: 0.9,
+          amountYen: 0.95,
+          categoryName: 0.8,
+          categoryId: 0.8,
+        }),
+        warnings: [],
+      }),
+      expect.objectContaining({
+        itemName: "胃薬",
+        amountYen: 980,
+        categoryName: "医療費",
+        categoryId: "cat-medical",
+        warnings: ["品名が不鮮明です"],
+      }),
+    ]);
   });
 
   describe("registerReadyDraftsAsExpenseEntries", () => {

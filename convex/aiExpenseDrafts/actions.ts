@@ -58,6 +58,28 @@ export async function analyzeReceiptImageToDraftHandler(
     categories,
   });
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
+  const items = extracted.items?.map((item) => {
+    const itemCandidates = buildCategoryCandidates({
+      documentType: extracted.documentType,
+      categoryName: item.categoryName,
+      shopName: item.itemName,
+      categories,
+    });
+    const itemCategoryId = resolveCategoryIdFromCandidates(item.categoryName, itemCandidates);
+    return {
+      itemName: item.itemName,
+      amountYen: item.amountYen,
+      categoryName: item.categoryName,
+      categoryId: itemCategoryId,
+      confidence: {
+        itemName: item.confidence.itemName,
+        amountYen: item.confidence.amountYen,
+        categoryName: item.confidence.categoryName,
+        categoryId: item.confidence.categoryName,
+      },
+      warnings: item.warnings,
+    };
+  });
 
   const draft: Doc<"aiExpenseDrafts"> = await ctx.runMutation(
     internal.aiExpenseDrafts.internal.createFromExtraction,
@@ -81,6 +103,7 @@ export async function analyzeReceiptImageToDraftHandler(
         categoryId: extracted.confidence.categoryName,
       },
       warnings: extracted.warnings,
+      items,
     },
   );
   return draft;
