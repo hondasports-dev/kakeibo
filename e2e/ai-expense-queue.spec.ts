@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Locator, type Page } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
 import {
   cleanupAiExpenseQueue,
@@ -20,6 +20,59 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
  */
 
 const INPUT_PATH = "/weeks/current/input";
+
+async function expectDocumentNoHorizontalOverflow(page: Page) {
+  await expect
+    .poll(
+      async () =>
+        page.evaluate(() =>
+          Math.ceil(document.documentElement.scrollWidth - document.documentElement.clientWidth),
+        ),
+      { timeout: 5000 },
+    )
+    .toBeLessThanOrEqual(1);
+}
+
+async function expectLocatorNoHorizontalOverflow(locator: Locator) {
+  await expect
+    .poll(
+      async () => locator.evaluate((target) => Math.ceil(target.scrollWidth - target.clientWidth)),
+      { timeout: 5000 },
+    )
+    .toBeLessThanOrEqual(1);
+}
+
+async function expectLocatorInsideViewport(locator: Locator) {
+  await expect
+    .poll(
+      async () =>
+        locator.evaluate((target) => {
+          const rect = target.getBoundingClientRect();
+          return Math.ceil(rect.right - window.innerWidth);
+        }),
+      { timeout: 5000 },
+    )
+    .toBeLessThanOrEqual(0);
+}
+
+async function expectLocatorInsideContainer(locator: Locator, container: Locator) {
+  await expect
+    .poll(
+      async () => {
+        const targetRect = await locator.evaluate((target) => {
+          const rect = target.getBoundingClientRect();
+          return { right: rect.right };
+        });
+        const containerRect = await container.evaluate((target) => {
+          const rect = target.getBoundingClientRect();
+          return { right: rect.right };
+        });
+        return Math.ceil(targetRect.right - containerRect.right);
+      },
+      { timeout: 5000 },
+    )
+    .toBeLessThanOrEqual(0);
+}
 
 async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: string) {
   const consentDialog = page.getByRole("dialog", {
@@ -44,7 +97,7 @@ test.describe("Issue #144 読み取りUI", () => {
   test("@smoke 複数画像を解析待ちとして追加できる", async ({ page }) => {
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
 
@@ -90,12 +143,23 @@ test.describe("Issue #144 読み取りUI", () => {
   test("@smoke SP幅では撮影して追加導線が表示され、撮影用inputにcapture属性が付く", async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize({ width: 441, height: 864 });
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    await expectLocatorInsideViewport(page.locator(".user-menu-button"));
+    await expect(page.locator(".user-menu-button > span")).toBeHidden();
+
+    const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
-    await expect(queue.getByRole("button", { name: "撮影する" })).toBeEnabled();
+    await expectDocumentNoHorizontalOverflow(page);
+    await expectLocatorNoHorizontalOverflow(queue);
+    const cameraButton = queue.getByRole("button", { name: "撮影する" });
+    const imageButton = queue.getByRole("button", { name: "画像を追加", exact: true });
+    await expect(cameraButton).toBeEnabled();
+    await expectLocatorInsideViewport(cameraButton);
+    await expectLocatorInsideContainer(cameraButton, queue);
+    await expectLocatorInsideViewport(imageButton);
+    await expectLocatorInsideContainer(imageButton, queue);
     await expect(page.getByLabel("読み取り用カメラ画像を追加")).toHaveAttribute(
       "capture",
       "environment",
@@ -109,14 +173,18 @@ test.describe("Issue #144 読み取りUI", () => {
     await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
       timeout: 15000,
     });
+    await expectDocumentNoHorizontalOverflow(page);
+    await expectLocatorNoHorizontalOverflow(queue);
   });
 
   test("@smoke SP幅でも複数画像追加後のキューと入力導線を操作できる", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    const queue = page.getByRole("region", { name: "読み取り", exact: true });
     await expect(queue).toBeVisible();
+    await expectDocumentNoHorizontalOverflow(page);
+    await expectLocatorNoHorizontalOverflow(queue);
     await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
     const stamp = Date.now();
     const queueFiles = [
@@ -149,6 +217,8 @@ test.describe("Issue #144 読み取りUI", () => {
       .toBeGreaterThanOrEqual(2);
     // Issue #181: 保存ボタンは変わらず「保存して次へ」
     await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();
+    await expectDocumentNoHorizontalOverflow(page);
+    await expectLocatorNoHorizontalOverflow(queue);
   });
 });
 

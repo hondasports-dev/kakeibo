@@ -85,6 +85,7 @@ function UserMenu() {
         </Alert>
       ) : null}
       <Button
+        aria-label="ユーザーメニューを開く"
         aria-controls={open ? "user-menu" : undefined}
         aria-expanded={open ? "true" : undefined}
         aria-haspopup="menu"
