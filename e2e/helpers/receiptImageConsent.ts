@@ -9,9 +9,7 @@ export async function acceptReceiptImageExternalApiConsentIfVisible(page: Page) 
   }
 
   await expect(
-    page.getByText(
-      "レシート画像を解析するため、画像データを外部APIへ送信します。画像は長期保存しません。",
-    ),
+    page.getByText("レシート画像を解析するため、外部APIへ送信します。画像は長期保存しません。"),
   ).toBeVisible();
   await page.getByRole("button", { name: "同意して読み取る" }).click();
 }

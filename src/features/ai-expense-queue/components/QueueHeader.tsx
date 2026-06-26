@@ -26,9 +26,6 @@ export function QueueHeader({
         <Typography component="h2" id="ai-expense-queue-heading" variant="h5">
           レシート入力
         </Typography>
-        <Typography color="text.secondary" variant="body2">
-          撮影して、あとでまとめて確認できます。
-        </Typography>
       </Box>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
         <ImageInputButton

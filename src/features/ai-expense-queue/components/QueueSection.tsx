@@ -57,9 +57,6 @@ function QueueItemCard({
   ]
     .filter(Boolean)
     .join(" ・ ");
-  const primaryReviewReason = item.reviewReasons?.[0];
-  const secondaryReviewReasons = item.reviewReasons?.slice(1) ?? [];
-
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
       <Stack spacing={1}>
@@ -123,23 +120,16 @@ function QueueItemCard({
         )}
 
         {item.reviewReasons && item.reviewReasons.length > 0 && (
-          <Stack spacing={0.75}>
-            <Typography color="text.secondary" variant="body2">
-              {item.status === "failed" ? "失敗" : "確認が必要"}:{" "}
-              {getReviewReasonLabel(primaryReviewReason ?? "")}
-            </Typography>
-            {secondaryReviewReasons.length > 0 && (
-              <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                {secondaryReviewReasons.map((reason) => (
-                  <Chip
-                    key={reason}
-                    label={getReviewReasonLabel(reason)}
-                    size="small"
-                    variant="outlined"
-                  />
-                ))}
-              </Stack>
-            )}
+          <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+            {item.reviewReasons.map((reason) => (
+              <Chip
+                color={item.status === "failed" ? "error" : "warning"}
+                key={reason}
+                label={getReviewReasonLabel(reason)}
+                size="small"
+                variant="outlined"
+              />
+            ))}
           </Stack>
         )}
 

@@ -140,7 +140,9 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     expect(screen.getByRole("heading", { name: "レシート入力" })).toBeInTheDocument();
-    expect(screen.getByText("撮影して、あとでまとめて確認できます。")).toBeInTheDocument();
+    expect(screen.queryByText("撮影して、あとでまとめて確認できます。")).not.toBeInTheDocument();
+    expect(screen.getByText("レシートを読み取って下書きを作ります。")).toBeInTheDocument();
+    expect(screen.queryByText("追加したレシートは状態別に表示されます。")).not.toBeInTheDocument();
     expect(screen.queryByText("レシート・払込票をまとめて追加できます。")).not.toBeInTheDocument();
     expect(
       screen.queryByText("スマートフォンでは撮影、PCでは画像選択から追加できます。"),
@@ -151,7 +153,7 @@ describe("AiExpenseQueuePanel", () => {
       "capture",
       "environment",
     );
-    expect(screen.getByText("追加したレシートは状態別に表示されます。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "詳しい説明" })).toBeInTheDocument();
   });
 
   it("画像送信の同意状態を読み込み中は画像追加導線を無効化する", () => {
@@ -417,15 +419,13 @@ describe("AiExpenseQueuePanel", () => {
 
     const reviewSection = screen.getByRole("region", { name: "確認が必要" });
     expect(within(reviewSection).getByText("review-payment.png")).toBeInTheDocument();
-    expect(
-      within(reviewSection).getByText("確認が必要: 信頼度が低い項目があります"),
-    ).toBeInTheDocument();
-    expect(within(reviewSection).getByText("必須項目を確認してください")).toBeInTheDocument();
+    expect(within(reviewSection).getByText("低信頼度")).toBeInTheDocument();
+    expect(within(reviewSection).getByText("必須項目不足")).toBeInTheDocument();
     expect(within(reviewSection).getByRole("button", { name: "確認する" })).toBeEnabled();
 
     const failedSection = screen.getByRole("region", { name: "失敗" });
     expect(within(failedSection).getByText("failed-receipt.png")).toBeInTheDocument();
-    expect(within(failedSection).getByText("失敗: 画像解析に失敗しました")).toBeInTheDocument();
+    expect(within(failedSection).getByText("解析失敗")).toBeInTheDocument();
     expect(within(failedSection).getByRole("button", { name: "手入力へ戻る" })).toBeEnabled();
     expect(within(failedSection).getByRole("button", { name: "再試行" })).toBeEnabled();
 
@@ -646,8 +646,8 @@ describe("AiExpenseQueuePanel", () => {
 
     expect(screen.getByRole("heading", { name: "下書き確認" })).toBeInTheDocument();
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getByText("信頼度が低い項目があります")).toBeInTheDocument();
-    expect(within(dialog).getByText("必須項目を確認してください")).toBeInTheDocument();
+    expect(within(dialog).getByText("低信頼度")).toBeInTheDocument();
+    expect(within(dialog).getByText("必須項目不足")).toBeInTheDocument();
 
     expect(within(dialog).queryByLabelText("支払場所")).not.toBeInTheDocument();
     expect(within(dialog).queryByLabelText("支払先")).not.toBeInTheDocument();
