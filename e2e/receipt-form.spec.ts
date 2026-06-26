@@ -222,7 +222,7 @@ test.describe("支出項目保存フロー（Issue #13 / #181 受け入れ確認
 
   test("[Issue #64] 旧の画像入力UIがなくても手入力保存フローは維持される", async ({ page }) => {
     await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "読み取り" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
 
     // Issue #181: ExpenseEntryForm セレクターに変更
     await page.getByLabel("店舗名 / 支払先").fill("画像確認スーパー");
