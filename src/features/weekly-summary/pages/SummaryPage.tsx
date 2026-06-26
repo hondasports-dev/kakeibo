@@ -1,11 +1,15 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useQuery } from "convex/react";
-import { Alert, Box, Stack, Typography } from "@mui/material";
+import { useMutation, useQuery } from "convex/react";
+import { Alert, Box, Snackbar, Stack, Typography } from "@mui/material";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 import { WeekNavigator } from "../../week";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
+import { ExpenseEntryDeleteDialog } from "../components/ExpenseEntryDeleteDialog";
+import { ExpenseEntryEditDialog } from "../components/ExpenseEntryEditDialog";
 import { SuzumemoLoadingState } from "../../ui";
+import type { ReceiptItem } from "../types/types";
 import { buildWeeklyExpenseChartData } from "../utils/weeklyExpenseChartData";
 import {
   addWeeks,
@@ -18,10 +22,19 @@ import {
 export function SummaryPage() {
   const { weekStartDate: rawWeekStartDate } = useParams<{ weekStartDate: string }>();
   const navigate = useNavigate();
+  const [editingReceipt, setEditingReceipt] = useState<ReceiptItem | null>(null);
+  const [deletingReceipt, setDeletingReceipt] = useState<ReceiptItem | null>(null);
+  const [deleteSaving, setDeleteSaving] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  const deleteExpenseEntry = useMutation(api.expenseEntries.mutations.deleteExpenseEntry);
+  const deleteReceipt = useMutation(api.receipts.crud.deleteReceipt);
+  const categoriesQuery = useQuery(api.categories.queries.listActive);
+  const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
 
   const currentWeekStartDate = getCurrentWeekStartDate();
 
-  // 正規化: 不正値・未来週は今週にフォールバック
   const normalized = rawWeekStartDate ? normalizeWeekStartDate(rawWeekStartDate) : null;
   const weekStartDate =
     normalized !== null && !isFutureWeek(normalized, currentWeekStartDate)
@@ -31,7 +44,6 @@ export function SummaryPage() {
   const weekEndDate = getWeekEndDate(weekStartDate);
   const isCurrentWeek = weekStartDate === currentWeekStartDate;
 
-  // 未来週・不正値 URL は今週の URL に正規化してリダイレクト
   useEffect(() => {
     if (rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
       navigate(`/weeks/${weekStartDate}`, { replace: true });
@@ -43,18 +55,43 @@ export function SummaryPage() {
   });
   const fourWeeksSummary = useQuery(api.receipts.summaries.getFourWeeksSummary, { weekStartDate });
   const weeklyExpenseTrend =
-    fourWeeksSummary === undefined
-      ? undefined
-      : buildWeeklyExpenseChartData({
+    fourWeeksSummary !== undefined && Array.isArray(fourWeeksSummary.weeks)
+      ? buildWeeklyExpenseChartData({
           weeks: fourWeeksSummary.weeks,
           targetWeekStartDate: weekStartDate,
           currentWeekStartDate,
-        });
+        })
+      : undefined;
 
   const navigateToWeek = (newWeekStartDate: string) => {
     const norm = normalizeWeekStartDate(newWeekStartDate) ?? currentWeekStartDate;
     const target = isFutureWeek(norm, currentWeekStartDate) ? currentWeekStartDate : norm;
     navigate(`/weeks/${target}`);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingReceipt) {
+      return;
+    }
+    setDeleteSaving(true);
+    setDeleteError("");
+    try {
+      if (deletingReceipt.recordType === "expenseEntry") {
+        await deleteExpenseEntry({
+          expenseEntryId: deletingReceipt._id as Id<"expenseEntries">,
+        });
+      } else {
+        await deleteReceipt({
+          receiptId: deletingReceipt._id as Id<"receipts">,
+        });
+      }
+      setDeletingReceipt(null);
+      setSaveMessage("記録を削除しました。");
+    } catch {
+      setDeleteError("削除に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setDeleteSaving(false);
+    }
   };
 
   if (weeklySummary === undefined) {
@@ -92,6 +129,12 @@ export function SummaryPage() {
           onNextWeek={() => navigateToWeek(addWeeks(weekStartDate, 1))}
         />
 
+        {deleteError && (
+          <Alert severity="error" variant="outlined" onClose={() => setDeleteError("")}>
+            {deleteError}
+          </Alert>
+        )}
+
         <WeeklySummaryPanel
           count={weeklySummary.count}
           totalAmountYen={weeklySummary.totalAmountYen}
@@ -101,8 +144,33 @@ export function SummaryPage() {
           isLoading={false}
           weekStartDate={weekStartDate}
           weeklyExpenseTrend={weeklyExpenseTrend}
+          onDeleteReceipt={setDeletingReceipt}
+          onEditReceipt={setEditingReceipt}
         />
       </Stack>
+
+      <ExpenseEntryEditDialog
+        categories={categories}
+        open={editingReceipt !== null}
+        receipt={editingReceipt}
+        onClose={() => setEditingReceipt(null)}
+        onSaved={() => setSaveMessage("変更を保存しました。")}
+      />
+
+      <ExpenseEntryDeleteDialog
+        open={deletingReceipt !== null}
+        saving={deleteSaving}
+        onCancel={() => setDeletingReceipt(null)}
+        onConfirm={() => void handleConfirmDelete()}
+      />
+
+      <Snackbar
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        autoHideDuration={3000}
+        message={saveMessage}
+        onClose={() => setSaveMessage("")}
+        open={saveMessage.length > 0}
+      />
     </Box>
   );
 }

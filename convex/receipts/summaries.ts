@@ -69,6 +69,7 @@ export type WeekSummaryWithCategories = {
     categoryName: string;
     categoryColor: string;
     memo?: string;
+    recordType: "expenseEntry" | "receipt";
   }>;
 };
 
@@ -136,6 +137,7 @@ export async function getWeekSummaryWithCategoriesHandler(
       categoryName: name,
       categoryColor: color,
       memo: receipt.memo,
+      recordType: receipt.recordType,
     });
   }
 

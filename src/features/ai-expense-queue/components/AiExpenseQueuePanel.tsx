@@ -53,7 +53,11 @@ export function AiExpenseQueuePanel({
         )}
 
         {queue.items.length === 0 ? (
-          <QueueEmptyState />
+          <QueueEmptyState
+            onAddReceipt={
+              queue.consentIsLoading ? undefined : () => queue.inputRef.current?.click()
+            }
+          />
         ) : (
           <QueueContent
             clearableCount={queue.clearableItems.length}

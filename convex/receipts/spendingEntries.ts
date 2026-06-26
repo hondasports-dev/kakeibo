@@ -10,6 +10,7 @@ export type SpendingEntry = {
   amountYen: number;
   categoryId: string;
   memo?: string;
+  recordType: "expenseEntry" | "receipt";
 };
 
 export function addDays(dateStr: string, days: number): string {
@@ -48,6 +49,7 @@ export function mapReceiptToSpendingEntry(receipt: {
     amountYen: receipt.amountYen,
     categoryId: receipt.categoryId,
     memo: receipt.memo,
+    recordType: "receipt",
   };
 }
 
@@ -69,6 +71,7 @@ export function mapExpenseEntryToSpendingEntry(expenseEntry: {
     amountYen: expenseEntry.amount,
     categoryId: expenseEntry.categoryId,
     memo: expenseEntry.memo,
+    recordType: "expenseEntry",
   };
 }
 
