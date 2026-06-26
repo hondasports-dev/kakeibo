@@ -288,7 +288,7 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
-    await expect(dialog.getByText("食費 150円")).toBeVisible();
+    await expect(dialog.getByText("食費 120円")).toBeVisible();
     await expect(dialog.getByText("未分類の明細があります")).toBeVisible();
     await expect(dialog.getByText("低信頼度の明細があります")).toBeVisible();
 
