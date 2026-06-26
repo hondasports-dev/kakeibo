@@ -45,7 +45,7 @@ export function InputPage() {
   }
 
   return (
-    <Box className="app-main">
+    <Box className="app-main" sx={{ minWidth: 0, maxWidth: "100%" }}>
       <Stack spacing={3}>
         <WeekNavigator
           weekStartDate={weekStartDate}
