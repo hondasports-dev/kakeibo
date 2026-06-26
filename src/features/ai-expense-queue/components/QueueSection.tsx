@@ -1,7 +1,6 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReplayIcon from "@mui/icons-material/Replay";
 import { Box, Button, Checkbox, Chip, LinearProgress, Stack, Typography } from "@mui/material";
-import { formatDateForDisplay } from "../../week";
 import {
   documentTypeLabels,
   getReviewReasonLabel,
@@ -12,27 +11,54 @@ import {
 } from "./labels";
 import type { AiExpenseQueueItem } from "../types/types";
 
+const queueDateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+const queueAmountFormatter = new Intl.NumberFormat("ja-JP");
+
+function formatQueueDate(date: string) {
+  const parsedDate = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return date;
+  }
+  return queueDateFormatter.format(parsedDate);
+}
+
 function QueueItemCard({
   item,
   isSelected,
   onToggleReadySelection,
   onOpenReview,
+  onRegisterItem,
   onRetry,
   onDelete,
   onReturnToManualInput,
   isDeleting,
+  isRegistering,
 }: {
   item: AiExpenseQueueItem;
   isSelected: boolean;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
   onOpenReview: (itemId: string) => void;
+  onRegisterItem: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
   onDelete?: (item: AiExpenseQueueItem) => void;
   onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
   isDeleting: boolean;
+  isRegistering: boolean;
 }) {
   const secondaryLabel = item.fileName ?? "AI支出下書き";
   const canDelete = item.status !== "registered" && item.status !== "registering";
+  const metadata = [
+    item.date ? formatQueueDate(item.date) : undefined,
+    item.amountYen !== undefined ? queueAmountFormatter.format(item.amountYen) : undefined,
+  ]
+    .filter(Boolean)
+    .join(" ・ ");
+  const primaryReviewReason = item.reviewReasons?.[0];
+  const secondaryReviewReasons = item.reviewReasons?.slice(1) ?? [];
 
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
@@ -76,22 +102,16 @@ function QueueItemCard({
           </Stack>
         </Stack>
 
-        {item.amountYen !== undefined && (
+        {metadata && (
           <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {item.amountYen.toLocaleString("ja-JP")}円
+            {metadata}
+            {item.amountYen !== undefined && "円"}
           </Typography>
         )}
 
-        {(item.date || item.categoryName) && (
+        {item.categoryName && (
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-            {item.date && (
-              <Typography color="text.secondary" variant="body2">
-                {formatDateForDisplay(item.date)}
-              </Typography>
-            )}
-            {item.categoryName && (
-              <Chip label={item.categoryName} size="small" variant="outlined" />
-            )}
+            <Chip label={item.categoryName} size="small" variant="outlined" />
           </Stack>
         )}
 
@@ -103,15 +123,23 @@ function QueueItemCard({
         )}
 
         {item.reviewReasons && item.reviewReasons.length > 0 && (
-          <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-            {item.reviewReasons.map((reason) => (
-              <Chip
-                key={reason}
-                label={getReviewReasonLabel(reason)}
-                size="small"
-                variant="outlined"
-              />
-            ))}
+          <Stack spacing={0.75}>
+            <Typography color="text.secondary" variant="body2">
+              {item.status === "failed" ? "失敗" : "確認が必要"}:{" "}
+              {getReviewReasonLabel(primaryReviewReason ?? "")}
+            </Typography>
+            {secondaryReviewReasons.length > 0 && (
+              <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                {secondaryReviewReasons.map((reason) => (
+                  <Chip
+                    key={reason}
+                    label={getReviewReasonLabel(reason)}
+                    size="small"
+                    variant="outlined"
+                  />
+                ))}
+              </Stack>
+            )}
           </Stack>
         )}
 
@@ -119,16 +147,17 @@ function QueueItemCard({
           <Stack spacing={0.75}>
             <Typography color="text.secondary" variant="body2">
               カテゴリ別登録候補
-              {item.itemTotalYen !== undefined && ` ${item.itemTotalYen.toLocaleString("ja-JP")}円`}
+              {item.itemTotalYen !== undefined &&
+                ` ${queueAmountFormatter.format(item.itemTotalYen)}円`}
               {item.itemDifferenceYen !== undefined &&
                 item.itemDifferenceYen !== 0 &&
-                ` / 差額 ${item.itemDifferenceYen.toLocaleString("ja-JP")}円`}
+                ` / 差額 ${queueAmountFormatter.format(item.itemDifferenceYen)}円`}
             </Typography>
             <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
               {item.categoryAggregates.map((aggregate) => (
                 <Chip
                   key={aggregate.categoryId}
-                  label={`${aggregate.categoryName ?? "カテゴリ"} ${aggregate.amountYen.toLocaleString("ja-JP")}円`}
+                  label={`${aggregate.categoryName ?? "カテゴリ"} ${queueAmountFormatter.format(aggregate.amountYen)}円`}
                   size="small"
                   variant="outlined"
                 />
@@ -151,7 +180,7 @@ function QueueItemCard({
               type="button"
               variant="outlined"
             >
-              下書きを確認
+              確認する
             </Button>
             <DeleteQueueButton isDeleting={isDeleting} item={item} onDelete={onDelete} />
           </Stack>
@@ -181,15 +210,29 @@ function QueueItemCard({
           </Stack>
         )}
 
-        {(item.status === "queued" || item.status === "analyzing" || item.status === "ready") &&
-          canDelete && (
-            <DeleteQueueButton
-              isDeleting={isDeleting}
-              item={item}
-              onDelete={onDelete}
-              sx={{ alignSelf: "flex-start" }}
-            />
-          )}
+        {item.status === "ready" && (
+          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+            <Button
+              disabled={isRegistering}
+              onClick={() => onRegisterItem(item.id)}
+              size="small"
+              type="button"
+              variant="contained"
+            >
+              登録する
+            </Button>
+            <DeleteQueueButton isDeleting={isDeleting} item={item} onDelete={onDelete} />
+          </Stack>
+        )}
+
+        {(item.status === "queued" || item.status === "analyzing") && canDelete && (
+          <DeleteQueueButton
+            isDeleting={isDeleting}
+            item={item}
+            onDelete={onDelete}
+            sx={{ alignSelf: "flex-start" }}
+          />
+        )}
       </Stack>
     </Box>
   );
@@ -228,20 +271,24 @@ export function QueueSection({
   selectedReadyIds,
   onToggleReadySelection,
   onOpenReview,
+  onRegisterItem,
   onRetry,
   onDelete,
   onReturnToManualInput,
   deletingIds,
+  registeringIds,
 }: {
   label: string;
   items: AiExpenseQueueItem[];
   selectedReadyIds: string[];
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
   onOpenReview: (itemId: string) => void;
+  onRegisterItem: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
   onDelete?: (item: AiExpenseQueueItem) => void;
   onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
   deletingIds: string[];
+  registeringIds: string[];
 }) {
   if (items.length === 0) {
     return null;
@@ -262,9 +309,11 @@ export function QueueSection({
               isSelected={selectedReadyIds.includes(item.id)}
               item={item}
               isDeleting={deletingIds.includes(item.id)}
+              isRegistering={registeringIds.includes(item.id)}
               key={item.id}
               onDelete={onDelete}
               onOpenReview={onOpenReview}
+              onRegisterItem={onRegisterItem}
               onRetry={onRetry}
               onReturnToManualInput={onReturnToManualInput}
               onToggleReadySelection={onToggleReadySelection}

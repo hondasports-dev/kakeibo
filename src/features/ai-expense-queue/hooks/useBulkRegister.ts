@@ -38,17 +38,17 @@ export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
     });
   };
 
-  const handleRegisterReady = async () => {
-    if (selectedReadyIds.length === 0) {
+  const handleRegisterReady = async (draftIds = selectedReadyIds) => {
+    if (draftIds.length === 0) {
       return;
     }
     setRegistrationError("");
-    setRegisteringIds(selectedReadyIds);
+    setRegisteringIds(draftIds);
     try {
       await registerReadyDraftsAsExpenseEntries({
-        draftIds: selectedReadyIds as Id<"aiExpenseDrafts">[],
+        draftIds: draftIds as Id<"aiExpenseDrafts">[],
       });
-      setSelectedReadyIds([]);
+      setSelectedReadyIds((current) => current.filter((id) => !draftIds.includes(id)));
     } catch (error) {
       setRegistrationError(
         error instanceof Error

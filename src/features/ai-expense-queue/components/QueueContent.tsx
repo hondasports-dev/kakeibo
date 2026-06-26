@@ -31,7 +31,7 @@ export function QueueContent({
   onClearOpenQueue: () => Promise<void>;
   onDeleteQueueItem: ReturnType<typeof useAiExpenseQueuePanel>["deleteQueueItem"];
   onOpenReview: (itemId: string) => void;
-  onRegisterReady: () => Promise<void>;
+  onRegisterReady: (itemIds?: string[]) => Promise<void>;
   onRetry: (draftId: string) => Promise<void>;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
 }) {
@@ -103,49 +103,59 @@ export function QueueContent({
         items={groupedItems.processing}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
+        onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onDelete={(item) => void onDeleteQueueItem(item)}
         onReturnToManualInput={(item) => void onDeleteQueueItem(item)}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}
+        registeringIds={registeringIds}
       />
       <QueueSection
         label="登録準備OK"
         items={groupedItems.ready}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
+        onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onDelete={(item) => void onDeleteQueueItem(item)}
         onReturnToManualInput={(item) => void onDeleteQueueItem(item)}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}
+        registeringIds={registeringIds}
       />
       <QueueSection
         label="確認が必要"
         items={groupedItems.needs_review}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
+        onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onDelete={(item) => void onDeleteQueueItem(item)}
         onReturnToManualInput={(item) => void onDeleteQueueItem(item)}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}
+        registeringIds={registeringIds}
       />
       <QueueSection
         label="失敗"
         items={groupedItems.failed}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
+        onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onDelete={(item) => void onDeleteQueueItem(item)}
         onRetry={onRetry}
         onReturnToManualInput={(item) => void onDeleteQueueItem(item)}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}
+        registeringIds={registeringIds}
       />
       <QueueSection
         label="登録済み"
         items={groupedItems.registered}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
+        onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}
+        registeringIds={registeringIds}
       />
     </Stack>
   );

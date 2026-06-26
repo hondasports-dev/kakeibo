@@ -211,7 +211,7 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
     await expect(reviewSection.getByText("信頼度が低い項目があります")).toBeVisible();
     await expect(reviewSection.getByText("必須項目を確認してください")).toBeVisible();
-    await expect(reviewSection.getByRole("button", { name: "下書きを確認" })).toBeEnabled();
+    await expect(reviewSection.getByRole("button", { name: "確認する" })).toBeEnabled();
 
     const failedSection = queue.getByRole("region", { name: "失敗" });
     await expect(failedSection.getByText("failed-receipt.png")).toBeVisible();
@@ -227,7 +227,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
-    await reviewSection.getByRole("button", { name: "下書きを確認" }).click();
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
@@ -250,7 +250,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
-    await reviewSection.getByRole("button", { name: "下書きを確認" }).click();
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
@@ -271,7 +271,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await expect(registeredSection.getByText("大阪市水道局")).toBeVisible();
     await expect(registeredSection.getByText("9,160円")).toBeVisible();
     // Issue #175: 登録済みカードに日付が表示される
-    await expect(registeredSection.getByText("6/1")).toBeVisible();
+    await expect(registeredSection.getByText("2026/06/01 ・ 9,160円")).toBeVisible();
   });
 });
 
@@ -283,7 +283,7 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
-    await reviewSection.getByRole("button", { name: "下書きを確認" }).click();
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
