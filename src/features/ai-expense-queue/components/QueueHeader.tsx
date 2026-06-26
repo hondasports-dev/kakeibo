@@ -20,14 +20,22 @@ export function QueueHeader({
     <Stack
       direction={{ xs: "column", sm: "row" }}
       spacing={1.5}
-      sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "flex-start" } }}
+      sx={{
+        justifyContent: "space-between",
+        alignItems: { xs: "stretch", sm: "flex-start" },
+        minWidth: 0,
+      }}
     >
-      <Box>
+      <Box sx={{ minWidth: 0 }}>
         <Typography component="h2" id="ai-expense-queue-heading" variant="h5">
           レシート入力
         </Typography>
       </Box>
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{ minWidth: 0, width: "100%" }}
+      >
         <ImageInputButton
           buttonLabel="レシートを追加"
           disabled={disabled}
