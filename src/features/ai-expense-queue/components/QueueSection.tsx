@@ -67,7 +67,7 @@ function QueueItemCard({
 
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
-      <Stack spacing={1}>
+      <Stack spacing={1} sx={{ minWidth: 0, width: "100%" }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", minWidth: 0 }}>
           {item.status === "ready" && (
             <Checkbox

@@ -53,8 +53,12 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     ).toBeVisible();
     await expect(queueSection.getByRole("button", { name: "撮影する" })).toBeVisible();
 
+    // ページ遷移アニメーション（300ms）完了後に横スクロールを確認
+    await page.waitForTimeout(400);
+
     const hasHorizontalOverflow = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > document.documentElement.clientWidth + 1;
+      const root = document.documentElement;
+      return root.scrollWidth > root.clientWidth + 1;
     });
     expect(hasHorizontalOverflow).toBe(false);
   });
