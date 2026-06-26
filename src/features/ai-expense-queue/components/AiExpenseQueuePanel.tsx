@@ -1,5 +1,6 @@
 import { Alert, Box, Stack } from "@mui/material";
 import { QueueContent } from "./QueueContent";
+import { QueueEmptyState } from "./QueueEmptyState";
 import { QueueHeader } from "./QueueHeader";
 import { ReviewDialog } from "./ReviewDialog";
 import { ReceiptImageConsentDialog } from "./ReceiptImageConsentDialog";
@@ -52,9 +53,7 @@ export function AiExpenseQueuePanel({
         )}
 
         {queue.items.length === 0 ? (
-          <Alert severity="info" variant="outlined">
-            追加したレシートは状態別に表示されます。
-          </Alert>
+          <QueueEmptyState />
         ) : (
           <QueueContent
             clearableCount={queue.clearableItems.length}

@@ -11,7 +11,7 @@ import {
   Typography,
 } from "@mui/material";
 import { useExpenseEntryForm } from "../hooks/useExpenseEntryForm";
-import { AnimatedButton } from "../../ui";
+import { AnimatedButton, CollapsibleHelp } from "../../ui";
 import { AiExpenseQueuePanel } from "../../ai-expense-queue";
 import { CategoryGrid } from "./CategoryGrid";
 import { ConfirmDifferenceDialog } from "./ConfirmDifferenceDialog";
@@ -154,9 +154,9 @@ function FormHeading({ isMultiMode }: { isMultiMode: boolean }) {
         入力
       </Typography>
       {!isMultiMode && (
-        <Typography color="text.secondary" variant="body2">
+        <CollapsibleHelp summary="入力のコツ">
           保存後は店舗名と金額だけ空にして、次の入力へ進みます。
-        </Typography>
+        </CollapsibleHelp>
       )}
     </Box>
   );

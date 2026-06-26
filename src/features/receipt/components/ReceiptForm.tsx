@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { AiExpenseQueuePanel } from "../../ai-expense-queue";
 import { useReceiptForm } from "../hooks/useReceiptForm";
-import { AnimatedButton } from "../../ui";
+import { AnimatedButton, CollapsibleHelp } from "../../ui";
 import { ReceiptCategorySelector } from "./ReceiptCategorySelector";
 import { ReceiptNameField } from "./ReceiptNameField";
 import { ReceiptWeekDaySelector } from "./ReceiptWeekDaySelector";
@@ -51,9 +51,9 @@ export function ReceiptForm({ weekStartDate, weekEndDate, categories }: ReceiptF
               <Typography component="h2" variant="h5">
                 入力
               </Typography>
-              <Typography color="text.secondary" variant="body2">
+              <CollapsibleHelp summary="入力のコツ">
                 保存後は名前と金額だけ空にして、次の入力へ進みます。
-              </Typography>
+              </CollapsibleHelp>
             </Box>
 
             <Tabs

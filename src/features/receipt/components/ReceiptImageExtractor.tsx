@@ -19,6 +19,7 @@ import {
   type NormalizedReceiptFields,
 } from "../validation/receiptExtraction";
 import { resizeImageFileToDataUrl } from "../../../utils/imageDataUrl";
+import { CollapsibleHelp } from "../../ui";
 
 // ---------------------------------------------------------------------------
 // 型定義
@@ -216,12 +217,14 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
           >
             画像から入力
           </Typography>
-          <Typography color="text.secondary" variant="body2">
-            画像は保存されません。確認用の一時プレビューです。
-          </Typography>
-          <Typography color="text.secondary" variant="body2">
-            読み取り時はレシート画像を外部APIへ送信します。抽出結果は自動保存されません。
-          </Typography>
+          <CollapsibleHelp summary="画像読み取りについて">
+            <Typography color="text.secondary" variant="body2">
+              画像は保存されません。確認用の一時プレビューです。
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              読み取り時はレシート画像を外部APIへ送信します。抽出結果は自動保存されません。
+            </Typography>
+          </CollapsibleHelp>
         </Box>
 
         {errorMessage && (
@@ -337,13 +340,10 @@ export function ReceiptImageExtractor({ onExtracted }: ReceiptImageExtractorProp
         <DialogContent>
           <Stack spacing={1.5}>
             <Typography variant="body2">
-              レシート画像を解析するため、画像データを外部APIへ送信します。画像は長期保存しません。
+              レシート画像を解析するため、外部APIへ送信します。画像は長期保存しません。
             </Typography>
             <Typography variant="body2">
-              読み取った店名・日付・金額はフォーム候補として反映されますが、自動保存はされません。
-            </Typography>
-            <Typography variant="body2">
-              同意しない場合や読み取りに失敗した場合も、この画面で手入力できます。
+              読み取った店名・日付・金額はフォーム候補として反映されますが、自動保存はされません。不同意の場合は手入力できます。
             </Typography>
           </Stack>
         </DialogContent>

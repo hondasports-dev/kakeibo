@@ -30,12 +30,12 @@ export const reviewDocumentTypeOptions = Object.entries(documentTypeLabels).filt
 );
 
 const reviewReasonLabels: Record<string, string> = {
-  low_confidence: "信頼度が低い項目があります",
-  missing_required_field: "必須項目を確認してください",
-  ambiguous_document_type: "書類種別を確認してください",
-  ambiguous_category: "カテゴリを確認してください",
-  amount_mismatch: "明細合計と合計金額が一致しません",
-  parse_failed: "画像解析に失敗しました",
+  low_confidence: "低信頼度",
+  missing_required_field: "必須項目不足",
+  ambiguous_document_type: "書類種別要確認",
+  ambiguous_category: "未分類あり",
+  amount_mismatch: "金額不一致",
+  parse_failed: "解析失敗",
 };
 
 export function getReviewReasonLabel(reason: string) {
