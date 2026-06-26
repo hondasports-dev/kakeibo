@@ -39,13 +39,18 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    await page.getByRole("navigation", { name: "ボトムナビゲーション" }).getByRole("link", { name: "入力" }).click();
+    await page
+      .getByRole("navigation", { name: "ボトムナビゲーション" })
+      .getByRole("link", { name: "入力" })
+      .click();
     await expect(page).toHaveURL("/weeks/current/input");
 
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
     const queueSection = page.locator("section.ai-expense-queue");
-    await expect(queueSection.getByRole("button", { name: "レシートを追加" }).first()).toBeVisible();
+    await expect(
+      queueSection.getByRole("button", { name: "レシートを追加" }).first(),
+    ).toBeVisible();
     await expect(queueSection.getByRole("button", { name: "撮影する" })).toBeVisible();
 
     const hasHorizontalOverflow = await page.evaluate(() => {
