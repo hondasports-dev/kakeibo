@@ -64,8 +64,8 @@ export function ExpenseEntryForm({
   const isOverExceeded = difference !== null && difference < 0;
 
   return (
-    <Paper className="paper-panel" elevation={0}>
-      <Box sx={{ p: 2.5 }}>
+    <Paper className="paper-panel" elevation={0} sx={{ minWidth: 0 }}>
+      <Box sx={{ minWidth: 0, p: 2.5 }}>
         <form noValidate onSubmit={handleSubmit}>
           <Stack spacing={2.5}>
             <FormHeading isMultiMode={isMultiMode} />
@@ -314,7 +314,11 @@ function FormActions({
   onEnterMultiMode: () => void;
 }) {
   return (
-    <Stack direction="row" spacing={1.5} sx={{ justifyContent: "flex-end" }}>
+    <Stack
+      direction="row"
+      spacing={1.5}
+      sx={{ flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0 }}
+    >
       {!isMultiMode && (
         <Button variant="text" size="small" onClick={onEnterMultiMode} aria-label="支出項目を追加">
           支出項目を追加

@@ -6,6 +6,8 @@ export { AppLayout } from "./components/AppLayout";
 export { AppErrorBoundary } from "./components/AppErrorBoundary";
 export { PublicStatusPage } from "./components/PublicStatusPage";
 export { LegalDocumentLayout, LegalSection } from "./components/LegalDocumentLayout";
+export { SiteCreditsFooter } from "./components/SiteCreditsFooter";
+export { SITE_METADATA, getCopyrightNotice } from "./lib/siteMetadata";
 export {
   E2E_APP_ERROR_BOUNDARY_PATH,
   GROUP_INVITATION_ACCEPT_PATH,

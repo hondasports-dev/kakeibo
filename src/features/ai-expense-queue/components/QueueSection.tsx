@@ -67,7 +67,7 @@ function QueueItemCard({
 
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
-      <Stack spacing={1}>
+      <Stack spacing={1} sx={{ minWidth: 0, width: "100%" }}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", minWidth: 0 }}>
           {item.status === "ready" && (
             <Checkbox
@@ -81,11 +81,20 @@ function QueueItemCard({
             />
           )}
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography sx={{ fontWeight: 700 }} noWrap>
+            <Typography
+              className="ai-expense-queue-item-title"
+              sx={{ fontWeight: 700 }}
+              title={item.title || secondaryLabel}
+            >
               {item.title || secondaryLabel}
             </Typography>
             {item.title && (
-              <Typography color="text.secondary" variant="body2" noWrap>
+              <Typography
+                className="ai-expense-queue-item-secondary"
+                color="text.secondary"
+                title={secondaryLabel}
+                variant="body2"
+              >
                 {secondaryLabel}
               </Typography>
             )}

@@ -13,6 +13,8 @@ import { gotoAuthenticated } from "./helpers/auth";
  *     **削除** (Issue #49 でダッシュボードが変更されたため)
  *   - シナリオ R-3: 390px viewport で設定画面の主要要素が表示される (P1 / smoke)
  *     **更新** (BottomNavigation 経由の遷移に変更)
+ *   - シナリオ R-4: 390px viewport で入力画面が横スクロールせず主要要素が表示される (P1 / smoke)
+ *     Issue #354 対応
  *
  * テストデータ・cleanup:
  *   - レシート・カテゴリを作成しないため cleanup 不要。
@@ -29,5 +31,35 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
 
     // 設定画面の見出しが表示されることを確認
     await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+  });
+
+  test("@smoke シナリオR-4: 390px viewport で入力画面が横スクロールせず主要要素が表示される", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page
+      .getByRole("navigation", { name: "ボトムナビゲーション" })
+      .getByRole("link", { name: "入力" })
+      .click();
+    await expect(page).toHaveURL("/weeks/current/input");
+
+    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
+    const queueSection = page.locator("section.ai-expense-queue");
+    await expect(
+      queueSection.getByRole("button", { name: "レシートを追加" }).first(),
+    ).toBeVisible();
+    await expect(queueSection.getByRole("button", { name: "撮影する" })).toBeVisible();
+
+    // ページ遷移アニメーション（300ms）完了後に横スクロールを確認
+    await page.waitForTimeout(400);
+
+    const hasHorizontalOverflow = await page.evaluate(() => {
+      const root = document.documentElement;
+      return root.scrollWidth > root.clientWidth + 1;
+    });
+    expect(hasHorizontalOverflow).toBe(false);
   });
 });

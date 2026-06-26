@@ -38,6 +38,11 @@ describe("PublicStatusPage", () => {
     expect(screen.getByRole("link", { name: "プライバシー" })).toHaveAttribute("href", "/privacy");
     expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
     expect(screen.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+    expect(screen.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
+    expect(screen.getByText("© 2026 Tatsuya Miyamoto")).toBeInTheDocument();
   });
 
   it("ボタンアクションを実行できる", async () => {

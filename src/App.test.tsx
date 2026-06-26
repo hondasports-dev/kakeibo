@@ -102,6 +102,16 @@ describe("App authentication states", () => {
     expect(screen.getByAltText("Suzumemo スズメモ")).toBeInTheDocument();
     expect(screen.getByText("小さな支出と日々のメモを、軽く残せます。")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Googleでログイン" })).toBeEnabled();
+    expect(screen.getByText("© 2026 Tatsuya Miyamoto")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "プライバシーポリシー" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(screen.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+    expect(screen.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
   });
 
   it("Clerkログイン後にConvex認証が読み込み中なら同期認証確認画面を表示する", () => {

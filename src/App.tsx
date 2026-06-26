@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { AuthenticateWithRedirectCallback, useAuth } from "@clerk/react";
 import { useSignIn } from "@clerk/react/legacy";
-import { Alert, Box, Button, Link as MuiLink, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { RouterProvider } from "react-router-dom";
 import { useConvexAuth } from "convex/react";
 import { getClerkErrorMessage, useInitializeUser } from "./features/auth";
+import { SiteCreditsFooter } from "./features/app-shell";
 import { SuzumemoLoadingLogo, SuzumemoLoadingState } from "./features/ui";
 import { router } from "./router";
 import {
@@ -174,12 +175,7 @@ function SignedOutScreen() {
             {isRedirecting ? "Googleへ移動しています" : "Googleでログイン"}
           </Button>
 
-          <MuiLink href="/privacy" underline="hover" variant="body2">
-            プライバシーポリシー
-          </MuiLink>
-          <MuiLink href="/terms" underline="hover" variant="body2">
-            利用規約
-          </MuiLink>
+          <SiteCreditsFooter variant="ja" />
         </Stack>
       </Paper>
     </Box>

@@ -12,6 +12,8 @@
   flex: 1;
   min-width: 0;
   padding-bottom: calc(var(--size-bottom-nav-height) + env(safe-area-inset-bottom));
+  overflow-x: clip;
+  max-width: 100%;
 }
 
 @media (min-width: 900px) {
@@ -198,20 +200,48 @@
   display: grid;
   gap: var(--space-sm);
   min-width: 0;
-  overflow: hidden;
   padding: var(--space-sm);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background: var(--color-surface-panel);
 }
 
+.ai-expense-queue-status-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-xs);
+  width: 100%;
+  min-width: 0;
+}
+
+.ai-expense-queue-status-summary .MuiChip-root {
+  height: auto;
+  max-width: 100%;
+}
+
+.ai-expense-queue-status-summary .MuiChip-label {
+  white-space: normal;
+}
+
 .ai-expense-queue-item {
   min-width: 0;
-  overflow: hidden;
   padding: var(--space-sm);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
   background: var(--color-surface-panel);
+}
+
+.ai-expense-queue-item-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-expense-queue-item-secondary {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .ai-expense-queue-item-processing {
@@ -340,6 +370,11 @@
 
   .category-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .category-button {
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .category-settings-row {
