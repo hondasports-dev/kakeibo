@@ -405,8 +405,9 @@ describe("AiExpenseQueuePanel", () => {
 
     const readySection = screen.getByRole("region", { name: "登録準備OK" });
     expect(within(readySection).getByText("ok-receipt.png")).toBeInTheDocument();
-    expect(within(readySection).getByText("4,280円")).toBeInTheDocument();
+    expect(within(readySection).getByText("2026/05/18 ・ 4,280円")).toBeInTheDocument();
     expect(within(readySection).queryByText("registering-receipt.png")).not.toBeInTheDocument();
+    expect(within(readySection).getByRole("button", { name: "登録する" })).toBeEnabled();
     expect(
       screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（1件）" }),
     ).toBeEnabled();
@@ -416,12 +417,15 @@ describe("AiExpenseQueuePanel", () => {
 
     const reviewSection = screen.getByRole("region", { name: "確認が必要" });
     expect(within(reviewSection).getByText("review-payment.png")).toBeInTheDocument();
-    expect(within(reviewSection).getByText("信頼度が低い項目があります")).toBeInTheDocument();
+    expect(
+      within(reviewSection).getByText("確認が必要: 信頼度が低い項目があります"),
+    ).toBeInTheDocument();
     expect(within(reviewSection).getByText("必須項目を確認してください")).toBeInTheDocument();
-    expect(within(reviewSection).getByRole("button", { name: "下書きを確認" })).toBeEnabled();
+    expect(within(reviewSection).getByRole("button", { name: "確認する" })).toBeEnabled();
 
     const failedSection = screen.getByRole("region", { name: "失敗" });
     expect(within(failedSection).getByText("failed-receipt.png")).toBeInTheDocument();
+    expect(within(failedSection).getByText("失敗: 画像解析に失敗しました")).toBeInTheDocument();
     expect(within(failedSection).getByRole("button", { name: "手入力へ戻る" })).toBeEnabled();
     expect(within(failedSection).getByRole("button", { name: "再試行" })).toBeEnabled();
 
@@ -431,6 +435,18 @@ describe("AiExpenseQueuePanel", () => {
 
     const registeredSection = screen.getByRole("region", { name: "登録済み" });
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();
+  });
+
+  it("登録準備OKカードの主アクションから単体登録できる", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
+
+    const readySection = screen.getByRole("region", { name: "登録準備OK" });
+    await user.click(within(readySection).getByRole("button", { name: "登録する" }));
+
+    expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
+      draftIds: ["draft-ready"],
+    });
   });
 
   it("登録準備OKの下書きにカテゴリ別登録候補を表示する", () => {
@@ -626,7 +642,7 @@ describe("AiExpenseQueuePanel", () => {
       <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.click(screen.getByRole("button", { name: "確認する" }));
 
     expect(screen.getByRole("heading", { name: "下書き確認" })).toBeInTheDocument();
     const dialog = screen.getByRole("dialog");
@@ -698,7 +714,7 @@ describe("AiExpenseQueuePanel", () => {
       <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.click(screen.getByRole("button", { name: "確認する" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("heading", { name: "明細" })).toBeInTheDocument();
@@ -758,7 +774,7 @@ describe("AiExpenseQueuePanel", () => {
       <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.click(screen.getByRole("button", { name: "確認する" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("下書きを読み込んでいます。")).toBeInTheDocument();
@@ -780,7 +796,7 @@ describe("AiExpenseQueuePanel", () => {
       <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.click(screen.getByRole("button", { name: "確認する" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByText("下書きを読み込んでいます。")).not.toBeInTheDocument();
@@ -813,7 +829,7 @@ describe("AiExpenseQueuePanel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.click(screen.getByRole("button", { name: "確認する" }));
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("書類種別を選択")).toBeInTheDocument();
@@ -856,7 +872,7 @@ describe("AiExpenseQueuePanel", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "下書きを確認" }));
+    await user.click(screen.getByRole("button", { name: "確認する" }));
     const nameInput = screen.getByLabelText("店名・内容");
     expect(nameInput).toHaveValue("大阪市水道局");
     await user.clear(nameInput);
@@ -880,7 +896,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} categories={categories} />);
 
     const registeredSection = screen.getByRole("region", { name: "登録済み" });
-    expect(within(registeredSection).getByText("5/20")).toBeInTheDocument();
+    expect(within(registeredSection).getByText("2026/05/20 ・ 1,800円")).toBeInTheDocument();
     expect(within(registeredSection).getByText("日用品")).toBeInTheDocument();
   });
 });
