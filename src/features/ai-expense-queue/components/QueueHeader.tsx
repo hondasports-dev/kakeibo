@@ -24,32 +24,29 @@ export function QueueHeader({
     >
       <Box>
         <Typography component="h2" id="ai-expense-queue-heading" variant="h5">
-          読み取り
+          レシート入力
         </Typography>
         <Typography color="text.secondary" variant="body2">
-          レシート・払込票をまとめて追加できます。
-        </Typography>
-        <Typography color="text.secondary" variant="body2">
-          スマートフォンでは撮影、PCでは画像選択から追加できます。
+          撮影して、あとでまとめて確認できます。
         </Typography>
       </Box>
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+        <ImageInputButton
+          buttonLabel="レシートを追加"
+          disabled={disabled}
+          inputLabel="読み取り用画像を追加"
+          inputRef={inputRef}
+          onFilesSelected={onFilesSelected}
+          variant="contained"
+        />
         <ImageInputButton
           buttonLabel="撮影する"
           disabled={disabled}
           inputLabel="読み取り用カメラ画像を追加"
           inputRef={cameraInputRef}
           onFilesSelected={onFilesSelected}
-          variant="contained"
-          capture
-        />
-        <ImageInputButton
-          buttonLabel="画像を追加"
-          disabled={disabled}
-          inputLabel="読み取り用画像を追加"
-          inputRef={inputRef}
-          onFilesSelected={onFilesSelected}
           variant="outlined"
+          capture
         />
       </Stack>
       <input

@@ -136,21 +136,22 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
-  it("空状態では連続追加できる導線とキューの説明を表示する", () => {
+  it("空状態では主導線と短い説明だけを表示する", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
-    expect(screen.getByRole("heading", { name: "読み取り" })).toBeInTheDocument();
-    expect(screen.getByText("レシート・払込票をまとめて追加できます。")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "レシート入力" })).toBeInTheDocument();
+    expect(screen.getByText("撮影して、あとでまとめて確認できます。")).toBeInTheDocument();
+    expect(screen.queryByText("レシート・払込票をまとめて追加できます。")).not.toBeInTheDocument();
     expect(
-      screen.getByText("スマートフォンでは撮影、PCでは画像選択から追加できます。"),
-    ).toBeInTheDocument();
+      screen.queryByText("スマートフォンでは撮影、PCでは画像選択から追加できます。"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "レシートを追加" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "撮影する" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "画像を追加" })).toBeEnabled();
     expect(screen.getByLabelText("読み取り用カメラ画像を追加")).toHaveAttribute(
       "capture",
       "environment",
     );
-    expect(screen.getByText("追加した画像はここに状態別で表示されます。")).toBeInTheDocument();
+    expect(screen.getByText("追加したレシートは状態別に表示されます。")).toBeInTheDocument();
   });
 
   it("画像送信の同意状態を読み込み中は画像追加導線を無効化する", () => {
@@ -163,7 +164,7 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     expect(screen.getByRole("button", { name: "撮影する" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "画像を追加" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "レシートを追加" })).toBeDisabled();
     expect(screen.getByLabelText("読み取り用カメラ画像を追加")).toBeDisabled();
     expect(screen.getByLabelText("読み取り用画像を追加")).toBeDisabled();
   });
@@ -395,6 +396,12 @@ describe("AiExpenseQueuePanel", () => {
 
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {
     renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
+
+    expect(screen.getByText("読み取り中 1件")).toBeInTheDocument();
+    expect(screen.getByText("登録準備OK 1件")).toBeInTheDocument();
+    expect(screen.getByText("確認が必要 1件")).toBeInTheDocument();
+    expect(screen.getByText("失敗 1件")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "下書きを確認（1件）" })).toBeEnabled();
 
     const readySection = screen.getByRole("region", { name: "登録準備OK" });
     expect(within(readySection).getByText("ok-receipt.png")).toBeInTheDocument();
