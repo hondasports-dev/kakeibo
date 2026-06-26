@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Box, Link as MuiLink, Stack, Typography } from "@mui/material";
-import { Link } from "react-router-dom";
+import { Box, Stack, Typography } from "@mui/material";
+import { SiteCreditsFooter } from "./SiteCreditsFooter";
 
 type LegalDocumentLayoutProps = {
   title: string;
@@ -33,14 +33,7 @@ export function LegalDocumentLayout({ title, effectiveDate, children }: LegalDoc
             {children}
           </Stack>
 
-          <Stack direction="row" spacing={2} sx={{ flexWrap: "wrap" }}>
-            <MuiLink component={Link} to="/privacy" underline="hover">
-              プライバシーポリシー
-            </MuiLink>
-            <MuiLink component={Link} to="/terms" underline="hover">
-              利用規約
-            </MuiLink>
-          </Stack>
+          <SiteCreditsFooter variant="ja" />
         </Stack>
       </Box>
     </Box>

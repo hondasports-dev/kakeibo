@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
-import { Box, Button, Link as MuiLink, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import { designTokens } from "../../../designTokens";
+import { SiteCreditsFooter } from "./SiteCreditsFooter";
 
 type PublicStatusLinkAction = {
   label: string;
@@ -144,37 +145,6 @@ function AccentBars() {
   );
 }
 
-function PageFooter() {
-  return (
-    <Stack
-      direction="row"
-      spacing={0.75}
-      sx={{
-        alignItems: "center",
-        color: designTokens.color.text.muted,
-        fontSize: designTokens.typography.caption.fontSize,
-        justifyContent: "center",
-      }}
-    >
-      <MuiLink href="/privacy" underline="hover" variant="caption">
-        Privacy
-      </MuiLink>
-      <Typography component="span" variant="caption">
-        /
-      </Typography>
-      <MuiLink href="/terms" underline="hover" variant="caption">
-        Terms
-      </MuiLink>
-      <Typography component="span" variant="caption">
-        /
-      </Typography>
-      <Typography component="span" variant="caption">
-        Suzumemo
-      </Typography>
-    </Stack>
-  );
-}
-
 function HeaderBrand({ headerBrand }: { headerBrand: PublicStatusHeaderBrand }) {
   const { alt, src, width = 64, variant = "plain", showWordmark = false } = headerBrand;
   const image = (
@@ -290,7 +260,7 @@ export function PublicStatusPage({
           </Stack>
         </Paper>
 
-        <PageFooter />
+        <SiteCreditsFooter />
       </Stack>
     </Box>
   );
