@@ -406,8 +406,8 @@ describe("AiExpenseQueuePanel", () => {
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {
     renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
 
-    expect(screen.getByText("解析中 1件")).toBeInTheDocument();
-    expect(screen.getByText("登録準備OK 1件")).toBeInTheDocument();
+    expect(screen.getByText("解析中 0件")).toBeInTheDocument();
+    expect(screen.getByText("登録準備OK 2件")).toBeInTheDocument();
     expect(screen.getByText("確認が必要 1件")).toBeInTheDocument();
     expect(screen.getByText("失敗 1件")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "下書きを確認（1件）" })).toBeEnabled();
@@ -415,7 +415,8 @@ describe("AiExpenseQueuePanel", () => {
     const readySection = screen.getByRole("region", { name: "登録準備OK" });
     expect(within(readySection).getByText("ok-receipt.png")).toBeInTheDocument();
     expect(within(readySection).getByText("2026/05/18 ・ 4,280円")).toBeInTheDocument();
-    expect(within(readySection).queryByText("registering-receipt.png")).not.toBeInTheDocument();
+    expect(within(readySection).getByText("registering-receipt.png")).toBeInTheDocument();
+    expect(within(readySection).getByText("登録中")).toBeInTheDocument();
     expect(within(readySection).getByRole("button", { name: "登録する" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "まとめて登録（1件）" })).toBeEnabled();
     expect(
@@ -434,9 +435,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(failedSection).getByRole("button", { name: "手入力へ戻る" })).toBeEnabled();
     expect(within(failedSection).getByRole("button", { name: "再試行" })).toBeEnabled();
 
-    const processingSection = screen.getByRole("region", { name: "読み取り中" });
-    expect(within(processingSection).getByText("registering-receipt.png")).toBeInTheDocument();
-    expect(within(processingSection).getByText("登録中")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "読み取り中" })).not.toBeInTheDocument();
 
     const registeredSection = screen.getByRole("region", { name: "登録済み" });
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();

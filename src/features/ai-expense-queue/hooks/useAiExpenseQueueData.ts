@@ -62,14 +62,18 @@ export function useAiExpenseQueueData({
     }
     return liveItems.filter((item) => !hiddenItemIds.includes(item.id));
   }, [hiddenItemIds, initialItems, processingItems, liveItems]);
-  const readyItems = useMemo(
+  const readySectionItems = useMemo(
     () => items.filter((item) => getSectionKey(item.status) === "ready"),
+    [items],
+  );
+  const readyItems = useMemo(
+    () => items.filter((item) => item.status === "ready"),
     [items],
   );
   const readyItemIds = useMemo(() => readyItems.map((item) => item.id), [readyItems]);
   const groupedItems = {
     processing: items.filter((item) => getSectionKey(item.status) === "processing"),
-    ready: readyItems,
+    ready: readySectionItems,
     needs_review: items.filter((item) => getSectionKey(item.status) === "needs_review"),
     failed: items.filter((item) => getSectionKey(item.status) === "failed"),
     registered: items.filter((item) => getSectionKey(item.status) === "registered"),

@@ -42,6 +42,7 @@ export function QueueContent({
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
 }) {
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmInFlight, setConfirmInFlight] = useState(false);
   const needsReviewCount = groupedItems.needs_review.length;
   const processingCount = groupedItems.processing.length;
   const failedCount = groupedItems.failed.length;
@@ -53,8 +54,16 @@ export function QueueContent({
   );
 
   const handleConfirmRegister = async () => {
-    setConfirmOpen(false);
-    await onRegisterReady();
+    if (confirmInFlight) {
+      return;
+    }
+    setConfirmInFlight(true);
+    try {
+      await onRegisterReady();
+      setConfirmOpen(false);
+    } finally {
+      setConfirmInFlight(false);
+    }
   };
 
   return (
@@ -74,7 +83,7 @@ export function QueueContent({
           />
           <Chip
             color="success"
-            label={`${displayStatusLabels.ready} ${readyItems.length}件`}
+            label={`${displayStatusLabels.ready} ${groupedItems.ready.length}件`}
             size="small"
           />
           <Chip
@@ -143,6 +152,7 @@ export function QueueContent({
       )}
 
       <BulkRegisterConfirmDialog
+        confirmDisabled={confirmInFlight || registeringIds.length > 0}
         count={selectedReadyIds.length}
         open={confirmOpen}
         totalAmountYen={selectedTotalAmountYen}
@@ -153,7 +163,7 @@ export function QueueContent({
       <Divider />
 
       <QueueSection
-        label="読み取り中"
+        sectionKey="processing"
         items={groupedItems.processing}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
@@ -165,7 +175,7 @@ export function QueueContent({
         registeringIds={registeringIds}
       />
       <QueueSection
-        label="登録準備OK"
+        sectionKey="ready"
         items={groupedItems.ready}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
@@ -177,7 +187,7 @@ export function QueueContent({
         registeringIds={registeringIds}
       />
       <QueueSection
-        label="確認が必要"
+        sectionKey="needs_review"
         items={groupedItems.needs_review}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
@@ -189,7 +199,7 @@ export function QueueContent({
         registeringIds={registeringIds}
       />
       <QueueSection
-        label="失敗"
+        sectionKey="failed"
         items={groupedItems.failed}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
@@ -202,7 +212,7 @@ export function QueueContent({
         registeringIds={registeringIds}
       />
       <QueueSection
-        label="登録済み"
+        sectionKey="registered"
         items={groupedItems.registered}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}

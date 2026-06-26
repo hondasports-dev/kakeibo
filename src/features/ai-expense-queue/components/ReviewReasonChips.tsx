@@ -17,10 +17,10 @@ export function ReviewReasonChips({
 
   return (
     <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-      {reasons.map((reason) => (
+      {reasons.map((reason, index) => (
         <Chip
           color={color}
-          key={reason}
+          key={`${reason}-${index}`}
           label={getReviewReasonLabel(reason)}
           size="small"
           variant="outlined"

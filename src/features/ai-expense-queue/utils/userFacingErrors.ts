@@ -4,18 +4,26 @@ const retryErrorMessage =
 const deleteErrorMessage = "削除に失敗しました。時間をおいて再度お試しください。";
 const reviewErrorMessage = "保存に失敗しました。入力内容を確認して再度お試しください。";
 
-export function toUserFacingRegistrationError(_error: unknown) {
+function logUserFacingError(context: string, error: unknown) {
+  console.error(context, error);
+}
+
+export function toUserFacingRegistrationError(error: unknown) {
+  logUserFacingError("AI expense queue registration failed", error);
   return registrationErrorMessage;
 }
 
-export function toUserFacingRetryError(_error: unknown) {
+export function toUserFacingRetryError(error: unknown) {
+  logUserFacingError("AI expense queue retry failed", error);
   return retryErrorMessage;
 }
 
-export function toUserFacingDeleteError(_error: unknown) {
+export function toUserFacingDeleteError(error: unknown) {
+  logUserFacingError("AI expense queue delete failed", error);
   return deleteErrorMessage;
 }
 
-export function toUserFacingReviewError(_error: unknown) {
+export function toUserFacingReviewError(error: unknown) {
+  logUserFacingError("AI expense queue review save failed", error);
   return reviewErrorMessage;
 }

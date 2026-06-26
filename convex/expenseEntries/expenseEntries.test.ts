@@ -563,6 +563,19 @@ describe("updateExpenseEntryHandler", () => {
     ).rejects.toThrow("Amount must be a positive integer");
   });
 
+  it("不正な日付は拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: { "entry-001": baseExpenseEntry },
+    });
+
+    await expect(
+      updateExpenseEntryHandler(ctx, {
+        expenseEntryId: entryId,
+        date: "",
+      }),
+    ).rejects.toThrow("Date must be a valid YYYY-MM-DD value");
+  });
+
   it("他グループの記録は更新できない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {

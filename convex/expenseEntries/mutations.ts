@@ -3,6 +3,7 @@ import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireGroupMembership } from "../groups/membership";
+import { isValidIsoDateString } from "../lib/weekDates";
 import type { Id } from "../_generated/dataModel";
 
 type ExpenseEntryItemArg = {
@@ -211,6 +212,9 @@ export async function updateExpenseEntryHandler(
   } = { updatedAt: now };
 
   if (args.date !== undefined) {
+    if (!args.date.trim() || !isValidIsoDateString(args.date)) {
+      throw new ConvexError("Date must be a valid YYYY-MM-DD value");
+    }
     patch.date = args.date;
   }
   if (args.amountYen !== undefined) {

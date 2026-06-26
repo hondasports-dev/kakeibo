@@ -13,6 +13,10 @@ export function ReceiptRow({
   onDelete?: (receipt: ReceiptItem) => void;
   onEdit?: (receipt: ReceiptItem) => void;
 }) {
+  const displayName =
+    receipt.type === "income" ? (receipt.bankName ?? "不明") : (receipt.shopName ?? "不明");
+  const actionLabelSuffix = `${displayName}（${formatDateForDisplay(receipt.date)}）`;
+
   return (
     <Box className="receipt-row" key={receipt._id}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -57,6 +61,7 @@ export function ReceiptRow({
           <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
             {onEdit && (
               <Button
+                aria-label={`${actionLabelSuffix}を編集`}
                 onClick={() => onEdit(receipt)}
                 size="small"
                 startIcon={<EditIcon fontSize="small" />}
@@ -68,6 +73,7 @@ export function ReceiptRow({
             )}
             {onDelete && (
               <Button
+                aria-label={`${actionLabelSuffix}を削除`}
                 color="error"
                 onClick={() => onDelete(receipt)}
                 size="small"

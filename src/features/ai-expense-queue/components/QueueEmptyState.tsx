@@ -1,7 +1,13 @@
 import { Button, Stack, Typography } from "@mui/material";
 import { CollapsibleHelp } from "../../ui";
 
-export function QueueEmptyState({ onAddReceipt }: { onAddReceipt?: () => void }) {
+export function QueueEmptyState({
+  addReceiptDisabled = false,
+  onAddReceipt,
+}: {
+  addReceiptDisabled?: boolean;
+  onAddReceipt?: () => void;
+}) {
   return (
     <Stack spacing={1.5} sx={{ py: 0.5 }}>
       <Typography sx={{ fontWeight: 700 }} variant="body1">
@@ -12,6 +18,7 @@ export function QueueEmptyState({ onAddReceipt }: { onAddReceipt?: () => void })
       </Typography>
       {onAddReceipt && (
         <Button
+          disabled={addReceiptDisabled}
           onClick={onAddReceipt}
           type="button"
           variant="contained"
