@@ -172,6 +172,8 @@ pnpm run dev -- --host 127.0.0.1
 .agents/skills/*
 !.agents/skills/browser-verification/
 !.agents/skills/browser-verification/**
+!.agents/skills/babysit-pr/
+!.agents/skills/babysit-pr/**
 !.agents/skills/code-review/
 !.agents/skills/code-review/**
 !.agents/skills/issue-gate-0/
@@ -180,6 +182,8 @@ pnpm run dev -- --host 127.0.0.1
 !.agents/skills/issue-tdd-run/**
 !.agents/skills/issue-tdd-workflow/
 !.agents/skills/issue-tdd-workflow/**
+!.agents/skills/milestone-tdd-run/
+!.agents/skills/milestone-tdd-run/**
 !.agents/skills/prompt-injection-guard/
 !.agents/skills/prompt-injection-guard/**
 !.agents/skills/service-ops-safety/
@@ -195,10 +199,12 @@ pnpm run dev -- --host 127.0.0.1
 
 **Git管理するSkill（手作り）:**
 - `browser-verification` — Chrome DevTools MCP確認手順
+- `babysit-pr` — PR merge-ready 化（`milestone-tdd-run` から invoke）
 - `code-review` — PR前セルフレビュー（`issue-tdd-workflow` §9 から必須 invoke）
 - `issue-gate-0` — 実装前仕様ゲート（フェーズ0）
 - `issue-tdd-run` — 単一 Issue TDD 起動器
 - `issue-tdd-workflow` — TDDベースの Issue 対応手順正本
+- `milestone-tdd-run` — マイルストーン内 Issue を TDD → PR レビュー → マージまで直列完走
 - `prompt-injection-guard` — プロンプトインジェクション対策
 - `service-ops-safety` — 外部サービス操作安全確認
 - `stuck-advisor` — ハマったときのアドバイザー

@@ -25,13 +25,41 @@ GitHub Issue番号を渡すだけで、仕様検討→E2Eテスト設計レビ�
    - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
 2. **TDD 実装** — `issue-tdd-workflow` §6 に従い、RED → GREEN で進める。
 3. **検証** — §8 の push 前検証、必要ならローカル E2E。
-4. **`code-review`** — §9 で preview 差分のセルフレビューと Must-fix 対応ループ。
+4. **`code-review`** — §9 で preview 差分のセルフレビューと Must-fix / Nice-to-have 対応ループ。
 5. **PR 作成・push** — §10。
 6. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → §9 再レビュー → 再 push。
 7. すべてのチェックが通ったら完了報告を返す。
 
 ループ上限を超えた場合や環境起因のエラーは、自動的に中断してユーザーに報告する。
 詳細は `.agents/skills/issue-tdd-workflow/SKILL.md` を参照。
+
+## マイルストーンを一括で解決する場合
+
+マイルストーン内の open Issue を、**直列に** TDD 実装 → PR レビュー → **マージ** まで自動で回す。
+
+```text
+$milestone-tdd-run "M2 週次グラフ"
+```
+
+**Cursor** では `$milestone-tdd-run`、**Codex / Devin** では `.agents/skills/milestone-tdd-run/SKILL.md` を読んで同じ手順を実行する。
+
+内部フロー（正本: `.agents/skills/milestone-tdd-run/SKILL.md`）:
+
+1. `gh` でマイルストーン内の open Issue を列挙・ソート
+2. 各 Issue で **`issue-tdd-run`**（GATE0 → TDD → push 前 `code-review` → PR → CI）
+3. **`babysit-pr`** — PR コメント・Bugbot/CodeRabbit・CI を merge-ready まで
+4. **`gh pr merge --rebase`** — rebase マージ（`--no-merge` でスキップ可）
+5. Issue close → 次 Issue へ
+
+中断再開:
+
+```text
+$milestone-tdd-run "M2 週次グラフ" --resume
+```
+
+進捗は `.agents/state/milestone-<slug>.json` に保存される（git 管理外）。
+
+`convex/` / `.github/` 変更で CODEOWNERS approval が必要な場合は **BLOCKED_ON_APPROVAL** で停止する。
 
 ## Codex / Devinでの使い方
 
