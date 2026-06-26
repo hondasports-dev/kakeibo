@@ -25,7 +25,9 @@ describe("TermsPage", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { name: "運営者" })).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(LEGAL_OPERATOR_NAME))).toBeInTheDocument();
+    const operatorSection = screen.getByRole("heading", { name: "運営者" }).parentElement;
+    expect(operatorSection).not.toBeNull();
+    expect(within(operatorSection!).getByText(new RegExp(LEGAL_OPERATOR_NAME))).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "サービス内容" })).toBeInTheDocument();
     expect(screen.getByText(/家族・グループでのデータ共有/)).toBeInTheDocument();
   });
