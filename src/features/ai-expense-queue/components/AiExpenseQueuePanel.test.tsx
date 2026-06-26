@@ -962,4 +962,86 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(registeredSection).getByText("2026/05/20 ・ 1,800円")).toBeInTheDocument();
     expect(within(registeredSection).getByText("日用品")).toBeInTheDocument();
   });
+
+  describe("Issue #337 レシート入力UI改善の表示・操作回帰", () => {
+    it("詳しい説明は折りたたみ内にだけ補足テキストを表示する", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<AiExpenseQueuePanel />);
+
+      const detailText = screen.getByText(/追加したレシートは状態別に表示されます/);
+      expect(detailText).not.toBeVisible();
+      await user.click(screen.getByRole("button", { name: "詳しい説明" }));
+      await waitFor(() => {
+        expect(detailText).toBeVisible();
+      });
+    });
+
+    it("解析中の下書きは登録導線を出さず状態だけ表示する", () => {
+      renderWithProviders(
+        <AiExpenseQueuePanel
+          initialItems={[
+            {
+              id: "draft-analyzing",
+              fileName: "processing.png",
+              status: "analyzing",
+              documentType: "receipt",
+            },
+          ]}
+        />,
+      );
+
+      const processingSection = screen.getByRole("region", { name: "読み取り中" });
+      expect(within(processingSection).getByText("processing.png")).toBeInTheDocument();
+      expect(
+        within(processingSection).queryByRole("button", { name: "登録する" }),
+      ).not.toBeInTheDocument();
+      expect(
+        within(processingSection).queryByRole("button", { name: "確認する" }),
+      ).not.toBeInTheDocument();
+    });
+
+    it("下書き詳細は登録候補と修正導線を表示する", async () => {
+      const user = userEvent.setup();
+      useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+        if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+          return [];
+        }
+        return {
+          draft: {
+            _id: args.draftId,
+            status: "needs_review",
+            documentType: "receipt",
+            shopName: "ドラッグストアA",
+            date: "2026-06-21",
+            amountYen: 1380,
+            categoryId: "cat-daily",
+            reviewReasons: ["ambiguous_category"],
+            warnings: [],
+          },
+          items: [
+            {
+              _id: "item-food",
+              itemName: "パン",
+              amountYen: 150,
+              categoryId: "cat-food",
+              confidence: { itemName: 0.9, amountYen: 0.95, categoryId: 0.8 },
+              warnings: [],
+            },
+          ],
+        };
+      });
+
+      renderWithProviders(
+        <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+      );
+
+      await user.click(screen.getByRole("button", { name: "確認する" }));
+
+      const dialog = screen.getByRole("dialog", { name: "下書き確認" });
+      expect(within(dialog).getByRole("heading", { name: "登録候補" })).toBeInTheDocument();
+      expect(within(dialog).getByText("食費 150円")).toBeInTheDocument();
+      expect(within(dialog).getByRole("button", { name: "修正する" })).toBeEnabled();
+      expect(within(dialog).getByRole("button", { name: "登録する" })).toBeEnabled();
+    });
+  });
 });

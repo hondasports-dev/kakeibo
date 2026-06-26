@@ -365,3 +365,43 @@ test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
       .toBe(2);
   });
 });
+
+test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", () => {
+  test("@smoke 一覧で状態サマリーと次の操作導線が表示される", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
+
+    const queue = page.getByRole("region", { name: "レシート入力" });
+    await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
+    await expect(queue.getByText("確認が必要 1件")).toBeVisible();
+    await expect(queue.getByText("失敗 1件")).toBeVisible();
+    await expect(queue.getByRole("button", { name: "レシートを追加" })).toBeVisible();
+    await expect(queue.getByText("撮影して、あとでまとめて確認できます。")).toHaveCount(0);
+
+    await expect(
+      queue.getByRole("region", { name: "確認が必要" }).getByRole("button", { name: "確認する" }),
+    ).toBeVisible();
+    await expect(
+      queue.getByRole("region", { name: "登録準備OK" }).getByRole("button", { name: "登録する" }),
+    ).toBeVisible();
+    await expect(
+      queue.getByRole("region", { name: "失敗" }).getByRole("button", { name: "再試行" }),
+    ).toBeVisible();
+  });
+
+  test("@smoke SP幅で下書き詳細の登録候補と修正導線が読める", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
+
+    const queue = page.getByRole("region", { name: "レシート入力" });
+    await queue
+      .getByRole("region", { name: "確認が必要" })
+      .getByRole("button", { name: "確認する" })
+      .click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
+    await expect(dialog.getByText("食費 120円")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "修正する" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "登録する" })).toBeVisible();
+  });
+});
