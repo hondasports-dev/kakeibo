@@ -25,8 +25,10 @@ describe("PrivacyPolicyPage", () => {
     renderPage();
 
     expect(screen.getByRole("heading", { name: "運営者" })).toBeInTheDocument();
-    expect(screen.getByText(new RegExp(LEGAL_OPERATOR_NAME))).toBeInTheDocument();
-    expect(screen.getByText(LEGAL_CONTACT_EMAIL)).toBeInTheDocument();
+    const operatorSection = screen.getByRole("heading", { name: "運営者" }).parentElement;
+    expect(operatorSection).not.toBeNull();
+    expect(within(operatorSection!).getByText(new RegExp(LEGAL_OPERATOR_NAME))).toBeInTheDocument();
+    expect(within(operatorSection!).getByText(new RegExp(LEGAL_CONTACT_EMAIL))).toBeInTheDocument();
   });
 
   it("Googleログインで取得する情報と利用目的を明記する", () => {
