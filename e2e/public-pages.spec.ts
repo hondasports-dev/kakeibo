@@ -14,7 +14,10 @@ test.describe("公開・異常系ページ", () => {
     await page.goto("/privacy");
 
     await expect(page.getByRole("heading", { name: "プライバシーポリシー" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "運営者" })).toBeVisible();
     await expect(page.getByText(/Googleログインにより取得されるメールアドレス/)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "レシート画像の外部API送信" })).toBeVisible();
+    await expect(page.getByText(/OpenAI（レシート画像の AI 解析/)).toBeVisible();
     await expect(
       page.getByText(/Gmail \/ Google Drive \/ Google Calendar 等の内容は取得しません/),
     ).toBeVisible();
@@ -29,7 +32,10 @@ test.describe("公開・異常系ページ", () => {
     await page.goto("/terms");
 
     await expect(page.getByRole("heading", { name: "利用規約" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "サービス内容" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "グループ共有" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "禁止事項" })).toBeVisible();
+    await expect(page.getByText(/外部 API に送信して読み取る/)).toBeVisible();
     await expect(page.getByText(/家計管理・支出記録の正確性を保証しません/)).toBeVisible();
   });
 
