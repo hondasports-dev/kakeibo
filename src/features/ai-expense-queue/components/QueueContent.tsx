@@ -1,8 +1,14 @@
-import { Alert, Button, Chip, Divider, Stack } from "@mui/material";
+import { useState } from "react";
+import { Alert, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import DeleteIcon from "@mui/icons-material/Delete";
+import { BulkRegisterConfirmDialog } from "./BulkRegisterConfirmDialog";
+import { displayStatusLabels } from "./labels";
 import { QueueSection } from "./QueueSection";
+import type { AiExpenseQueueItem } from "../types/types";
 import type { useAiExpenseQueuePanel } from "../hooks/useAiExpenseQueuePanel";
+
+const amountFormatter = new Intl.NumberFormat("ja-JP");
 
 export function QueueContent({
   clearableCount,
@@ -24,7 +30,7 @@ export function QueueContent({
   deletingIds: string[];
   groupedItems: ReturnType<typeof useAiExpenseQueuePanel>["groupedItems"];
   itemCount: number;
-  readyItems: ReturnType<typeof useAiExpenseQueuePanel>["readyItems"];
+  readyItems: AiExpenseQueueItem[];
   registeringIds: string[];
   registrationError: string;
   selectedReadyIds: string[];
@@ -35,10 +41,21 @@ export function QueueContent({
   onRetry: (draftId: string) => Promise<void>;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
 }) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const needsReviewCount = groupedItems.needs_review.length;
   const processingCount = groupedItems.processing.length;
   const failedCount = groupedItems.failed.length;
   const firstReviewItem = groupedItems.needs_review[0];
+  const selectedReadyItems = readyItems.filter((item) => selectedReadyIds.includes(item.id));
+  const selectedTotalAmountYen = selectedReadyItems.reduce(
+    (total, item) => total + (item.amountYen ?? 0),
+    0,
+  );
+
+  const handleConfirmRegister = async () => {
+    setConfirmOpen(false);
+    await onRegisterReady();
+  };
 
   return (
     <Stack spacing={2}>
@@ -49,10 +66,32 @@ export function QueueContent({
       )}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: "stretch" }}>
         <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", flex: 1 }}>
-          <Chip label={`読み取り中 ${processingCount}件`} size="small" variant="outlined" />
-          <Chip label={`登録準備OK ${readyItems.length}件`} size="small" color="success" />
-          <Chip label={`確認が必要 ${needsReviewCount}件`} size="small" color="warning" />
-          <Chip label={`失敗 ${failedCount}件`} size="small" color="error" />
+          <Chip
+            color="default"
+            label={`${displayStatusLabels.processing} ${processingCount}件`}
+            size="small"
+            variant="outlined"
+          />
+          <Chip
+            color="success"
+            label={`${displayStatusLabels.ready} ${readyItems.length}件`}
+            size="small"
+          />
+          <Chip
+            color="warning"
+            label={`${displayStatusLabels.needs_review} ${needsReviewCount}件`}
+            size="small"
+          />
+          <Chip
+            color="error"
+            label={`${displayStatusLabels.failed} ${failedCount}件`}
+            size="small"
+          />
+          <Chip
+            label={`${displayStatusLabels.registered} ${groupedItems.registered.length}件`}
+            size="small"
+            variant="outlined"
+          />
           <Chip label={`追加済み ${itemCount}件`} size="small" variant="outlined" />
         </Stack>
         {firstReviewItem && (
@@ -83,18 +122,33 @@ export function QueueContent({
       )}
 
       {readyItems.length > 0 && (
-        <Button
-          color="primary"
-          startIcon={<CheckCircleIcon />}
-          disabled={selectedReadyIds.length === 0 || registeringIds.length > 0}
-          onClick={() => void onRegisterReady()}
-          type="button"
-          variant="contained"
-          sx={{ alignSelf: "flex-start" }}
-        >
-          選択中の登録準備OKをまとめて登録（{selectedReadyIds.length}件）
-        </Button>
+        <Stack spacing={1}>
+          <Typography variant="body2">
+            登録できる下書きが{readyItems.length}件あります
+            {selectedReadyIds.length > 0 &&
+              `（選択中 ${selectedReadyIds.length}件 / 合計 ${amountFormatter.format(selectedTotalAmountYen)}円）`}
+          </Typography>
+          <Button
+            color="primary"
+            startIcon={<CheckCircleIcon />}
+            disabled={selectedReadyIds.length === 0 || registeringIds.length > 0}
+            onClick={() => setConfirmOpen(true)}
+            type="button"
+            variant="contained"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            まとめて登録（{selectedReadyIds.length}件）
+          </Button>
+        </Stack>
       )}
+
+      <BulkRegisterConfirmDialog
+        count={selectedReadyIds.length}
+        open={confirmOpen}
+        totalAmountYen={selectedTotalAmountYen}
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={() => void handleConfirmRegister()}
+      />
 
       <Divider />
 

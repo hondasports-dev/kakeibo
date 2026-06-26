@@ -13,6 +13,8 @@ export function WeeklySummaryPanel({
   receipts,
   isLoading = false,
   weeklyExpenseTrend,
+  onDeleteReceipt,
+  onEditReceipt,
 }: WeeklySummaryPanelProps) {
   return (
     <Stack spacing={2.5}>
@@ -33,7 +35,13 @@ export function WeeklySummaryPanel({
         totalAmountYen={totalAmountYen}
       />
 
-      <ReceiptListCard count={count} isLoading={isLoading} receipts={receipts} />
+      <ReceiptListCard
+        count={count}
+        isLoading={isLoading}
+        receipts={receipts}
+        onDeleteReceipt={onDeleteReceipt}
+        onEditReceipt={onEditReceipt}
+      />
     </Stack>
   );
 }

@@ -3,6 +3,7 @@ import { useMutation } from "convex/react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 import type { AiExpenseQueueItem } from "../types/types";
+import { toUserFacingDeleteError } from "../utils/userFacingErrors";
 
 export function useQueueDelete() {
   const [deletingIds, setDeletingIds] = useState<string[]>([]);
@@ -26,11 +27,7 @@ export function useQueueDelete() {
       }
       setHiddenItemIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
     } catch (error) {
-      setQueueDeleteError(
-        error instanceof Error
-          ? error.message
-          : "一覧から削除できませんでした。もう一度お試しください。",
-      );
+      setQueueDeleteError(toUserFacingDeleteError(error));
     } finally {
       setDeletingIds((current) => current.filter((id) => id !== item.id));
     }

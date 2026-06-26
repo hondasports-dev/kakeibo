@@ -9,6 +9,7 @@ import {
 } from "../utils/mappers";
 import { isDraftWithItems } from "../utils/mappers";
 import { getReviewFormError } from "../utils/reviewValidation";
+import { toUserFacingReviewError } from "../utils/userFacingErrors";
 import type {
   AiExpenseQueuePanelProps,
   AiExpenseDraft,
@@ -220,11 +221,7 @@ export function useReviewDialog({
       setReviewForm(emptyReviewForm);
       setReviewItems([]);
     } catch (error) {
-      setReviewError(
-        error instanceof Error
-          ? error.message
-          : "下書きの更新に失敗しました。もう一度お試しください。",
-      );
+      setReviewError(toUserFacingReviewError(error));
     } finally {
       setReviewSubmitting(false);
     }

@@ -65,6 +65,7 @@ describe("WeeklySummaryPanel", () => {
             categoryId: "cat-food",
             categoryName: "食費",
             categoryColor: "#AAB7C4",
+            recordType: "receipt",
           },
           {
             _id: "receipt-2",
@@ -74,6 +75,7 @@ describe("WeeklySummaryPanel", () => {
             categoryId: "cat-daily",
             categoryName: "日用品",
             categoryColor: "#A6B28B",
+            recordType: "receipt",
           },
         ]}
         weekStartDate="2026-05-13"
@@ -223,6 +225,7 @@ describe("WeeklySummaryPanel", () => {
             categoryId: "cat-food",
             categoryName: "食費",
             categoryColor: "#AAB7C4",
+            recordType: "expenseEntry",
           },
           {
             _id: "income-1",
@@ -233,6 +236,7 @@ describe("WeeklySummaryPanel", () => {
             categoryId: "cat-income",
             categoryName: "給与",
             categoryColor: "#F4A27A",
+            recordType: "expenseEntry",
           },
         ]}
         weekStartDate="2026-05-13"

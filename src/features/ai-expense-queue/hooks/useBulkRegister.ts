@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
+import { toUserFacingRegistrationError } from "../utils/userFacingErrors";
 
 export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
   const previousReadyItemIdsRef = useRef<string[]>([]);
@@ -50,11 +51,7 @@ export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
       });
       setSelectedReadyIds((current) => current.filter((id) => !draftIds.includes(id)));
     } catch (error) {
-      setRegistrationError(
-        error instanceof Error
-          ? error.message
-          : "まとめて登録に失敗しました。もう一度お試しください。",
-      );
+      setRegistrationError(toUserFacingRegistrationError(error));
     } finally {
       setRegisteringIds([]);
     }

@@ -3,7 +3,12 @@ import { ConvexError } from "convex/values";
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { createExpenseEntriesFromDraftHandler, createExpenseEntriesHandler } from "./mutations";
+import {
+  createExpenseEntriesFromDraftHandler,
+  createExpenseEntriesHandler,
+  deleteExpenseEntryHandler,
+  updateExpenseEntryHandler,
+} from "./mutations";
 
 // ---------------------------------------------------------------------------
 // テスト用型定義
@@ -57,10 +62,26 @@ type AiExpenseDraftItemDoc = {
   updatedAt: number;
 };
 
+type ExpenseEntryDoc = {
+  _id: string;
+  _creationTime: number;
+  groupId: string;
+  date: string;
+  amount: number;
+  categoryId: string;
+  title: string;
+  memo?: string;
+  entryType: "expense" | "income";
+  source: "manual" | "ai_suggested" | "imported";
+  createdAt: number;
+  updatedAt: number;
+};
+
 const catFoodId = "cat-food" as Id<"categories">;
 const catDailyId = "cat-daily" as Id<"categories">;
 const draftReadyId = "draft-ready" as Id<"aiExpenseDrafts">;
 const sourceDocumentId = "source-doc-1" as Id<"sourceDocuments">;
+const entryId = "entry-001" as Id<"expenseEntries">;
 
 const GROUP_ID = "group-001" as Id<"groups">;
 const OTHER_GROUP_ID = "group-other" as Id<"groups">;
@@ -81,7 +102,10 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
 function createMutationCtx(
   identity: UserIdentity | null,
   opts: {
-    getDocById?: Record<string, CategoryDoc | AiExpenseDraftDoc | AiExpenseDraftItemDoc | null>;
+    getDocById?: Record<
+      string,
+      CategoryDoc | AiExpenseDraftDoc | AiExpenseDraftItemDoc | ExpenseEntryDoc | null
+    >;
     groupId?: Id<"groups">;
   } = {},
 ): MutationCtx {
@@ -478,5 +502,103 @@ describe("createExpenseEntriesFromDraftHandler", () => {
         items: [{ itemName: "テスト", amountYen: 1000, categoryId: catFoodId }],
       }),
     ).rejects.toThrow("Draft date is required");
+  });
+});
+
+const baseExpenseEntry: ExpenseEntryDoc = {
+  _id: "entry-001",
+  _creationTime: 0,
+  groupId: GROUP_ID,
+  date: "2026-06-07",
+  amount: 1280,
+  categoryId: "cat-food",
+  title: "スーパーA",
+  memo: "夕食",
+  entryType: "expense",
+  source: "manual",
+  createdAt: 0,
+  updatedAt: 0,
+};
+
+describe("updateExpenseEntryHandler", () => {
+  it("金額・カテゴリ・日付・タイトル・メモを更新できる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "entry-001": baseExpenseEntry,
+        "cat-daily": activeDailyCategory,
+      },
+    });
+
+    await updateExpenseEntryHandler(ctx, {
+      expenseEntryId: entryId,
+      date: "2026-06-08",
+      amountYen: 1500,
+      categoryId: catDailyId,
+      title: "スーパーB",
+      memo: "朝食",
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "entry-001",
+      expect.objectContaining({
+        date: "2026-06-08",
+        amount: 1500,
+        categoryId: "cat-daily",
+        title: "スーパーB",
+        memo: "朝食",
+      }),
+    );
+  });
+
+  it("0以下の金額は拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: { "entry-001": baseExpenseEntry },
+    });
+
+    await expect(
+      updateExpenseEntryHandler(ctx, {
+        expenseEntryId: entryId,
+        amountYen: 0,
+      }),
+    ).rejects.toThrow("Amount must be a positive integer");
+  });
+
+  it("他グループの記録は更新できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "entry-001": { ...baseExpenseEntry, groupId: OTHER_GROUP_ID },
+      },
+    });
+
+    await expect(
+      updateExpenseEntryHandler(ctx, {
+        expenseEntryId: entryId,
+        title: "変更",
+      }),
+    ).rejects.toThrow(ConvexError);
+  });
+});
+
+describe("deleteExpenseEntryHandler", () => {
+  it("自分のグループの記録を削除できる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: { "entry-001": baseExpenseEntry },
+    });
+
+    await deleteExpenseEntryHandler(ctx, { expenseEntryId: entryId });
+
+    expect(ctx.db.delete).toHaveBeenCalledWith("entry-001");
+  });
+
+  it("他グループの記録は削除できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "entry-001": { ...baseExpenseEntry, groupId: OTHER_GROUP_ID },
+      },
+    });
+
+    await expect(deleteExpenseEntryHandler(ctx, { expenseEntryId: entryId })).rejects.toThrow(
+      ConvexError,
+    );
   });
 });
