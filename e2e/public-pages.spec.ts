@@ -18,6 +18,11 @@ test.describe("公開・異常系ページ", () => {
     await expect(
       page.getByText(/Gmail \/ Google Drive \/ Google Calendar 等の内容は取得しません/),
     ).toBeVisible();
+    await expect(page.getByText("© 2026 Tatsuya Miyamoto")).toBeVisible();
+    await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
   });
 
   test("@smoke 未ログインで /terms を表示できる (#250)", async ({ page }) => {
@@ -45,6 +50,11 @@ test.describe("公開・異常系ページ", () => {
     );
     await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
     await expect(page.getByRole("link", { name: "Privacy" })).toHaveAttribute("href", "/privacy");
+    await expect(page.getByText("© 2026 Tatsuya Miyamoto")).toBeVisible();
+    await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
   });
 
   test("未ログインのログイン画面から法務ページへリンクできる (#249/#250)", async ({ page }) => {
@@ -56,6 +66,11 @@ test.describe("公開・異常系ページ", () => {
       "/privacy",
     );
     await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+    await expect(page.getByText("© 2026 Tatsuya Miyamoto")).toBeVisible();
+    await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
   });
 
   test("未ログインで /maintenance を表示できる (#255)", async ({ page }) => {
@@ -73,6 +88,11 @@ test.describe("公開・異常系ページ", () => {
       "/privacy",
     );
     await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+    await expect(page.getByText("© 2026 Tatsuya Miyamoto")).toBeVisible();
+    await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
   });
 
   test("未ログインで Error Boundary のデザイン画面を表示する (#254/#268)", async ({ page }) => {
