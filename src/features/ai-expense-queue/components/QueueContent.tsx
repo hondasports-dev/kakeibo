@@ -35,6 +35,11 @@ export function QueueContent({
   onRetry: (draftId: string) => Promise<void>;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
 }) {
+  const needsReviewCount = groupedItems.needs_review.length;
+  const processingCount = groupedItems.processing.length;
+  const failedCount = groupedItems.failed.length;
+  const firstReviewItem = groupedItems.needs_review[0];
+
   return (
     <Stack spacing={2}>
       {registrationError && (
@@ -42,15 +47,25 @@ export function QueueContent({
           {registrationError}
         </Alert>
       )}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-        <Chip label={`追加済み ${itemCount}件`} size="small" variant="outlined" />
-        <Chip label={`登録準備OK ${readyItems.length}件`} size="small" color="success" />
-        <Chip
-          label={`確認が必要 ${groupedItems.needs_review.length}件`}
-          size="small"
-          color="warning"
-        />
-        <Chip label={`失敗 ${groupedItems.failed.length}件`} size="small" color="error" />
+      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: "stretch" }}>
+        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", flex: 1 }}>
+          <Chip label={`読み取り中 ${processingCount}件`} size="small" variant="outlined" />
+          <Chip label={`登録準備OK ${readyItems.length}件`} size="small" color="success" />
+          <Chip label={`確認が必要 ${needsReviewCount}件`} size="small" color="warning" />
+          <Chip label={`失敗 ${failedCount}件`} size="small" color="error" />
+          <Chip label={`追加済み ${itemCount}件`} size="small" variant="outlined" />
+        </Stack>
+        {firstReviewItem && (
+          <Button
+            aria-label={`下書きを確認（${needsReviewCount}件）`}
+            onClick={() => onOpenReview(firstReviewItem.id)}
+            type="button"
+            variant="outlined"
+            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+          >
+            下書きを確認
+          </Button>
+        )}
       </Stack>
 
       {clearableCount > 0 && (

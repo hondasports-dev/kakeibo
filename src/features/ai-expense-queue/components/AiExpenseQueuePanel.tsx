@@ -53,7 +53,7 @@ export function AiExpenseQueuePanel({
 
         {queue.items.length === 0 ? (
           <Alert severity="info" variant="outlined">
-            追加した画像はここに状態別で表示されます。
+            追加したレシートは状態別に表示されます。
           </Alert>
         ) : (
           <QueueContent

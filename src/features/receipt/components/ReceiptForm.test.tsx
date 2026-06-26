@@ -246,7 +246,7 @@ describe("ReceiptForm", () => {
     );
 
     expect(screen.queryByRole("heading", { name: "画像から入力" })).not.toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "読み取り" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "レシート入力" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "保存して次へ" })).toBeEnabled();
   });
 
