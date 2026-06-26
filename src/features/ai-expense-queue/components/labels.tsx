@@ -69,7 +69,7 @@ export function getReviewReasonLabel(reason: string) {
 }
 
 export function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
-  if (status === "ready") {
+  if (status === "ready" || status === "registering") {
     return "ready";
   }
   if (status === "needs_review") {
@@ -83,6 +83,20 @@ export function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
   }
   return "processing";
 }
+
+export const queueSectionLabels: Record<QueueSectionKey, string> = {
+  processing: "読み取り中",
+  ready: "登録準備OK",
+  needs_review: "確認が必要",
+  failed: "失敗",
+  registered: "登録済み",
+};
+
+export const queueSectionDescriptions: Partial<Record<QueueSectionKey, string>> = {
+  processing: "読み取り中です。少し待つと下書きが作成されます。",
+  failed:
+    "読み取れませんでした。画像が暗いか、文字が小さい可能性があります。もう一度撮り直すと改善することがあります。",
+};
 
 export function getStatusIcon(status: AiExpenseQueueStatus) {
   if (status === "ready" || status === "registered") {

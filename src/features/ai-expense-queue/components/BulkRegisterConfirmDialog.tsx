@@ -10,12 +10,14 @@ import {
 const amountFormatter = new Intl.NumberFormat("ja-JP");
 
 export function BulkRegisterConfirmDialog({
+  confirmDisabled = false,
   count,
   open,
   totalAmountYen,
   onCancel,
   onConfirm,
 }: {
+  confirmDisabled?: boolean;
   count: number;
   open: boolean;
   totalAmountYen: number;
@@ -32,7 +34,7 @@ export function BulkRegisterConfirmDialog({
         <Button onClick={onCancel} type="button">
           キャンセル
         </Button>
-        <Button onClick={onConfirm} type="button" variant="contained">
+        <Button disabled={confirmDisabled} onClick={onConfirm} type="button" variant="contained">
           登録する
         </Button>
       </DialogActions>

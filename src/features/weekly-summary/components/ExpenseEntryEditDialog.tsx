@@ -68,6 +68,10 @@ export function ExpenseEntryEditDialog({
       setError("タイトルを入力してください。");
       return;
     }
+    if (!date.trim()) {
+      setError("日付を入力してください。");
+      return;
+    }
 
     setSaving(true);
     setError("");

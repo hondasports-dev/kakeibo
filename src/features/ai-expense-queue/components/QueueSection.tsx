@@ -1,10 +1,15 @@
 import DeleteIcon from "@mui/icons-material/Delete";
 import ReplayIcon from "@mui/icons-material/Replay";
 import { Box, Button, Checkbox, Chip, LinearProgress, Stack, Typography } from "@mui/material";
-import { documentTypeLabels, getSectionKey } from "./labels";
+import {
+  documentTypeLabels,
+  getSectionKey,
+  queueSectionDescriptions,
+  queueSectionLabels,
+} from "./labels";
 import { ReviewReasonChips } from "./ReviewReasonChips";
 import { StatusChip } from "./StatusChip";
-import type { AiExpenseQueueItem } from "../types/types";
+import type { AiExpenseQueueItem, QueueSectionKey } from "../types/types";
 
 const queueDateFormatter = new Intl.DateTimeFormat("ja-JP", {
   year: "numeric",
@@ -52,11 +57,13 @@ function QueueItemCard({
   ]
     .filter(Boolean)
     .join(" ・ ");
-  const reviewReasons = [
-    ...(item.reviewReasons ?? []),
-    ...(item.hasUncategorizedItems ? ["ambiguous_category"] : []),
-    ...(item.hasLowConfidenceItems ? ["low_confidence"] : []),
-  ];
+  const reviewReasons = Array.from(
+    new Set([
+      ...(item.reviewReasons ?? []),
+      ...(item.hasUncategorizedItems ? ["ambiguous_category"] : []),
+      ...(item.hasLowConfidenceItems ? ["low_confidence"] : []),
+    ]),
+  );
 
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
@@ -225,13 +232,8 @@ function DeleteQueueButton({
   );
 }
 
-const sectionDescriptions: Partial<Record<string, string>> = {
-  読み取り中: "読み取り中です。少し待つと下書きが作成されます。",
-  失敗: "読み取れませんでした。画像が暗いか、文字が小さい可能性があります。もう一度撮り直すと改善することがあります。",
-};
-
 export function QueueSection({
-  label,
+  sectionKey,
   items,
   selectedReadyIds,
   onToggleReadySelection,
@@ -243,7 +245,7 @@ export function QueueSection({
   deletingIds,
   registeringIds,
 }: {
-  label: string;
+  sectionKey: QueueSectionKey;
   items: AiExpenseQueueItem[];
   selectedReadyIds: string[];
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
@@ -259,7 +261,8 @@ export function QueueSection({
     return null;
   }
 
-  const description = sectionDescriptions[label];
+  const label = queueSectionLabels[sectionKey];
+  const description = queueSectionDescriptions[sectionKey];
 
   return (
     <Box aria-label={label} role="region">

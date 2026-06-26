@@ -25,8 +25,8 @@ describe("ReceiptRow", () => {
 
     renderWithProviders(<ReceiptRow receipt={sampleReceipt} onEdit={onEdit} onDelete={onDelete} />);
 
-    await user.click(screen.getByRole("button", { name: "編集" }));
-    await user.click(screen.getByRole("button", { name: "削除" }));
+    await user.click(screen.getByRole("button", { name: "スーパーA（6/21）を編集" }));
+    await user.click(screen.getByRole("button", { name: "スーパーA（6/21）を削除" }));
 
     expect(onEdit).toHaveBeenCalledWith(sampleReceipt);
     expect(onDelete).toHaveBeenCalledWith(sampleReceipt);

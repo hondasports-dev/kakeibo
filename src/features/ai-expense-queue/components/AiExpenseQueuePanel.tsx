@@ -54,9 +54,8 @@ export function AiExpenseQueuePanel({
 
         {queue.items.length === 0 ? (
           <QueueEmptyState
-            onAddReceipt={
-              queue.consentIsLoading ? undefined : () => queue.inputRef.current?.click()
-            }
+            addReceiptDisabled={queue.consentIsLoading}
+            onAddReceipt={() => queue.inputRef.current?.click()}
           />
         ) : (
           <QueueContent

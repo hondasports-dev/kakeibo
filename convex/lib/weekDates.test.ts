@@ -3,6 +3,7 @@ import {
   calculateWeekStartDate,
   calculateWeekEndDate,
   calculateRelativeWeekStartDate,
+  isValidIsoDateString,
 } from "./weekDates";
 
 describe("calculateWeekStartDate", () => {
@@ -44,5 +45,17 @@ describe("calculateRelativeWeekStartDate", () => {
 
   it("月をまたぐ次週の週開始日を返す", () => {
     expect(calculateRelativeWeekStartDate("2024-01-29", 1)).toBe("2024-02-05");
+  });
+});
+
+describe("isValidIsoDateString", () => {
+  it("実在する YYYY-MM-DD を受け入れる", () => {
+    expect(isValidIsoDateString("2026-06-21")).toBe(true);
+  });
+
+  it("空文字や不正形式を拒否する", () => {
+    expect(isValidIsoDateString("")).toBe(false);
+    expect(isValidIsoDateString("2026/06/21")).toBe(false);
+    expect(isValidIsoDateString("2026-02-30")).toBe(false);
   });
 });
