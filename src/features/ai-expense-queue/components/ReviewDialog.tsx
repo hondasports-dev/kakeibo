@@ -1,8 +1,10 @@
+import { useEffect, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   Chip,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,6 +18,8 @@ import {
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { documentTypeLabels, getReviewReasonLabel, reviewDocumentTypeOptions } from "./labels";
 import type {
   AiExpenseDraft,
@@ -24,6 +28,290 @@ import type {
   ReviewFormValues,
   ReviewItemValues,
 } from "../types/types";
+import {
+  computeCategoryAggregates,
+  computeItemTotalYen,
+  formatReviewDraftHeader,
+  getReviewAttentionLabels,
+  hasLowConfidenceItems,
+  hasUncategorizedItems,
+  isLowConfidenceItem,
+  resolveReviewShopName,
+} from "../utils/reviewDialogUtils";
+
+function ReviewFormFields({
+  categories,
+  reviewForm,
+  onFieldChange,
+}: {
+  categories: AiExpenseQueueCategory[];
+  reviewForm: ReviewFormValues;
+  onFieldChange: (field: keyof ReviewFormValues, value: string) => void;
+}) {
+  return (
+    <>
+      <TextField
+        fullWidth
+        label="書類種別"
+        onChange={(event) =>
+          onFieldChange("documentType", event.target.value as AiExpenseQueueDocumentType)
+        }
+        select
+        slotProps={{
+          select: {
+            displayEmpty: true,
+            renderValue: (value) =>
+              value === ""
+                ? "書類種別を選択"
+                : documentTypeLabels[value as AiExpenseQueueDocumentType],
+          },
+        }}
+        value={reviewForm.documentType === "unknown" ? "" : reviewForm.documentType}
+      >
+        <MenuItem disabled value="">
+          書類種別を選択
+        </MenuItem>
+        {reviewDocumentTypeOptions.map(([value, label]) => (
+          <MenuItem key={value} value={value}>
+            {label}
+          </MenuItem>
+        ))}
+      </TextField>
+
+      <TextField
+        fullWidth
+        label="日付"
+        onChange={(event) => onFieldChange("date", event.target.value)}
+        slotProps={{ inputLabel: { shrink: true } }}
+        type="date"
+        value={reviewForm.date}
+      />
+
+      <TextField
+        fullWidth
+        label="合計金額"
+        onChange={(event) => onFieldChange("amountYen", event.target.value.replace(/[^\d]/g, ""))}
+        slotProps={{
+          htmlInput: {
+            inputMode: "numeric",
+          },
+        }}
+        value={reviewForm.amountYen}
+      />
+
+      <TextField
+        fullWidth
+        label="店名・内容"
+        onChange={(event) => onFieldChange("shopName", event.target.value)}
+        value={reviewForm.shopName}
+      />
+
+      <TextField
+        fullWidth
+        label="カテゴリ"
+        onChange={(event) => onFieldChange("categoryId", event.target.value)}
+        select
+        value={reviewForm.categoryId}
+      >
+        {categories.map((category) => (
+          <MenuItem key={category._id} value={category._id}>
+            {category.name}
+          </MenuItem>
+        ))}
+      </TextField>
+    </>
+  );
+}
+
+function ReviewItemsEditor({
+  categories,
+  reviewItems,
+  receiptAmount,
+  onAddItem,
+  onItemChange,
+  onRemoveItem,
+}: {
+  categories: AiExpenseQueueCategory[];
+  reviewItems: ReviewItemValues[];
+  receiptAmount: number;
+  onAddItem: () => void;
+  onItemChange: (
+    itemId: string,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    value: string,
+  ) => void;
+  onRemoveItem: (itemId: string) => void;
+}) {
+  const itemTotal = computeItemTotalYen(reviewItems);
+  const difference = receiptAmount - itemTotal;
+
+  return (
+    <Stack spacing={1}>
+      <Stack
+        direction={{ xs: "column", sm: "row" }}
+        spacing={1}
+        sx={{
+          justifyContent: "space-between",
+          alignItems: { xs: "stretch", sm: "center" },
+        }}
+      >
+        <Box>
+          <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+            明細
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            明細合計 {itemTotal.toLocaleString("ja-JP")}円 / 差額{" "}
+            {difference.toLocaleString("ja-JP")}円
+          </Typography>
+        </Box>
+        <Button
+          onClick={onAddItem}
+          size="small"
+          startIcon={<AddIcon fontSize="small" />}
+          type="button"
+          variant="outlined"
+        >
+          明細を追加
+        </Button>
+      </Stack>
+
+      {difference !== 0 && reviewItems.length > 0 && (
+        <Alert severity="warning" variant="outlined">
+          レシート合計と明細合計に差額があります。
+        </Alert>
+      )}
+
+      {reviewItems.length === 0 ? (
+        <Typography color="text.secondary" variant="body2">
+          明細はありません。既存の単一カテゴリ下書きとして確認できます。
+        </Typography>
+      ) : (
+        <Stack spacing={1}>
+          {reviewItems.map((item, index) => {
+            const uncategorized = !item.categoryId;
+            const lowConfidence = isLowConfidenceItem(item);
+            return (
+              <Box
+                key={item.id}
+                sx={{
+                  border: "1px solid",
+                  borderColor: uncategorized || lowConfidence ? "warning.main" : "divider",
+                  borderRadius: 1,
+                  p: 1.5,
+                }}
+              >
+                <Stack spacing={1}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{ justifyContent: "space-between", alignItems: "center" }}
+                  >
+                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                      <Chip label={`明細 ${index + 1}`} size="small" />
+                      {uncategorized && (
+                        <Chip color="warning" label="未分類" size="small" variant="outlined" />
+                      )}
+                      {lowConfidence && (
+                        <Chip color="warning" label="低信頼度" size="small" variant="outlined" />
+                      )}
+                    </Stack>
+                    <IconButton
+                      aria-label={`${item.itemName || `明細 ${index + 1}`}を削除`}
+                      onClick={() => onRemoveItem(item.id)}
+                      size="small"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+
+                  {item.warnings && item.warnings.length > 0 && (
+                    <Alert severity="warning" variant="outlined">
+                      {item.warnings.join(" / ")}
+                    </Alert>
+                  )}
+
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                    <TextField
+                      fullWidth
+                      label="明細名"
+                      onChange={(event) => onItemChange(item.id, "itemName", event.target.value)}
+                      value={item.itemName}
+                    />
+                    <TextField
+                      label="金額"
+                      onChange={(event) =>
+                        onItemChange(item.id, "amountYen", event.target.value.replace(/[^\d]/g, ""))
+                      }
+                      slotProps={{
+                        htmlInput: {
+                          inputMode: "numeric",
+                        },
+                      }}
+                      sx={{ minWidth: { sm: 140 } }}
+                      value={item.amountYen}
+                    />
+                  </Stack>
+                  <TextField
+                    fullWidth
+                    label="明細カテゴリ"
+                    onChange={(event) => onItemChange(item.id, "categoryId", event.target.value)}
+                    select
+                    value={item.categoryId}
+                  >
+                    <MenuItem value="">カテゴリ未分類</MenuItem>
+                    {categories.map((category) => (
+                      <MenuItem key={category._id} value={category._id}>
+                        {category.name}
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
+      )}
+    </Stack>
+  );
+}
+
+function ReviewItemsReadOnly({
+  categories,
+  reviewItems,
+}: {
+  categories: AiExpenseQueueCategory[];
+  reviewItems: ReviewItemValues[];
+}) {
+  return (
+    <Stack component="ul" spacing={0.75} sx={{ listStyle: "none", m: 0, p: 0 }}>
+      {reviewItems.map((item) => {
+        const categoryName =
+          categories.find((category) => category._id === item.categoryId)?.name ?? "未分類";
+        const amountYen = Number(item.amountYen) || 0;
+        return (
+          <Box
+            component="li"
+            key={item.id}
+            sx={{
+              display: "grid",
+              gap: 1,
+              gridTemplateColumns: { xs: "1fr auto", sm: "minmax(0, 1fr) auto auto" },
+              alignItems: "center",
+            }}
+          >
+            <Typography variant="body2">{item.itemName || "（名称なし）"}</Typography>
+            <Typography sx={{ textAlign: "right", whiteSpace: "nowrap" }} variant="body2">
+              {amountYen.toLocaleString("ja-JP")}円
+            </Typography>
+            <Typography color="text.secondary" sx={{ whiteSpace: "nowrap" }} variant="body2">
+              {categoryName}
+            </Typography>
+          </Box>
+        );
+      })}
+    </Stack>
+  );
+}
 
 export function ReviewDialog({
   open,
@@ -62,11 +350,34 @@ export function ReviewDialog({
   onRemoveItem: (itemId: string) => void;
   onSubmit: (registerAfterUpdate: boolean) => void;
 }) {
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [itemsExpanded, setItemsExpanded] = useState(false);
+  const hasLineItems = reviewItems.length > 0;
+  const showSummaryView = hasLineItems && !isEditMode;
+  const receiptAmount = Number(reviewForm.amountYen) || 0;
+  const categoryAggregates = computeCategoryAggregates(reviewItems, categories);
+  const attentionLabels = getReviewAttentionLabels({
+    receiptAmountYen: receiptAmount,
+    reviewItems,
+  });
+  const shopName = resolveReviewShopName(
+    reviewForm,
+    selectedReviewDraft?.shopName ?? selectedReviewDraft?.payeeName,
+  );
   const isSubmitDisabled =
     reviewSubmitting || isReviewDraftLoading || isReviewDraftNotFound || categories.length === 0;
-  const receiptAmount = Number(reviewForm.amountYen) || 0;
-  const itemTotal = reviewItems.reduce((sum, item) => sum + (Number(item.amountYen) || 0), 0);
-  const difference = receiptAmount - itemTotal;
+
+  useEffect(() => {
+    if (!open) {
+      setIsEditMode(false);
+      setItemsExpanded(false);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setIsEditMode(false);
+    setItemsExpanded(false);
+  }, [selectedReviewDraft?._id]);
 
   return (
     <Dialog fullWidth maxWidth="sm" onClose={onClose} open={open}>
@@ -85,254 +396,142 @@ export function ReviewDialog({
 
           {!isReviewDraftLoading && !isReviewDraftNotFound && (
             <>
-              {selectedReviewDraft?.reviewReasons &&
-                selectedReviewDraft.reviewReasons.length > 0 && (
-                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                    {selectedReviewDraft.reviewReasons.map((reason) => (
-                      <Chip
-                        key={reason}
-                        label={getReviewReasonLabel(reason)}
-                        size="small"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Stack>
-                )}
-
-              {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
-                <Alert severity="warning" variant="outlined">
-                  {selectedReviewDraft.warnings.join(" / ")}
-                </Alert>
-              )}
-
               {reviewError && (
                 <Alert severity="error" variant="outlined">
                   {reviewError}
                 </Alert>
               )}
 
-              <TextField
-                fullWidth
-                label="書類種別"
-                onChange={(event) =>
-                  onFieldChange("documentType", event.target.value as AiExpenseQueueDocumentType)
-                }
-                select
-                slotProps={{
-                  select: {
-                    displayEmpty: true,
-                    renderValue: (value) =>
-                      value === ""
-                        ? "書類種別を選択"
-                        : documentTypeLabels[value as AiExpenseQueueDocumentType],
-                  },
-                }}
-                value={reviewForm.documentType === "unknown" ? "" : reviewForm.documentType}
-              >
-                <MenuItem disabled value="">
-                  書類種別を選択
-                </MenuItem>
-                {reviewDocumentTypeOptions.map(([value, label]) => (
-                  <MenuItem key={value} value={value}>
-                    {label}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <TextField
-                fullWidth
-                label="日付"
-                onChange={(event) => onFieldChange("date", event.target.value)}
-                slotProps={{ inputLabel: { shrink: true } }}
-                type="date"
-                value={reviewForm.date}
-              />
-
-              <TextField
-                fullWidth
-                label="合計金額"
-                onChange={(event) =>
-                  onFieldChange("amountYen", event.target.value.replace(/[^\d]/g, ""))
-                }
-                slotProps={{
-                  htmlInput: {
-                    inputMode: "numeric",
-                  },
-                }}
-                value={reviewForm.amountYen}
-              />
-
-              <TextField
-                fullWidth
-                label="店名・内容"
-                onChange={(event) => onFieldChange("shopName", event.target.value)}
-                value={reviewForm.shopName}
-              />
-
-              <TextField
-                fullWidth
-                label="カテゴリ"
-                onChange={(event) => onFieldChange("categoryId", event.target.value)}
-                select
-                value={reviewForm.categoryId}
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category._id} value={category._id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-
-              <Divider />
-
-              <Stack spacing={1}>
-                <Stack
-                  direction={{ xs: "column", sm: "row" }}
-                  spacing={1}
-                  sx={{
-                    justifyContent: "space-between",
-                    alignItems: { xs: "stretch", sm: "center" },
-                  }}
-                >
+              {showSummaryView ? (
+                <>
                   <Box>
-                    <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-                      明細
+                    <Typography component="h2" sx={{ fontWeight: 700 }} variant="h6">
+                      {shopName}
                     </Typography>
                     <Typography color="text.secondary" variant="body2">
-                      明細合計 {itemTotal.toLocaleString("ja-JP")}円 / 差額{" "}
-                      {difference.toLocaleString("ja-JP")}円
+                      {formatReviewDraftHeader(reviewForm)}
                     </Typography>
                   </Box>
-                  <Button
-                    onClick={onAddItem}
-                    size="small"
-                    startIcon={<AddIcon fontSize="small" />}
-                    type="button"
-                    variant="outlined"
-                  >
-                    明細を追加
-                  </Button>
-                </Stack>
 
-                {difference !== 0 && reviewItems.length > 0 && (
-                  <Alert severity="warning" variant="outlined">
-                    レシート合計と明細合計に差額があります。
-                  </Alert>
-                )}
+                  {(attentionLabels.length > 0 ||
+                    (selectedReviewDraft?.reviewReasons?.length ?? 0) > 0) && (
+                    <Stack spacing={1}>
+                      <Typography color="warning.main" sx={{ fontWeight: 700 }} variant="body2">
+                        確認が必要
+                      </Typography>
+                      {attentionLabels.map((label) => (
+                        <Typography key={label} variant="body2">
+                          {label}
+                        </Typography>
+                      ))}
+                      {selectedReviewDraft?.reviewReasons?.map((reason) => (
+                        <Typography color="text.secondary" key={reason} variant="body2">
+                          {getReviewReasonLabel(reason)}
+                        </Typography>
+                      ))}
+                    </Stack>
+                  )}
 
-                {reviewItems.length === 0 ? (
-                  <Typography color="text.secondary" variant="body2">
-                    明細はありません。既存の単一カテゴリ下書きとして確認できます。
-                  </Typography>
-                ) : (
+                  {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
+                    <Alert severity="warning" variant="outlined">
+                      {selectedReviewDraft.warnings.join(" / ")}
+                    </Alert>
+                  )}
+
                   <Stack spacing={1}>
-                    {reviewItems.map((item, index) => {
-                      const isLowConfidence =
-                        (item.confidence?.itemName ?? 1) < 0.8 ||
-                        (item.confidence?.amountYen ?? 1) < 0.8 ||
-                        (item.confidence?.categoryId ?? item.confidence?.categoryName ?? 1) < 0.8;
-                      const isUncategorized = !item.categoryId;
-                      return (
-                        <Box
-                          key={item.id}
-                          sx={{
-                            border: "1px solid",
-                            borderColor:
-                              isUncategorized || isLowConfidence ? "warning.main" : "divider",
-                            borderRadius: 1,
-                            p: 1.5,
-                          }}
-                        >
-                          <Stack spacing={1}>
-                            <Stack
-                              direction="row"
-                              spacing={1}
-                              sx={{ justifyContent: "space-between", alignItems: "center" }}
-                            >
-                              <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                                <Chip label={`明細 ${index + 1}`} size="small" />
-                                {isUncategorized && (
-                                  <Chip
-                                    color="warning"
-                                    label="未分類"
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                )}
-                                {isLowConfidence && (
-                                  <Chip
-                                    color="warning"
-                                    label="低信頼度"
-                                    size="small"
-                                    variant="outlined"
-                                  />
-                                )}
-                              </Stack>
-                              <IconButton
-                                aria-label={`${item.itemName || `明細 ${index + 1}`}を削除`}
-                                onClick={() => onRemoveItem(item.id)}
-                                size="small"
-                              >
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            </Stack>
-
-                            {item.warnings && item.warnings.length > 0 && (
-                              <Alert severity="warning" variant="outlined">
-                                {item.warnings.join(" / ")}
-                              </Alert>
-                            )}
-
-                            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                              <TextField
-                                fullWidth
-                                label="明細名"
-                                onChange={(event) =>
-                                  onItemChange(item.id, "itemName", event.target.value)
-                                }
-                                value={item.itemName}
-                              />
-                              <TextField
-                                label="金額"
-                                onChange={(event) =>
-                                  onItemChange(
-                                    item.id,
-                                    "amountYen",
-                                    event.target.value.replace(/[^\d]/g, ""),
-                                  )
-                                }
-                                slotProps={{
-                                  htmlInput: {
-                                    inputMode: "numeric",
-                                  },
-                                }}
-                                sx={{ minWidth: { sm: 140 } }}
-                                value={item.amountYen}
-                              />
-                            </Stack>
-                            <TextField
-                              fullWidth
-                              label="明細カテゴリ"
-                              onChange={(event) =>
-                                onItemChange(item.id, "categoryId", event.target.value)
-                              }
-                              select
-                              value={item.categoryId}
-                            >
-                              <MenuItem value="">カテゴリ未分類</MenuItem>
-                              {categories.map((category) => (
-                                <MenuItem key={category._id} value={category._id}>
-                                  {category.name}
-                                </MenuItem>
-                              ))}
-                            </TextField>
-                          </Stack>
-                        </Box>
-                      );
-                    })}
+                    <Typography component="h3" sx={{ fontWeight: 700 }} variant="subtitle1">
+                      登録候補
+                    </Typography>
+                    {categoryAggregates.length > 0 ? (
+                      <Stack component="ul" spacing={0.5} sx={{ listStyle: "none", m: 0, p: 0 }}>
+                        {categoryAggregates.map((aggregate) => (
+                          <Typography component="li" key={aggregate.categoryId} variant="body2">
+                            {aggregate.categoryName} {aggregate.amountYen.toLocaleString("ja-JP")}円
+                          </Typography>
+                        ))}
+                      </Stack>
+                    ) : (
+                      <Typography color="text.secondary" variant="body2">
+                        カテゴリ別の登録候補はまだありません。
+                      </Typography>
+                    )}
+                    {(hasUncategorizedItems(reviewItems) || hasLowConfidenceItems(reviewItems)) && (
+                      <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                        {hasUncategorizedItems(reviewItems) && (
+                          <Chip
+                            color="warning"
+                            label="未分類あり"
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                        {hasLowConfidenceItems(reviewItems) && (
+                          <Chip
+                            color="warning"
+                            label="低信頼度あり"
+                            size="small"
+                            variant="outlined"
+                          />
+                        )}
+                      </Stack>
+                    )}
                   </Stack>
-                )}
-              </Stack>
+
+                  <Button
+                    endIcon={itemsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    onClick={() => setItemsExpanded((current) => !current)}
+                    type="button"
+                    variant="text"
+                  >
+                    {itemsExpanded ? "明細を閉じる" : "明細を見る"}
+                  </Button>
+                  <Collapse in={itemsExpanded}>
+                    <ReviewItemsReadOnly categories={categories} reviewItems={reviewItems} />
+                  </Collapse>
+                </>
+              ) : (
+                <>
+                  {selectedReviewDraft?.reviewReasons &&
+                    selectedReviewDraft.reviewReasons.length > 0 && (
+                      <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                        {selectedReviewDraft.reviewReasons.map((reason) => (
+                          <Chip
+                            key={reason}
+                            label={getReviewReasonLabel(reason)}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                      </Stack>
+                    )}
+
+                  {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
+                    <Alert severity="warning" variant="outlined">
+                      {selectedReviewDraft.warnings.join(" / ")}
+                    </Alert>
+                  )}
+
+                  <ReviewFormFields
+                    categories={categories}
+                    onFieldChange={onFieldChange}
+                    reviewForm={reviewForm}
+                  />
+
+                  {hasLineItems && (
+                    <>
+                      <Divider />
+                      <ReviewItemsEditor
+                        categories={categories}
+                        onAddItem={onAddItem}
+                        onItemChange={onItemChange}
+                        onRemoveItem={onRemoveItem}
+                        receiptAmount={receiptAmount}
+                        reviewItems={reviewItems}
+                      />
+                    </>
+                  )}
+                </>
+              )}
             </>
           )}
         </Stack>
@@ -341,22 +540,55 @@ export function ReviewDialog({
         <Button disabled={reviewSubmitting} onClick={onClose} type="button">
           キャンセル
         </Button>
-        <Button
-          disabled={isSubmitDisabled}
-          onClick={() => onSubmit(false)}
-          type="button"
-          variant="outlined"
-        >
-          登録準備OKに戻す
-        </Button>
-        <Button
-          disabled={isSubmitDisabled}
-          onClick={() => onSubmit(true)}
-          type="button"
-          variant="contained"
-        >
-          修正して登録
-        </Button>
+        {showSummaryView ? (
+          <>
+            <Button
+              disabled={isSubmitDisabled}
+              onClick={() => setIsEditMode(true)}
+              type="button"
+              variant="outlined"
+            >
+              修正する
+            </Button>
+            <Button
+              disabled={isSubmitDisabled}
+              onClick={() => onSubmit(true)}
+              type="button"
+              variant="contained"
+            >
+              登録する
+            </Button>
+          </>
+        ) : (
+          <>
+            {hasLineItems && (
+              <Button
+                disabled={reviewSubmitting}
+                onClick={() => setIsEditMode(false)}
+                type="button"
+                variant="text"
+              >
+                一覧に戻る
+              </Button>
+            )}
+            <Button
+              disabled={isSubmitDisabled}
+              onClick={() => onSubmit(false)}
+              type="button"
+              variant="outlined"
+            >
+              登録準備OKに戻す
+            </Button>
+            <Button
+              disabled={isSubmitDisabled}
+              onClick={() => onSubmit(true)}
+              type="button"
+              variant="contained"
+            >
+              修正して登録
+            </Button>
+          </>
+        )}
       </DialogActions>
     </Dialog>
   );
