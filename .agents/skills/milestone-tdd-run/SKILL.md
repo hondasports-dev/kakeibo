@@ -46,7 +46,7 @@ triggers:
 
 ユーザーが `--no-merge` を付けない限り、各 Issue で次を行う。
 
-1. **push 前**: `issue-tdd-run` 内の `code-review`（Must-fix 0、diff 内 Nice-to-have 修正済）
+1. **push 前**: `issue-tdd-run` の **push 前チェックリスト** 完走（基本4本、`src/**` / `e2e/**` 変更時は **`.env.local` 同期 + ローカル E2E**、`convex/**` 変更時は `convex dev --once`）+ `code-review` PASS
 2. **push 後**: **`babysit-pr`** で PR コメント・Bot 指摘・CI を merge-ready まで
 3. **マージ**: `gh pr merge --rebase`（下記 §マージ手順）。**rebase マージ**を正とする。
 
@@ -113,7 +113,11 @@ git fetch origin preview
 #### 1-A. 実装〜CI（`issue-tdd-run`）
 
 1. `.agents/skills/issue-tdd-run/SKILL.md` の手順を **Issue 番号 `<N>`・`--mode`** 付きで完走
-2. 終了状態:
+2. **DONE 判定**（`issue-tdd-run` と同義）:
+   - push 前チェックリスト完了（`src/**` / `e2e/**` 変更時はローカル E2E 成功を含む）
+   - `code-review` PASS
+   - push 後 CI SUCCESS
+3. 終了状態:
    - **DONE** → 1-B へ（PR URL 必須）
    - **Stop** / **Revision** → `--stop-on-escalate` ならマイルストーン **停止**
    - **ESCALATE** → 同上

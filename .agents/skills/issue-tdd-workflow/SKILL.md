@@ -55,7 +55,11 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
    - 別Issueのブランチに新しい作業を混ぜない。ブランチ名は `codex/issue-73-weekly-chart` のようにする。
    - 既存チェックアウトに無関係な変更や未追跡ファイルがある場合は、別worktreeを作り、それらをステージングしない。
    - `.env.local`、`dist/`、`test-results/`、`playwright-report/`、`node_modules/` などのローカル状態が未追跡のまま除外されていることを確認する。
-   - Issue 用 worktree を新規作成した直後は、`docs/development-process.md` の「ローカル E2E 実行 → `.env.local` 同期」に従い、`preview` 用 worktree から `.env.local` をコピーする（git では取得できない）。
+   - Issue 用 worktree を新規作成した直後、および **ローカル E2E の直前毎回**、`docs/development-process.md` の「`.env.local` 同期」に従い `.env.local` をコピーする（git では取得できない）。
+   - **正本の取り方**:
+     - 第一候補: `<worktrees-dir>/preview/.env.local`（`git worktree add ../kakeibo-worktrees/preview preview` で用意）
+     - preview 専用 worktree が無く、メインリポが既に `preview` ブランチを checkout している場合: そのディレクトリの `.env.local` を正本として Issue 用 worktree へ **毎回** `cp` する（`git worktree add preview` は同一ブランチ二重 checkout で失敗するため）
+     - `cp ... 2>/dev/null || true` で同期失敗を握りつぶさない。コピー後にファイル存在を確認する
    - Windows環境で作業する場合は、`cd` がブロックされる可能性を考慮し、必要に応じて `cmd /c "cd /d <path> && command"` または PowerShell の `Set-Location` を使う。
 
 5. **Issueを再検討する**
@@ -159,6 +163,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 - `git status` に無関係なファイルがあるのに `git add -A` しようとしている。
 - E2EやCIが失敗したのに、原因を理解せず再実行または再pushしようとしている。
 - UI 変更・E2E 実行前に `docs/development-process.md` の「`.env.local` 同期」を省略している。
+- `src/**` / `e2e/**` を変更したのに push 前ローカル E2E を省略している（CI 任せ）。
 - `.env.local` をコピーした、またはサービス秘密値に触れたのに `service-ops-safety` を読んでいない。
 - 最新の検証証拠なしに「完了」と言おうとしている。
 - push 前に `code-review` を実行せず、または Must-fix / diff 内の未修正 Nice-to-have が残ったまま push しようとしている。
