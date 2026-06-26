@@ -672,6 +672,67 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
+  it("明細あり下書きはカテゴリ別集約を主表示し、明細は折りたたみで確認できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "ドラッグストアA",
+          date: "2026-06-21",
+          amountYen: 1380,
+          categoryId: "cat-daily",
+          reviewReasons: ["ambiguous_category", "amount_mismatch"],
+          warnings: [],
+        },
+        items: [
+          {
+            _id: "item-food",
+            itemName: "パン",
+            amountYen: 150,
+            categoryId: "cat-food",
+            confidence: { itemName: 0.9, amountYen: 0.95, categoryId: 0.8 },
+            warnings: [],
+          },
+          {
+            _id: "item-medical",
+            itemName: "胃薬",
+            amountYen: 980,
+            confidence: { itemName: 0.85, amountYen: 0.95, categoryName: 0.5 },
+            warnings: ["品名が不鮮明です"],
+          },
+        ],
+      };
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "ドラッグストアA" })).toBeInTheDocument();
+    expect(within(dialog).getByText("2026/06/21 ・ 1,380円")).toBeInTheDocument();
+    expect(within(dialog).getByRole("heading", { name: "登録候補" })).toBeInTheDocument();
+    expect(within(dialog).getByText("食費 150円")).toBeInTheDocument();
+    expect(within(dialog).getByText("未分類の明細があります")).toBeInTheDocument();
+    expect(within(dialog).getByText("低信頼度の明細があります")).toBeInTheDocument();
+    expect(within(dialog).getByText("明細合計と合計金額に差額があります")).toBeInTheDocument();
+    expect(within(dialog).queryByRole("heading", { name: "明細" })).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "明細を見る" }));
+    expect(within(dialog).getByText("パン")).toBeInTheDocument();
+    expect(within(dialog).getByText("胃薬")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "修正する" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "登録する" })).toBeInTheDocument();
+  });
+
   it("確認が必要な下書きの明細を表示し、編集・追加・削除して保存できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
@@ -717,6 +778,8 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(screen.getByRole("button", { name: "確認する" }));
 
     const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "修正する" }));
+
     expect(within(dialog).getByRole("heading", { name: "明細" })).toBeInTheDocument();
     expect(within(dialog).getByText("明細合計 1,130円 / 差額 250円")).toBeInTheDocument();
     expect(
