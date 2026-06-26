@@ -66,10 +66,7 @@ export function useAiExpenseQueueData({
     () => items.filter((item) => getSectionKey(item.status) === "ready"),
     [items],
   );
-  const readyItems = useMemo(
-    () => items.filter((item) => item.status === "ready"),
-    [items],
-  );
+  const readyItems = useMemo(() => items.filter((item) => item.status === "ready"), [items]);
   const readyItemIds = useMemo(() => readyItems.map((item) => item.id), [readyItems]);
   const groupedItems = {
     processing: items.filter((item) => getSectionKey(item.status) === "processing"),
