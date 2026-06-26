@@ -81,11 +81,20 @@ function QueueItemCard({
             />
           )}
           <Box sx={{ minWidth: 0, flex: 1 }}>
-            <Typography sx={{ fontWeight: 700 }} noWrap>
+            <Typography
+              className="ai-expense-queue-item-title"
+              sx={{ fontWeight: 700 }}
+              title={item.title || secondaryLabel}
+            >
               {item.title || secondaryLabel}
             </Typography>
             {item.title && (
-              <Typography color="text.secondary" variant="body2" noWrap>
+              <Typography
+                className="ai-expense-queue-item-secondary"
+                color="text.secondary"
+                title={secondaryLabel}
+                variant="body2"
+              >
                 {secondaryLabel}
               </Typography>
             )}

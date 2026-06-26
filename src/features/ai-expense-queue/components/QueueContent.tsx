@@ -74,7 +74,12 @@ export function QueueContent({
         </Alert>
       )}
       <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: "stretch" }}>
-        <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", flex: 1 }}>
+        <Stack
+          className="ai-expense-queue-status-summary"
+          direction="row"
+          spacing={1}
+          sx={{ flex: 1, minWidth: 0 }}
+        >
           <Chip
             color="default"
             label={`${displayStatusLabels.processing} ${processingCount}件`}
