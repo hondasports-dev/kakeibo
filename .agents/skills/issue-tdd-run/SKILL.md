@@ -13,6 +13,7 @@ triggers:
 | 用途 | Skill |
 | --- | --- |
 | 単一 Issue・TDD・PR・CI まで | **本 Skill** → **`issue-tdd-workflow`** |
+| マイルストーン一括（PR レビュー・マージ込み） | **`milestone-tdd-run`** |
 
 ## 引数
 
@@ -64,7 +65,7 @@ GATE0: Go | Stop | Revision
 State: TDD | VERIFY | REVIEW(pre-push) | CI | DONE | ESCALATE
 変更: ...
 TDD: RED ... / GREEN ...
-code-review: PASS | FAIL（Must-fix: ...）
+code-review: PASS | FAIL（Must-fix: ... / diff 内 Nice-to-have 未修正: ...）
 検証: ...
 PR: ...
 CI: ...

@@ -36,9 +36,11 @@
 ## 指摘
 
 - Must-fix:
-- Nice-to-have:
+- Nice-to-have（各指摘に対象ファイルを明記）:
+  - diff 内 → 修正済み:
+  - diff 外のみ → フォローアップ Issue:
 
 ## レビュー判定
 
-- [ ] PASS（Must-fix 0 件）
-- [ ] FAIL（Must-fix あり → 修正後に再レビュー）
+- [ ] PASS（Must-fix 0 件、diff 内 Nice-to-have はすべて修正済み、diff 外のみはフォローアップ Issue リンク済み）
+- [ ] FAIL（未対応の Must-fix、または diff 内の未修正 Nice-to-have あり → 修正後に再レビュー）

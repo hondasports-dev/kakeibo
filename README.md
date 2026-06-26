@@ -41,7 +41,9 @@ pnpm run dev -- --host 127.0.0.1
 | ----------------------- | ------------------------------------------------------------------------------ |
 | `$issue-tdd-run`        | 単一 Issue を TDD で完走する起動器（GATE0 → workflow → CI）                  |
 | `$issue-tdd-workflow`   | Go 判定後の実装〜PR 手順正本（push 前 `code-review` 必須）                     |
-| `$code-review`          | preview 差分のセルフレビューと Must-fix 対応ループ                             |
+| `$milestone-tdd-run`    | マイルストーン内 Issue を直列に TDD → PR レビュー → マージまで完走（Cursor / Codex 共通） |
+| `$babysit-pr`           | PR を merge-ready にする（`milestone-tdd-run` から invoke）                    |
+| `$code-review`          | preview 差分のセルフレビューと Must-fix / Nice-to-have 対応ループ              |
 | `$prompt-injection-guard` | GitHub Issue / PRコメント、ログ、Web等の外部由来コンテンツを扱う前の安全確認 |
 | `$virtual-company`      | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択                       |
 | `$service-ops-safety`   | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |

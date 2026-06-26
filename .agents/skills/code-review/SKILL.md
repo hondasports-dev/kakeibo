@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: PR前セルフレビュー／PRレビュー手順。preview 差分を対象に Must-fix を洗い出し、修正ループの正本。issue-tdd-workflow §9 から必ず invoke する。
+description: PR前セルフレビュー／PRレビュー手順。preview 差分を対象に Must-fix / Nice-to-have を洗い出し、push 前修正ループの正本。issue-tdd-workflow §9 から必ず invoke する。
 argument-hint: "[--base preview|main]"
 triggers:
   - user
@@ -68,14 +68,27 @@ git log --oneline origin/preview..HEAD
 | 区分 | 定義 | `issue-tdd-workflow` での扱い |
 | --- | --- | --- |
 | **Must-fix** | バグ、認可漏れ、テスト不足、完了条件未達、セキュリティ | 修正必須。修正後に本 Skill を再実行 |
-| **Nice-to-have** | リファクタ、命名、本筋外の技術負債 | Issue スコープ内なら修正。外なら PR 本文に未対応理由 |
+| **Nice-to-have** | リファクタ、命名、軽微な改善 | **diff 内ファイル**に関するものは修正必須。**diff 外のみ**影響するものはフォローアップ Issue リンクで closure |
+
+### Nice-to-have の closure ルール（push 前）
+
+指摘ごとに **対象ファイル** を明記する。対象は `git diff origin/preview...HEAD --name-only` の変更ファイル一覧と照合する。
+
+| 対象 | 対応 |
+| --- | --- |
+| **diff 内ファイル**に関する Nice-to-have | **必ず修正**。見送り・PR 本文の記録のみでは closure 不可 |
+| **diff 外ファイル**にのみ関係する Nice-to-have | フォローアップ Issue を作成しリンクで closure（PR 本文の一言だけは不可） |
+
+diff 内かどうかの判断に「本筋外」などの主観語を使わない。対象ファイルパスで決める。
 
 ## 完了条件（レビュー PASS）
 
 - Must-fix が **0 件**
+- diff 内ファイルに関する Nice-to-have が **すべて修正済み**
+- diff 外のみの Nice-to-have は **すべてフォローアップ Issue リンク済み**（該当なしなら省略可）
 - 各観点（正しさ、セキュリティ、保守性、テスト、副作用）で「問題なし」または残リスクを明記
 - `review-template.md` を出力済み
-- **ループ上限**: Must-fix 対応 **3 回**を超えた場合は **ESCALATE**（ユーザー確認）
+- **ループ上限**: Must-fix / Nice-to-have の修正対応を合算して **3 回**。超えたら **ESCALATE**（ユーザー確認）
 
 ## 関連ファイル
 
