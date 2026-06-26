@@ -1,8 +1,22 @@
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { formatDateForDisplay } from "../../week";
 import type { ReceiptItem } from "../types/types";
 
-export function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {
+export function ReceiptRow({
+  receipt,
+  onDelete,
+  onEdit,
+}: {
+  receipt: ReceiptItem;
+  onDelete?: (receipt: ReceiptItem) => void;
+  onEdit?: (receipt: ReceiptItem) => void;
+}) {
+  const displayName =
+    receipt.type === "income" ? (receipt.bankName ?? "不明") : (receipt.shopName ?? "不明");
+  const actionLabelSuffix = `${displayName}（${formatDateForDisplay(receipt.date)}）`;
+
   return (
     <Box className="receipt-row" key={receipt._id}>
       <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -43,6 +57,35 @@ export function ReceiptRow({ receipt }: { receipt: ReceiptItem }) {
             </Typography>
           )}
         </Stack>
+        {(onEdit || onDelete) && (
+          <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
+            {onEdit && (
+              <Button
+                aria-label={`${actionLabelSuffix}を編集`}
+                onClick={() => onEdit(receipt)}
+                size="small"
+                startIcon={<EditIcon fontSize="small" />}
+                type="button"
+                variant="outlined"
+              >
+                編集
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                aria-label={`${actionLabelSuffix}を削除`}
+                color="error"
+                onClick={() => onDelete(receipt)}
+                size="small"
+                startIcon={<DeleteIcon fontSize="small" />}
+                type="button"
+                variant="text"
+              >
+                削除
+              </Button>
+            )}
+          </Stack>
+        )}
       </Box>
       <Typography sx={{ fontWeight: 700, flexShrink: 0 }}>
         {receipt.amountYen.toLocaleString()}円

@@ -3,13 +3,13 @@ import ReplayIcon from "@mui/icons-material/Replay";
 import { Box, Button, Checkbox, Chip, LinearProgress, Stack, Typography } from "@mui/material";
 import {
   documentTypeLabels,
-  getReviewReasonLabel,
   getSectionKey,
-  getStatusColor,
-  getStatusIcon,
-  statusLabels,
+  queueSectionDescriptions,
+  queueSectionLabels,
 } from "./labels";
-import type { AiExpenseQueueItem } from "../types/types";
+import { ReviewReasonChips } from "./ReviewReasonChips";
+import { StatusChip } from "./StatusChip";
+import type { AiExpenseQueueItem, QueueSectionKey } from "../types/types";
 
 const queueDateFormatter = new Intl.DateTimeFormat("ja-JP", {
   year: "numeric",
@@ -53,84 +53,67 @@ function QueueItemCard({
   const canDelete = item.status !== "registered" && item.status !== "registering";
   const metadata = [
     item.date ? formatQueueDate(item.date) : undefined,
-    item.amountYen !== undefined ? queueAmountFormatter.format(item.amountYen) : undefined,
+    item.amountYen !== undefined ? `${queueAmountFormatter.format(item.amountYen)}円` : undefined,
   ]
     .filter(Boolean)
     .join(" ・ ");
+  const reviewReasons = Array.from(
+    new Set([
+      ...(item.reviewReasons ?? []),
+      ...(item.hasUncategorizedItems ? ["ambiguous_category"] : []),
+      ...(item.hasLowConfidenceItems ? ["low_confidence"] : []),
+    ]),
+  );
+
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
       <Stack spacing={1}>
-        <Stack
-          direction={{ xs: "column", sm: "row" }}
-          spacing={1}
-          sx={{ justifyContent: "space-between", alignItems: { xs: "stretch", sm: "center" } }}
-        >
-          <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", minWidth: 0 }}>
-            {item.status === "ready" && (
-              <Checkbox
-                checked={isSelected}
-                onChange={(event) => onToggleReadySelection(item.id, event.target.checked)}
-                size="small"
-                slotProps={{
-                  input: { "aria-label": `${item.title || secondaryLabel}を登録対象に含める` },
-                }}
-                sx={{ mt: -0.5 }}
-              />
-            )}
-            <Box sx={{ minWidth: 0 }}>
-              <Typography sx={{ fontWeight: 700 }} noWrap>
-                {item.title || secondaryLabel}
-              </Typography>
-              {item.title && (
-                <Typography color="text.secondary" variant="body2" noWrap>
-                  {secondaryLabel}
-                </Typography>
-              )}
-            </Box>
-          </Stack>
-          <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-            <Chip label={documentTypeLabels[item.documentType]} size="small" variant="outlined" />
-            <Chip
-              color={getStatusColor(item.status)}
-              icon={getStatusIcon(item.status)}
-              label={statusLabels[item.status]}
+        <Stack direction="row" spacing={1} sx={{ alignItems: "flex-start", minWidth: 0 }}>
+          {item.status === "ready" && (
+            <Checkbox
+              checked={isSelected}
+              onChange={(event) => onToggleReadySelection(item.id, event.target.checked)}
               size="small"
+              slotProps={{
+                input: { "aria-label": `${item.title || secondaryLabel}を登録対象に含める` },
+              }}
+              sx={{ mt: -0.5 }}
             />
-          </Stack>
+          )}
+          <Box sx={{ minWidth: 0, flex: 1 }}>
+            <Typography sx={{ fontWeight: 700 }} noWrap>
+              {item.title || secondaryLabel}
+            </Typography>
+            {item.title && (
+              <Typography color="text.secondary" variant="body2" noWrap>
+                {secondaryLabel}
+              </Typography>
+            )}
+          </Box>
         </Stack>
 
         {metadata && (
-          <Typography variant="body2" sx={{ fontWeight: 700 }}>
-            {metadata}
-            {item.amountYen !== undefined && "円"}
-          </Typography>
-        )}
-
-        {item.categoryName && (
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-            <Chip label={item.categoryName} size="small" variant="outlined" />
+            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+              {metadata}
+            </Typography>
+            <Chip label={documentTypeLabels[item.documentType]} size="small" variant="outlined" />
+            {item.categoryName && (
+              <Chip label={item.categoryName} size="small" variant="outlined" />
+            )}
           </Stack>
         )}
+
+        <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "wrap" }}>
+          <StatusChip status={item.status} />
+          <ReviewReasonChips reasons={reviewReasons} status={item.status} />
+        </Stack>
 
         {(item.status === "analyzing" || item.status === "registering") && (
           <LinearProgress
-            aria-label={`${secondaryLabel}の${statusLabels[item.status]}`}
+            aria-label={`${secondaryLabel}の処理状況`}
             sx={{ height: 4, borderRadius: 2 }}
           />
-        )}
-
-        {item.reviewReasons && item.reviewReasons.length > 0 && (
-          <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-            {item.reviewReasons.map((reason) => (
-              <Chip
-                color={item.status === "failed" ? "error" : "warning"}
-                key={reason}
-                label={getReviewReasonLabel(reason)}
-                size="small"
-                variant="outlined"
-              />
-            ))}
-          </Stack>
         )}
 
         {item.categoryAggregates && item.categoryAggregates.length > 0 && (
@@ -152,12 +135,6 @@ function QueueItemCard({
                   variant="outlined"
                 />
               ))}
-              {item.hasUncategorizedItems && (
-                <Chip color="warning" label="未分類あり" size="small" variant="outlined" />
-              )}
-              {item.hasLowConfidenceItems && (
-                <Chip color="warning" label="確認必要あり" size="small" variant="outlined" />
-              )}
             </Stack>
           </Stack>
         )}
@@ -256,7 +233,7 @@ function DeleteQueueButton({
 }
 
 export function QueueSection({
-  label,
+  sectionKey,
   items,
   selectedReadyIds,
   onToggleReadySelection,
@@ -268,7 +245,7 @@ export function QueueSection({
   deletingIds,
   registeringIds,
 }: {
-  label: string;
+  sectionKey: QueueSectionKey;
   items: AiExpenseQueueItem[];
   selectedReadyIds: string[];
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
@@ -284,6 +261,9 @@ export function QueueSection({
     return null;
   }
 
+  const label = queueSectionLabels[sectionKey];
+  const description = queueSectionDescriptions[sectionKey];
+
   return (
     <Box aria-label={label} role="region">
       <Stack spacing={1}>
@@ -293,6 +273,11 @@ export function QueueSection({
           </Typography>
           <Chip label={`${items.length}件`} size="small" variant="outlined" />
         </Stack>
+        {description && (
+          <Typography color="text.secondary" variant="body2">
+            {description}
+          </Typography>
+        )}
         <Stack spacing={1}>
           {items.map((item) => (
             <QueueItemCard

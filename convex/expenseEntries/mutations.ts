@@ -3,6 +3,7 @@ import type { MutationCtx } from "../_generated/server";
 import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireGroupMembership } from "../groups/membership";
+import { isValidIsoDateString } from "../lib/weekDates";
 import type { Id } from "../_generated/dataModel";
 
 type ExpenseEntryItemArg = {
@@ -155,5 +156,127 @@ export const createExpenseEntriesFromDraft = mutation({
   },
   handler: async (ctx, args) => {
     return await createExpenseEntriesFromDraftHandler(ctx, args);
+  },
+});
+
+type UpdateExpenseEntryArgs = {
+  expenseEntryId: Id<"expenseEntries">;
+  date?: string;
+  amountYen?: number;
+  categoryId?: Id<"categories">;
+  title?: string;
+  memo?: string;
+};
+
+export async function updateExpenseEntryHandler(
+  ctx: Pick<MutationCtx, "auth" | "db">,
+  args: UpdateExpenseEntryArgs,
+): Promise<Id<"expenseEntries">> {
+  const { groupId } = await requireGroupMembership(ctx);
+
+  const entry = await ctx.db.get(args.expenseEntryId);
+  if (entry === null) {
+    throw new ConvexError("Expense entry not found");
+  }
+  if (entry.groupId !== groupId) {
+    throw new ConvexError("Expense entry does not belong to the current group");
+  }
+
+  if (args.amountYen !== undefined) {
+    if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
+      throw new ConvexError("Amount must be a positive integer");
+    }
+  }
+
+  if (args.categoryId !== undefined) {
+    const category = await ctx.db.get(args.categoryId);
+    if (category === null) {
+      throw new ConvexError("Category not found");
+    }
+    if (category.groupId !== groupId) {
+      throw new ConvexError("Category does not belong to the current group");
+    }
+    if (!category.isActive && args.categoryId !== entry.categoryId) {
+      throw new ConvexError("Inactive category cannot be used for expense entries");
+    }
+  }
+
+  const now = Date.now();
+  const patch: {
+    date?: string;
+    amount?: number;
+    categoryId?: Id<"categories">;
+    title?: string;
+    memo?: string;
+    updatedAt: number;
+  } = { updatedAt: now };
+
+  if (args.date !== undefined) {
+    if (!args.date.trim() || !isValidIsoDateString(args.date)) {
+      throw new ConvexError("Date must be a valid YYYY-MM-DD value");
+    }
+    patch.date = args.date;
+  }
+  if (args.amountYen !== undefined) {
+    patch.amount = args.amountYen;
+  }
+  if (args.categoryId !== undefined) {
+    patch.categoryId = args.categoryId;
+  }
+  if (args.title !== undefined) {
+    patch.title = args.title;
+  }
+  if (args.memo !== undefined) {
+    patch.memo = args.memo;
+  }
+
+  await ctx.db.patch(args.expenseEntryId, patch);
+  return args.expenseEntryId;
+}
+
+export const updateExpenseEntry = mutation({
+  args: {
+    expenseEntryId: v.id("expenseEntries"),
+    date: v.optional(v.string()),
+    amountYen: v.optional(v.number()),
+    categoryId: v.optional(v.id("categories")),
+    title: v.optional(v.string()),
+    memo: v.optional(v.string()),
+  },
+  returns: v.id("expenseEntries"),
+  handler: async (ctx, args) => {
+    return await updateExpenseEntryHandler(ctx, args);
+  },
+});
+
+type DeleteExpenseEntryArgs = {
+  expenseEntryId: Id<"expenseEntries">;
+};
+
+export async function deleteExpenseEntryHandler(
+  ctx: Pick<MutationCtx, "auth" | "db">,
+  args: DeleteExpenseEntryArgs,
+): Promise<void> {
+  const { groupId } = await requireGroupMembership(ctx);
+
+  const entry = await ctx.db.get(args.expenseEntryId);
+  if (entry === null) {
+    throw new ConvexError("Expense entry not found");
+  }
+  if (entry.groupId !== groupId) {
+    throw new ConvexError("Expense entry does not belong to the current group");
+  }
+
+  await ctx.db.delete(args.expenseEntryId);
+}
+
+export const deleteExpenseEntry = mutation({
+  args: {
+    expenseEntryId: v.id("expenseEntries"),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    await deleteExpenseEntryHandler(ctx, args);
+    return null;
   },
 });

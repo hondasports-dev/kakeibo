@@ -21,6 +21,8 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { documentTypeLabels, getReviewReasonLabel, reviewDocumentTypeOptions } from "./labels";
+import { ReviewReasonChips } from "./ReviewReasonChips";
+import { StatusChip } from "./StatusChip";
 import type {
   AiExpenseDraft,
   AiExpenseQueueCategory,
@@ -405,9 +407,16 @@ export function ReviewDialog({
               {showSummaryView ? (
                 <>
                   <Box>
-                    <Typography component="h2" sx={{ fontWeight: 700 }} variant="h6">
-                      {shopName}
-                    </Typography>
+                    <Stack
+                      direction="row"
+                      spacing={1}
+                      sx={{ alignItems: "center", flexWrap: "wrap" }}
+                    >
+                      <Typography component="h2" sx={{ fontWeight: 700 }} variant="h6">
+                        {shopName}
+                      </Typography>
+                      {selectedReviewDraft && <StatusChip status={selectedReviewDraft.status} />}
+                    </Stack>
                     <Typography color="text.secondary" variant="body2">
                       {formatReviewDraftHeader(reviewForm)}
                     </Typography>
@@ -416,19 +425,17 @@ export function ReviewDialog({
                   {(attentionLabels.length > 0 ||
                     (selectedReviewDraft?.reviewReasons?.length ?? 0) > 0) && (
                     <Stack spacing={1}>
-                      <Typography color="warning.main" sx={{ fontWeight: 700 }} variant="body2">
-                        確認が必要
-                      </Typography>
                       {attentionLabels.map((label) => (
                         <Typography key={label} variant="body2">
                           {label}
                         </Typography>
                       ))}
-                      {selectedReviewDraft?.reviewReasons?.map((reason) => (
-                        <Typography color="text.secondary" key={reason} variant="body2">
-                          {getReviewReasonLabel(reason)}
-                        </Typography>
-                      ))}
+                      {selectedReviewDraft?.reviewReasons && (
+                        <ReviewReasonChips
+                          reasons={selectedReviewDraft.reviewReasons}
+                          status={selectedReviewDraft.status}
+                        />
+                      )}
                     </Stack>
                   )}
 

@@ -7,10 +7,14 @@ export function ReceiptListCard({
   count,
   isLoading,
   receipts,
+  onDeleteReceipt,
+  onEditReceipt,
 }: {
   count: number;
   isLoading: boolean;
   receipts: ReceiptItem[];
+  onDeleteReceipt?: (receipt: ReceiptItem) => void;
+  onEditReceipt?: (receipt: ReceiptItem) => void;
 }) {
   return (
     <Paper className="paper-panel" elevation={0}>
@@ -37,7 +41,14 @@ export function ReceiptListCard({
                 まだレシートがありません
               </Typography>
             ) : (
-              receipts.map((receipt) => <ReceiptRow key={receipt._id} receipt={receipt} />)
+              receipts.map((receipt) => (
+                <ReceiptRow
+                  key={receipt._id}
+                  receipt={receipt}
+                  onDelete={onDeleteReceipt}
+                  onEdit={onEditReceipt}
+                />
+              ))
             )}
           </Box>
           <Divider />

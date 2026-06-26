@@ -21,6 +21,11 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 
+/** ヘッダーの ImageInputButton（空状態 CTA と区別する） */
+function getHeaderAddReceiptButton(queue: Locator) {
+  return queue.getByRole("button", { name: "レシートを追加", exact: true }).first();
+}
+
 async function expectLocatorInsideViewport(locator: Locator) {
   await expect
     .poll(
@@ -78,7 +83,7 @@ test.describe("Issue #144 読み取りUI", () => {
 
     const queue = page.getByRole("region", { name: "レシート入力", exact: true });
     await expect(queue).toBeVisible();
-    await expect(queue.getByRole("button", { name: "レシートを追加", exact: true })).toBeEnabled();
+    await expect(page.getByLabel("読み取り用画像を追加")).toBeEnabled();
 
     const stamp = Date.now();
     const queueFiles = [
@@ -132,7 +137,7 @@ test.describe("Issue #144 読み取りUI", () => {
     await expect(queue).toBeVisible();
     await expectLocatorInsideViewport(queue);
     const cameraButton = queue.getByRole("button", { name: "撮影する" });
-    const imageButton = queue.getByRole("button", { name: "レシートを追加", exact: true });
+    const imageButton = getHeaderAddReceiptButton(queue);
     await expect(cameraButton).toBeEnabled();
     await expectLocatorInsideViewport(cameraButton);
     await expectLocatorInsideContainer(cameraButton, queue);
@@ -161,7 +166,7 @@ test.describe("Issue #144 読み取りUI", () => {
     const queue = page.getByRole("region", { name: "レシート入力", exact: true });
     await expect(queue).toBeVisible();
     await expectLocatorInsideViewport(queue);
-    await expect(queue.getByRole("button", { name: "レシートを追加", exact: true })).toBeEnabled();
+    await expect(page.getByLabel("読み取り用画像を追加")).toBeEnabled();
     const stamp = Date.now();
     const queueFiles = [
       await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),

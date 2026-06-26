@@ -4,8 +4,10 @@ import { renderWithProviders } from "../../../test/render";
 import { SummaryPage } from "./SummaryPage";
 
 const useQueryMock = vi.fn();
+const useMutationMock = vi.fn(() => vi.fn());
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => useQueryMock(...args),
+  useMutation: () => useMutationMock(),
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -19,16 +21,14 @@ vi.mock("react-router-dom", async (importOriginal) => {
 
 describe("SummaryPage", () => {
   beforeEach(() => {
-    useQueryMock
-      .mockReset()
-      .mockReturnValueOnce({
-        count: 0,
-        totalAmountYen: 0,
-        byCategory: [],
-        prevWeekTotalAmountYen: null,
-        receipts: [],
-      })
-      .mockReturnValueOnce({ weeks: [] });
+    useQueryMock.mockReturnValue({
+      count: 0,
+      totalAmountYen: 0,
+      byCategory: [],
+      prevWeekTotalAmountYen: null,
+      receipts: [],
+      weeks: [],
+    });
   });
 
   it("振り返りとセッション完了のUIを表示しない", () => {

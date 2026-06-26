@@ -141,13 +141,18 @@ describe("AiExpenseQueuePanel", () => {
 
     expect(screen.getByRole("heading", { name: "レシート入力" })).toBeInTheDocument();
     expect(screen.queryByText("撮影して、あとでまとめて確認できます。")).not.toBeInTheDocument();
-    expect(screen.getByText("レシートを読み取って下書きを作ります。")).toBeInTheDocument();
+    expect(screen.getByText("まだ下書きはありません")).toBeInTheDocument();
+    expect(
+      screen.getByText("レシートを追加すると、AIが支出下書きを作ります。"),
+    ).toBeInTheDocument();
     expect(screen.queryByText("追加したレシートは状態別に表示されます。")).not.toBeInTheDocument();
     expect(screen.queryByText("レシート・払込票をまとめて追加できます。")).not.toBeInTheDocument();
     expect(
       screen.queryByText("スマートフォンでは撮影、PCでは画像選択から追加できます。"),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "レシートを追加" })).toBeEnabled();
+    expect(screen.getAllByRole("button", { name: "レシートを追加" }).length).toBeGreaterThanOrEqual(
+      1,
+    );
     expect(screen.getByRole("button", { name: "撮影する" })).toBeEnabled();
     expect(screen.getByLabelText("読み取り用カメラ画像を追加")).toHaveAttribute(
       "capture",
@@ -166,7 +171,9 @@ describe("AiExpenseQueuePanel", () => {
     renderWithProviders(<AiExpenseQueuePanel />);
 
     expect(screen.getByRole("button", { name: "撮影する" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "レシートを追加" })).toBeDisabled();
+    for (const button of screen.getAllByRole("button", { name: "レシートを追加" })) {
+      expect(button).toBeDisabled();
+    }
     expect(screen.getByLabelText("読み取り用カメラ画像を追加")).toBeDisabled();
     expect(screen.getByLabelText("読み取り用画像を追加")).toBeDisabled();
   });
@@ -195,7 +202,7 @@ describe("AiExpenseQueuePanel", () => {
     await waitFor(() => {
       expect(screen.getByText("first-receipt.png")).toBeInTheDocument();
       expect(screen.getByText("second-payment.png")).toBeInTheDocument();
-      expect(screen.getAllByText("解析待ち")).toHaveLength(2);
+      expect(screen.getAllByText("解析中", { exact: true })).toHaveLength(2);
     });
 
     expect(createBatchMock).toHaveBeenCalledWith({
@@ -339,7 +346,7 @@ describe("AiExpenseQueuePanel", () => {
 
     await waitFor(() => {
       expect(screen.getByText("camera-receipt.png")).toBeInTheDocument();
-      expect(screen.getByText("解析待ち")).toBeInTheDocument();
+      expect(screen.getByText("解析中", { exact: true })).toBeInTheDocument();
     });
 
     expect(createBatchMock).toHaveBeenCalledWith({
@@ -399,8 +406,8 @@ describe("AiExpenseQueuePanel", () => {
   it("登録準備OK・確認が必要・失敗を分類して表示する", () => {
     renderWithProviders(<AiExpenseQueuePanel initialItems={queueItems} />);
 
-    expect(screen.getByText("読み取り中 1件")).toBeInTheDocument();
-    expect(screen.getByText("登録準備OK 1件")).toBeInTheDocument();
+    expect(screen.getByText("解析中 0件")).toBeInTheDocument();
+    expect(screen.getByText("登録準備OK 2件")).toBeInTheDocument();
     expect(screen.getByText("確認が必要 1件")).toBeInTheDocument();
     expect(screen.getByText("失敗 1件")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "下書きを確認（1件）" })).toBeEnabled();
@@ -408,11 +415,10 @@ describe("AiExpenseQueuePanel", () => {
     const readySection = screen.getByRole("region", { name: "登録準備OK" });
     expect(within(readySection).getByText("ok-receipt.png")).toBeInTheDocument();
     expect(within(readySection).getByText("2026/05/18 ・ 4,280円")).toBeInTheDocument();
-    expect(within(readySection).queryByText("registering-receipt.png")).not.toBeInTheDocument();
+    expect(within(readySection).getByText("registering-receipt.png")).toBeInTheDocument();
+    expect(within(readySection).getByText("登録中")).toBeInTheDocument();
     expect(within(readySection).getByRole("button", { name: "登録する" })).toBeEnabled();
-    expect(
-      screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（1件）" }),
-    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "まとめて登録（1件）" })).toBeEnabled();
     expect(
       within(readySection).getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }),
     ).toBeChecked();
@@ -429,9 +435,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(failedSection).getByRole("button", { name: "手入力へ戻る" })).toBeEnabled();
     expect(within(failedSection).getByRole("button", { name: "再試行" })).toBeEnabled();
 
-    const processingSection = screen.getByRole("region", { name: "読み取り中" });
-    expect(within(processingSection).getByText("registering-receipt.png")).toBeInTheDocument();
-    expect(within(processingSection).getByText("登録中")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "読み取り中" })).not.toBeInTheDocument();
 
     const registeredSection = screen.getByRole("region", { name: "登録済み" });
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();
@@ -598,15 +602,12 @@ describe("AiExpenseQueuePanel", () => {
 
     await user.click(screen.getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }));
     await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（0件）" }),
-      ).toBeDisabled();
+      expect(screen.getByRole("button", { name: "まとめて登録（0件）" })).toBeDisabled();
     });
 
     await user.click(screen.getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }));
-    await user.click(
-      screen.getByRole("button", { name: "選択中の登録準備OKをまとめて登録（1件）" }),
-    );
+    await user.click(screen.getByRole("button", { name: "まとめて登録（1件）" }));
+    await user.click(screen.getByRole("button", { name: "登録する" }));
 
     expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
       draftIds: ["draft-ready"],

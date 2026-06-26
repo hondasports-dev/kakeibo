@@ -19,6 +19,7 @@ export type ReceiptItem = {
   categoryName: string;
   categoryColor: string;
   memo?: string;
+  recordType: "expenseEntry" | "receipt";
 };
 
 export type WeeklySummaryPanelProps = {
@@ -30,4 +31,6 @@ export type WeeklySummaryPanelProps = {
   isLoading?: boolean;
   weekStartDate: string;
   weeklyExpenseTrend?: WeeklyExpenseChartItem[] | null;
+  onDeleteReceipt?: (receipt: ReceiptItem) => void;
+  onEditReceipt?: (receipt: ReceiptItem) => void;
 };
