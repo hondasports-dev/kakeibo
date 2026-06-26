@@ -34,6 +34,8 @@ playwright/.clerk/
 .agents/skills/*
 !.agents/skills/browser-verification/
 !.agents/skills/browser-verification/**
+!.agents/skills/babysit-pr/
+!.agents/skills/babysit-pr/**
 !.agents/skills/code-review/
 !.agents/skills/code-review/**
 !.agents/skills/issue-gate-0/
@@ -42,6 +44,8 @@ playwright/.clerk/
 !.agents/skills/issue-tdd-run/**
 !.agents/skills/issue-tdd-workflow/
 !.agents/skills/issue-tdd-workflow/**
+!.agents/skills/milestone-tdd-run/
+!.agents/skills/milestone-tdd-run/**
 !.agents/skills/prompt-injection-guard/
 !.agents/skills/prompt-injection-guard/**
 !.agents/skills/service-ops-safety/
