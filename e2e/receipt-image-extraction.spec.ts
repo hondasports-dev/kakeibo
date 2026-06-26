@@ -14,7 +14,7 @@ test("I-5: 画像入力セクションが削除され、読み取りと手入力
   await gotoAuthenticated(page, INPUT_PATH);
 
   await expect(page.getByRole("region", { name: "画像から入力" })).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: "読み取り" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
   await expect(page.getByLabel("店舗名")).toBeVisible();
   await expect(page.getByLabel("合計金額")).toBeVisible();
   await expect(page.getByRole("button", { name: "保存して次へ" })).toBeVisible();

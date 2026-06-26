@@ -58,7 +58,7 @@ async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: stri
     name: "画像の外部API送信に同意しますか",
   });
   const firstQueueItem = page
-    .getByRole("region", { name: "読み取り" })
+    .getByRole("region", { name: "レシート入力" })
     .getByText(firstFileName)
     .first();
 
@@ -76,9 +76,9 @@ test.describe("Issue #144 読み取りUI", () => {
   test("@smoke 複数画像を解析待ちとして追加できる", async ({ page }) => {
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "読み取り", exact: true });
+    const queue = page.getByRole("region", { name: "レシート入力", exact: true });
     await expect(queue).toBeVisible();
-    await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
+    await expect(queue.getByRole("button", { name: "レシートを追加", exact: true })).toBeEnabled();
 
     const stamp = Date.now();
     const queueFiles = [
@@ -128,11 +128,11 @@ test.describe("Issue #144 読み取りUI", () => {
     await expectLocatorInsideViewport(page.locator(".user-menu-button"));
     await expect(page.locator(".user-menu-button > span")).toBeHidden();
 
-    const queue = page.getByRole("region", { name: "読み取り", exact: true });
+    const queue = page.getByRole("region", { name: "レシート入力", exact: true });
     await expect(queue).toBeVisible();
     await expectLocatorInsideViewport(queue);
     const cameraButton = queue.getByRole("button", { name: "撮影する" });
-    const imageButton = queue.getByRole("button", { name: "画像を追加", exact: true });
+    const imageButton = queue.getByRole("button", { name: "レシートを追加", exact: true });
     await expect(cameraButton).toBeEnabled();
     await expectLocatorInsideViewport(cameraButton);
     await expectLocatorInsideContainer(cameraButton, queue);
@@ -158,10 +158,10 @@ test.describe("Issue #144 読み取りUI", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "読み取り", exact: true });
+    const queue = page.getByRole("region", { name: "レシート入力", exact: true });
     await expect(queue).toBeVisible();
     await expectLocatorInsideViewport(queue);
-    await expect(queue.getByRole("button", { name: "画像を追加", exact: true })).toBeEnabled();
+    await expect(queue.getByRole("button", { name: "レシートを追加", exact: true })).toBeEnabled();
     const stamp = Date.now();
     const queueFiles = [
       await createSyntheticReceiptImage(page, `ai-queue-receipt-${stamp}.jpg`),
@@ -201,7 +201,7 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
   test("確認が必要な下書きの reviewReasons を日本語で表示する", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    const queue = page.getByRole("region", { name: "レシート入力" });
     await expect(queue).toBeVisible();
     await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
     await expect(queue.getByText("確認が必要 1件")).toBeVisible();
@@ -223,7 +223,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
   test("確認が必要な下書きを編集して登録準備OKに戻せる", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    const queue = page.getByRole("region", { name: "レシート入力" });
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
@@ -246,7 +246,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
   test("確認が必要な下書きを編集して登録済みにできる", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    const queue = page.getByRole("region", { name: "レシート入力" });
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
@@ -279,7 +279,7 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
   test("明細のカテゴリ・金額・追加・削除を操作できる", async ({ page }) => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
 
-    const queue = page.getByRole("region", { name: "読み取り" });
+    const queue = page.getByRole("region", { name: "レシート入力" });
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
