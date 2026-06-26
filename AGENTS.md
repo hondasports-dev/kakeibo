@@ -160,6 +160,7 @@ gh run watch <run_id> --exit-status
 ## Issue対応とロール参照
 
 単一 GitHub Issue を TDD で対応するときは、`.agents/skills/issue-tdd-run/SKILL.md` を使う。
+マイルストーン内の Issue を TDD → PR レビュー → マージまで直列に完走するときは、`.agents/skills/milestone-tdd-run/SKILL.md` を使う（Cursor / Codex 共通）。
 手順の正本は `.agents/skills/issue-tdd-workflow/SKILL.md`（push 前の `code-review` 必須）。
 
 Issue の再精査では、実装前に Product Lead A/B/C、Tech Lead、QA Agent の観点を必ず

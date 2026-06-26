@@ -124,11 +124,15 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
    | 区分 | 対応 |
    | --- | --- |
    | **Must-fix** | 即修正 → §8 再検証 → **§9.2 から再レビュー** |
-   | **Nice-to-have** | Issue スコープ内なら修正。本筋外は PR 本文に未対応理由を記録 |
+   | **Nice-to-have（diff 内ファイル）** | **必ず修正** → §8 再検証 → **§9.2 から再レビュー** |
+   | **Nice-to-have（diff 外のみ）** | フォローアップ Issue 作成・リンクで closure |
 
-   - **完了条件**: `code-review` 判定 **PASS**（Must-fix 0 件）
-   - **ループ上限**: Must-fix 対応 **3 回**。超えたら **ESCALATE**（ユーザー確認）
+   diff 内かどうかは `git diff origin/preview...HEAD --name-only` と照合する。各 Nice-to-have に対象ファイルを明記する。
+
+   - **完了条件**: `code-review` 判定 **PASS**（Must-fix 0 件、diff 内 Nice-to-have はすべて修正済み、diff 外のみはフォローアップ Issue リンク済み）
+   - **ループ上限**: Must-fix / Nice-to-have（diff 内）の修正対応を合算して **3 回**。超えたら **ESCALATE**（ユーザー確認）
    - レビュー修正は原則別コミットにする
+   - PR 本文の「レビュー指摘対応」に、diff 内 Nice-to-have の修正内容と diff 外のフォローアップ Issue を列挙する
 
    ### 9.4 CI 対応（push 後）
 
@@ -157,7 +161,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 - UI 変更・E2E 実行前に `docs/development-process.md` の「`.env.local` 同期」を省略している。
 - `.env.local` をコピーした、またはサービス秘密値に触れたのに `service-ops-safety` を読んでいない。
 - 最新の検証証拠なしに「完了」と言おうとしている。
-- push 前に `code-review` を実行せず、または Must-fix が残ったまま push しようとしている。
+- push 前に `code-review` を実行せず、または Must-fix / diff 内の未修正 Nice-to-have が残ったまま push しようとしている。
 
 ## 報告フォーマット
 
@@ -165,7 +169,7 @@ GitHub Issue対応を、外部コンテンツ隔離、作業分離、t_wada流TD
 Issue #NN を対応しました。
 変更: ...
 TDD: RED ... / GREEN ...
-code-review: PASS（Must-fix 0） / FAIL（Must-fix: ...）
+code-review: PASS（Must-fix 0、diff 内 Nice-to-have 修正済） / FAIL（Must-fix: ... / diff 内 Nice-to-have 未修正: ...）
 検証: ...
 PR: ...
 残リスク: ...
