@@ -209,13 +209,13 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
 
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
-    await expect(reviewSection.getByText("信頼度が低い項目があります")).toBeVisible();
-    await expect(reviewSection.getByText("必須項目を確認してください")).toBeVisible();
+    await expect(reviewSection.getByText("低信頼度")).toBeVisible();
+    await expect(reviewSection.getByText("必須項目不足")).toBeVisible();
     await expect(reviewSection.getByRole("button", { name: "確認する" })).toBeEnabled();
 
     const failedSection = queue.getByRole("region", { name: "失敗" });
     await expect(failedSection.getByText("failed-receipt.png")).toBeVisible();
-    await expect(failedSection.getByText("画像解析に失敗しました")).toBeVisible();
+    await expect(failedSection.getByText("解析失敗")).toBeVisible();
   });
 });
 
@@ -254,8 +254,8 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("信頼度が低い項目があります")).toBeVisible();
-    await expect(dialog.getByText("必須項目を確認してください")).toBeVisible();
+    await expect(dialog.getByText("低信頼度")).toBeVisible();
+    await expect(dialog.getByText("必須項目不足")).toBeVisible();
     await expect(dialog.getByLabel("日付")).toHaveValue("2026-06-01");
     await expect(dialog.getByLabel("合計金額")).toHaveValue("9120");
     await expect(dialog.getByLabel("店名・内容")).toHaveValue("大阪市水道局");
@@ -296,7 +296,7 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
     await expect(dialog.getByText("明細合計 1,100円 / 差額 8,020円")).toBeVisible();
     await expect(dialog.getByText("未分類")).toBeVisible();
-    await expect(dialog.getByText("低信頼度")).toBeVisible();
+    await expect(dialog.getByText("低信頼度").first()).toBeVisible();
 
     await dialog.getByLabel("金額", { exact: true }).first().fill("400");
     await dialog.getByRole("button", { name: "胃薬を削除" }).click();
