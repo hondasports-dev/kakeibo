@@ -5,6 +5,17 @@ import { renderWithProviders } from "../../../test/render";
 import { MemoExpandableText } from "./MemoExpandableText";
 
 describe("MemoExpandableText", () => {
+  it("絵文字や結合文字を含む短いメモは切り詰めず全文表示する", () => {
+    const memo = "👨‍👩‍👧‍👦 𠮷野家";
+
+    renderWithProviders(<MemoExpandableText memo={memo} />);
+
+    const content = screen.getByTestId("memo-expandable-content");
+    expect(content).toHaveTextContent("👨‍👩‍👧‍👦");
+    expect(content).toHaveTextContent("𠮷野家");
+    expect(screen.queryByTestId("memo-expand-toggle")).not.toBeInTheDocument();
+  });
+
   it("1〜2行のメモは全文を表示しトグルを出さない", () => {
     renderWithProviders(<MemoExpandableText memo="夕食の買い物" />);
 
