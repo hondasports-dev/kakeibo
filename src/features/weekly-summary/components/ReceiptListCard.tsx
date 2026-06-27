@@ -33,7 +33,11 @@ export function ReceiptListCard({
             支出一覧（{count}件）
           </Typography>
 
-          <Box aria-label="週次サマリーの支出一覧" className="receipt-list">
+          <Box
+            aria-label="週次サマリーの支出一覧"
+            className="receipt-list"
+            role={!isLoading && count > 0 ? "table" : undefined}
+          >
             {isLoading ? (
               <>
                 <Skeleton variant="text" height={40} />
@@ -46,13 +50,13 @@ export function ReceiptListCard({
               </Typography>
             ) : (
               <>
-                <Box aria-hidden className="receipt-list-header">
-                  <span>日付</span>
-                  <span>店名・内容</span>
-                  <span>カテゴリ</span>
-                  <span>金額（円）</span>
-                  <span>メモ</span>
-                  <span>操作</span>
+                <Box className="receipt-list-header" role="row">
+                  <span role="columnheader">日付</span>
+                  <span role="columnheader">店名・内容</span>
+                  <span role="columnheader">カテゴリ</span>
+                  <span role="columnheader">金額（円）</span>
+                  <span role="columnheader">メモ</span>
+                  <span role="columnheader">操作</span>
                 </Box>
                 {visibleReceipts.map((receipt) => (
                   <ReceiptRow

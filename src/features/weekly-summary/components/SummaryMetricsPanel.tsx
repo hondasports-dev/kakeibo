@@ -62,12 +62,12 @@ export function SummaryMetricsPanel({
           <Metric
             label="前週差"
             value={formatSignedAmount(previousDiff)}
-            tone={previousDiff !== null && previousDiff <= 0 ? "good" : "warning"}
+            tone={previousDiff === null ? "default" : previousDiff <= 0 ? "good" : "warning"}
           />
           <Metric
             label="2週平均比"
             value={formatSignedRate(averageRate)}
-            tone={averageRate !== null && averageRate <= 0 ? "good" : "warning"}
+            tone={averageRate === null ? "default" : averageRate <= 0 ? "good" : "warning"}
           />
         </Box>
       )}

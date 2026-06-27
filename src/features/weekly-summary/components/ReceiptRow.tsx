@@ -19,11 +19,11 @@ export function ReceiptRow({
   const actionLabelSuffix = `${displayName}（${formatDateForDisplay(receipt.date)}）`;
 
   return (
-    <Box className="receipt-row" data-testid="receipt-row" key={receipt._id}>
-      <Typography className="receipt-row-date" color="text.secondary" variant="body2">
+    <Box className="receipt-row" data-testid="receipt-row" key={receipt._id} role="row">
+      <Typography className="receipt-row-date" color="text.secondary" role="cell" variant="body2">
         {formatDateForDisplay(receipt.date)}
       </Typography>
-      <Box className="receipt-row-name">
+      <Box className="receipt-row-name" role="cell">
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           {receipt.type && (
             <Chip
@@ -43,10 +43,12 @@ export function ReceiptRow({
       <Stack
         className="receipt-row-category"
         direction="row"
+        role="cell"
         spacing={0.75}
         sx={{ alignItems: "center" }}
       >
         <Box
+          aria-hidden
           sx={{
             width: 8,
             height: 8,
@@ -59,10 +61,10 @@ export function ReceiptRow({
           {receipt.categoryName}
         </Typography>
       </Stack>
-      <Typography className="receipt-row-amount" sx={{ fontWeight: 700 }}>
+      <Typography className="receipt-row-amount" role="cell" sx={{ fontWeight: 700 }}>
         {receipt.amountYen.toLocaleString()}円
       </Typography>
-      <Box className="receipt-row-memo">
+      <Box className="receipt-row-memo" role="cell">
         {receipt.memo ? (
           <MemoExpandableText memo={receipt.memo} />
         ) : (
@@ -71,7 +73,7 @@ export function ReceiptRow({
           </Typography>
         )}
       </Box>
-      <Box className="receipt-row-actions">
+      <Box className="receipt-row-actions" role="cell">
         {(onEdit || onDelete) && (
           <Stack direction="row" spacing={0.5}>
             {onEdit && (
