@@ -63,17 +63,16 @@ function ComparisonBars({
 }) {
   if (isCompact) {
     return (
-      <Stack
+      <Box
         aria-label="前週との比較グラフ"
-        className="dashboard-comparison-bars dashboard-comparison-bars--horizontal"
+        className="dashboard-comparison-bars dashboard-comparison-sp-grid"
         role="img"
-        spacing={1.25}
       >
         {bars.map((bar) => {
           const widthPercent = barSizePercent(bar.amount, maxAmount);
-          const barWidth = widthPercent > 0 ? `max(${Math.max(widthPercent, 8)}%, 4px)` : "0";
+          const barWidth = widthPercent > 0 ? `max(${widthPercent}%, 3px)` : "0";
           return (
-            <Box key={bar.label} className="dashboard-comparison-bar-row">
+            <Box key={bar.label} className="dashboard-comparison-sp-grid-item">
               <Typography className="dashboard-comparison-bar-label" variant="body2">
                 {bar.label}
               </Typography>
@@ -89,7 +88,7 @@ function ComparisonBars({
             </Box>
           );
         })}
-      </Stack>
+      </Box>
     );
   }
 
