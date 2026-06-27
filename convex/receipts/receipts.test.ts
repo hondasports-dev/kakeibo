@@ -1670,6 +1670,68 @@ describe("getFourWeeksSummaryHandler", () => {
     expect(result.weekCount).toBe(3);
   });
 
+  it("各週のカテゴリ別内訳を返す", async () => {
+    const dailyCategory: CategoryDoc = {
+      _id: "cat-002",
+      _creationTime: 1000,
+      groupId: GROUP_ID,
+      name: "日用品",
+      color: "#A6B28B",
+      isActive: true,
+      sortOrder: 2,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+    const receiptDocs: ReceiptDoc[] = [
+      {
+        _id: "r-w0-food",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-01-08",
+        shopName: "shop-A",
+        amountYen: 1000,
+        categoryId: "cat-001",
+        weekStartDate: "2024-01-08",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "r-w0-daily",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        date: "2024-01-09",
+        shopName: "shop-B",
+        amountYen: 2000,
+        categoryId: "cat-002",
+        weekStartDate: "2024-01-08",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+    ];
+
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createQueryCtxForSummary(identity, receiptDocs, [sampleCategory, dailyCategory]);
+    const result = await getFourWeeksSummaryHandler(ctx, { weekStartDate: "2024-01-08" });
+
+    const currentWeek = result.weeks.find((week) => week.weekStartDate === "2024-01-08");
+    expect(currentWeek?.byCategory).toEqual([
+      {
+        categoryId: "cat-002",
+        categoryName: "日用品",
+        categoryColor: "#A6B28B",
+        totalAmountYen: 2000,
+        count: 1,
+      },
+      {
+        categoryId: "cat-001",
+        categoryName: "食費",
+        categoryColor: "#8B5E3C",
+        totalAmountYen: 1000,
+        count: 1,
+      },
+    ]);
+  });
+
   it("全週レシートなしの場合: 4週分の空データを返す", async () => {
     const ctx = createQueryCtx(createIdentity(), []);
     const result = await getFourWeeksSummaryHandler(ctx, { weekStartDate: "2024-01-08" });

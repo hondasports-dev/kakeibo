@@ -25,7 +25,10 @@ export function WeeklySummaryPanel({
       />
 
       {weeklyExpenseTrend !== null && (
-        <WeeklyTrendChart items={weeklyExpenseTrend} isLoading={weeklyExpenseTrend === undefined} />
+        <WeeklyTrendChart
+          chartData={weeklyExpenseTrend}
+          isLoading={weeklyExpenseTrend === undefined}
+        />
       )}
 
       <CategoryBreakdownCard
