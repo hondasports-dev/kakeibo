@@ -5,7 +5,7 @@ import {
   calcPrevWeekRate,
   formatPrevWeekDiff,
   formatPrevWeekRate,
-} from "../utils/weekComparison";
+} from "../../../lib/weekComparison";
 
 type WeekComparisonChartProps = {
   currentTotalAmountYen: number;
