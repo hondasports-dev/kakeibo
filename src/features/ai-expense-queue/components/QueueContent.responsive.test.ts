@@ -7,6 +7,7 @@ describe("ai-expense-queue responsive styles", () => {
 
   it("キューコンテナが横方向に内容を切り落とさない", () => {
     expect(css).not.toMatch(/\.ai-expense-queue\s*\{[^}]*overflow:\s*hidden/);
+    expect(css).toMatch(/\.ai-expense-queue[\s\S]*max-width:\s*100%/);
   });
 
   it("ステータスサマリーが折り返せる", () => {

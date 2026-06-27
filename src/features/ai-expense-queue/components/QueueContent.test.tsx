@@ -54,7 +54,7 @@ describe("QueueContent モバイル表示", () => {
 
     const summary = container.querySelector(".ai-expense-queue-status-summary");
     expect(summary).toBeInTheDocument();
-    expect(summary).toHaveStyle({ flexWrap: "wrap" });
+    expect(summary).toHaveStyle({ flexWrap: "wrap", width: "100%" });
   });
 
   it("長いファイル名は折り返し用クラスと title を付ける", () => {

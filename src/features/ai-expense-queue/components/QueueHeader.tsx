@@ -34,7 +34,7 @@ export function QueueHeader({
       <Stack
         direction={{ xs: "column", sm: "row" }}
         spacing={1}
-        sx={{ minWidth: 0, width: "100%" }}
+        sx={{ maxWidth: "100%", minWidth: 0, width: "100%" }}
       >
         <ImageInputButton
           buttonLabel="レシートを追加"
