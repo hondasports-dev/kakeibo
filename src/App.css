@@ -198,6 +198,7 @@
 .ai-expense-queue {
   display: grid;
   gap: var(--space-sm);
+  max-width: 100%;
   min-width: 0;
   padding: var(--space-sm);
   border: 1px solid var(--color-border-subtle);

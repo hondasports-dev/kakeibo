@@ -67,7 +67,7 @@ export function ExpenseEntryForm({
     <Paper className="paper-panel" elevation={0} sx={{ maxWidth: "100%", minWidth: 0 }}>
       <Box sx={{ maxWidth: "100%", minWidth: 0, p: 2.5 }}>
         <form noValidate onSubmit={handleSubmit}>
-          <Stack spacing={2.5}>
+          <Stack spacing={2.5} sx={{ maxWidth: "100%", minWidth: 0 }}>
             <FormHeading isMultiMode={isMultiMode} />
 
             {apiError && (
