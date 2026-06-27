@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: PR前セルフレビュー／PRレビュー手順。preview 差分を対象に Must-fix / Nice-to-have を洗い出し、push 前修正ループの正本。issue-tdd-workflow §9 から必ず invoke する。
+description: Plan 契約フェーズ4。PR前セルフレビュー／PRレビュー手順。preview 差分を対象に Must-fix / Nice-to-have を洗い出し、push 前修正ループの正本。
 argument-hint: "[--base preview|main]"
 triggers:
   - user
@@ -28,7 +28,7 @@ triggers:
 
 ## 使う場面
 
-- `issue-tdd-workflow` §9 の push 前セルフレビュー（**必須**）
+- AGENTS.md Plan 契約フェーズ4 の push 前セルフレビュー（**必須**）
 - PR レビュー、レビュー指摘の追跡
 
 ## 比較基準ブランチ
@@ -65,7 +65,7 @@ git log --oneline origin/preview..HEAD
 
 ## 指摘の分類と対応ルール
 
-| 区分 | 定義 | `issue-tdd-workflow` での扱い |
+| 区分 | 定義 | Plan 契約での扱い |
 | --- | --- | --- |
 | **Must-fix** | バグ、認可漏れ、テスト不足、完了条件未達、セキュリティ | 修正必須。修正後に本 Skill を再実行 |
 | **Nice-to-have** | リファクタ、命名、軽微な改善 | **diff 内ファイル**に関するものは修正必須。**diff 外のみ**影響するものはフォローアップ Issue リンクで closure |

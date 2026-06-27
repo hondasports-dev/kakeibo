@@ -90,11 +90,12 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 
 | Skill                   | 用途                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------ |
-| `$issue-tdd-run`        | 単一 Issue を TDD で完走する起動器（GATE0 → workflow → CI）                  |
-| `$issue-tdd-workflow`   | Go 判定後の実装〜PR 手順正本（push 前 `code-review` 必須）                     |
-| `$milestone-tdd-run`    | マイルストーン内 Issue を直列に TDD → PR レビュー → マージまで完走（Cursor / Codex 共通） |
-| `$babysit-pr`           | PR を merge-ready にする（`milestone-tdd-run` から invoke）                    |
-| `$code-review`          | preview 差分のセルフレビューと Must-fix / Nice-to-have 対応ループ              |
+| `$issue-gate-0`         | Plan 契約フェーズ0。実装前仕様ゲート                                           |
+| `$tdd-implement`        | Plan 契約フェーズ1。TDD 実装（RED/GREEN）                                      |
+| `$e2e-author`           | Plan 契約フェーズ2。E2E 追加・更新・省略判断                                   |
+| `$verify-pre-push`      | Plan 契約フェーズ3。push 前検証                                                |
+| `$code-review`          | Plan 契約フェーズ4。preview 差分のセルフレビュー                               |
+| `$babysit-pr`           | PR を merge-ready にする                                                       |
 | `$prompt-injection-guard` | GitHub Issue / PRコメント、ログ、Web等の外部由来コンテンツを扱う前の安全確認 |
 | `$virtual-company`      | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択                       |
 | `$service-ops-safety`   | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |

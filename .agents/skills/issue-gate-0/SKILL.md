@@ -1,6 +1,6 @@
 ---
 name: issue-gate-0
-description: GitHub Issue 対応の実装前ゲート。複数ロール要件・仕様ゲート（フェーズ0）の正本。issue-tdd-run から必ず最初に invoke する。統合判定 Go までコード変更禁止。
+description: Plan 契約フェーズ0。GitHub Issue 対応の実装前ゲート。複数ロール要件・仕様ゲートの正本。統合判定 Go までコード変更禁止。
 argument-hint: "<issue-number> [--light|--full]"
 triggers:
   - user
@@ -58,7 +58,7 @@ Issue 本文だけで実装に進まない。統合判定 **Go** と **GATE0 成
 
 | 結果 | 条件 | 次のアクション |
 | --- | --- | --- |
-| **Go** | 対象ロールがすべて `approved` | GATE0 成果物を出力し、`issue-tdd-workflow` へ進む |
+| **Go** | 対象ロールがすべて `approved` | GATE0 成果物を出力し、Plan 契約フェーズ1（`tdd-implement`）へ進む |
 | **Stop** | 1 つでも `needs_discussion` | 論点を統合してユーザー確認。実装禁止 |
 | **Revision** | 1 つでも `needs_revision` | 該当ロールを再確認して再判定 |
 
@@ -90,7 +90,7 @@ UI状態（該当時）: 空 / 読込 / エラー
   - Tech Lead: ...
   - UX/UI（該当時）: ...
   - QA Agent: ...
-次フェーズ: issue-tdd-workflow §3 以降
+次フェーズ: AGENTS.md Plan 契約フェーズ1（tdd-implement）
 ```
 
 Stop / Revision のときも同ブロックを出力し、`統合判定` と `未確定事項` を明記する。
