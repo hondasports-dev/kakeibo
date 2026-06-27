@@ -71,26 +71,22 @@ function ComparisonBars({
       >
         {bars.map((bar) => {
           const widthPercent = barSizePercent(bar.amount, maxAmount);
+          const barWidth = widthPercent > 0 ? `max(${Math.max(widthPercent, 8)}%, 4px)` : "0";
           return (
-            <Stack
-              key={bar.label}
-              className="dashboard-comparison-bar-row"
-              direction="row"
-              spacing={1.5}
-            >
+            <Box key={bar.label} className="dashboard-comparison-bar-row">
               <Typography className="dashboard-comparison-bar-label" variant="body2">
                 {bar.label}
               </Typography>
-              <Box className="dashboard-comparison-bar-row-body">
+              <Box className="dashboard-comparison-bar-track-horizontal">
                 <Box
                   className={`dashboard-comparison-bar dashboard-comparison-bar--horizontal dashboard-comparison-bar--${bar.tone}`}
-                  sx={{ width: widthPercent > 0 ? `max(${widthPercent}%, 8%)` : 0 }}
+                  sx={{ width: barWidth }}
                 />
-                <Typography className="dashboard-comparison-bar-amount" variant="body2">
-                  {formatAmount(bar.amount)}
-                </Typography>
               </Box>
-            </Stack>
+              <Typography className="dashboard-comparison-bar-amount" variant="body2">
+                {formatAmount(bar.amount)}
+              </Typography>
+            </Box>
           );
         })}
       </Stack>
@@ -214,7 +210,11 @@ export function WeekComparisonChart({
         <ComparisonBars bars={bars} isCompact={isCompact} maxAmount={maxAmount} />
 
         {isCompact && (
-          <Typography color="text.secondary" sx={{ fontWeight: 700, mt: 1.5 }} variant="body2">
+          <Typography
+            color="text.secondary"
+            sx={{ fontWeight: 700, mt: 1.5, textAlign: "center" }}
+            variant="body2"
+          >
             {diffSummary}
           </Typography>
         )}

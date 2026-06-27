@@ -141,20 +141,23 @@
 
 .dashboard-comparison-bar-row {
   align-items: center;
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
 }
 
-.dashboard-comparison-bar-row-body {
+.dashboard-comparison-bar-track-horizontal {
   align-items: center;
   display: flex;
   flex: 1;
-  gap: var(--space-sm);
+  height: 40px;
   min-width: 0;
 }
 
 .dashboard-comparison-bar-label {
   flex-shrink: 0;
   min-width: 2.5rem;
-  text-align: center;
+  text-align: left;
 }
 
 .dashboard-comparison-plot {
@@ -204,9 +207,8 @@
   border-radius: 999px;
   flex-shrink: 0;
   height: 40px;
-  max-width: none;
+  max-width: 100%;
   min-width: 0;
-  width: auto;
 }
 
 .dashboard-comparison-bar--previous {
@@ -218,12 +220,14 @@
 }
 
 .dashboard-comparison-bar-amount {
+  flex-shrink: 0;
   font-weight: 700;
+  white-space: nowrap;
 }
 
-.dashboard-comparison-bar-row-body .dashboard-comparison-bar-amount {
-  flex-shrink: 0;
-  white-space: nowrap;
+.dashboard-comparison-bar-row .dashboard-comparison-bar-amount {
+  min-width: 5.5rem;
+  text-align: right;
 }
 
 .paper-panel {
