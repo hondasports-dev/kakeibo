@@ -33,5 +33,12 @@ describe("MemoExpandableText", () => {
       "aria-expanded",
       "false",
     );
+
+    await user.click(screen.getByRole("button", { name: "もっと見る" }));
+    await user.click(screen.getByRole("button", { name: "閉じる" }));
+    expect(screen.getByRole("button", { name: "もっと見る" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
   });
 });

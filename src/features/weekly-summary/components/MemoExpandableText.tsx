@@ -14,6 +14,23 @@ const memoTypographySx = {
   wordBreak: "break-word" as const,
 };
 
+const hiddenMeasureSx = {
+  ...memoTypographySx,
+  position: "absolute" as const,
+  visibility: "hidden" as const,
+  pointerEvents: "none" as const,
+  top: 0,
+  left: 0,
+  width: "100%",
+  height: "auto",
+  maxHeight: "none",
+};
+
+function measureMemoNeedsCollapse(measureElement: HTMLSpanElement): boolean {
+  const lineHeight = parseFloat(getComputedStyle(measureElement).lineHeight);
+  return memoNeedsCollapseByLayout(measureElement.scrollHeight, lineHeight);
+}
+
 export function MemoExpandableText({ memo }: { memo: string }) {
   const needsCollapseByLines = memoNeedsCollapseByLineCount(memo);
   const [expanded, setExpanded] = useState(false);
@@ -23,11 +40,11 @@ export function MemoExpandableText({ memo }: { memo: string }) {
 
   useEffect(() => {
     setExpanded(false);
-    setNeedsCollapse(memoNeedsCollapseByLineCount(memo));
   }, [memo]);
 
   useLayoutEffect(() => {
     if (needsCollapseByLines) {
+      setNeedsCollapse(true);
       return;
     }
 
@@ -37,71 +54,17 @@ export function MemoExpandableText({ memo }: { memo: string }) {
     }
 
     const updateNeedsCollapse = () => {
-      const lineHeight = parseFloat(getComputedStyle(measureElement).lineHeight);
-      setNeedsCollapse(memoNeedsCollapseByLayout(measureElement.scrollHeight, lineHeight));
+      const nextNeedsCollapse = measureMemoNeedsCollapse(measureElement);
+      setNeedsCollapse((current) => (current === nextNeedsCollapse ? current : nextNeedsCollapse));
     };
 
     updateNeedsCollapse();
 
-    if (typeof ResizeObserver === "undefined") {
-      return;
-    }
-
-    const resizeObserver = new ResizeObserver(updateNeedsCollapse);
-    resizeObserver.observe(measureElement);
-
+    window.addEventListener("resize", updateNeedsCollapse);
     return () => {
-      resizeObserver.disconnect();
+      window.removeEventListener("resize", updateNeedsCollapse);
     };
   }, [memo, needsCollapseByLines]);
-
-  const visibleTypography = (
-    <Typography
-      color="text.secondary"
-      data-testid="memo-expandable-content"
-      id={contentId}
-      sx={{
-        ...memoTypographySx,
-        ...(needsCollapse && !expanded ? getMemoLineClampSx(MEMO_COLLAPSED_MAX_LINES) : {}),
-      }}
-      variant="caption"
-    >
-      {memo}
-    </Typography>
-  );
-
-  if (!needsCollapse) {
-    return (
-      <Stack
-        data-testid="memo-expandable-text"
-        spacing={0.25}
-        sx={{ mt: 0.5, maxWidth: "100%", position: "relative" }}
-      >
-        {!needsCollapseByLines && (
-          <Typography
-            ref={measureRef}
-            aria-hidden
-            color="text.secondary"
-            component="span"
-            data-testid="memo-expand-measure"
-            sx={{
-              ...memoTypographySx,
-              position: "absolute",
-              visibility: "hidden",
-              pointerEvents: "none",
-              width: "100%",
-              inset: 0,
-              height: "auto",
-            }}
-            variant="caption"
-          >
-            {memo}
-          </Typography>
-        )}
-        {visibleTypography}
-      </Stack>
-    );
-  }
 
   return (
     <Stack
@@ -109,25 +72,51 @@ export function MemoExpandableText({ memo }: { memo: string }) {
       spacing={0.25}
       sx={{ mt: 0.5, maxWidth: "100%", position: "relative" }}
     >
-      {visibleTypography}
-      <Box>
-        <Button
-          aria-controls={contentId}
-          aria-expanded={expanded}
-          color="primary"
-          data-testid="memo-expand-toggle"
-          endIcon={
-            expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />
-          }
-          onClick={() => setExpanded((current) => !current)}
-          size="small"
-          sx={{ minHeight: 28, minWidth: 0, px: 0, textTransform: "none" }}
-          type="button"
-          variant="text"
+      {!needsCollapseByLines && (
+        <Typography
+          ref={measureRef}
+          aria-hidden
+          color="text.secondary"
+          component="span"
+          data-testid="memo-expand-measure"
+          sx={hiddenMeasureSx}
+          variant="caption"
         >
-          {expanded ? "閉じる" : "もっと見る"}
-        </Button>
-      </Box>
+          {memo}
+        </Typography>
+      )}
+      <Typography
+        color="text.secondary"
+        data-testid="memo-expandable-content"
+        id={contentId}
+        sx={{
+          ...memoTypographySx,
+          ...(needsCollapse && !expanded ? getMemoLineClampSx(MEMO_COLLAPSED_MAX_LINES) : {}),
+        }}
+        variant="caption"
+      >
+        {memo}
+      </Typography>
+      {needsCollapse && (
+        <Box>
+          <Button
+            aria-controls={contentId}
+            aria-expanded={expanded}
+            color="primary"
+            data-testid="memo-expand-toggle"
+            endIcon={
+              expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />
+            }
+            onClick={() => setExpanded((current) => !current)}
+            size="small"
+            sx={{ minHeight: 28, minWidth: 0, px: 0, textTransform: "none" }}
+            type="button"
+            variant="text"
+          >
+            {expanded ? "閉じる" : "もっと見る"}
+          </Button>
+        </Box>
+      )}
     </Stack>
   );
 }

@@ -16,8 +16,9 @@ describe("memoExpandableTextUtils", () => {
     expect(memoNeedsCollapseByLineCount("あ\nい\nう\nえ\nお")).toBe(true);
   });
 
-  it("折り返しで2行超になる高さなら折りたたみ対象", () => {
+  it("折り返しで3行以上になる高さなら折りたたみ対象", () => {
     expect(memoNeedsCollapseByLayout(60, 20)).toBe(true);
+    expect(memoNeedsCollapseByLayout(41, 20)).toBe(true);
     expect(memoNeedsCollapseByLayout(40, 20)).toBe(false);
   });
 });
