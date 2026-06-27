@@ -44,4 +44,22 @@ describe("WeekNavigator", () => {
     expect(onPreviousWeek).toHaveBeenCalledOnce();
     expect(onNextWeek).toHaveBeenCalledOnce();
   });
+
+  it("コンパクト表示でも前後週ボタンのアクセシブル名を維持する", () => {
+    render(
+      <WeekNavigator
+        compactOnMobile
+        weekStartDate="2026-05-11"
+        weekEndDate="2026-05-17"
+        isCurrentWeek={false}
+        onPreviousWeek={vi.fn()}
+        onNextWeek={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "前の週へ" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "次の週へ" })).toBeInTheDocument();
+    expect(screen.getByTestId("ChevronLeftIcon")).toBeInTheDocument();
+    expect(screen.getByTestId("ChevronRightIcon")).toBeInTheDocument();
+  });
 });
