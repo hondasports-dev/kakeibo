@@ -6,11 +6,13 @@ export function CategoryBreakdownCard({
   byCategory,
   count,
   isLoading,
+  title = "カテゴリ別",
   totalAmountYen,
 }: {
   byCategory: CategorySummary[];
   count: number;
   isLoading: boolean;
+  title?: string;
   totalAmountYen: number;
 }) {
   return (
@@ -18,7 +20,7 @@ export function CategoryBreakdownCard({
       <Box sx={{ p: 2.5 }}>
         <Stack spacing={2}>
           <Typography component="h2" variant="h6">
-            カテゴリ別
+            {title}
           </Typography>
 
           {isLoading ? (

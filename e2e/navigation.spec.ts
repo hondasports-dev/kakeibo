@@ -198,19 +198,14 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect(page).toHaveURL("/settings");
   });
 
-  test("@navigation シナリオN-4: ダッシュボードにカテゴリ別内訳・前週比カードが表示されない", async ({
+  test("@navigation シナリオN-4: ダッシュボードにカテゴリ別内訳・前週比が表示される", async ({
     page,
   }) => {
     await gotoAuthenticated(page);
 
-    // 「カテゴリ別内訳」「カテゴリ別支出」というテキストが表示されないことを確認
-    await expect(page.getByText("カテゴリ別内訳")).not.toBeVisible();
-    await expect(page.getByText("カテゴリ別支出")).not.toBeVisible();
-
-    // カードの数が3枚以内であることを確認
-    const articles = page.locator('[role="article"]');
-    const count = await articles.count();
-    expect(count).toBeLessThanOrEqual(3);
+    await expect(page.getByRole("heading", { name: "支出カテゴリ", level: 2 })).toBeVisible();
+    await expect(page.getByLabel("前週比").first()).toBeVisible();
+    await expect(page.getByRole("heading", { name: "前週との比較", level: 2 })).toBeVisible();
   });
 
   test("@navigation シナリオN-5: SP幅でInputPageを開くとフォームのみが表示される", async ({
