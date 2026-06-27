@@ -550,10 +550,11 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     });
   });
 
-  test("[Issue #359] 長いメモは省略表示し、展開と折りたたみを切り替えられる", async ({ page }) => {
+  test("[Issue #359] 3行以上のメモは省略表示し、展開と折りたたみを切り替えられる", async ({
+    page,
+  }) => {
     const shopName = `QAメモ359_${Date.now()}`;
-    const longMemo = "メモ確認用の長文テスト。".repeat(4);
-    const previewText = `${longMemo.slice(0, 40)}…`;
+    const multiLineMemo = ["あ", "い", "う", "え", "お", "か", "き", "く", "け", "こ"].join("\n");
 
     await page.getByLabel("店舗名 / 支払先").fill(shopName);
     await page.getByLabel("合計金額").fill("1500");
@@ -561,7 +562,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
       .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
       .first()
       .click();
-    await page.getByLabel("メモ").fill(longMemo);
+    await page.getByLabel("メモ").fill(multiLineMemo);
     await page.getByRole("button", { name: "保存して次へ" }).click();
 
     await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
@@ -569,19 +570,35 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
+    await page.getByRole("heading", { name: "支出一覧" }).scrollIntoViewIfNeeded();
 
     const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    const memoContent = receiptRow.getByTestId("memo-expandable-content");
     await expect(receiptRow).toBeVisible({ timeout: 15_000 });
-    await expect(receiptRow.getByText(previewText)).toBeVisible();
-    await expect(receiptRow.getByText(longMemo)).not.toBeVisible();
+    await expect(memoContent).toContainText("あ");
+    await expect(memoContent).toContainText("こ");
+    await expect(receiptRow.getByRole("button", { name: "もっと見る" })).toBeVisible();
+    await expect
+      .poll(async () =>
+        memoContent.evaluate((element) => element.scrollHeight > element.clientHeight + 1),
+      )
+      .toBe(true);
 
     await receiptRow.getByRole("button", { name: "もっと見る" }).click();
-    await expect(receiptRow.getByText(longMemo)).toBeVisible();
     await expect(receiptRow.getByRole("button", { name: "閉じる" })).toBeVisible();
+    await expect
+      .poll(async () =>
+        memoContent.evaluate((element) => element.scrollHeight <= element.clientHeight + 1),
+      )
+      .toBe(true);
 
     await receiptRow.getByRole("button", { name: "閉じる" }).click();
-    await expect(receiptRow.getByText(previewText)).toBeVisible();
-    await expect(receiptRow.getByText(longMemo)).not.toBeVisible();
+    await expect(receiptRow.getByRole("button", { name: "もっと見る" })).toBeVisible();
+    await expect
+      .poll(async () =>
+        memoContent.evaluate((element) => element.scrollHeight > element.clientHeight + 1),
+      )
+      .toBe(true);
   });
 
   test("[Issue #14] 保存後に週次サマリーの支出件数が更新される", async ({ page }) => {

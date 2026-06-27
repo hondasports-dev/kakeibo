@@ -237,6 +237,8 @@ function SingleEntryFields({
         fullWidth
         id="expense-memo"
         label="メモ（任意）"
+        minRows={2}
+        multiline
         onChange={(event) => onItemChange("memo", event.target.value)}
         value={memo}
         slotProps={{ htmlInput: { "aria-label": "メモ" } }}

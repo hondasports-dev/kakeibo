@@ -1,0 +1,32 @@
+/** この行数以上になる表示は「もっと見る / 閉じる」を出す */
+export const MEMO_COLLAPSE_LINE_THRESHOLD = 3;
+
+/** 折りたたみ時に見せる最大行数（3行以上必要なときだけトグル） */
+export const MEMO_COLLAPSED_MAX_LINES = 2;
+
+export function countExplicitMemoLines(memo: string): number {
+  if (memo.length === 0) {
+    return 0;
+  }
+  return memo.split("\n").length;
+}
+
+export function memoNeedsCollapseByLineCount(memo: string): boolean {
+  return countExplicitMemoLines(memo) >= MEMO_COLLAPSE_LINE_THRESHOLD;
+}
+
+export function memoNeedsCollapseByLayout(scrollHeight: number, lineHeight: number): boolean {
+  if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+    return false;
+  }
+  return scrollHeight > lineHeight * MEMO_COLLAPSED_MAX_LINES + 1;
+}
+
+export function getMemoLineClampSx(maxLines: number) {
+  return {
+    display: "-webkit-box",
+    WebkitLineClamp: maxLines,
+    WebkitBoxOrient: "vertical" as const,
+    overflow: "hidden",
+  };
+}

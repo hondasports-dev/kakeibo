@@ -35,22 +35,22 @@ describe("ReceiptRow", () => {
   it("短いメモは全文を表示する", () => {
     renderWithProviders(<ReceiptRow receipt={{ ...sampleReceipt, memo: "夕食の買い物" }} />);
 
-    expect(screen.getByText("夕食の買い物")).toBeInTheDocument();
+    expect(screen.getByTestId("memo-expandable-content")).toHaveTextContent("夕食の買い物");
     expect(screen.queryByRole("button", { name: "もっと見る" })).not.toBeInTheDocument();
   });
 
-  it("長いメモは省略表示し、展開すると全文が見える", async () => {
+  it("改行3行以上のメモはトグルで展開すると全文が見える", async () => {
     const user = userEvent.setup();
-    const longMemo = "あ".repeat(50);
+    const multiLineMemo = ["あ", "い", "う", "え", "お"].join("\n");
 
-    renderWithProviders(<ReceiptRow receipt={{ ...sampleReceipt, memo: longMemo }} />);
+    renderWithProviders(<ReceiptRow receipt={{ ...sampleReceipt, memo: multiLineMemo }} />);
 
-    expect(screen.getByText(`${"あ".repeat(40)}…`)).toBeInTheDocument();
-    expect(screen.queryByText(longMemo)).not.toBeInTheDocument();
+    expect(screen.getByTestId("memo-expandable-content").textContent).toContain("あ");
+    expect(screen.getByTestId("memo-expandable-content").textContent).toContain("お");
+    expect(screen.getByRole("button", { name: "もっと見る" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "もっと見る" }));
 
-    expect(screen.getByText(longMemo)).toBeVisible();
     expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
   });
 
