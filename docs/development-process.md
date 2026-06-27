@@ -325,12 +325,28 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 
 ## CI とマージ条件
 
-必須チェックは次の4つです（`ci.yml` の lint ジョブ内で lint + format:check を実行）。
+必須チェックは **複数の GitHub Actions ワークフロー** に分かれる。
+
+| ワークフロー | 内容 | 備考 |
+| --- | --- | --- |
+| `CI` (`ci.yml`) | Build / Lint / Test | `pull_request` で起動 |
+| `E2E` (`e2e.yml`) | smoke E2E（Chromium） | Vercel Preview デプロイ成功後に `deployment_status` で起動 |
+
+`ci.yml` 内の必須ジョブ:
 
 - `pnpm run lint`（oxlint）
 - `pnpm run format:check`（oxfmt）
 - `pnpm run build`
 - `pnpm test --run`
+
+### マージ前の待機（エージェント / 人手共通）
+
+**PR の status check がすべて SUCCESS になるまで merge しない。**
+
+- `CI` だけ green でも、E2E が `pending` なら **未完了**
+- 監視コマンドの正本: `gh pr checks <pr-number> --watch`
+- `gh run watch <run_id>` は CI 修復用。**merge 判定には使わない**（1 run しか見えないため）
+- エージェントは merge 前に **`babysit-pr`** で merge-ready を確認する（`AGENTS.md` 参照）
 
 Markdown のみを変更する Pull Request / push では、GitHub Actions の CI を実行しません。
 `.github/workflows/ci.yml` は `**/*.md` のみの変更を `paths-ignore` で除外します。

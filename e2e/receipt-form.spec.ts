@@ -492,6 +492,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
   test.afterEach(async ({ page }) => {
     await cleanupTestReceipts({ page });
+    await cleanupE2eExpenseEntries({ page });
     await cleanupTestCategories({ page });
   });
 
@@ -547,6 +548,40 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await expect(receiptRows.filter({ hasText: "999円" }).first()).toBeVisible({
       timeout: 15_000,
     });
+  });
+
+  test("[Issue #359] 長いメモは省略表示し、展開と折りたたみを切り替えられる", async ({ page }) => {
+    const shopName = `QAメモ359_${Date.now()}`;
+    const longMemo = "メモ確認用の長文テスト。".repeat(4);
+    const previewText = `${longMemo.slice(0, 40)}…`;
+
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("1500");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByLabel("メモ").fill(longMemo);
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
+
+    const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    await expect(receiptRow).toBeVisible({ timeout: 15_000 });
+    await expect(receiptRow.getByText(previewText)).toBeVisible();
+    await expect(receiptRow.getByText(longMemo)).not.toBeVisible();
+
+    await receiptRow.getByRole("button", { name: "もっと見る" }).click();
+    await expect(receiptRow.getByText(longMemo)).toBeVisible();
+    await expect(receiptRow.getByRole("button", { name: "閉じる" })).toBeVisible();
+
+    await receiptRow.getByRole("button", { name: "閉じる" }).click();
+    await expect(receiptRow.getByText(previewText)).toBeVisible();
+    await expect(receiptRow.getByText(longMemo)).not.toBeVisible();
   });
 
   test("[Issue #14] 保存後に週次サマリーの支出件数が更新される", async ({ page }) => {
