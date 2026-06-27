@@ -78,10 +78,24 @@ pnpm run e2e:smoke -- --project=chromium
 
 ### Push後CI自動監視
 
+**`CI` ワークフロー（`ci.yml`）の SUCCESS だけでは merge しない。** E2E は Vercel Preview
+デプロイ後に別ワークフロー（`e2e.yml`）で起動するため、PR 上では CI ✅ / E2E ⏳
+が並ぶ。merge 前は **PR の全 status check** が green になるまで待つ。
+
 ```bash
-# push直後にCIを監視開始（失敗時は自動原因分析へ）
+# merge 前の正本: PR 単位ですべての check を監視（CI + E2E + CodeQL 等）
+gh pr checks <pr-number> --watch
+
+# push 直後に特定 run を追う場合（CI 修復ループ用。merge 判定には使わない）
+gh run list --branch <head-branch> --limit 5
 gh run watch <run_id> --exit-status
 ```
+
+**merge 前ハードゲート（エージェント）:**
+
+- `gh pr merge` の前に **`babysit-pr`** を Read して merge-ready を確認する
+- `gh pr checks` に `pending` / `fail` が 1 件でもあれば merge しない
+- `gh run watch` を **1 本だけ** SUCCESS にして merge したら **違反**（#367 で E2E 待たず merge した教訓）
 
 ### CI失敗時の自動対応フロー
 

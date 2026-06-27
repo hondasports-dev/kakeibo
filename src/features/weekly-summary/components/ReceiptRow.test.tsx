@@ -46,7 +46,7 @@ describe("ReceiptRow", () => {
     renderWithProviders(<ReceiptRow receipt={{ ...sampleReceipt, memo: longMemo }} />);
 
     expect(screen.getByText(`${"あ".repeat(40)}…`)).toBeInTheDocument();
-    expect(screen.getByText(longMemo)).not.toBeVisible();
+    expect(screen.queryByText(longMemo)).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "もっと見る" }));
 

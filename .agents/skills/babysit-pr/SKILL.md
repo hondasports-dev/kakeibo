@@ -64,13 +64,31 @@ git rebase origin/preview
 
 - 本 PR の変更起因の失敗は修正する。workflow 自体をいじって通すことは禁止
 - base が古い可能性があるときは `git rebase origin/preview` して再 push（`--force-with-lease`）
-- CI 監視:
+
+**複数ワークフローに注意:** PR には少なくとも次が並ぶことがある。
+
+| ワークフロー | トリガー | 例 |
+| --- | --- | --- |
+| `CI` (`ci.yml`) | `pull_request` | Build / Lint / Test |
+| `E2E` (`e2e.yml`) | Vercel `deployment_status` | smoke E2E（Preview URL 対象） |
+| `CodeQL` 等 | `pull_request` | 静的解析 |
+
+`gh run watch <run_id>` は **1 run だけ** 監視する。`CI` が SUCCESS でも E2E が
+`pending` の間は **merge-ready ではない**。
+
+- CI 修復ループ（単一 run のログ確認）:
 
 ```bash
 gh run list --branch <head-branch> --limit 5
 gh run watch <run_id> --exit-status
 # 失敗時
 gh run view <run_id> --log-failed
+```
+
+- **merge 判定**（PR 全体の check がすべて green になるまで待つ）:
+
+```bash
+gh pr checks <N> --watch
 ```
 
 - 同一失敗 **2 回** → **`stuck-advisor`**

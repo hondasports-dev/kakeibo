@@ -53,7 +53,11 @@ export function ReceiptRow({
             {receipt.categoryName}
           </Typography>
         </Stack>
-        {receipt.memo && <MemoExpandableText memo={receipt.memo} />}
+        {receipt.memo && (
+          <Box sx={{ mt: 0.5, width: "100%" }}>
+            <MemoExpandableText memo={receipt.memo} />
+          </Box>
+        )}
         {(onEdit || onDelete) && (
           <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
             {onEdit && (
