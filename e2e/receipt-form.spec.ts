@@ -892,11 +892,16 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     ).toBeVisible({ timeout: 20_000 });
   });
 
-  test("[Issue #47] ダッシュボードにグラフが表示されない", async ({ page }) => {
-    // ダッシュボード（/）ではグラフが表示されない
+  test("[Issue #47] ダッシュボードに前週比較グラフが表示される", async ({ page }) => {
     await gotoAuthenticated(page);
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
 
+    await expect(page.getByRole("heading", { name: "前週との比較", level: 2 })).toBeVisible();
+    await expect(
+      page
+        .getByRole("img", { name: "前週との比較グラフ" })
+        .or(page.getByText("前週との比較データがあると表示されます")),
+    ).toBeVisible();
     await expect(page.getByRole("img", { name: "週別支出推移グラフ" })).not.toBeVisible();
   });
 
