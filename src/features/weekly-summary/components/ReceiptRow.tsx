@@ -2,6 +2,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { formatDateForDisplay } from "../../week";
+import { MemoExpandableText } from "./MemoExpandableText";
 import type { ReceiptItem } from "../types/types";
 
 export function ReceiptRow({
@@ -51,12 +52,12 @@ export function ReceiptRow({
           <Typography color="text.secondary" variant="body2">
             {receipt.categoryName}
           </Typography>
-          {receipt.memo && (
-            <Typography color="text.secondary" variant="caption">
-              メモあり
-            </Typography>
-          )}
         </Stack>
+        {receipt.memo && (
+          <Box sx={{ mt: 0.5, width: "100%" }}>
+            <MemoExpandableText memo={receipt.memo} />
+          </Box>
+        )}
         {(onEdit || onDelete) && (
           <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
             {onEdit && (

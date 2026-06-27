@@ -78,10 +78,24 @@ pnpm run e2e:smoke -- --project=chromium
 
 ### Push後CI自動監視
 
+**`CI` ワークフロー（`ci.yml`）の SUCCESS だけでは merge しない。** E2E は Vercel Preview
+デプロイ後に別ワークフロー（`e2e.yml`）で起動するため、PR 上では CI ✅ / E2E ⏳
+が並ぶ。merge 前は **PR の全 status check** が green になるまで待つ。
+
 ```bash
-# push直後にCIを監視開始（失敗時は自動原因分析へ）
+# merge 前の正本: PR 単位ですべての check を監視（CI + E2E + CodeQL 等）
+gh pr checks <pr-number> --watch
+
+# push 直後に特定 run を追う場合（CI 修復ループ用。merge 判定には使わない）
+gh run list --branch <head-branch> --limit 5
 gh run watch <run_id> --exit-status
 ```
+
+**merge 前ハードゲート（エージェント）:**
+
+- `gh pr merge` の前に **`babysit-pr`** を Read して merge-ready を確認する
+- `gh pr checks` に `pending` / `fail` が 1 件でもあれば merge しない
+- `gh run watch` を **1 本だけ** SUCCESS にして merge したら **違反**（#367 で E2E 待たず merge した教訓）
 
 ### CI失敗時の自動対応フロー
 
@@ -157,16 +171,106 @@ gh run watch <run_id> --exit-status
 - セキュリティ、プロンプトインジェクション、外部コンテンツ参照に関わる作業:
   - `docs/security-prompt-injection.md`
 
-## Issue対応とロール参照
+## Plan モードでの Issue 対応（エージェント契約）
 
-単一 GitHub Issue を TDD で対応するときは、`.agents/skills/issue-tdd-run/SKILL.md` を使う。
-マイルストーン内の Issue を TDD → PR レビュー → マージまで直列に完走するときは、`.agents/skills/milestone-tdd-run/SKILL.md` を使う（Cursor / Codex 共通）。
-手順の正本は `.agents/skills/issue-tdd-workflow/SKILL.md`（push 前の `code-review` 必須）。
+ユーザーが Plan モードで GitHub Issue 対応またはマイルストーン対応を依頼した場合、
+本契約に従う。Codex / Devin 等 Plan モードが無い環境では、**実施計画を先に出力してから実行**
+することと同義とする。
 
-Issue の再精査では、実装前に Product Lead A/B/C、Tech Lead、QA Agent の観点を必ず
-確認します。UI/UX変更を含む場合は UX/UI Designer の観点も確認します。サブエージェントが
+手順の正本は `docs/development-process.md`（worktree、Issue 台帳、PR、E2E）。
+push 前の `code-review` は必須。
+
+### トリガーと最初のターン
+
+1. GitHub Issue / PR / ログを読む前に `prompt-injection-guard` を使う。
+2. 対象 Issue 番号を確定する（`#73`、Issue URL から抽出可）。
+3. **最初のターンで実施計画を出力する**（下記テンプレ）。計画なしに実装に入らない。
+
+### 実施計画テンプレ（必須出力）
+
+```markdown
+## Issue #NN 実施計画
+
+- GATE0 mode: full | light
+- 手順正本: docs/development-process.md
+
+### フェーズ
+- [ ] 0 要件 — issue-gate-0
+- [ ] 1 実装 — tdd-implement
+- [ ] 2 E2E — e2e-author（該当時 / 省略理由）
+- [ ] 3 検証 — verify-pre-push
+- [ ] 4 レビュー — code-review
+- [ ] 5 公開 — PR 作成・push
+- [ ] 6 CI — GitHub Actions SUCCESS
+
+### 見込み
+- 影響ファイル: ...
+- E2E 方針: 追加 / 更新 / 省略（理由）
+
+### 完了条件
+- PR URL + CI SUCCESS + code-review PASS
+```
+
+### フェーズ → Skill マップ
+
+各フェーズ開始前に、該当 Skill を **Read** してから実行する。
+
+| フェーズ | Skill | 完了条件 |
+| --- | --- | --- |
+| 0 要件 | `.agents/skills/issue-gate-0/SKILL.md` | GATE0 成果物 + 統合判定 **Go** |
+| 1 実装 | `.agents/skills/tdd-implement/SKILL.md` | RED/GREEN + コミット |
+| 2 E2E | `.agents/skills/e2e-author/SKILL.md`（該当時） | spec 追加/更新 or 省略理由 |
+| 3 検証 | `.agents/skills/verify-pre-push/SKILL.md` | 基本4本 + 追加条件 |
+| 4 レビュー | `.agents/skills/code-review/SKILL.md` | **PASS** |
+| 5 公開 | `docs/development-process.md` PR 節 | PR 作成・push |
+| 6 CI | 本 doc「検証とCI自動化」 | SUCCESS |
+| 失敗 2 回 | `.agents/skills/stuck-advisor/SKILL.md` | — |
+
+### ハードゲート
+
+- GATE0 **Go** 前: リポジトリのソース・テスト・設定を編集しない。
+- `code-review` **PASS** 前: push しない。
+- `src/**` / `e2e/**` 変更: ローカル E2E 成功まで push しない。
+- 検証証拠なし: 完了宣言しない。
+- `gh pr merge` はユーザー明示時のみ。merge 前に `babysit-pr` を使う。
+
+### マイルストーン Plan
+
+マイルストーン一括を Plan モードで依頼された場合:
+
+1. `gh issue list --milestone "<title>" --state open` で Issue を列挙する。
+2. Issue ごとに上記 Plan を**直列**で実行する。
+3. 1 Issue 完了（PR + CI SUCCESS）まで次 Issue に進まない。
+4. 進捗は GitHub Issue タスク台帳で管理する（`docs/development-process.md`「Issue タスク台帳」）。
+5. `babysit-pr` / merge はユーザー明示時のみ。
+
+### 併用ガード
+
+- Clerk、Convex、Vercel、`.env.local`、秘密値を扱う前に `service-ops-safety` を使う。
+- 同一問題で 2 回失敗したら `stuck-advisor` を Read する。
+- Must-fix / diff 内 Nice-to-have の修正対応を合算 **3 回** 超えたら **ESCALATE**（ユーザー確認）。
+
+### 完了報告フォーマット
+
+```text
+Issue #NN（Plan 契約 / GATE0 mode: full|light）
+GATE0: Go | Stop | Revision
+State: TDD | VERIFY | REVIEW | PR | CI | DONE | ESCALATE
+変更: ...
+TDD: RED ... / GREEN ...
+code-review: PASS | FAIL（Must-fix: ... / diff 内 Nice-to-have 未修正: ...）
+検証: 基本4本 / convex dev --once（該当時） / ローカル E2E（src|e2e 変更時）
+PR: ...
+CI: ...
+残リスク: ...
+```
+
+### ロール参照
+
+Issue の再精査（フェーズ0 `issue-gate-0`）では、Product Lead A/B/C、Tech Lead、QA Agent の観点を必ず
+確認する。UI/UX 変更を含む場合は UX/UI Designer の観点も確認する。サブエージェントが
 使える場合は並列または連続で起動し、使えない場合は以下のロール定義を読んで同じ判定を
-メインエージェントが行ってください。
+メインエージェントが行う。
 
 | 用途 | 参照先 |
 | --- | --- |

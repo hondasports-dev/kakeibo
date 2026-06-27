@@ -31,4 +31,33 @@ describe("ReceiptRow", () => {
     expect(onEdit).toHaveBeenCalledWith(sampleReceipt);
     expect(onDelete).toHaveBeenCalledWith(sampleReceipt);
   });
+
+  it("短いメモは全文を表示する", () => {
+    renderWithProviders(<ReceiptRow receipt={{ ...sampleReceipt, memo: "夕食の買い物" }} />);
+
+    expect(screen.getByTestId("memo-expandable-content")).toHaveTextContent("夕食の買い物");
+    expect(screen.queryByRole("button", { name: "もっと見る" })).not.toBeInTheDocument();
+  });
+
+  it("改行3行以上のメモはトグルで展開すると全文が見える", async () => {
+    const user = userEvent.setup();
+    const multiLineMemo = ["あ", "い", "う", "え", "お"].join("\n");
+
+    renderWithProviders(<ReceiptRow receipt={{ ...sampleReceipt, memo: multiLineMemo }} />);
+
+    expect(screen.getByTestId("memo-expandable-content").textContent).toContain("あ");
+    expect(screen.getByTestId("memo-expandable-content").textContent).toContain("お");
+    expect(screen.getByRole("button", { name: "もっと見る" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "もっと見る" }));
+
+    expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
+  });
+
+  it("メモがない場合はメモ行を表示しない", () => {
+    renderWithProviders(<ReceiptRow receipt={sampleReceipt} />);
+
+    expect(screen.queryByRole("button", { name: "もっと見る" })).not.toBeInTheDocument();
+    expect(screen.queryByText("メモあり")).not.toBeInTheDocument();
+  });
 });

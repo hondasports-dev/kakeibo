@@ -19,7 +19,7 @@ pnpm run e2e:smoke -- --project=chromium
 pnpm run e2e -- --project=chromium
 ```
 
-`issue-tdd-workflow` でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
+Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
 ローカルで必要なE2Eを実行します。Issue 用 worktree では先に
 `docs/development-process.md` の「`.env.local` 同期」を実施します。環境変数不足や
 外部サービス要因で実行できない場合は、

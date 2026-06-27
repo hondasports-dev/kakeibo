@@ -8,58 +8,36 @@ Codex / Devinでは、まず `$virtual-company` を使って依頼を分解す�
 
 Codexで実行時サブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探す。`multi_agent_v1.spawn_agent` が使える場合はそれを使い、プロンプトに「xxx サブエージェントを起動」という役割名を明記する。
 
-通常の `$virtual-company` では、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」とある場合に実行時サブエージェントを起動する。`$issue-tdd-run` では、Issue処理フロー自体が `issue-gate-0` による複数ロール確認を要求するため、ユーザーが追加で許可文を書いていなくても Product Lead A/B/C、Tech Lead、QA Agent などを起動する。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
+通常の `$virtual-company` では、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」とある場合に実行時サブエージェントを起動する。Plan 契約（`AGENTS.md`）で Issue を処理する場合、フェーズ0（`issue-gate-0`）が複数ロール確認を要求するため、ユーザーが追加で許可文を書いていなくても Product Lead A/B/C、Tech Lead、QA Agent などを起動してよい。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 
 ## Issue を1つ解決する場合（推奨）
 
-GitHub Issue番号を渡すだけで、仕様検討→E2Eテスト設計レビュー→TDD実装→コードレビュー→GitHub Actions E2E確認
-までを自動ループして解決する。
+Cursor では Plan モードで Issue 番号を渡す。Codex / Devin では「実施計画を先に出力してから実行」と指示する。
+エージェント契約の正本は **`AGENTS.md`「Plan モードでの Issue 対応」**。手順の正本は **`docs/development-process.md`**。
 
-```text
-/issue-tdd-run 21
-```
-
-内部フロー（正本: `.agents/skills/issue-tdd-run/SKILL.md` → `issue-tdd-workflow`）:
+内部フロー:
 
 1. **`issue-gate-0`** — プロダクトリードA/B/C、Tech Lead、QA Agent（UI変更時は UX/UIデザイナー）が要件を確認する。
    - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
-2. **TDD 実装** — `issue-tdd-workflow` §6 に従い、RED → GREEN で進める。
-3. **検証** — §8 の push 前検証、必要ならローカル E2E。
-4. **`code-review`** — §9 で preview 差分のセルフレビューと Must-fix / Nice-to-have 対応ループ。
-5. **PR 作成・push** — §10。
-6. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → §9 再レビュー → 再 push。
-7. すべてのチェックが通ったら完了報告を返す。
+2. **`tdd-implement`** — RED → GREEN で進める。
+3. **`e2e-author`**（該当時） — E2E spec 追加・更新、または省略理由。
+4. **`verify-pre-push`** — push 前検証、必要ならローカル E2E。
+5. **`code-review`** — preview 差分のセルフレビューと Must-fix / Nice-to-have 対応ループ。
+6. **PR 作成・push** — `docs/development-process.md`「Issue 対応フロー」参照。
+7. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → 再検証 → `code-review` 再実行 → 再 push。
 
-ループ上限を超えた場合や環境起因のエラーは、自動的に中断してユーザーに報告する。
-詳細は `.agents/skills/issue-tdd-workflow/SKILL.md` を参照。
+ループ上限を超えた場合や環境起因のエラーは、中断してユーザーに報告する。
 
 ## マイルストーンを一括で解決する場合
 
-マイルストーン内の open Issue を、**直列に** TDD 実装 → PR レビュー → **マージ** まで自動で回す。
+Plan モードでマイルストーン名を渡す。`AGENTS.md`「マイルストーン Plan」に従い、open Issue を**直列**で処理する。
 
-```text
-$milestone-tdd-run "M2 週次グラフ"
-```
+1. `gh issue list --milestone "<title>" --state open` で Issue を列挙
+2. 各 Issue で上記フロー（GATE0 → TDD → verify → review → PR → CI）
+3. ユーザー明示時のみ **`babysit-pr`** → **`gh pr merge --rebase`**
+4. 進捗は GitHub Issue タスク台帳で管理する
 
-**Cursor** では `$milestone-tdd-run`、**Codex / Devin** では `.agents/skills/milestone-tdd-run/SKILL.md` を読んで同じ手順を実行する。
-
-内部フロー（正本: `.agents/skills/milestone-tdd-run/SKILL.md`）:
-
-1. `gh` でマイルストーン内の open Issue を列挙・ソート
-2. 各 Issue で **`issue-tdd-run`**（GATE0 → TDD → push 前 `code-review` → PR → CI）
-3. **`babysit-pr`** — PR コメント・Bugbot/CodeRabbit・CI を merge-ready まで
-4. **`gh pr merge --rebase`** — rebase マージ（`--no-merge` でスキップ可）
-5. Issue close → 次 Issue へ
-
-中断再開:
-
-```text
-$milestone-tdd-run "M2 週次グラフ" --resume
-```
-
-進捗は `.agents/state/milestone-<slug>.json` に保存される（git 管理外）。
-
-`convex/` / `.github/` 変更で CODEOWNERS approval が必要な場合は **BLOCKED_ON_APPROVAL** で停止する。
+`convex/` / `.github/` 変更で CODEOWNERS approval が必要な場合は人間 approval が必要。
 
 ## Codex / Devinでの使い方
 

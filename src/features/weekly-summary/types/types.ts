@@ -1,4 +1,4 @@
-import type { WeeklyExpenseChartItem } from "../utils/weeklyExpenseChartData";
+import type { WeeklyExpenseChartData } from "../utils/weeklyExpenseChartData";
 
 export type CategorySummary = {
   categoryId: string;
@@ -30,7 +30,7 @@ export type WeeklySummaryPanelProps = {
   receipts: ReceiptItem[];
   isLoading?: boolean;
   weekStartDate: string;
-  weeklyExpenseTrend?: WeeklyExpenseChartItem[] | null;
+  weeklyExpenseTrend?: WeeklyExpenseChartData | null;
   onDeleteReceipt?: (receipt: ReceiptItem) => void;
   onEditReceipt?: (receipt: ReceiptItem) => void;
 };

@@ -2,7 +2,7 @@ import { screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/render";
 import { WeeklySummaryPanel } from "./WeeklySummaryPanel";
-import type { WeeklyExpenseChartItem } from "../utils/weeklyExpenseChartData";
+import { buildWeeklyExpenseChartData } from "../utils/weeklyExpenseChartData";
 
 describe("WeeklySummaryPanel", () => {
   it("レシート0件では空状態を表示し、予算情報は表示しない", () => {
@@ -112,35 +112,15 @@ describe("WeeklySummaryPanel", () => {
   });
 
   it("weeklyExpenseTrendがデータを含むときグラフが表示される", () => {
-    const weeklyExpenseTrend: WeeklyExpenseChartItem[] = [
-      {
-        weekStartDate: "2023-12-25",
-        weekEndDate: "2023-12-31",
-        label: "2週前",
-        amount: 1_000,
-        previousDiff: 200,
-        averageDiff: 200,
-        averageRate: 25,
-      },
-      {
-        weekStartDate: "2024-01-01",
-        weekEndDate: "2024-01-07",
-        label: "先週",
-        amount: 2_000,
-        previousDiff: 1_000,
-        averageDiff: 1_000,
-        averageRate: 100,
-      },
-      {
-        weekStartDate: "2024-01-08",
-        weekEndDate: "2024-01-14",
-        label: "今週",
-        amount: 3_000,
-        previousDiff: 1_000,
-        averageDiff: 1_500,
-        averageRate: 100,
-      },
-    ];
+    const weeklyExpenseTrend = buildWeeklyExpenseChartData({
+      currentWeekStartDate: "2024-01-08",
+      targetWeekStartDate: "2024-01-08",
+      weeks: [
+        { weekStartDate: "2023-12-25", totalAmountYen: 1_000, byCategory: [] },
+        { weekStartDate: "2024-01-01", totalAmountYen: 2_000, byCategory: [] },
+        { weekStartDate: "2024-01-08", totalAmountYen: 3_000, byCategory: [] },
+      ],
+    });
     renderWithProviders(
       <WeeklySummaryPanel
         count={0}
@@ -168,7 +148,15 @@ describe("WeeklySummaryPanel", () => {
         prevWeekTotalAmountYen={null}
         receipts={[]}
         weekStartDate="2024-01-08"
-        weeklyExpenseTrend={[]}
+        weeklyExpenseTrend={buildWeeklyExpenseChartData({
+          currentWeekStartDate: "2024-01-08",
+          targetWeekStartDate: "2024-01-08",
+          weeks: [
+            { weekStartDate: "2023-12-25", totalAmountYen: 0, byCategory: [] },
+            { weekStartDate: "2024-01-01", totalAmountYen: 0, byCategory: [] },
+            { weekStartDate: "2024-01-08", totalAmountYen: 0, byCategory: [] },
+          ],
+        })}
       />,
     );
 

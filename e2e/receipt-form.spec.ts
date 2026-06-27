@@ -492,6 +492,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
   test.afterEach(async ({ page }) => {
     await cleanupTestReceipts({ page });
+    await cleanupE2eExpenseEntries({ page });
     await cleanupTestCategories({ page });
   });
 
@@ -547,6 +548,77 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await expect(receiptRows.filter({ hasText: "999円" }).first()).toBeVisible({
       timeout: 15_000,
     });
+  });
+
+  test("[Issue #359] 3行以上のメモは省略表示し、展開と折りたたみを切り替えられる", async ({
+    page,
+  }) => {
+    const shopName = `QAメモ359_${Date.now()}`;
+    const multiLineMemo = ["あ", "い", "う", "え", "お", "か", "き", "く", "け", "こ"].join("\n");
+
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("1500");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByLabel("メモ").fill(multiLineMemo);
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+
+    const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    const memoContent = receiptRow.getByTestId("memo-expandable-content");
+    const toggle = receiptRow.getByTestId("memo-expand-toggle");
+    await expect(receiptRow).toBeVisible({ timeout: 15_000 });
+    await expect(memoContent).toContainText("あ");
+    await expect(memoContent).toContainText("こ");
+    await expect(toggle).toHaveText("もっと見る");
+
+    await toggle.click();
+    await expect(toggle).toHaveText("閉じる");
+    await toggle.click();
+    await expect(toggle).toHaveText("もっと見る");
+  });
+
+  test("[Issue #359] 40文字超の1行メモも折り返し時は展開と折りたたみを切り替えられる", async ({
+    page,
+  }) => {
+    const shopName = `QAメモ359wrap_${Date.now()}`;
+    const wrappedMemo = "メモ確認用の長文テスト。".repeat(8);
+
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("1600");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByLabel("メモ").fill(wrappedMemo);
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+
+    const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    const toggle = receiptRow.getByTestId("memo-expand-toggle");
+
+    await expect(receiptRow).toBeVisible({ timeout: 15_000 });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+    await expect(toggle).toHaveText("もっと見る");
+
+    await toggle.click();
+    await expect(toggle).toHaveText("閉じる");
+    await toggle.click();
+    await expect(toggle).toHaveText("もっと見る");
+    await toggle.click();
+    await expect(toggle).toHaveText("閉じる");
+    await toggle.click();
+    await expect(toggle).toHaveText("もっと見る");
   });
 
   test("[Issue #14] 保存後に週次サマリーの支出件数が更新される", async ({ page }) => {
