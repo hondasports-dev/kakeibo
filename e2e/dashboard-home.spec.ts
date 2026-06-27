@@ -22,19 +22,22 @@ test.describe("ホーム画面拡充（Issue #370）", () => {
     await expect(page.getByRole("heading", { name: "支出カテゴリ", level: 2 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "今週の入力", level: 2 })).toBeVisible();
     await expect(page.locator(".dashboard-grid")).toBeVisible();
+    await expect(page.getByRole("link", { name: "今週のサマリーを見る ›" })).toBeVisible();
   });
 
   test("[Issue #370] SP幅で入力パネルがカテゴリより上に表示される", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    const inputHeading = page.getByRole("heading", { name: "今週の入力", level: 2 });
+    const resumeButton = page
+      .getByRole("link", { name: "入力を再開" })
+      .or(page.getByRole("link", { name: "今週の入力を開始" }));
     const categoryHeading = page.getByRole("heading", { name: "支出カテゴリ", level: 2 });
 
-    await expect(inputHeading).toBeVisible();
+    await expect(resumeButton.first()).toBeVisible();
     await expect(categoryHeading).toBeVisible();
 
-    const inputBox = await inputHeading.boundingBox();
+    const inputBox = await resumeButton.first().boundingBox();
     const categoryBox = await categoryHeading.boundingBox();
     expect(inputBox).not.toBeNull();
     expect(categoryBox).not.toBeNull();
@@ -45,6 +48,6 @@ test.describe("ホーム画面拡充（Issue #370）", () => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    await expect(page.getByRole("link", { name: "今週のサマリーを見る ›" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "今週のサマリーを見る" })).toBeVisible();
   });
 });

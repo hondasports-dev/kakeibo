@@ -100,7 +100,7 @@ test.describe("メイン画面の表示確認", () => {
     // Issue #49: ダッシュボードに変更
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
     // summary-grid の主要カード
-    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
+    await expect(page.locator(".dashboard-summary-panel").getByText("今週の支出")).toBeVisible();
   });
 
   test("@smoke シナリオ3: ページリロードしてもログイン状態が維持される", async ({ page }) => {
@@ -460,7 +460,7 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
   test("[Issue #14] ダッシュボードに今週の支出カウンターが表示される", async ({ page }) => {
     await page.getByRole("link", { name: "ホーム" }).click();
     await expect(page).toHaveURL("/");
-    const spendCard = page.locator(".summary-grid .paper-panel").filter({ hasText: "今週の支出" });
+    const spendCard = page.locator(".dashboard-summary-panel").filter({ hasText: "今週の支出" });
     await expect(spendCard.locator("[data-value]")).toBeVisible();
   });
 

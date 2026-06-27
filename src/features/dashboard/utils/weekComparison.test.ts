@@ -4,6 +4,7 @@ import {
   calcPrevWeekRate,
   formatPrevWeekDiff,
   formatPrevWeekRate,
+  formatPrevWeekRateWithArrow,
 } from "./weekComparison";
 
 describe("weekComparison", () => {
@@ -50,6 +51,15 @@ describe("weekComparison", () => {
       expect(formatPrevWeekRate(-8)).toBe("-8%");
       expect(formatPrevWeekRate(0)).toBe("±0%");
       expect(formatPrevWeekRate(null)).toBe("前週データなし");
+    });
+  });
+
+  describe("formatPrevWeekRateWithArrow", () => {
+    it("前週比に矢印を付けてフォーマットする", () => {
+      expect(formatPrevWeekRateWithArrow(-8)).toBe("-8% ↓");
+      expect(formatPrevWeekRateWithArrow(9)).toBe("+9% ↑");
+      expect(formatPrevWeekRateWithArrow(0)).toBe("±0%");
+      expect(formatPrevWeekRateWithArrow(null)).toBe("前週データなし");
     });
   });
 });

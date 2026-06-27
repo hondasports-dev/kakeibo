@@ -41,3 +41,15 @@ export function formatPrevWeekRate(rate: number | null): string {
   const sign = rate > 0 ? "+" : "";
   return `${sign}${rate}%`;
 }
+
+export function formatPrevWeekRateWithArrow(rate: number | null): string {
+  if (rate === null) {
+    return "前週データなし";
+  }
+  if (rate === 0) {
+    return "±0%";
+  }
+  const sign = rate > 0 ? "+" : "";
+  const arrow = rate > 0 ? " ↑" : " ↓";
+  return `${sign}${rate}%${arrow}`;
+}

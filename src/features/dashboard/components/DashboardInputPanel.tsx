@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
+import TaskAltIcon from "@mui/icons-material/TaskAlt";
 import { Box, Button, Chip, Paper, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { AnimatedCounter } from "../../ui";
@@ -21,27 +22,63 @@ export function DashboardInputPanel({ count, status, weekStartDate }: DashboardI
       : "入力を再開";
   const primaryHref = isCompleted ? `/weeks/${weekStartDate}` : "/weeks/current/input";
 
+  if (isCompact) {
+    return (
+      <Paper
+        className="paper-panel dashboard-input-panel dashboard-input-panel--compact"
+        elevation={0}
+      >
+        <Box sx={{ p: 2.5 }}>
+          <Stack spacing={2} sx={{ alignItems: "center" }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+              <TaskAltIcon color="success" sx={{ fontSize: 28 }} />
+              <Typography sx={{ fontWeight: 700 }} variant="h5">
+                <AnimatedCounter value={count} suffix=" 件入力済み" />
+              </Typography>
+            </Stack>
+            <Button
+              component={Link}
+              fullWidth
+              size="large"
+              sx={{ minHeight: 44 }}
+              to={primaryHref}
+              variant="contained"
+            >
+              {primaryLabel}
+            </Button>
+          </Stack>
+        </Box>
+      </Paper>
+    );
+  }
+
   return (
-    <Paper className="paper-panel" elevation={0}>
+    <Paper className="paper-panel dashboard-input-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
         <Stack spacing={2}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-            <Typography component="h2" variant="h6">
-              今週の入力
+          <Typography component="h2" variant="h6">
+            今週の入力
+          </Typography>
+
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "center", justifyContent: "space-between" }}
+          >
+            <Typography color="text.secondary" variant="body2">
+              入力状況
             </Typography>
             <Chip
-              color={isCompleted ? "success" : "primary"}
-              label={isCompleted ? "完了済み" : "入力中"}
+              color={isCompleted ? "success" : "warning"}
+              label={isCompleted ? "完了済み" : "● 入力中"}
               size="small"
               variant={isCompleted ? "filled" : "outlined"}
             />
           </Stack>
 
-          <Stack spacing={0.5}>
-            <Typography color="text.secondary" variant="body2">
-              入力状況
-            </Typography>
-            <Typography sx={{ fontWeight: 700 }} variant="h5">
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
+            <TaskAltIcon color="success" sx={{ fontSize: 28 }} />
+            <Typography sx={{ fontWeight: 700 }} variant="h4">
               <AnimatedCounter value={count} suffix=" 件入力済み" />
             </Typography>
           </Stack>
@@ -56,7 +93,7 @@ export function DashboardInputPanel({ count, status, weekStartDate }: DashboardI
             >
               {primaryLabel}
             </Button>
-            {!isCompact && !isCompleted && (
+            {!isCompleted && (
               <Button
                 component={Link}
                 size="large"
