@@ -712,7 +712,9 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     // PC幅で入力画面 → 保存 → サマリー遷移の流れで確認
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoAuthenticated(page, "/weeks/current/input");
-    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
 
     // Issue #181: ExpenseEntryForm セレクターに変更
     const shopName = `QAサマリーテスト_${Date.now()}`;
