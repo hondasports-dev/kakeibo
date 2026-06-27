@@ -78,7 +78,7 @@ export function QueueContent({
           className="ai-expense-queue-status-summary"
           direction="row"
           spacing={1}
-          sx={{ flex: 1, flexWrap: "wrap", minWidth: 0 }}
+          sx={{ flex: 1, flexWrap: "wrap", minWidth: 0, width: "100%" }}
         >
           <Chip
             color="default"

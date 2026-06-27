@@ -1,6 +1,6 @@
 # 認証ガード適用方針
 
-このドキュメントは、kakeibo プロジェクトにおける Clerk + Convex 認証の適用方針を定義します。
+このドキュメントは、kakeibo プロジェクト（UI ブランド名: Suzumemo）における Clerk + Convex 認証の適用方針を定義します。
 
 ## 全体方針
 
@@ -9,19 +9,25 @@ Convex データへの認可とは別の仕組みです。
 Convex 側では必ず `ctx.auth.getUserIdentity()` を使い、
 未認証の場合は query / mutation / action を拒否します。
 
+家計データの所有境界は **グループ（`groupId`）** です。ユーザーは `groupMembers` を通じて
+1 つ以上のグループに所属し、`users.activeGroupId` で表示対象グループを選択します。
+
 ## Convex 側の認証・認可
 
 ### 基本ルール
 
-| ルール           | 詳細                                                                             |
-| ---------------- | -------------------------------------------------------------------------------- |
-| 認証確認         | すべての query / mutation で `ctx.auth.getUserIdentity()` を呼ぶ                 |
-| 未認証拒否       | `identity === null` の場合は `ConvexError("Not authenticated")` をスローする     |
-| 認可キー         | `identity.tokenIdentifier` を優先する（`subject` は使わない）                    |
-| userId の解決    | クライアント引数を信用せず、サーバー側で `identity.tokenIdentifier` から解決する |
-| データ所有者分離 | receipt / category / weekSession などの家計データは `userId` で所有者を分離する  |
+| ルール           | 詳細                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------ |
+| 認証確認         | すべての query / mutation / action で `ctx.auth.getUserIdentity()` を呼ぶ                  |
+| 未認証拒否       | `identity === null` の場合は `ConvexError("Not authenticated")` をスローする               |
+| 認可キー         | `identity.tokenIdentifier` を優先する（`subject` は使わない）                              |
+| userId の解決    | クライアント引数を信用せず、サーバー側で `identity.tokenIdentifier` から解決する         |
+| データ所有境界   | receipt / category / weekSession / expenseEntry などの家計データは **`groupId`** で分離する |
+| グループ所属確認 | 家計データへアクセスする query / mutation では `requireGroupMembership` 等で所属を確認する |
 
-### 共通ヘルパー（`convex/users/auth.ts`）
+### 共通ヘルパー
+
+**認証（`convex/users/auth.ts`）**
 
 ```typescript
 // 未認証時は ConvexError をスロー、認証時は tokenIdentifier を返す
@@ -29,28 +35,48 @@ export async function requireAuthenticatedUserId(ctx: AuthContext): Promise<stri
 
 // identity から AuthState を生成する純粋関数（query の返り値作成に使う）
 export function getAuthStateFromIdentity(identity: UserIdentity | null): AuthState
+```
 
+**ユーザー upsert（`convex/users/mutations.ts`）**
+
+```typescript
 // ログイン後に呼び出す mutation。users テーブルを upsert する
 export const upsertUser = mutation({ args: {}, handler: async (ctx) => { ... } })
+```
+
+**グループ認可（`convex/groups/membership.ts` / `convex/groups/adminGuards.ts`）**
+
+```typescript
+// 認証済みユーザーの active group メンバーシップを取得。未所属なら throw
+export async function requireGroupMembership(ctx): Promise<GroupMembership>
+
+// active group のオーナー権限を要求
+export async function requireGroupOwner(ctx): Promise<GroupMembership>
+
+// クライアントが指定した groupId が active group と一致するか確認
+export function assertActiveGroupScope(requestedGroupId, activeGroupId): void
 ```
 
 ### query / mutation での使用例
 
 ```typescript
-import { requireAuthenticatedUserId } from "./users/auth";
+import { requireGroupMembership } from "./groups/membership";
 
-export const listReceipts = query({
+export const listExpenseEntries = query({
   args: {},
   handler: async (ctx) => {
-    const userId = await requireAuthenticatedUserId(ctx);
+    const { groupId } = await requireGroupMembership(ctx);
     return await ctx.db
-      .query("receipts")
-      .withIndex("by_user_id_and_date", (q) => q.eq("userId", userId))
+      .query("expenseEntries")
+      .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
       .order("desc")
       .take(50);
   },
 });
 ```
+
+`receipts` テーブルも同様に `by_group_id_and_date` インデックスで `groupId` を絞り込む。
+詳細は `docs/group-admin-permissions.md` を参照する。
 
 ### システム管理者の認可
 
@@ -58,8 +84,10 @@ export const listReceipts = query({
 `requireSystemAdmin(ctx)` を入口で実行する。`systemAdmins` の active record だけを許可し、
 クライアント引数、Clerk metadata、メールアドレスを権限根拠にしない。
 
-この認可は家計データのグループ認可を置き換えない。詳細は
+**現行コードでは `systemAdmins` テーブルと関連関数は未実装**である。設計の正本は
 `docs/system-admin-authorization.md` を参照する。
+
+この認可は家計データのグループ認可を置き換えない。
 
 ## フロントエンド側の認証ガード
 
@@ -74,26 +102,31 @@ ClerkProvider
 
 `ConvexProviderWithClerk` が Clerk の JWT を自動的に Convex リクエストに付与します。
 
-### 認証状態のチェック順序（`AuthenticatedApp` コンポーネント）
+### 認証状態のチェック順序（`App.tsx`）
+
+公開パス（`/privacy`、`/terms`、`/maintenance` 等）は認証前に `RouterProvider` へ渡す。
+それ以外は `AuthenticatedApp` で以下を順に確認する。
 
 1. `useAuth().isLoaded` が `false` → ローディング表示
 2. `useAuth().isSignedIn` が `false` → サインイン画面（`SignedOutScreen`）
 3. `useConvexAuth().isLoading` が `true` → ローディング表示
 4. `useConvexAuth().isAuthenticated` が `false` → 接続エラー表示
-5. すべて通過 → `KakeiboApp`（家計簿本体）
+5. すべて通過 → `RouterProvider`（家計簿本体）
+
+公開パスの定義は `src/features/app-shell/lib/publicPaths.ts` を参照する。
+
+### グループルートガード（`src/router.tsx` の `GroupRouteGuard`）
+
+認証済みユーザーが家計データ画面へ入る前に、グループ所属状態を確認する。
+
+- グループ未所属 → `/group/setup` へリダイレクト
+- 複数グループ所属かつ `activeGroupId` 未選択 → `/group/select` へリダイレクト
+- 招待受け入れ → `/group/invitations/accept`（公開パスとして認証前ルーターにも載せる）
 
 ### useInitializeUser フック（`src/features/auth/hooks/useInitializeUser.ts`）
 
-`KakeiboApp` のトップレベルで呼び出す。Convex 認証確立後に 1 回だけ `upsertUser` を呼び出し、
+`AuthenticatedApp` 内で呼び出す。Convex 認証確立後に 1 回だけ `upsertUser` を呼び出し、
 users テーブルにレコードを作成・更新します。
-
-```typescript
-function KakeiboApp() {
-  useInitializeUser() // ← ここで呼び出す
-
-  return ( ... )
-}
-```
 
 - Convex 認証が確立された直後に 1 度だけ実行される（`useRef` で重複実行防止）
 - エラーは `console.error` に記録し、UI をブロックしない
@@ -105,12 +138,16 @@ function KakeiboApp() {
 
 ## 関連ファイル
 
-| ファイル                         | 役割                                                               |
-| -------------------------------- | ------------------------------------------------------------------ |
-| `convex/auth.config.ts`          | Convex の JWT issuer 設定（CLERK_JWT_ISSUER_DOMAIN を参照）        |
-| `convex/schema.ts`               | users テーブル定義（`by_token_identifier` インデックス）           |
-| `convex/users/auth.ts`           | 認証ヘルパー（`requireAuthenticatedUserId` 等）                    |
-| `convex/users/mutations.ts`      | ユーザー向け mutation（`upsertUser` 等）                           |
-| `src/main.tsx`                   | ClerkProvider + ConvexProviderWithClerk の Provider 構成           |
-| `src/App.tsx`                    | 認証状態ガード（AuthenticatedApp）と KakeiboApp での初期化呼び出し |
+| ファイル                                       | 役割                                                               |
+| ---------------------------------------------- | ------------------------------------------------------------------ |
+| `convex/auth.config.ts`                        | Convex の JWT issuer 設定（CLERK_JWT_ISSUER_DOMAIN を参照）        |
+| `convex/schema.ts`                             | users / groupMembers / groups テーブル定義                         |
+| `convex/users/auth.ts`                         | 認証ヘルパー（`requireAuthenticatedUserId` 等）                    |
+| `convex/users/mutations.ts`                    | ユーザー向け mutation（`upsertUser` 等）                           |
+| `convex/groups/membership.ts`                  | グループ所属確認（`requireGroupMembership` 等）                    |
+| `convex/groups/adminGuards.ts`               | active group スコープ・オーナー権限                                |
+| `src/main.tsx`                                 | ClerkProvider + ConvexProviderWithClerk の Provider 構成           |
+| `src/App.tsx`                                  | 認証状態ガード（AuthenticatedApp）と公開パス分岐                   |
+| `src/router.tsx`                               | ルーティングと `GroupRouteGuard`                                   |
+| `src/features/app-shell/lib/publicPaths.ts`    | 公開パス定義                                                       |
 | `src/features/auth/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |

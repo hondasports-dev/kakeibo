@@ -83,4 +83,35 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expectLocatorInsideViewport(saveButton);
     await expectLocatorLeftInsideViewport(saveButton);
   });
+
+  test("@smoke シナリオR-4b: 406px viewport でキュー有データ時も主要要素が viewport 内に収まる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await page.goto("/__e2e__/ai-expense-queue");
+
+    const queueSection = page.locator("section.ai-expense-queue");
+    const statusSummary = page.locator(".ai-expense-queue-status-summary");
+    const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
+    const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
+    const failedChip = queueSection.getByText("失敗 1件");
+
+    await expect(queueSection).toBeVisible();
+    await expect(statusSummary).toBeVisible();
+    await expect(addReceiptButton).toBeVisible();
+    await expect(cameraButton).toBeVisible();
+    await expect(failedChip).toBeVisible();
+    await expect(queueSection.getByText("登録準備OK 1件")).toBeVisible();
+    await expect(queueSection.getByText("確認が必要 1件")).toBeVisible();
+
+    await page.waitForTimeout(400);
+
+    await expectNoHorizontalOverflow(page);
+    await expectLocatorInsideViewport(queueSection);
+    await expectLocatorInsideViewport(statusSummary);
+    await expectLocatorInsideViewport(addReceiptButton);
+    await expectLocatorInsideViewport(cameraButton);
+    await expectLocatorInsideViewport(failedChip);
+  });
 });

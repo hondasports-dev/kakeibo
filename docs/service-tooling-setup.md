@@ -30,24 +30,23 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 
 ### 2.1 現在のセットアップ状態
 
-2026-05-12時点では、主要な外部サービスの初期接続は完了している。アプリ実装へ進む前の確認事項として、Google OAuth、Clerk + Convex連携、Vercel env登録方針が残っている。
+2026-06 時点では、MVP 実装が完了しており、主要な外部サービス連携は運用フェーズにある。
+UI ブランド名は **Suzumemo**、Clerk application 名は **kakeibo** である。
 
-| 項目                      | 状態                                                       | 次に必要な作業                                                 |
+| 項目                      | 状態                                                       | 備考                                                           |
 | ------------------------- | ---------------------------------------------------------- | -------------------------------------------------------------- |
-| `pnpm`                    | 完了                                                       | なし                                                           |
-| Vite + React + TypeScript | 雛形作成済み                                               | サービス連携完了後に本実装へ進む                               |
-| Chrome DevTools MCP       | 設定済み、ローカル画面確認済み                             | 必要に応じてブラウザ確認に使う                                 |
-| Clerk CLI                 | ログイン済み                                               | Google OAuthのDevelopment設定を確認する                        |
-| Clerk application         | `kakeibo` を新規作成してリンク済み                         | Production instanceは独自ドメイン取得後に構築する               |
-| Clerk env                 | `.env.local` に取得済み                                    | secretをGit管理外に保つ                                        |
-| Convex CLI                | project/dev deployment作成済み                             | schema実装前に設計を再確認する                                 |
-| Convex MCP                | Codexへ登録済み                                            | 次回Codexセッションでtools表示を確認する                       |
-| Convex AI files           | インストール済み                                           | Convex実装時は `convex/_generated/ai/guidelines.md` を先に読む |
-| Vercel CLI                | ログイン済み、projectリンク済み、GitHub repository連携済み | env登録方針を確定する                                          |
-| Vercel MCP                | OAuth完了、project取得確認済み                             | deployment/log確認はdeploy後に行う                             |
-| `.gitignore`              | secret/local state除外済み                                 | 新しいsecret系ファイルを追加した場合は都度確認する             |
+| `pnpm`                    | 完了                                                       | パッケージマネージャー正本                                     |
+| Vite + React + TypeScript | 完了                                                       | React 19 + Vite 8                                              |
+| Clerk + Google OAuth      | 完了                                                       | Restricted mode + invitation                                   |
+| Clerk + Convex 連携       | 完了                                                       | `ConvexProviderWithClerk`、`CLERK_JWT_ISSUER_DOMAIN` 必須      |
+| Convex schema / functions | 完了                                                       | `expenseEntries`、AI 下書き、グループ管理を含む                |
+| Chrome DevTools MCP       | 利用可能                                                   | `devDependencies` に同梱。`npx chrome-devtools-mcp` でも可     |
+| Convex MCP                | 利用可能                                                   | deployment / tables / logs 確認                                |
+| Vercel CLI / MCP          | 完了                                                       | Preview / Production workflow 運用中                           |
+| E2E（Playwright）         | 完了                                                       | `@clerk/testing` + Testing Token 方式                          |
+| `.gitignore`              | secret/local state 除外済み                                | 新しい secret 系ファイル追加時は都度確認                       |
 
-この状態では、主要サービスの初期接続は完了している。ただし、Google OAuthとClerk + Convex連携は未完了であるため、認証・DB連携を含むアプリ実装へ進む前に確認する。
+新規環境構築時は §2.2 を参照。Cursor Cloud 向けの anonymous Convex 起動は `AGENTS.md` を参照。
 
 ### 2.2 初回構築手順
 
@@ -59,9 +58,10 @@ Clerk CLIはMCPではないため、旧ファイル名 `MCP_SETUP.md` では内�
 pnpm install
 ```
 
-1. Codex MCPを登録する。
+1. Codex MCPを登録する（Codex CLI 向け）。Cursor IDE / Cursor Cloud では `.cursor/mcp.json` または Cursor Settings の MCP 設定を使う。
 
 ```bash
+# Codex CLI の場合
 codex mcp add vercel --url https://mcp.vercel.com
 codex mcp add convex -- npx -y convex@latest mcp start
 codex mcp add chrome-devtools -- npx -y chrome-devtools-mcp@latest
@@ -727,7 +727,7 @@ args: -y chrome-devtools-mcp@latest
 - 起動コマンド: `pnpm run dev -- --host 127.0.0.1`
 - 確認URL: `http://localhost:5174/`
 - 補足: `5173` は使用中だったため、Viteが自動で `5174` を使用した
-- DOM確認: 見出し `週1レシート入力` を確認
+- DOM確認: ブランドロゴ「Suzumemo スズメモ」、ダッシュボードまたは入力画面が表示されること
 - Console確認: errorなし、フォームフィールドの `id` または `name` 不足issueが1件
 - Network確認: 主要requestは200
 - Error overlay: Vite error overlayなし

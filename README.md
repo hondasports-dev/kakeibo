@@ -4,12 +4,62 @@
 
 レシート画像をAIで読み取り、まとめて支出を記録・振り返るための個人向けWeb家計簿アプリです。
 
+UI ブランド名は **Suzumemo**、リポジトリ名は **kakeibo** です。
+
 ## ローカル起動
+
+### 1. 依存関係と環境変数
 
 ```bash
 pnpm install
+cp .env.example .env.local
+```
+
+`.env.local` に Clerk と Convex の値を設定します。詳細は [`docs/environment-variables.md`](docs/environment-variables.md) を参照してください。
+
+最低限必要な変数:
+
+- `VITE_CLERK_PUBLISHABLE_KEY`
+- `CLERK_SECRET_KEY`
+- `VITE_CONVEX_URL`
+- `VITE_CONVEX_SITE_URL`（E2E / HTTP エンドポイント用）
+
+### 2. Convex バックエンド
+
+```bash
+pnpm run convex:dev
+```
+
+または Cursor Cloud 等では `CONVEX_AGENT_MODE=anonymous npx convex dev` で匿名 dev deployment を起動できます（`AGENTS.md` 参照）。
+
+Convex 側には最低限 `CLERK_JWT_ISSUER_DOMAIN` を設定してください:
+
+```bash
+pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
+pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
+pnpm exec convex env set APP_ENV development
+```
+
+### 3. フロントエンド
+
+```bash
 pnpm run dev -- --host 127.0.0.1
 ```
+
+ブラウザで `http://localhost:5173` を開きます。
+
+## 検証コマンド
+
+```bash
+pnpm test --run
+pnpm run lint
+pnpm run format:check
+pnpm run build
+pnpm run e2e:smoke -- --project=chromium
+pnpm run e2e -- --project=chromium
+```
+
+E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同期が必要です（[`docs/development-process.md`](docs/development-process.md) 参照）。
 
 ## 主要ドキュメント
 
@@ -20,6 +70,7 @@ pnpm run dev -- --host 127.0.0.1
 | プロダクト要件                       | `docs/requirements.md`          |
 | 技術設計、認証、環境分離             | `docs/technical-design.md`      |
 | UI/UX、MUI方針、入力フロー           | `docs/ui-ux-design.md`          |
+| グループ管理・権限                   | `docs/group-admin-permissions.md` |
 | 外部サービス操作ツールのセットアップ | `docs/service-tooling-setup.md` |
 
 ### 開発プロセス・運用
