@@ -49,7 +49,11 @@ export function SummaryMetricsPanel({
   isLoading?: boolean;
 }) {
   return (
-    <Paper className="paper-panel weekly-summary-metrics" elevation={0}>
+    <Paper
+      className="paper-panel weekly-summary-metrics"
+      data-testid={isLoading ? "weekly-summary-metrics-loading" : "weekly-summary-metrics"}
+      elevation={0}
+    >
       {isLoading ? (
         <Box className="weekly-summary-metrics-grid">
           {[0, 1, 2].map((key) => (
