@@ -479,7 +479,7 @@
   display: grid;
   grid-template-columns:
     96px minmax(140px, 1.3fr) minmax(100px, 0.8fr) 112px minmax(140px, 1fr)
-    152px;
+    184px;
   gap: var(--space-md);
   align-items: center;
   padding: var(--space-sm) var(--space-xs);
@@ -500,6 +500,10 @@
 .receipt-row-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+.receipt-row-actions .MuiButton-root {
+  white-space: nowrap;
 }
 
 .weekly-summary-header {
@@ -730,7 +734,7 @@
 
   .weekly-chart-totals,
   .weekly-chart-ranges {
-    padding-left: 44px;
+    padding-left: 60px;
     padding-right: 8px;
   }
 
