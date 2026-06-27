@@ -54,14 +54,14 @@ const chartData = buildWeeklyExpenseChartData({
 });
 
 describe("WeeklyTrendChart", () => {
-  it("対象週の要約と週別棒グラフを表示する", () => {
+  it("週別棒グラフ・合計・週範囲・カテゴリ凡例を表示する", () => {
     renderWithProviders(<WeeklyTrendChart chartData={chartData} />);
 
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
-    expect(screen.getByText("対象週の支出")).toBeInTheDocument();
     expect(screen.getByText("15,000円")).toBeInTheDocument();
-    expect(screen.getByText("+3,000円")).toBeInTheDocument();
-    expect(screen.getByText("+36%")).toBeInTheDocument();
+    expect(screen.getByText("6/15〜6/21")).toBeInTheDocument();
+    expect(screen.getByText("食費")).toBeInTheDocument();
+    expect(screen.getByText("日用品")).toBeInTheDocument();
     expect(screen.getByTestId("weekly-expense-trend-chart")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
   });
@@ -92,22 +92,5 @@ describe("WeeklyTrendChart", () => {
 
     expect(screen.getByTestId("weekly-expense-trend-loading")).toBeInTheDocument();
     expect(screen.queryByTestId("weekly-expense-trend-chart")).not.toBeInTheDocument();
-  });
-
-  it("平均を計算できないとき比較データなしと表示する", () => {
-    renderWithProviders(
-      <WeeklyTrendChart
-        chartData={{
-          ...chartData,
-          items: chartData.items.map((item, index) =>
-            index === chartData.items.length - 1
-              ? { ...item, averageRate: null, averageDiff: null }
-              : item,
-          ),
-        }}
-      />,
-    );
-
-    expect(screen.getByText("比較データなし")).toBeInTheDocument();
   });
 });

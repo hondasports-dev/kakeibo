@@ -25,27 +25,9 @@ function formatAxisAmount(amount: number): string {
   return formatAmount(amount);
 }
 
-function formatDiff(amount: number | null): string {
-  if (amount === null) return "比較データなし";
-  return `${amount > 0 ? "+" : ""}${currencyFormatter.format(amount)}円`;
-}
-
-function formatRate(rate: number | null): string {
-  if (rate === null) return "比較データなし";
-  return `${rate > 0 ? "+" : ""}${rate}%`;
-}
-
-function SummaryMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <Stack spacing={0.25} sx={{ minWidth: 0 }}>
-      <Typography color="text.secondary" variant="caption">
-        {label}
-      </Typography>
-      <Typography sx={{ fontWeight: 700 }} variant="body1">
-        {value}
-      </Typography>
-    </Stack>
-  );
+function formatMonthDay(date: string): string {
+  const [, month, day] = date.split("-").map(Number);
+  return `${month}/${day}`;
 }
 
 export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendChartProps) {
@@ -87,7 +69,6 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
     );
   }
 
-  const targetWeek = items.at(-1)!;
   const chartSeries =
     series.length > 0
       ? series.map((entry) => ({
@@ -117,15 +98,13 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
           週別支出推移
         </Typography>
 
-        <Stack
-          direction="row"
-          spacing={{ xs: 2, sm: 4 }}
-          sx={{ mb: 1, overflowX: "auto", pb: 0.5 }}
-        >
-          <SummaryMetric label="対象週の支出" value={formatAmount(targetWeek.amount)} />
-          <SummaryMetric label="前週差" value={formatDiff(targetWeek.previousDiff)} />
-          <SummaryMetric label="2週平均比" value={formatRate(targetWeek.averageRate)} />
-        </Stack>
+        <Box className="weekly-chart-totals" aria-label="週ごとの支出合計">
+          {items.map((item) => (
+            <Typography key={item.weekStartDate} sx={{ fontWeight: 700 }} variant="caption">
+              {formatAmount(item.amount)}
+            </Typography>
+          ))}
+        </Box>
 
         <Box aria-label="週別支出推移グラフ" role="img" sx={{ minWidth: 0, width: "100%" }}>
           <BarChart
@@ -149,6 +128,36 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
             ]}
           />
         </Box>
+        <Box className="weekly-chart-ranges" aria-label="週ごとの期間">
+          {items.map((item) => (
+            <Typography key={item.weekStartDate} color="text.secondary" variant="caption">
+              {formatMonthDay(item.weekStartDate)}〜{formatMonthDay(item.weekEndDate)}
+            </Typography>
+          ))}
+        </Box>
+        {series.length > 0 && (
+          <Stack
+            aria-label="カテゴリ凡例"
+            className="weekly-chart-legend"
+            direction="row"
+            useFlexGap
+          >
+            {series.map((entry) => (
+              <Stack
+                direction="row"
+                key={entry.dataKey}
+                spacing={0.75}
+                sx={{ alignItems: "center" }}
+              >
+                <Box
+                  aria-hidden
+                  sx={{ width: 8, height: 8, borderRadius: "50%", backgroundColor: entry.color }}
+                />
+                <Typography variant="caption">{entry.label}</Typography>
+              </Stack>
+            ))}
+          </Stack>
+        )}
       </Box>
     </Paper>
   );

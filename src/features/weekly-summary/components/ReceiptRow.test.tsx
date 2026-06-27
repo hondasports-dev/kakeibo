@@ -25,6 +25,11 @@ describe("ReceiptRow", () => {
 
     renderWithProviders(<ReceiptRow receipt={sampleReceipt} onEdit={onEdit} onDelete={onDelete} />);
 
+    expect(screen.getByTestId("receipt-row")).toHaveClass("receipt-row");
+    expect(screen.getByRole("button", { name: "スーパーA（6/21）を編集" })).toHaveStyle({
+      minHeight: "44px",
+    });
+
     await user.click(screen.getByRole("button", { name: "スーパーA（6/21）を編集" }));
     await user.click(screen.getByRole("button", { name: "スーパーA（6/21）を削除" }));
 
