@@ -38,4 +38,14 @@ describe("ReceiptListCard", () => {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });
+
+  it("同じ日付では後から取得した支出を先に表示する", () => {
+    const sameDayReceipts = receipts.map((receipt) => ({ ...receipt, date: "2026-06-21" }));
+    renderWithProviders(<ReceiptListCard count={7} isLoading={false} receipts={sameDayReceipts} />);
+
+    expect(screen.getByText("店舗7")).toBeInTheDocument();
+    expect(screen.getByText("店舗3")).toBeInTheDocument();
+    expect(screen.queryByText("店舗2")).not.toBeInTheDocument();
+    expect(screen.queryByText("店舗1")).not.toBeInTheDocument();
+  });
 });
