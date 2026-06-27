@@ -37,9 +37,9 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
   const series = chartData?.series ?? [];
   const dataset = chartData?.dataset ?? [];
   const chartMargin = isCompact
-    ? { bottom: 28, left: 40, right: 8, top: 16 }
+    ? { bottom: 28, left: 56, right: 8, top: 16 }
     : { bottom: 28, left: 52, right: 12, top: 16 };
-  const yAxisWidth = isCompact ? 44 : 52;
+  const yAxisWidth = isCompact ? 60 : 52;
 
   if (isLoading) {
     return (
