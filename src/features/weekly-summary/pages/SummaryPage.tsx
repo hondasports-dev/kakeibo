@@ -123,7 +123,9 @@ export function SummaryPage() {
             alt=""
             className="weekly-summary-header-icon"
             component="img"
+            height={32}
             src="/suzumemo-app-icon.png"
+            width={32}
           />
           <Typography component="h1" variant="h4">
             週次サマリー

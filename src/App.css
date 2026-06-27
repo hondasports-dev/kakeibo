@@ -492,6 +492,7 @@
 }
 
 .receipt-row-amount {
+  font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
 }
@@ -525,6 +526,7 @@
   min-width: 0;
   padding: 0 var(--space-lg);
   text-align: center;
+  font-variant-numeric: tabular-nums;
 }
 
 .weekly-summary-metric + .weekly-summary-metric {
@@ -558,6 +560,11 @@
   align-items: center;
   padding: var(--space-sm) 0;
   border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.weekly-category-row,
+.weekly-chart-totals {
+  font-variant-numeric: tabular-nums;
 }
 
 .weekly-category-name {
@@ -624,6 +631,11 @@
 
   .weekly-summary-header-icon {
     display: block;
+  }
+
+  .week-navigator--compact .MuiButton-startIcon,
+  .week-navigator--compact .MuiButton-endIcon {
+    margin: 0;
   }
 
   .weekly-summary-status {
