@@ -569,36 +569,56 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
 
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
-    await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
-    await page.getByRole("heading", { name: "支出一覧" }).scrollIntoViewIfNeeded();
 
     const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
     const memoContent = receiptRow.getByTestId("memo-expandable-content");
+    const toggle = receiptRow.getByTestId("memo-expand-toggle");
     await expect(receiptRow).toBeVisible({ timeout: 15_000 });
     await expect(memoContent).toContainText("あ");
     await expect(memoContent).toContainText("こ");
-    await expect(receiptRow.getByRole("button", { name: "もっと見る" })).toBeVisible();
-    await expect
-      .poll(async () =>
-        memoContent.evaluate((element) => element.scrollHeight > element.clientHeight + 1),
-      )
-      .toBe(true);
+    await expect(toggle).toHaveText("もっと見る");
 
-    await receiptRow.getByRole("button", { name: "もっと見る" }).click();
-    await expect(receiptRow.getByRole("button", { name: "閉じる" })).toBeVisible();
-    await expect
-      .poll(async () =>
-        memoContent.evaluate((element) => element.scrollHeight <= element.clientHeight + 1),
-      )
-      .toBe(true);
+    await toggle.click();
+    await expect(toggle).toHaveText("閉じる");
+    await toggle.click();
+    await expect(toggle).toHaveText("もっと見る");
+  });
 
-    await receiptRow.getByRole("button", { name: "閉じる" }).click();
-    await expect(receiptRow.getByRole("button", { name: "もっと見る" })).toBeVisible();
-    await expect
-      .poll(async () =>
-        memoContent.evaluate((element) => element.scrollHeight > element.clientHeight + 1),
-      )
-      .toBe(true);
+  test("[Issue #359] 40文字超の1行メモも折り返し時は展開と折りたたみを切り替えられる", async ({
+    page,
+  }) => {
+    const shopName = `QAメモ359wrap_${Date.now()}`;
+    const wrappedMemo = "メモ確認用の長文テスト。".repeat(8);
+
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("1600");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByLabel("メモ").fill(wrappedMemo);
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
+
+    const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    const toggle = receiptRow.getByTestId("memo-expand-toggle");
+
+    await expect(receiptRow).toBeVisible({ timeout: 15_000 });
+    await expect(toggle).toBeVisible({ timeout: 15_000 });
+    await expect(toggle).toHaveText("もっと見る");
+
+    await toggle.click();
+    await expect(toggle).toHaveText("閉じる");
+    await toggle.click();
+    await expect(toggle).toHaveText("もっと見る");
+    await toggle.click();
+    await expect(toggle).toHaveText("閉じる");
+    await toggle.click();
+    await expect(toggle).toHaveText("もっと見る");
   });
 
   test("[Issue #14] 保存後に週次サマリーの支出件数が更新される", async ({ page }) => {

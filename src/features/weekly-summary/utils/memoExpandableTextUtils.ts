@@ -19,7 +19,8 @@ export function memoNeedsCollapseByLayout(scrollHeight: number, lineHeight: numb
   if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
     return false;
   }
-  return scrollHeight > lineHeight * MEMO_COLLAPSED_MAX_LINES + 1;
+  const renderedLineCount = Math.ceil(scrollHeight / lineHeight - 1e-3);
+  return renderedLineCount >= MEMO_COLLAPSE_LINE_THRESHOLD;
 }
 
 export function getMemoLineClampSx(maxLines: number) {
