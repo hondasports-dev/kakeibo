@@ -491,6 +491,14 @@
   font-size: 0.75rem;
 }
 
+.receipt-row-name {
+  min-width: 0;
+}
+
+.receipt-row-name .MuiTypography-root {
+  min-width: 0;
+}
+
 .receipt-row-amount {
   font-variant-numeric: tabular-nums;
   text-align: right;

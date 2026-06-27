@@ -10,4 +10,8 @@ describe("ReceiptListCard responsive styles", () => {
       /grid-template-columns:\s*88px minmax\(156px, 1\.3fr\) minmax\(100px, 0\.8fr\) 104px/,
     );
   });
+
+  it("長い店名でもグリッド列からはみ出さない", () => {
+    expect(css).toMatch(/\.receipt-row-name\s*\{[^}]*min-width:\s*0/);
+  });
 });

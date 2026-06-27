@@ -69,7 +69,7 @@ export function ReceiptListCard({
               </>
             )}
           </Box>
-          {remainingCount > 0 && (
+          {!isLoading && remainingCount > 0 && (
             <Button
               endIcon={<ExpandMoreIcon />}
               onClick={() => setExpanded(true)}
