@@ -1,4 +1,3 @@
-import { BarChart } from "@mui/x-charts/BarChart";
 import { Box, Paper, Skeleton, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
@@ -20,14 +19,6 @@ function formatAmount(amount: number): string {
   return `${currencyFormatter.format(amount)}円`;
 }
 
-function formatAxisAmount(amount: number): string {
-  if (Math.abs(amount) >= 10_000) {
-    const amountInTenThousands = Number((amount / 10_000).toFixed(1));
-    return `${amountInTenThousands}万円`;
-  }
-  return formatAmount(amount);
-}
-
 function formatDiffSummary(diff: number | null, rate: number | null): string {
   if (diff === null) {
     return "前週データなし";
@@ -45,6 +36,95 @@ function hasComparisonData(
 ): boolean {
   return (
     currentTotalAmountYen > 0 || (prevWeekTotalAmountYen !== null && prevWeekTotalAmountYen > 0)
+  );
+}
+
+type ComparisonBar = {
+  amount: number;
+  label: string;
+  tone: "current" | "previous";
+};
+
+function ComparisonBars({
+  bars,
+  isCompact,
+  maxAmount,
+}: {
+  bars: ComparisonBar[];
+  isCompact: boolean;
+  maxAmount: number;
+}) {
+  if (isCompact) {
+    return (
+      <Stack
+        aria-label="前週との比較グラフ"
+        className="dashboard-comparison-bars"
+        role="img"
+        spacing={1.25}
+      >
+        {bars.map((bar) => {
+          const widthPercent = maxAmount > 0 ? Math.max((bar.amount / maxAmount) * 100, 8) : 0;
+          return (
+            <Stack
+              key={bar.label}
+              className="dashboard-comparison-bar-row"
+              direction="row"
+              spacing={1.5}
+            >
+              <Typography className="dashboard-comparison-bar-label" variant="body2">
+                {bar.label}
+              </Typography>
+              <Box className="dashboard-comparison-bar-track dashboard-comparison-bar-track--horizontal">
+                <Box
+                  className={`dashboard-comparison-bar-fill dashboard-comparison-bar-fill--${bar.tone}`}
+                  sx={{ width: `${widthPercent}%` }}
+                />
+                <Typography className="dashboard-comparison-bar-amount" variant="body2">
+                  {formatAmount(bar.amount)}
+                </Typography>
+              </Box>
+            </Stack>
+          );
+        })}
+      </Stack>
+    );
+  }
+
+  return (
+    <Box
+      aria-label="前週との比較グラフ"
+      className="dashboard-comparison-bars dashboard-comparison-bars--vertical"
+      role="img"
+    >
+      {bars.map((bar) => {
+        const heightPercent = maxAmount > 0 ? Math.max((bar.amount / maxAmount) * 100, 12) : 0;
+        return (
+          <Stack
+            key={bar.label}
+            className="dashboard-comparison-bar-col"
+            spacing={1}
+            sx={{ alignItems: "center" }}
+          >
+            <Typography className="dashboard-comparison-bar-amount" variant="body2">
+              {formatAmount(bar.amount)}
+            </Typography>
+            <Box className="dashboard-comparison-bar-track dashboard-comparison-bar-track--vertical">
+              <Box
+                className={`dashboard-comparison-bar-fill dashboard-comparison-bar-fill--${bar.tone}`}
+                sx={{ height: `${heightPercent}%` }}
+              />
+            </Box>
+            <Typography
+              className="dashboard-comparison-bar-label"
+              color="text.secondary"
+              variant="body2"
+            >
+              {bar.label}
+            </Typography>
+          </Stack>
+        );
+      })}
+    </Box>
   );
 }
 
@@ -94,83 +174,37 @@ export function WeekComparisonChart({
     );
   }
 
-  const dataset =
+  const bars: ComparisonBar[] =
     prevWeekTotalAmountYen !== null
       ? [
-          { label: "前週", amount: prevWeekTotalAmountYen },
-          { label: "今週", amount: currentTotalAmountYen },
+          { amount: prevWeekTotalAmountYen, label: "前週", tone: "previous" },
+          { amount: currentTotalAmountYen, label: "今週", tone: "current" },
         ]
-      : [{ label: "今週", amount: currentTotalAmountYen }];
+      : [{ amount: currentTotalAmountYen, label: "今週", tone: "current" }];
 
-  const chartHeight = isCompact ? 140 : 200;
-  const chartMargin = isCompact
-    ? { bottom: 8, left: 72, right: 16, top: 8 }
-    : { bottom: 28, left: 52, right: 12, top: 16 };
+  const maxAmount = Math.max(...bars.map((bar) => bar.amount), 1);
+  const diffSummary = formatDiffSummary(diff, rate);
 
   return (
     <Paper className="paper-panel" data-testid="week-comparison-chart" elevation={0}>
       <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography component="h2" sx={{ mb: 0.5 }} variant="h6">
+        <Typography component="h2" variant="h6">
           前週との比較
         </Typography>
-        <Typography color={diffColor} sx={{ fontWeight: 700, mb: 1.5 }} variant="body2">
-          {formatDiffSummary(diff, rate)}
-        </Typography>
 
-        <Stack
-          direction="row"
-          spacing={2}
-          sx={{ justifyContent: "space-around", mb: 1.5, flexWrap: "wrap" }}
-        >
-          {prevWeekTotalAmountYen !== null && (
-            <Typography variant="body2">
-              <Typography color="text.secondary" component="span">
-                前週{" "}
-              </Typography>
-              <Typography component="span" sx={{ fontWeight: 700 }}>
-                {formatAmount(prevWeekTotalAmountYen)}
-              </Typography>
-            </Typography>
-          )}
-          <Typography variant="body2">
-            <Typography color="text.secondary" component="span">
-              今週{" "}
-            </Typography>
-            <Typography component="span" sx={{ fontWeight: 700 }}>
-              {formatAmount(currentTotalAmountYen)}
-            </Typography>
+        {!isCompact && (
+          <Typography color={diffColor} sx={{ fontWeight: 700, mt: 0.5, mb: 2 }} variant="body2">
+            {diffSummary}
           </Typography>
-        </Stack>
+        )}
 
-        <Box aria-label="前週との比較グラフ" role="img" sx={{ minWidth: 0, width: "100%" }}>
-          <BarChart
-            borderRadius={6}
-            colors={[theme.palette.grey[400], theme.palette.primary.main]}
-            dataset={dataset}
-            height={chartHeight}
-            hideLegend
-            layout={isCompact ? "horizontal" : "vertical"}
-            margin={chartMargin}
-            series={[
-              {
-                barLabel: (item) => formatAmount(item.value ?? 0),
-                dataKey: "amount",
-                label: "支出",
-              },
-            ]}
-            skipAnimation
-            xAxis={
-              isCompact
-                ? [{ valueFormatter: formatAxisAmount }]
-                : [{ dataKey: "label", scaleType: "band" }]
-            }
-            yAxis={
-              isCompact
-                ? [{ dataKey: "label", scaleType: "band", width: 56 }]
-                : [{ valueFormatter: formatAxisAmount, width: 52 }]
-            }
-          />
-        </Box>
+        <ComparisonBars bars={bars} isCompact={isCompact} maxAmount={maxAmount} />
+
+        {isCompact && (
+          <Typography color={diffColor} sx={{ fontWeight: 700, mt: 1.5 }} variant="body2">
+            {diffSummary}
+          </Typography>
+        )}
       </Box>
     </Paper>
   );

@@ -6,12 +6,14 @@ export function CategoryBreakdownCard({
   byCategory,
   count,
   isLoading,
+  showPercentage = false,
   title = "カテゴリ別",
   totalAmountYen,
 }: {
   byCategory: CategorySummary[];
   count: number;
   isLoading: boolean;
+  showPercentage?: boolean;
   title?: string;
   totalAmountYen: number;
 }) {
@@ -19,9 +21,19 @@ export function CategoryBreakdownCard({
     <Paper className="paper-panel" elevation={0}>
       <Box sx={{ p: 2.5 }}>
         <Stack spacing={2}>
-          <Typography component="h2" variant="h6">
-            {title}
-          </Typography>
+          <Stack
+            direction="row"
+            sx={{ alignItems: "center", justifyContent: "space-between", gap: 1 }}
+          >
+            <Typography component="h2" variant="h6">
+              {title}
+            </Typography>
+            {showPercentage && (
+              <Typography color="text.secondary" variant="body2">
+                金額 (円)
+              </Typography>
+            )}
+          </Stack>
 
           {isLoading ? (
             <>
@@ -35,48 +47,63 @@ export function CategoryBreakdownCard({
             </Typography>
           ) : (
             <Stack spacing={1.5}>
-              {byCategory.map((cat) => (
-                <Stack key={cat.categoryId} spacing={0.5}>
-                  <Stack
-                    direction="row"
-                    sx={{ justifyContent: "space-between", alignItems: "center" }}
-                  >
-                    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                      <Box
-                        sx={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          backgroundColor: cat.categoryColor,
-                          flexShrink: 0,
-                        }}
-                      />
-                      <Typography variant="body2">{cat.categoryName}</Typography>
-                      <Typography color="text.secondary" variant="caption">
-                        <AnimatedCounter value={cat.count} suffix="件" />
+              {byCategory.map((cat) => {
+                const percentage =
+                  totalAmountYen > 0 ? Math.round((cat.totalAmountYen / totalAmountYen) * 100) : 0;
+
+                return (
+                  <Stack key={cat.categoryId} spacing={0.75}>
+                    <Stack
+                      direction="row"
+                      sx={{ justifyContent: "space-between", alignItems: "center", gap: 1 }}
+                    >
+                      <Stack direction="row" spacing={1} sx={{ alignItems: "center", minWidth: 0 }}>
+                        <Box
+                          sx={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            backgroundColor: cat.categoryColor,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <Typography variant="body2">{cat.categoryName}</Typography>
+                        {!showPercentage && (
+                          <Typography color="text.secondary" variant="caption">
+                            <AnimatedCounter value={cat.count} suffix="件" />
+                          </Typography>
+                        )}
+                      </Stack>
+                      <Typography sx={{ fontWeight: 700, flexShrink: 0 }} variant="body2">
+                        {showPercentage ? (
+                          <>
+                            <AnimatedCounter value={cat.totalAmountYen} suffix="円" />
+                            {` (${percentage}%)`}
+                          </>
+                        ) : (
+                          <AnimatedCounter value={cat.totalAmountYen} suffix="円" />
+                        )}
                       </Typography>
                     </Stack>
-                    <Typography sx={{ fontWeight: 700 }} variant="body2">
-                      <AnimatedCounter value={cat.totalAmountYen} suffix="円" />
-                    </Typography>
+                    {totalAmountYen > 0 && (
+                      <LinearProgress
+                        aria-label={`${cat.categoryName}の割合`}
+                        value={percentage}
+                        variant="determinate"
+                        sx={{
+                          height: 6,
+                          borderRadius: 999,
+                          backgroundColor: "var(--color-border-track)",
+                          "& .MuiLinearProgress-bar": {
+                            backgroundColor: cat.categoryColor,
+                            borderRadius: 999,
+                          },
+                        }}
+                      />
+                    )}
                   </Stack>
-                  {totalAmountYen > 0 && (
-                    <LinearProgress
-                      aria-label={`${cat.categoryName}の割合`}
-                      value={Math.round((cat.totalAmountYen / totalAmountYen) * 100)}
-                      variant="determinate"
-                      sx={{
-                        height: 4,
-                        borderRadius: 2,
-                        backgroundColor: "var(--color-border-track)",
-                        "& .MuiLinearProgress-bar": {
-                          backgroundColor: cat.categoryColor,
-                        },
-                      }}
-                    />
-                  )}
-                </Stack>
-              ))}
+                );
+              })}
             </Stack>
           )}
         </Stack>
