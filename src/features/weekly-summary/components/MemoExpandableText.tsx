@@ -1,62 +1,115 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Box, Button, Collapse, Stack, Typography } from "@mui/material";
-import { useId, useState } from "react";
+import { Box, Button, Stack, Typography } from "@mui/material";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import {
+  getMemoLineClampSx,
+  MEMO_COLLAPSED_MAX_LINES,
+  memoNeedsCollapseByLayout,
+  memoNeedsCollapseByLineCount,
+} from "../utils/memoExpandableTextUtils";
 
-export const MEMO_PREVIEW_LENGTH = 40;
-
-export function shouldCollapseMemo(memo: string): boolean {
-  return memo.length > MEMO_PREVIEW_LENGTH;
-}
-
-export function getMemoPreviewText(memo: string): string {
-  if (!shouldCollapseMemo(memo)) {
-    return memo;
-  }
-  return `${memo.slice(0, MEMO_PREVIEW_LENGTH)}…`;
-}
+const memoTypographySx = {
+  whiteSpace: "pre-wrap" as const,
+  wordBreak: "break-word" as const,
+};
 
 export function MemoExpandableText({ memo }: { memo: string }) {
+  const needsCollapseByLines = memoNeedsCollapseByLineCount(memo);
   const [expanded, setExpanded] = useState(false);
+  const [needsCollapse, setNeedsCollapse] = useState(needsCollapseByLines);
+  const measureRef = useRef<HTMLSpanElement>(null);
   const contentId = useId();
-  const needsCollapse = shouldCollapseMemo(memo);
-  const previewText = getMemoPreviewText(memo);
+
+  useEffect(() => {
+    setExpanded(false);
+    setNeedsCollapse(memoNeedsCollapseByLineCount(memo));
+  }, [memo]);
+
+  useLayoutEffect(() => {
+    if (needsCollapseByLines) {
+      return;
+    }
+
+    const measureElement = measureRef.current;
+    if (!measureElement) {
+      return;
+    }
+
+    const updateNeedsCollapse = () => {
+      const lineHeight = parseFloat(getComputedStyle(measureElement).lineHeight);
+      setNeedsCollapse(memoNeedsCollapseByLayout(measureElement.scrollHeight, lineHeight));
+    };
+
+    updateNeedsCollapse();
+
+    if (typeof ResizeObserver === "undefined") {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(updateNeedsCollapse);
+    resizeObserver.observe(measureElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [memo, needsCollapseByLines]);
+
+  const visibleTypography = (
+    <Typography
+      color="text.secondary"
+      data-testid="memo-expandable-content"
+      id={contentId}
+      sx={{
+        ...memoTypographySx,
+        ...(needsCollapse && !expanded ? getMemoLineClampSx(MEMO_COLLAPSED_MAX_LINES) : {}),
+      }}
+      variant="caption"
+    >
+      {memo}
+    </Typography>
+  );
 
   if (!needsCollapse) {
     return (
-      <Typography
-        color="text.secondary"
+      <Stack
         data-testid="memo-expandable-text"
-        sx={{ mt: 0.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-        variant="caption"
+        spacing={0.25}
+        sx={{ mt: 0.5, maxWidth: "100%", position: "relative" }}
       >
-        {memo}
-      </Typography>
+        {!needsCollapseByLines && (
+          <Typography
+            ref={measureRef}
+            aria-hidden
+            color="text.secondary"
+            component="span"
+            data-testid="memo-expand-measure"
+            sx={{
+              ...memoTypographySx,
+              position: "absolute",
+              visibility: "hidden",
+              pointerEvents: "none",
+              width: "100%",
+              inset: 0,
+              height: "auto",
+            }}
+            variant="caption"
+          >
+            {memo}
+          </Typography>
+        )}
+        {visibleTypography}
+      </Stack>
     );
   }
 
   return (
-    <Stack data-testid="memo-expandable-text" spacing={0.25} sx={{ mt: 0.5, maxWidth: "100%" }}>
-      {!expanded && (
-        <Typography
-          color="text.secondary"
-          id={contentId}
-          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-          variant="caption"
-        >
-          {previewText}
-        </Typography>
-      )}
-      <Collapse in={expanded} unmountOnExit>
-        <Typography
-          color="text.secondary"
-          id={contentId}
-          sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
-          variant="caption"
-        >
-          {memo}
-        </Typography>
-      </Collapse>
+    <Stack
+      data-testid="memo-expandable-text"
+      spacing={0.25}
+      sx={{ mt: 0.5, maxWidth: "100%", position: "relative" }}
+    >
+      {visibleTypography}
       <Box>
         <Button
           aria-controls={contentId}
