@@ -159,7 +159,10 @@ export function WeekComparisonChart({
     );
   }
 
-  if (!hasComparisonData(currentTotalAmountYen, prevWeekTotalAmountYen)) {
+  if (
+    prevWeekTotalAmountYen === null ||
+    !hasComparisonData(currentTotalAmountYen, prevWeekTotalAmountYen)
+  ) {
     return (
       <Paper className="paper-panel" data-testid="week-comparison-empty" elevation={0}>
         <Box sx={{ p: 2.5 }}>
@@ -174,13 +177,10 @@ export function WeekComparisonChart({
     );
   }
 
-  const bars: ComparisonBar[] =
-    prevWeekTotalAmountYen !== null
-      ? [
-          { amount: prevWeekTotalAmountYen, label: "前週", tone: "previous" },
-          { amount: currentTotalAmountYen, label: "今週", tone: "current" },
-        ]
-      : [{ amount: currentTotalAmountYen, label: "今週", tone: "current" }];
+  const bars: ComparisonBar[] = [
+    { amount: prevWeekTotalAmountYen, label: "前週", tone: "previous" },
+    { amount: currentTotalAmountYen, label: "今週", tone: "current" },
+  ];
 
   const maxAmount = Math.max(...bars.map((bar) => bar.amount), 1);
 

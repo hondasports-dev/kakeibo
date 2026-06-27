@@ -45,7 +45,7 @@ describe("WeekComparisonChart", () => {
     expect(screen.getByTestId("week-comparison-loading")).toBeInTheDocument();
   });
 
-  it("前週データがない場合は今週のみ表示する", () => {
+  it("前週データがない場合は空状態を表示する", () => {
     renderWithProviders(
       <WeekComparisonChart
         currentTotalAmountYen={5000}
@@ -54,8 +54,7 @@ describe("WeekComparisonChart", () => {
       />,
     );
 
-    expect(screen.getByText("前週データなし")).toBeInTheDocument();
-    expect(screen.getByText("5,000円")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "前週との比較グラフ" })).toBeInTheDocument();
+    expect(screen.getByTestId("week-comparison-empty")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "前週との比較グラフ" })).not.toBeInTheDocument();
   });
 });

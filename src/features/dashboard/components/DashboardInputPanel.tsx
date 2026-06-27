@@ -1,17 +1,32 @@
 import { Link } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import { Box, Button, Chip, Paper, Stack, Typography, useMediaQuery } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Paper,
+  Skeleton,
+  Stack,
+  Typography,
+  useMediaQuery,
+} from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { AnimatedCounter } from "../../ui";
 
 type DashboardInputPanelProps = {
   count: number;
+  isLoading?: boolean;
   status: "draft" | "completed";
   weekStartDate: string;
 };
 
-export function DashboardInputPanel({ count, status, weekStartDate }: DashboardInputPanelProps) {
+export function DashboardInputPanel({
+  count,
+  isLoading = false,
+  status,
+  weekStartDate,
+}: DashboardInputPanelProps) {
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down("md"));
   const isCompleted = status === "completed";
@@ -32,20 +47,28 @@ export function DashboardInputPanel({ count, status, weekStartDate }: DashboardI
           <Stack spacing={2} sx={{ alignItems: "center" }}>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
               <TaskAltIcon color="success" sx={{ fontSize: 28 }} />
-              <Typography sx={{ fontWeight: 700 }} variant="h5">
-                <AnimatedCounter value={count} suffix=" 件入力済み" />
-              </Typography>
+              {isLoading ? (
+                <Skeleton height={32} variant="text" width={140} />
+              ) : (
+                <Typography sx={{ fontWeight: 700 }} variant="h5">
+                  <AnimatedCounter value={count} suffix=" 件入力済み" />
+                </Typography>
+              )}
             </Stack>
-            <Button
-              component={Link}
-              fullWidth
-              size="large"
-              sx={{ minHeight: 44 }}
-              to={primaryHref}
-              variant="contained"
-            >
-              {primaryLabel}
-            </Button>
+            {isLoading ? (
+              <Skeleton height={44} sx={{ borderRadius: 1 }} variant="rectangular" width="100%" />
+            ) : (
+              <Button
+                component={Link}
+                fullWidth
+                size="large"
+                sx={{ minHeight: 44 }}
+                to={primaryHref}
+                variant="contained"
+              >
+                {primaryLabel}
+              </Button>
+            )}
           </Stack>
         </Box>
       </Paper>
@@ -78,32 +101,52 @@ export function DashboardInputPanel({ count, status, weekStartDate }: DashboardI
 
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
             <TaskAltIcon color="success" sx={{ fontSize: 28 }} />
-            <Typography sx={{ fontWeight: 700 }} variant="h4">
-              <AnimatedCounter value={count} suffix=" 件入力済み" />
-            </Typography>
+            {isLoading ? (
+              <Skeleton height={40} variant="text" width={160} />
+            ) : (
+              <Typography sx={{ fontWeight: 700 }} variant="h4">
+                <AnimatedCounter value={count} suffix=" 件入力済み" />
+              </Typography>
+            )}
           </Stack>
 
           <Stack spacing={1.5}>
-            <Button
-              component={Link}
-              size="large"
-              sx={{ minHeight: 44 }}
-              to={primaryHref}
-              variant="contained"
-            >
-              {primaryLabel}
-            </Button>
-            {!isCompleted && (
-              <Button
-                component={Link}
-                size="large"
-                startIcon={<EditOutlinedIcon />}
-                sx={{ minHeight: 44 }}
-                to="/weeks/current/input"
-                variant="outlined"
-              >
-                新しく入力する
-              </Button>
+            {isLoading ? (
+              <>
+                <Skeleton height={44} sx={{ borderRadius: 1 }} variant="rectangular" width="100%" />
+                {!isCompleted && (
+                  <Skeleton
+                    height={44}
+                    sx={{ borderRadius: 1 }}
+                    variant="rectangular"
+                    width="100%"
+                  />
+                )}
+              </>
+            ) : (
+              <>
+                <Button
+                  component={Link}
+                  size="large"
+                  sx={{ minHeight: 44 }}
+                  to={primaryHref}
+                  variant="contained"
+                >
+                  {primaryLabel}
+                </Button>
+                {!isCompleted && (
+                  <Button
+                    component={Link}
+                    size="large"
+                    startIcon={<EditOutlinedIcon />}
+                    sx={{ minHeight: 44 }}
+                    to="/weeks/current/input"
+                    variant="outlined"
+                  >
+                    新しく入力する
+                  </Button>
+                )}
+              </>
             )}
           </Stack>
         </Stack>
