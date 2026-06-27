@@ -135,14 +135,50 @@ src/
 convex/
   auth.config.ts
   schema.ts
-  receipts.ts
-  categories.ts
-  users.ts
-  weekSessions.ts
-  receiptImageExtraction.ts
-  aiExpenseDrafts.ts
-  aiExpenseDraftsModel.ts
   http.ts
+  lib/
+    weekDates.ts
+  users/
+    auth.ts
+    mutations.ts
+    queries.ts
+    internal.ts
+  groups/
+    membership.ts
+    mutations.ts
+    queries.ts
+    invitations.ts
+    adminGuards.ts
+    ...
+  categories/
+    queries.ts
+    mutations.ts
+    candidate.ts
+    internal.ts
+  receipts/
+    crud.ts
+    summaries.ts
+    spendingEntries.ts
+  expenseEntries/
+    mutations.ts
+    internal.ts
+  weekSessions/
+    queries.ts
+    mutations.ts
+    internal.ts
+  aiExpenseDrafts/
+    queries.ts
+    mutations.ts
+    actions.ts
+    model.ts
+    internal.ts
+  receiptAnalysisJobs/
+    queries.ts
+    mutations.ts
+    actions.ts
+    internal.ts
+  receiptImageExtraction/
+    extraction.ts
 ```
 
 フロントエンドは **Feature-based Architecture** を採用する。各 feature は `src/features/<feature-name>/`
@@ -274,8 +310,8 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 active record が確認できない場合は fail closed にする。
 
 システム管理者は管理情報だけを扱い、家計データのグループ認可を迂回できない。
-schema、bootstrap、付与・剥奪、監査、環境分離の詳細は
-`docs/system-admin-authorization.md` を正本とする。
+**現行コードでは `systemAdmins` テーブル、関連 API、`/admin` UI は未実装**である。
+設計の正本は `docs/system-admin-authorization.md` を参照する。
 
 ## 7. 画面とルーティング
 
@@ -289,8 +325,12 @@ schema、bootstrap、付与・剥奪、監査、環境分離の詳細は
 | `/group/setup`                 | グループ作成       | グループ未所属ユーザーが家族グループを作成する |
 | `/group/select`                | グループ選択       | 複数所属ユーザーが表示対象グループを選ぶ     |
 | `/group/invitations/accept`    | 招待受け入れ       | Clerk招待後にアプリ側の所属追加を完了する   |
+| `/privacy`                     | プライバシーポリシー | 認証不要で閲覧する                         |
+| `/terms`                       | 利用規約           | 認証不要で閲覧する                         |
+| `/maintenance`                 | メンテナンス       | 認証不要でメンテナンス表示する             |
 | `/sso-callback`                | 認証コールバック   | Clerk SSO後のコールバックを処理する         |
 | `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
+| `/__e2e__/ai-expense-queue-expense-entries` | E2E専用画面 | 開発時のみ expenseEntries 登録を検証する |
 
 現行コードには `/sign-in`、`/weeks/:weekStartDate/review`、`/export` の個別ルートはない。
 サインイン画面は `App.tsx` の未認証表示で扱う。振り返りメモとセッション完了UIは表示せず、
@@ -431,78 +471,97 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 
 ## 10. Convex function設計
 
-### 10.1 receipts
+Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式で参照する。
 
-- `createReceipt(input)`
-- `getReceiptsByWeek(weekStartDate)`
-- `getReceiptsByDate(date)`
-- `updateReceipt(id, input)`
-- `deleteReceipt(id)`
-- `getWeekSummary(weekStartDate)`
-- `getWeekSummaryWithCategories(weekStartDate)`
-- `getFourWeeksSummary()`
-- `getDailySpendingTrend(weekStartDate)`
-- `getMonthlyExpensesSummary(month?)`
-- `deleteReceiptsByUser(groupId)`（internal）
+### 10.1 手入力（expenseEntries）
 
-`receipts` は支出と収入の両方を扱う。支出では `shopName`、収入では `bankName` を保存し、
-`type` 未設定の既存データは支出として扱う。
+現行の週次入力 UI（`ExpenseEntryForm`）は `expenseEntries` を正本とする。
 
-### 10.2 weekSessions
+- `expenseEntries.mutations.createExpenseEntries(input)`
+- `expenseEntries.mutations.updateExpenseEntry(id, input)`
+- `expenseEntries.mutations.deleteExpenseEntry(id)`
 
-- `getOrCreateCurrentWeekSession()`
-- `getOrCreateWeekSession(weekStartDate)`
-- `getWeekSession(weekStartDate)`
-- `updateReviewMemo(weekStartDate, reviewMemo)`
-- `completeWeekSession(weekStartDate)`
-- `resetWeekSessionForUser(groupId)`（internal）
+### 10.2 receipts（互換層）
 
-### 10.3 categories
+- `receipts.crud.createReceipt(input)`（レガシー。本番入力 UI では未使用）
+- `receipts.crud.updateReceipt(id, input)`
+- `receipts.crud.deleteReceipt(id)`
+- `receipts.summaries.getReceiptsByWeek(weekStartDate)`
+- `receipts.summaries.getWeekSummary(weekStartDate)`
+- `receipts.summaries.getWeekSummaryWithCategories(weekStartDate)`
+- `receipts.summaries.getFourWeeksSummary()`
+- `receipts.summaries.getDailySpendingTrend(weekStartDate)`
+- `receipts.summaries.getMonthlyExpensesSummary(month?)`
+- `receipts.crud.deleteReceiptsByUser(groupId)`（internal）
 
-- `seedDefaultCategories()`
-- `listActive()`
-- `listForSettings()`
-- `createCategory(input)`
-- `updateCategory(id, input)`
-- `deactivateCategory(id)`
-- `deleteE2eCategoriesByUser(groupId)`（internal）
+`receipts` は支出と収入の両方を扱う schema 互換として残る。支出では `shopName`、収入では `bankName` を保存し、
+`type` 未設定の既存データは支出として扱う。収入入力 UI は廃止済み。
 
-### 10.4 users
+集計は `receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を統合する。
 
-- `upsertUser()`
-- `getUserProfile()`
-- `getReceiptImageConsent()`
-- `acceptReceiptImageExternalApiConsent()`
-- `updateMonthlyIncome(monthlyIncome)`
-- `updateWeeklyDays(weeklyStartDay, weeklyEndDay)`
-- `clearUserMonthlyIncome(userId)`（internal）
+### 10.3 weekSessions
+
+- `weekSessions.mutations.getOrCreateCurrentWeekSession()`
+- `weekSessions.mutations.getOrCreateWeekSession(weekStartDate)`
+- `weekSessions.queries.getWeekSession(weekStartDate)`
+- `weekSessions.mutations.updateReviewMemo(weekStartDate, reviewMemo)`
+- `weekSessions.mutations.completeWeekSession(weekStartDate)`
+- `weekSessions.internal.resetWeekSessionForUser(groupId)`（internal）
+
+### 10.4 categories
+
+- `categories.mutations.seedDefaultCategories()`
+- `categories.queries.listActive()`
+- `categories.queries.listForSettings()`
+- `categories.mutations.createCategory(input)`
+- `categories.mutations.updateCategory(id, input)`
+- `categories.mutations.deactivateCategory(id)`
+- `categories.internal.deleteE2eCategoriesByUser(groupId)`（internal）
+
+### 10.5 users
+
+- `users.mutations.upsertUser()`
+- `users.queries.getUserProfile()`
+- `users.queries.getReceiptImageConsent()`
+- `users.mutations.acceptReceiptImageExternalApiConsent()`
+- `users.mutations.updateMonthlyIncome(monthlyIncome)`
+- `users.mutations.updateWeeklyDays(weeklyStartDay, weeklyEndDay)`
+- `users.internal.clearUserMonthlyIncome(userId)`（internal）
 
 週の開始・終了曜日は `users` に保存する。ただし現行の週計算は月曜始まり・日曜終わり固定であり、
 保存値はまだ `getWeekStartDate` / `getWeekEndDate` に反映していない。
 
-### 10.5 export
+### 10.6 export
 
 現行コードには `convex/export.ts`、CSV生成関数、`/export` 画面はない。CSVは将来の
 バックアップ導線として残すが、実装済み機能として扱わない。
 
-### 10.6 receipt image consent
+### 10.7 receipt image consent
 
-- `users.getReceiptImageConsent()`
-- `users.acceptReceiptImageExternalApiConsent()`
+- `users.queries.getReceiptImageConsent()`
+- `users.mutations.acceptReceiptImageExternalApiConsent()`
 
 レシート画像入力PoCでは、画像を外部APIへ送信する前にユーザー単位の同意状態を確認する。同意状態は `users.receiptImageExternalApiConsentAcceptedAt` に承認時刻として保存する。
 
 この同意は画像送信の可否判定だけに使い、receipt 保存の認可やユーザー識別には使わない。認可は従来どおり `ctx.auth.getUserIdentity()` から得た `tokenIdentifier` を基準にする。
 
-### 10.7 AI expense drafts
+### 10.8 AI expense drafts
 
-- `aiExpenseDrafts.listByStatus(status)`
-- `aiExpenseDrafts.getWithItems(draftId)`
-- `aiExpenseDrafts.updateForReview(draftId, input)`
-- `aiExpenseDrafts.registerReadyDraftsAsExpenseEntries(draftIds)`
-- `aiExpenseDrafts.analyzeReceiptImageToDraft(input)`
-- `aiExpenseDrafts.createFromExtraction(input)`（internal）
-- `aiExpenseDrafts.createFailedDraftFromImageAnalysis(input)`（internal）
+- `aiExpenseDrafts.queries.listByStatus(status)`
+- `aiExpenseDrafts.queries.getWithItems(draftId)`
+- `aiExpenseDrafts.mutations.updateForReview(draftId, input)`
+- `aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries(draftIds)`
+- `aiExpenseDrafts.actions.analyzeReceiptImageToDraft(input)`
+- `aiExpenseDrafts.internal.createFromExtraction(input)`（internal）
+- `aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis(input)`（internal）
+
+### 10.9 receipt analysis jobs
+
+- `receiptAnalysisJobs.mutations.createBatch(input)`
+- `receiptAnalysisJobs.queries.getBatchStatus(batchId)`
+- `receiptAnalysisJobs.actions.processBatch(batchId)`（internal scheduler 経由）
+
+バッチ画像解析は `receiptAnalysisBatches` / `receiptAnalysisImageJobs` テーブルで管理する。
 
 下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` と `groupMembers` から
 active group を解決する。`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの
@@ -552,17 +611,24 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 ### 12.2 集計
 
-週次サマリーでは、対象週の `receipts` を取得して以下を算出する。
+週次サマリーでは、`convex/receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を
+統合して以下を算出する。
 
 - 合計支出
 - カテゴリ別合計
-- レシート件数
+- 支出件数
 - 前週比
 
-集計はMVPではConvex queryで行う。
+**集計互換ルール（`spendingEntries.ts`）:**
 
-現行集計は `receipts.amountYen` を正の金額として合算する。`type: "income"` の入出金表示は
-対応しているが、収入を差し引いた純支出計算にはしていない。
+- 対象期間（週・日・月）内に **1 件でも** `expenseEntries` が存在する場合、当該期間の `receipts` を
+  集計対象から **すべて除外** する（二重計上防止）
+- `expenseEntries` が存在しない期間は `receipts` を従来どおり集計する
+
+集計は Convex query で行う。
+
+`receipts.type: "income"` の入出金表示は schema 互換として残るが、収入入力 UI は廃止済みであり、
+収入を差し引いた純支出計算にはしていない。
 
 **週別支出推移（対象週を含む直近3週間）:**
 
@@ -749,32 +815,35 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 2. Clerk CLI、Convex CLI、Vercel CLI/MCP、Convex MCP、Chrome DevTools MCPの初期接続（完了）
 3. Vercel projectとGitHub repositoryの連携（完了）
 4. Convex AI filesの追加（完了）
-5. MUI theme、Tailwind CSS、基本レイアウトの整備
-6. Clerk導入とGoogle OAuth設定
-7. Convex導入
-8. Clerk + Convex連携
-9. DEV/PROD環境変数とClerk issuer設定
-10. Convex schemaとindex定義
-11. 認証ユーザー取得とuser初期化
-12. 初期カテゴリseed
-13. 週開始日、週終了日のdate utility
-14. レシート入力、編集、削除
-15. 週次セッション作成、再開
-16. ダッシュボード集計
-17. 週次振り返りメモ（既存データ互換のみ、UIなし）
-18. カテゴリ管理
-19. レシート画像入力PoC
-20. AI支出下書きキュー
-21. Unit testとComponent test
-22. Convex function test
-23. E2E test
-24. レスポンシブ確認
+5. MUI theme、Tailwind CSS、基本レイアウトの整備（完了）
+6. Clerk導入とGoogle OAuth設定（完了）
+7. Convex導入（完了）
+8. Clerk + Convex連携（完了）
+9. DEV/PROD環境変数とClerk issuer設定（完了）
+10. Convex schemaとindex定義（完了）
+11. 認証ユーザー取得とuser初期化（完了）
+12. 初期カテゴリseed（完了）
+13. 週開始日、週終了日のdate utility（完了）
+14. 支出入力（`expenseEntries`）、編集、削除（完了）
+15. 週次セッション作成、再開（完了）
+16. ダッシュボード集計（完了）
+17. 週次振り返りメモ（既存データ互換のみ、UIなし）（完了）
+18. カテゴリ管理（完了）
+19. グループ管理・招待（完了）
+20. AI支出下書きキュー（完了）
+21. `sourceDocuments` / `expenseEntries` schema（M18 #177）（完了）
+22. Unit testとComponent test（継続）
+23. Convex function test（継続）
+24. E2E test（継続）
+25. レスポンシブ確認（継続）
 
 現行コードで未実装または未反映の項目:
 
 - CSVエクスポート画面とCSV生成処理
 - 週の開始・終了曜日設定の週計算への反映
 - 月収入設定UI
+- 収入入力 UI（バックエンド互換のみ残存）
+- システム管理者（`systemAdmins`、`/admin` UI）
 
 旧タスクリスト上の `Unit testとComponent test` 以降は、変更内容に応じて継続的に追加・更新する。
 
@@ -818,23 +887,25 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 
 ### 21.2 互換と移行
 
-- `receipts` は当面の互換層として残す
-- 既存の表示や集計は、M18の子Issueで段階的に `expenseEntries` 中心へ寄せる
-- このIssueでは schema の実装変更は行わず、用語、責務、実装順を確定する
-- 移行期間の集計は `expenseEntries` を優先し、同じ日付に `expenseEntries` がある場合は
-  同日の `receipts` を集計対象から外して二重計上を防ぐ
-- `expenseEntries` がまだ存在しない日付は `receipts` を従来どおり集計する
+- `receipts` は互換層として残す
+- 手入力・AI 登録の正本は `expenseEntries` である
+- `sourceDocuments`、`expenseEntries`、`receiptAnalysisBatches`、`receiptAnalysisImageJobs` の schema は **実装済み**
+- 移行期間の集計は `convex/receipts/spendingEntries.ts` が担当する。対象期間（週・日・月）内に
+  **1 件でも** `expenseEntries` がある場合、当該期間の `receipts` を集計から **すべて除外** して二重計上を防ぐ
+- `expenseEntries` が存在しない期間は `receipts` を従来どおり集計する
 
 ### 21.3 M18の実装順
 
-1. #177 `sourceDocuments` / `expenseEntries` の schema 設計
-2. #180 既存 `receipts` との互換・移行方針
-3. #178 カテゴリ別集計の `expenseEntries` 化
-4. #181 入力元から複数のカテゴリ別支出項目を作るUI
-5. #173 レシート画像認識時のカテゴリ自動判定
-6. #179 AI下書きからカテゴリ別支出項目候補を作成
-7. #175 登録済みカード表示改善
-8. #102 受け入れ確認
+| Issue | 内容 | 状態 |
+| --- | --- | --- |
+| #177 | `sourceDocuments` / `expenseEntries` の schema 設計 | 完了 |
+| #180 | 既存 `receipts` との互換・移行方針（`spendingEntries.ts`） | 完了 |
+| #178 | カテゴリ別集計の `expenseEntries` 化 | 一部完了 |
+| #181 | 入力元から複数のカテゴリ別支出項目を作るUI（`ExpenseEntryForm`） | 完了 |
+| #173 | レシート画像認識時のカテゴリ自動判定 | 未着手 |
+| #179 | AI下書きからカテゴリ別支出項目候補を作成 | 完了（`registerReadyDraftsAsExpenseEntries`） |
+| #175 | 登録済みカード表示改善 | 未着手 |
+| #102 | 受け入れ確認 | 継続 |
 
 ### 21.4 主要 mutation / query 方針
 
@@ -900,6 +971,6 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 
 ### 21.7 互換境界
 
-- #177 では `receipts` を書き換えない。
-- #177 では `expenseEntries` の保存責務だけを定義し、既存 `receipts` の読み書き互換は #180 に集約する。
-- これにより、M18 の後続 Issue は `expenseEntries` を正本として扱える。
+- `receipts` は互換層として維持する。手入力・AI 登録は `expenseEntries` を正本とする。
+- 集計の正本ロジックは `convex/receipts/spendingEntries.ts` に集約する。
+- M18 の後続 Issue は `expenseEntries` を正本として扱える。

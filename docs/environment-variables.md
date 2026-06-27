@@ -23,7 +23,7 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | `CLERK_SECRET_KEY`           | サーバー用秘密鍵。Convex Action から Clerk Backend API を呼ぶためにも使う | ✅ | ✅ | ✅ | ✅ | ✅ | .env.local / GitHub Actions Secret / Convex Dashboard |
 | `CLERK_JWT_ISSUER_DOMAIN`    | Convex認証用JWT issuerドメイン | ✅    | ✅             | ✅         | ✅   | ❌         | Convex Dashboard / Vercel Env       |
 | `E2E_CLERK_USER_EMAIL`       | E2Eテスト用メール              | ✅    | ✅             | 任意       | ❌   | ✅         | .env.local / GitHub Actions Secret  |
-| `E2E_CLERK_USER_PASSWORD`    | E2Eテスト用パスワード          | ✅    | ✅             | 任意       | ❌   | ✅         | .env.local / GitHub Actions Secret  |
+| `E2E_CLERK_USER_PASSWORD`    | E2Eテスト用パスワード（レガシー） | 任意  | 任意           | 任意       | ❌   | ✅         | `.env.example` に残存。**現行 E2E auth helper（`e2e/helpers/auth.ts`）では未使用** |
 
 ### Convex関連
 
@@ -31,7 +31,7 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | ---------------------- | ---------------------------------------- | ----- | -------------- | ---------- | ---- | ---------- | ---------------------------------- |
 | `CONVEX_DEPLOYMENT`    | ローカル開発用デプロイメント名           | ✅    | ❌             | ❌         | ❌   | ❌         | .env.local のみ                    |
 | `VITE_CONVEX_URL`      | フロントエンド用Convex接続URL            | ✅    | ✅             | 自動設定   | ✅   | ❌         | .env.local / Vercel Env / Convex deploy |
-| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ✅             | 任意       | ✅   | ❌         | .env.local / GitHub Actions Secret |
+| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ✅             | 任意       | ✅   | ❌         | .env.local / GitHub Actions Secret / Vercel Env |
 | `CONVEX_DEPLOY_KEY`    | Convex deploy key                        | ❌    | ❌             | ✅         | ✅   | ✅         | GitHub Actions Secret / Vercel Env |
 
 ### OpenAI / レシート画像抽出関連
@@ -66,12 +66,17 @@ CLERK_SECRET_KEY=sk_test_...
 
 # E2Eテスト用 (Local専用)
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
-E2E_CLERK_USER_PASSWORD=change-me
+# E2E_CLERK_USER_PASSWORD は .env.example に残存するが、現行 auth helper では未使用
 
 # Convex
 CONVEX_DEPLOYMENT=dev:your-deployment
 VITE_CONVEX_URL=https://your-deployment.convex.cloud
+VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
 ```
+
+E2E 認証は `@clerk/testing` の Testing Token + `email_code` 方式（`e2e/helpers/auth.ts`）。
+`CLERK_SECRET_KEY` と `E2E_CLERK_USER_EMAIL` が必須。Playwright は `CLERK_PUBLISHABLE_KEY`
+（`VITE_` なし）も参照する（`playwright.config.ts` が `VITE_CLERK_PUBLISHABLE_KEY` から設定）。
 
 `CLERK_JWT_ISSUER_DOMAIN` と `CLERK_SECRET_KEY` は Convex バックエンド（dev deployment）にも CLI で別途設定が必要。
 特にグループ招待メール送信は Convex Action から Clerk Backend API を呼ぶため、

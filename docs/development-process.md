@@ -217,6 +217,7 @@ Pull Request には次の内容を書きます。
 - [ ] TDD のテスト追加または更新が含まれている
 - [ ] `pnpm test --run` がローカルで成功している
 - [ ] `pnpm run lint` がローカルで成功している
+- [ ] `pnpm run format:check` がローカルで成功している
 - [ ] `pnpm run build` がローカルで成功している
 - [ ] `pnpm run e2e -- --project=chromium` がローカルで成功している
 - [ ] GitHub Actions の全チェックが成功している
@@ -280,9 +281,10 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 
 ## CI とマージ条件
 
-必須チェックは次の3つです。
+必須チェックは次の4つです（`ci.yml` の lint ジョブ内で lint + format:check を実行）。
 
-- `pnpm run lint`
+- `pnpm run lint`（oxlint）
+- `pnpm run format:check`（oxfmt）
 - `pnpm run build`
 - `pnpm test --run`
 
@@ -295,15 +297,17 @@ E2E 本体へ進みません。
 
 | コマンド                                | CI 必須       | 詳細                                                       |
 | --------------------------------------- | ------------- | ---------------------------------------------------------- |
-| `pnpm run lint`                         | ✅ 必須       | ESLintによるTypeScript/React hooksチェック                 |
+| `pnpm run lint`                         | ✅ 必須       | oxlint による TypeScript/React チェック                    |
+| `pnpm run format:check`                 | ✅ 必須       | oxfmt によるフォーマット確認                               |
 | `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
-| `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数と `src/features/**/validation/` 等を対象 |
+| `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数、`src/**/*.test.tsx` 等を対象   |
 | `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
 
 **注意事項:**
 
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
-- フロントエンドのコンポーネントテスト（Testing Library等）は M2 以降に別 Issue を立てて対応する
+- フロントエンドのコンポーネントテスト（Testing Library 等）は `src/**/*.test.tsx` に既存。変更時は該当 spec を更新する
+- `preview-deploy.yml` は lint + format:check + test + build + smoke E2E も実行する
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
 されている場合は、Issue を作成またはリンクし、理由を記録してから判断します。
@@ -585,10 +589,26 @@ worktree 環境では、mainのworktree と dev deployment が共有される場
 branch 切り替え後は必ず `npx convex dev --once` を実行して、使用中の関数が
 dev に揃っていることを確認する。
 
-## Codex 開発時の Clerk 認証
+## Codex / Cursor Cloud 開発時の Clerk 認証と E2E
 
-Codex で画面確認や将来の E2E を行う場合は、Clerk Development instance 上の
+Codex や Cursor Cloud で画面確認や E2E を行う場合は、Clerk Development instance 上の
 テスト専用ユーザーを使います。本番 instance、本番キー、個人ユーザーは使いません。
+
+### E2E 認証の正本（`@clerk/testing`）
+
+Playwright E2E は `e2e/helpers/auth.ts` の `gotoAuthenticated` を使い、
+`CLERK_SECRET_KEY` で signInToken を発行して `email_code` ストラテジーでサインインします。
+**password 方式は auth helper では使いません。**
+
+必要な環境変数:
+
+- `E2E_CLERK_USER_EMAIL` — Clerk に登録済みのテストユーザー email
+- `CLERK_SECRET_KEY` — Testing Token 発行用
+- `VITE_CLERK_PUBLISHABLE_KEY` — フロントエンド起動用
+- `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` — Convex 接続用
+
+Playwright の global setup / config は `CLERK_PUBLISHABLE_KEY`（`VITE_` なし）も参照する。
+`playwright.config.ts` が `VITE_CLERK_PUBLISHABLE_KEY` から自動設定する。
 
 初回セットアップ:
 
@@ -596,27 +616,17 @@ Codex で画面確認や将来の E2E を行う場合は、Clerk Development ins
 pnpm exec clerk auth login
 pnpm exec clerk link
 pnpm exec clerk env pull --instance dev --file .env.local
+pnpm exec playwright install chromium
 ```
 
-`.env.local` に Codex/E2E 用ユーザー情報を追加します。パスワードはローカル専用で
-生成し、ログ、Pull Request、チャットに出力してはいけません。
+`.env.local` に E2E 用ユーザーを追加します（email は Clerk Dashboard で事前作成）:
 
 ```env
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
-E2E_CLERK_USER_PASSWORD=...
 ```
 
-テストユーザーを作成します。
-
-```bash
-pnpm exec clerk users create \
-  --instance dev \
-  --email "$E2E_CLERK_USER_EMAIL" \
-  --password "$E2E_CLERK_USER_PASSWORD" \
-  --first-name Codex \
-  --last-name Test \
-  --yes
-```
+`E2E_CLERK_USER_PASSWORD` は `.env.example` に残っているが、現行の E2E auth helper では
+未使用。CI workflow の env に残存している場合がある。
 
 `.env.local` に必要な値:
 
@@ -624,8 +634,9 @@ pnpm exec clerk users create \
 VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
 CLERK_SECRET_KEY=sk_test_...
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
-E2E_CLERK_USER_PASSWORD=...
 VITE_CONVEX_URL=https://...
+VITE_CONVEX_SITE_URL=https://...
+E2E_CLEANUP_SECRET=...
 ```
 
 ローカルで Google OAuth を確認する場合、フロントエンドは

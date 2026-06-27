@@ -93,8 +93,8 @@ gh run watch <run_id> --exit-status
 2. **エラーパターン自動判定と修正**
    | エラーパターン | 自動判定キーワード | 自動修正アクション |
    |--------------|------------------|------------------|
-   | フォーマット違反 | `oxfmt`, `format`, `prettier` | `pnpm run format` → 再commit → 再push |
-   | lint警告 | `oxlint`, `eslint`, `warning` | 修正 → `pnpm run lint` → 再commit |
+   | フォーマット違反 | `oxfmt`, `format` | `pnpm run format` → 再commit → 再push |
+   | lint警告 | `oxlint`, `warning` | 修正 → `pnpm run lint` → 再commit |
    | E2E 失敗（Playwright） | `Timeout`, `strict mode`, `FunctionNotFound` | ローカルで該当 spec を再実行 → `convex dev --once` 未反映なら実行 → 修正 → 再 push |
    | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
 

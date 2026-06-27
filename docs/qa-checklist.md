@@ -1,6 +1,6 @@
 # QA チェックリスト
 
-このドキュメントは、kakeibo プロジェクトの品質確認手順をまとめたものです。
+このドキュメントは、kakeibo プロジェクト（UI ブランド名: Suzumemo）の品質確認手順をまとめたものです。
 
 ## 自動検証（CI）
 
@@ -13,6 +13,7 @@ CI チェックの詳細は `docs/development-process.md`「CI とマージ条�
 ```bash
 pnpm test --run
 pnpm run lint
+pnpm run format:check
 pnpm run build
 pnpm run e2e:smoke -- --project=chromium
 pnpm run e2e -- --project=chromium
@@ -35,13 +36,15 @@ pnpm run e2e -- --project=chromium
 
 変更内容に応じて、次の導線から必要な範囲を選んで確認します。
 
-- 支出入力: 日付、店名、金額、カテゴリ、メモを保存できること
-- 収入入力: 収入タブで銀行名、金額、カテゴリを保存できること
+- 支出入力（`ExpenseEntryForm`）: 日付、店舗名/支払先、金額、カテゴリ、メモを `expenseEntries` に保存できること。成功 Snackbar「支出項目を保存しました」
+- 複数支出項目モード: 内訳合計と合計金額の差額確認ダイアログが機能すること
+- 収入入力 UI: **廃止済み**（`e2e/receipt-form.spec.ts` の収入テストは skip）
 - 週次サマリー: 直近3週間の棒グラフ、見切れない円・万円の軸ラベル、対象週の要約、週範囲と支出合計だけのTooltip、空状態が表示されること
 - 週次サマリー境界値: 直前2週間の支出がともに0円の場合、平均比が「比較データなし」と表示されること
 - 設定: カテゴリ設定と週の開始・終了曜日を保存できること
-- レシート画像補助: 同意、mock抽出、手入力への復帰ができること
-- AI支出下書き: `ready` / `needs_review` の確認、編集、まとめて登録ができること
+- グループ管理（`e2e/group-access.spec.ts`）: グループ作成、招待、切り替え、メンバー削除
+- 公開ページ（`e2e/public-pages.spec.ts`）: `/privacy`、`/terms` が認証なしで表示されること
+- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、`registerReadyDraftsAsExpenseEntries` によるまとめて登録
 
 ## Clerk Restricted mode + Invitation 手動 QA
 
@@ -72,16 +75,16 @@ Clerk Dashboard で Restricted mode を有効にした状態での公開範囲�
 - [ ] Convex 認証が完了し、家計簿画面が表示されること
 - [ ] 登録済みユーザー B でも同様に確認できること
 
-### QA-04: 未認証状態での Convex 関数アクセス拒否（M2以降）
+### QA-04: 未認証状態での Convex 関数アクセス拒否
 
 - [ ] ログインせずに Convex の保護対象 mutation/query を呼ぼうとする
 - [ ] ConvexError("Not authenticated") が返ること
 - [ ] フロントエンドでエラーが適切に表示されること
 
-### QA-05: 他ユーザーデータへのアクセス拒否（M2以降）
+### QA-05: 他グループデータへのアクセス拒否
 
-- [ ] ユーザー A でログインし、ユーザー B の receipt ID を直接指定する
-- [ ] 取得・更新・削除が拒否されること（userId が一致しない）
+- [ ] ユーザー A でログインし、ユーザー B の所属グループの receipt / expenseEntry ID を直接指定する
+- [ ] 取得・更新・削除が拒否されること（`groupId` が一致しない）
 - [ ] 同様に category、weekSession でも拒否されること
 
 ### QA-06: ログアウト後の状態確認
@@ -96,7 +99,7 @@ Clerk Dashboard で Restricted mode を有効にした状態での公開範囲�
 | レベル   | 内容                             | 対応方針             |
 | -------- | -------------------------------- | -------------------- |
 | Critical | 招待していない人がログインできる | リリースブロック     |
-| Critical | 他ユーザーのデータが見える       | リリースブロック     |
+| Critical | 他グループのデータが見える       | リリースブロック     |
 | High     | invited user が登録できない      | リリースブロック     |
 | Medium   | ログアウト後の遷移が不正         | 修正してからリリース |
 | Low      | UI 表示の軽微なずれ              | 次のPRで対応可       |

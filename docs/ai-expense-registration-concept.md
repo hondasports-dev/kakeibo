@@ -159,34 +159,32 @@ AIの結果は、最初から確定値として扱うのではなく、信頼度
 
 ## 既存コードで使える土台
 
-既存の `kakeibo` には、支出AI登録へ拡張できる土台がある。
+既存の `kakeibo`（UI ブランド: Suzumemo）には、支出AI登録へ拡張できる土台がある。
 
-- `convex/receiptImageExtraction.ts`
-  - Convex Actionから画像をOpenAIへ送り、構造化結果を返す土台
-- `convex/categories.ts`
-  - ユーザーごとのカテゴリ管理
-- `convex/schema.ts`
-  - `receipts` と `categories` の既存テーブル
-- `src/features/receipt/components/ReceiptImageExtractor.tsx`
-  - 画像選択、リサイズ、プレビュー、同意、読み取り実行
-- `src/features/receipt/hooks/useReceiptForm.ts`
-  - 読み取り結果をフォームに反映する処理
+- `convex/receiptImageExtraction/extraction.ts`
+  - Convex Action から画像を OpenAI へ送り、構造化結果を返す土台
+- `convex/aiExpenseDrafts/`
+  - AI 支出下書きの CRUD、画像解析、一括登録（`registerReadyDraftsAsExpenseEntries`）
+- `convex/expenseEntries/`
+  - 手入力・AI 登録の正本テーブル
+- `convex/categories/`
+  - グループ単位のカテゴリ管理
+- `src/features/ai-expense-queue/components/AiExpenseQueuePanel.tsx`
+  - AI 下書きキュー UI（見出し「レシート入力」）
+- `src/features/expense-entry/components/ExpenseEntryForm.tsx`
+  - 手入力 UI（`expenseEntries` 保存）
 
-ただし、現在は「画像から店名、日付、金額を抽出してフォームへ流し込むPoC」に近い。今後は、フォーム補助ではなく、AI処理キューと下書き登録の方向へ寄せる必要がある。
+現行実装では、AI 下書きキューが主導線であり、`registerReadyDraftsAsExpenseEntries` で
+`expenseEntries` に一括登録する。`ReceiptForm` / `useReceiptForm` はレガシー互換として残存する。
 
 ## 次にやること
 
-次に必要なのは、いきなり実装することではなく、プロダクト仕様を1段具体化することである。
+MVP の AI 支出登録フローは実装済み。今後の改善候補:
 
-優先して決めることは次のとおり。
-
-1. 入口を `画像から入力` の補助導線から、`支出AI登録` の主導線へ変えるか
-2. 連続撮影後、どのタイミングで登録データを作るか
-3. AI処理キューをどこに保存するか
-4. `登録準備OK` と `確認が必要` の判定基準
-5. 既存 `receipts` をどう互換維持しながら拡張するか
-6. MVPではどの書類タイプまで扱うか
-7. 外部API送信同意を、連続撮影フローでどう自然に見せるか
+1. 連続撮影 UI の強化
+2. カテゴリ自動判定精度の向上（#173）
+3. 登録済みカード表示の改善（#175）
+4. `sourceDocuments` と手入力の紐付け強化
 
 ## 現時点の推奨MVP
 
