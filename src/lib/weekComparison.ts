@@ -8,6 +8,18 @@ export function calcPrevWeekDiff(
   return currentTotalAmountYen - prevWeekTotalAmountYen;
 }
 
+/** 前週比（指数）: 今週 ÷ 前週 × 100。100% = 前週と同額 */
+export function calcPrevWeekRatio(
+  currentTotalAmountYen: number,
+  prevWeekTotalAmountYen: number | null,
+): number | null {
+  if (prevWeekTotalAmountYen === null || prevWeekTotalAmountYen === 0) {
+    return null;
+  }
+  return Math.round((currentTotalAmountYen / prevWeekTotalAmountYen) * 100);
+}
+
+/** 差額サマリー用の増減率: (今週 − 前週) ÷ 前週 × 100 */
 export function calcPrevWeekRate(
   currentTotalAmountYen: number,
   prevWeekTotalAmountYen: number | null,
@@ -42,14 +54,13 @@ export function formatPrevWeekRate(rate: number | null): string {
   return `${sign}${rate}%`;
 }
 
-export function formatPrevWeekRateWithArrow(rate: number | null): string {
-  if (rate === null) {
+export function formatPrevWeekRatioWithArrow(ratio: number | null): string {
+  if (ratio === null) {
     return "前週データなし";
   }
-  if (rate === 0) {
-    return "±0%";
+  if (ratio === 100) {
+    return "100%";
   }
-  const sign = rate > 0 ? "+" : "";
-  const arrow = rate > 0 ? " ↑" : " ↓";
-  return `${sign}${rate}%${arrow}`;
+  const arrow = ratio > 100 ? " ↑" : " ↓";
+  return `${ratio}%${arrow}`;
 }

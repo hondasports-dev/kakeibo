@@ -805,7 +805,7 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await cleanupTestReceipts();
   });
 
-  test("入力画面・週次サマリーに前週比（増減率）が表示される", async ({ page }) => {
+  test("入力画面・週次サマリーに前週比（指数）が表示される", async ({ page }) => {
     // Issue #181: ExpenseEntryForm の日付は週日選択UI（今週内のみ）のため、
     // 前週データは「前の週へ」ナビゲート後に保存し、今週へ戻って今週分を保存する
     const firstCategory = page
@@ -837,7 +837,7 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
-    // SummaryPage の週次サマリー合計セクションの前週比が増減率（％）で表示されること
+    // SummaryPage の週次サマリー合計セクションの前週比が指数（％）で表示されること
     await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
     await expect(page.getByLabel("前週比").first()).toContainText(/%|前週データなし/);
     await expect(page.getByLabel("前週比").first()).not.toContainText(/[+-]?\d{1,3}(,\d{3})*円/);

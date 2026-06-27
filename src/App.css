@@ -162,7 +162,7 @@
 .dashboard-comparison-bar-track-horizontal {
   align-items: center;
   display: flex;
-  height: 36px;
+  height: 18px;
   min-width: 0;
   width: 100%;
 }
@@ -222,7 +222,7 @@
 .dashboard-comparison-bar--horizontal {
   border-radius: 999px;
   flex-shrink: 0;
-  height: 36px;
+  height: 18px;
   max-width: 100%;
   min-width: 0;
 }

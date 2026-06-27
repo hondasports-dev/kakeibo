@@ -31,7 +31,7 @@ describe("DashboardSummaryRow", () => {
     expect(
       screen.getByText((_, element) => element?.getAttribute("data-value") === "12 件"),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("前週比")).toHaveTextContent("-8% ↓");
+    expect(screen.getByLabelText("前週比")).toHaveTextContent("92% ↓");
   });
 
   it("前週データがない場合は前週データなしを表示する", () => {
