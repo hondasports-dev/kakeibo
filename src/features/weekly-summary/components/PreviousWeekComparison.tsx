@@ -1,5 +1,5 @@
 import { Chip, Stack, Typography } from "@mui/material";
-import { calcPrevWeekRate, formatPrevWeekRateWithArrow } from "../../../lib/weekComparison";
+import { calcPrevWeekRatio, formatPrevWeekRatioWithArrow } from "../../../lib/weekComparison";
 
 type PreviousWeekComparisonProps = {
   currentTotalAmountYen: number;
@@ -14,10 +14,10 @@ export function PreviousWeekComparison({
   isLoading = false,
   size = "body2",
 }: PreviousWeekComparisonProps) {
-  const rate = calcPrevWeekRate(currentTotalAmountYen, prevWeekTotalAmountYen);
-  const hasPrevWeekData = rate !== null;
-  const isIncrease = hasPrevWeekData && rate > 0;
-  const isDecrease = hasPrevWeekData && rate < 0;
+  const ratio = calcPrevWeekRatio(currentTotalAmountYen, prevWeekTotalAmountYen);
+  const hasPrevWeekData = ratio !== null;
+  const isIncrease = hasPrevWeekData && ratio > 100;
+  const isDecrease = hasPrevWeekData && ratio < 100;
   const valueColor = isIncrease ? "error.main" : isDecrease ? "success.main" : "text.secondary";
 
   return (
@@ -34,7 +34,7 @@ export function PreviousWeekComparison({
         </Typography>
       ) : (
         <Typography sx={{ color: valueColor, fontWeight: 700 }} variant={size}>
-          {formatPrevWeekRateWithArrow(rate)}
+          {formatPrevWeekRatioWithArrow(ratio)}
         </Typography>
       )}
     </Stack>

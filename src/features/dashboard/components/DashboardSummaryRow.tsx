@@ -5,7 +5,7 @@ import { Box, Divider, Paper, Skeleton, Stack, Typography, useMediaQuery } from 
 import { useTheme } from "@mui/material/styles";
 import { AnimatedCounter } from "../../ui";
 import { formatAggregationPeriod } from "../utils/formatAggregationPeriod";
-import { calcPrevWeekRate, formatPrevWeekRateWithArrow } from "../../../lib/weekComparison";
+import { calcPrevWeekRatio, formatPrevWeekRatioWithArrow } from "../../../lib/weekComparison";
 
 type DashboardSummaryRowProps = {
   count: number;
@@ -27,9 +27,9 @@ function PrevWeekRateDisplay({
   prevWeekTotalAmountYen: number | null;
   valueVariant?: "h4" | "h5";
 }) {
-  const rate = calcPrevWeekRate(currentTotalAmountYen, prevWeekTotalAmountYen);
-  const isIncrease = rate !== null && rate > 0;
-  const isDecrease = rate !== null && rate < 0;
+  const ratio = calcPrevWeekRatio(currentTotalAmountYen, prevWeekTotalAmountYen);
+  const isIncrease = ratio !== null && ratio > 100;
+  const isDecrease = ratio !== null && ratio < 100;
   const valueColor = isIncrease ? "error.main" : isDecrease ? "success.main" : "text.secondary";
 
   return (
@@ -41,7 +41,7 @@ function PrevWeekRateDisplay({
         <Skeleton height={36} variant="text" width={80} />
       ) : (
         <Typography sx={{ color: valueColor, fontWeight: 700 }} variant={valueVariant}>
-          {formatPrevWeekRateWithArrow(rate)}
+          {formatPrevWeekRatioWithArrow(ratio)}
         </Typography>
       )}
     </Stack>

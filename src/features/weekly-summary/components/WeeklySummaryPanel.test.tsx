@@ -104,7 +104,7 @@ describe("WeeklySummaryPanel", () => {
     expect(screen.queryByText(/10,000円 中 63% 消化/)).not.toBeInTheDocument();
     expect(screen.queryByText(/中 63% 消化/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("予算消化率")).not.toBeInTheDocument();
-    expect(screen.getByText("-10% ↓")).toBeInTheDocument();
+    expect(screen.getByText("90% ↓")).toBeInTheDocument();
     expect(screen.getByText("スーパー北浜")).toBeInTheDocument();
     expect(screen.getByText("ドラッグストア南")).toBeInTheDocument();
     expect(screen.getAllByText("食費")).toHaveLength(2);
