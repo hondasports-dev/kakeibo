@@ -477,10 +477,9 @@
 .receipt-list-header,
 .receipt-row {
   display: grid;
-  grid-template-columns: 96px minmax(140px, 1.3fr) minmax(100px, 0.8fr) 112px minmax(
-      140px,
-      1fr
-    ) 152px;
+  grid-template-columns:
+    96px minmax(140px, 1.3fr) minmax(100px, 0.8fr) 112px minmax(140px, 1fr)
+    152px;
   gap: var(--space-md);
   align-items: center;
   padding: var(--space-sm) var(--space-xs);

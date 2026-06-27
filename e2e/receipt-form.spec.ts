@@ -1,6 +1,7 @@
 import { test, expect, type Locator } from "@playwright/test";
 import { barClasses } from "@mui/x-charts/BarChart";
 import { gotoAuthenticated } from "./helpers/auth";
+import { expectNoHorizontalOverflow } from "./helpers/viewport";
 import {
   cleanupE2eExpenseEntries,
   cleanupTestCategories,
@@ -733,6 +734,67 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
       1,
       { timeout: 30_000 },
     );
+  });
+
+  test("[Issue #371] 週次サマリーがPC表形式とSP縦積み表示に切り替わる", async ({ page }) => {
+    const shopName = `QA週次サマリー371_${Date.now()}`;
+    const memo = ["週末のまとめ買い", "牛乳とパン", "特売品を含む"].join("\n");
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await gotoAuthenticated(page, "/weeks/current/input");
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("5280");
+    await page.getByLabel("メモ").fill(memo);
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+    await expect(page.getByText("合計支出")).toBeVisible();
+    await expect(page.getByText("前週差")).toBeVisible();
+    await expect(page.getByText("2週平均比")).toBeVisible();
+
+    const analysisGrid = page.locator(".weekly-summary-analysis-grid");
+    const chartPanel = analysisGrid.locator(".paper-panel").first();
+    const categoryPanel = analysisGrid.getByTestId("weekly-category-breakdown");
+    await expect(chartPanel).toBeVisible();
+    await expect(categoryPanel).toBeVisible();
+    const [chartBounds, categoryBounds] = await Promise.all([
+      chartPanel.boundingBox(),
+      categoryPanel.boundingBox(),
+    ]);
+    expect(chartBounds?.y).toBe(categoryBounds?.y);
+    expect(chartBounds?.x ?? 0).toBeLessThan(categoryBounds?.x ?? 0);
+
+    for (const label of ["日付", "店名・内容", "カテゴリ", "金額（円）", "メモ", "操作"]) {
+      await expect(page.locator(".receipt-list-header").getByText(label)).toBeVisible();
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(400);
+    await expectNoHorizontalOverflow(page);
+
+    const mobileChartBounds = await chartPanel.boundingBox();
+    const mobileCategoryBounds = await categoryPanel.boundingBox();
+    expect(mobileChartBounds?.y ?? 0).toBeLessThan(mobileCategoryBounds?.y ?? 0);
+    await expect(page.locator(".receipt-list-header")).toBeHidden();
+
+    const receiptRow = page.getByTestId("receipt-row").filter({ hasText: shopName });
+    await expect(receiptRow).toBeVisible();
+    await expect(receiptRow.getByText("5,280円")).toBeVisible();
+    const editButton = receiptRow.getByRole("button", { name: new RegExp(`${shopName}.*を編集`) });
+    const deleteButton = receiptRow.getByRole("button", {
+      name: new RegExp(`${shopName}.*を削除`),
+    });
+    for (const button of [editButton, deleteButton]) {
+      const bounds = await button.boundingBox();
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    await expect(receiptRow.getByRole("button", { name: "もっと見る" })).toBeVisible();
   });
 
   test("[Issue #15] 再度ナビで戻れる (P1)", async ({ page }) => {
