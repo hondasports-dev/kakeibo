@@ -478,7 +478,7 @@
 .receipt-row {
   display: grid;
   grid-template-columns:
-    96px minmax(140px, 1.3fr) minmax(100px, 0.8fr) 112px minmax(140px, 1fr)
+    88px minmax(156px, 1.3fr) minmax(100px, 0.8fr) 104px minmax(140px, 1fr)
     184px;
   gap: var(--space-md);
   align-items: center;
