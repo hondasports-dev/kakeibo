@@ -48,6 +48,64 @@ type CategorySummary = {
   count: number;
 };
 
+async function buildCategoryInfoMap(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  categoryIds: string[],
+): Promise<Map<string, { name: string; color: string }>> {
+  const categories = (await Promise.all(
+    categoryIds.map((categoryId) => ctx.db.get(categoryId as Id<"categories">)),
+  )) as Array<Doc<"categories"> | null>;
+
+  const categoryInfoMap = new Map<string, { name: string; color: string }>();
+  for (const category of categories) {
+    if (category === null || category.groupId !== groupId) {
+      continue;
+    }
+    categoryInfoMap.set(category._id as string, {
+      name: category.name,
+      color: category.color,
+    });
+  }
+
+  return categoryInfoMap;
+}
+
+function summarizeByCategory(
+  receipts: Array<{ categoryId: string; amountYen: number }>,
+  categoryInfoMap: Map<string, { name: string; color: string }>,
+): CategorySummary[] {
+  const categoryMap = new Map<
+    string,
+    { name: string; color: string; total: number; count: number }
+  >();
+
+  for (const receipt of receipts) {
+    const categoryIdStr = receipt.categoryId as string;
+    const info = categoryInfoMap.get(categoryIdStr);
+    const name = info?.name ?? "不明";
+    const color = info?.color ?? "#AAB7C4";
+
+    const catEntry = categoryMap.get(categoryIdStr);
+    if (catEntry === undefined) {
+      categoryMap.set(categoryIdStr, { name, color, total: receipt.amountYen, count: 1 });
+    } else {
+      catEntry.total += receipt.amountYen;
+      catEntry.count += 1;
+    }
+  }
+
+  return Array.from(categoryMap.entries())
+    .map(([categoryId, data]) => ({
+      categoryId,
+      categoryName: data.name,
+      categoryColor: data.color,
+      totalAmountYen: data.total,
+      count: data.count,
+    }))
+    .sort((a, b) => b.totalAmountYen - a.totalAmountYen);
+}
+
 type GetWeekSummaryWithCategoriesArgs = {
   weekStartDate: string;
 };
@@ -85,30 +143,10 @@ export async function getWeekSummaryWithCategoriesHandler(
   const prevWeekReceipts = await getWeekSpendingEntries(ctx, groupId, prevWeekStartDate);
 
   const categoryIds = Array.from(new Set(receipts.map((receipt) => receipt.categoryId)));
-  const categories = (await Promise.all(
-    categoryIds.map((categoryId) => ctx.db.get(categoryId as Id<"categories">)),
-  )) as Array<Doc<"categories"> | null>;
-
-  // カテゴリ情報を id → {name, color} の Map に変換
-  const categoryInfoMap = new Map<string, { name: string; color: string }>();
-  for (const category of categories) {
-    if (category === null || category.groupId !== groupId) {
-      continue;
-    }
-    categoryInfoMap.set(category._id as string, {
-      name: category.name,
-      color: category.color,
-    });
-  }
+  const categoryInfoMap = await buildCategoryInfoMap(ctx, groupId, categoryIds);
 
   const { count, totalAmountYen } = summarizeReceipts(receipts);
   const prevWeekSummary = summarizeReceipts(prevWeekReceipts);
-
-  // カテゴリ別集計 Map（ループ内で db アクセスしない）
-  const categoryMap = new Map<
-    string,
-    { name: string; color: string; total: number; count: number }
-  >();
 
   const receiptsWithCategory: WeekSummaryWithCategories["receipts"] = [];
 
@@ -117,14 +155,6 @@ export async function getWeekSummaryWithCategoriesHandler(
     const info = categoryInfoMap.get(categoryIdStr);
     const name = info?.name ?? "不明";
     const color = info?.color ?? "#AAB7C4";
-
-    const catEntry = categoryMap.get(categoryIdStr);
-    if (catEntry === undefined) {
-      categoryMap.set(categoryIdStr, { name, color, total: receipt.amountYen, count: 1 });
-    } else {
-      catEntry.total += receipt.amountYen;
-      catEntry.count += 1;
-    }
 
     receiptsWithCategory.push({
       _id: receipt._id,
@@ -141,16 +171,7 @@ export async function getWeekSummaryWithCategoriesHandler(
     });
   }
 
-  // カテゴリ別集計を金額降順にソート
-  const byCategory: CategorySummary[] = Array.from(categoryMap.entries())
-    .map(([categoryId, data]) => ({
-      categoryId,
-      categoryName: data.name,
-      categoryColor: data.color,
-      totalAmountYen: data.total,
-      count: data.count,
-    }))
-    .sort((a, b) => b.totalAmountYen - a.totalAmountYen);
+  const byCategory = summarizeByCategory(receipts, categoryInfoMap);
 
   return {
     count,
@@ -167,6 +188,7 @@ export type FourWeeksSummaryData = {
   weeks: Array<{
     weekStartDate: string;
     totalAmountYen: number;
+    byCategory: CategorySummary[];
   }>;
   /** データが存在する週の数（グラフ表示判定に使用） */
   weekCount: number;
@@ -183,15 +205,31 @@ export async function getFourWeeksSummaryHandler(
 ): Promise<FourWeeksSummaryData> {
   const { groupId } = await requireGroupMembership(ctx);
 
-  // 基準週から3週前まで4週分を降順で収集し、最後に昇順に反転する
-  const descWeeks: Array<{ weekStartDate: string; totalAmountYen: number }> = [];
+  const weeklyReceipts: Array<{
+    weekStartDate: string;
+    receipts: Awaited<ReturnType<typeof getWeekSpendingEntries>>;
+  }> = [];
+  const allCategoryIds = new Set<string>();
 
   for (let i = 0; i < 4; i++) {
     const targetWeekStartDate = calculateRelativeWeekStartDate(args.weekStartDate, -i);
     const receipts = await getWeekSpendingEntries(ctx, groupId, targetWeekStartDate);
-    const { totalAmountYen } = summarizeReceipts(receipts);
-    descWeeks.push({ weekStartDate: targetWeekStartDate, totalAmountYen });
+    weeklyReceipts.push({ weekStartDate: targetWeekStartDate, receipts });
+    for (const receipt of receipts) {
+      allCategoryIds.add(receipt.categoryId as string);
+    }
   }
+
+  const categoryInfoMap = await buildCategoryInfoMap(ctx, groupId, Array.from(allCategoryIds));
+
+  const descWeeks = weeklyReceipts.map(({ weekStartDate, receipts }) => {
+    const { totalAmountYen } = summarizeReceipts(receipts);
+    return {
+      weekStartDate,
+      totalAmountYen,
+      byCategory: summarizeByCategory(receipts, categoryInfoMap),
+    };
+  });
 
   // 古い順（昇順）に並べ替え
   const weeks = descWeeks.reverse();
