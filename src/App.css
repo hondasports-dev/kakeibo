@@ -135,80 +135,95 @@
   width: 100%;
 }
 
-.dashboard-comparison-bars--vertical {
-  align-items: end;
-  display: grid;
-  gap: var(--space-lg);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  min-height: 220px;
-  padding-top: var(--space-sm);
-}
-
-.dashboard-comparison-bar-col {
-  height: 100%;
-  justify-content: end;
+.dashboard-comparison-bars--horizontal {
+  width: 100%;
 }
 
 .dashboard-comparison-bar-row {
   align-items: center;
 }
 
+.dashboard-comparison-bar-row-body {
+  align-items: center;
+  display: flex;
+  flex: 1;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
 .dashboard-comparison-bar-label {
   flex-shrink: 0;
   min-width: 2.5rem;
+  text-align: center;
 }
 
-.dashboard-comparison-bar-track {
-  background: var(--color-border-track);
-  border-radius: 999px;
-  overflow: hidden;
-  position: relative;
-}
-
-.dashboard-comparison-bar-track--vertical {
-  height: 160px;
+.dashboard-comparison-plot {
+  display: grid;
+  gap: var(--space-sm) var(--space-lg);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
   width: 100%;
-  max-width: 88px;
-  margin-inline: auto;
-  display: flex;
+}
+
+.dashboard-comparison-plot-amounts,
+.dashboard-comparison-plot-bars,
+.dashboard-comparison-plot-labels {
+  display: grid;
+  gap: var(--space-lg);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.dashboard-comparison-plot-amounts {
+  justify-items: center;
+}
+
+.dashboard-comparison-plot-bars {
   align-items: end;
+  border-bottom: 1px solid var(--color-border-subtle);
+  height: 160px;
+  padding-top: var(--space-xs);
 }
 
-.dashboard-comparison-bar-track--horizontal {
-  flex: 1;
-  height: 40px;
+.dashboard-comparison-plot-labels {
+  justify-items: center;
+  padding-top: var(--space-xs);
 }
 
-.dashboard-comparison-bar-fill {
+.dashboard-comparison-bar {
+  justify-self: center;
+  max-width: 88px;
+  width: 48%;
+}
+
+.dashboard-comparison-bar--vertical {
+  border-radius: 12px 12px 0 0;
+}
+
+.dashboard-comparison-bar--horizontal {
   border-radius: 999px;
+  flex-shrink: 0;
+  height: 40px;
+  max-width: none;
+  min-width: 0;
+  width: auto;
 }
 
-.dashboard-comparison-bar-fill--previous {
+.dashboard-comparison-bar--previous {
   background: #b8c4ce;
 }
 
-.dashboard-comparison-bar-fill--current {
+.dashboard-comparison-bar--current {
   background: var(--color-brand-sparrow);
-}
-
-.dashboard-comparison-bar-track--vertical .dashboard-comparison-bar-fill {
-  width: 100%;
-}
-
-.dashboard-comparison-bar-track--horizontal .dashboard-comparison-bar-fill {
-  height: 100%;
 }
 
 .dashboard-comparison-bar-amount {
   font-weight: 700;
 }
 
-.dashboard-comparison-bar-track--horizontal .dashboard-comparison-bar-amount {
-  left: var(--space-sm);
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 1;
+.dashboard-comparison-bar-row-body .dashboard-comparison-bar-amount {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .paper-panel {

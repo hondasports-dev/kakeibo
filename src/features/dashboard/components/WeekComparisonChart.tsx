@@ -45,6 +45,13 @@ type ComparisonBar = {
   tone: "current" | "previous";
 };
 
+function barSizePercent(amount: number, maxAmount: number): number {
+  if (maxAmount <= 0 || amount <= 0) {
+    return 0;
+  }
+  return (amount / maxAmount) * 100;
+}
+
 function ComparisonBars({
   bars,
   isCompact,
@@ -58,12 +65,12 @@ function ComparisonBars({
     return (
       <Stack
         aria-label="前週との比較グラフ"
-        className="dashboard-comparison-bars"
+        className="dashboard-comparison-bars dashboard-comparison-bars--horizontal"
         role="img"
         spacing={1.25}
       >
         {bars.map((bar) => {
-          const widthPercent = maxAmount > 0 ? Math.max((bar.amount / maxAmount) * 100, 8) : 0;
+          const widthPercent = barSizePercent(bar.amount, maxAmount);
           return (
             <Stack
               key={bar.label}
@@ -74,10 +81,10 @@ function ComparisonBars({
               <Typography className="dashboard-comparison-bar-label" variant="body2">
                 {bar.label}
               </Typography>
-              <Box className="dashboard-comparison-bar-track dashboard-comparison-bar-track--horizontal">
+              <Box className="dashboard-comparison-bar-row-body">
                 <Box
-                  className={`dashboard-comparison-bar-fill dashboard-comparison-bar-fill--${bar.tone}`}
-                  sx={{ width: `${widthPercent}%` }}
+                  className={`dashboard-comparison-bar dashboard-comparison-bar--horizontal dashboard-comparison-bar--${bar.tone}`}
+                  sx={{ width: widthPercent > 0 ? `max(${widthPercent}%, 8%)` : 0 }}
                 />
                 <Typography className="dashboard-comparison-bar-amount" variant="body2">
                   {formatAmount(bar.amount)}
@@ -91,39 +98,44 @@ function ComparisonBars({
   }
 
   return (
-    <Box
-      aria-label="前週との比較グラフ"
-      className="dashboard-comparison-bars dashboard-comparison-bars--vertical"
-      role="img"
-    >
-      {bars.map((bar) => {
-        const heightPercent = maxAmount > 0 ? Math.max((bar.amount / maxAmount) * 100, 12) : 0;
-        return (
-          <Stack
-            key={bar.label}
-            className="dashboard-comparison-bar-col"
-            spacing={1}
-            sx={{ alignItems: "center" }}
+    <Box aria-label="前週との比較グラフ" className="dashboard-comparison-plot" role="img">
+      <Box className="dashboard-comparison-plot-amounts">
+        {bars.map((bar) => (
+          <Typography
+            key={`${bar.label}-amount`}
+            className="dashboard-comparison-bar-amount"
+            variant="body2"
           >
-            <Typography className="dashboard-comparison-bar-amount" variant="body2">
-              {formatAmount(bar.amount)}
-            </Typography>
-            <Box className="dashboard-comparison-bar-track dashboard-comparison-bar-track--vertical">
-              <Box
-                className={`dashboard-comparison-bar-fill dashboard-comparison-bar-fill--${bar.tone}`}
-                sx={{ height: `${heightPercent}%` }}
-              />
-            </Box>
-            <Typography
-              className="dashboard-comparison-bar-label"
-              color="text.secondary"
-              variant="body2"
-            >
-              {bar.label}
-            </Typography>
-          </Stack>
-        );
-      })}
+            {formatAmount(bar.amount)}
+          </Typography>
+        ))}
+      </Box>
+      <Box className="dashboard-comparison-plot-bars">
+        {bars.map((bar) => {
+          const heightPercent = barSizePercent(bar.amount, maxAmount);
+          return (
+            <Box
+              key={`${bar.label}-bar`}
+              className={`dashboard-comparison-bar dashboard-comparison-bar--vertical dashboard-comparison-bar--${bar.tone}`}
+              sx={{
+                height: heightPercent > 0 ? `max(${heightPercent}%, 4px)` : 0,
+              }}
+            />
+          );
+        })}
+      </Box>
+      <Box className="dashboard-comparison-plot-labels">
+        {bars.map((bar) => (
+          <Typography
+            key={`${bar.label}-label`}
+            className="dashboard-comparison-bar-label"
+            color="text.secondary"
+            variant="body2"
+          >
+            {bar.label}
+          </Typography>
+        ))}
+      </Box>
     </Box>
   );
 }
@@ -137,14 +149,7 @@ export function WeekComparisonChart({
   const isCompact = useMediaQuery(theme.breakpoints.down("md"));
   const diff = calcPrevWeekDiff(currentTotalAmountYen, prevWeekTotalAmountYen);
   const rate = calcPrevWeekRate(currentTotalAmountYen, prevWeekTotalAmountYen);
-  const diffColor =
-    diff === null
-      ? "text.secondary"
-      : diff > 0
-        ? "error.main"
-        : diff < 0
-          ? "success.main"
-          : "text.secondary";
+  const diffSummary = formatDiffSummary(diff, rate);
 
   if (isLoading) {
     return (
@@ -183,25 +188,33 @@ export function WeekComparisonChart({
       : [{ amount: currentTotalAmountYen, label: "今週", tone: "current" }];
 
   const maxAmount = Math.max(...bars.map((bar) => bar.amount), 1);
-  const diffSummary = formatDiffSummary(diff, rate);
 
   return (
     <Paper className="paper-panel" data-testid="week-comparison-chart" elevation={0}>
       <Box sx={{ p: { xs: 2, sm: 2.5 } }}>
-        <Typography component="h2" variant="h6">
-          前週との比較
-        </Typography>
-
-        {!isCompact && (
-          <Typography color={diffColor} sx={{ fontWeight: 700, mt: 0.5, mb: 2 }} variant="body2">
-            {diffSummary}
+        {!isCompact ? (
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ alignItems: "baseline", flexWrap: "wrap", mb: 2 }}
+          >
+            <Typography component="h2" variant="h6">
+              前週との比較
+            </Typography>
+            <Typography color="text.secondary" variant="body2">
+              {diffSummary}
+            </Typography>
+          </Stack>
+        ) : (
+          <Typography component="h2" sx={{ mb: 1.5 }} variant="h6">
+            前週との比較
           </Typography>
         )}
 
         <ComparisonBars bars={bars} isCompact={isCompact} maxAmount={maxAmount} />
 
         {isCompact && (
-          <Typography color={diffColor} sx={{ fontWeight: 700, mt: 1.5 }} variant="body2">
+          <Typography color="text.secondary" sx={{ fontWeight: 700, mt: 1.5 }} variant="body2">
             {diffSummary}
           </Typography>
         )}
