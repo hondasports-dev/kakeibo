@@ -43,7 +43,7 @@ function renderQueueContent(groupedItems: {
 }
 
 describe("QueueContent モバイル表示", () => {
-  it("ステータスサマリーに折り返し用クラスを付ける", () => {
+  it("ステータスサマリーに折り返し用クラスと flexWrap を付ける", () => {
     const { container } = renderQueueContent({
       processing: [],
       ready: [],
@@ -52,7 +52,9 @@ describe("QueueContent モバイル表示", () => {
       registered: [registeredItem],
     });
 
-    expect(container.querySelector(".ai-expense-queue-status-summary")).toBeInTheDocument();
+    const summary = container.querySelector(".ai-expense-queue-status-summary");
+    expect(summary).toBeInTheDocument();
+    expect(summary).toHaveStyle({ flexWrap: "wrap" });
   });
 
   it("長いファイル名は折り返し用クラスと title を付ける", () => {

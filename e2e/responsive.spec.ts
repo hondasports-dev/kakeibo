@@ -1,5 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
+import {
+  expectLocatorInsideViewport,
+  expectLocatorLeftInsideViewport,
+  expectNoHorizontalOverflow,
+} from "./helpers/viewport";
+
+/** Issue #354 スクショ相当の SP 幅 */
+const MOBILE_VIEWPORT = { width: 406, height: 687 };
 
 /**
  * レスポンシブ表示 E2E テスト
@@ -13,7 +21,7 @@ import { gotoAuthenticated } from "./helpers/auth";
  *     **削除** (Issue #49 でダッシュボードが変更されたため)
  *   - シナリオ R-3: 390px viewport で設定画面の主要要素が表示される (P1 / smoke)
  *     **更新** (BottomNavigation 経由の遷移に変更)
- *   - シナリオ R-4: 390px viewport で入力画面が横スクロールせず主要要素が表示される (P1 / smoke)
+ *   - シナリオ R-4: 406px viewport で入力画面が横スクロールせず主要要素が viewport 内に収まる (P1 / smoke)
  *     Issue #354 対応
  *
  * テストデータ・cleanup:
@@ -33,11 +41,11 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
   });
 
-  test("@smoke シナリオR-4: 390px viewport で入力画面が横スクロールせず主要要素が表示される", async ({
+  test("@smoke シナリオR-4: 406px viewport で入力画面が横スクロールせず主要要素が表示される", async ({
     page,
   }) => {
     await gotoAuthenticated(page);
-    await page.setViewportSize({ width: 390, height: 844 });
+    await page.setViewportSize(MOBILE_VIEWPORT);
 
     await page
       .getByRole("navigation", { name: "ボトムナビゲーション" })
@@ -48,18 +56,31 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
     const queueSection = page.locator("section.ai-expense-queue");
-    await expect(
-      queueSection.getByRole("button", { name: "レシートを追加" }).first(),
-    ).toBeVisible();
-    await expect(queueSection.getByRole("button", { name: "撮影する" })).toBeVisible();
+    const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
+    const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
+    await expect(addReceiptButton).toBeVisible();
+    await expect(cameraButton).toBeVisible();
 
-    // ページ遷移アニメーション（300ms）完了後に横スクロールを確認
+    const shopNameInput = page.getByLabel("店舗名 / 支払先");
+    const amountInput = page.getByLabel("合計金額");
+    const categoryList = page.getByRole("listbox", { name: "カテゴリ候補" });
+    const saveButton = page.getByRole("button", { name: "保存して次へ" });
+    await expect(shopNameInput).toBeVisible();
+    await expect(amountInput).toBeVisible();
+    await expect(categoryList).toBeVisible();
+    await expect(saveButton).toBeVisible();
+
+    // ページ遷移アニメーション（300ms）完了後に横スクロールと viewport 内収容を確認
     await page.waitForTimeout(400);
 
-    const hasHorizontalOverflow = await page.evaluate(() => {
-      const root = document.documentElement;
-      return root.scrollWidth > root.clientWidth + 1;
-    });
-    expect(hasHorizontalOverflow).toBe(false);
+    await expectNoHorizontalOverflow(page);
+    await expectLocatorInsideViewport(queueSection);
+    await expectLocatorInsideViewport(addReceiptButton);
+    await expectLocatorInsideViewport(cameraButton);
+    await expectLocatorInsideViewport(shopNameInput);
+    await expectLocatorInsideViewport(amountInput);
+    await expectLocatorInsideViewport(categoryList);
+    await expectLocatorInsideViewport(saveButton);
+    await expectLocatorLeftInsideViewport(saveButton);
   });
 });

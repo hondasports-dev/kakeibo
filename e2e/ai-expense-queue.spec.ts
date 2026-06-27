@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
+import { expectLocatorInsideContainer, expectLocatorInsideViewport } from "./helpers/viewport";
 import {
   cleanupAiExpenseQueue,
   cleanupE2eExpenseEntries,
@@ -24,38 +25,6 @@ const INPUT_PATH = "/weeks/current/input";
 /** ヘッダーの ImageInputButton（空状態 CTA と区別する） */
 function getHeaderAddReceiptButton(queue: Locator) {
   return queue.getByRole("button", { name: "レシートを追加", exact: true }).first();
-}
-
-async function expectLocatorInsideViewport(locator: Locator) {
-  await expect
-    .poll(
-      async () =>
-        locator.evaluate((target) => {
-          const rect = target.getBoundingClientRect();
-          return Math.ceil(rect.right - window.innerWidth);
-        }),
-      { timeout: 5000 },
-    )
-    .toBeLessThanOrEqual(0);
-}
-
-async function expectLocatorInsideContainer(locator: Locator, container: Locator) {
-  await expect
-    .poll(
-      async () => {
-        const targetRect = await locator.evaluate((target) => {
-          const rect = target.getBoundingClientRect();
-          return { right: rect.right };
-        });
-        const containerRect = await container.evaluate((target) => {
-          const rect = target.getBoundingClientRect();
-          return { right: rect.right };
-        });
-        return Math.ceil(targetRect.right - containerRect.right);
-      },
-      { timeout: 5000 },
-    )
-    .toBeLessThanOrEqual(0);
 }
 
 async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: string) {
@@ -373,9 +342,12 @@ test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
 
 test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", () => {
   test("@smoke 一覧で状態サマリーと次の操作導線が表示される", async ({ page }) => {
+    await page.setViewportSize({ width: 406, height: 687 });
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
     const queue = page.getByRole("region", { name: "レシート入力" });
+    const statusSummary = page.locator(".ai-expense-queue-status-summary");
+    await expect(statusSummary).toBeVisible();
     await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
     await expect(queue.getByText("確認が必要 1件")).toBeVisible();
     await expect(queue.getByText("失敗 1件")).toBeVisible();
@@ -391,6 +363,10 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     await expect(
       queue.getByRole("region", { name: "失敗" }).getByRole("button", { name: "再試行" }),
     ).toBeVisible();
+
+    await page.waitForTimeout(400);
+    await expectLocatorInsideViewport(queue);
+    await expectLocatorInsideViewport(statusSummary);
   });
 
   test("@smoke SP幅で下書き詳細の登録候補と修正導線が読める", async ({ page }) => {

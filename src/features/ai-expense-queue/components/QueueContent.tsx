@@ -78,7 +78,7 @@ export function QueueContent({
           className="ai-expense-queue-status-summary"
           direction="row"
           spacing={1}
-          sx={{ flex: 1, minWidth: 0 }}
+          sx={{ flex: 1, flexWrap: "wrap", minWidth: 0 }}
         >
           <Chip
             color="default"
@@ -129,7 +129,7 @@ export function QueueContent({
           startIcon={<DeleteIcon />}
           type="button"
           variant="outlined"
-          sx={{ alignSelf: "flex-start" }}
+          sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
         >
           未登録の画像をクリア（{clearableCount}件）
         </Button>
@@ -149,7 +149,7 @@ export function QueueContent({
             onClick={() => setConfirmOpen(true)}
             type="button"
             variant="contained"
-            sx={{ alignSelf: "flex-start" }}
+            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
           >
             まとめて登録（{selectedReadyIds.length}件）
           </Button>

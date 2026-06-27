@@ -19,7 +19,7 @@ export function DifferenceDisplay({
       : `未配分: ${difference.toLocaleString("ja-JP")}円`;
 
   return (
-    <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+    <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
       <Typography variant="body2" color="text.secondary">
         差額
       </Typography>
