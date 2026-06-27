@@ -15,6 +15,7 @@ describe("WeeklySummaryPanel", () => {
         prevWeekTotalAmountYen={null}
         receipts={[]}
         weekStartDate="2024-01-08"
+        weeklyExpenseTrend={null}
       />,
     );
 
@@ -73,6 +74,7 @@ describe("WeeklySummaryPanel", () => {
           },
         ]}
         weekStartDate="2026-05-13"
+        weeklyExpenseTrend={null}
       />,
     );
 
@@ -175,6 +177,8 @@ describe("WeeklySummaryPanel", () => {
     );
 
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
+    expect(screen.getByTestId("weekly-summary-metrics-loading")).toBeInTheDocument();
+    expect(screen.queryByText("比較データなし")).not.toBeInTheDocument();
   });
 
   it("支出と収入の種別が判別できる", () => {

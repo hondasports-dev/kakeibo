@@ -26,7 +26,7 @@ export function WeeklySummaryPanel({
     <Stack spacing={2.5}>
       <SummaryMetricsPanel
         averageRate={targetWeek?.averageRate ?? null}
-        isLoading={isLoading}
+        isLoading={isLoading || weeklyExpenseTrend === undefined}
         previousDiff={previousDiff}
         totalAmountYen={totalAmountYen}
       />
