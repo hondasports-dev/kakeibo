@@ -23,4 +23,13 @@ describe("SummaryMetricsPanel", () => {
 
     expect(screen.getAllByText("比較データなし")).toHaveLength(2);
   });
+
+  it("読込中は指標の代わりにSkeletonを表示する", () => {
+    renderWithProviders(
+      <SummaryMetricsPanel isLoading totalAmountYen={0} previousDiff={null} averageRate={null} />,
+    );
+
+    expect(screen.getByTestId("weekly-summary-metrics-loading")).toBeInTheDocument();
+    expect(screen.queryByText("合計支出")).not.toBeInTheDocument();
+  });
 });

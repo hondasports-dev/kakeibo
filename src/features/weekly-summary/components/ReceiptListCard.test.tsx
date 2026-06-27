@@ -29,6 +29,12 @@ describe("ReceiptListCard", () => {
     expect(screen.queryByRole("button", { name: "さらに2件を見る" })).not.toBeInTheDocument();
   });
 
+  it("読込中は既存データの全件展開ボタンを表示しない", () => {
+    renderWithProviders(<ReceiptListCard count={7} isLoading receipts={receipts} />);
+
+    expect(screen.queryByRole("button", { name: "さらに2件を見る" })).not.toBeInTheDocument();
+  });
+
   it("PC一覧用の列見出しを提供する", () => {
     renderWithProviders(
       <ReceiptListCard count={1} isLoading={false} receipts={receipts.slice(0, 1)} />,

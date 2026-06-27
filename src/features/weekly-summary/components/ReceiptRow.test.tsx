@@ -59,9 +59,10 @@ describe("ReceiptRow", () => {
     expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
   });
 
-  it("メモがない場合はメモ行を表示しない", () => {
+  it("メモがない場合はプレースホルダーを表示する", () => {
     renderWithProviders(<ReceiptRow receipt={sampleReceipt} />);
 
+    expect(screen.getByText("—")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "もっと見る" })).not.toBeInTheDocument();
     expect(screen.queryByText("メモあり")).not.toBeInTheDocument();
   });

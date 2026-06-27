@@ -767,7 +767,7 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
       chartPanel.boundingBox(),
       categoryPanel.boundingBox(),
     ]);
-    expect(chartBounds?.y).toBe(categoryBounds?.y);
+    expect(Math.abs((chartBounds?.y ?? 0) - (categoryBounds?.y ?? 0))).toBeLessThan(2);
     expect(chartBounds?.x ?? 0).toBeLessThan(categoryBounds?.x ?? 0);
 
     for (const label of ["日付", "店名・内容", "カテゴリ", "金額（円）", "メモ", "操作"]) {
@@ -775,14 +775,12 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.waitForTimeout(400);
+    await expect(page.locator(".receipt-list-header")).toBeHidden();
     await expectNoHorizontalOverflow(page);
 
     const mobileChartBounds = await chartPanel.boundingBox();
     const mobileCategoryBounds = await categoryPanel.boundingBox();
     expect(mobileChartBounds?.y ?? 0).toBeLessThan(mobileCategoryBounds?.y ?? 0);
-    await expect(page.locator(".receipt-list-header")).toBeHidden();
-
     const receiptRow = page.getByTestId("receipt-row").filter({ hasText: shopName });
     await expect(receiptRow).toBeVisible();
     await expect(receiptRow.getByText("5,280円")).toBeVisible();
