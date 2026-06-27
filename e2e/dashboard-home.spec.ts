@@ -18,6 +18,7 @@ test.describe("ホーム画面拡充（Issue #370）", () => {
     await expect(page.getByText("今週の支出")).toBeVisible();
     await expect(page.getByText("入力済み", { exact: true })).toBeVisible();
     await expect(page.getByLabel("前週比").first()).toBeVisible();
+    await expect(page.getByLabel("前週比").first()).toContainText(/%|前週データなし/);
     await expect(page.getByRole("heading", { name: "前週との比較", level: 2 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "支出カテゴリ", level: 2 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "今週の入力", level: 2 })).toBeVisible();

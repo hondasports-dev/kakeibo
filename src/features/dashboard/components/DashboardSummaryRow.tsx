@@ -5,7 +5,7 @@ import { Box, Divider, Paper, Skeleton, Stack, Typography, useMediaQuery } from 
 import { useTheme } from "@mui/material/styles";
 import { AnimatedCounter } from "../../ui";
 import { formatAggregationPeriod } from "../utils/formatAggregationPeriod";
-import { calcPrevWeekRate, formatPrevWeekRateWithArrow } from "../utils/weekComparison";
+import { calcPrevWeekRate, formatPrevWeekRateWithArrow } from "../../../lib/weekComparison";
 
 type DashboardSummaryRowProps = {
   count: number;

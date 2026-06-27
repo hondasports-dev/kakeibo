@@ -805,7 +805,7 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await cleanupTestReceipts();
   });
 
-  test("入力画面・週次サマリーに前週との差額だけが表示される", async ({ page }) => {
+  test("入力画面・週次サマリーに前週比（増減率）が表示される", async ({ page }) => {
     // Issue #181: ExpenseEntryForm の日付は週日選択UI（今週内のみ）のため、
     // 前週データは「前の週へ」ナビゲート後に保存し、今週へ戻って今週分を保存する
     const firstCategory = page
@@ -837,10 +837,10 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
-    // SummaryPage の週次サマリー合計セクションの前週比が表示されること（regression 確認）
-    // 注: 共有 DevDB のため既存データにより差額の固定値確認は行わず、
-    //     前週比コンポーネントが表示されること（数値または「前週データなし」）を確認する
+    // SummaryPage の週次サマリー合計セクションの前週比が増減率（％）で表示されること
     await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("前週比").first()).toContainText(/%|前週データなし/);
+    await expect(page.getByLabel("前週比").first()).not.toContainText(/[+-]?\d{1,3}(,\d{3})*円/);
 
     await expect(page.getByLabel("前週比")).toHaveCount(1);
     // 前週の 7,000円 はカテゴリ別支出・支出一覧には表示されない（グラフバーラベルを除く）
