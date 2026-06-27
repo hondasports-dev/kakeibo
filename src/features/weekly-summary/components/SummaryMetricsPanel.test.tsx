@@ -13,6 +13,7 @@ describe("SummaryMetricsPanel", () => {
     expect(screen.getByText("38,420円")).toBeInTheDocument();
     expect(screen.getByText("−3,340円")).toBeInTheDocument();
     expect(screen.getByText("−5%")).toBeInTheDocument();
+    expect(screen.getByLabelText("前週差")).toHaveTextContent("−3,340円");
   });
 
   it("比較できない指標は比較データなしと表示する", () => {

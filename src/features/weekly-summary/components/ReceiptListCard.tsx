@@ -18,7 +18,11 @@ export function ReceiptListCard({
   onEditReceipt?: (receipt: ReceiptItem) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const visibleReceipts = expanded ? receipts : receipts.slice(0, 5);
+  const orderedReceipts = receipts
+    .map((receipt, index) => ({ receipt, index }))
+    .sort((a, b) => b.receipt.date.localeCompare(a.receipt.date) || b.index - a.index)
+    .map(({ receipt }) => receipt);
+  const visibleReceipts = expanded ? orderedReceipts : orderedReceipts.slice(0, 5);
   const remainingCount = Math.max(receipts.length - visibleReceipts.length, 0);
 
   return (

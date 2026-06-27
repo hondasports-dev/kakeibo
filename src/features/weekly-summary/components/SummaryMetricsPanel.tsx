@@ -26,7 +26,7 @@ function Metric({
   const color =
     tone === "good" ? "success.main" : tone === "warning" ? "error.main" : "text.primary";
   return (
-    <Box className="weekly-summary-metric">
+    <Box aria-label={label} className="weekly-summary-metric">
       <Typography color="text.secondary" variant="body2">
         {label}
       </Typography>
