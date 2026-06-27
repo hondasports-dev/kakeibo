@@ -31,6 +31,10 @@ function measureMemoNeedsCollapse(measureElement: HTMLSpanElement): boolean {
   return memoNeedsCollapseByLayout(measureElement.scrollHeight, lineHeight);
 }
 
+/**
+ * 支出一覧のメモ表示。3行以上（改行または折り返し）のときだけ「もっと見る / 閉じる」を出す。
+ * 文字数での slice は使わないため、絵文字・結合文字もそのまま全文を描画する。
+ */
 export function MemoExpandableText({ memo }: { memo: string }) {
   const needsCollapseByLines = memoNeedsCollapseByLineCount(memo);
   const [expanded, setExpanded] = useState(false);
