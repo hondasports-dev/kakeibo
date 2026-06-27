@@ -73,7 +73,12 @@ export function DashboardPage() {
   );
 
   const inputPanel = (
-    <DashboardInputPanel count={count} status={status} weekStartDate={weekStartDate} />
+    <DashboardInputPanel
+      count={count}
+      isLoading={isLoading}
+      status={status}
+      weekStartDate={weekStartDate}
+    />
   );
 
   return (

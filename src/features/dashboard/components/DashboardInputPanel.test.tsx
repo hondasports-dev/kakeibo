@@ -40,4 +40,11 @@ describe("DashboardInputPanel", () => {
       "/weeks/2026-06-15",
     );
   });
+
+  it("読み込み中は件数とボタンの代わりにスケルトンを表示する", () => {
+    renderPanel({ count: 0, isLoading: true, status: "draft", weekStartDate: "2026-06-15" });
+
+    expect(screen.queryByRole("link", { name: "今週の入力を開始" })).not.toBeInTheDocument();
+    expect(screen.queryByText("0 件入力済み")).not.toBeInTheDocument();
+  });
 });
