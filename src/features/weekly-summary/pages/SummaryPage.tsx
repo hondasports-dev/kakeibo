@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Alert, Box, Snackbar, Stack, Typography } from "@mui/material";
+import { Alert, Box, Chip, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 import { WeekNavigator } from "../../week";
@@ -53,6 +53,7 @@ export function SummaryPage() {
   const weeklySummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
     weekStartDate,
   });
+  const weekSession = useQuery(api.weekSessions.queries.getWeekSession, { weekStartDate });
   const fourWeeksSummary = useQuery(api.receipts.summaries.getFourWeeksSummary, { weekStartDate });
   const weeklyExpenseTrend =
     fourWeeksSummary !== undefined && Array.isArray(fourWeeksSummary.weeks)
@@ -117,11 +118,31 @@ export function SummaryPage() {
   return (
     <Box className="app-main">
       <Stack spacing={3}>
-        <Typography component="h1" variant="h4">
-          週次サマリー
-        </Typography>
+        <Stack className="weekly-summary-header" direction="row">
+          <Box
+            alt=""
+            className="weekly-summary-header-icon"
+            component="img"
+            height={32}
+            src="/suzumemo-app-icon.png"
+            width={32}
+          />
+          <Typography component="h1" variant="h4">
+            週次サマリー
+          </Typography>
+          {weekSession && (
+            <Chip
+              className="weekly-summary-status"
+              color={weekSession.status === "completed" ? "success" : "warning"}
+              label={weekSession.status === "completed" ? "完了済み" : "● 入力中"}
+              size="small"
+              variant={weekSession.status === "completed" ? "filled" : "outlined"}
+            />
+          )}
+        </Stack>
 
         <WeekNavigator
+          compactOnMobile
           weekStartDate={weekStartDate}
           weekEndDate={weekEndDate}
           isCurrentWeek={isCurrentWeek}

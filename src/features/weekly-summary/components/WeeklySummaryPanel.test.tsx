@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders } from "../../../test/render";
 import { WeeklySummaryPanel } from "./WeeklySummaryPanel";
@@ -15,22 +15,17 @@ describe("WeeklySummaryPanel", () => {
         prevWeekTotalAmountYen={null}
         receipts={[]}
         weekStartDate="2024-01-08"
+        weeklyExpenseTrend={null}
       />,
     );
 
     // When: 週次サマリーを確認する
     // Then: 空状態が表示され、予算情報は表示されない
-    // AnimatedCounter導入後はテキストがspanに分かれるため、aria-live属性で確認（複数あるのでgetAllByText）
-    expect(
-      screen.getAllByText((content, element) => {
-        return (
-          element?.parentElement?.getAttribute("aria-live") === "polite" && content.includes("0")
-        );
-      }).length,
-    ).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("0円")).toBeInTheDocument();
     expect(screen.queryByText("未設定")).not.toBeInTheDocument();
     expect(screen.queryByText("予算")).not.toBeInTheDocument();
-    expect(screen.getAllByText("まだレシートがありません")).toHaveLength(2);
+    expect(screen.getByText("まだ支出がありません")).toBeInTheDocument();
+    expect(screen.getByText("まだレシートがありません")).toBeInTheDocument();
   });
 
   it("複数レシートの合計、カテゴリ別、前週比、支出一覧を表示する", async () => {
@@ -79,6 +74,7 @@ describe("WeeklySummaryPanel", () => {
           },
         ]}
         weekStartDate="2026-05-13"
+        weeklyExpenseTrend={null}
       />,
     );
 
@@ -86,25 +82,12 @@ describe("WeeklySummaryPanel", () => {
     // Then: 合計・カテゴリ別・支出一覧が表示され、予算情報は表示されない
     // 合計支出ラベルとアニメーションコンテナの存在を確認
     expect(screen.getByText("合計支出")).toBeInTheDocument();
-    expect(
-      screen.getAllByText((_content, element) => {
-        return element?.parentElement?.getAttribute("aria-live") === "polite";
-      }).length,
-    ).toBeGreaterThanOrEqual(1);
-    await waitFor(() => {
-      expect(
-        screen.getByText((_content, element) => {
-          return (
-            element?.getAttribute("aria-live") === "polite" &&
-            element.textContent?.includes("6,280円") === true
-          );
-        }),
-      ).toBeInTheDocument();
-    });
+    expect(screen.getAllByText("6,280円").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/10,000円 中 63% 消化/)).not.toBeInTheDocument();
     expect(screen.queryByText(/中 63% 消化/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("予算消化率")).not.toBeInTheDocument();
-    expect(screen.getByText("-720円")).toBeInTheDocument();
+    expect(screen.getByText("−720円")).toBeInTheDocument();
+    expect(screen.getByText("比較データなし")).toBeInTheDocument();
     expect(screen.getByText("スーパー北浜")).toBeInTheDocument();
     expect(screen.getByText("ドラッグストア南")).toBeInTheDocument();
     expect(screen.getAllByText("食費")).toHaveLength(2);
@@ -194,6 +177,8 @@ describe("WeeklySummaryPanel", () => {
     );
 
     expect(screen.getByRole("heading", { name: "週別支出推移" })).toBeInTheDocument();
+    expect(screen.getByTestId("weekly-summary-metrics-loading")).toBeInTheDocument();
+    expect(screen.queryByText("比較データなし")).not.toBeInTheDocument();
   });
 
   it("支出と収入の種別が判別できる", () => {

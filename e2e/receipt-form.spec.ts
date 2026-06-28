@@ -1,6 +1,7 @@
 import { test, expect, type Locator } from "@playwright/test";
 import { barClasses } from "@mui/x-charts/BarChart";
 import { gotoAuthenticated } from "./helpers/auth";
+import { expectNoHorizontalOverflow } from "./helpers/viewport";
 import {
   cleanupE2eExpenseEntries,
   cleanupTestCategories,
@@ -100,7 +101,7 @@ test.describe("メイン画面の表示確認", () => {
     // Issue #49: ダッシュボードに変更
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
     // summary-grid の主要カード
-    await expect(page.locator(".summary-grid").locator("text=今週の支出")).toBeVisible();
+    await expect(page.locator(".dashboard-summary-panel").getByText("今週の支出")).toBeVisible();
   });
 
   test("@smoke シナリオ3: ページリロードしてもログイン状態が維持される", async ({ page }) => {
@@ -263,7 +264,7 @@ test.describe("支出項目保存フロー（Issue #13 / #181 受け入れ確認
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
     // 支出一覧に追加されていることを確認（表示順は問わない）
-    const receiptList = page.locator('[class*="receipt-row"]');
+    const receiptList = page.getByTestId("receipt-row");
     await expect(receiptList.filter({ hasText: "ドラッグストア" }).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -452,7 +453,7 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
-    const receiptRows = page.locator('[class*="receipt-row"]');
+    const receiptRows = page.getByTestId("receipt-row");
     const emptyMessage = page.getByText("まだレシートがありません").first();
     await expect(receiptRows.or(emptyMessage).first()).toBeVisible({ timeout: 15_000 });
   });
@@ -460,8 +461,8 @@ test.describe("[Issue #14] 入力状況パネルの表示確認（P0 / smoke）"
   test("[Issue #14] ダッシュボードに今週の支出カウンターが表示される", async ({ page }) => {
     await page.getByRole("link", { name: "ホーム" }).click();
     await expect(page).toHaveURL("/");
-    const spendCard = page.locator(".summary-grid .paper-panel").filter({ hasText: "今週の支出" });
-    await expect(spendCard.locator("[data-value]")).toBeVisible();
+    const spendCard = page.locator(".dashboard-summary-panel").filter({ hasText: "今週の支出" });
+    await expect(spendCard.locator("[data-value]").first()).toBeVisible();
   });
 
   test("[Issue #14] 入力フォームの保存導線が表示される", async ({ page }) => {
@@ -486,7 +487,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await resetTestWeekSession(getCurrentWeekStartDate(), { page });
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
     // expenseEntries の cleanup が反映されるまで待機
-    await expect(page.locator('[class*="receipt-row"]')).toHaveCount(0, { timeout: 15_000 });
+    await expect(page.getByTestId("receipt-row")).toHaveCount(0, { timeout: 15_000 });
   });
 
   // テスト中に作成したレシートを Dev DB から削除してゴミを防ぐ
@@ -515,7 +516,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "カテゴリ別" })).toBeVisible();
-    const receiptRows = page.locator('[class*="receipt-row"]');
+    const receiptRows = page.getByTestId("receipt-row");
     await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -541,7 +542,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
-    const receiptRows = page.locator('[class*="receipt-row"]');
+    const receiptRows = page.getByTestId("receipt-row");
     await expect(receiptRows.filter({ hasText: shopName }).first()).toBeVisible({
       timeout: 15_000,
     });
@@ -570,7 +571,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
 
-    const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    const receiptRow = page.getByTestId("receipt-row").filter({ hasText: shopName }).first();
     const memoContent = receiptRow.getByTestId("memo-expandable-content");
     const toggle = receiptRow.getByTestId("memo-expand-toggle");
     await expect(receiptRow).toBeVisible({ timeout: 15_000 });
@@ -604,7 +605,7 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
 
-    const receiptRow = page.locator('[class*="receipt-row"]').filter({ hasText: shopName }).first();
+    const receiptRow = page.getByTestId("receipt-row").filter({ hasText: shopName }).first();
     const toggle = receiptRow.getByTestId("memo-expand-toggle");
 
     await expect(receiptRow).toBeVisible({ timeout: 15_000 });
@@ -636,10 +637,9 @@ test.describe("[Issue #14] 保存後のリアルタイム更新確認（P0 / 完
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
-    await expect(page.locator('[class*="receipt-row"]').filter({ hasText: shopName })).toHaveCount(
-      1,
-      { timeout: 15_000 },
-    );
+    await expect(page.getByTestId("receipt-row").filter({ hasText: shopName })).toHaveCount(1, {
+      timeout: 15_000,
+    });
   });
 
   test("[Issue #308] 保存後も入力画面に直近の入力一覧を表示しない", async ({ page }) => {
@@ -712,7 +712,9 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     // PC幅で入力画面 → 保存 → サマリー遷移の流れで確認
     await page.setViewportSize({ width: 1280, height: 800 });
     await gotoAuthenticated(page, "/weeks/current/input");
-    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
 
     // Issue #181: ExpenseEntryForm セレクターに変更
     const shopName = `QAサマリーテスト_${Date.now()}`;
@@ -729,10 +731,68 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     await page.getByRole("link", { name: "履歴" }).click();
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "支出一覧" })).toBeVisible();
-    await expect(page.locator('[class*="receipt-row"]').filter({ hasText: shopName })).toHaveCount(
-      1,
-      { timeout: 30_000 },
-    );
+    await expect(page.getByTestId("receipt-row").filter({ hasText: shopName })).toHaveCount(1, {
+      timeout: 30_000,
+    });
+  });
+
+  test("[Issue #371] 週次サマリーがPC表形式とSP縦積み表示に切り替わる", async ({ page }) => {
+    const shopName = `QA週次サマリー371_${Date.now()}`;
+    const memo = ["週末のまとめ買い", "牛乳とパン", "特売品を含む"].join("\n");
+
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await gotoAuthenticated(page, "/weeks/current/input");
+    await page.getByLabel("店舗名 / 支払先").fill(shopName);
+    await page.getByLabel("合計金額").fill("5280");
+    await page.getByLabel("メモ").fill(memo);
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("link", { name: "履歴" }).click();
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+    await expect(page.getByText("合計支出")).toBeVisible();
+    await expect(page.getByText("前週差")).toBeVisible();
+    await expect(page.getByText("2週平均比")).toBeVisible();
+
+    const analysisGrid = page.locator(".weekly-summary-analysis-grid");
+    const chartPanel = analysisGrid.locator(".paper-panel").first();
+    const categoryPanel = analysisGrid.getByTestId("weekly-category-breakdown");
+    await expect(chartPanel).toBeVisible();
+    await expect(categoryPanel).toBeVisible();
+    const [chartBounds, categoryBounds] = await Promise.all([
+      chartPanel.boundingBox(),
+      categoryPanel.boundingBox(),
+    ]);
+    expect(Math.abs((chartBounds?.y ?? 0) - (categoryBounds?.y ?? 0))).toBeLessThan(2);
+    expect(chartBounds?.x ?? 0).toBeLessThan(categoryBounds?.x ?? 0);
+
+    for (const label of ["日付", "店名・内容", "カテゴリ", "金額（円）", "メモ", "操作"]) {
+      await expect(page.locator(".receipt-list-header").getByText(label)).toBeVisible();
+    }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator(".receipt-list-header")).toBeHidden();
+    await expectNoHorizontalOverflow(page);
+
+    const mobileChartBounds = await chartPanel.boundingBox();
+    const mobileCategoryBounds = await categoryPanel.boundingBox();
+    expect(mobileChartBounds?.y ?? 0).toBeLessThan(mobileCategoryBounds?.y ?? 0);
+    const receiptRow = page.getByTestId("receipt-row").filter({ hasText: shopName });
+    await expect(receiptRow).toBeVisible();
+    await expect(receiptRow.getByText("5,280円")).toBeVisible();
+    const editButton = receiptRow.getByRole("button", { name: new RegExp(`${shopName}.*を編集`) });
+    const deleteButton = receiptRow.getByRole("button", {
+      name: new RegExp(`${shopName}.*を削除`),
+    });
+    for (const button of [editButton, deleteButton]) {
+      const bounds = await button.boundingBox();
+      expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(44);
+    }
+    await expect(receiptRow.getByRole("button", { name: "もっと見る" })).toBeVisible();
   });
 
   test("[Issue #15] 再度ナビで戻れる (P1)", async ({ page }) => {
@@ -794,7 +854,7 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
 // 前週比表示（Issue #46）
 // ---------------------------------------------------------------------------
 
-test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
+test.describe("[Issue #371] 前週差表示（P1 / regression）", () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
   test.beforeEach(async () => {
@@ -805,7 +865,7 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await cleanupTestReceipts();
   });
 
-  test("入力画面・週次サマリーに前週との差額だけが表示される", async ({ page }) => {
+  test("週次サマリーに前週差（円）が表示される", async ({ page }) => {
     // Issue #181: ExpenseEntryForm の日付は週日選択UI（今週内のみ）のため、
     // 前週データは「前の週へ」ナビゲート後に保存し、今週へ戻って今週分を保存する
     const firstCategory = page
@@ -837,16 +897,11 @@ test.describe("[Issue #46] 前週比表示（P1 / regression）", () => {
     await expect(page).toHaveURL(/\/weeks\/\d{4}-\d{2}-\d{2}$/, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
-    // SummaryPage の週次サマリー合計セクションの前週比が表示されること（regression 確認）
-    // 注: 共有 DevDB のため既存データにより差額の固定値確認は行わず、
-    //     前週比コンポーネントが表示されること（数値または「前週データなし」）を確認する
-    await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
-
-    await expect(page.getByLabel("前週比")).toHaveCount(1);
+    // Issue #371: SummaryPageでは前週比（指数）ではなく前週差（円）を表示する
+    await expect(page.getByLabel("前週差")).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("前週差")).toContainText(/円|比較データなし/);
     // 前週の 7,000円 はカテゴリ別支出・支出一覧には表示されない（グラフバーラベルを除く）
-    const categorySection = page
-      .getByRole("heading", { name: "カテゴリ別", level: 2 })
-      .locator("../../..");
+    const categorySection = page.getByTestId("weekly-category-breakdown");
     // AnimatedCounter導入により「7,000」と「円」が別要素になるため、部分一致で検索
     // 単語境界\bを使って「17,000」などに誤マッチしないよう堅牢化 (CodeRabbit指摘対応)
     await expect(categorySection.getByText(/\b7,000\b/)).toHaveCount(0);
@@ -892,22 +947,25 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     ).toBeVisible({ timeout: 20_000 });
   });
 
-  test("[Issue #47] ダッシュボードにグラフが表示されない", async ({ page }) => {
-    // ダッシュボード（/）ではグラフが表示されない
+  test("[Issue #47] ダッシュボードに前週比較グラフが表示される", async ({ page }) => {
     await gotoAuthenticated(page);
     await expect(page.getByRole("heading", { name: "今週のダッシュボード" })).toBeVisible();
 
+    await expect(page.getByRole("heading", { name: "前週との比較", level: 2 })).toBeVisible();
+    await expect(
+      page
+        .getByRole("img", { name: "前週との比較グラフ" })
+        .or(page.getByText("前週との比較データがあると表示されます")),
+    ).toBeVisible();
     await expect(page.getByRole("img", { name: "週別支出推移グラフ" })).not.toBeVisible();
   });
 
-  test("[Issue #47] 既存の前週比テキストが壊れていない", async ({ page }) => {
+  test("[Issue #371] 前週差テキストが表示される", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
-    // Then: 前週比ラベルが表示されている（regression確認）
-    // WeeklySummaryPanel と ReviewMemoPanel の両方に前週比が表示されるため first() で取得
-    await expect(page.getByLabel("前週比").first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByLabel("前週差")).toBeVisible({ timeout: 15_000 });
   });
 
   test("[Issue #232] 週別棒グラフに対象週の要約とTooltipが表示される", async ({ page }) => {
@@ -922,10 +980,10 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
         .or(page.getByText("週別の支出データがあると表示されます")),
     ).toBeVisible({ timeout: 20_000 });
 
-    // データがある場合はグラフだけでなく要約も読める
+    // データがある場合はグラフだけでなく上部3指標も読める
     const graph = page.getByRole("img", { name: "週別支出推移グラフ" });
     if (await graph.isVisible().catch(() => false)) {
-      await expect(page.getByText("対象週の支出")).toBeVisible();
+      await expect(page.getByText("合計支出")).toBeVisible();
       await expect(page.getByText("2週平均比")).toBeVisible();
       await expectChartLabelsWithinBounds(graph);
       const bar = graph.locator(`.${barClasses.element}`).last();
@@ -1171,7 +1229,7 @@ test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受
     });
 
     // 支出一覧に複数項目が個別エントリとして反映される
-    const receiptRows = page.locator('[class*="receipt-row"]');
+    const receiptRows = page.getByTestId("receipt-row");
     await expect(receiptRows.filter({ hasText: "食料品" }).first()).toBeVisible({
       timeout: 15_000,
     });

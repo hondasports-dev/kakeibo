@@ -106,6 +106,148 @@
   align-items: start;
 }
 
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--space-panel);
+  align-items: start;
+}
+
+.dashboard-summary-panel {
+  overflow: hidden;
+}
+
+.dashboard-summary-metrics,
+.dashboard-summary-submetrics {
+  align-items: stretch;
+}
+
+.dashboard-summary-metric {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-summary-footer {
+  padding-top: var(--space-xs);
+}
+
+.dashboard-comparison-bars {
+  width: 100%;
+}
+
+.dashboard-comparison-bars--horizontal {
+  width: 100%;
+}
+
+.dashboard-comparison-sp-grid {
+  align-items: center;
+  column-gap: var(--space-sm);
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  row-gap: var(--space-md);
+  width: 100%;
+}
+
+.dashboard-comparison-sp-grid-item {
+  display: contents;
+}
+
+.dashboard-comparison-bar-row {
+  align-items: center;
+  display: flex;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.dashboard-comparison-bar-track-horizontal {
+  align-items: center;
+  display: flex;
+  height: 18px;
+  min-width: 0;
+  width: 100%;
+}
+
+.dashboard-comparison-bar-label {
+  flex-shrink: 0;
+  text-align: left;
+}
+
+.dashboard-comparison-sp-grid .dashboard-comparison-bar-label {
+  min-width: 0;
+}
+
+.dashboard-comparison-plot {
+  display: grid;
+  gap: var(--space-sm) var(--space-lg);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto auto auto;
+  width: 100%;
+}
+
+.dashboard-comparison-plot-amounts,
+.dashboard-comparison-plot-bars,
+.dashboard-comparison-plot-labels {
+  display: grid;
+  gap: var(--space-lg);
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
+.dashboard-comparison-plot-amounts {
+  justify-items: center;
+}
+
+.dashboard-comparison-plot-bars {
+  align-items: end;
+  border-bottom: 1px solid var(--color-border-subtle);
+  height: 160px;
+  padding-top: var(--space-xs);
+}
+
+.dashboard-comparison-plot-labels {
+  justify-items: center;
+  padding-top: var(--space-xs);
+}
+
+.dashboard-comparison-bar {
+  justify-self: center;
+  max-width: 88px;
+  width: 48%;
+}
+
+.dashboard-comparison-bar--vertical {
+  border-radius: 12px 12px 0 0;
+}
+
+.dashboard-comparison-bar--horizontal {
+  border-radius: 999px;
+  flex-shrink: 0;
+  height: 18px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.dashboard-comparison-bar--previous {
+  background: #b8c4ce;
+}
+
+.dashboard-comparison-bar--current {
+  background: var(--color-brand-sparrow);
+}
+
+.dashboard-comparison-bar-amount {
+  flex-shrink: 0;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.dashboard-comparison-bar-row .dashboard-comparison-bar-amount,
+.dashboard-comparison-sp-grid .dashboard-comparison-bar-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .paper-panel {
   border: 1px solid var(--color-border-subtle);
 }
@@ -330,22 +472,153 @@
 
 .receipt-list {
   display: grid;
-  gap: calc(var(--space-xs) + 2px);
 }
 
+.receipt-list-header,
 .receipt-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns:
+    88px minmax(156px, 1.3fr) minmax(100px, 0.8fr) 104px minmax(140px, 1fr)
+    184px;
+  gap: var(--space-md);
+  align-items: center;
+  padding: var(--space-sm) var(--space-xs);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.receipt-list-header {
+  color: var(--color-text-muted);
+  font-size: 0.75rem;
+}
+
+.receipt-row-name {
+  min-width: 0;
+}
+
+.receipt-row-name .MuiTypography-root {
+  min-width: 0;
+}
+
+.receipt-row-amount {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.receipt-row-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.receipt-row-actions .MuiButton-root {
+  white-space: nowrap;
+}
+
+.weekly-summary-header {
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.weekly-summary-header-icon {
+  display: none;
+  width: 32px;
+  height: 32px;
+}
+
+.weekly-summary-metrics {
+  padding: var(--space-panel);
+}
+
+.weekly-summary-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.weekly-summary-metric {
+  min-width: 0;
+  padding: 0 var(--space-lg);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-summary-metric + .weekly-summary-metric {
+  border-left: 1px solid var(--color-border-subtle);
+}
+
+.weekly-summary-analysis-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  gap: var(--space-md);
+  align-items: stretch;
+}
+
+.weekly-summary-analysis-grid > .paper-panel {
+  height: 100%;
+}
+
+.weekly-category-panel {
+  padding: var(--space-panel);
+}
+
+.weekly-category-breakdown {
+  margin-top: var(--space-md);
+}
+
+.weekly-category-header,
+.weekly-category-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 112px 64px 52px;
   gap: var(--space-sm);
   align-items: center;
-  padding: var(--space-sm);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--color-surface-panel);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.weekly-category-row,
+.weekly-chart-totals {
+  font-variant-numeric: tabular-nums;
+}
+
+.weekly-category-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+
+.weekly-category-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.weekly-category-total {
+  border-bottom: 0;
+  padding-top: var(--space-md);
+}
+
+.weekly-chart-totals,
+.weekly-chart-ranges {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding-left: 52px;
+  padding-right: 12px;
+  text-align: center;
+}
+
+.weekly-chart-legend {
+  flex-wrap: wrap;
+  gap: var(--space-sm) var(--space-md);
+  margin-top: var(--space-md);
 }
 
 @media (max-width: 860px) {
   .workbench-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-grid {
     grid-template-columns: 1fr;
   }
 }
@@ -358,6 +631,119 @@
 
   .auth-panel {
     padding: var(--space-panel);
+  }
+
+  .weekly-summary-header {
+    gap: var(--space-sm);
+  }
+
+  .weekly-summary-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .weekly-summary-header-icon {
+    display: block;
+  }
+
+  .week-navigator--compact .MuiButton-startIcon,
+  .week-navigator--compact .MuiButton-endIcon {
+    margin: 0;
+  }
+
+  .weekly-summary-status {
+    margin-left: auto;
+  }
+
+  .weekly-summary-metrics {
+    padding: var(--space-md) var(--space-xs);
+  }
+
+  .weekly-summary-metric {
+    padding: 0 var(--space-xs);
+  }
+
+  .weekly-summary-metric h5 {
+    font-size: 1rem;
+    white-space: nowrap;
+  }
+
+  .weekly-summary-analysis-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .weekly-category-header {
+    display: none;
+  }
+
+  .weekly-category-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .weekly-category-row > :nth-child(2) {
+    grid-column: 2;
+  }
+
+  .weekly-category-row > :nth-child(3) {
+    grid-column: 2;
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+  }
+
+  .weekly-category-row > :nth-child(4) {
+    grid-column: 3;
+    grid-row: 1 / span 2;
+  }
+
+  .weekly-category-total {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .receipt-list-header {
+    display: none;
+  }
+
+  .receipt-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "date name amount"
+      "category category memo"
+      "actions actions actions";
+    gap: var(--space-xs) var(--space-sm);
+    padding: var(--space-md) 0;
+  }
+
+  .receipt-row-date {
+    grid-area: date;
+  }
+  .receipt-row-name {
+    grid-area: name;
+  }
+  .receipt-row-category {
+    grid-area: category;
+  }
+  .receipt-row-amount {
+    grid-area: amount;
+  }
+  .receipt-row-memo {
+    grid-area: memo;
+    min-width: 0;
+  }
+  .receipt-row-actions {
+    grid-area: actions;
+  }
+
+  .receipt-row-actions .MuiStack-root {
+    width: 100%;
+  }
+
+  .receipt-row-actions .MuiButton-root {
+    flex: 1;
+  }
+
+  .weekly-chart-totals,
+  .weekly-chart-ranges {
+    padding-left: 60px;
+    padding-right: 8px;
   }
 
   .summary-grid {

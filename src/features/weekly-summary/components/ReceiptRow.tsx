@@ -19,18 +19,12 @@ export function ReceiptRow({
   const actionLabelSuffix = `${displayName}（${formatDateForDisplay(receipt.date)}）`;
 
   return (
-    <Box className="receipt-row" key={receipt._id}>
-      <Box sx={{ flex: 1, minWidth: 0 }}>
+    <Box className="receipt-row" data-testid="receipt-row" key={receipt._id} role="row">
+      <Typography className="receipt-row-date" color="text.secondary" role="cell" variant="body2">
+        {formatDateForDisplay(receipt.date)}
+      </Typography>
+      <Box className="receipt-row-name" role="cell">
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          <Box
-            sx={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              backgroundColor: receipt.categoryColor,
-              flexShrink: 0,
-            }}
-          />
           {receipt.type && (
             <Chip
               label={receipt.type === "income" ? "収入" : "支出"}
@@ -45,29 +39,52 @@ export function ReceiptRow({
               : (receipt.shopName ?? "不明")}
           </Typography>
         </Stack>
-        <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", mt: 0.5 }}>
-          <Typography color="text.secondary" variant="body2">
-            {formatDateForDisplay(receipt.date)}
+      </Box>
+      <Stack
+        className="receipt-row-category"
+        direction="row"
+        role="cell"
+        spacing={0.75}
+        sx={{ alignItems: "center" }}
+      >
+        <Box
+          aria-hidden
+          sx={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            backgroundColor: receipt.categoryColor,
+            flexShrink: 0,
+          }}
+        />
+        <Typography color="text.secondary" variant="body2">
+          {receipt.categoryName}
+        </Typography>
+      </Stack>
+      <Typography className="receipt-row-amount" role="cell" sx={{ fontWeight: 700 }}>
+        {receipt.amountYen.toLocaleString()}円
+      </Typography>
+      <Box className="receipt-row-memo" role="cell">
+        {receipt.memo ? (
+          <MemoExpandableText memo={receipt.memo} />
+        ) : (
+          <Typography color="text.secondary" variant="caption">
+            —
           </Typography>
-          <Typography color="text.secondary" variant="body2">
-            {receipt.categoryName}
-          </Typography>
-        </Stack>
-        {receipt.memo && (
-          <Box sx={{ mt: 0.5, width: "100%" }}>
-            <MemoExpandableText memo={receipt.memo} />
-          </Box>
         )}
+      </Box>
+      <Box className="receipt-row-actions" role="cell">
         {(onEdit || onDelete) && (
-          <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
+          <Stack direction="row" spacing={0.5}>
             {onEdit && (
               <Button
                 aria-label={`${actionLabelSuffix}を編集`}
                 onClick={() => onEdit(receipt)}
                 size="small"
                 startIcon={<EditIcon fontSize="small" />}
+                sx={{ minHeight: 44 }}
                 type="button"
-                variant="outlined"
+                variant="text"
               >
                 編集
               </Button>
@@ -79,6 +96,7 @@ export function ReceiptRow({
                 onClick={() => onDelete(receipt)}
                 size="small"
                 startIcon={<DeleteIcon fontSize="small" />}
+                sx={{ minHeight: 44 }}
                 type="button"
                 variant="text"
               >
@@ -88,9 +106,6 @@ export function ReceiptRow({
           </Stack>
         )}
       </Box>
-      <Typography sx={{ fontWeight: 700, flexShrink: 0 }}>
-        {receipt.amountYen.toLocaleString()}円
-      </Typography>
     </Box>
   );
 }

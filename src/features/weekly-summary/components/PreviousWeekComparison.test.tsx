@@ -12,20 +12,20 @@ describe("PreviousWeekComparison", () => {
     expect(screen.getByLabelText("前週比")).toHaveTextContent("前週データなし");
   });
 
-  it("前週合計との差額を表示する", () => {
+  it("前週比を指数（％）で表示する", () => {
     renderWithProviders(
       <PreviousWeekComparison currentTotalAmountYen={6280} prevWeekTotalAmountYen={7000} />,
     );
 
-    expect(screen.getByLabelText("前週比")).toHaveTextContent("-720円");
-    expect(screen.getByLabelText("前週比")).not.toHaveTextContent("前週 7,000円");
+    expect(screen.getByLabelText("前週比")).toHaveTextContent("90% ↓");
+    expect(screen.getByLabelText("前週比")).not.toHaveTextContent("円");
   });
 
-  it("同額の場合は±0円を表示する", () => {
+  it("同額の場合は100%を表示する", () => {
     renderWithProviders(
       <PreviousWeekComparison currentTotalAmountYen={3000} prevWeekTotalAmountYen={3000} />,
     );
 
-    expect(screen.getByLabelText("前週比")).toHaveTextContent("±0円");
+    expect(screen.getByLabelText("前週比")).toHaveTextContent("100%");
   });
 });

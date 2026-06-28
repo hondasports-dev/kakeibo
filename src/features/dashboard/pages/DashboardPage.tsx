@@ -1,16 +1,36 @@
-import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "convex/react";
-import { Alert, Box, Button, Chip, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Box, Chip, Stack, Typography, useMediaQuery } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import { api } from "../../../../convex/_generated/api";
+import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryBreakdownCard";
+import { SuzumemoLoadingState } from "../../ui";
+import { DashboardInputPanel } from "../components/DashboardInputPanel";
+import { DashboardPeriodRow } from "../components/DashboardPeriodRow";
+import { DashboardSummaryLink } from "../components/DashboardSummaryLink";
+import { DashboardSummaryRow } from "../components/DashboardSummaryRow";
+import { WeekComparisonChart } from "../components/WeekComparisonChart";
 import { useWeekSession } from "../hooks/useWeekSession";
-import { AnimatedCounter, SuzumemoLoadingState } from "../../ui";
+
+function DashboardStatusChip({ status }: { status: "draft" | "completed" }) {
+  const isCompleted = status === "completed";
+
+  return (
+    <Chip
+      color={isCompleted ? "success" : "warning"}
+      label={isCompleted ? "完了済み" : "● 入力中"}
+      size="small"
+      variant={isCompleted ? "filled" : "outlined"}
+    />
+  );
+}
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
-  const navigate = useNavigate();
+  const theme = useTheme();
+  const isCompact = useMediaQuery(theme.breakpoints.down("md"));
 
-  const currentWeekSummary = useQuery(
-    api.receipts.summaries.getWeekSummary,
+  const summary = useQuery(
+    api.receipts.summaries.getWeekSummaryWithCategories,
     weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
   );
 
@@ -34,58 +54,95 @@ export function DashboardPage() {
     );
   }
 
-  const { weekStartDate } = weekSession;
-  const totalAmountYen = currentWeekSummary?.totalAmountYen ?? 0;
+  const { weekEndDate, weekStartDate, status } = weekSession;
+  const isLoading = summary === undefined;
+  const count = summary?.count ?? 0;
+  const totalAmountYen = summary?.totalAmountYen ?? 0;
+  const prevWeekTotalAmountYen = summary?.prevWeekTotalAmountYen ?? null;
+  const byCategory = summary?.byCategory ?? [];
+
+  const categorySection = (
+    <CategoryBreakdownCard
+      byCategory={byCategory}
+      count={count}
+      isLoading={isLoading}
+      showPercentage
+      title="支出カテゴリ"
+      totalAmountYen={totalAmountYen}
+    />
+  );
+
+  const inputPanel = (
+    <DashboardInputPanel
+      count={count}
+      isLoading={isLoading}
+      status={status}
+      weekStartDate={weekStartDate}
+    />
+  );
 
   return (
     <Box className="app-main">
-      <Stack spacing={3}>
-        <Box>
+      <Stack spacing={2.5}>
+        {isCompact ? (
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{ alignItems: "center", justifyContent: "space-between" }}
+          >
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+              <Box
+                alt=""
+                component="img"
+                src="/suzumemo-app-icon.png"
+                sx={{ height: 28, width: 28 }}
+              />
+              <Typography component="h1" variant="h5">
+                今週
+              </Typography>
+            </Stack>
+            <DashboardStatusChip status={status} />
+          </Stack>
+        ) : (
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
             <Typography component="h1" variant="h4">
               今週のダッシュボード
             </Typography>
-            <Chip
-              color={weekSession.status === "completed" ? "success" : "primary"}
-              label={weekSession.status === "completed" ? "完了済み" : "入力中"}
-              size="small"
-              variant={weekSession.status === "completed" ? "filled" : "outlined"}
-            />
+            <DashboardStatusChip status={status} />
           </Stack>
-        </Box>
+        )}
 
-        <Box className="summary-grid">
-          <Paper className="paper-panel" elevation={0}>
-            <Box sx={{ p: 2.5 }}>
-              <Stack spacing={1}>
-                <Chip color="secondary" label="今週の支出" size="small" />
-                <Typography variant="h4">
-                  <AnimatedCounter value={totalAmountYen} suffix="円" />
-                </Typography>
-              </Stack>
-            </Box>
-          </Paper>
-        </Box>
+        <DashboardSummaryRow
+          count={count}
+          currentTotalAmountYen={totalAmountYen}
+          isLoading={isLoading}
+          prevWeekTotalAmountYen={prevWeekTotalAmountYen}
+          weekEndDate={weekEndDate}
+          weekStartDate={weekStartDate}
+        />
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-          {weekSession.status === "completed" ? (
-            <Button
-              component={Link}
-              to={`/weeks/${weekStartDate}`}
-              variant="contained"
-              size="large"
-            >
-              今週のサマリーを見る
-            </Button>
-          ) : (
-            <Button component={Link} to="/weeks/current/input" variant="contained" size="large">
-              入力を再開
-            </Button>
-          )}
-          <Button onClick={() => navigate("/weeks/current/input")} variant="outlined" size="large">
-            入力画面へ
-          </Button>
-        </Stack>
+        {isCompact && (
+          <DashboardPeriodRow weekEndDate={weekEndDate} weekStartDate={weekStartDate} />
+        )}
+
+        <WeekComparisonChart
+          currentTotalAmountYen={totalAmountYen}
+          isLoading={isLoading}
+          prevWeekTotalAmountYen={prevWeekTotalAmountYen}
+        />
+
+        {isCompact ? (
+          <>
+            {inputPanel}
+            {categorySection}
+            <DashboardSummaryLink weekStartDate={weekStartDate} />
+          </>
+        ) : (
+          <Box className="dashboard-grid">
+            {categorySection}
+            {inputPanel}
+          </Box>
+        )}
       </Stack>
     </Box>
   );

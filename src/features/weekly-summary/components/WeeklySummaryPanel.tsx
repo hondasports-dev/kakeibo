@@ -1,8 +1,8 @@
-import { Stack } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
-import { CategoryBreakdownCard } from "./CategoryBreakdownCard";
 import { ReceiptListCard } from "./ReceiptListCard";
-import { TotalSummaryCard } from "./TotalSummaryCard";
+import { SummaryMetricsPanel } from "./SummaryMetricsPanel";
+import { WeeklyCategoryBreakdown } from "./WeeklyCategoryBreakdown";
 import type { WeeklySummaryPanelProps } from "../types/types";
 
 export function WeeklySummaryPanel({
@@ -15,30 +15,39 @@ export function WeeklySummaryPanel({
   weeklyExpenseTrend,
   onDeleteReceipt,
   onEditReceipt,
+  weekStartDate,
 }: WeeklySummaryPanelProps) {
+  const targetWeek = weeklyExpenseTrend?.items.at(-1);
+  const previousDiff =
+    targetWeek?.previousDiff ??
+    (prevWeekTotalAmountYen === null ? null : totalAmountYen - prevWeekTotalAmountYen);
+
   return (
     <Stack spacing={2.5}>
-      <TotalSummaryCard
-        isLoading={isLoading}
-        prevWeekTotalAmountYen={prevWeekTotalAmountYen}
+      <SummaryMetricsPanel
+        averageRate={targetWeek?.averageRate ?? null}
+        isLoading={isLoading || weeklyExpenseTrend === undefined}
+        previousDiff={previousDiff}
         totalAmountYen={totalAmountYen}
       />
 
-      {weeklyExpenseTrend !== null && (
-        <WeeklyTrendChart
-          chartData={weeklyExpenseTrend}
-          isLoading={weeklyExpenseTrend === undefined}
+      <Box className="weekly-summary-analysis-grid">
+        {weeklyExpenseTrend !== null && (
+          <WeeklyTrendChart
+            chartData={weeklyExpenseTrend}
+            isLoading={weeklyExpenseTrend === undefined}
+          />
+        )}
+        <WeeklyCategoryBreakdown
+          byCategory={byCategory}
+          count={count}
+          isLoading={isLoading}
+          totalAmountYen={totalAmountYen}
         />
-      )}
-
-      <CategoryBreakdownCard
-        byCategory={byCategory}
-        count={count}
-        isLoading={isLoading}
-        totalAmountYen={totalAmountYen}
-      />
+      </Box>
 
       <ReceiptListCard
+        key={weekStartDate}
         count={count}
         isLoading={isLoading}
         receipts={receipts}
