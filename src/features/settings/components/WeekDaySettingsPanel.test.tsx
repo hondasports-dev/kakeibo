@@ -107,4 +107,20 @@ describe("WeekDaySettingsPanel", () => {
       resolveMutation();
     }
   });
+
+  it("保存に失敗したらエラー通知を表示する", async () => {
+    useMutationMock.mockReturnValue(vi.fn().mockRejectedValue(new Error("save failed")));
+    useQueryMock.mockReturnValue({
+      monthlyIncome: null,
+      weeklyStartDay: 1,
+      weeklyEndDay: 0,
+    });
+
+    renderWithProviders(<WeekDaySettingsPanel />);
+    await userEvent.click(screen.getByRole("button", { name: "変更を保存" }));
+
+    const errorMessage = await screen.findByText("週の設定を保存できませんでした");
+    expect(errorMessage).toBeInTheDocument();
+    expect(errorMessage.closest(".MuiAlert-root")).toHaveClass("MuiAlert-colorError");
+  });
 });

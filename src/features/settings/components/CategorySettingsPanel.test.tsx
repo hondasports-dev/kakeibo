@@ -100,7 +100,9 @@ describe("CategorySettingsPanel", () => {
     renderWithProviders(<CategorySettingsPanel />);
 
     // When: 新しいカテゴリ名を入力して追加する
-    await user.click(screen.getByRole("button", { name: "カテゴリを追加" }));
+    const createTrigger = screen.getByRole("button", { name: "カテゴリを追加" });
+    expect(createTrigger).toHaveAttribute("aria-controls", "category-create-form");
+    await user.click(createTrigger);
     await user.type(screen.getByLabelText("新しいカテゴリ名"), "交通");
     await user.click(screen.getByRole("button", { name: "追加する" }));
 
@@ -128,7 +130,9 @@ describe("CategorySettingsPanel", () => {
     );
     expect(screen.getByLabelText("新しいカテゴリ色")).toHaveAttribute("name", "newCategoryColor");
 
-    await user.click(screen.getByRole("button", { name: "食費を編集" }));
+    const editTrigger = screen.getByRole("button", { name: "食費を編集" });
+    expect(editTrigger).toHaveAttribute("aria-controls", "category-editor-cat-food");
+    await user.click(editTrigger);
     expect(screen.getByRole("textbox", { name: "カテゴリ名を編集" })).toHaveAttribute(
       "name",
       "editCategoryName",

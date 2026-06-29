@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery } from "convex/react";
 import { useAuth, useUser } from "@clerk/react";
 import {
   Accordion,
@@ -19,31 +19,25 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import MenuItem from "@mui/material/MenuItem";
 import { api } from "../../../../convex/_generated/api";
-import type { Id } from "../../../../convex/_generated/dataModel";
 import { getClerkUserFriendlyDisplayName, getConvexErrorMessage } from "../../auth";
 import { ConfirmDangerousActionDialog } from "./ConfirmDangerousActionDialog";
 import { ConfirmDeleteGroupDialog } from "./ConfirmDeleteGroupDialog";
-import type { GroupMemberListItem } from "../utils/groupMemberDisplay";
 import { getMemberPrimaryLabel, isCurrentUserMember } from "../utils/groupMemberDisplay";
 import { formatGroupRoleLabel } from "../utils/groupRoleDisplay";
-
-type GroupInfo = {
-  _id: Id<"groups">;
-  name: string;
-  role: "owner" | "member";
-};
+import {
+  GroupSettingsProvider,
+  useGroupSettings,
+  useHasGroupSettingsProvider,
+} from "./GroupSettingsProvider";
 
 type PendingMember = { userId: string; displayLabel: string };
 
-export function GroupDangerZone() {
+function GroupDangerZoneContent() {
   const navigate = useNavigate();
   const { userId } = useAuth();
   const { user } = useUser();
-  const group = useQuery(api.groups.queries.getMyGroup) as GroupInfo | null | undefined;
-  const groups = useQuery(api.groups.queries.listMyGroups) as
-    | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
-    | undefined;
-  const members = useQuery(api.groups.queries.getGroupMembers) as GroupMemberListItem[] | undefined;
+  const { deleteGroup, group, groups, members, removeMember, transferGroupOwnership } =
+    useGroupSettings();
   const [expanded, setExpanded] = useState(false);
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -56,9 +50,6 @@ export function GroupDangerZone() {
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
 
-  const removeMember = useMutation(api.groups.members.removeMember);
-  const transferGroupOwnership = useMutation(api.groups.members.transferGroupOwnership);
-  const deleteGroup = useMutation(api.groups.deletion.deleteGroup);
   const deletionPreview = useQuery(
     api.groups.deletion.getGroupDeletionPreview,
     group?.role === "owner" && pendingDeleteGroup ? {} : "skip",
@@ -332,5 +323,15 @@ export function GroupDangerZone() {
         </Alert>
       </Snackbar>
     </>
+  );
+}
+
+export function GroupDangerZone() {
+  const hasProvider = useHasGroupSettingsProvider();
+  if (hasProvider) return <GroupDangerZoneContent />;
+  return (
+    <GroupSettingsProvider>
+      <GroupDangerZoneContent />
+    </GroupSettingsProvider>
   );
 }

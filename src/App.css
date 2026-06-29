@@ -265,6 +265,10 @@
   padding: var(--space-lg);
 }
 
+.settings-ledger .MuiButton-root {
+  min-height: 40px;
+}
+
 .settings-row {
   display: grid;
   grid-template-columns: minmax(120px, 0.45fr) minmax(180px, 0.8fr) minmax(360px, 1.5fr);
