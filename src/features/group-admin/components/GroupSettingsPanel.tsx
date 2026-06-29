@@ -8,7 +8,6 @@ import {
   Chip,
   CircularProgress,
   Divider,
-  Paper,
   Snackbar,
   Stack,
   TextField,
@@ -68,7 +67,11 @@ function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
 }
 
-export function GroupSettingsPanel() {
+type GroupSettingsPanelProps = {
+  includeDangerZone?: boolean;
+};
+
+export function GroupSettingsPanel({ includeDangerZone = true }: GroupSettingsPanelProps) {
   const navigate = useNavigate();
   const { userId } = useAuth();
   const { user } = useUser();
@@ -135,28 +138,25 @@ export function GroupSettingsPanel() {
       (pendingInvitations === undefined || managementAuditLogs === undefined))
   ) {
     return (
-      <Paper className="paper-panel" elevation={0}>
-        <Box sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <CircularProgress size={20} />
-            <Typography color="text.secondary" variant="body2">
-              グループ設定を読み込んでいます。
-            </Typography>
-          </Stack>
-        </Box>
-      </Paper>
+      <Stack aria-label="グループ設定を読み込んでいます" spacing={1.5}>
+        <CircularProgress size={20} />
+        <Typography color="text.secondary" variant="body2">
+          グループ設定を読み込んでいます。
+        </Typography>
+      </Stack>
     );
   }
 
   if (group === null) {
     return (
-      <Paper className="paper-panel" elevation={0}>
-        <Box sx={{ p: 2.5 }}>
-          <Alert severity="info" variant="outlined">
-            グループ作成後にメンバー管理を利用できます。
-          </Alert>
-        </Box>
-      </Paper>
+      <Stack spacing={2}>
+        <Typography component="h2" variant="h5">
+          グループ
+        </Typography>
+        <Alert severity="info" variant="outlined">
+          グループ作成後にメンバー管理を利用できます。
+        </Alert>
+      </Stack>
     );
   }
 
@@ -406,39 +406,39 @@ export function GroupSettingsPanel() {
   };
 
   return (
-    <Paper className="paper-panel" elevation={0}>
-      <Box sx={{ p: 2.5 }}>
-        <Stack spacing={3}>
-          <Box>
-            <Typography component="h2" variant="h5">
-              グループ管理
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              グループの基本情報、メンバー、招待をまとめて管理します。
-            </Typography>
-          </Box>
+    <>
+      <Stack spacing={3}>
+        <Box>
+          <Typography component="h2" variant="h5">
+            グループ
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            現在のグループとメンバー・招待の状態を確認します。
+          </Typography>
+        </Box>
 
-          {error ? (
-            <Alert severity="error" variant="outlined">
-              {error}
-            </Alert>
-          ) : null}
+        {error ? (
+          <Alert severity="error" variant="outlined">
+            {error}
+          </Alert>
+        ) : null}
 
-          <GroupSettingsSection
-            description="現在のグループ名と表示中グループを確認・切り替えします。"
-            testId="group-info-section"
-            title="グループ情報"
-          >
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-                <Chip
-                  label={isOwner ? "オーナー" : "メンバー"}
-                  color={isOwner ? "primary" : "secondary"}
-                />
-                <Chip label={`${members.length}人`} variant="outlined" />
-              </Stack>
+        <GroupSettingsSection
+          description="現在のグループ名と表示中グループを確認・切り替えします。"
+          testId="group-info-section"
+          title="グループ情報"
+        >
+          <Stack spacing={1.5}>
+            <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+              <Chip
+                label={isOwner ? "オーナー" : "メンバー"}
+                color={isOwner ? "primary" : "secondary"}
+              />
+              <Chip label={`${members.length}人`} variant="outlined" />
+            </Stack>
 
-              {canSwitchGroups ? (
+            {canSwitchGroups ? (
+              <Stack spacing={1.5}>
                 <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                   <TextField
                     select
@@ -469,120 +469,140 @@ export function GroupSettingsPanel() {
                     切り替え
                   </Button>
                 </Stack>
-              ) : isOwner ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <TextField
-                    disabled={savingTarget !== null}
-                    fullWidth
-                    label="グループ名"
-                    onChange={(event) => setGroupNameDraft(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
-                    value={groupNameDraft}
-                  />
-                  <Button
-                    disabled={savingTarget !== null || groupNameDraft.trim() === group.name.trim()}
-                    onClick={() => void handleUpdateGroupName()}
-                    startIcon={
-                      savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
-                    }
-                    variant="outlined"
-                  >
-                    保存
-                  </Button>
-                </Stack>
-              ) : (
-                <Typography variant="body1">{group.name}</Typography>
-              )}
-            </Stack>
-          </GroupSettingsSection>
+                {isOwner ? (
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                    <TextField
+                      disabled={savingTarget === "rename"}
+                      fullWidth
+                      label="グループ名"
+                      onChange={(event) => setGroupNameDraft(event.target.value)}
+                      slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
+                      value={groupNameDraft}
+                    />
+                    <Button
+                      disabled={
+                        savingTarget === "rename" || groupNameDraft.trim() === group.name.trim()
+                      }
+                      onClick={() => void handleUpdateGroupName()}
+                      startIcon={
+                        savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
+                      }
+                      variant="outlined"
+                    >
+                      保存
+                    </Button>
+                  </Stack>
+                ) : null}
+              </Stack>
+            ) : isOwner ? (
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                <TextField
+                  disabled={savingTarget !== null}
+                  fullWidth
+                  label="グループ名"
+                  onChange={(event) => setGroupNameDraft(event.target.value)}
+                  slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
+                  value={groupNameDraft}
+                />
+                <Button
+                  disabled={savingTarget !== null || groupNameDraft.trim() === group.name.trim()}
+                  onClick={() => void handleUpdateGroupName()}
+                  startIcon={savingTarget === "rename" ? <CircularProgress size={16} /> : undefined}
+                  variant="outlined"
+                >
+                  保存
+                </Button>
+              </Stack>
+            ) : (
+              <Typography variant="body1">{group.name}</Typography>
+            )}
+          </Stack>
+        </GroupSettingsSection>
 
-          <Divider />
+        <Divider />
 
-          <GroupSettingsSection
-            description={
-              isOwner
-                ? "所属メンバーを確認し、ロール変更やグループからの除外を行います。"
-                : "所属メンバーを確認できます。メンバーの追加・削除はオーナーのみ操作できます。"
-            }
-            testId="member-management-section"
-            title="メンバー管理"
-          >
-            <GroupMemberList
-              currentUserDisplayName={currentUserDisplayName}
-              currentUserId={userId}
-              isOwner={isOwner}
-              members={members}
-              onRequestRemove={isOwner ? handleRequestRemoveMember : undefined}
-              onRequestRoleChange={isOwner ? handleRequestRoleChange : undefined}
-              ownerCount={ownerCount}
-              savingTarget={savingTarget}
-            />
-          </GroupSettingsSection>
+        <GroupSettingsSection
+          description={
+            isOwner
+              ? "所属メンバーを確認し、ロール変更やグループからの除外を行います。"
+              : "所属メンバーを確認できます。メンバーの追加・削除はオーナーのみ操作できます。"
+          }
+          testId="member-management-section"
+          title="メンバー管理"
+        >
+          <GroupMemberList
+            currentUserDisplayName={currentUserDisplayName}
+            currentUserId={userId}
+            isOwner={isOwner}
+            members={members}
+            onRequestRemove={isOwner && includeDangerZone ? handleRequestRemoveMember : undefined}
+            onRequestRoleChange={isOwner ? handleRequestRoleChange : undefined}
+            ownerCount={ownerCount}
+            savingTarget={savingTarget}
+          />
+        </GroupSettingsSection>
 
-          {!isOwner ? (
-            <Alert severity="info" variant="outlined">
-              招待と削除はオーナーのみ操作できます。
-            </Alert>
-          ) : null}
+        {!isOwner ? (
+          <Alert severity="info" variant="outlined">
+            招待と削除はオーナーのみ操作できます。
+          </Alert>
+        ) : null}
 
-          {isOwner ? (
-            <>
-              <Divider />
+        {isOwner ? (
+          <>
+            <Divider />
 
-              <GroupSettingsSection
-                description="メール招待の送信と、送信済み招待の確認・取り消しを行います。"
-                testId="invite-management-section"
-                title="招待管理"
-              >
-                <Stack spacing={1.5}>
-                  <Box component="form" onSubmit={handleInviteMember}>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                      <TextField
-                        disabled={savingTarget !== null}
-                        fullWidth
-                        label="招待するメールアドレス"
-                        name="memberEmail"
-                        onChange={(event) => setEmail(event.target.value)}
-                        type="email"
-                        value={email}
-                      />
-                      <Button
-                        disabled={savingTarget !== null}
-                        startIcon={
-                          savingTarget === "add" ? (
-                            <CircularProgress size={16} />
-                          ) : (
-                            <PersonAddIcon />
-                          )
-                        }
-                        type="submit"
-                        variant="contained"
-                      >
-                        招待を送る
-                      </Button>
-                    </Stack>
-                  </Box>
+            <GroupSettingsSection
+              description="メール招待の送信と、送信済み招待の確認・取り消しを行います。"
+              testId="invite-management-section"
+              title="招待管理"
+            >
+              <Stack spacing={1.5}>
+                <Box component="form" onSubmit={handleInviteMember}>
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                    <TextField
+                      disabled={savingTarget !== null}
+                      fullWidth
+                      label="招待するメールアドレス"
+                      name="memberEmail"
+                      onChange={(event) => setEmail(event.target.value)}
+                      type="email"
+                      value={email}
+                    />
+                    <Button
+                      disabled={savingTarget !== null}
+                      startIcon={
+                        savingTarget === "add" ? <CircularProgress size={16} /> : <PersonAddIcon />
+                      }
+                      type="submit"
+                      variant="contained"
+                    >
+                      招待を送る
+                    </Button>
+                  </Stack>
+                </Box>
 
-                  <GroupPendingInvitationList
-                    invitations={pendingInvitations ?? []}
-                    onRequestCancel={handleRequestCancelInvitation}
-                    savingTarget={savingTarget}
-                  />
-                </Stack>
-              </GroupSettingsSection>
+                <GroupPendingInvitationList
+                  invitations={pendingInvitations ?? []}
+                  onRequestCancel={handleRequestCancelInvitation}
+                  savingTarget={savingTarget}
+                />
+              </Stack>
+            </GroupSettingsSection>
 
-              <Divider />
+            <Divider />
 
-              <GroupSettingsSection
-                description="グループ名変更、メンバー解除、招待取り消しなどの管理操作履歴を確認できます。"
-                testId="management-audit-log-section"
-                title="管理操作ログ"
-              >
-                <GroupManagementAuditLogList logs={managementAuditLogs ?? []} />
-              </GroupSettingsSection>
+            <GroupSettingsSection
+              description="グループ名変更、メンバー解除、招待取り消しなどの管理操作履歴を確認できます。"
+              testId="management-audit-log-section"
+              title="管理操作ログ"
+            >
+              <GroupManagementAuditLogList logs={managementAuditLogs ?? []} />
+            </GroupSettingsSection>
 
-              <Divider />
+            {includeDangerZone ? <Divider /> : null}
 
+            {includeDangerZone ? (
               <GroupSettingsSection
                 description="誤操作でデータを失わないよう、不可逆な操作は別セクションにまとめます。"
                 testId="danger-zone-section"
@@ -656,10 +676,10 @@ export function GroupSettingsPanel() {
                   </Box>
                 </Stack>
               </GroupSettingsSection>
-            </>
-          ) : null}
-        </Stack>
-      </Box>
+            ) : null}
+          </>
+        ) : null}
+      </Stack>
 
       <ConfirmDangerousActionDialog
         cancelLabel="戻る"
@@ -744,6 +764,6 @@ export function GroupSettingsPanel() {
           {snackbar}
         </Alert>
       </Snackbar>
-    </Paper>
+    </>
   );
 }

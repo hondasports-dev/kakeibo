@@ -40,7 +40,7 @@ describe("WeekDaySettingsPanel", () => {
 
     renderWithProviders(<WeekDaySettingsPanel />);
 
-    expect(screen.getByText(/設定を読み込んでいます/)).toBeInTheDocument();
+    expect(screen.getByLabelText("週の設定を読み込んでいます")).toBeInTheDocument();
   });
 
   it("初期値が正しく Select に反映される", () => {
@@ -54,6 +54,7 @@ describe("WeekDaySettingsPanel", () => {
 
     expect(screen.getByLabelText("週の始まり")).toHaveTextContent("月曜日");
     expect(screen.getByLabelText("週の終わり")).toHaveTextContent("日曜日");
+    expect(screen.getByText(/月曜日.*から.*日曜日.*まで/)).toBeInTheDocument();
   });
 
   it("値を変更して保存できる", async () => {
@@ -73,7 +74,7 @@ describe("WeekDaySettingsPanel", () => {
     await userEvent.click(screen.getByLabelText("週の終わり"));
     await userEvent.click(screen.getByRole("option", { name: "月曜日" }));
 
-    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+    await userEvent.click(screen.getByRole("button", { name: "変更を保存" }));
 
     expect(mockUpdate).toHaveBeenCalledWith({
       weeklyStartDay: 2,
@@ -98,7 +99,7 @@ describe("WeekDaySettingsPanel", () => {
 
     renderWithProviders(<WeekDaySettingsPanel />);
 
-    await userEvent.click(screen.getByRole("button", { name: "保存" }));
+    await userEvent.click(screen.getByRole("button", { name: "変更を保存" }));
 
     expect(screen.getByRole("button", { name: "保存中..." })).toBeDisabled();
 

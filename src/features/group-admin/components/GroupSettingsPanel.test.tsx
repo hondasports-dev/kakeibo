@@ -237,7 +237,7 @@ describe("GroupSettingsPanel", () => {
   it("複数グループがあると切替 UI を表示する", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
-    expect(screen.getByRole("heading", { name: "グループ管理", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "グループ", level: 2 })).toBeInTheDocument();
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切り替え" })).toBeInTheDocument();
   });
@@ -356,7 +356,7 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByTestId("invite-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("management-audit-log-section")).toBeInTheDocument();
     expect(screen.getByTestId("danger-zone-section")).toBeInTheDocument();
-    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
     expect(screen.getByTestId("group-pending-invitation-list")).toBeInTheDocument();
     expect(screen.getByText("pending@example.com")).toBeInTheDocument();
     expect(screen.getByText("招待中")).toBeInTheDocument();
@@ -557,11 +557,11 @@ describe("GroupSettingsPanel", () => {
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
   });
 
-  it("複数グループのオーナーはグループ名変更フォームを表示しない", () => {
+  it("複数グループのオーナーも切替とグループ名変更へ到達できる", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
-    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
   });
 
   it("セクション見出しは aria-labelledby で関連付けられる", () => {
