@@ -68,7 +68,18 @@ export function GroupDangerZone() {
     return null;
   }
   if (group === null || group.role !== "owner") {
-    return null;
+    return snackbar ? (
+      <Snackbar
+        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar("")}
+        open
+      >
+        <Alert onClose={() => setSnackbar("")} severity="success" variant="filled">
+          {snackbar}
+        </Alert>
+      </Snackbar>
+    ) : null;
   }
 
   const removableMembers = members.filter((member) => member.role === "member");

@@ -370,15 +370,16 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     // SettingsPage には CategorySettingsPanel が含まれている
     await page.getByRole("link", { name: "設定" }).click();
     await expect(page).toHaveURL("/settings");
-    await expect(page.getByRole("heading", { name: "カテゴリ設定" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "カテゴリ", level: 2 })).toBeVisible();
     await expect(page.getByRole("listitem", { name: "カテゴリ 食費" })).toBeVisible();
 
+    await page.getByRole("button", { name: "カテゴリを追加" }).click();
     await page.locator('input[name="newCategoryColor"]').fill("#2563eb");
     const newCategoryNameInput = page.locator('input[name="newCategoryName"]');
     await newCategoryNameInput.click();
     await newCategoryNameInput.pressSequentially(categoryName);
     await expect(newCategoryNameInput).toHaveValue(categoryName);
-    await page.getByRole("button", { name: "カテゴリを追加" }).click();
+    await page.getByRole("button", { name: "追加する" }).click();
     await expect(page.getByRole("listitem", { name: `カテゴリ ${categoryName}` })).toBeVisible();
 
     await page.getByRole("button", { name: `${categoryName}を編集` }).click();
@@ -386,7 +387,10 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     await editCategoryNameInput.clear();
     await editCategoryNameInput.pressSequentially(updatedCategoryName);
     await page.locator('input[name="editCategoryColor"]').fill("#0f766e");
-    await page.getByRole("button", { name: "変更を保存" }).click();
+    await page
+      .getByRole("listitem", { name: `カテゴリ ${categoryName}` })
+      .getByRole("button", { name: "変更を保存" })
+      .click();
     await expect(
       page.getByRole("listitem", { name: `カテゴリ ${updatedCategoryName}` }),
     ).toBeVisible();
@@ -410,6 +414,7 @@ test.describe("[Issue #17] カテゴリ管理の反映確認（P1 / regression�
     // SettingsPage には CategorySettingsPanel が含まれている
     await page.getByRole("link", { name: "設定" }).click();
     await expect(page).toHaveURL("/settings");
+    await page.getByRole("button", { name: `${updatedCategoryName}を編集` }).click();
     await page.getByRole("button", { name: `${updatedCategoryName}を無効化` }).click();
     // 無効化後: ボタンが disabled になること（設定画面では無効カテゴリも表示される）
     await expect(page.getByRole("button", { name: `${updatedCategoryName}を無効化` })).toBeDisabled(

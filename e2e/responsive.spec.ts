@@ -29,16 +29,27 @@ const MOBILE_VIEWPORT = { width: 406, height: 687 };
  */
 
 test.describe("レスポンシブ表示（Issue #20）", () => {
-  test("@smoke シナリオR-3: 390px viewport で設定画面の主要要素が表示される", async ({ page }) => {
-    await gotoAuthenticated(page);
-    await page.setViewportSize({ width: 390, height: 844 });
+  test("@smoke シナリオR-3: 320px・390px・900pxで設定台帳が横にはみ出さない", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 320, height: 844 });
+    await gotoAuthenticated(page, "/settings");
 
-    // BottomNavigationの「設定」タブをクリックして /settings に遷移
-    await page.getByRole("link", { name: "設定" }).click();
-    await expect(page).toHaveURL("/settings");
+    for (const viewport of [
+      { width: 320, height: 844 },
+      { width: 390, height: 844 },
+      { width: 900, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/settings");
 
-    // 設定画面の見出しが表示されることを確認
-    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "グループ", level: 2 })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "カテゴリ", level: 2 })).toBeVisible();
+      await expect(page.getByRole("heading", { name: "週の設定", level: 2 })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectLocatorInsideViewport(page.getByTestId("settings-ledger"));
+    }
   });
 
   test("@smoke シナリオR-4: 406px viewport で入力画面が横スクロールせず主要要素が表示される", async ({
