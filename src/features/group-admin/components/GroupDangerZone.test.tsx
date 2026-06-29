@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
 import { GroupDangerZone } from "./GroupDangerZone";
 
-const { useMutationMock, useQueryMock } = vi.hoisted(() => ({
+const { useActionMock, useMutationMock, useQueryMock } = vi.hoisted(() => ({
+  useActionMock: vi.fn(),
   useMutationMock: vi.fn(),
   useQueryMock: vi.fn(),
 }));
@@ -17,19 +18,39 @@ vi.mock("react-router-dom", async (importOriginal) => ({
   ...(await importOriginal<typeof import("react-router-dom")>()),
   useNavigate: () => vi.fn(),
 }));
-vi.mock("convex/react", () => ({ useMutation: useMutationMock, useQuery: useQueryMock }));
+vi.mock("convex/react", () => ({
+  useAction: useActionMock,
+  useMutation: useMutationMock,
+  useQuery: useQueryMock,
+}));
 vi.mock("../../../../convex/_generated/api", () => ({
   api: {
     groups: {
+      auditLogs: { listManagementAuditLogs: "auditLogs" },
+      clerkInvitations: {
+        cancelPendingGroupInvitation: "cancelInvitation",
+        inviteMember: "inviteMember",
+      },
       deletion: { deleteGroup: "deleteGroup", getGroupDeletionPreview: "deletionPreview" },
-      members: { removeMember: "removeMember", transferGroupOwnership: "transferOwnership" },
-      queries: { getGroupMembers: "members", getMyGroup: "group", listMyGroups: "groups" },
+      members: {
+        changeMemberRole: "changeRole",
+        removeMember: "removeMember",
+        transferGroupOwnership: "transferOwnership",
+      },
+      mutations: { setActiveGroup: "setActiveGroup", updateGroupName: "updateGroupName" },
+      queries: {
+        getGroupMembers: "members",
+        getMyGroup: "group",
+        listMyGroups: "groups",
+        listPendingGroupInvitations: "invitations",
+      },
     },
   },
 }));
 
 describe("GroupDangerZone", () => {
   beforeEach(() => {
+    useActionMock.mockReturnValue(vi.fn().mockResolvedValue(undefined));
     useMutationMock.mockReturnValue(vi.fn().mockResolvedValue(undefined));
     useQueryMock.mockImplementation((reference: string, args?: unknown) => {
       if (args === "skip") return undefined;

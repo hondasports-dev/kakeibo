@@ -29,9 +29,7 @@ const MOBILE_VIEWPORT = { width: 406, height: 687 };
  */
 
 test.describe("レスポンシブ表示（Issue #20）", () => {
-  test("@smoke シナリオR-3: 320px・390px・900pxで設定台帳が横にはみ出さない", async ({
-    page,
-  }) => {
+  test("@smoke シナリオR-3: 320px・390px・900pxで設定台帳が横にはみ出さない", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 844 });
     await gotoAuthenticated(page, "/settings");
 

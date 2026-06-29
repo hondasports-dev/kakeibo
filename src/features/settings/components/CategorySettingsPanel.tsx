@@ -18,6 +18,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { designTokens } from "../../../designTokens";
+import { getConvexErrorMessage } from "../../auth";
 
 type Category = {
   _id: Id<"categories">;
@@ -30,7 +31,7 @@ type Category = {
 const DEFAULT_NEW_COLOR: string = designTokens.color.category.default;
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return getConvexErrorMessage(error, fallback);
 }
 
 export function CategorySettingsPanel() {
@@ -173,6 +174,7 @@ export function CategorySettingsPanel() {
                     variant="outlined"
                   />
                   <Button
+                    aria-controls={`category-editor-${category._id}`}
                     aria-expanded={isEditing}
                     aria-label={`${category.name}を編集`}
                     endIcon={<ChevronRightIcon />}
@@ -183,7 +185,7 @@ export function CategorySettingsPanel() {
                   </Button>
                 </Box>
 
-                <Collapse in={isEditing} unmountOnExit>
+                <Collapse id={`category-editor-${category._id}`} in={isEditing} unmountOnExit>
                   <Stack className="category-settings-editor" spacing={1.5}>
                     <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
                       <TextField
@@ -233,6 +235,7 @@ export function CategorySettingsPanel() {
 
       <Box>
         <Button
+          aria-controls="category-create-form"
           aria-expanded={isCreateOpen}
           onClick={() => setIsCreateOpen((open) => !open)}
           startIcon={<AddIcon />}
@@ -240,7 +243,7 @@ export function CategorySettingsPanel() {
         >
           カテゴリを追加
         </Button>
-        <Collapse in={isCreateOpen} unmountOnExit>
+        <Collapse id="category-create-form" in={isCreateOpen} unmountOnExit>
           <Box component="form" onSubmit={handleCreate} sx={{ mt: 1.5 }}>
             <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
               <TextField

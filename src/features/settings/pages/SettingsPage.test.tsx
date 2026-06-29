@@ -10,6 +10,7 @@ vi.mock("../components/CategorySettingsPanel", () => ({
 vi.mock("../../group-admin", () => ({
   GroupDangerZone: () => <h2>危険な操作</h2>,
   GroupSettingsPanel: () => <h2>グループ</h2>,
+  GroupSettingsProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock("../components/WeekDaySettingsPanel", () => ({

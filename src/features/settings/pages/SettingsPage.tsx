@@ -1,6 +1,6 @@
 import { Box, Divider, Paper, Stack, Typography } from "@mui/material";
 import { CategorySettingsPanel } from "../components/CategorySettingsPanel";
-import { GroupDangerZone, GroupSettingsPanel } from "../../group-admin";
+import { GroupDangerZone, GroupSettingsPanel, GroupSettingsProvider } from "../../group-admin";
 import { WeekDaySettingsPanel } from "../components/WeekDaySettingsPanel";
 import { SettingsSectionErrorBoundary } from "../components/SettingsSectionErrorBoundary";
 
@@ -18,29 +18,31 @@ export function SettingsPage() {
         </Box>
 
         <Paper className="settings-ledger" data-testid="settings-ledger" elevation={0}>
-          <Box className="settings-ledger-section">
-            <SettingsSectionErrorBoundary>
-              <GroupSettingsPanel includeDangerZone={false} />
-            </SettingsSectionErrorBoundary>
-          </Box>
-          <Divider />
-          <Box className="settings-ledger-section">
-            <SettingsSectionErrorBoundary>
-              <CategorySettingsPanel />
-            </SettingsSectionErrorBoundary>
-          </Box>
-          <Divider />
-          <Box className="settings-ledger-section">
-            <SettingsSectionErrorBoundary>
-              <WeekDaySettingsPanel />
-            </SettingsSectionErrorBoundary>
-          </Box>
-          <Divider />
-          <Box className="settings-ledger-section settings-ledger-section--danger">
-            <SettingsSectionErrorBoundary>
-              <GroupDangerZone />
-            </SettingsSectionErrorBoundary>
-          </Box>
+          <GroupSettingsProvider>
+            <Box className="settings-ledger-section">
+              <SettingsSectionErrorBoundary>
+                <GroupSettingsPanel defaultExpanded={false} />
+              </SettingsSectionErrorBoundary>
+            </Box>
+            <Divider />
+            <Box className="settings-ledger-section">
+              <SettingsSectionErrorBoundary>
+                <CategorySettingsPanel />
+              </SettingsSectionErrorBoundary>
+            </Box>
+            <Divider />
+            <Box className="settings-ledger-section">
+              <SettingsSectionErrorBoundary>
+                <WeekDaySettingsPanel />
+              </SettingsSectionErrorBoundary>
+            </Box>
+            <Divider />
+            <Box className="settings-ledger-section settings-ledger-section--danger">
+              <SettingsSectionErrorBoundary>
+                <GroupDangerZone />
+              </SettingsSectionErrorBoundary>
+            </Box>
+          </GroupSettingsProvider>
         </Paper>
       </Stack>
     </Box>

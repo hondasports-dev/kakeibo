@@ -20,6 +20,11 @@ test.describe("設定台帳（Issue #375）", () => {
 
     const dangerTrigger = ledger.getByRole("button", { name: "危険な操作" });
     await expect(dangerTrigger).toHaveAttribute("aria-expanded", "false");
+    await expect(ledger.getByRole("button", { name: "管理する" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await expect(ledger.getByTestId("group-info-section")).toHaveCount(0);
   });
 
   test("危険な操作をキーボードで展開できる", async ({ page }) => {
