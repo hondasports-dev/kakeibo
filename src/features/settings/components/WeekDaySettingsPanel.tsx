@@ -8,9 +8,9 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
-  Paper,
   Select,
   type SelectChangeEvent,
+  Skeleton,
   Snackbar,
   Stack,
   Typography,
@@ -30,11 +30,13 @@ const DAY_OPTIONS = [
 export function WeekDaySettingsPanel() {
   const userProfile = useQuery(api.users.queries.getUserProfile);
   const updateWeeklyDays = useMutation(api.users.mutations.updateWeeklyDays);
-
-  const [startDay, setStartDay] = useState<number>(1);
-  const [endDay, setEndDay] = useState<number>(0);
+  const [startDay, setStartDay] = useState(1);
+  const [endDay, setEndDay] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
-  const [snackbar, setSnackbar] = useState("");
+  const [feedback, setFeedback] = useState<{
+    message: string;
+    severity: "success" | "error";
+  } | null>(null);
 
   useEffect(() => {
     if (userProfile) {
@@ -45,18 +47,15 @@ export function WeekDaySettingsPanel() {
 
   if (userProfile === undefined) {
     return (
-      <Paper className="paper-panel" elevation={0}>
-        <Box sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <CircularProgress size={20} />
-            <Typography color="text.secondary" variant="body2">
-              設定を読み込んでいます。
-            </Typography>
-          </Stack>
-        </Box>
-      </Paper>
+      <Stack aria-label="週の設定を読み込んでいます" spacing={2}>
+        <Skeleton height={30} width="30%" />
+        <Skeleton height={56} variant="rounded" />
+      </Stack>
     );
   }
+
+  const startLabel = DAY_OPTIONS.find((day) => day.value === startDay)?.label ?? "月曜日";
+  const endLabel = DAY_OPTIONS.find((day) => day.value === endDay)?.label ?? "日曜日";
 
   const handleStartDayChange = (event: SelectChangeEvent<number>) => {
     setStartDay(Number(event.target.value));
@@ -70,84 +69,96 @@ export function WeekDaySettingsPanel() {
     setIsSaving(true);
     try {
       await updateWeeklyDays({ weeklyStartDay: startDay, weeklyEndDay: endDay });
-      setSnackbar("週の設定を保存しました");
+      setFeedback({ message: "週の設定を保存しました", severity: "success" });
     } catch {
-      setSnackbar("保存に失敗しました");
+      setFeedback({ message: "週の設定を保存できませんでした", severity: "error" });
     } finally {
       setIsSaving(false);
     }
   };
 
   return (
-    <Paper className="paper-panel" elevation={0}>
-      <Box sx={{ p: 2.5 }}>
-        <Stack spacing={2.5}>
-          <Box>
-            <Typography component="h2" variant="h5">
-              週の設定
-            </Typography>
-            <Typography color="text.secondary" variant="body2">
-              週の始まりと終わりの曜日を調整します。
-            </Typography>
-          </Box>
+    <Stack spacing={2.5}>
+      <Box>
+        <Typography component="h2" variant="h5">
+          週の設定
+        </Typography>
+        <Typography color="text.secondary" variant="body2">
+          保存値を確認・変更します。週計算は月曜日始まり・日曜日終わりのままです。
+        </Typography>
+      </Box>
 
-          <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-            <FormControl fullWidth>
-              <InputLabel id="week-start-day-label">週の始まり</InputLabel>
-              <Select
-                labelId="week-start-day-label"
-                id="week-start-day"
-                value={startDay}
-                label="週の始まり"
-                onChange={handleStartDayChange}
-              >
-                {DAY_OPTIONS.map((day) => (
-                  <MenuItem key={day.value} value={day.value}>
-                    {day.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-
-            <FormControl fullWidth>
-              <InputLabel id="week-end-day-label">週の終わり</InputLabel>
-              <Select
-                labelId="week-end-day-label"
-                id="week-end-day"
-                value={endDay}
-                label="週の終わり"
-                onChange={handleEndDayChange}
-              >
-                {DAY_OPTIONS.map((day) => (
-                  <MenuItem key={day.value} value={day.value}>
-                    {day.label}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Stack>
-
+      <Box className="settings-row settings-week-row">
+        <Typography sx={{ fontWeight: 700 }} variant="body2">
+          週の期間
+        </Typography>
+        <Typography aria-live="polite">
+          {startLabel} から {endLabel} まで
+        </Typography>
+        <Stack
+          className="settings-week-controls"
+          direction={{ xs: "column", md: "row" }}
+          spacing={1.5}
+        >
+          <FormControl fullWidth size="small">
+            <InputLabel id="week-start-day-label">週の始まり</InputLabel>
+            <Select
+              disabled={isSaving}
+              id="week-start-day"
+              label="週の始まり"
+              labelId="week-start-day-label"
+              onChange={handleStartDayChange}
+              value={startDay}
+            >
+              {DAY_OPTIONS.map((day) => (
+                <MenuItem key={day.value} value={day.value}>
+                  {day.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth size="small">
+            <InputLabel id="week-end-day-label">週の終わり</InputLabel>
+            <Select
+              disabled={isSaving}
+              id="week-end-day"
+              label="週の終わり"
+              labelId="week-end-day-label"
+              onChange={handleEndDayChange}
+              value={endDay}
+            >
+              {DAY_OPTIONS.map((day) => (
+                <MenuItem key={day.value} value={day.value}>
+                  {day.label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <Button
             disabled={isSaving}
             onClick={handleSave}
             startIcon={isSaving ? <CircularProgress size={16} /> : undefined}
             variant="contained"
           >
-            {isSaving ? "保存中..." : "保存"}
+            {isSaving ? "保存中..." : "変更を保存"}
           </Button>
         </Stack>
       </Box>
 
       <Snackbar
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        anchorOrigin={{ horizontal: "center", vertical: "bottom" }}
         autoHideDuration={3000}
-        onClose={() => setSnackbar("")}
-        open={snackbar.length > 0}
+        onClose={() => setFeedback(null)}
+        open={feedback !== null}
       >
-        <Alert onClose={() => setSnackbar("")} severity="success" sx={{ width: "100%" }}>
-          {snackbar}
+        <Alert
+          onClose={() => setFeedback(null)}
+          severity={feedback?.severity ?? "success"}
+          variant="filled"
+        >
+          {feedback?.message}
         </Alert>
       </Snackbar>
-    </Paper>
+    </Stack>
   );
 }
