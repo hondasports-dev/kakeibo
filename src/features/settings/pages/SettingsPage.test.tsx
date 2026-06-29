@@ -4,15 +4,17 @@ import { renderWithProviders } from "../../../test/render";
 import { SettingsPage } from "./SettingsPage";
 
 vi.mock("../components/CategorySettingsPanel", () => ({
-  CategorySettingsPanel: () => <div>CategorySettingsPanel</div>,
+  CategorySettingsPanel: () => <h2>カテゴリ</h2>,
 }));
 
 vi.mock("../../group-admin", () => ({
-  GroupSettingsPanel: () => <div>GroupSettingsPanel</div>,
+  GroupDangerZone: () => <h2>危険な操作</h2>,
+  GroupSettingsPanel: () => <h2>グループ</h2>,
+  GroupSettingsProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock("../components/WeekDaySettingsPanel", () => ({
-  WeekDaySettingsPanel: () => <div>WeekDaySettingsPanel</div>,
+  WeekDaySettingsPanel: () => <h2>週の設定</h2>,
 }));
 
 describe("SettingsPage", () => {
@@ -22,11 +24,17 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("heading", { name: "設定", level: 1 })).toBeInTheDocument();
   });
 
-  it("3つの設定パネルを表示する", () => {
+  it("単一の設定台帳に説明と4セクションを順番どおり表示する", () => {
     renderWithProviders(<SettingsPage />);
 
-    expect(screen.getByText("GroupSettingsPanel")).toBeInTheDocument();
-    expect(screen.getByText("CategorySettingsPanel")).toBeInTheDocument();
-    expect(screen.getByText("WeekDaySettingsPanel")).toBeInTheDocument();
+    expect(
+      screen.getByText("グループやカテゴリ、週の設定を確認・管理します。"),
+    ).toBeInTheDocument();
+
+    const ledger = screen.getByTestId("settings-ledger");
+    expect(ledger.querySelectorAll(":scope > .settings-ledger-section")).toHaveLength(4);
+    expect(
+      screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent),
+    ).toEqual(["グループ", "カテゴリ", "週の設定", "危険な操作"]);
   });
 });

@@ -1,14 +1,12 @@
 import { type FormEvent, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useAction, useMutation, useQuery } from "convex/react";
 import {
   Alert,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Divider,
-  Paper,
   Snackbar,
   Stack,
   TextField,
@@ -18,34 +16,23 @@ import MenuItem from "@mui/material/MenuItem";
 import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { useAuth, useUser } from "@clerk/react";
-import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { MAX_GROUP_NAME_LENGTH } from "../../../../convex/groups/lib/groupName";
 import { getClerkUserFriendlyDisplayName } from "../../auth";
 import { getConvexErrorMessage } from "../../auth";
 import { ConfirmDangerousActionDialog } from "./ConfirmDangerousActionDialog";
-import { ConfirmDeleteGroupDialog } from "./ConfirmDeleteGroupDialog";
 import { GroupMemberList } from "./GroupMemberList";
 import type { GroupMemberListItem } from "../utils/groupMemberDisplay";
-import { getMemberPrimaryLabel, isCurrentUserMember } from "../utils/groupMemberDisplay";
 import { GroupPendingInvitationList } from "./GroupPendingInvitationList";
 import type { GroupPendingInvitationListItem } from "../utils/groupInvitationDisplay";
 import { GroupManagementAuditLogList } from "./GroupManagementAuditLogList";
-import type { GroupManagementAuditLogListItem } from "../utils/groupManagementAuditLogDisplay";
 import { formatGroupRoleLabel } from "../utils/groupRoleDisplay";
 import { GroupSettingsSection } from "./GroupSettingsSection";
-
-type GroupInfo = {
-  _id: Id<"groups">;
-  name: string;
-  role: "owner" | "member";
-  createdAt: number;
-};
-
-type PendingRemoveMember = {
-  userId: string;
-  displayLabel: string;
-};
+import {
+  GroupSettingsProvider,
+  useGroupSettings,
+  useHasGroupSettingsProvider,
+} from "./GroupSettingsProvider";
 
 type PendingCancelInvitation = {
   invitationId: Id<"groupInvitations">;
@@ -59,42 +46,29 @@ type PendingRoleChange = {
   newRole: "owner" | "member";
 };
 
-type PendingOwnershipTransfer = {
-  userId: string;
-  displayLabel: string;
-};
-
 function getErrorMessage(error: unknown, fallback: string) {
   return getConvexErrorMessage(error, fallback);
 }
 
-export function GroupSettingsPanel() {
-  const navigate = useNavigate();
+type GroupSettingsPanelProps = {
+  defaultExpanded?: boolean;
+};
+
+function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPanelProps) {
   const { userId } = useAuth();
   const { user } = useUser();
-  const group = useQuery(api.groups.queries.getMyGroup) as GroupInfo | null | undefined;
-  const groups = useQuery(api.groups.queries.listMyGroups) as
-    | { _id: Id<"groups">; name: string; role: "owner" | "member"; isActive: boolean }[]
-    | undefined;
-  const members = useQuery(api.groups.queries.getGroupMembers) as GroupMemberListItem[] | undefined;
-  const pendingInvitations = useQuery(
-    api.groups.queries.listPendingGroupInvitations,
-    group?.role === "owner" ? {} : "skip",
-  ) as GroupPendingInvitationListItem[] | undefined;
-  const managementAuditLogs = useQuery(
-    api.groups.auditLogs.listManagementAuditLogs,
-    group?.role === "owner" ? {} : "skip",
-  ) as GroupManagementAuditLogListItem[] | undefined;
-  const setActiveGroup = useMutation(api.groups.mutations.setActiveGroup);
-  const removeMember = useMutation(api.groups.members.removeMember);
-  const changeMemberRole = useMutation(api.groups.members.changeMemberRole);
-  const transferGroupOwnership = useMutation(api.groups.members.transferGroupOwnership);
-  const deleteGroup = useMutation(api.groups.deletion.deleteGroup);
-  const updateGroupName = useMutation(api.groups.mutations.updateGroupName);
-  const inviteMember = useAction(api.groups.clerkInvitations.inviteMember);
-  const cancelPendingGroupInvitation = useAction(
-    api.groups.clerkInvitations.cancelPendingGroupInvitation,
-  );
+  const {
+    cancelPendingGroupInvitation,
+    changeMemberRole,
+    group,
+    groups,
+    inviteMember,
+    managementAuditLogs,
+    members,
+    pendingInvitations,
+    setActiveGroup,
+    updateGroupName,
+  } = useGroupSettings();
 
   const [activeGroupId, setActiveGroupId] = useState<Id<"groups"> | "">("");
   const [groupNameDraft, setGroupNameDraft] = useState("");
@@ -102,19 +76,10 @@ export function GroupSettingsPanel() {
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [snackbar, setSnackbar] = useState("");
-  const [pendingRemoveMember, setPendingRemoveMember] = useState<PendingRemoveMember | null>(null);
   const [pendingCancelInvitation, setPendingCancelInvitation] =
     useState<PendingCancelInvitation | null>(null);
   const [pendingRoleChange, setPendingRoleChange] = useState<PendingRoleChange | null>(null);
-  const [pendingOwnershipTransfer, setPendingOwnershipTransfer] =
-    useState<PendingOwnershipTransfer | null>(null);
-  const [pendingDeleteGroup, setPendingDeleteGroup] = useState(false);
-  const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
-  const [transferTargetUserId, setTransferTargetUserId] = useState("");
-  const deletionPreview = useQuery(
-    api.groups.deletion.getGroupDeletionPreview,
-    group?.role === "owner" && pendingDeleteGroup ? {} : "skip",
-  );
+  const [isManagementOpen, setIsManagementOpen] = useState(defaultExpanded);
 
   const groupId = group?._id;
   const groupName = group?.name;
@@ -135,28 +100,25 @@ export function GroupSettingsPanel() {
       (pendingInvitations === undefined || managementAuditLogs === undefined))
   ) {
     return (
-      <Paper className="paper-panel" elevation={0}>
-        <Box sx={{ p: 2.5 }}>
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
-            <CircularProgress size={20} />
-            <Typography color="text.secondary" variant="body2">
-              グループ設定を読み込んでいます。
-            </Typography>
-          </Stack>
-        </Box>
-      </Paper>
+      <Stack aria-label="グループ設定を読み込んでいます" spacing={1.5}>
+        <CircularProgress size={20} />
+        <Typography color="text.secondary" variant="body2">
+          グループ設定を読み込んでいます。
+        </Typography>
+      </Stack>
     );
   }
 
   if (group === null) {
     return (
-      <Paper className="paper-panel" elevation={0}>
-        <Box sx={{ p: 2.5 }}>
-          <Alert severity="info" variant="outlined">
-            グループ作成後にメンバー管理を利用できます。
-          </Alert>
-        </Box>
-      </Paper>
+      <Stack spacing={2}>
+        <Typography component="h2" variant="h5">
+          グループ
+        </Typography>
+        <Alert severity="info" variant="outlined">
+          グループ作成後にメンバー管理を利用できます。
+        </Alert>
+      </Stack>
     );
   }
 
@@ -218,36 +180,6 @@ export function GroupSettingsPanel() {
       setSnackbar("表示中のグループを切り替えました");
     } catch (caughtError) {
       setError(getErrorMessage(caughtError, "グループを切り替えられませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleRequestRemoveMember = (member: GroupMemberListItem, displayLabel: string) => {
-    setPendingRemoveMember({ userId: member.userId, displayLabel });
-  };
-
-  const handleCancelRemoveMember = () => {
-    if (savingTarget !== null) {
-      return;
-    }
-    setPendingRemoveMember(null);
-  };
-
-  const handleConfirmRemoveMember = async () => {
-    if (!pendingRemoveMember) {
-      return;
-    }
-
-    const targetUserId = pendingRemoveMember.userId;
-    setSavingTarget(targetUserId);
-    setError("");
-    try {
-      await removeMember({ targetUserId });
-      setPendingRemoveMember(null);
-      setSnackbar("メンバーをグループから外しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "メンバーをグループから外せませんでした。"));
     } finally {
       setSavingTarget(null);
     }
@@ -325,341 +257,236 @@ export function GroupSettingsPanel() {
     }
   };
 
-  const transferableMembers =
-    members?.filter(
-      (member) =>
-        member.role === "member" && !isCurrentUserMember(member.userId, userId ?? undefined),
-    ) ?? [];
-
-  const handleRequestOwnershipTransfer = () => {
-    const selectedMember = transferableMembers.find(
-      (member) => member.userId === transferTargetUserId,
-    );
-    if (!selectedMember) {
-      setError("譲渡先のメンバーを選択してください。");
-      return;
-    }
-
-    setError("");
-    setPendingOwnershipTransfer({
-      userId: selectedMember.userId,
-      displayLabel: getMemberPrimaryLabel(selectedMember, null),
-    });
-  };
-
-  const handleCancelOwnershipTransfer = () => {
-    if (savingTarget !== null) {
-      return;
-    }
-    setPendingOwnershipTransfer(null);
-  };
-
-  const handleConfirmOwnershipTransfer = async () => {
-    if (!pendingOwnershipTransfer) {
-      return;
-    }
-
-    const { userId: targetUserId } = pendingOwnershipTransfer;
-    setSavingTarget(targetUserId);
-    setError("");
-    try {
-      await transferGroupOwnership({ targetUserId });
-      setPendingOwnershipTransfer(null);
-      setTransferTargetUserId("");
-      setSnackbar("オーナー権限を譲渡しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "オーナー権限を譲渡できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleRequestDeleteGroup = () => {
-    setError("");
-    setDeleteConfirmationName("");
-    setPendingDeleteGroup(true);
-  };
-
-  const handleCancelDeleteGroup = () => {
-    if (savingTarget !== null) {
-      return;
-    }
-    setPendingDeleteGroup(false);
-    setDeleteConfirmationName("");
-  };
-
-  const handleConfirmDeleteGroup = async () => {
-    setSavingTarget("delete-group");
-    setError("");
-    try {
-      await deleteGroup({ confirmationGroupName: deleteConfirmationName });
-      setPendingDeleteGroup(false);
-      setDeleteConfirmationName("");
-      setSnackbar("グループを削除しました");
-      navigate(groups.length > 1 ? "/group/select" : "/group/setup");
-    } catch (caughtError) {
-      setPendingDeleteGroup(false);
-      setError(getErrorMessage(caughtError, "グループを削除できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
   return (
-    <Paper className="paper-panel" elevation={0}>
-      <Box sx={{ p: 2.5 }}>
-        <Stack spacing={3}>
-          <Box>
-            <Typography component="h2" variant="h5">
-              グループ管理
-            </Typography>
+    <>
+      <Stack spacing={3}>
+        <Box>
+          <Typography component="h2" variant="h5">
+            グループ
+          </Typography>
+          <Typography color="text.secondary" variant="body2">
+            現在のグループとメンバー・招待の状態を確認します。
+          </Typography>
+        </Box>
+
+        {error ? (
+          <Alert severity="error" variant="outlined">
+            {error}
+          </Alert>
+        ) : null}
+
+        <Box className="settings-row group-settings-summary">
+          <Typography color="text.secondary" variant="body2">
+            現在のグループ
+          </Typography>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>{group.name}</Typography>
             <Typography color="text.secondary" variant="body2">
-              グループの基本情報、メンバー、招待をまとめて管理します。
+              {members.length}人・{isOwner ? "オーナー" : "メンバー"}
+              {isOwner ? `・保留中の招待 ${pendingInvitations?.length ?? 0}件` : ""}
             </Typography>
           </Box>
-
-          {error ? (
-            <Alert severity="error" variant="outlined">
-              {error}
-            </Alert>
-          ) : null}
-
-          <GroupSettingsSection
-            description="現在のグループ名と表示中グループを確認・切り替えします。"
-            testId="group-info-section"
-            title="グループ情報"
+          <Button
+            aria-controls="group-management-content"
+            aria-expanded={isManagementOpen}
+            onClick={() => setIsManagementOpen((open) => !open)}
+            sx={{ justifySelf: { md: "end" } }}
+            variant="outlined"
           >
-            <Stack spacing={1.5}>
-              <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-                <Chip
-                  label={isOwner ? "オーナー" : "メンバー"}
-                  color={isOwner ? "primary" : "secondary"}
-                />
-                <Chip label={`${members.length}人`} variant="outlined" />
-              </Stack>
+            {isManagementOpen ? "管理を閉じる" : "管理する"}
+          </Button>
+        </Box>
 
-              {canSwitchGroups ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <TextField
-                    select
-                    fullWidth
-                    label="現在のグループ"
-                    onChange={(event) => setActiveGroupId(event.target.value as Id<"groups">)}
-                    value={activeGroupId}
-                  >
-                    {groups.map((item) => (
-                      <MenuItem key={item._id} value={item._id}>
-                        {item.name}
-                        {item.isActive ? "（現在）" : ""}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                  <Button
-                    disabled={savingTarget !== null || activeGroupId === group._id}
-                    onClick={handleSwitchGroup}
-                    startIcon={
-                      savingTarget === "switch" ? (
-                        <CircularProgress size={16} />
-                      ) : (
-                        <GroupSwitchIcon />
-                      )
-                    }
-                    variant="outlined"
-                  >
-                    切り替え
-                  </Button>
-                </Stack>
-              ) : isOwner ? (
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                  <TextField
-                    disabled={savingTarget !== null}
-                    fullWidth
-                    label="グループ名"
-                    onChange={(event) => setGroupNameDraft(event.target.value)}
-                    slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
-                    value={groupNameDraft}
+        <Collapse id="group-management-content" in={isManagementOpen} unmountOnExit>
+          <Stack spacing={3}>
+            <GroupSettingsSection
+              description="現在のグループ名と表示中グループを確認・切り替えします。"
+              testId="group-info-section"
+              title="グループ情報"
+            >
+              <Stack spacing={1.5}>
+                <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
+                  <Chip
+                    color={isOwner ? "primary" : "secondary"}
+                    label={isOwner ? "オーナー" : "メンバー"}
                   />
-                  <Button
-                    disabled={savingTarget !== null || groupNameDraft.trim() === group.name.trim()}
-                    onClick={() => void handleUpdateGroupName()}
-                    startIcon={
-                      savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
-                    }
-                    variant="outlined"
-                  >
-                    保存
-                  </Button>
+                  <Chip label={`${members.length}人`} variant="outlined" />
                 </Stack>
-              ) : (
-                <Typography variant="body1">{group.name}</Typography>
-              )}
-            </Stack>
-          </GroupSettingsSection>
 
-          <Divider />
-
-          <GroupSettingsSection
-            description={
-              isOwner
-                ? "所属メンバーを確認し、ロール変更やグループからの除外を行います。"
-                : "所属メンバーを確認できます。メンバーの追加・削除はオーナーのみ操作できます。"
-            }
-            testId="member-management-section"
-            title="メンバー管理"
-          >
-            <GroupMemberList
-              currentUserDisplayName={currentUserDisplayName}
-              currentUserId={userId}
-              isOwner={isOwner}
-              members={members}
-              onRequestRemove={isOwner ? handleRequestRemoveMember : undefined}
-              onRequestRoleChange={isOwner ? handleRequestRoleChange : undefined}
-              ownerCount={ownerCount}
-              savingTarget={savingTarget}
-            />
-          </GroupSettingsSection>
-
-          {!isOwner ? (
-            <Alert severity="info" variant="outlined">
-              招待と削除はオーナーのみ操作できます。
-            </Alert>
-          ) : null}
-
-          {isOwner ? (
-            <>
-              <Divider />
-
-              <GroupSettingsSection
-                description="メール招待の送信と、送信済み招待の確認・取り消しを行います。"
-                testId="invite-management-section"
-                title="招待管理"
-              >
-                <Stack spacing={1.5}>
-                  <Box component="form" onSubmit={handleInviteMember}>
+                {canSwitchGroups ? (
+                  <Stack spacing={1.5}>
                     <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                       <TextField
-                        disabled={savingTarget !== null}
                         fullWidth
-                        label="招待するメールアドレス"
-                        name="memberEmail"
-                        onChange={(event) => setEmail(event.target.value)}
-                        type="email"
-                        value={email}
-                      />
+                        label="現在のグループ"
+                        onChange={(event) => setActiveGroupId(event.target.value as Id<"groups">)}
+                        select
+                        value={activeGroupId}
+                      >
+                        {groups.map((item) => (
+                          <MenuItem key={item._id} value={item._id}>
+                            {item.name}
+                            {item.isActive ? "（現在）" : ""}
+                          </MenuItem>
+                        ))}
+                      </TextField>
                       <Button
-                        disabled={savingTarget !== null}
+                        disabled={savingTarget !== null || activeGroupId === group._id}
+                        onClick={handleSwitchGroup}
                         startIcon={
-                          savingTarget === "add" ? (
+                          savingTarget === "switch" ? (
                             <CircularProgress size={16} />
                           ) : (
-                            <PersonAddIcon />
+                            <GroupSwitchIcon />
                           )
                         }
-                        type="submit"
-                        variant="contained"
+                        variant="outlined"
                       >
-                        招待を送る
+                        切り替え
                       </Button>
                     </Stack>
-                  </Box>
-
-                  <GroupPendingInvitationList
-                    invitations={pendingInvitations ?? []}
-                    onRequestCancel={handleRequestCancelInvitation}
-                    savingTarget={savingTarget}
-                  />
-                </Stack>
-              </GroupSettingsSection>
-
-              <Divider />
-
-              <GroupSettingsSection
-                description="グループ名変更、メンバー解除、招待取り消しなどの管理操作履歴を確認できます。"
-                testId="management-audit-log-section"
-                title="管理操作ログ"
-              >
-                <GroupManagementAuditLogList logs={managementAuditLogs ?? []} />
-              </GroupSettingsSection>
-
-              <Divider />
-
-              <GroupSettingsSection
-                description="誤操作でデータを失わないよう、不可逆な操作は別セクションにまとめます。"
-                testId="danger-zone-section"
-                title="危険な操作"
-              >
-                <Stack spacing={2}>
-                  <Box>
-                    <Typography sx={{ mb: 1 }} variant="subtitle2">
-                      オーナー権限の譲渡
-                    </Typography>
-                    <Typography color="text.secondary" sx={{ mb: 1.5 }} variant="body2">
-                      グループの管理責任を別のメンバーへ引き渡します。譲渡後、あなたはメンバーになり、管理操作は実行できなくなります。
-                    </Typography>
-                    {transferableMembers.length === 0 ? (
-                      <Alert severity="info" variant="outlined">
-                        譲渡先となるメンバーがいません。
-                      </Alert>
-                    ) : (
+                    {isOwner ? (
                       <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
                         <TextField
-                          aria-label="譲渡先メンバー"
-                          data-testid="ownership-transfer-target-select"
-                          disabled={savingTarget !== null}
+                          disabled={savingTarget === "rename"}
                           fullWidth
-                          onChange={(event) => setTransferTargetUserId(event.target.value)}
-                          select
-                          size="small"
-                          value={transferTargetUserId}
-                        >
-                          <MenuItem disabled value="">
-                            譲渡先を選択
-                          </MenuItem>
-                          {transferableMembers.map((member) => (
-                            <MenuItem key={member.userId} value={member.userId}>
-                              {getMemberPrimaryLabel(member, null)}
-                            </MenuItem>
-                          ))}
-                        </TextField>
+                          label="グループ名"
+                          onChange={(event) => setGroupNameDraft(event.target.value)}
+                          slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
+                          value={groupNameDraft}
+                        />
                         <Button
-                          color="error"
-                          data-testid="ownership-transfer-request-button"
-                          disabled={savingTarget !== null || transferTargetUserId === ""}
-                          onClick={handleRequestOwnershipTransfer}
+                          disabled={
+                            savingTarget === "rename" || groupNameDraft.trim() === group.name.trim()
+                          }
+                          onClick={() => void handleUpdateGroupName()}
+                          startIcon={
+                            savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
+                          }
                           variant="outlined"
                         >
-                          譲渡を開始
+                          保存
                         </Button>
                       </Stack>
-                    )}
-                  </Box>
-
-                  <Divider />
-
-                  <Box>
-                    <Typography sx={{ mb: 1 }} variant="subtitle2">
-                      グループの削除
-                    </Typography>
-                    <Typography color="text.secondary" sx={{ mb: 1.5 }} variant="body2">
-                      このグループと紐づく家計データを完全に削除します。復旧はできません。Clerk
-                      アカウントやユーザー情報は削除されません。
-                    </Typography>
-                    <Button
-                      color="error"
-                      data-testid="delete-group-request-button"
+                    ) : null}
+                  </Stack>
+                ) : isOwner ? (
+                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                    <TextField
                       disabled={savingTarget !== null}
-                      onClick={handleRequestDeleteGroup}
+                      fullWidth
+                      label="グループ名"
+                      onChange={(event) => setGroupNameDraft(event.target.value)}
+                      slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
+                      value={groupNameDraft}
+                    />
+                    <Button
+                      disabled={
+                        savingTarget !== null || groupNameDraft.trim() === group.name.trim()
+                      }
+                      onClick={() => void handleUpdateGroupName()}
+                      startIcon={
+                        savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
+                      }
                       variant="outlined"
                     >
-                      削除を開始
+                      保存
                     </Button>
-                  </Box>
-                </Stack>
-              </GroupSettingsSection>
-            </>
-          ) : null}
-        </Stack>
-      </Box>
+                  </Stack>
+                ) : (
+                  <Typography variant="body1">{group.name}</Typography>
+                )}
+              </Stack>
+            </GroupSettingsSection>
+
+            <Divider />
+
+            <GroupSettingsSection
+              description={
+                isOwner
+                  ? "所属メンバーを確認し、ロールを変更します。メンバー解除は危険な操作から行います。"
+                  : "所属メンバーを確認できます。メンバーの追加・削除はオーナーのみ操作できます。"
+              }
+              testId="member-management-section"
+              title="メンバー管理"
+            >
+              <GroupMemberList
+                currentUserDisplayName={currentUserDisplayName}
+                currentUserId={userId}
+                isOwner={isOwner}
+                members={members}
+                onRequestRoleChange={isOwner ? handleRequestRoleChange : undefined}
+                ownerCount={ownerCount}
+                savingTarget={savingTarget}
+              />
+            </GroupSettingsSection>
+
+            {!isOwner ? (
+              <Alert severity="info" variant="outlined">
+                招待と削除はオーナーのみ操作できます。
+              </Alert>
+            ) : null}
+
+            {isOwner ? (
+              <>
+                <Divider />
+
+                <GroupSettingsSection
+                  description="メール招待の送信と、送信済み招待の確認・取り消しを行います。"
+                  testId="invite-management-section"
+                  title="招待管理"
+                >
+                  <Stack spacing={1.5}>
+                    <Box component="form" onSubmit={handleInviteMember}>
+                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+                        <TextField
+                          disabled={savingTarget !== null}
+                          fullWidth
+                          label="招待するメールアドレス"
+                          name="memberEmail"
+                          onChange={(event) => setEmail(event.target.value)}
+                          type="email"
+                          value={email}
+                        />
+                        <Button
+                          disabled={savingTarget !== null}
+                          startIcon={
+                            savingTarget === "add" ? (
+                              <CircularProgress size={16} />
+                            ) : (
+                              <PersonAddIcon />
+                            )
+                          }
+                          type="submit"
+                          variant="contained"
+                        >
+                          招待を送る
+                        </Button>
+                      </Stack>
+                    </Box>
+
+                    <GroupPendingInvitationList
+                      invitations={pendingInvitations ?? []}
+                      onRequestCancel={handleRequestCancelInvitation}
+                      savingTarget={savingTarget}
+                    />
+                  </Stack>
+                </GroupSettingsSection>
+
+                <Divider />
+
+                <GroupSettingsSection
+                  description="グループ名変更、メンバー解除、招待取り消しなどの管理操作履歴を確認できます。"
+                  testId="management-audit-log-section"
+                  title="管理操作ログ"
+                >
+                  <GroupManagementAuditLogList logs={managementAuditLogs ?? []} />
+                </GroupSettingsSection>
+              </>
+            ) : null}
+          </Stack>
+        </Collapse>
+      </Stack>
 
       <ConfirmDangerousActionDialog
         cancelLabel="戻る"
@@ -674,47 +501,6 @@ export function GroupSettingsPanel() {
         onConfirm={() => void handleConfirmRoleChange()}
         open={pendingRoleChange !== null}
         title="メンバーのロールを変更しますか？"
-      />
-
-      <ConfirmDeleteGroupDialog
-        confirmationName={deleteConfirmationName}
-        confirming={pendingDeleteGroup && savingTarget === "delete-group"}
-        onCancel={handleCancelDeleteGroup}
-        onConfirm={() => void handleConfirmDeleteGroup()}
-        onConfirmationNameChange={setDeleteConfirmationName}
-        open={pendingDeleteGroup}
-        preview={deletionPreview ?? null}
-      />
-
-      <ConfirmDangerousActionDialog
-        cancelLabel="戻る"
-        confirmLabel="オーナー権限を譲渡する"
-        confirming={
-          pendingOwnershipTransfer !== null && savingTarget === pendingOwnershipTransfer.userId
-        }
-        description={
-          pendingOwnershipTransfer
-            ? `現在のオーナー: ${currentUserDisplayName}。譲渡先: ${pendingOwnershipTransfer.displayLabel}。譲渡後のあなたのロール: ${formatGroupRoleLabel("member")}。譲渡後は管理操作を実行できなくなります。`
-            : ""
-        }
-        onCancel={handleCancelOwnershipTransfer}
-        onConfirm={() => void handleConfirmOwnershipTransfer()}
-        open={pendingOwnershipTransfer !== null}
-        title="オーナー権限を譲渡しますか？"
-      />
-
-      <ConfirmDangerousActionDialog
-        confirmLabel="グループから外す"
-        confirming={pendingRemoveMember !== null && savingTarget === pendingRemoveMember.userId}
-        description={
-          pendingRemoveMember
-            ? `${pendingRemoveMember.displayLabel} をこのグループから外します。Clerk アカウント自体は削除されず、他のグループへの所属はそのままです。`
-            : ""
-        }
-        onCancel={handleCancelRemoveMember}
-        onConfirm={() => void handleConfirmRemoveMember()}
-        open={pendingRemoveMember !== null}
-        title="メンバーをグループから外しますか？"
       />
 
       <ConfirmDangerousActionDialog
@@ -744,6 +530,16 @@ export function GroupSettingsPanel() {
           {snackbar}
         </Alert>
       </Snackbar>
-    </Paper>
+    </>
+  );
+}
+
+export function GroupSettingsPanel(props: GroupSettingsPanelProps) {
+  const hasProvider = useHasGroupSettingsProvider();
+  if (hasProvider) return <GroupSettingsPanelContent {...props} />;
+  return (
+    <GroupSettingsProvider>
+      <GroupSettingsPanelContent {...props} />
+    </GroupSettingsProvider>
   );
 }

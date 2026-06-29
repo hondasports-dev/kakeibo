@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
+import { GroupDangerZone } from "./GroupDangerZone";
 import { GroupSettingsPanel } from "./GroupSettingsPanel";
 
 const {
@@ -237,9 +238,27 @@ describe("GroupSettingsPanel", () => {
   it("複数グループがあると切替 UI を表示する", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
-    expect(screen.getByRole("heading", { name: "グループ管理", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "グループ", level: 2 })).toBeInTheDocument();
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "切り替え" })).toBeInTheDocument();
+  });
+
+  it("設定台帳では概要を先に表示し、管理UIを展開できる", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupSettingsPanel defaultExpanded={false} />);
+
+    const trigger = screen.getByRole("button", { name: "管理する" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(trigger).toHaveAttribute("aria-controls", "group-management-content");
+    expect(screen.getByText(/2人・オーナー・保留中の招待 1件/)).toBeInTheDocument();
+    expect(screen.queryByTestId("group-info-section")).not.toBeInTheDocument();
+
+    await user.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByTestId("group-info-section")).toBeInTheDocument();
+    expect(screen.queryByTestId("danger-zone-section")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /をグループから外す/ })).not.toBeInTheDocument();
   });
 
   it("メールアドレスを入力して招待を送れる", async () => {
@@ -341,13 +360,7 @@ describe("GroupSettingsPanel", () => {
   it("オーナー向けにグループ管理の各セクションを順序どおり表示する", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
-    const sectionTitles = [
-      "グループ情報",
-      "メンバー管理",
-      "招待管理",
-      "管理操作ログ",
-      "危険な操作",
-    ];
+    const sectionTitles = ["グループ情報", "メンバー管理", "招待管理", "管理操作ログ"];
     const headings = screen.getAllByRole("heading", { level: 3 });
     expect(headings.map((heading) => heading.textContent)).toEqual(sectionTitles);
 
@@ -355,15 +368,13 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByTestId("member-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("invite-management-section")).toBeInTheDocument();
     expect(screen.getByTestId("management-audit-log-section")).toBeInTheDocument();
-    expect(screen.getByTestId("danger-zone-section")).toBeInTheDocument();
-    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("danger-zone-section")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
     expect(screen.getByTestId("group-pending-invitation-list")).toBeInTheDocument();
     expect(screen.getByText("pending@example.com")).toBeInTheDocument();
     expect(screen.getByText("招待中")).toBeInTheDocument();
     expect(screen.getByText("グループ名を変更")).toBeInTheDocument();
     expect(screen.getByText("佐藤家 → 鈴木家")).toBeInTheDocument();
-    expect(screen.getByTestId("ownership-transfer-target-select")).toBeInTheDocument();
-    expect(screen.getByTestId("delete-group-request-button")).toBeInTheDocument();
   });
 
   it("pending 招待がない場合は空状態を表示する", () => {
@@ -553,15 +564,15 @@ describe("GroupSettingsPanel", () => {
 
     renderWithProviders(<GroupSettingsPanel />);
 
-    expect(screen.getByText("佐藤家")).toBeInTheDocument();
+    expect(screen.getAllByText("佐藤家")).toHaveLength(2);
     expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
   });
 
-  it("複数グループのオーナーはグループ名変更フォームを表示しない", () => {
+  it("複数グループのオーナーも切替とグループ名変更へ到達できる", () => {
     renderWithProviders(<GroupSettingsPanel />);
 
     expect(screen.getByLabelText("現在のグループ")).toBeInTheDocument();
-    expect(screen.queryByLabelText("グループ名")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("グループ名")).toHaveValue("佐藤家");
   });
 
   it("セクション見出しは aria-labelledby で関連付けられる", () => {
@@ -628,7 +639,9 @@ describe("GroupSettingsPanel", () => {
 
   it("メンバー削除前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderWithProviders(<GroupDangerZone />);
+
+    await user.click(screen.getByRole("button", { name: "危険な操作" }));
 
     await user.click(screen.getByRole("button", { name: "メンバーをグループから外す" }));
 
@@ -670,7 +683,9 @@ describe("GroupSettingsPanel", () => {
 
   it("グループ削除前に影響範囲と確認用グループ名入力を表示し、一致後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderWithProviders(<GroupDangerZone />);
+
+    await user.click(screen.getByRole("button", { name: "危険な操作" }));
 
     await user.click(screen.getByTestId("delete-group-request-button"));
 
@@ -692,7 +707,9 @@ describe("GroupSettingsPanel", () => {
 
   it("オーナー権限譲渡前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
-    renderWithProviders(<GroupSettingsPanel />);
+    renderWithProviders(<GroupDangerZone />);
+
+    await user.click(screen.getByRole("button", { name: "危険な操作" }));
 
     await user.click(
       within(screen.getByTestId("ownership-transfer-target-select")).getByRole("combobox"),

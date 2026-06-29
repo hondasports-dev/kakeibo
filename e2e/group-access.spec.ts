@@ -7,6 +7,21 @@ import {
 } from "./helpers/cleanup";
 import { seedGroupMemberForUser, seedPendingGroupInvitationForUser } from "./helpers/seed";
 
+async function expandDangerZone(page: import("@playwright/test").Page) {
+  const trigger = page.getByRole("button", { name: "危険な操作" });
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+    await trigger.click();
+  }
+}
+
+async function expandGroupManagement(page: import("@playwright/test").Page) {
+  const trigger = page.getByRole("button", { name: "管理する" });
+  await trigger.waitFor({ state: "visible" });
+  if ((await trigger.getAttribute("aria-expanded")) !== "true") {
+    await trigger.click();
+  }
+}
+
 test.describe("グループアクセス", () => {
   let currentUserIdForCleanup: string | undefined;
   let seededMemberUserIdForCleanup: string | undefined;
@@ -50,7 +65,8 @@ test.describe("グループアクセス", () => {
     });
 
     await page.goto("/settings");
-    await expect(page.getByRole("heading", { name: "グループ管理", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "グループ", level: 2 })).toBeVisible();
+    await expandGroupManagement(page);
     await expect(page.getByRole("heading", { name: "グループ情報", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "メンバー管理", level: 3 })).toBeVisible();
     await expect(page.getByRole("textbox", { name: "グループ名" })).toHaveValue("佐藤家");
@@ -71,6 +87,7 @@ test.describe("グループアクセス", () => {
     await expect(page).toHaveURL("/");
 
     await page.goto("/settings");
+    await expandGroupManagement(page);
     const nameInput = page.getByRole("textbox", { name: "グループ名" });
     await expect(nameInput).toHaveValue("佐藤家");
     await nameInput.fill("鈴木家");
@@ -98,6 +115,7 @@ test.describe("グループアクセス", () => {
     await expect(page).toHaveURL("/");
 
     await page.goto("/settings");
+    await expandGroupManagement(page);
     await expect(page.getByRole("heading", { name: "管理操作ログ", level: 3 })).toBeVisible();
     await expect(page.getByTestId("group-management-audit-log-list-empty")).toHaveText(
       "管理操作の履歴はまだありません。",
@@ -114,12 +132,13 @@ test.describe("グループアクセス", () => {
     await setE2eGroupMemberRole(currentUserId, "member");
 
     await page.reload();
-    await expect(page.getByRole("heading", { name: "グループ管理", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "グループ", level: 2 })).toBeVisible();
+    await expandGroupManagement(page);
     await expect(page.getByRole("heading", { name: "グループ情報", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "メンバー管理", level: 3 })).toBeVisible();
     await expect(page.getByRole("heading", { name: "招待管理", level: 3 })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "管理操作ログ", level: 3 })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: "危険な操作", level: 3 })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "危険な操作", level: 2 })).toHaveCount(0);
     await expect(page.getByText("招待と削除はオーナーのみ操作できます。")).toBeVisible();
     await expect(page.getByRole("textbox", { name: "招待するメールアドレス" })).toHaveCount(0);
   });
@@ -130,6 +149,7 @@ test.describe("グループアクセス", () => {
     const currentUserId = await getCurrentClerkTokenIdentifier(page);
     currentUserIdForCleanup = currentUserId;
 
+    await expandGroupManagement(page);
     await expect(page.getByRole("heading", { name: "招待管理", level: 3 })).toBeVisible();
     await expect(page.getByTestId("group-pending-invitation-list-empty")).toHaveText(
       "送信済みの招待はありません。",
@@ -148,6 +168,7 @@ test.describe("グループアクセス", () => {
     await seedPendingGroupInvitationForUser(currentUserId, invitationEmail);
 
     await page.reload();
+    await expandGroupManagement(page);
     await expect(page.getByText(invitationEmail)).toBeVisible({ timeout: 15_000 });
 
     await page.getByRole("button", { name: `${invitationEmail}への招待を取り消す` }).click();
@@ -170,7 +191,8 @@ test.describe("グループアクセス", () => {
     await setE2eGroupMemberRole(currentUserId, "member");
 
     await page.reload();
-    await expect(page.getByRole("heading", { name: "グループ管理", level: 2 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "グループ", level: 2 })).toBeVisible();
+    await expandGroupManagement(page);
     await expect(page.getByRole("textbox", { name: "グループ名" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /をグループから外す/ })).toHaveCount(0);
     await expect(page.getByTestId("group-pending-invitation-list")).toHaveCount(0);
@@ -194,8 +216,12 @@ test.describe("グループアクセス", () => {
     seededMemberUserIdForCleanup = memberUserId;
 
     await page.reload();
-    await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
+    await expandGroupManagement(page);
+    await expect(page.getByTestId("group-member-list").getByText(memberDisplayName)).toBeVisible({
+      timeout: 15_000,
+    });
 
+    await expandDangerZone(page);
     await page.getByRole("button", { name: `${memberDisplayName}をグループから外す` }).click();
     await expect(
       page.getByRole("heading", { name: "メンバーをグループから外しますか？" }),
@@ -229,7 +255,10 @@ test.describe("グループアクセス", () => {
     seededMemberUserIdForCleanup = memberUserId;
 
     await page.reload();
-    await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
+    await expandGroupManagement(page);
+    await expect(page.getByTestId("group-member-list").getByText(memberDisplayName)).toBeVisible({
+      timeout: 15_000,
+    });
 
     const roleSelect = page.getByTestId(`group-member-role-select-${memberUserId}`);
     await roleSelect.getByRole("combobox").click();
@@ -271,8 +300,12 @@ test.describe("グループアクセス", () => {
     seededMemberUserIdForCleanup = memberUserId;
 
     await page.reload();
-    await expect(page.getByText(memberDisplayName)).toBeVisible({ timeout: 15_000 });
+    await expandGroupManagement(page);
+    await expect(page.getByTestId("group-member-list").getByText(memberDisplayName)).toBeVisible({
+      timeout: 15_000,
+    });
 
+    await expandDangerZone(page);
     await page.getByTestId("ownership-transfer-target-select").getByRole("combobox").click();
     await page.getByRole("option", { name: memberDisplayName }).click();
     await page.getByTestId("ownership-transfer-request-button").click();
@@ -297,6 +330,7 @@ test.describe("グループアクセス", () => {
     const currentUserId = await getCurrentClerkTokenIdentifier(page);
     currentUserIdForCleanup = currentUserId;
 
+    await expandDangerZone(page);
     await page.getByTestId("delete-group-request-button").click();
 
     await expect(page.getByRole("heading", { name: "グループを削除しますか？" })).toBeVisible();

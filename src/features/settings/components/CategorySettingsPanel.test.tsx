@@ -91,7 +91,7 @@ describe("CategorySettingsPanel", () => {
     renderWithProviders(<CategorySettingsPanel />);
 
     // Then: 読み込み中の状態が表示される
-    expect(screen.getByText("カテゴリを読み込んでいます。")).toBeInTheDocument();
+    expect(screen.getByLabelText("カテゴリを読み込んでいます")).toBeInTheDocument();
   });
 
   it("カテゴリを追加でき、入力欄を初期状態に戻す", async () => {
@@ -100,8 +100,11 @@ describe("CategorySettingsPanel", () => {
     renderWithProviders(<CategorySettingsPanel />);
 
     // When: 新しいカテゴリ名を入力して追加する
+    const createTrigger = screen.getByRole("button", { name: "カテゴリを追加" });
+    expect(createTrigger).toHaveAttribute("aria-controls", "category-create-form");
+    await user.click(createTrigger);
     await user.type(screen.getByLabelText("新しいカテゴリ名"), "交通");
-    await user.click(screen.getByRole("button", { name: "カテゴリを追加" }));
+    await user.click(screen.getByRole("button", { name: "追加する" }));
 
     // Then: 作成mutationが呼ばれ、カテゴリ名の入力欄が空になる
     await waitFor(() => {
@@ -120,13 +123,16 @@ describe("CategorySettingsPanel", () => {
     renderWithProviders(<CategorySettingsPanel />);
 
     // Then: Playwright がラベル描画に依存せず入力欄を参照できる
+    await user.click(screen.getByRole("button", { name: "カテゴリを追加" }));
     expect(screen.getByRole("textbox", { name: "新しいカテゴリ名" })).toHaveAttribute(
       "name",
       "newCategoryName",
     );
     expect(screen.getByLabelText("新しいカテゴリ色")).toHaveAttribute("name", "newCategoryColor");
 
-    await user.click(screen.getByRole("button", { name: "食費を編集" }));
+    const editTrigger = screen.getByRole("button", { name: "食費を編集" });
+    expect(editTrigger).toHaveAttribute("aria-controls", "category-editor-cat-food");
+    await user.click(editTrigger);
     expect(screen.getByRole("textbox", { name: "カテゴリ名を編集" })).toHaveAttribute(
       "name",
       "editCategoryName",
@@ -163,12 +169,30 @@ describe("CategorySettingsPanel", () => {
     renderWithProviders(<CategorySettingsPanel />);
 
     // When: 有効カテゴリの無効化ボタンを押す
+    await user.click(screen.getByRole("button", { name: "食費を編集" }));
     await user.click(screen.getByRole("button", { name: "食費を無効化" }));
 
     // Then: 対象IDで無効化mutationが呼ばれ、無効カテゴリは操作不可のまま
     await waitFor(() => {
       expect(deactivateCategoryMock).toHaveBeenCalledWith({ categoryId: "cat-food" });
     });
+    await user.click(screen.getByRole("button", { name: "旧カテゴリを編集" }));
     expect(screen.getByRole("button", { name: "旧カテゴリを無効化" })).toBeDisabled();
+  });
+
+  it("カテゴリの利用状態を色だけに依存せず表示する", () => {
+    renderWithProviders(<CategorySettingsPanel />);
+
+    expect(screen.getByText("使用中")).toBeInTheDocument();
+    expect(screen.getByText("無効")).toBeInTheDocument();
+  });
+
+  it("カテゴリが0件なら追加導線のある空状態を表示する", () => {
+    useQueryMock.mockReturnValue([]);
+
+    renderWithProviders(<CategorySettingsPanel />);
+
+    expect(screen.getByText("カテゴリがまだありません。")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "最初のカテゴリを追加" })).toBeInTheDocument();
   });
 });
