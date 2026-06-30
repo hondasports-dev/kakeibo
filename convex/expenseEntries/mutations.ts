@@ -5,6 +5,11 @@ import { ConvexError } from "convex/values";
 import { requireGroupMembership } from "../groups/membership";
 import { isValidIsoDateString } from "../lib/weekDates";
 import type { Id } from "../_generated/dataModel";
+import { assertExpenseCategoryBelongsToGroup } from "../../lib/convex/expenseEntries/expenseEntryValidation";
+import {
+  createExpenseEntriesFromDraftHandler,
+  type CreateExpenseEntriesFromDraftArgs,
+} from "../../lib/convex/expenseEntries/createFromDraft";
 
 type ExpenseEntryItemArg = {
   categoryId: Id<"categories">;
@@ -31,16 +36,7 @@ export async function createExpenseEntriesHandler(
     if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
       throw new ConvexError("Amount must be a positive integer");
     }
-    const category = await ctx.db.get(item.categoryId);
-    if (category === null) {
-      throw new ConvexError("Category not found");
-    }
-    if (category.groupId !== groupId) {
-      throw new ConvexError("Category does not belong to the current group");
-    }
-    if (!category.isActive) {
-      throw new ConvexError("Inactive category cannot be used for new expense entries");
-    }
+    await assertExpenseCategoryBelongsToGroup(ctx, item.categoryId, groupId);
 
     await ctx.db.insert("expenseEntries", {
       groupId,
@@ -76,78 +72,7 @@ export const createExpenseEntries = mutation({
   },
 });
 
-type DraftItemArg = {
-  itemName?: string;
-  amountYen: number;
-  categoryId?: Id<"categories">;
-};
-
-type CreateExpenseEntriesFromDraftArgs = {
-  draftId: Id<"aiExpenseDrafts">;
-  items: DraftItemArg[];
-};
-
-export async function createExpenseEntriesFromDraftHandler(
-  ctx: Pick<MutationCtx, "auth" | "db">,
-  args: CreateExpenseEntriesFromDraftArgs,
-): Promise<Id<"expenseEntries">[]> {
-  const { groupId } = await requireGroupMembership(ctx);
-
-  const draft = await ctx.db.get(args.draftId);
-  if (draft === null) {
-    throw new ConvexError("Draft not found");
-  }
-  if (draft.groupId !== groupId) {
-    throw new ConvexError("Draft does not belong to the current group");
-  }
-  if (draft.status !== "ready") {
-    throw new ConvexError("Only ready drafts can create expense entries");
-  }
-  if (!draft.date) {
-    throw new ConvexError("Draft date is required");
-  }
-
-  const now = Date.now();
-  const createdIds: Id<"expenseEntries">[] = [];
-
-  for (const item of args.items) {
-    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
-      throw new ConvexError("Amount must be a positive integer");
-    }
-    const categoryId = item.categoryId ?? draft.categoryId;
-    if (categoryId === undefined) {
-      throw new ConvexError("Category ID is required");
-    }
-
-    const category = await ctx.db.get(categoryId);
-    if (category === null) {
-      throw new ConvexError("Category not found");
-    }
-    if (category.groupId !== groupId) {
-      throw new ConvexError("Category does not belong to the current group");
-    }
-    if (!category.isActive) {
-      throw new ConvexError("Inactive category cannot be used for new expense entries");
-    }
-
-    const entryId = await ctx.db.insert("expenseEntries", {
-      groupId,
-      sourceDocumentId: undefined,
-      aiExpenseDraftId: args.draftId,
-      date: draft.date,
-      amount: item.amountYen,
-      categoryId,
-      title: item.itemName ?? "不明",
-      entryType: "expense",
-      source: "ai_suggested",
-      createdAt: now,
-      updatedAt: now,
-    });
-    createdIds.push(entryId);
-  }
-
-  return createdIds;
-}
+export { createExpenseEntriesFromDraftHandler, type CreateExpenseEntriesFromDraftArgs };
 
 export const createExpenseEntriesFromDraft = mutation({
   args: {
@@ -195,16 +120,10 @@ export async function updateExpenseEntryHandler(
   }
 
   if (args.categoryId !== undefined) {
-    const category = await ctx.db.get(args.categoryId);
-    if (category === null) {
-      throw new ConvexError("Category not found");
-    }
-    if (category.groupId !== groupId) {
-      throw new ConvexError("Category does not belong to the current group");
-    }
-    if (!category.isActive && args.categoryId !== entry.categoryId) {
-      throw new ConvexError("Inactive category cannot be used for expense entries");
-    }
+    await assertExpenseCategoryBelongsToGroup(ctx, args.categoryId, groupId, {
+      inactiveErrorMessage: "Inactive category cannot be used for expense entries",
+      allowInactiveWhenUnchangedFrom: entry.categoryId,
+    });
   }
 
   const now = Date.now();

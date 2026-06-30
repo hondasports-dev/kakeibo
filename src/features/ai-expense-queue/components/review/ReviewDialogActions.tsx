@@ -1,0 +1,78 @@
+import { Button, DialogActions } from "@mui/material";
+
+export function ReviewDialogActions({
+  showSummaryView,
+  hasLineItems,
+  reviewSubmitting,
+  isSubmitDisabled,
+  onClose,
+  onEnterEditMode,
+  onExitEditMode,
+  onSubmit,
+}: {
+  showSummaryView: boolean;
+  hasLineItems: boolean;
+  reviewSubmitting: boolean;
+  isSubmitDisabled: boolean;
+  onClose: () => void;
+  onEnterEditMode: () => void;
+  onExitEditMode: () => void;
+  onSubmit: (registerAfterUpdate: boolean) => void;
+}) {
+  return (
+    <DialogActions sx={{ px: 3, pb: 2, flexWrap: "wrap", gap: 1 }}>
+      <Button disabled={reviewSubmitting} onClick={onClose} type="button">
+        キャンセル
+      </Button>
+      {showSummaryView ? (
+        <>
+          <Button
+            disabled={isSubmitDisabled}
+            onClick={onEnterEditMode}
+            type="button"
+            variant="outlined"
+          >
+            修正する
+          </Button>
+          <Button
+            disabled={isSubmitDisabled}
+            onClick={() => onSubmit(true)}
+            type="button"
+            variant="contained"
+          >
+            登録する
+          </Button>
+        </>
+      ) : (
+        <>
+          {hasLineItems && (
+            <Button
+              disabled={reviewSubmitting}
+              onClick={onExitEditMode}
+              type="button"
+              variant="text"
+            >
+              一覧に戻る
+            </Button>
+          )}
+          <Button
+            disabled={isSubmitDisabled}
+            onClick={() => onSubmit(false)}
+            type="button"
+            variant="outlined"
+          >
+            登録準備OKに戻す
+          </Button>
+          <Button
+            disabled={isSubmitDisabled}
+            onClick={() => onSubmit(true)}
+            type="button"
+            variant="contained"
+          >
+            修正して登録
+          </Button>
+        </>
+      )}
+    </DialogActions>
+  );
+}

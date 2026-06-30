@@ -1,179 +1,36 @@
 "use node";
 
-import { randomUUID } from "node:crypto";
-import { createClerkClient } from "@clerk/backend";
 import { action } from "../_generated/server";
-import type { ActionCtx } from "../_generated/server";
-import { api, internal } from "../_generated/api";
+import { internal } from "../_generated/api";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
-import { assertGroupOwnerRole } from "./adminGuards";
+import {
+  cancelPendingGroupInvitationHandler,
+  inviteMemberHandler,
+  getClerkClient,
+} from "../../lib/convex/groups/clerkInvitationLib/inviteActions";
+import {
+  getClerkUserDisplayName,
+  getPrimaryVerifiedClerkEmailAddress,
+  getVerifiedClerkEmailAddresses,
+  type ClerkUserWithEmails,
+} from "../../lib/convex/groups/clerkInvitationLib/userHelpers";
 
-type MyGroup = {
-  _id: Id<"groups">;
-  name: string;
-  clerkOrganizationId: string | null;
-  role: "owner" | "member";
-  createdAt: number;
-} | null;
-
-type InviteMemberResult = {
-  token: string;
-  clerkInvitationId: string;
-  clerkOrganizationId: string | null;
-};
-
-type ClerkEmailAddress = {
-  id: string;
-  emailAddress: string;
-  verification: { status?: string } | null;
-};
-
-type ClerkUserWithEmails = {
-  username?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  emailAddresses?: ClerkEmailAddress[];
-  primaryEmailAddressId?: string | null;
-};
-
-type InviteMemberArgs = {
-  email: string;
-  redirectUrl: string;
-};
-
-type ClerkInvitationClient = {
-  invitations: Pick<ReturnType<typeof getClerkClient>["invitations"], "createInvitation">;
-};
-
-type InviteMemberDeps = {
-  createToken: () => string;
-  getClerkClient: () => ClerkInvitationClient;
-};
-
-const INVITATION_ACCEPT_PATH = "/group/invitations/accept";
-const KAKEIBO_PRODUCTION_HOSTNAME = "kakeibo.vercel.app";
-
-function normalizeEmail(email: string) {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) {
-    throw new ConvexError("メールアドレスを入力してください");
-  }
-  return normalized;
-}
-
-export function getConfiguredRedirectOrigins() {
-  const raw = process.env.INVITATION_REDIRECT_ORIGINS ?? "";
-  return raw
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-    .map((origin) => {
-      try {
-        return new URL(origin).origin;
-      } catch {
-        throw new ConvexError("INVITATION_REDIRECT_ORIGINS contains an invalid URL");
-      }
-    });
-}
-
-export function isAllowedRedirectOrigin(url: URL) {
-  const configuredOrigins = getConfiguredRedirectOrigins();
-  if (configuredOrigins.includes(url.origin)) {
-    return true;
-  }
-
-  const isLocalhost = url.hostname === "localhost" || url.hostname === "127.0.0.1";
-  if (isLocalhost && (url.protocol === "http:" || url.protocol === "https:")) {
-    return true;
-  }
-
-  if (url.hostname === KAKEIBO_PRODUCTION_HOSTNAME) {
-    return true;
-  }
-
-  return /^kakeibo-[a-z0-9-]+\.vercel\.app$/i.test(url.hostname);
-}
-
-export function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string) {
-  let url: URL;
-  try {
-    url = new URL(rawRedirectUrl);
-  } catch {
-    throw new ConvexError("招待リンクの戻り先URLが不正です");
-  }
-
-  if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new ConvexError("招待リンクの戻り先URLが不正です");
-  }
-  if (url.username || url.password || url.hash || url.pathname !== INVITATION_ACCEPT_PATH) {
-    throw new ConvexError("招待リンクの戻り先URLが不正です");
-  }
-  if (!isAllowedRedirectOrigin(url)) {
-    throw new ConvexError("招待リンクの戻り先URLが許可されていません");
-  }
-
-  url.searchParams.set("token", token);
-  return url.toString();
-}
-
-export function buildClerkInvitationParams(
-  emailAddress: string,
-  redirectUrl: string,
-  groupId: Id<"groups">,
-  token: string,
-) {
-  return {
-    emailAddress,
-    redirectUrl,
-    ignoreExisting: true,
-    publicMetadata: {
-      groupId,
-      token,
-    },
-  };
-}
-
-function getClerkClient() {
-  const secretKey = process.env.CLERK_SECRET_KEY;
-  if (!secretKey) {
-    throw new ConvexError(
-      "CLERK_SECRET_KEY が設定されていません。Convex Dashboard で環境変数を設定してください",
-    );
-  }
-
-  return createClerkClient({ secretKey });
-}
-
-export function getVerifiedClerkEmailAddresses(user: ClerkUserWithEmails) {
-  return (user.emailAddresses ?? [])
-    .filter((email) => email.verification?.status === "verified")
-    .map((email) => email.emailAddress.trim().toLowerCase())
-    .filter(Boolean);
-}
-
-export function getClerkUserDisplayName(user: ClerkUserWithEmails, fallbackEmail?: string) {
-  const username = user.username?.trim();
-  const displayName = [user.firstName, user.lastName]
-    .map((name) => name?.trim())
-    .filter(Boolean)
-    .join(" ");
-  return username || displayName || fallbackEmail || "ユーザー";
-}
-
-export function getPrimaryVerifiedClerkEmailAddress(user: ClerkUserWithEmails) {
-  const verifiedEmails = getVerifiedClerkEmailAddresses(user);
-  const primaryEmail = (user.emailAddresses ?? []).find(
-    (email) => email.id === user.primaryEmailAddressId,
-  );
-  if (
-    primaryEmail?.verification?.status === "verified" &&
-    primaryEmail.emailAddress.trim().length > 0
-  ) {
-    return primaryEmail.emailAddress.trim().toLowerCase();
-  }
-  return verifiedEmails[0];
-}
+export {
+  buildClerkInvitationParams,
+  buildInvitationRedirectUrl,
+  getConfiguredRedirectOrigins,
+  isAllowedRedirectOrigin,
+} from "../../lib/convex/groups/clerkInvitationLib/redirectUrls";
+export {
+  getClerkUserDisplayName,
+  getPrimaryVerifiedClerkEmailAddress,
+  getVerifiedClerkEmailAddresses,
+} from "../../lib/convex/groups/clerkInvitationLib/userHelpers";
+export {
+  cancelPendingGroupInvitationHandler,
+  inviteMemberHandler,
+} from "../../lib/convex/groups/clerkInvitationLib/inviteActions";
 
 export const inviteMember = action({
   args: {
@@ -183,18 +40,6 @@ export const inviteMember = action({
   handler: inviteMemberHandler,
 });
 
-type CancelPendingGroupInvitationArgs = {
-  invitationId: Id<"groupInvitations">;
-};
-
-type CancelPendingGroupInvitationDeps = {
-  getClerkClient: () => {
-    invitations: {
-      revokeInvitation: (invitationId: string) => Promise<unknown>;
-    };
-  };
-};
-
 export const cancelPendingGroupInvitation = action({
   args: {
     invitationId: v.id("groupInvitations"),
@@ -202,102 +47,6 @@ export const cancelPendingGroupInvitation = action({
   returns: v.null(),
   handler: cancelPendingGroupInvitationHandler,
 });
-
-export async function cancelPendingGroupInvitationHandler(
-  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
-  args: CancelPendingGroupInvitationArgs,
-  deps: CancelPendingGroupInvitationDeps = {
-    getClerkClient,
-  },
-): Promise<null> {
-  const group: MyGroup = await ctx.runQuery(api.groups.queries.getMyGroup, {});
-  if (!group) {
-    throw new ConvexError("グループを選択してください");
-  }
-  assertGroupOwnerRole(group.role);
-
-  const { clerkInvitationIds } = await ctx.runMutation(
-    api.groups.invitations.cancelPendingGroupInvitation,
-    {
-      invitationId: args.invitationId,
-    },
-  );
-
-  const clerk = deps.getClerkClient();
-  for (const clerkInvitationId of clerkInvitationIds) {
-    try {
-      await clerk.invitations.revokeInvitation(clerkInvitationId);
-    } catch (caughtError) {
-      console.warn(
-        "[groups.clerkInvitations.cancelPendingGroupInvitation] failed to revoke Clerk invitation",
-        caughtError instanceof Error ? caughtError.name : "UnknownError",
-      );
-    }
-  }
-
-  return null;
-}
-
-export async function inviteMemberHandler(
-  ctx: Pick<ActionCtx, "runMutation" | "runQuery">,
-  args: InviteMemberArgs,
-  deps: InviteMemberDeps = {
-    createToken: randomUUID,
-    getClerkClient,
-  },
-): Promise<InviteMemberResult> {
-  const group: MyGroup = await ctx.runQuery(api.groups.queries.getMyGroup, {});
-  if (!group) {
-    throw new ConvexError("グループを選択してください");
-  }
-  assertGroupOwnerRole(group.role);
-  const currentUserId: string = await ctx.runQuery(api.users.queries.getAuthenticatedUserId, {});
-
-  const email = normalizeEmail(args.email);
-  const token = deps.createToken();
-  const redirectUrl = buildInvitationRedirectUrl(args.redirectUrl, token);
-
-  await ctx.runMutation(internal.groups.invitations.createGroupInvitationRecord, {
-    groupId: group._id,
-    email,
-    token,
-    invitedByUserId: currentUserId,
-  });
-
-  const clerk = deps.getClerkClient();
-  let invitation: { id: string };
-  try {
-    invitation = await clerk.invitations.createInvitation(
-      buildClerkInvitationParams(email, redirectUrl, group._id, token),
-    );
-  } catch (caughtError) {
-    try {
-      await ctx.runMutation(internal.groups.invitations.deletePendingGroupInvitationRecordByToken, {
-        token,
-      });
-    } catch (cleanupError) {
-      console.warn(
-        "[groups.clerkInvitations.inviteMember] failed to clean up reserved invitation",
-        cleanupError instanceof Error ? cleanupError.name : "UnknownError",
-      );
-    }
-    throw caughtError;
-  }
-
-  await ctx.runMutation(internal.groups.invitations.createGroupInvitationRecord, {
-    groupId: group._id,
-    email,
-    token,
-    invitedByUserId: currentUserId,
-    clerkInvitationId: invitation.id,
-  });
-
-  return {
-    token,
-    clerkInvitationId: invitation.id,
-    clerkOrganizationId: group.clerkOrganizationId,
-  };
-}
 
 export const acceptInvitation = action({
   args: {

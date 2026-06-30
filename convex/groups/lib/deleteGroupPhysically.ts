@@ -1,18 +1,6 @@
 import type { Id } from "../../_generated/dataModel";
 import type { MutationCtx } from "../../_generated/server";
-
-async function readQueryDocs<T>(query: {
-  collect?: () => Promise<T[]>;
-  take?: (count: number) => Promise<T[]>;
-}) {
-  if (typeof query.collect === "function") {
-    return await query.collect();
-  }
-  if (typeof query.take === "function") {
-    return await query.take(100);
-  }
-  return [];
-}
+import { readQueryDocs } from "./groupQueryHelpers";
 
 /**
  * グループに紐づく Convex データをすべて物理削除する。
