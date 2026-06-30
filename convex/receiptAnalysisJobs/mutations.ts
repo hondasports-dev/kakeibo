@@ -3,7 +3,7 @@ import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
-import { deleteDraftAndItems } from "./internal";
+import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
 
 export type CreateBatchArgs = {
   fileNames: string[];

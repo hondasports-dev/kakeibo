@@ -3,8 +3,11 @@ import { action } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { extractReceiptFieldsHandler } from "../receiptImageExtraction/extraction";
-import { mapExtractionToDraftArgs } from "../aiExpenseDrafts/extractionMapping";
+import {
+  analyzeReceiptImageToDraftCore,
+  assertReceiptImageConsent,
+  getSafeFailureWarning,
+} from "../../lib/convex/receiptImageExtraction/analyzeReceiptImageCore";
 
 export type AnalyzeImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
@@ -12,13 +15,7 @@ export type AnalyzeImageJobArgs = {
 };
 
 export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJobArgs) {
-  const consent: { hasAcceptedExternalApiConsent: boolean } = await ctx.runQuery(
-    api.users.queries.getReceiptImageConsent,
-    {},
-  );
-  if (!consent.hasAcceptedExternalApiConsent) {
-    throw new ConvexError("Receipt image external API consent is required");
-  }
+  await assertReceiptImageConsent(ctx);
 
   const group: { _id: Id<"groups"> } | null = await ctx.runQuery(api.groups.queries.getMyGroup, {});
   if (!group) {
@@ -47,18 +44,23 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   let draft: Doc<"aiExpenseDrafts">;
   let jobFailed = false;
   try {
-    const extracted = await extractReceiptFieldsHandler(ctx, { imageDataUrl: args.imageDataUrl });
-    const categories: Doc<"categories">[] = await ctx.runQuery(
-      api.categories.queries.listActive,
-      {},
-    );
-
-    draft = await ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
-      ...mapExtractionToDraftArgs(extracted, categories, job.fileName),
+    draft = await analyzeReceiptImageToDraftCore(ctx, {
+      imageDataUrl: args.imageDataUrl,
+      imageFileName: job.fileName,
     });
+    if (draft.status === "failed") {
+      jobFailed = true;
+      const safeError = draft.warnings?.[0] ?? "画像解析に失敗しました";
+      await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
+        jobId: args.jobId,
+        status: "failed",
+        draftId: draft._id,
+        error: safeError,
+      });
+    }
   } catch (err) {
     jobFailed = true;
-    const safeError = err instanceof Error ? err.message : "画像解析に失敗しました";
+    const safeError = getSafeFailureWarning(err);
     draft = await ctx.runMutation(
       internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
       {

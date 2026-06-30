@@ -18,6 +18,9 @@ import type * as categories_candidate from "../categories/candidate.js";
 import type * as categories_internal from "../categories/internal.js";
 import type * as categories_mutations from "../categories/mutations.js";
 import type * as categories_queries from "../categories/queries.js";
+import type * as e2eHttp_e2eAuth from "../e2eHttp/e2eAuth.js";
+import type * as e2eHttp_e2eCleanup from "../e2eHttp/e2eCleanup.js";
+import type * as e2eHttp_e2eSeedDraft from "../e2eHttp/e2eSeedDraft.js";
 import type * as expenseEntries_internal from "../expenseEntries/internal.js";
 import type * as expenseEntries_mutations from "../expenseEntries/mutations.js";
 import type * as groups_adminGuards from "../groups/adminGuards.js";
@@ -51,6 +54,7 @@ import type * as receiptAnalysisJobs_mutations from "../receiptAnalysisJobs/muta
 import type * as receiptAnalysisJobs_queries from "../receiptAnalysisJobs/queries.js";
 import type * as receiptImageExtraction_extraction from "../receiptImageExtraction/extraction.js";
 import type * as receipts_crud from "../receipts/crud.js";
+import type * as receipts_mutations from "../receipts/mutations.js";
 import type * as receipts_spendingEntries from "../receipts/spendingEntries.js";
 import type * as receipts_summaries from "../receipts/summaries.js";
 import type * as users_auth from "../users/auth.js";
@@ -78,6 +82,9 @@ declare const fullApi: ApiFromModules<{
   "categories/internal": typeof categories_internal;
   "categories/mutations": typeof categories_mutations;
   "categories/queries": typeof categories_queries;
+  "e2eHttp/e2eAuth": typeof e2eHttp_e2eAuth;
+  "e2eHttp/e2eCleanup": typeof e2eHttp_e2eCleanup;
+  "e2eHttp/e2eSeedDraft": typeof e2eHttp_e2eSeedDraft;
   "expenseEntries/internal": typeof expenseEntries_internal;
   "expenseEntries/mutations": typeof expenseEntries_mutations;
   "groups/adminGuards": typeof groups_adminGuards;
@@ -111,6 +118,7 @@ declare const fullApi: ApiFromModules<{
   "receiptAnalysisJobs/queries": typeof receiptAnalysisJobs_queries;
   "receiptImageExtraction/extraction": typeof receiptImageExtraction_extraction;
   "receipts/crud": typeof receipts_crud;
+  "receipts/mutations": typeof receipts_mutations;
   "receipts/spendingEntries": typeof receipts_spendingEntries;
   "receipts/summaries": typeof receipts_summaries;
   "users/auth": typeof users_auth;

@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Alert,
   Box,
@@ -9,46 +9,26 @@ import {
   Divider,
   Snackbar,
   Stack,
-  TextField,
   Typography,
 } from "@mui/material";
-import MenuItem from "@mui/material/MenuItem";
-import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
-import PersonAddIcon from "@mui/icons-material/PersonAdd";
 import { useAuth, useUser } from "@clerk/react";
-import type { Id } from "../../../../convex/_generated/dataModel";
-import { MAX_GROUP_NAME_LENGTH } from "../../../../convex/groups/lib/groupName";
 import { getClerkUserFriendlyDisplayName } from "../../auth";
-import { getConvexErrorMessage } from "../../auth";
-import { ConfirmDangerousActionDialog } from "./ConfirmDangerousActionDialog";
 import { GroupMemberList } from "./GroupMemberList";
-import type { GroupMemberListItem } from "../utils/groupMemberDisplay";
-import { GroupPendingInvitationList } from "./GroupPendingInvitationList";
-import type { GroupPendingInvitationListItem } from "../utils/groupInvitationDisplay";
 import { GroupManagementAuditLogList } from "./GroupManagementAuditLogList";
-import { formatGroupRoleLabel } from "../utils/groupRoleDisplay";
 import { GroupSettingsSection } from "./GroupSettingsSection";
+import { GroupInviteSection } from "./GroupInviteSection";
+import { GroupRenameSection } from "./GroupRenameSection";
+import { GroupInviteCancelDialog } from "./GroupInviteCancelDialog";
+import { GroupRoleChangeDialog } from "./GroupRoleChangeDialog";
 import {
   GroupSettingsProvider,
   useGroupSettings,
   useHasGroupSettingsProvider,
 } from "./GroupSettingsProvider";
-
-type PendingCancelInvitation = {
-  invitationId: Id<"groupInvitations">;
-  email: string;
-};
-
-type PendingRoleChange = {
-  userId: string;
-  displayLabel: string;
-  currentRole: "owner" | "member";
-  newRole: "owner" | "member";
-};
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return getConvexErrorMessage(error, fallback);
-}
+import { useGroupSettingsFeedback } from "../hooks/useGroupSettingsFeedback";
+import { useGroupInviteManagement } from "../hooks/useGroupInviteManagement";
+import { useGroupRenameManagement } from "../hooks/useGroupRenameManagement";
+import { useGroupRoleManagement } from "../hooks/useGroupRoleManagement";
 
 type GroupSettingsPanelProps = {
   defaultExpanded?: boolean;
@@ -70,27 +50,38 @@ function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPane
     updateGroupName,
   } = useGroupSettings();
 
-  const [activeGroupId, setActiveGroupId] = useState<Id<"groups"> | "">("");
-  const [groupNameDraft, setGroupNameDraft] = useState("");
-  const [email, setEmail] = useState("");
-  const [savingTarget, setSavingTarget] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [snackbar, setSnackbar] = useState("");
-  const [pendingCancelInvitation, setPendingCancelInvitation] =
-    useState<PendingCancelInvitation | null>(null);
-  const [pendingRoleChange, setPendingRoleChange] = useState<PendingRoleChange | null>(null);
+  const { error, savingTarget, setError, setSavingTarget, setSnackbar, snackbar } =
+    useGroupSettingsFeedback();
   const [isManagementOpen, setIsManagementOpen] = useState(defaultExpanded);
 
-  const groupId = group?._id;
-  const groupName = group?.name;
-  const ownerCount = members?.filter((member) => member.role === "owner").length ?? 0;
+  const invite = useGroupInviteManagement({
+    cancelPendingGroupInvitation,
+    inviteMember,
+    savingTarget,
+    setError,
+    setSavingTarget,
+    setSnackbar,
+  });
 
-  useEffect(() => {
-    if (groupId && groupName !== undefined) {
-      setActiveGroupId(groupId);
-      setGroupNameDraft(groupName);
-    }
-  }, [groupId, groupName]);
+  const rename = useGroupRenameManagement({
+    groupId: group?._id,
+    groupName: group?.name,
+    setActiveGroup,
+    setError,
+    setSavingTarget,
+    setSnackbar,
+    updateGroupName,
+  });
+
+  const role = useGroupRoleManagement({
+    changeMemberRole,
+    savingTarget,
+    setError,
+    setSavingTarget,
+    setSnackbar,
+  });
+
+  const ownerCount = members?.filter((member) => member.role === "owner").length ?? 0;
 
   if (
     group === undefined ||
@@ -125,137 +116,6 @@ function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPane
   const isOwner = group.role === "owner";
   const canSwitchGroups = groups.length > 1;
   const currentUserDisplayName = getClerkUserFriendlyDisplayName(user);
-
-  const handleInviteMember = async (event: FormEvent) => {
-    event.preventDefault();
-    const normalizedEmail = email.trim().toLowerCase();
-    if (!normalizedEmail) {
-      setError("メールアドレスを入力してください。");
-      return;
-    }
-
-    setSavingTarget("add");
-    setError("");
-    try {
-      await inviteMember({
-        email: normalizedEmail,
-        redirectUrl: `${window.location.origin}/group/invitations/accept`,
-      });
-      setEmail("");
-      setSnackbar("招待メールを送信しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "招待メールを送信できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleUpdateGroupName = async () => {
-    const normalizedName = groupNameDraft.trim();
-    if (!normalizedName) {
-      setError("グループ名を入力してください。");
-      return;
-    }
-
-    setSavingTarget("rename");
-    setError("");
-    try {
-      await updateGroupName({ name: normalizedName });
-      setSnackbar("グループ名を更新しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "グループ名を更新できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleSwitchGroup = async () => {
-    if (!activeGroupId) {
-      return;
-    }
-    setSavingTarget("switch");
-    setError("");
-    try {
-      await setActiveGroup({ groupId: activeGroupId });
-      setSnackbar("表示中のグループを切り替えました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "グループを切り替えられませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleRequestCancelInvitation = (invitation: GroupPendingInvitationListItem) => {
-    setPendingCancelInvitation({
-      invitationId: invitation._id as Id<"groupInvitations">,
-      email: invitation.email,
-    });
-  };
-
-  const handleCancelCancelInvitation = () => {
-    if (savingTarget !== null) {
-      return;
-    }
-    setPendingCancelInvitation(null);
-  };
-
-  const handleConfirmCancelInvitation = async () => {
-    if (!pendingCancelInvitation) {
-      return;
-    }
-
-    const invitationId = pendingCancelInvitation.invitationId;
-    setSavingTarget(invitationId);
-    setError("");
-    try {
-      await cancelPendingGroupInvitation({ invitationId });
-      setPendingCancelInvitation(null);
-      setSnackbar("招待を取り消しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "招待を取り消せませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleRequestRoleChange = (
-    member: GroupMemberListItem,
-    newRole: "owner" | "member",
-    displayLabel: string,
-  ) => {
-    setPendingRoleChange({
-      userId: member.userId,
-      displayLabel,
-      currentRole: member.role,
-      newRole,
-    });
-  };
-
-  const handleCancelRoleChange = () => {
-    if (savingTarget !== null) {
-      return;
-    }
-    setPendingRoleChange(null);
-  };
-
-  const handleConfirmRoleChange = async () => {
-    if (!pendingRoleChange) {
-      return;
-    }
-
-    const { userId: targetUserId, newRole } = pendingRoleChange;
-    setSavingTarget(targetUserId);
-    setError("");
-    try {
-      await changeMemberRole({ targetUserId, newRole });
-      setPendingRoleChange(null);
-      setSnackbar("メンバーのロールを変更しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "ロールを変更できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
 
   return (
     <>
@@ -313,86 +173,21 @@ function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPane
                   <Chip label={`${members.length}人`} variant="outlined" />
                 </Stack>
 
-                {canSwitchGroups ? (
-                  <Stack spacing={1.5}>
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                      <TextField
-                        fullWidth
-                        label="現在のグループ"
-                        onChange={(event) => setActiveGroupId(event.target.value as Id<"groups">)}
-                        select
-                        value={activeGroupId}
-                      >
-                        {groups.map((item) => (
-                          <MenuItem key={item._id} value={item._id}>
-                            {item.name}
-                            {item.isActive ? "（現在）" : ""}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      <Button
-                        disabled={savingTarget !== null || activeGroupId === group._id}
-                        onClick={handleSwitchGroup}
-                        startIcon={
-                          savingTarget === "switch" ? (
-                            <CircularProgress size={16} />
-                          ) : (
-                            <GroupSwitchIcon />
-                          )
-                        }
-                        variant="outlined"
-                      >
-                        切り替え
-                      </Button>
-                    </Stack>
-                    {isOwner ? (
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                        <TextField
-                          disabled={savingTarget === "rename"}
-                          fullWidth
-                          label="グループ名"
-                          onChange={(event) => setGroupNameDraft(event.target.value)}
-                          slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
-                          value={groupNameDraft}
-                        />
-                        <Button
-                          disabled={
-                            savingTarget === "rename" || groupNameDraft.trim() === group.name.trim()
-                          }
-                          onClick={() => void handleUpdateGroupName()}
-                          startIcon={
-                            savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
-                          }
-                          variant="outlined"
-                        >
-                          保存
-                        </Button>
-                      </Stack>
-                    ) : null}
-                  </Stack>
-                ) : isOwner ? (
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                    <TextField
-                      disabled={savingTarget !== null}
-                      fullWidth
-                      label="グループ名"
-                      onChange={(event) => setGroupNameDraft(event.target.value)}
-                      slotProps={{ htmlInput: { maxLength: MAX_GROUP_NAME_LENGTH } }}
-                      value={groupNameDraft}
-                    />
-                    <Button
-                      disabled={
-                        savingTarget !== null || groupNameDraft.trim() === group.name.trim()
-                      }
-                      onClick={() => void handleUpdateGroupName()}
-                      startIcon={
-                        savingTarget === "rename" ? <CircularProgress size={16} /> : undefined
-                      }
-                      variant="outlined"
-                    >
-                      保存
-                    </Button>
-                  </Stack>
+                {canSwitchGroups || isOwner ? (
+                  <GroupRenameSection
+                    activeGroupId={rename.activeGroupId}
+                    canSwitchGroups={canSwitchGroups}
+                    currentGroupId={group._id}
+                    currentGroupName={group.name}
+                    groupNameDraft={rename.groupNameDraft}
+                    groups={groups}
+                    isOwner={isOwner}
+                    onSwitchGroup={() => void rename.handleSwitchGroup()}
+                    onUpdateGroupName={() => void rename.handleUpdateGroupName()}
+                    savingTarget={savingTarget}
+                    setActiveGroupId={rename.setActiveGroupId}
+                    setGroupNameDraft={rename.setGroupNameDraft}
+                  />
                 ) : (
                   <Typography variant="body1">{group.name}</Typography>
                 )}
@@ -415,7 +210,7 @@ function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPane
                 currentUserId={userId}
                 isOwner={isOwner}
                 members={members}
-                onRequestRoleChange={isOwner ? handleRequestRoleChange : undefined}
+                onRequestRoleChange={isOwner ? role.handleRequestRoleChange : undefined}
                 ownerCount={ownerCount}
                 savingTarget={savingTarget}
               />
@@ -431,47 +226,14 @@ function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPane
               <>
                 <Divider />
 
-                <GroupSettingsSection
-                  description="メール招待の送信と、送信済み招待の確認・取り消しを行います。"
-                  testId="invite-management-section"
-                  title="招待管理"
-                >
-                  <Stack spacing={1.5}>
-                    <Box component="form" onSubmit={handleInviteMember}>
-                      <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
-                        <TextField
-                          disabled={savingTarget !== null}
-                          fullWidth
-                          label="招待するメールアドレス"
-                          name="memberEmail"
-                          onChange={(event) => setEmail(event.target.value)}
-                          type="email"
-                          value={email}
-                        />
-                        <Button
-                          disabled={savingTarget !== null}
-                          startIcon={
-                            savingTarget === "add" ? (
-                              <CircularProgress size={16} />
-                            ) : (
-                              <PersonAddIcon />
-                            )
-                          }
-                          type="submit"
-                          variant="contained"
-                        >
-                          招待を送る
-                        </Button>
-                      </Stack>
-                    </Box>
-
-                    <GroupPendingInvitationList
-                      invitations={pendingInvitations ?? []}
-                      onRequestCancel={handleRequestCancelInvitation}
-                      savingTarget={savingTarget}
-                    />
-                  </Stack>
-                </GroupSettingsSection>
+                <GroupInviteSection
+                  email={invite.email}
+                  invitations={pendingInvitations ?? []}
+                  onInviteMember={invite.handleInviteMember}
+                  onRequestCancel={invite.handleRequestCancelInvitation}
+                  savingTarget={savingTarget}
+                  setEmail={invite.setEmail}
+                />
 
                 <Divider />
 
@@ -488,36 +250,18 @@ function GroupSettingsPanelContent({ defaultExpanded = true }: GroupSettingsPane
         </Collapse>
       </Stack>
 
-      <ConfirmDangerousActionDialog
-        cancelLabel="戻る"
-        confirmLabel="ロールを変更する"
-        confirming={pendingRoleChange !== null && savingTarget === pendingRoleChange.userId}
-        description={
-          pendingRoleChange
-            ? `${pendingRoleChange.displayLabel} のロールを「${formatGroupRoleLabel(pendingRoleChange.currentRole)}」から「${formatGroupRoleLabel(pendingRoleChange.newRole)}」に変更します。`
-            : ""
-        }
-        onCancel={handleCancelRoleChange}
-        onConfirm={() => void handleConfirmRoleChange()}
-        open={pendingRoleChange !== null}
-        title="メンバーのロールを変更しますか？"
+      <GroupRoleChangeDialog
+        onCancel={role.handleCancelRoleChange}
+        onConfirm={() => void role.handleConfirmRoleChange()}
+        pendingRoleChange={role.pendingRoleChange}
+        savingTarget={savingTarget}
       />
 
-      <ConfirmDangerousActionDialog
-        cancelLabel="戻る"
-        confirmLabel="招待を取り消す"
-        confirming={
-          pendingCancelInvitation !== null && savingTarget === pendingCancelInvitation.invitationId
-        }
-        description={
-          pendingCancelInvitation
-            ? `${pendingCancelInvitation.email} への招待を取り消します。送信済みの招待リンクは無効になり、相手はこの招待で参加できなくなります。`
-            : ""
-        }
-        onCancel={handleCancelCancelInvitation}
-        onConfirm={() => void handleConfirmCancelInvitation()}
-        open={pendingCancelInvitation !== null}
-        title="招待を取り消しますか？"
+      <GroupInviteCancelDialog
+        onCancel={invite.handleCancelCancelInvitation}
+        onConfirm={() => void invite.handleConfirmCancelInvitation()}
+        pendingCancelInvitation={invite.pendingCancelInvitation}
+        savingTarget={savingTarget}
       />
 
       <Snackbar

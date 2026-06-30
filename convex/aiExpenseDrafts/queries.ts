@@ -2,8 +2,9 @@ import { ConvexError, v } from "convex/values";
 import { query } from "../_generated/server";
 import type { QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD, aiExpenseDraftStatusValidator } from "./model";
+import { aiExpenseDraftStatusValidator } from "./model";
 import { requireGroupMembership } from "../groups/membership";
+import { summarizeItems } from "../../lib/convex/aiExpenseDrafts/reviewValidation";
 
 const LIST_LIMIT = 100;
 
@@ -22,71 +23,6 @@ type ListByStatusArgs = {
 type GetWithItemsArgs = {
   draftId: Id<"aiExpenseDrafts">;
 };
-
-function hasLowConfidenceItem(item: {
-  confidence: {
-    itemName?: number;
-    amountYen?: number;
-    categoryName?: number;
-    categoryId?: number;
-  };
-}) {
-  return (
-    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
-      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
-  );
-}
-
-function summarizeItems(
-  draft: { amountYen?: number },
-  items: Array<{
-    amountYen: number;
-    categoryId?: Id<"categories">;
-    confidence: {
-      itemName?: number;
-      amountYen?: number;
-      categoryName?: number;
-      categoryId?: number;
-    };
-  }>,
-) {
-  if (items.length === 0) {
-    return undefined;
-  }
-
-  const categoryAmounts = new Map<Id<"categories">, number>();
-  let itemTotalYen = 0;
-  let hasUncategorizedItems = false;
-  let hasLowConfidenceItems = false;
-
-  for (const item of items) {
-    itemTotalYen += item.amountYen;
-    if (item.categoryId === undefined) {
-      hasUncategorizedItems = true;
-    } else {
-      categoryAmounts.set(
-        item.categoryId,
-        (categoryAmounts.get(item.categoryId) ?? 0) + item.amountYen,
-      );
-    }
-    if (hasLowConfidenceItem(item)) {
-      hasLowConfidenceItems = true;
-    }
-  }
-
-  return {
-    itemTotalYen,
-    itemDifferenceYen: draft.amountYen === undefined ? undefined : draft.amountYen - itemTotalYen,
-    hasUncategorizedItems,
-    hasLowConfidenceItems,
-    categoryAggregates: Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
-      categoryId,
-      amountYen,
-    })),
-  };
-}
 
 export async function listByStatusHandler(ctx: QueryCtx, args: ListByStatusArgs) {
   const { groupId } = await requireGroupMembership(ctx);

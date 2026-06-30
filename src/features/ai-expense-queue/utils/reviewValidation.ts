@@ -1,4 +1,6 @@
-import type { ReviewFormValues } from "../types/types";
+import type { ReviewFormValues, ReviewItemValues } from "../types/types";
+import { isValidReviewItemAmount } from "./discountItems";
+import { computeCategoryAggregates } from "./reviewDialogUtils";
 
 export function getReviewFormError(reviewForm: ReviewFormValues): string | null {
   const amountYen = Number(reviewForm.amountYen);
@@ -12,4 +14,47 @@ export function getReviewFormError(reviewForm: ReviewFormValues): string | null 
     return "店名・内容、日付、金額、カテゴリを確認してください。";
   }
   return null;
+}
+
+export function getReviewDocumentTypeError(
+  documentType: ReviewFormValues["documentType"],
+): string | null {
+  if (documentType === "unknown") {
+    return "書類種別を選択してください。";
+  }
+  return null;
+}
+
+export function getReviewItemsError(reviewItems: ReviewItemValues[]): string | null {
+  const invalidItem = reviewItems.find((item) => {
+    const itemAmount = Number(item.amountYen);
+    return (
+      !item.itemName.trim() ||
+      !isValidReviewItemAmount(item.itemName, itemAmount) ||
+      !item.categoryId
+    );
+  });
+  if (invalidItem) {
+    return "明細名、明細金額、明細カテゴリを確認してください。";
+  }
+  return null;
+}
+
+export function getReviewCategoryAggregateError(reviewItems: ReviewItemValues[]): string | null {
+  if (computeCategoryAggregates(reviewItems, []).some((aggregate) => aggregate.amountYen <= 0)) {
+    return "割引後のカテゴリ金額は1円以上にしてください。";
+  }
+  return null;
+}
+
+export function getReviewSubmitError(
+  reviewForm: ReviewFormValues,
+  reviewItems: ReviewItemValues[],
+): string | null {
+  return (
+    getReviewDocumentTypeError(reviewForm.documentType) ??
+    getReviewFormError(reviewForm) ??
+    getReviewItemsError(reviewItems) ??
+    getReviewCategoryAggregateError(reviewItems)
+  );
 }

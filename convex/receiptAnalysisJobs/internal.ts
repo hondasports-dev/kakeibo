@@ -2,29 +2,12 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
+import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
 
 type DeleteReceiptAnalysisDataByUserBatchArgs = {
   groupId: Id<"groups">;
   limit?: number;
 };
-
-export async function deleteDraftAndItems(
-  ctx: Pick<MutationCtx, "db">,
-  draftId: Id<"aiExpenseDrafts">,
-  groupId: Id<"groups">,
-) {
-  const draft = await ctx.db.get(draftId);
-  if (!draft || draft.groupId !== groupId || draft.status === "registered") {
-    return;
-  }
-
-  const items = await ctx.db
-    .query("aiExpenseDraftItems")
-    .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId).eq("draftId", draftId))
-    .collect();
-  await Promise.all(items.map((item) => ctx.db.delete(item._id)));
-  await ctx.db.delete(draftId);
-}
 
 export async function updateJobStatusHandler(
   ctx: MutationCtx,

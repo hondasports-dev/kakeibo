@@ -1,25 +1,14 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
-import {
-  Alert,
-  Box,
-  Button,
-  Divider,
-  Paper,
-  Snackbar,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Paper, Snackbar, Stack } from "@mui/material";
 import { useExpenseEntryForm } from "../hooks/useExpenseEntryForm";
-import { AnimatedButton, CollapsibleHelp } from "../../ui";
 import { AiExpenseQueuePanel } from "../../ai-expense-queue";
-import { CategoryGrid } from "./CategoryGrid";
 import { ConfirmDifferenceDialog } from "./ConfirmDifferenceDialog";
-import { DifferenceDisplay } from "./DifferenceDisplay";
-import { ExpenseItemRow } from "./ExpenseItemRow";
+import { ExpenseFormActions } from "./ExpenseFormActions";
+import { ExpenseFormHeading } from "./ExpenseFormHeading";
+import { MultiEntryFields } from "./MultiEntryFields";
+import { SingleEntryFields } from "./SingleEntryFields";
 import { SourceSummary } from "./SourceSummary";
 import { WeekDaySelector } from "./WeekDaySelector";
-import type { ExpenseEntryCategory } from "../types/types";
 
 interface ExpenseEntryFormProps {
   weekStartDate: string;
@@ -68,7 +57,7 @@ export function ExpenseEntryForm({
       <Box sx={{ maxWidth: "100%", minWidth: 0, p: 2.5 }}>
         <form noValidate onSubmit={handleSubmit}>
           <Stack spacing={2.5} sx={{ maxWidth: "100%", minWidth: 0 }}>
-            <FormHeading isMultiMode={isMultiMode} />
+            <ExpenseFormHeading isMultiMode={isMultiMode} />
 
             {apiError && (
               <Alert severity="error" variant="outlined">
@@ -116,7 +105,7 @@ export function ExpenseEntryForm({
               />
             )}
 
-            <FormActions
+            <ExpenseFormActions
               isMultiMode={isMultiMode}
               isOverExceeded={isOverExceeded}
               isSubmitting={status === "submitting"}
@@ -144,214 +133,5 @@ export function ExpenseEntryForm({
         </Alert>
       </Snackbar>
     </Paper>
-  );
-}
-
-function FormHeading({ isMultiMode }: { isMultiMode: boolean }) {
-  return (
-    <Box>
-      <Typography component="h2" variant="h5">
-        入力
-      </Typography>
-      {!isMultiMode && (
-        <CollapsibleHelp summary="入力のコツ">
-          保存後は店舗名と金額だけ空にして、次の入力へ進みます。
-        </CollapsibleHelp>
-      )}
-    </Box>
-  );
-}
-
-function SingleEntryFields({
-  categories,
-  itemCategoryId,
-  memo,
-  shopName,
-  shopNameError,
-  sourceAmount,
-  sourceAmountError,
-  categoryError,
-  onShopNameChange,
-  onSourceAmountChange,
-  onItemChange,
-}: {
-  categories: ExpenseEntryCategory[];
-  itemCategoryId?: string;
-  memo: string;
-  shopName: string;
-  shopNameError: string;
-  sourceAmount: string;
-  sourceAmountError: string;
-  categoryError?: string;
-  onShopNameChange: (value: string) => void;
-  onSourceAmountChange: (value: string) => void;
-  onItemChange: (field: "categoryId" | "memo", value: string) => void;
-}) {
-  return (
-    <>
-      <TextField
-        error={!!shopNameError}
-        fullWidth
-        helperText={shopNameError}
-        id="expense-shop-name"
-        label="店舗名 / 支払先"
-        slotProps={{ htmlInput: { "aria-label": "店舗名 / 支払先" } }}
-        onChange={(event) => onShopNameChange(event.target.value)}
-        placeholder="例: スーパー北浜"
-        value={shopName}
-      />
-
-      <TextField
-        error={!!sourceAmountError}
-        fullWidth
-        helperText={sourceAmountError}
-        id="expense-source-amount"
-        label="合計金額"
-        slotProps={{ htmlInput: { "aria-label": "合計金額", inputMode: "numeric" } }}
-        onChange={(event) => {
-          const digits = event.target.value.replace(/[^\d]/g, "");
-          onSourceAmountChange(digits);
-        }}
-        placeholder="例: 4,280"
-        value={sourceAmount ? parseInt(sourceAmount, 10).toLocaleString("ja-JP") : ""}
-      />
-
-      <Stack spacing={1}>
-        <Typography component="p" variant="body2" sx={{ fontWeight: 700 }}>
-          カテゴリ
-        </Typography>
-        {categoryError && (
-          <Typography color="error" variant="caption">
-            {categoryError}
-          </Typography>
-        )}
-        <CategoryGrid
-          ariaLabel="カテゴリ候補"
-          categories={categories}
-          selectedCategoryId={itemCategoryId}
-          onSelect={(categoryId) => onItemChange("categoryId", categoryId)}
-        />
-      </Stack>
-
-      <TextField
-        fullWidth
-        id="expense-memo"
-        label="メモ（任意）"
-        minRows={2}
-        multiline
-        onChange={(event) => onItemChange("memo", event.target.value)}
-        value={memo}
-        slotProps={{ htmlInput: { "aria-label": "メモ" } }}
-      />
-    </>
-  );
-}
-
-function MultiEntryFields({
-  categories,
-  difference,
-  itemErrors,
-  items,
-  sourceAmount,
-  onAddItem,
-  onItemChange,
-  onRemoveItem,
-}: {
-  categories: ExpenseEntryCategory[];
-  difference: number | null;
-  itemErrors: Array<{
-    categoryId?: string;
-    amountYen?: string;
-    title?: string;
-    memo?: string;
-  }>;
-  items: Array<{ categoryId: string; amountYen: string; title: string; memo: string }>;
-  sourceAmount: number;
-  onAddItem: () => void;
-  onItemChange: (
-    index: number,
-    field: "categoryId" | "amountYen" | "title" | "memo",
-    value: string,
-  ) => void;
-  onRemoveItem: (index: number) => void;
-}) {
-  return (
-    <Stack spacing={1.5}>
-      <Typography variant="body2" sx={{ fontWeight: 700 }}>
-        支出項目
-      </Typography>
-      {items.map((item, index) => (
-        <ExpenseItemRow
-          key={index}
-          index={index}
-          item={item}
-          itemErrors={itemErrors[index] ?? {}}
-          categories={categories}
-          onItemChange={(field, value) => onItemChange(index, field, value)}
-          onRemove={() => onRemoveItem(index)}
-          canRemove={items.length > 1}
-        />
-      ))}
-
-      <Button variant="outlined" size="small" onClick={onAddItem} aria-label="項目を追加">
-        + 項目を追加
-      </Button>
-
-      <Divider />
-
-      <DifferenceDisplay difference={difference} sourceAmount={sourceAmount} />
-    </Stack>
-  );
-}
-
-function FormActions({
-  isMultiMode,
-  isOverExceeded,
-  isSubmitting,
-  onEnterMultiMode,
-}: {
-  isMultiMode: boolean;
-  isOverExceeded: boolean;
-  isSubmitting: boolean;
-  onEnterMultiMode: () => void;
-}) {
-  return (
-    <Stack
-      direction="row"
-      spacing={1.5}
-      sx={{
-        bottom: {
-          xs: "calc(var(--size-bottom-nav-height) + env(safe-area-inset-bottom) + 8px)",
-          sm: "auto",
-        },
-        flexWrap: "wrap",
-        justifyContent: "flex-end",
-        minWidth: 0,
-        position: { xs: "sticky", sm: "static" },
-        py: { xs: 1, sm: 0 },
-        zIndex: { xs: 1, sm: "auto" },
-        bgcolor: { xs: "background.paper", sm: "transparent" },
-      }}
-    >
-      {!isMultiMode && (
-        <Button
-          variant="text"
-          size="small"
-          onClick={onEnterMultiMode}
-          aria-label="カテゴリ別の内訳を追加"
-          sx={{ minHeight: 44 }}
-        >
-          カテゴリ別の内訳を追加
-        </Button>
-      )}
-      <AnimatedButton
-        type="submit"
-        variant="contained"
-        disabled={isSubmitting || isOverExceeded}
-        loading={isSubmitting}
-      >
-        保存して次へ
-      </AnimatedButton>
-    </Stack>
   );
 }

@@ -1,12 +1,7 @@
-import { type FormEvent, useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
-import type { Id } from "../../../../convex/_generated/dataModel";
 import {
   Alert,
   Box,
   Button,
-  Chip,
   CircularProgress,
   Collapse,
   Skeleton,
@@ -16,91 +11,33 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import { designTokens } from "../../../designTokens";
-import { getConvexErrorMessage } from "../../auth";
-
-type Category = {
-  _id: Id<"categories">;
-  name: string;
-  color: string;
-  isActive: boolean;
-  sortOrder: number;
-};
-
-const DEFAULT_NEW_COLOR: string = designTokens.color.category.default;
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return getConvexErrorMessage(error, fallback);
-}
+import { useCategorySettings } from "../hooks/useCategorySettings";
+import { CategorySettingsList } from "./CategorySettingsList";
 
 export function CategorySettingsPanel() {
-  const categories = useQuery(api.categories.queries.listForSettings) as Category[] | undefined;
-  const createCategory = useMutation(api.categories.mutations.createCategory);
-  const updateCategory = useMutation(api.categories.mutations.updateCategory);
-  const deactivateCategory = useMutation(api.categories.mutations.deactivateCategory);
-
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newColor, setNewColor] = useState<string>(DEFAULT_NEW_COLOR);
-  const [editingId, setEditingId] = useState<Id<"categories"> | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editColor, setEditColor] = useState<string>(DEFAULT_NEW_COLOR);
-  const [savingTarget, setSavingTarget] = useState<string | null>(null);
-  const [error, setError] = useState("");
-  const [snackbar, setSnackbar] = useState("");
-
-  const beginEdit = (category: Category) => {
-    setEditingId(category._id);
-    setEditName(category.name);
-    setEditColor(category.color);
-    setError("");
-  };
-
-  const handleCreate = async (event: FormEvent) => {
-    event.preventDefault();
-    setSavingTarget("create");
-    setError("");
-    try {
-      await createCategory({ name: newName, color: newColor });
-      setNewName("");
-      setNewColor(DEFAULT_NEW_COLOR);
-      setIsCreateOpen(false);
-      setSnackbar("カテゴリを追加しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "カテゴリを追加できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleUpdate = async () => {
-    if (editingId === null) return;
-    setSavingTarget(`edit-${editingId}`);
-    setError("");
-    try {
-      await updateCategory({ categoryId: editingId, name: editName, color: editColor });
-      setEditingId(null);
-      setSnackbar("カテゴリを更新しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "カテゴリを更新できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
-
-  const handleDeactivate = async (categoryId: Id<"categories">) => {
-    setSavingTarget(`deactivate-${categoryId}`);
-    setError("");
-    try {
-      await deactivateCategory({ categoryId });
-      setSnackbar("カテゴリを無効化しました");
-    } catch (caughtError) {
-      setError(getErrorMessage(caughtError, "カテゴリを無効化できませんでした。"));
-    } finally {
-      setSavingTarget(null);
-    }
-  };
+  const {
+    beginEdit,
+    categories,
+    editColor,
+    editName,
+    editingId,
+    error,
+    handleCreate,
+    handleDeactivate,
+    handleUpdate,
+    isCreateOpen,
+    newColor,
+    newName,
+    savingTarget,
+    setEditColor,
+    setEditName,
+    setEditingId,
+    setIsCreateOpen,
+    setNewColor,
+    setNewName,
+    setSnackbar,
+    snackbar,
+  } = useCategorySettings();
 
   return (
     <Stack spacing={2.5}>
@@ -137,100 +74,19 @@ export function CategorySettingsPanel() {
           カテゴリがまだありません。
         </Alert>
       ) : (
-        <Box component="ul" className="category-settings-list">
-          {categories.map((category) => {
-            const isEditing = editingId === category._id;
-            const editSaving = savingTarget === `edit-${category._id}`;
-            const deactivateSaving = savingTarget === `deactivate-${category._id}`;
-
-            return (
-              <Box
-                aria-label={`カテゴリ ${category.name}`}
-                className="category-settings-row"
-                component="li"
-                key={category._id}
-              >
-                <Box className="category-settings-summary">
-                  <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", minWidth: 0 }}>
-                    <Box
-                      aria-hidden="true"
-                      sx={{
-                        bgcolor: category.color,
-                        border: `1px solid ${designTokens.color.border.subtle}`,
-                        borderRadius: "50%",
-                        flexShrink: 0,
-                        height: 16,
-                        width: 16,
-                      }}
-                    />
-                    <Typography sx={{ fontWeight: 700, overflowWrap: "anywhere" }}>
-                      {category.name}
-                    </Typography>
-                  </Stack>
-                  <Chip
-                    color={category.isActive ? "success" : "default"}
-                    label={category.isActive ? "使用中" : "無効"}
-                    size="small"
-                    variant="outlined"
-                  />
-                  <Button
-                    aria-controls={`category-editor-${category._id}`}
-                    aria-expanded={isEditing}
-                    aria-label={`${category.name}を編集`}
-                    endIcon={<ChevronRightIcon />}
-                    onClick={() => (isEditing ? setEditingId(null) : beginEdit(category))}
-                    size="small"
-                  >
-                    編集
-                  </Button>
-                </Box>
-
-                <Collapse id={`category-editor-${category._id}`} in={isEditing} unmountOnExit>
-                  <Stack className="category-settings-editor" spacing={1.5}>
-                    <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
-                      <TextField
-                        disabled={editSaving}
-                        fullWidth
-                        label="カテゴリ名を編集"
-                        name="editCategoryName"
-                        onChange={(event) => setEditName(event.target.value)}
-                        value={editName}
-                      />
-                      <TextField
-                        disabled={editSaving}
-                        label="カテゴリ色を編集"
-                        name="editCategoryColor"
-                        onChange={(event) => setEditColor(event.target.value)}
-                        slotProps={{ inputLabel: { shrink: true } }}
-                        type="color"
-                        value={editColor}
-                        sx={{ width: { xs: "100%", md: 160 } }}
-                      />
-                      <Button disabled={editSaving} onClick={handleUpdate} variant="contained">
-                        {editSaving ? "保存中..." : "変更を保存"}
-                      </Button>
-                      <Button disabled={editSaving} onClick={() => setEditingId(null)}>
-                        キャンセル
-                      </Button>
-                    </Stack>
-                    <Box className="category-settings-deactivate">
-                      <Button
-                        aria-label={`${category.name}を無効化`}
-                        color="error"
-                        disabled={deactivateSaving || !category.isActive}
-                        onClick={() => void handleDeactivate(category._id)}
-                        size="small"
-                        variant="outlined"
-                      >
-                        {deactivateSaving ? "無効化中..." : "無効化"}
-                      </Button>
-                    </Box>
-                  </Stack>
-                </Collapse>
-              </Box>
-            );
-          })}
-        </Box>
+        <CategorySettingsList
+          categories={categories}
+          editColor={editColor}
+          editName={editName}
+          editingId={editingId}
+          onBeginEdit={beginEdit}
+          onCancelEdit={() => setEditingId(null)}
+          onDeactivate={(categoryId) => void handleDeactivate(categoryId)}
+          onEditColorChange={setEditColor}
+          onEditNameChange={setEditName}
+          onUpdate={() => void handleUpdate()}
+          savingTarget={savingTarget}
+        />
       )}
 
       <Box>
