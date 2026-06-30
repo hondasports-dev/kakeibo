@@ -263,13 +263,15 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
     await expect(dialog.getByText("食費 120円")).toBeVisible();
-    await expect(dialog.getByText("未分類の明細があります")).toBeVisible();
+    await expect(dialog.getByText("水道光熱費 980円")).toBeVisible();
+    await expect(dialog.getByText("未分類の明細があります")).toHaveCount(0);
     await expect(dialog.getByText("低信頼度の明細があります")).toBeVisible();
 
-    await dialog.getByRole("button", { name: "修正する" }).click();
+    await dialog.getByRole("button", { name: "内訳を変更" }).click();
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
     await expect(dialog.getByText("明細合計 1,100円 / 差額 8,020円")).toBeVisible();
-    await expect(dialog.getByText("未分類")).toBeVisible();
+    await expect(dialog.getByText("個別カテゴリ: 食費")).toBeVisible();
+    await expect(dialog.getByText("レシート全体のカテゴリを使用")).toBeVisible();
     await expect(dialog.getByText("低信頼度").first()).toBeVisible();
 
     await dialog.getByLabel("金額", { exact: true }).first().fill("400");
@@ -278,8 +280,11 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
 
     await dialog.getByLabel("明細名").nth(1).fill("牛乳");
     await dialog.getByLabel("金額", { exact: true }).nth(1).fill("520");
-    await dialog.getByLabel("明細カテゴリ").nth(1).click();
+    await dialog.getByRole("checkbox", { name: "パンをカテゴリ分け対象に選択" }).click();
+    await dialog.getByRole("checkbox", { name: "牛乳をカテゴリ分け対象に選択" }).click();
+    await dialog.getByLabel("選択した明細のカテゴリ").click();
     await page.getByRole("option", { name: "食費" }).click();
+    await dialog.getByRole("button", { name: "選択項目に設定" }).click();
 
     await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("920");
@@ -382,7 +387,8 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
     await expect(dialog.getByText("食費 120円")).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "修正する" })).toBeVisible();
+    await expect(dialog.getByText("水道光熱費 980円")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "内訳を変更" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "登録する" })).toBeVisible();
   });
 });

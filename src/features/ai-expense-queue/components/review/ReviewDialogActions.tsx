@@ -32,7 +32,7 @@ export function ReviewDialogActions({
             type="button"
             variant="outlined"
           >
-            修正する
+            内訳を変更
           </Button>
           <Button
             disabled={isSubmitDisabled}
