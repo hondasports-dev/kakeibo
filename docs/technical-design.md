@@ -77,15 +77,12 @@ src/
   features/                    # 機能単位（Feature-based）
     ai-expense-queue/
       components/
-        queue/                 # QueueSection, QueueItemCard 等
-        review/                # ReviewDialog 一式
       hooks/
-        review/                # useReviewDialog, useReviewSubmit 等
       types/
       utils/
       index.ts
     app-shell/                 # レイアウト・公開・異常系ページ
-      components/              # AppLayout, AppDrawer, AppBottomNav, UserMenu
+      components/
       lib/
       pages/
       index.ts
@@ -98,27 +95,26 @@ src/
       hooks/
       index.ts
     expense-entry/
-      components/              # ExpenseEntryForm, SingleEntryFields, MultiEntryFields 等
-      hooks/                   # useExpenseEntryForm, useExpenseEntryMode, useExpenseEntrySubmit
+      components/
+      hooks/
       pages/
       types/
       validation/
       index.ts
     group-admin/
-      components/              # GroupSettingsPanel, GroupInviteSection 等
-      hooks/                   # useGroupInviteManagement, useGroupRoleManagement 等
+      components/
+      hooks/
       lib/
       pages/
       utils/
       index.ts
     receipt/
-      components/              # ReceiptForm, ReceiptImageExtractor 等
-      hooks/                   # useReceiptForm, useReceiptImageExtraction
+      components/
+      hooks/
       validation/
       index.ts
     settings/
-      components/              # CategorySettingsPanel, CategorySettingsList 等
-      hooks/                   # useCategorySettings
+      components/
       pages/
       index.ts
     ui/                        # 横断 UI（アニメーション等）
@@ -139,10 +135,8 @@ src/
 convex/
   auth.config.ts
   schema.ts
-  http.ts                      # HTTP router（route 登録のみ）
-  e2eHttp/                     # E2E 専用 httpAction ハンドラ
+  http.ts
   lib/
-    discountItems.ts
     weekDates.ts
   users/
     auth.ts
@@ -153,11 +147,7 @@ convex/
     membership.ts
     mutations.ts
     queries.ts
-    members.ts                 # addMemberByEmail, removeMember 等
-    invitations.ts             # 薄い re-export ラッパー
-    clerkInvitations.ts
-    deletion.ts
-    e2e.ts
+    invitations.ts
     adminGuards.ts
     ...
   categories/
@@ -167,7 +157,6 @@ convex/
     internal.ts
   receipts/
     crud.ts
-    mutations.ts
     summaries.ts
     spendingEntries.ts
   expenseEntries/
@@ -183,21 +172,13 @@ convex/
     actions.ts
     model.ts
     internal.ts
-    extractionMapping.ts
   receiptAnalysisJobs/
     queries.ts
     mutations.ts
     actions.ts
     internal.ts
   receiptImageExtraction/
-    extraction.ts              # public action の薄いラッパー
-
-lib/convex/                    # Convex 外の純粋ヘルパー（api.d.ts 肥大化回避）
-  aiExpenseDrafts/             # validators, draftRepository, registerTo* 等
-  receiptImageExtraction/      # analyzeReceiptImageCore, openai, parse 等
-  expenseEntries/
-  groups/invitationHandlers/, clerkInvitationLib/
-  receipts/summaryLib/, insert.ts, queries.ts
+    extraction.ts
 ```
 
 フロントエンドは **Feature-based Architecture** を採用する。各 feature は `src/features/<feature-name>/`
@@ -230,14 +211,7 @@ lib/convex/                    # Convex 外の純粋ヘルパー（api.d.ts 肥�
 
 `CategoriesPage.tsx` は存在するが、現行ルーターでは `/categories` も `SettingsPage` へ向ける。
 
-### 5.2 Convex モジュール分割方針
-
-- **公開 API**（`query` / `mutation` / `action` / `internal*`）は `convex/<domain>/` に置く。
-- **純粋ヘルパー**（バリデーション、集計、外部 API 呼び出し本体、登録ロジック等）は `lib/convex/<domain>/` に置き、`convex/` から import する。
-  `convex/` 配下の `.ts` は Convex が `api.d.ts` に載せるため、ヘルパーを増やしすぎると型推論が深くなりビルドが失敗しうる。
-- **HTTP** は `convex/http.ts` が router のみを担当し、E2E 用 handler は `convex/e2eHttp/` に分離する。
-
-### 5.3 スタイリング責務
+### 5.2 スタイリング責務
 
 MUIとTailwind CSSは併用するが、責務を分ける。
 

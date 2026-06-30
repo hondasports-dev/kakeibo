@@ -31,9 +31,14 @@ AIが裏で解析
 ## UIモック
 
 最初に作成したモックは、AIが抽出した結果を確認し、必要に応じて編集して登録する画面である。
+
+![AI認識結果の確認画面](generated/ai-expense-flow-demo/ai-expense-result-collapsed.png)
+
 この画面では、`コンビニ払込`、`自動車税`、`東京都`、`税金` のように、コンビニで支払った税金を通常のコンビニ支出として扱わず、支払内容と支払先を分けて登録する方向性を示している。
 
-次に、`内訳を編集` と `詳細を編集` を展開したモックを作成した。現行実装では `ReviewDialog`（`components/review/`）がこの役割を担う。
+次に、`内訳を編集` と `詳細を編集` を展開したモックを作成した。
+
+![内訳と詳細を展開した確認画面](generated/ai-expense-flow-demo/ai-expense-result-expanded.png)
 
 このモックでは、役割を次のように分けている。
 
@@ -44,7 +49,11 @@ AIが裏で解析
 
 ## 操作説明デモ
 
-その後、よりリズム重視の体験を確認するため、短い操作説明デモを作成した（当時は `docs/generated/ai-expense-flow-demo/` に動画・スクリーンショットを置いていたが、リポジトリからは削除済み。体験の正本は本ドキュメントと現行 UI）。
+その後、よりリズム重視の体験を確認するため、短い操作説明デモを作成した。
+
+[操作説明デモ動画を見る](generated/ai-expense-flow-demo/ai-expense-flow-demo.mp4)
+
+![操作説明デモのサンプル画面](generated/ai-expense-flow-demo/ai-expense-flow-demo-sample.png)
 
 動画で示した流れは次のとおりである。
 
@@ -153,19 +162,17 @@ AIの結果は、最初から確定値として扱うのではなく、信頼度
 既存の `kakeibo`（UI ブランド: Suzumemo）には、支出AI登録へ拡張できる土台がある。
 
 - `convex/receiptImageExtraction/extraction.ts`
-  - public action の薄いラッパー。OpenAI 呼び出し本体は `lib/convex/receiptImageExtraction/`
-- `lib/convex/receiptImageExtraction/analyzeReceiptImageCore.ts`
-  - 画像解析から下書き作成までの共通コア（`aiExpenseDrafts/actions` と `receiptAnalysisJobs/actions` から利用）
+  - Convex Action から画像を OpenAI へ送り、構造化結果を返す土台
 - `convex/aiExpenseDrafts/`
-  - AI 支出下書きの query/mutation/action。ビジネスロジックの多くは `lib/convex/aiExpenseDrafts/`
+  - AI 支出下書きの CRUD、画像解析、一括登録（`registerReadyDraftsAsExpenseEntries`）
 - `convex/expenseEntries/`
-  - 手入力・AI 登録の正本テーブル。作成ロジックは `lib/convex/expenseEntries/`
+  - 手入力・AI 登録の正本テーブル
 - `convex/categories/`
   - グループ単位のカテゴリ管理
 - `src/features/ai-expense-queue/components/AiExpenseQueuePanel.tsx`
-  - AI 下書きキュー UI（見出し「レシート入力」）。内部は `components/queue/`・`components/review/`・`hooks/review/` に分割
+  - AI 下書きキュー UI（見出し「レシート入力」）
 - `src/features/expense-entry/components/ExpenseEntryForm.tsx`
-  - 手入力 UI（`expenseEntries` 保存）。フィールド群は `SingleEntryFields` / `MultiEntryFields`、送信は `useExpenseEntrySubmit`
+  - 手入力 UI（`expenseEntries` 保存）
 
 現行実装では、AI 下書きキューが主導線であり、`registerReadyDraftsAsExpenseEntries` で
 `expenseEntries` に一括登録する。`ReceiptForm` / `useReceiptForm` はレガシー互換として残存する。
