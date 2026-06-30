@@ -1,9 +1,11 @@
 # Issue #375 Design QA
 
-- source visual truth path: `https://github.com/hondasports/kakeibo/issues/375` の添付参考画像
+- source visual truth path: `https://github.com/hondasports/kakeibo/issues/375` の添付参考画像（ローカル比較時: `/tmp/kakeibo-issue-375-reference.png`）
+- implementation screenshot path: `docs/assets/issue-375/settings-ledger-pc.png`, `docs/assets/issue-375/settings-ledger-sp.png`
 - viewport: Desktop 1280 × 900 / Mobile 390 × 844
 - state: owner、カテゴリ8件、グループ管理と危険な操作は初期状態で閉鎖
-- focused region comparison evidence: 不要。Issue本文を正本とし、添付画像は情報階層の補助資料である。個別コントロールはPC/SP実機確認と既存MUI・`designTokens`の維持で確認した。
+- full-view comparison evidence: `docs/assets/issue-375/settings-design-comparison.png`
+- focused region comparison evidence: 不要。Issue本文を正本とし、添付画像は情報階層の補助資料である。個別コントロールはPC/SP原寸スクリーンショットで確認し、既存MUIと`designTokens`を維持している。
 
 ## Findings
 

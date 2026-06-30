@@ -9,8 +9,7 @@
 
 - ルート: `/settings`
 - コンポーネント: `src/features/group-admin/components/GroupSettingsPanel.tsx`
-- セクション部品: `GroupSettingsSection`, `GroupRenameSection`, `GroupInviteSection`, `GroupMemberList`, `GroupDangerZone` 等
-- 操作ロジック: `hooks/useGroupRenameManagement`, `useGroupInviteManagement`, `useGroupRoleManagement` 等
+- セクション部品: `src/features/group-admin/components/GroupSettingsSection.tsx`
 
 ## 2. 設定台帳内の構成（上から順）
 

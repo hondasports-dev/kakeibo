@@ -228,10 +228,10 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 
 | 機能 | ファイル | owner 検証 | 備考 |
 | --- | --- | --- | --- |
-| メンバー追加 | `convex/groups/members.ts` `addMemberByEmail` | あり | |
-| メンバー解除 | `convex/groups/members.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
-| ロール変更 | `convex/groups/members.ts` `changeMemberRole` | あり | 最後の owner 保護・監査ログ（#223, #225） |
-| オーナー権限譲渡 | `convex/groups/members.ts` `transferGroupOwnership` | あり | 譲渡先は member のみ。昇格→降格順（#222, #225） |
+| メンバー追加 | `convex/groups.ts` `addMemberByEmail` | あり | |
+| メンバー解除 | `convex/groups.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
+| ロール変更 | `convex/groups.ts` `changeMemberRole` | あり | 最後の owner 保護・監査ログ（#223, #225） |
+| オーナー権限譲渡 | `convex/groups.ts` `transferGroupOwnership` | あり | 譲渡先は member のみ。昇格→降格順（#222, #225） |
 | グループ管理 UI | `src/features/group-admin/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
 | グループ運用手順 | `docs/technical-design.md` 6.3 | — | 本ドキュメントを正本とする |
 
@@ -265,7 +265,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | 受け入れ条件 | 確認方法 | 状態 |
 | --- | --- | --- |
 | owner はグループ管理画面でグループ情報・メンバー・pending 招待を確認できる | `GroupSettingsPanel` UI + `e2e/group-access.spec.ts` | [x] |
-| owner は Phase1 対象の管理操作を実行できる | `convex/groups/members.ts` mutations + E2E smoke | [x] |
+| owner は Phase1 対象の管理操作を実行できる | `convex/groups.ts` mutations + E2E smoke | [x] |
 | member は管理操作を実行できない | UI 非表示 + `GroupSettingsPanel.test.tsx` | [x] |
 | member が直接 mutation を呼んでも拒否される | `convex/groups.test.ts` Phase1 owner-only permissions | [x] |
 | グループからのメンバー解除と Clerk ユーザー削除が混同されていない | §7.1 + `removeMemberHandler` unit test | [x] |
