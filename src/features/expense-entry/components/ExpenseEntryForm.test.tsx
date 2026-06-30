@@ -125,7 +125,7 @@ describe("ExpenseEntryForm", () => {
       expect(screen.getByLabelText("店舗名 / 支払先")).toBeInTheDocument();
       expect(screen.getByLabelText("合計金額")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: "保存して次へ" })).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: "支出項目を追加" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" })).toBeInTheDocument();
     });
 
     it("店舗名・金額・カテゴリを入力して単一項目を保存できる", async () => {
@@ -223,7 +223,7 @@ describe("ExpenseEntryForm", () => {
   // ---------------------------------------------------------------------------
 
   describe("複数支出項目モード", () => {
-    it("「支出項目を追加」ボタンで複数項目モードに切り替わる", async () => {
+    it("「カテゴリ別の内訳を追加」ボタンで複数項目モードに切り替わる", async () => {
       const user = userEvent.setup();
       renderWithProviders(
         <ExpenseEntryForm
@@ -235,7 +235,7 @@ describe("ExpenseEntryForm", () => {
 
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "5000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
 
       expect(screen.getByText("入力元合計")).toBeInTheDocument();
       expect(screen.getByText("5,000")).toBeInTheDocument();
@@ -256,7 +256,7 @@ describe("ExpenseEntryForm", () => {
       // 入力元情報
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "5000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
 
       // 複数項目モード: 項目1（タイトルはhookがshopNameを引き継ぐので上書き）
       const item1 = screen.getByTestId("expense-item-0");
@@ -307,7 +307,7 @@ describe("ExpenseEntryForm", () => {
 
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "3000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
 
       const item1 = screen.getByTestId("expense-item-0");
       await user.clear(within(item1).getByLabelText("内容"));
@@ -333,7 +333,7 @@ describe("ExpenseEntryForm", () => {
 
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "5000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
 
       const item1 = screen.getByTestId("expense-item-0");
       await user.clear(within(item1).getByLabelText("内容"));
@@ -362,7 +362,7 @@ describe("ExpenseEntryForm", () => {
 
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "5000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
 
       const item1 = screen.getByTestId("expense-item-0");
       await user.clear(within(item1).getByLabelText("内容"));
@@ -391,7 +391,7 @@ describe("ExpenseEntryForm", () => {
 
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "5000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
       await user.click(screen.getByRole("button", { name: "項目を追加" }));
 
       // 2項目存在する
@@ -420,7 +420,7 @@ describe("ExpenseEntryForm", () => {
 
       await user.type(screen.getByLabelText("店舗名 / 支払先"), "スーパー北浜");
       await user.type(screen.getByLabelText("合計金額"), "2000");
-      await user.click(screen.getByRole("button", { name: "支出項目を追加" }));
+      await user.click(screen.getByRole("button", { name: "カテゴリ別の内訳を追加" }));
 
       const item1 = screen.getByTestId("expense-item-0");
       await user.clear(within(item1).getByLabelText("内容"));

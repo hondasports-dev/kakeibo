@@ -14,6 +14,7 @@ import { createExpenseEntriesFromDraftHandler } from "../expenseEntries/mutation
 import { insertReceiptForGroup } from "../receipts/crud";
 import { requireGroupMembership } from "../groups/membership";
 import { deleteDraftAndItems } from "./internal";
+import { isValidSignedLineItemAmount } from "../lib/discountItems";
 
 type RegisterReadyDraftsArgs = {
   draftIds: Id<"aiExpenseDrafts">[];
@@ -117,6 +118,16 @@ function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
   }
 }
 
+function assertPositiveCategoryTotals(items: NonNullable<UpdateForReviewArgs["items"]>) {
+  const totals = new Map<Id<"categories">, number>();
+  for (const item of items) {
+    totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + item.amountYen);
+  }
+  if ([...totals.values()].some((amountYen) => amountYen <= 0)) {
+    throw new ConvexError("Draft category total must be greater than zero");
+  }
+}
+
 function hasLowConfidenceDraftItem(item: Doc<"aiExpenseDraftItems">) {
   return (
     (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
@@ -143,7 +154,7 @@ function aggregateDraftItemsByCategory(
   let itemTotal = 0;
   const categoryAmounts = new Map<Id<"categories">, number>();
   for (const item of items) {
-    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+    if (!isValidSignedLineItemAmount(item.itemName, item.amountYen)) {
       throw new ConvexError("Draft item amount is required to register");
     }
     if (item.categoryId === undefined) {
@@ -162,6 +173,9 @@ function aggregateDraftItemsByCategory(
 
   if (itemTotal !== draft.amountYen) {
     throw new ConvexError("Draft item total must match draft amount");
+  }
+  if ([...categoryAmounts.values()].some((amountYen) => amountYen <= 0)) {
+    throw new ConvexError("Draft category total must be greater than zero");
   }
 
   const title = resolveReceiptShopNameFromDraft(draft);
@@ -192,7 +206,7 @@ async function replaceDraftItemsForReview(
   }
   for (const item of items) {
     const itemName = trimOptional(item.itemName);
-    if (!itemName || !Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+    if (!itemName || !isValidSignedLineItemAmount(itemName, item.amountYen)) {
       throw new ConvexError("Draft item name and amount are required");
     }
     await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
@@ -252,6 +266,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
 
   const now = Date.now();
   if (args.items !== undefined) {
+    assertPositiveCategoryTotals(args.items);
     await replaceDraftItemsForReview(ctx, args.draftId, groupId, args.items, now);
   }
   const classification = classifyAiExpenseDraft({
@@ -282,6 +297,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     },
     warnings: [],
     items: args.items?.map((item) => ({
+      itemName: item.itemName,
       amountYen: item.amountYen,
       categoryId: item.categoryId,
     })),

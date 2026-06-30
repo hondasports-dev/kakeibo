@@ -40,6 +40,7 @@ import {
   isLowConfidenceItem,
   resolveReviewShopName,
 } from "../utils/reviewDialogUtils";
+import { isDiscountItemName, sanitizeSignedYenInput } from "../utils/discountItems";
 
 function ReviewFormFields({
   categories,
@@ -221,6 +222,7 @@ function ReviewItemsEditor({
                       aria-label={`${item.itemName || `明細 ${index + 1}`}を削除`}
                       onClick={() => onRemoveItem(item.id)}
                       size="small"
+                      sx={{ minHeight: 44, minWidth: 44 }}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>
@@ -237,20 +239,30 @@ function ReviewItemsEditor({
                       fullWidth
                       label="明細名"
                       onChange={(event) => onItemChange(item.id, "itemName", event.target.value)}
+                      slotProps={{ htmlInput: { autoComplete: "off", name: `item-name-${index}` } }}
                       value={item.itemName}
                     />
                     <TextField
                       label="金額"
                       onChange={(event) =>
-                        onItemChange(item.id, "amountYen", event.target.value.replace(/[^\d]/g, ""))
+                        onItemChange(
+                          item.id,
+                          "amountYen",
+                          sanitizeSignedYenInput(item.itemName, event.target.value),
+                        )
                       }
                       slotProps={{
                         htmlInput: {
-                          inputMode: "numeric",
+                          autoComplete: "off",
+                          inputMode: isDiscountItemName(item.itemName) ? "text" : "numeric",
+                          name: `item-amount-${index}`,
                         },
                       }}
                       sx={{ minWidth: { sm: 140 } }}
                       value={item.amountYen}
+                      helperText={
+                        isDiscountItemName(item.itemName) ? "割引額はマイナスで入力" : undefined
+                      }
                     />
                   </Stack>
                   <TextField

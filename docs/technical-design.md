@@ -443,7 +443,7 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 | groupId    | Id<"groups">                | 家計データの所有境界             |
 | draftId    | Id<"aiExpenseDrafts">       | 親下書きID                     |
 | itemName   | string                      | 明細名                         |
-| amountYen  | number                      | 明細金額                       |
+| amountYen  | number                      | 税込明細金額。値引き明細のみ負数 |
 | categoryId | Id<"categories"> (optional) | 明細候補カテゴリ               |
 | confidence | object                      | 明細フィールドごとのAI信頼度   |
 | createdAt  | number                      | 作成日時                       |
@@ -476,6 +476,10 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 ### 10.1 手入力（expenseEntries）
 
 現行の週次入力 UI（`ExpenseEntryForm`）は `expenseEntries` を正本とする。
+
+1枚の入力元を複数カテゴリへ分ける場合も、1件に複数カテゴリIDを保持せず、カテゴリ別の
+`expenseEntries` を作成する。AI下書きの値引きは `aiExpenseDraftItems` で負数として保持し、
+登録時に同一カテゴリ内で合算する。カテゴリ別正味額が0円以下になる場合は登録しない。
 
 - `expenseEntries.mutations.createExpenseEntries(input)`
 - `expenseEntries.mutations.updateExpenseEntry(id, input)`

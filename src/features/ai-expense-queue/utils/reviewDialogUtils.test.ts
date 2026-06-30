@@ -40,6 +40,17 @@ describe("reviewDialogUtils", () => {
     expect(hasUncategorizedItems(items)).toBe(true);
   });
 
+  it("割引明細を同一カテゴリの正味額へ集約する", () => {
+    const items: ReviewItemValues[] = [
+      { id: "1", itemName: "キュレル ジェルメイク", amountYen: "1100", categoryId: "cat-medical" },
+      { id: "2", itemName: "クーポン券割引", amountYen: "-110", categoryId: "cat-medical" },
+    ];
+
+    expect(computeCategoryAggregates(items, categories)).toEqual([
+      { categoryId: "cat-medical", categoryName: "医療費", amountYen: 990 },
+    ]);
+  });
+
   it("低信頼度明細を判定する", () => {
     const item: ReviewItemValues = {
       id: "1",

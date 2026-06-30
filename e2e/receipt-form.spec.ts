@@ -10,22 +10,27 @@ import {
 } from "./helpers/cleanup";
 
 async function expectChartLabelsWithinBounds(graph: Locator) {
-  const graphBounds = await graph.boundingBox();
-  const overflowingLabels = await graph.locator("svg text").evaluateAll((labels, bounds) => {
-    if (!bounds) return ["グラフ領域を取得できません"];
-    return labels.flatMap((label) => {
-      const text = label.textContent?.trim();
-      const rect = label.getBoundingClientRect();
-      const isOutside =
-        rect.left < bounds.x - 1 ||
-        rect.right > bounds.x + bounds.width + 1 ||
-        rect.top < bounds.y - 1 ||
-        rect.bottom > bounds.y + bounds.height + 1;
-      return text && isOutside ? [text] : [];
-    });
-  }, graphBounds);
-
-  expect(overflowingLabels, "グラフの軸ラベルが表示領域から見切れない").toEqual([]);
+  await expect
+    .poll(
+      async () => {
+        const graphBounds = await graph.boundingBox();
+        return await graph.locator("svg text").evaluateAll((labels, bounds) => {
+          if (!bounds) return ["グラフ領域を取得できません"];
+          return labels.flatMap((label) => {
+            const text = label.textContent?.trim();
+            const rect = label.getBoundingClientRect();
+            const isOutside =
+              rect.left < bounds.x - 1 ||
+              rect.right > bounds.x + bounds.width + 1 ||
+              rect.top < bounds.y - 1 ||
+              rect.bottom > bounds.y + bounds.height + 1;
+            return text && isOutside ? [text] : [];
+          });
+        }, graphBounds);
+      },
+      { message: "グラフの軸ラベルが表示領域から見切れない", timeout: 5_000 },
+    )
+    .toEqual([]);
 }
 
 /**
@@ -994,7 +999,7 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
       const bar = graph.locator(`.${barClasses.element}`).last();
       await expect(bar).toBeVisible();
       await bar.hover();
-      await expect(page.getByText(/支出合計 .*円/)).toBeVisible();
+      await expect(page.getByText(/支出合計 .*円/).first()).toBeVisible();
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -1002,7 +1007,7 @@ test.describe("週別支出推移グラフ（Issue #47, #232）", () => {
     if (await mobileBar.isVisible().catch(() => false)) {
       await expectChartLabelsWithinBounds(graph);
       await mobileBar.click();
-      await expect(page.getByText(/支出合計 .*円/)).toBeVisible();
+      await expect(page.getByText(/支出合計 .*円/).first()).toBeVisible();
     }
   });
 });
@@ -1125,7 +1130,7 @@ test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受
     await page.getByLabel("合計金額").fill("5000");
 
     // 複数項目モードに切り替える
-    await page.getByRole("button", { name: "支出項目を追加" }).click();
+    await page.getByRole("button", { name: "カテゴリ別の内訳を追加" }).click();
 
     // 複数モードに切り替わったことを確認（入力元合計ヘッダーと金額が表示される）
     await expect(page.getByText("入力元合計")).toBeVisible();
@@ -1169,7 +1174,7 @@ test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受
   test("[Issue #102] 差額がプラスのとき確認ダイアログが表示され保存できる", async ({ page }) => {
     await page.getByLabel("店舗名 / 支払先").fill("テストスーパー");
     await page.getByLabel("合計金額").fill("5000");
-    await page.getByRole("button", { name: "支出項目を追加" }).click();
+    await page.getByRole("button", { name: "カテゴリ別の内訳を追加" }).click();
 
     // 項目1: 3,000円のみ入力（入力元合計 5,000円との差額 2,000円が未配分）
     const item0 = page.getByTestId("expense-item-0");
@@ -1198,7 +1203,7 @@ test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受
     // 複数項目で保存
     await page.getByLabel("店舗名 / 支払先").fill("テストスーパー");
     await page.getByLabel("合計金額").fill("5000");
-    await page.getByRole("button", { name: "支出項目を追加" }).click();
+    await page.getByRole("button", { name: "カテゴリ別の内訳を追加" }).click();
 
     const item0 = page.getByTestId("expense-item-0");
     await item0.getByLabel("内容").clear();

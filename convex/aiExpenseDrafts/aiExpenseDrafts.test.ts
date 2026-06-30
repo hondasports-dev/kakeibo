@@ -1021,6 +1021,55 @@ describe("aiExpenseDrafts", () => {
     );
   });
 
+  it("確認下書きの割引明細を負数で保存できる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-daily": {
+          groupId: GROUP_ID,
+          isActive: true,
+        },
+      },
+      insertedIds: ["new-item-1", "new-item-2"],
+    });
+
+    await updateForReviewHandler(ctx, {
+      draftId: "draft-owned" as Id<"aiExpenseDrafts">,
+      documentType: "receipt",
+      shopName: "クスリキリン堂 稲美店",
+      date: "2026-06-29",
+      amountYen: 990,
+      categoryId: "cat-daily" as Id<"categories">,
+      items: [
+        {
+          itemName: "キュレル ジェルメイク",
+          amountYen: 1100,
+          categoryId: "cat-daily" as Id<"categories">,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+        },
+        {
+          itemName: "クーポン券割引 10%",
+          amountYen: -110,
+          categoryId: "cat-daily" as Id<"categories">,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+        },
+      ],
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        itemName: "クーポン券割引 10%",
+        amountYen: -110,
+        categoryId: "cat-daily",
+      }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "draft-owned",
+      expect.objectContaining({ status: "ready", reviewReasons: [] }),
+    );
+  });
+
   it("他ユーザーの確認下書きは編集できない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
@@ -1545,6 +1594,101 @@ describe("aiExpenseDrafts", () => {
           status: "registered",
         }),
       );
+    });
+
+    it("割引明細を同じカテゴリから減額して正味額で登録する", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 2189,
+          },
+          "cat-other": { groupId: GROUP_ID, isActive: true },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+          "cat-daily": { groupId: GROUP_ID, isActive: true },
+        },
+        insertedIds: ["entry-other", "entry-food", "entry-daily"],
+        items: [
+          {
+            ...readyDraftItems[0],
+            _id: "item-tobacco",
+            itemName: "キャメル・メンソール・コ（2個）",
+            amountYen: 1060,
+            categoryId: "cat-other",
+          },
+          {
+            ...readyDraftItems[0],
+            _id: "item-food",
+            itemName: "マルちゃん ごつ盛 塩",
+            amountYen: 139,
+            categoryId: "cat-food",
+          },
+          {
+            ...readyDraftItems[0],
+            _id: "item-daily",
+            itemName: "キュレル ジェルメイク",
+            amountYen: 1100,
+            categoryId: "cat-daily",
+          },
+          {
+            ...readyDraftItems[0],
+            _id: "item-discount",
+            itemName: "クーポン券割引 10%",
+            amountYen: -110,
+            categoryId: "cat-daily",
+          },
+        ],
+      });
+
+      const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+        draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+      });
+
+      expect(result.createdExpenseEntryIds).toEqual(["entry-other", "entry-food", "entry-daily"]);
+      expect(ctx.db.insert).toHaveBeenNthCalledWith(
+        3,
+        "expenseEntries",
+        expect.objectContaining({ amount: 990, categoryId: "cat-daily" }),
+      );
+    });
+
+    it("割引後のカテゴリ正味額が0円以下なら登録しない", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 100,
+          },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+          "cat-daily": { groupId: GROUP_ID, isActive: true },
+        },
+        items: [
+          {
+            ...readyDraftItems[0],
+            amountYen: 200,
+            categoryId: "cat-food",
+          },
+          {
+            ...readyDraftItems[1],
+            amountYen: 100,
+            categoryId: "cat-daily",
+          },
+          {
+            ...readyDraftItems[1],
+            _id: "item-discount",
+            itemName: "クーポン券割引",
+            amountYen: -200,
+            categoryId: "cat-daily",
+          },
+        ],
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toMatchObject({ data: "Draft category total must be greater than zero" });
+      expect(ctx.db.insert).not.toHaveBeenCalled();
     });
 
     it("明細なしのready下書きは既存どおり単一expenseEntryに登録できる", async () => {

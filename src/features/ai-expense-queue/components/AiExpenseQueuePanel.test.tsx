@@ -825,6 +825,75 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
+  it("割引明細は負数で編集し、対象カテゴリの正味額として保存できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "クスリキリン堂 稲美店",
+          date: "2026-06-29",
+          amountYen: 990,
+          categoryId: "cat-daily",
+          reviewReasons: ["amount_mismatch"],
+          warnings: [],
+        },
+        items: [
+          {
+            _id: "item-daily",
+            itemName: "キュレル ジェルメイク",
+            amountYen: 1100,
+            categoryId: "cat-daily",
+            confidence: { itemName: 0.9, amountYen: 0.9, categoryId: 0.9 },
+            warnings: [],
+          },
+          {
+            _id: "item-discount",
+            itemName: "クーポン券割引 10%",
+            amountYen: -100,
+            categoryId: "cat-daily",
+            confidence: { itemName: 0.9, amountYen: 0.9, categoryId: 0.9 },
+            warnings: [],
+          },
+        ],
+      };
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "修正する" }));
+
+    const amountInputs = within(dialog).getAllByLabelText("金額");
+    expect(amountInputs[1]).toHaveAttribute("inputmode", "text");
+    await user.clear(amountInputs[1]);
+    await user.type(amountInputs[1], "-110");
+    expect(amountInputs[1]).toHaveValue("-110");
+    expect(within(dialog).getByText("明細合計 990円 / 差額 0円")).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "登録準備OKに戻す" }));
+
+    expect(updateForReviewMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: expect.arrayContaining([
+          expect.objectContaining({
+            itemName: "クーポン券割引 10%",
+            amountYen: -110,
+            categoryId: "cat-daily",
+          }),
+        ]),
+      }),
+    );
+  });
+
   it("確認下書きの詳細読み込み前はフォーム送信できない", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {

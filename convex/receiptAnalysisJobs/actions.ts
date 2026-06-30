@@ -4,6 +4,7 @@ import { api, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { extractReceiptFieldsHandler } from "../receiptImageExtraction/extraction";
+import { mapExtractionToDraftArgs } from "../aiExpenseDrafts/extractionMapping";
 
 export type AnalyzeImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
@@ -47,41 +48,13 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   let jobFailed = false;
   try {
     const extracted = await extractReceiptFieldsHandler(ctx, { imageDataUrl: args.imageDataUrl });
-
-    let categoryId = undefined;
-    if (extracted.categoryName && extracted.categoryName.trim().length > 0) {
-      const categories: Doc<"categories">[] = await ctx.runQuery(
-        api.categories.queries.listActive,
-        {},
-      );
-      const targetName = extracted.categoryName.trim();
-      const matched = categories.find((cat) => cat.name === targetName);
-      if (matched) {
-        categoryId = matched._id;
-      }
-    }
+    const categories: Doc<"categories">[] = await ctx.runQuery(
+      api.categories.queries.listActive,
+      {},
+    );
 
     draft = await ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
-      documentType: extracted.documentType,
-      shopName: extracted.shopName || undefined,
-      paymentPlace: extracted.paymentPlace || undefined,
-      payeeName: extracted.payeeName || undefined,
-      paymentPurpose: extracted.paymentPurpose || undefined,
-      date: extracted.date || undefined,
-      amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
-      categoryId,
-      imageFileName: job.fileName,
-      confidence: {
-        documentType: extracted.confidence.documentType,
-        shopName: extracted.confidence.shopName,
-        paymentPlace: extracted.confidence.paymentPlace,
-        payeeName: extracted.confidence.payeeName,
-        paymentPurpose: extracted.confidence.paymentPurpose,
-        date: extracted.confidence.date,
-        amountYen: extracted.confidence.amountYen,
-        categoryId: extracted.confidence.categoryName,
-      },
-      warnings: extracted.warnings,
+      ...mapExtractionToDraftArgs(extracted, categories, job.fileName),
     });
   } catch (err) {
     jobFailed = true;
