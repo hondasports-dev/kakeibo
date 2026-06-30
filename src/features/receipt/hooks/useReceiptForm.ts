@@ -3,7 +3,7 @@ import { useMutation } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { validateReceiptForm, type ReceiptFormErrors } from "../validation/receipt";
-import type { ExtractedReceiptResult } from "../components/ReceiptImageExtractor";
+import type { ExtractedReceiptResult } from "../hooks/useReceiptImageExtraction";
 import type { NormalizedReceiptExtraction } from "../validation/receiptExtraction";
 
 type ExpenseFormValues = {
