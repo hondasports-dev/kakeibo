@@ -125,6 +125,8 @@ export type ReviewItemValues = {
   itemName: string;
   amountYen: string;
   categoryId: string;
+  usesReceiptCategory?: boolean;
+  discountTargetItemId?: string;
   confidence?: AiExpenseDraftItem["confidence"];
   warnings?: string[];
 };

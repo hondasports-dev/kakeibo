@@ -6,7 +6,7 @@ export const RECEIPT_EXTRACTION_PROMPT_LINES = [
   '{"documentType": "receipt | convenience_payment | unknown", "shopName": "店名（文字列）", "paymentPlace": "支払場所（文字列）", "payeeName": "支払先（文字列）", "paymentPurpose": "支払内容（文字列）", "date": "日付（YYYY-MM-DD形式の文字列）", "amountYen": 合計金額（整数）, "categoryName": "推定カテゴリ名（文字列）", "items": [{"itemName": "明細名（文字列）", "amountYen": 明細金額（整数）, "categoryName": "明細の推定カテゴリ名（文字列）", "confidence": {"itemName": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["明細の注意事項（配列）"]}], "confidence": {"documentType": 0.0〜1.0, "shopName": 0.0〜1.0, "paymentPlace": 0.0〜1.0, "payeeName": 0.0〜1.0, "paymentPurpose": 0.0〜1.0, "date": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["注意事項（配列）"]}',
   "レシート内の明細が読み取れる場合は items に itemName、amountYen、categoryName、confidence、warnings を入れてください。",
   "商品明細の金額は印字された税込金額を使用し、内税額・税率別対象額・消費税計・小計・合計・決済情報は items に含めないでください。",
-  "値引き・クーポン・ポイント充当は負の amountYen として items に含めてください。対象商品が分かる場合は同じ categoryName、分からない場合は categoryName を空文字列にして warnings に理由を入れてください。",
+  "値引き・クーポン・ポイント充当は負の amountYen として items に含めてください。印字順を維持し、割引行の直前または近接する商品、商品名、割引率から対象商品を判断できる場合は、対象商品と同じ categoryName を設定してください。対象が不明な場合は推測でカテゴリを設定せず、categoryName を空文字列にして warnings に理由を入れてください。",
   "明細が読み取れない場合も items は空配列 [] にしてください。",
   "読み取れない項目は空文字列または0を使用し、該当項目の confidence を低くしてください。",
 ] as const;

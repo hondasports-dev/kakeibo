@@ -1,5 +1,5 @@
 import type { ReviewFormValues, ReviewItemValues } from "../types/types";
-import { isValidReviewItemAmount } from "./discountItems";
+import { isDiscountItemName, isValidReviewItemAmount } from "./discountItems";
 import { computeCategoryAggregates } from "./reviewDialogUtils";
 
 export function getReviewFormError(reviewForm: ReviewFormValues): string | null {
@@ -26,6 +26,12 @@ export function getReviewDocumentTypeError(
 }
 
 export function getReviewItemsError(reviewItems: ReviewItemValues[]): string | null {
+  const unresolvedDiscount = reviewItems.find(
+    (item) => isDiscountItemName(item.itemName) && !item.categoryId,
+  );
+  if (unresolvedDiscount) {
+    return "割引対象の商品を選択してください。";
+  }
   const invalidItem = reviewItems.find((item) => {
     const itemAmount = Number(item.amountYen);
     return (
@@ -35,7 +41,7 @@ export function getReviewItemsError(reviewItems: ReviewItemValues[]): string | n
     );
   });
   if (invalidItem) {
-    return "明細名、明細金額、明細カテゴリを確認してください。";
+    return "明細名、明細金額、カテゴリを確認してください。";
   }
   return null;
 }

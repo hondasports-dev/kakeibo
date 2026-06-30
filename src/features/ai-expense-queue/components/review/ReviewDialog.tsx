@@ -30,12 +30,16 @@ export function ReviewDialog({
   reviewError,
   reviewForm,
   reviewItems,
+  isCategorySplit,
   reviewSubmitting,
   onClose,
   onFieldChange,
   onItemChange,
   onAddItem,
   onRemoveItem,
+  onCategorySplitChange,
+  onAssignCategoryToItems,
+  onDiscountTargetChange,
   onSubmit,
 }: {
   open: boolean;
@@ -46,6 +50,7 @@ export function ReviewDialog({
   reviewError: string;
   reviewForm: ReviewFormValues;
   reviewItems: ReviewItemValues[];
+  isCategorySplit: boolean;
   reviewSubmitting: boolean;
   onClose: () => void;
   onFieldChange: (field: keyof ReviewFormValues, value: string) => void;
@@ -56,6 +61,9 @@ export function ReviewDialog({
   ) => void;
   onAddItem: () => void;
   onRemoveItem: (itemId: string) => void;
+  onCategorySplitChange: (split: boolean) => void;
+  onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
+  onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
   onSubmit: (registerAfterUpdate: boolean) => void;
 }) {
   const [isEditMode, setIsEditMode] = useState(false);
@@ -149,6 +157,10 @@ export function ReviewDialog({
                         onRemoveItem={onRemoveItem}
                         receiptAmount={receiptAmount}
                         reviewItems={reviewItems}
+                        isCategorySplit={isCategorySplit}
+                        onCategorySplitChange={onCategorySplitChange}
+                        onAssignCategoryToItems={onAssignCategoryToItems}
+                        onDiscountTargetChange={onDiscountTargetChange}
                       />
                     </>
                   )}

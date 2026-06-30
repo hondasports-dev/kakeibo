@@ -75,7 +75,7 @@ export function ReviewFormFields({
 
       <TextField
         fullWidth
-        label="カテゴリ"
+        label="レシート全体のカテゴリ"
         onChange={(event) => onFieldChange("categoryId", event.target.value)}
         select
         value={reviewForm.categoryId}
