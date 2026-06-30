@@ -359,7 +359,7 @@ build=`pnpm run build`、dev=`pnpm run dev`、convex=`pnpm run convex:dev`）。
 ### Clerk なしでバックエンドだけ疎通確認する方法
 
 デプロイ側で `npx convex env set E2E_CLEANUP_SECRET <secret>` を設定すると、
-`convex/http.ts` の E2E エンドポイントが有効化されます。`groups` テーブルに 1 件
+`convex/http.ts`（handler 実装は `convex/e2eHttp/`）の E2E エンドポイントが有効化されます。`groups` テーブルに 1 件
 ドキュメントを用意し（例: `npx convex import --append --table groups ...`）、その
 `_id` を使って `POST ${VITE_CONVEX_SITE_URL}/e2e/seed-ai-expense-draft`
 （ヘッダ `X-E2E-Cleanup-Secret`）を呼ぶと、カテゴリと AI 支出ドラフトが作成され、
