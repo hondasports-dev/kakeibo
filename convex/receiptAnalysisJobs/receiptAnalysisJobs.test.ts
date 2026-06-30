@@ -421,7 +421,10 @@ describe("analyzeImageJobHandler", () => {
         .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
         .mockResolvedValueOnce({ _id: GROUP_ID })
         .mockResolvedValueOnce(jobDoc)
-        .mockResolvedValueOnce([]);
+        .mockResolvedValueOnce([
+          { _id: "cat-food", name: "食費", color: "#F4A27A", isActive: true, sortOrder: 1 },
+          { _id: "cat-daily", name: "日用品", color: "#A6B28B", isActive: true, sortOrder: 2 },
+        ]);
 
       ctx.runMutation = vi
         .fn()
@@ -437,6 +440,24 @@ describe("analyzeImageJobHandler", () => {
       });
 
       expect(ctx.runMutation).toHaveBeenCalledTimes(5);
+      expect((ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]).toEqual(
+        expect.objectContaining({
+          categoryId: "cat-food",
+          imageFileName: undefined,
+          items: [
+            expect.objectContaining({
+              itemName: "サンプル食品",
+              amountYen: 734,
+              categoryId: "cat-food",
+            }),
+            expect.objectContaining({
+              itemName: "サンプル日用品",
+              amountYen: 500,
+              categoryId: "cat-daily",
+            }),
+          ],
+        }),
+      );
     });
   });
 

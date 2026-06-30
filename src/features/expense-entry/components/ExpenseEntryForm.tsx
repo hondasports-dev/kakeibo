@@ -334,8 +334,14 @@ function FormActions({
       }}
     >
       {!isMultiMode && (
-        <Button variant="text" size="small" onClick={onEnterMultiMode} aria-label="支出項目を追加">
-          支出項目を追加
+        <Button
+          variant="text"
+          size="small"
+          onClick={onEnterMultiMode}
+          aria-label="カテゴリ別の内訳を追加"
+          sx={{ minHeight: 44 }}
+        >
+          カテゴリ別の内訳を追加
         </Button>
       )}
       <AnimatedButton

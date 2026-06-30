@@ -247,10 +247,12 @@ describe("AI expense draft model", () => {
         warnings: [],
         items: [
           {
+            itemName: "パン",
             amountYen: 500,
             categoryId: "category-food",
           },
           {
+            itemName: "牛乳",
             amountYen: 600,
             categoryId: "category-food",
           },
@@ -280,10 +282,12 @@ describe("AI expense draft model", () => {
         warnings: [],
         items: [
           {
+            itemName: "パン",
             amountYen: 400,
             categoryId: "category-food",
           },
           {
+            itemName: "胃薬",
             amountYen: 980,
           },
         ],
@@ -291,6 +295,61 @@ describe("AI expense draft model", () => {
     ).toEqual({
       status: "needs_review",
       reviewReasons: ["ambiguous_category"],
+    });
+  });
+
+  it("割引後のカテゴリ正味額が0円以下なら確認が必要に分類する", () => {
+    expect(
+      classifyAiExpenseDraft({
+        documentType: "receipt",
+        shopName: "ドラッグストアA",
+        date: "2026-06-21",
+        amountYen: 100,
+        categoryId: "category-food",
+        confidence: {
+          documentType: 0.9,
+          shopName: 0.9,
+          date: 0.9,
+          amountYen: 0.9,
+          categoryId: 0.9,
+        },
+        warnings: [],
+        items: [
+          { itemName: "パン", amountYen: 200, categoryId: "category-food" },
+          { itemName: "日用品", amountYen: 100, categoryId: "category-daily" },
+          { itemName: "クーポン券割引", amountYen: -200, categoryId: "category-daily" },
+        ],
+      }),
+    ).toEqual({
+      status: "needs_review",
+      reviewReasons: ["amount_mismatch"],
+    });
+  });
+
+  it("0円明細がある場合は確認が必要に分類する", () => {
+    expect(
+      classifyAiExpenseDraft({
+        documentType: "receipt",
+        shopName: "スーパー青葉",
+        date: "2026-06-21",
+        amountYen: 100,
+        categoryId: "category-food",
+        confidence: {
+          documentType: 0.9,
+          shopName: 0.9,
+          date: 0.9,
+          amountYen: 0.9,
+          categoryId: 0.9,
+        },
+        warnings: [],
+        items: [
+          { itemName: "パン", amountYen: 100, categoryId: "category-food" },
+          { itemName: "不明な明細", amountYen: 0, categoryId: "category-food" },
+        ],
+      }),
+    ).toEqual({
+      status: "needs_review",
+      reviewReasons: ["amount_mismatch"],
     });
   });
 });

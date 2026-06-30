@@ -781,6 +781,17 @@ describe("extractReceiptFieldsHandler", () => {
                       },
                       warnings: ["品名の一部が不鮮明です"],
                     },
+                    {
+                      itemName: "クーポン券割引",
+                      amountYen: -110,
+                      categoryName: "医療費",
+                      confidence: {
+                        itemName: 0.95,
+                        amountYen: 0.98,
+                        categoryName: 0.82,
+                      },
+                      warnings: [],
+                    },
                   ],
                   confidence: {
                     documentType: 0.92,
@@ -841,6 +852,17 @@ describe("extractReceiptFieldsHandler", () => {
                 categoryName: 0.82,
               },
               warnings: ["品名の一部が不鮮明です"],
+            },
+            {
+              itemName: "クーポン券割引",
+              amountYen: -110,
+              categoryName: "医療費",
+              confidence: {
+                itemName: 0.95,
+                amountYen: 0.98,
+                categoryName: 0.82,
+              },
+              warnings: [],
             },
           ]);
         },
