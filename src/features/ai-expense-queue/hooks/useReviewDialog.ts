@@ -18,6 +18,8 @@ import type {
   ReviewItemValues,
   ReviewFormValues,
 } from "../types/types";
+import { isValidReviewItemAmount } from "../utils/discountItems";
+import { computeCategoryAggregates } from "../utils/reviewDialogUtils";
 
 export function useReviewDialog({
   initialReviewDrafts,
@@ -156,13 +158,16 @@ export function useReviewDialog({
       const itemAmount = Number(item.amountYen);
       return (
         !item.itemName.trim() ||
-        !Number.isInteger(itemAmount) ||
-        itemAmount <= 0 ||
+        !isValidReviewItemAmount(item.itemName, itemAmount) ||
         !item.categoryId
       );
     });
     if (invalidItem) {
       setReviewError("明細名、明細金額、明細カテゴリを確認してください。");
+      return;
+    }
+    if (computeCategoryAggregates(reviewItems, []).some((aggregate) => aggregate.amountYen <= 0)) {
+      setReviewError("割引後のカテゴリ金額は1円以上にしてください。");
       return;
     }
 

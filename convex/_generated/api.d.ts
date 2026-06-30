@@ -9,6 +9,7 @@
  */
 
 import type * as aiExpenseDrafts_actions from "../aiExpenseDrafts/actions.js";
+import type * as aiExpenseDrafts_extractionMapping from "../aiExpenseDrafts/extractionMapping.js";
 import type * as aiExpenseDrafts_internal from "../aiExpenseDrafts/internal.js";
 import type * as aiExpenseDrafts_model from "../aiExpenseDrafts/model.js";
 import type * as aiExpenseDrafts_mutations from "../aiExpenseDrafts/mutations.js";
@@ -42,6 +43,7 @@ import type * as groups_mutations from "../groups/mutations.js";
 import type * as groups_queries from "../groups/queries.js";
 import type * as groups_validators from "../groups/validators.js";
 import type * as http from "../http.js";
+import type * as lib_discountItems from "../lib/discountItems.js";
 import type * as lib_weekDates from "../lib/weekDates.js";
 import type * as receiptAnalysisJobs_actions from "../receiptAnalysisJobs/actions.js";
 import type * as receiptAnalysisJobs_internal from "../receiptAnalysisJobs/internal.js";
@@ -67,6 +69,7 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "aiExpenseDrafts/actions": typeof aiExpenseDrafts_actions;
+  "aiExpenseDrafts/extractionMapping": typeof aiExpenseDrafts_extractionMapping;
   "aiExpenseDrafts/internal": typeof aiExpenseDrafts_internal;
   "aiExpenseDrafts/model": typeof aiExpenseDrafts_model;
   "aiExpenseDrafts/mutations": typeof aiExpenseDrafts_mutations;
@@ -100,6 +103,7 @@ declare const fullApi: ApiFromModules<{
   "groups/queries": typeof groups_queries;
   "groups/validators": typeof groups_validators;
   http: typeof http;
+  "lib/discountItems": typeof lib_discountItems;
   "lib/weekDates": typeof lib_weekDates;
   "receiptAnalysisJobs/actions": typeof receiptAnalysisJobs_actions;
   "receiptAnalysisJobs/internal": typeof receiptAnalysisJobs_internal;

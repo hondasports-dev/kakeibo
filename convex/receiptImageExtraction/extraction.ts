@@ -2,6 +2,7 @@ import type { ActionCtx } from "../_generated/server";
 import { action } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { requireAuthenticatedUserId } from "../users/auth";
+import { isDiscountItemName } from "../lib/discountItems";
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */
 const MAX_IMAGE_DATA_URL_LENGTH = 900_000;
@@ -176,9 +177,12 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
   if (typeof item.amountYen !== "number") {
     throw new ConvexError(`OpenAI レスポンスの items[${index}].amountYen が数値ではありません`);
   }
-  if (!Number.isInteger(item.amountYen) || item.amountYen < 0) {
+  if (
+    !Number.isInteger(item.amountYen) ||
+    (item.amountYen < 0 && !isDiscountItemName(item.itemName))
+  ) {
     throw new ConvexError(
-      `OpenAI レスポンスの items[${index}].amountYen は 0 以上の整数である必要があります`,
+      `OpenAI レスポンスの items[${index}].amountYen は通常明細では0以上、割引明細では負の整数である必要があります`,
     );
   }
 
@@ -428,6 +432,8 @@ async function callOpenAIReceiptExtractor({
               "結果は以下の JSON スキーマに従って返してください：",
               '{"documentType": "receipt | convenience_payment | unknown", "shopName": "店名（文字列）", "paymentPlace": "支払場所（文字列）", "payeeName": "支払先（文字列）", "paymentPurpose": "支払内容（文字列）", "date": "日付（YYYY-MM-DD形式の文字列）", "amountYen": 合計金額（整数）, "categoryName": "推定カテゴリ名（文字列）", "items": [{"itemName": "明細名（文字列）", "amountYen": 明細金額（整数）, "categoryName": "明細の推定カテゴリ名（文字列）", "confidence": {"itemName": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["明細の注意事項（配列）"]}], "confidence": {"documentType": 0.0〜1.0, "shopName": 0.0〜1.0, "paymentPlace": 0.0〜1.0, "payeeName": 0.0〜1.0, "paymentPurpose": 0.0〜1.0, "date": 0.0〜1.0, "amountYen": 0.0〜1.0, "categoryName": 0.0〜1.0}, "warnings": ["注意事項（配列）"]}',
               "レシート内の明細が読み取れる場合は items に itemName、amountYen、categoryName、confidence、warnings を入れてください。",
+              "商品明細の金額は印字された税込金額を使用し、内税額・税率別対象額・消費税計・小計・合計・決済情報は items に含めないでください。",
+              "値引き・クーポン・ポイント充当は負の amountYen として items に含めてください。対象商品が分かる場合は同じ categoryName、分からない場合は categoryName を空文字列にして warnings に理由を入れてください。",
               "明細が読み取れない場合も items は空配列 [] にしてください。",
               "読み取れない項目は空文字列または0を使用し、該当項目の confidence を低くしてください。",
             ].join("\n"),
@@ -460,7 +466,7 @@ async function callOpenAIReceiptExtractor({
                 type: "object",
                 properties: {
                   itemName: { type: "string" },
-                  amountYen: { type: "integer", minimum: 0 },
+                  amountYen: { type: "integer" },
                   categoryName: { type: "string" },
                   confidence: {
                     type: "object",

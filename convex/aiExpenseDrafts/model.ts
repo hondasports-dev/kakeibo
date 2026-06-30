@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import { isValidSignedLineItemAmount } from "../lib/discountItems";
 
 export const AI_EXPENSE_DRAFT_STATUSES = [
   "queued",
@@ -98,6 +99,7 @@ type AiExpenseDraftClassificationInput = {
   confidence: AiExpenseDraftConfidence;
   warnings: string[];
   items?: Array<{
+    itemName?: string;
     amountYen: number;
     categoryId?: unknown;
   }>;
@@ -195,6 +197,28 @@ function hasAmbiguousItemCategory(input: AiExpenseDraftClassificationInput) {
   return input.items?.some((item) => item.categoryId === undefined) ?? false;
 }
 
+function hasNonPositiveCategoryTotal(input: AiExpenseDraftClassificationInput) {
+  if (!input.items || input.items.length === 0) {
+    return false;
+  }
+  const totals = new Map<unknown, number>();
+  for (const item of input.items) {
+    if (item.categoryId === undefined) {
+      continue;
+    }
+    totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + item.amountYen);
+  }
+  return [...totals.values()].some((amountYen) => amountYen <= 0);
+}
+
+function hasInvalidItemAmount(input: AiExpenseDraftClassificationInput) {
+  return (
+    input.items?.some(
+      (item) => !item.itemName || !isValidSignedLineItemAmount(item.itemName, item.amountYen),
+    ) ?? false
+  );
+}
+
 function addReason(reasons: Set<AiExpenseDraftReviewReason>, reason: AiExpenseDraftReviewReason) {
   if (AI_EXPENSE_DRAFT_REVIEW_REASONS.includes(reason)) {
     reasons.add(reason);
@@ -231,7 +255,11 @@ export function classifyAiExpenseDraft(input: AiExpenseDraftClassificationInput)
     addReason(reasons, "low_confidence");
   }
 
-  if (hasAmountMismatch(input)) {
+  if (
+    hasAmountMismatch(input) ||
+    hasNonPositiveCategoryTotal(input) ||
+    hasInvalidItemAmount(input)
+  ) {
     addReason(reasons, "amount_mismatch");
   }
 

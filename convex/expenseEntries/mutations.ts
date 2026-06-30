@@ -28,6 +28,9 @@ export async function createExpenseEntriesHandler(
   const now = Date.now();
 
   for (const item of args.items) {
+    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+      throw new ConvexError("Amount must be a positive integer");
+    }
     const category = await ctx.db.get(item.categoryId);
     if (category === null) {
       throw new ConvexError("Category not found");
@@ -108,6 +111,9 @@ export async function createExpenseEntriesFromDraftHandler(
   const createdIds: Id<"expenseEntries">[] = [];
 
   for (const item of args.items) {
+    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+      throw new ConvexError("Amount must be a positive integer");
+    }
     const categoryId = item.categoryId ?? draft.categoryId;
     if (categoryId === undefined) {
       throw new ConvexError("Category ID is required");

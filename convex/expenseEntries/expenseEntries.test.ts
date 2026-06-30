@@ -247,6 +247,20 @@ describe("createExpenseEntriesHandler", () => {
     );
   });
 
+  it("手入力でも0円以下の支出項目は保存しない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: { "cat-food": activeFoodCategory },
+    });
+
+    await expect(
+      createExpenseEntriesHandler(ctx, {
+        date: "2026-06-07",
+        items: [{ categoryId: catFoodId, amountYen: 0, title: "不正な支出" }],
+      }),
+    ).rejects.toThrow("Amount must be a positive integer");
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+
   it("未認証の場合、ConvexError を投げる", async () => {
     const ctx = createMutationCtx(null);
 
