@@ -9,10 +9,12 @@ export function ReceiptRow({
   receipt,
   onDelete,
   onEdit,
+  showCategory = true,
 }: {
   receipt: ReceiptItem;
   onDelete?: (receipt: ReceiptItem) => void;
   onEdit?: (receipt: ReceiptItem) => void;
+  showCategory?: boolean;
 }) {
   const displayName =
     receipt.type === "income" ? (receipt.bankName ?? "不明") : (receipt.shopName ?? "不明");
@@ -40,27 +42,29 @@ export function ReceiptRow({
           </Typography>
         </Stack>
       </Box>
-      <Stack
-        className="receipt-row-category"
-        direction="row"
-        role="cell"
-        spacing={0.75}
-        sx={{ alignItems: "center" }}
-      >
-        <Box
-          aria-hidden
-          sx={{
-            width: 8,
-            height: 8,
-            borderRadius: "50%",
-            backgroundColor: receipt.categoryColor,
-            flexShrink: 0,
-          }}
-        />
-        <Typography color="text.secondary" variant="body2">
-          {receipt.categoryName}
-        </Typography>
-      </Stack>
+      {showCategory && (
+        <Stack
+          className="receipt-row-category"
+          direction="row"
+          role="cell"
+          spacing={0.75}
+          sx={{ alignItems: "center" }}
+        >
+          <Box
+            aria-hidden
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: "50%",
+              backgroundColor: receipt.categoryColor,
+              flexShrink: 0,
+            }}
+          />
+          <Typography color="text.secondary" variant="body2">
+            {receipt.categoryName}
+          </Typography>
+        </Stack>
+      )}
       <Typography className="receipt-row-amount" role="cell" sx={{ fontWeight: 700 }}>
         {receipt.amountYen.toLocaleString()}円
       </Typography>

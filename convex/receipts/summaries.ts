@@ -38,10 +38,53 @@ export const getWeekSummary = query({
   handler: getWeekSummaryHandler,
 });
 
+const incomeListEntryValidator = v.object({
+  _id: v.string(),
+  date: v.string(),
+  type: v.literal("income"),
+  bankName: v.optional(v.string()),
+  amountYen: v.number(),
+  memo: v.optional(v.string()),
+  recordType: v.union(v.literal("expenseEntry"), v.literal("receipt")),
+});
+
+const receiptWithCategoryValidator = v.object({
+  _id: v.string(),
+  date: v.string(),
+  type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
+  shopName: v.optional(v.string()),
+  bankName: v.optional(v.string()),
+  amountYen: v.number(),
+  categoryId: v.string(),
+  categoryName: v.string(),
+  categoryColor: v.string(),
+  memo: v.optional(v.string()),
+  recordType: v.union(v.literal("expenseEntry"), v.literal("receipt")),
+});
+
+const categorySummaryValidator = v.object({
+  categoryId: v.string(),
+  categoryName: v.string(),
+  categoryColor: v.string(),
+  totalAmountYen: v.number(),
+  count: v.number(),
+});
+
 export const getWeekSummaryWithCategories = query({
   args: {
     weekStartDate: v.string(),
   },
+  returns: v.object({
+    count: v.number(),
+    totalAmountYen: v.number(),
+    totalIncomeYen: v.number(),
+    incomeCount: v.number(),
+    byCategory: v.array(categorySummaryValidator),
+    prevWeekReceiptCount: v.number(),
+    prevWeekTotalAmountYen: v.union(v.number(), v.null()),
+    receipts: v.array(receiptWithCategoryValidator),
+    incomes: v.array(incomeListEntryValidator),
+  }),
   handler: getWeekSummaryWithCategoriesHandler,
 });
 

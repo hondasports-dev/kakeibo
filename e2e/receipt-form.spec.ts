@@ -1023,8 +1023,9 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
   });
 
-  test.afterEach(async () => {
-    await cleanupTestReceipts();
+  test.afterEach(async ({ page }) => {
+    await cleanupE2eExpenseEntries({ page });
+    await cleanupTestReceipts({ page });
   });
 
   test("@smoke [Issue #392] 支出タブと収入タブが表示される", async ({ page }) => {
@@ -1067,6 +1068,47 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await expect(page.getByLabel("収入の内容・メモ")).toHaveValue("");
     await expect(alternateDay).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tab", { name: "収入" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("@smoke [Issue #378/#395] 収入保存後にダッシュボードと週次サマリーへ反映される", async ({
+    page,
+  }) => {
+    await cleanupE2eExpenseEntries({ page });
+    const incomeAmount = 77_777;
+    const incomeTitle = `E2E収入_${Date.now()}`;
+    const weekStartDate = getCurrentWeekStartDate();
+
+    await page.getByRole("tab", { name: "収入" }).click();
+    await page.getByLabel("金額").fill(String(incomeAmount));
+    await page.getByLabel("収入の内容・メモ").fill(incomeTitle);
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "収入を保存しました" })).toBeVisible();
+
+    await page.goto("/");
+    await expect(page.locator(".dashboard-summary-panel").getByText("今週の収入")).toBeVisible();
+    await expect
+      .poll(
+        async () => {
+          const block = page.locator(".dashboard-summary-metric").filter({ hasText: "今週の収入" });
+          const text = await block.textContent();
+          const amount = Number(text?.replace(/[^\d]/g, "") ?? 0);
+          return amount >= incomeAmount;
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    await page.goto(`/weeks/${weekStartDate}`);
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+    await expect(page.getByText(incomeTitle)).toBeVisible({ timeout: 15_000 });
+    await expect
+      .poll(async () => {
+        const text = await page.getByLabel("合計収入").textContent();
+        const amount = Number(text?.replace(/[^\d]/g, "") ?? 0);
+        return amount >= incomeAmount;
+      })
+      .toBe(true);
+    await expect(page.getByRole("heading", { name: /収入一覧/ })).toBeVisible();
   });
 
   test("[Issue #392] 種別を切り替えても未保存値を保持する", async ({ page }) => {

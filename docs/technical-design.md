@@ -666,8 +666,8 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 集計は Convex query で行う。
 
-`receipts.type: "income"` はschema互換として残す。新規収入は `expenseEntries.entryType: "income"` へ保存し、
-Issue #378までは支出集計や純支出計算へ含めない。
+`receipts.type: "income"` はschema互換として残す。新規収入は `expenseEntries.entryType: "income"` へ保存する。
+週次サマリーとダッシュボードでは `getWeekIncomeEntries` で収入を別途集計し、支出集計や純支出計算には含めない。
 
 **週別支出推移（対象週を含む直近3週間）:**
 

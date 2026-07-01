@@ -13,6 +13,16 @@ export type SpendingEntry = {
   recordType: "expenseEntry" | "receipt";
 };
 
+export type IncomeListEntry = {
+  _id: string;
+  date: string;
+  type: "income";
+  bankName?: string;
+  amountYen: number;
+  memo?: string;
+  recordType: "expenseEntry" | "receipt";
+};
+
 export function addDays(dateStr: string, days: number): string {
   const date = new Date(dateStr + "T00:00:00Z");
   date.setDate(date.getDate() + days);
@@ -76,6 +86,95 @@ export function mapExpenseEntryToSpendingEntry(expenseEntry: {
     memo: expenseEntry.memo,
     recordType: "expenseEntry",
   };
+}
+
+export function mapIncomeExpenseEntryToListEntry(expenseEntry: {
+  _id: string;
+  date: string;
+  amount: number;
+  title: string;
+  memo?: string;
+}): IncomeListEntry {
+  return {
+    _id: expenseEntry._id,
+    date: expenseEntry.date,
+    type: "income",
+    bankName: expenseEntry.title,
+    amountYen: expenseEntry.amount,
+    memo: expenseEntry.memo,
+    recordType: "expenseEntry",
+  };
+}
+
+export function mapReceiptToIncomeListEntry(receipt: {
+  _id: string;
+  date: string;
+  bankName?: string;
+  amountYen: number;
+  memo?: string;
+}): IncomeListEntry {
+  return {
+    _id: receipt._id,
+    date: receipt.date,
+    type: "income",
+    bankName: receipt.bankName,
+    amountYen: receipt.amountYen,
+    memo: receipt.memo,
+    recordType: "receipt",
+  };
+}
+
+export async function getWeekIncomeEntries(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  weekStartDate: string,
+): Promise<IncomeListEntry[]> {
+  const weekEndDate = addDays(weekStartDate, 6);
+  const expenseEntries: Array<{
+    _id: string;
+    date: string;
+    amount: number;
+    title: string;
+    memo?: string;
+    entryType: "expense" | "income";
+  }> = [];
+  for await (const entry of ctx.db
+    .query("expenseEntries")
+    .withIndex("by_group_id_and_date", (q) =>
+      q.eq("groupId", groupId).gte("date", weekStartDate).lte("date", weekEndDate),
+    )) {
+    expenseEntries.push(entry);
+  }
+
+  const incomeEntriesForWeek = expenseEntries.filter((entry) => entry.entryType === "income");
+  if (incomeEntriesForWeek.length > 0) {
+    return incomeEntriesForWeek.map((entry) => mapIncomeExpenseEntryToListEntry(entry));
+  }
+
+  if (expenseEntries.length > 0) {
+    return [];
+  }
+
+  const receipts: Array<{
+    _id: string;
+    date: string;
+    type?: "expense" | "income";
+    bankName?: string;
+    amountYen: number;
+    memo?: string;
+  }> = [];
+  for await (const receipt of ctx.db
+    .query("receipts")
+    .withIndex("by_group_id_and_week_start_date", (q) =>
+      q.eq("groupId", groupId).eq("weekStartDate", weekStartDate),
+    )
+    .order("desc")) {
+    receipts.push(receipt);
+  }
+
+  return receipts
+    .filter((receipt) => receipt.type === "income")
+    .map((receipt) => mapReceiptToIncomeListEntry(receipt));
 }
 
 export async function getWeekSpendingEntries(

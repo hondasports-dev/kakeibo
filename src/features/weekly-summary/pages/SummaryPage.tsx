@@ -159,9 +159,12 @@ export function SummaryPage() {
         <WeeklySummaryPanel
           count={weeklySummary.count}
           totalAmountYen={weeklySummary.totalAmountYen}
+          totalIncomeYen={weeklySummary.totalIncomeYen}
+          incomeCount={weeklySummary.incomeCount}
           byCategory={weeklySummary.byCategory}
           prevWeekTotalAmountYen={weeklySummary.prevWeekTotalAmountYen ?? null}
           receipts={weeklySummary.receipts}
+          incomes={weeklySummary.incomes}
           isLoading={false}
           weekStartDate={weekStartDate}
           weeklyExpenseTrend={weeklyExpenseTrend}
