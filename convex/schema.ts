@@ -130,7 +130,8 @@ export default defineSchema({
     aiExpenseDraftId: v.optional(v.id("aiExpenseDrafts")),
     date: v.string(),
     amount: v.number(),
-    categoryId: v.id("categories"),
+    // 支出では必須。収入はカテゴリを作らず entryType で区別するため未設定。
+    categoryId: v.optional(v.id("categories")),
     title: v.string(),
     memo: v.optional(v.string()),
     entryType: v.union(v.literal("expense"), v.literal("income")),

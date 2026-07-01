@@ -24,6 +24,46 @@ type CreateExpenseEntriesArgs = {
   items: ExpenseEntryItemArg[];
 };
 
+type CreateIncomeEntryArgs = {
+  date: string;
+  amountYen: number;
+  title: string;
+};
+
+export async function createIncomeEntryHandler(
+  ctx: Pick<MutationCtx, "auth" | "db">,
+  args: CreateIncomeEntryArgs,
+): Promise<Id<"expenseEntries">> {
+  const { groupId } = await requireGroupMembership(ctx);
+  if (!args.date.trim() || !isValidIsoDateString(args.date)) {
+    throw new ConvexError("Date must be a valid YYYY-MM-DD value");
+  }
+  if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
+    throw new ConvexError("Amount must be a positive integer");
+  }
+  const title = args.title.trim();
+  if (!title) {
+    throw new ConvexError("Income description is required");
+  }
+  const now = Date.now();
+  return await ctx.db.insert("expenseEntries", {
+    groupId,
+    date: args.date,
+    amount: args.amountYen,
+    title,
+    entryType: "income",
+    source: "manual",
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+export const createIncomeEntry = mutation({
+  args: { date: v.string(), amountYen: v.number(), title: v.string() },
+  returns: v.id("expenseEntries"),
+  handler: createIncomeEntryHandler,
+});
+
 export async function createExpenseEntriesHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateExpenseEntriesArgs,

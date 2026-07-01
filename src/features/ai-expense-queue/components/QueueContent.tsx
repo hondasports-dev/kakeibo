@@ -10,6 +10,13 @@ import type { useAiExpenseQueuePanel } from "../hooks/useAiExpenseQueuePanel";
 
 const amountFormatter = new Intl.NumberFormat("ja-JP");
 
+function reviewPriority(item: AiExpenseQueueItem) {
+  const reasons = item.reviewReasons ?? [];
+  if (reasons.includes("amount_mismatch") || (item.itemDifferenceYen ?? 0) !== 0) return 0;
+  if (reasons.includes("ambiguous_category") || item.hasUncategorizedItems) return 1;
+  return 2;
+}
+
 export function QueueContent({
   clearableCount,
   deletingIds,
@@ -46,8 +53,11 @@ export function QueueContent({
   const needsReviewCount = groupedItems.needs_review.length;
   const processingCount = groupedItems.processing.length;
   const failedCount = groupedItems.failed.length;
-  const firstReviewItem = groupedItems.needs_review[0];
   const selectedReadyItems = readyItems.filter((item) => selectedReadyIds.includes(item.id));
+  const prioritizedReviewItems = [...groupedItems.needs_review].sort(
+    (left, right) => reviewPriority(left) - reviewPriority(right),
+  );
+  const firstReviewItem = prioritizedReviewItems[0];
   const selectedTotalAmountYen = selectedReadyItems.reduce(
     (total, item) => total + (item.amountYen ?? 0),
     0,
@@ -67,7 +77,7 @@ export function QueueContent({
   };
 
   return (
-    <Stack spacing={2}>
+    <Stack className="queue-content" spacing={2}>
       {registrationError && (
         <Alert severity="error" variant="outlined">
           {registrationError}
@@ -193,7 +203,7 @@ export function QueueContent({
       />
       <QueueSection
         sectionKey="needs_review"
-        items={groupedItems.needs_review}
+        items={prioritizedReviewItems}
         selectedReadyIds={selectedReadyIds}
         onOpenReview={onOpenReview}
         onRegisterItem={(itemId) => void onRegisterReady([itemId])}

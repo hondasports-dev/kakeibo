@@ -63,6 +63,8 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expect(page).toHaveURL("/weeks/current/input");
 
     await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible();
+    await expect(page.getByRole("tab", { name: "支出" })).toHaveAttribute("aria-selected", "true");
+    await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
     const queueSection = page.locator("section.ai-expense-queue");
     const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
@@ -91,6 +93,11 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expectLocatorInsideViewport(categoryList);
     await expectLocatorInsideViewport(saveButton);
     await expectLocatorLeftInsideViewport(saveButton);
+
+    await page.getByRole("tab", { name: "収入" }).click();
+    await expect(page.getByLabel("金額")).toBeVisible();
+    await expect(page.getByLabel("収入の内容・メモ")).toBeVisible();
+    await expectNoHorizontalOverflow(page);
   });
 
   test("@smoke シナリオR-4b: 406px viewport でキュー有データ時も主要要素が viewport 内に収まる", async ({
@@ -104,7 +111,7 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     const statusSummary = page.locator(".ai-expense-queue-status-summary");
     const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
     const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
-    const failedChip = queueSection.getByText("失敗 1件");
+    const failedChip = queueSection.getByText("未取込 1件");
 
     await expect(queueSection).toBeVisible();
     await expect(statusSummary).toBeVisible();

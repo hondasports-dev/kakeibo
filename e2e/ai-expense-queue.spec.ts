@@ -179,7 +179,7 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
     await expect(queue).toBeVisible();
     await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
     await expect(queue.getByText("確認が必要 1件")).toBeVisible();
-    await expect(queue.getByText("失敗 1件")).toBeVisible();
+    await expect(queue.getByText("未取込 1件")).toBeVisible();
 
     const reviewSection = queue.getByRole("region", { name: "確認が必要" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
@@ -187,7 +187,7 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
     await expect(reviewSection.getByText("必須項目不足")).toBeVisible();
     await expect(reviewSection.getByRole("button", { name: "確認する" })).toBeEnabled();
 
-    const failedSection = queue.getByRole("region", { name: "失敗" });
+    const failedSection = queue.getByRole("region", { name: "未取込" });
     await expect(failedSection.getByText("failed-receipt.png")).toBeVisible();
     await expect(failedSection.getByText("解析失敗")).toBeVisible();
   });
@@ -363,7 +363,7 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     await expect(statusSummary).toBeVisible();
     await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
     await expect(queue.getByText("確認が必要 1件")).toBeVisible();
-    await expect(queue.getByText("失敗 1件")).toBeVisible();
+    await expect(queue.getByText("未取込 1件")).toBeVisible();
     await expect(queue.getByRole("button", { name: "レシートを追加" })).toBeVisible();
     await expect(queue.getByText("撮影して、あとでまとめて確認できます。")).toHaveCount(0);
 
@@ -374,7 +374,7 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
       queue.getByRole("region", { name: "登録準備OK" }).getByRole("button", { name: "登録する" }),
     ).toBeVisible();
     await expect(
-      queue.getByRole("region", { name: "失敗" }).getByRole("button", { name: "再試行" }),
+      queue.getByRole("region", { name: "未取込" }).getByRole("button", { name: "再試行" }),
     ).toBeVisible();
 
     await page.waitForTimeout(400);

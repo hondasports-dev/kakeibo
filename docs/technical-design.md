@@ -388,7 +388,7 @@ active record が確認できない場合は fail closed にする。
 | shopName      | string (optional) | 店名。支出で使う               |
 | bankName      | string (optional) | 銀行名。収入で使う             |
 | amountYen     | number            | 金額。日本円の整数             |
-| categoryId    | Id<"categories">  | カテゴリID                     |
+| categoryId    | Id<"categories"> (optional) | 支出のカテゴリID。収入では未設定 |
 | memo          | string (optional) | 任意メモ                       |
 | weekStartDate | string            | 所属週の開始日。`YYYY-MM-DD`   |
 | createdAt     | number            | 作成日時                       |
@@ -533,8 +533,8 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `receipts.summaries.getMonthlyExpensesSummary(month?)`
 - `receipts.crud.deleteReceiptsByUser(groupId)`（internal）
 
-`receipts` は支出と収入の両方を扱う schema 互換として残る。支出では `shopName`、収入では `bankName` を保存し、
-`type` 未設定の既存データは支出として扱う。収入入力 UI は廃止済み。
+`receipts` は支出と収入の両方を扱う schema 互換として残る。新規手入力は `expenseEntries` を正本とし、
+収入は `entryType: "income"`、カテゴリなし、入力内容を `title` に保存する。
 
 集計は `receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を統合する。
 
@@ -666,8 +666,8 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 集計は Convex query で行う。
 
-`receipts.type: "income"` の入出金表示は schema 互換として残るが、収入入力 UI は廃止済みであり、
-収入を差し引いた純支出計算にはしていない。
+`receipts.type: "income"` はschema互換として残す。新規収入は `expenseEntries.entryType: "income"` へ保存し、
+Issue #378までは支出集計や純支出計算へ含めない。
 
 **週別支出推移（対象週を含む直近3週間）:**
 
