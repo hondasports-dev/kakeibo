@@ -60,6 +60,7 @@ const reviewReasonLabels: Record<string, string> = {
   missing_required_field: "必須項目不足",
   ambiguous_document_type: "書類種別要確認",
   ambiguous_category: "未分類あり",
+  multiple_categories: "複数カテゴリの確認",
   amount_mismatch: "金額不一致",
   parse_failed: "解析失敗",
 };

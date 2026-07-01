@@ -43,6 +43,7 @@ type DraftDoc = {
     | "missing_required_field"
     | "ambiguous_document_type"
     | "ambiguous_category"
+    | "multiple_categories"
     | "amount_mismatch"
     | "parse_failed"
   >;

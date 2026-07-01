@@ -18,6 +18,7 @@ type AiExpenseDraftClassificationInput = {
   categoryId?: unknown;
   confidence: AiExpenseDraftConfidence;
   warnings: string[];
+  multiCategoryConfirmed?: boolean;
   items?: Array<{
     itemName?: string;
     amountYen: number;
@@ -116,6 +117,13 @@ function hasNonPositiveCategoryTotal(input: AiExpenseDraftClassificationInput) {
   return [...totals.values()].some((amountYen) => amountYen <= 0);
 }
 
+function hasMultipleItemCategories(input: AiExpenseDraftClassificationInput) {
+  const categoryIds = new Set(
+    input.items?.flatMap((item) => (item.categoryId === undefined ? [] : [item.categoryId])) ?? [],
+  );
+  return categoryIds.size > 1;
+}
+
 function hasInvalidItemAmount(input: AiExpenseDraftClassificationInput) {
   return (
     input.items?.some(
@@ -151,6 +159,10 @@ export function classifyAiExpenseDraft(input: AiExpenseDraftClassificationInput)
 
   if (input.categoryId === undefined || hasAmbiguousItemCategory(input)) {
     addReason(reasons, "ambiguous_category");
+  }
+
+  if (!input.multiCategoryConfirmed && hasMultipleItemCategories(input)) {
+    addReason(reasons, "multiple_categories");
   }
 
   if (
