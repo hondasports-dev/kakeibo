@@ -26,6 +26,7 @@ describe("AI expense draft model", () => {
       "ambiguous_document_type",
       "ambiguous_category",
       "multiple_categories",
+      "user_confirmation_required",
       "amount_mismatch",
       "parse_failed",
     ]);

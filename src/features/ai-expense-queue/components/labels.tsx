@@ -61,6 +61,7 @@ const reviewReasonLabels: Record<string, string> = {
   ambiguous_document_type: "書類種別要確認",
   ambiguous_category: "未分類あり",
   multiple_categories: "複数カテゴリの確認",
+  user_confirmation_required: "内容確認が必要",
   amount_mismatch: "金額不一致",
   parse_failed: "解析失敗",
 };

@@ -11,6 +11,17 @@ describe("getReviewFormError", () => {
         amountYen: "9120",
         categoryId: "cat-daily",
       }),
-    ).toBe("店名・内容、日付、金額、カテゴリを確認してください。");
+    ).toBe("店名・内容、支出日、金額、カテゴリを確認してください。");
+  });
+
+  it("存在しない支出日やYYYY-MM-DD以外の日付を拒否する", () => {
+    const base = {
+      documentType: "receipt" as const,
+      shopName: "スーパー青葉",
+      amountYen: "9120",
+      categoryId: "cat-daily",
+    };
+    expect(getReviewFormError({ ...base, date: "2026-02-30" })).not.toBeNull();
+    expect(getReviewFormError({ ...base, date: "2026/06/01" })).not.toBeNull();
   });
 });

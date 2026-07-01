@@ -47,7 +47,7 @@ export function ReviewFormFields({
 
       <TextField
         fullWidth
-        label="日付"
+        label="支出日（レシート記載日）"
         onChange={(event) => onFieldChange("date", event.target.value)}
         slotProps={{ inputLabel: { shrink: true } }}
         type="date"
