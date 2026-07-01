@@ -458,6 +458,10 @@ active record が確認できない場合は fail closed にする。
 `unknown` の書類種別、カテゴリ未確定、AI警告、主要フィールドの低信頼度、下書き金額と明細合計の
 不一致がある場合も `needs_review` とし、該当する `reviewReasons` を保存する。
 
+画像解析では所属グループの有効カテゴリ名を先に取得し、OpenAIのプロンプトへ命令ではなくJSONデータとして渡す。
+構造化出力の `categoryName` は空文字列または有効カテゴリ名の動的 enum に制限し、下書き全体と各明細で
+アプリのカテゴリ名へ完全一致させる。返却後は従来どおりサーバー側で `categoryId` を解決する。
+
 ### 8.6 aiExpenseDraftItems
 
 明細行は親ドキュメントの配列にせず、`aiExpenseDraftItems` として別テーブル化する。

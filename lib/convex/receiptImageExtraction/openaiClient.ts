@@ -10,8 +10,9 @@ import { parseOpenAIResponse } from "./parseExtraction";
 export async function callOpenAIReceiptExtractor({
   imageDataUrl,
   apiKey,
+  categoryNames = [],
 }: OpenAIReceiptExtractorArgs): Promise<ExtractReceiptFieldsResult> {
-  const requestBody = buildOpenAIReceiptExtractionRequestBody(imageDataUrl);
+  const requestBody = buildOpenAIReceiptExtractionRequestBody(imageDataUrl, categoryNames);
 
   let response: Response;
   try {

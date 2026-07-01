@@ -1,7 +1,9 @@
 import type { ActionCtx } from "../_generated/server";
+import type { Doc } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { requireAuthenticatedUserId } from "../users/auth";
+import { api } from "../_generated/api";
 import { getMockResult } from "../../lib/convex/receiptImageExtraction/mock";
 import { getExtractorMode } from "../../lib/convex/receiptImageExtraction/mode";
 import { callOpenAIReceiptExtractor } from "../../lib/convex/receiptImageExtraction/openaiClient";
@@ -29,7 +31,7 @@ export async function extractReceiptFieldsHandler(
   ctx: ActionCtx,
   args: ExtractReceiptFieldsArgs,
 ): Promise<ExtractReceiptFieldsResult> {
-  // 認証チェック（画像解析はグループメンバーシップ不要、認証のみ確認）
+  // 解析処理自体は認証のみ確認する。公開 action 側で所属グループの有効カテゴリを解決する。
   await requireAuthenticatedUserId(ctx);
 
   const { imageDataUrl } = args;
@@ -60,14 +62,25 @@ export async function extractReceiptFieldsHandler(
     );
   }
 
-  return callOpenAIReceiptExtractor({ imageDataUrl, apiKey });
+  return callOpenAIReceiptExtractor({
+    imageDataUrl,
+    apiKey,
+    categoryNames: args.categoryNames ?? [],
+  });
 }
 
 export const extractReceiptFields = action({
   args: {
     imageDataUrl: v.string(),
   },
-  handler: async (ctx, args) => {
-    return extractReceiptFieldsHandler(ctx, args);
+  handler: async (ctx, args): Promise<ExtractReceiptFieldsResult> => {
+    const categories: Doc<"categories">[] = await ctx.runQuery(
+      api.categories.queries.listActive,
+      {},
+    );
+    return extractReceiptFieldsHandler(ctx, {
+      ...args,
+      categoryNames: categories.map((category) => category.name),
+    });
   },
 });

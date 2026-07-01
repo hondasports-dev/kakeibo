@@ -1453,7 +1453,7 @@ describe("aiExpenseDrafts", () => {
                     paymentPurpose: "",
                     date: "2026-06-21",
                     amountYen: 1130,
-                    categoryName: "日用品",
+                    categoryName: "食費",
                     items: [
                       {
                         itemName: "パン",
@@ -1513,6 +1513,20 @@ describe("aiExpenseDrafts", () => {
           await analyzeReceiptImageToDraftHandler(ctx, {
             imageDataUrl: "data:image/jpeg;base64,AAA",
           });
+          const requestBody = JSON.parse(String(extractionSpy.mock.calls[0]?.[1]?.body)) as {
+            text: {
+              format: {
+                schema: {
+                  properties: {
+                    items: { items: { properties: { categoryName: { enum: string[] } } } };
+                  };
+                };
+              };
+            };
+          };
+          expect(
+            requestBody.text.format.schema.properties.items.items.properties.categoryName.enum,
+          ).toEqual(["", "食費", "医療費"]);
         },
       );
     } finally {

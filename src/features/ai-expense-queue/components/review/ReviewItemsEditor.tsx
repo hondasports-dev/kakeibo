@@ -292,6 +292,20 @@ export function ReviewItemsEditor({
                         </MenuItem>
                       ))}
                     </TextField>
+                  ) : isCategorySplit ? (
+                    <TextField
+                      fullWidth
+                      label="明細カテゴリ"
+                      onChange={(event) => onAssignCategoryToItems([item.id], event.target.value)}
+                      select
+                      value={item.categoryId}
+                    >
+                      {categories.map((category) => (
+                        <MenuItem key={category._id} value={category._id}>
+                          {category.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   ) : (
                     <Typography color="text.secondary" variant="body2">
                       {item.usesReceiptCategory
