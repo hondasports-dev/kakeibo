@@ -456,7 +456,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(screen.getByText("解析中 0件")).toBeInTheDocument();
     expect(screen.getByText("登録準備OK 2件")).toBeInTheDocument();
     expect(screen.getByText("確認が必要 1件")).toBeInTheDocument();
-    expect(screen.getByText("失敗 1件")).toBeInTheDocument();
+    expect(screen.getByText("未取込 1件")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "下書きを確認（1件）" })).toBeEnabled();
 
     const readySection = screen.getByRole("region", { name: "登録準備OK" });
@@ -476,7 +476,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(reviewSection).getByText("必須項目不足")).toBeInTheDocument();
     expect(within(reviewSection).getByRole("button", { name: "確認する" })).toBeEnabled();
 
-    const failedSection = screen.getByRole("region", { name: "失敗" });
+    const failedSection = screen.getByRole("region", { name: "未取込" });
     expect(within(failedSection).getByText("failed-receipt.png")).toBeInTheDocument();
     expect(within(failedSection).getByText("解析失敗")).toBeInTheDocument();
     expect(within(failedSection).getByRole("button", { name: "手入力へ戻る" })).toBeEnabled();

@@ -57,11 +57,14 @@ export function mapExpenseEntryToSpendingEntry(expenseEntry: {
   _id: string;
   date: string;
   amount: number;
-  categoryId: string;
+  categoryId?: string;
   title: string;
   memo?: string;
   entryType: "expense" | "income";
 }): SpendingEntry {
+  if (!expenseEntry.categoryId) {
+    throw new Error("Expense entry category is required for spending aggregation");
+  }
   return {
     _id: expenseEntry._id,
     date: expenseEntry.date,
@@ -85,7 +88,7 @@ export async function getWeekSpendingEntries(
     _id: string;
     date: string;
     amount: number;
-    categoryId: string;
+    categoryId?: string;
     title: string;
     memo?: string;
     entryType: "expense" | "income";
@@ -131,7 +134,7 @@ export async function getDateSpendingEntries(ctx: QueryCtx, groupId: Id<"groups"
     _id: string;
     date: string;
     amount: number;
-    categoryId: string;
+    categoryId?: string;
     title: string;
     memo?: string;
     entryType: "expense" | "income";
@@ -176,7 +179,7 @@ export async function getMonthSpendingEntries(
     _id: string;
     date: string;
     amount: number;
-    categoryId: string;
+    categoryId?: string;
     title: string;
     memo?: string;
     entryType: "expense" | "income";

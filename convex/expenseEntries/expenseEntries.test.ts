@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import {
+  createIncomeEntryHandler,
   createExpenseEntriesFromDraftHandler,
   createExpenseEntriesHandler,
   deleteExpenseEntryHandler,
@@ -347,6 +348,55 @@ describe("createExpenseEntriesHandler", () => {
       "expenseEntries",
       expect.objectContaining({ sourceDocumentId: "source-doc-1" }),
     );
+  });
+});
+
+describe("createIncomeEntryHandler", () => {
+  it("カテゴリなしの収入を income として保存できる", async () => {
+    const ctx = createMutationCtx(createIdentity());
+
+    await createIncomeEntryHandler(ctx, {
+      date: "2026-06-07",
+      amountYen: 320000,
+      title: "給与",
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "expenseEntries",
+      expect.objectContaining({
+        date: "2026-06-07",
+        amount: 320000,
+        title: "給与",
+        entryType: "income",
+        source: "manual",
+      }),
+    );
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "expenseEntries",
+      expect.not.objectContaining({ categoryId: expect.anything() }),
+    );
+  });
+
+  it("未認証の場合は保存しない", async () => {
+    const ctx = createMutationCtx(null);
+    await expect(
+      createIncomeEntryHandler(ctx, {
+        date: "2026-06-07",
+        amountYen: 320000,
+        title: "給与",
+      }),
+    ).rejects.toThrow(ConvexError);
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [{ date: "", amountYen: 1000, title: "給与" }, "Date must be a valid YYYY-MM-DD value"],
+    [{ date: "2026-06-07", amountYen: 0, title: "給与" }, "Amount must be a positive integer"],
+    [{ date: "2026-06-07", amountYen: 1000, title: "   " }, "Income description is required"],
+  ])("不正な収入は保存しない", async (args, message) => {
+    const ctx = createMutationCtx(createIdentity());
+    await expect(createIncomeEntryHandler(ctx, args)).rejects.toThrow(message);
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 });
 

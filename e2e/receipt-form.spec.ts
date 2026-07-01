@@ -1027,47 +1027,46 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await cleanupTestReceipts();
   });
 
-  // Issue #181: ExpenseEntryForm は支出専用で収入タブは廃止。関連テストをスキップ
-  test.skip("@smoke [Issue #77] 支出タブと収入タブが表示される (Issue #181で廃止)", async ({
-    page,
-  }) => {
+  test("@smoke [Issue #392] 支出タブと収入タブが表示される", async ({ page }) => {
     await expect(page.getByRole("tab", { name: "支出" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
     await expect(page.getByRole("tab", { name: "支出" })).toHaveAttribute("aria-selected", "true");
   });
 
   test("@smoke [Issue #77] 支出フォームに店名フィールドが表示される", async ({ page }) => {
-    // Issue #181: ExpenseEntryForm では収入タブなし。支出フォームのみ確認
     await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
     await expect(page.getByLabel("合計金額")).toBeVisible();
   });
 
-  test.skip("@smoke [Issue #77] 収入タブに切り替えると銀行名フィールドが表示される (Issue #181で廃止)", async ({
-    page,
-  }) => {
+  test("@smoke [Issue #392] 収入タブでは支出専用項目と画像操作を表示しない", async ({ page }) => {
     await page.getByRole("tab", { name: "収入" }).click();
     await expect(page.getByRole("tab", { name: "収入" })).toHaveAttribute("aria-selected", "true");
-    await expect(page.locator('input[name="bankName"]')).toBeVisible();
-    await expect(page.locator('input[name="shopName"]')).not.toBeVisible();
+    await expect(page.getByLabel("金額")).toBeVisible();
+    await expect(page.getByLabel("収入の内容・メモ")).toBeVisible();
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "レシートを追加" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "カテゴリ別の内訳を追加" })).toHaveCount(0);
   });
 
-  test.skip("[Issue #77] 収入: 銀行名・金額・カテゴリを入力して保存できる (Issue #181で廃止)", async ({
-    page,
-  }) => {
+  test("[Issue #392] 収入を日付・金額・内容で保存できる", async ({ page }) => {
     await page.getByRole("tab", { name: "収入" }).click();
-    await expect(page.locator('input[name="bankName"]')).toBeVisible();
-
-    const bankName = `QA銀行_${Date.now()}`;
-    await page.locator('input[name="bankName"]').fill(bankName);
-    await page.locator('input[name="amountYen"]').fill("50000");
-    await page
-      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
-      .first()
-      .click();
+    await page.getByLabel("金額").fill("50000");
+    await page.getByLabel("収入の内容・メモ").fill(`立替精算_${Date.now()}`);
     await page.getByRole("button", { name: "保存して次へ" }).click();
 
-    await expect(page.locator('input[name="bankName"]')).toHaveValue("", { timeout: 10_000 });
+    await expect(page.getByLabel("金額")).toHaveValue("", { timeout: 10_000 });
+    await expect(page.getByLabel("収入の内容・メモ")).toHaveValue("");
     await expect(page.getByRole("tab", { name: "収入" })).toHaveAttribute("aria-selected", "true");
+  });
+
+  test("[Issue #392] 種別を切り替えても未保存値を保持する", async ({ page }) => {
+    await page.getByLabel("店舗名 / 支払先").fill("スーパー北浜");
+    await page.getByRole("tab", { name: "収入" }).click();
+    await page.getByLabel("収入の内容・メモ").fill("賞与");
+    await page.getByRole("tab", { name: "支出" }).click();
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("スーパー北浜");
+    await page.getByRole("tab", { name: "収入" }).click();
+    await expect(page.getByLabel("収入の内容・メモ")).toHaveValue("賞与");
   });
 
   test("@smoke [Issue #77] 週ナビゲーターが表示される", async ({ page }) => {

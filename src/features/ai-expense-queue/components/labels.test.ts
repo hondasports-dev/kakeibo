@@ -14,5 +14,6 @@ describe("queue display status labels", () => {
     expect(getSectionKey("registering")).toBe("ready");
     expect(displayStatusLabels.processing).toBe("解析中");
     expect(displayStatusLabels.ready).toBe("登録準備OK");
+    expect(displayStatusLabels.failed).toBe("未取込");
   });
 });

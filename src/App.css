@@ -422,6 +422,65 @@
   background: var(--color-surface-panel);
 }
 
+.input-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(340px, 1fr);
+  grid-template-areas: "form queue";
+  gap: var(--space-lg);
+  align-items: start;
+}
+
+.input-workbench--income {
+  grid-template-columns: minmax(0, 640px);
+}
+
+.input-workbench-form {
+  grid-area: form;
+  min-width: 0;
+}
+
+.input-workbench-queue {
+  grid-area: queue;
+  min-width: 0;
+}
+
+@media (max-width: 899px) {
+  .input-workbench,
+  .input-workbench--income {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .input-workbench-queue,
+  .input-workbench-queue > .ai-expense-queue,
+  .input-workbench-queue .queue-panel-content,
+  .input-workbench-queue .queue-content {
+    display: contents;
+  }
+
+  .input-workbench-queue .queue-panel-content > *,
+  .input-workbench-queue .queue-content > * {
+    order: 2;
+  }
+
+  .queue-header {
+    order: 1;
+  }
+
+  .input-workbench-form {
+    order: 3;
+  }
+
+  .queue-section-registered {
+    order: 4;
+  }
+
+  .input-workbench .MuiButton-root,
+  .input-workbench .MuiInputBase-root {
+    min-height: 44px;
+  }
+}
+
 .ai-expense-queue-status-summary {
   display: flex;
   flex-wrap: wrap;

@@ -30,7 +30,7 @@ export function AiExpenseQueuePanel({
       className="ai-expense-queue"
       component="section"
     >
-      <Stack spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
+      <Stack className="queue-panel-content" spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
         <QueueHeader
           disabled={queue.consentIsLoading}
           inputRef={queue.inputRef}

@@ -35,7 +35,12 @@ export async function expectLocatorInsideContainer(locator: Locator, container: 
           return { right: rect.right };
         });
         const containerRect = await container.evaluate((target) => {
-          const rect = target.getBoundingClientRect();
+          let box: Element | null = target;
+          let rect = box.getBoundingClientRect();
+          while (box.parentElement && rect.width === 0 && rect.height === 0) {
+            box = box.parentElement;
+            rect = box.getBoundingClientRect();
+          }
           return { right: rect.right };
         });
         return Math.ceil(targetRect.right - containerRect.right);

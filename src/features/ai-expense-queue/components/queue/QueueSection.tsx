@@ -1,4 +1,5 @@
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { useState } from "react";
+import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import { queueSectionDescriptions, queueSectionLabels } from "../labels";
 import type { AiExpenseQueueItem, QueueSectionKey } from "../../types/types";
 import { QueueItemCard } from "./QueueItemCard";
@@ -28,15 +29,19 @@ export function QueueSection({
   deletingIds: string[];
   registeringIds: string[];
 }) {
+  const [expanded, setExpanded] = useState(false);
   if (items.length === 0) {
     return null;
   }
 
   const label = queueSectionLabels[sectionKey];
   const description = queueSectionDescriptions[sectionKey];
+  const isCollapsible = sectionKey === "needs_review" || sectionKey === "registered";
+  const visibleItems = isCollapsible && !expanded ? items.slice(0, 3) : items;
+  const remainingCount = items.length - visibleItems.length;
 
   return (
-    <Box aria-label={label} role="region">
+    <Box aria-label={label} className={`queue-section queue-section-${sectionKey}`} role="region">
       <Stack spacing={1}>
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
           <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
@@ -50,7 +55,7 @@ export function QueueSection({
           </Typography>
         )}
         <Stack spacing={1}>
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <QueueItemCard
               isSelected={selectedReadyIds.includes(item.id)}
               item={item}
@@ -66,6 +71,13 @@ export function QueueSection({
             />
           ))}
         </Stack>
+        {remainingCount > 0 && (
+          <Button onClick={() => setExpanded(true)} type="button" variant="text">
+            {sectionKey === "needs_review"
+              ? `残り${remainingCount}件を確認`
+              : `残り${remainingCount}件を見る`}
+          </Button>
+        )}
       </Stack>
     </Box>
   );
