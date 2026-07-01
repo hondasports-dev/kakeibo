@@ -787,9 +787,15 @@ describe("AiExpenseQueuePanel", () => {
     expect(
       within(dialog).getByText("レシート合計と明細合計に差額があります。"),
     ).toBeInTheDocument();
-    expect(within(dialog).getByText("個別カテゴリ: 食費")).toBeInTheDocument();
-    expect(within(dialog).getByText("レシート全体のカテゴリを使用")).toBeInTheDocument();
     expect(within(dialog).getByText("低信頼度")).toBeInTheDocument();
+    const initialCategoryInputs = within(dialog).getAllByLabelText("明細カテゴリ");
+    expect(initialCategoryInputs).toHaveLength(2);
+    expect(initialCategoryInputs[0]).toHaveTextContent("食費");
+    expect(initialCategoryInputs[1]).toHaveTextContent("日用品");
+
+    await user.click(initialCategoryInputs[0]);
+    await user.click(screen.getByRole("option", { name: "日用品" }));
+    expect(within(dialog).getAllByLabelText("明細カテゴリ")[0]).toHaveTextContent("日用品");
 
     await user.clear(within(dialog).getByDisplayValue("150"));
     await user.type(within(dialog).getAllByLabelText("金額")[0], "400");

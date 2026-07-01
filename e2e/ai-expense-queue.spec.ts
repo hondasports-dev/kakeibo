@@ -270,9 +270,13 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await dialog.getByRole("button", { name: "内訳を変更" }).click();
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
     await expect(dialog.getByText("明細合計 1,100円 / 差額 8,020円")).toBeVisible();
-    await expect(dialog.getByText("個別カテゴリ: 食費")).toBeVisible();
-    await expect(dialog.getByText("レシート全体のカテゴリを使用")).toBeVisible();
     await expect(dialog.getByText("低信頼度").first()).toBeVisible();
+    await expect(dialog.getByLabel("明細カテゴリ")).toHaveCount(2);
+    await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toContainText("食費");
+    await expect(dialog.getByLabel("明細カテゴリ").nth(1)).toContainText("水道光熱費");
+    await dialog.getByLabel("明細カテゴリ").nth(0).click();
+    await page.getByRole("option", { name: "水道光熱費" }).click();
+    await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toContainText("水道光熱費");
 
     await dialog.getByLabel("金額", { exact: true }).first().fill("400");
     await dialog.getByRole("button", { name: "胃薬を削除" }).click();
