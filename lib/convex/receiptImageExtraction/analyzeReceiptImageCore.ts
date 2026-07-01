@@ -34,9 +34,10 @@ export async function analyzeReceiptImageToDraftCore(
   ctx: ActionCtx,
   args: AnalyzeReceiptImageCoreArgs,
 ): Promise<Doc<"aiExpenseDrafts">> {
-  const categories: Doc<"categories">[] = await ctx.runQuery(api.categories.queries.listActive, {});
+  let categories: Doc<"categories">[];
   let extracted;
   try {
+    categories = await ctx.runQuery(api.categories.queries.listActive, {});
     extracted = await extractReceiptFieldsHandler(ctx, {
       imageDataUrl: args.imageDataUrl,
       categoryNames: categories.map((category) => category.name),

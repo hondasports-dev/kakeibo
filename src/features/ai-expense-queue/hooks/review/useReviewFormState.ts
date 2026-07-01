@@ -93,10 +93,21 @@ export function useReviewFormState({
     field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
     value: string,
   ) => {
-    setReviewItems((current) =>
-      current.map((item) => {
+    setReviewItems((current) => {
+      const targetItem = current.find((item) => item.id === itemId);
+      if (field === "categoryId" && targetItem && !isDiscountItemName(targetItem.itemName)) {
+        return assignCategoryToItems(current, [itemId], value);
+      }
+      return current.map((item) => {
         if (item.id !== itemId) {
           return item;
+        }
+        if (field === "categoryId") {
+          return {
+            ...item,
+            categoryId: value,
+            discountTargetItemId: undefined,
+          };
         }
         if (field !== "itemName") {
           return { ...item, [field]: value };
@@ -122,8 +133,8 @@ export function useReviewFormState({
           };
         }
         return { ...item, itemName: value };
-      }),
-    );
+      });
+    });
   };
 
   const handleAddReviewItem = () => {

@@ -12,6 +12,8 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(prompt).toContain("直前または近接する商品");
     expect(prompt).toContain("対象商品と同じ categoryName");
     expect(prompt).toContain("推測でカテゴリを設定せず");
+    expect(prompt).toContain("categoryName を空文字列");
+    expect(prompt).toContain("warnings に理由");
   });
 
   it("有効カテゴリをデータとしてプロンプトへ渡しcategoryNameを動的enumに制限する", () => {
