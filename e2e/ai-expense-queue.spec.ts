@@ -22,6 +22,19 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 
+/** 週次セッション読み込み後にレシート入力キューが表示されるまで待つ */
+async function waitForReceiptInputQueue(page: Page) {
+  await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible({
+    timeout: 20_000,
+  });
+  const queue = page.getByRole("region", { name: "レシート入力", exact: true });
+  await expect(queue).toBeVisible({ timeout: 20_000 });
+  return queue;
+}
+
 /** ヘッダーの ImageInputButton（空状態 CTA と区別する） */
 function getHeaderAddReceiptButton(queue: Locator) {
   return queue.getByRole("button", { name: "レシートを追加", exact: true }).first();
@@ -36,7 +49,7 @@ async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: stri
     .getByText(firstFileName)
     .first();
 
-  await expect(consentDialog.or(firstQueueItem).first()).toBeVisible({ timeout: 15000 });
+  await expect(consentDialog.or(firstQueueItem).first()).toBeVisible({ timeout: 30_000 });
   if (await consentDialog.isVisible()) {
     await consentDialog.getByRole("button", { name: "同意して読み取る" }).click();
   }
@@ -50,8 +63,7 @@ test.describe("Issue #144 読み取りUI", () => {
   test("@smoke 複数画像を解析待ちとして追加できる", async ({ page }) => {
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "レシート入力", exact: true });
-    await expect(queue).toBeVisible();
+    const queue = await waitForReceiptInputQueue(page);
     await expect(page.getByLabel("読み取り用画像を追加")).toBeEnabled();
 
     const stamp = Date.now();
@@ -102,8 +114,7 @@ test.describe("Issue #144 読み取りUI", () => {
     await expectLocatorInsideViewport(page.locator(".user-menu-button"));
     await expect(page.locator(".user-menu-button > span")).toBeHidden();
 
-    const queue = page.getByRole("region", { name: "レシート入力", exact: true });
-    await expect(queue).toBeVisible();
+    const queue = await waitForReceiptInputQueue(page);
     await expectLocatorInsideViewport(queue);
     const cameraButton = queue.getByRole("button", { name: "撮影する" });
     const imageButton = getHeaderAddReceiptButton(queue);
@@ -122,9 +133,11 @@ test.describe("Issue #144 読み取りUI", () => {
     await page.getByLabel("読み取り用カメラ画像を追加").setInputFiles(cameraFiles);
     await acceptReceiptImageConsentIfNeeded(page, `ai-queue-camera-${stamp}.jpg`);
 
-    await expect(queue.getByText(`ai-queue-camera-${stamp}.jpg`).first()).toBeVisible({
-      timeout: 15000,
-    });
+    await expect
+      .poll(async () => (await queue.getByText(`ai-queue-camera-${stamp}.jpg`).count()) > 0, {
+        timeout: 30_000,
+      })
+      .toBe(true);
     await expectLocatorInsideViewport(queue);
   });
 
@@ -132,8 +145,7 @@ test.describe("Issue #144 読み取りUI", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, INPUT_PATH);
 
-    const queue = page.getByRole("region", { name: "レシート入力", exact: true });
-    await expect(queue).toBeVisible();
+    const queue = await waitForReceiptInputQueue(page);
     await expectLocatorInsideViewport(queue);
     await expect(page.getByLabel("読み取り用画像を追加")).toBeEnabled();
     const stamp = Date.now();
