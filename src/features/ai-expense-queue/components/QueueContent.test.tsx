@@ -125,4 +125,26 @@ describe("QueueContent の一覧制御", () => {
     );
     expect(titles).toEqual(["金額", "カテゴリ", "その他"]);
   });
+
+  it("確認対象は初期3件に絞り、残件を明示して展開できる", async () => {
+    const user = userEvent.setup();
+    const needsReview = Array.from({ length: 5 }, (_, index) => ({
+      ...registeredItem,
+      id: `needs-review-${index}`,
+      status: "needs_review" as const,
+      title: `確認対象 ${index + 1}`,
+    }));
+    renderQueueContent({
+      processing: [],
+      ready: [],
+      needs_review: needsReview,
+      failed: [],
+      registered: [],
+    });
+
+    expect(screen.getAllByText(/確認対象 [1-3]$/)).toHaveLength(3);
+    expect(screen.queryByText("確認対象 4")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "残り2件を確認" }));
+    expect(screen.getByText("確認対象 5")).toBeInTheDocument();
+  });
 });
