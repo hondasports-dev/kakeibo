@@ -245,8 +245,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
 
-    // 「合計」または「支出合計」的なテキストが表示されることを確認
-    await expect(page.getByText("合計").or(page.getByText("支出合計"))).toBeVisible();
+    // 合計支出・合計収入の指標が表示されることを確認（Issue #378）
+    await expect(page.getByLabel("合計支出")).toBeVisible();
+    await expect(page.getByLabel("合計収入")).toBeVisible();
 
     // WeekNavigator（前の週/次の週ボタン）が表示されることを確認
     await expect(page.getByRole("button", { name: /前の週/ })).toBeVisible();
