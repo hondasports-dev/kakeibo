@@ -935,6 +935,46 @@ describe("updateReceipt", () => {
       }),
     );
   });
+
+  it("収入 receipt は categoryId なしで bankName を更新できる", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const incomeReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      type: "income",
+      bankName: "給与",
+      shopName: undefined,
+    };
+    const updatedReceipt: ReceiptDoc = {
+      ...incomeReceipt,
+      bankName: "賞与",
+      amountYen: 200_000,
+      updatedAt: 9999,
+    };
+    const ctx = createMutationCtx(identity, {
+      getDocById: {
+        "receipt-001": incomeReceipt,
+      },
+      updatedDoc: updatedReceipt,
+    });
+
+    const result = await updateReceiptHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      receiptId: "receipt-001" as any,
+      bankName: "賞与",
+      amountYen: 200_000,
+    });
+
+    expect(result).toEqual(updatedReceipt);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "receipt-001",
+      expect.objectContaining({
+        bankName: "賞与",
+        amountYen: 200_000,
+      }),
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

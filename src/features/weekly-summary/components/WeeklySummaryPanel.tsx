@@ -5,7 +5,13 @@ import { IncomeListCard } from "./IncomeListCard";
 import { SummaryMetricsPanel } from "./SummaryMetricsPanel";
 import { WeeklyCategoryBreakdown } from "./WeeklyCategoryBreakdown";
 import type { WeeklySummaryPanelProps } from "../types/types";
-import { incomeItemToReceiptItem } from "../types/types";
+import { incomeItemToReceiptItem, type IncomeItem, type ReceiptItem } from "../types/types";
+
+function mapIncomeHandler(
+  handler: ((receipt: ReceiptItem) => void) | undefined,
+): ((income: IncomeItem) => void) | undefined {
+  return handler ? (income) => handler(incomeItemToReceiptItem(income)) : undefined;
+}
 
 export function WeeklySummaryPanel({
   count,
@@ -66,12 +72,8 @@ export function WeeklySummaryPanel({
         count={incomeCount}
         incomes={incomes}
         isLoading={isLoading}
-        onDeleteIncome={
-          onDeleteReceipt ? (income) => onDeleteReceipt(incomeItemToReceiptItem(income)) : undefined
-        }
-        onEditIncome={
-          onEditReceipt ? (income) => onEditReceipt(incomeItemToReceiptItem(income)) : undefined
-        }
+        onDeleteIncome={mapIncomeHandler(onDeleteReceipt)}
+        onEditIncome={mapIncomeHandler(onEditReceipt)}
       />
     </Stack>
   );
