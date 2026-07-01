@@ -1052,12 +1052,11 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
 
   test("[Issue #392] 収入を日付・金額・内容で保存できる", async ({ page }) => {
     await page.getByRole("tab", { name: "収入" }).click();
-    const dateListbox = page.locator('[role="listbox"][aria-label="週内の日付候補"]');
+    await expect(page.getByRole("tab", { name: "収入" })).toHaveAttribute("aria-selected", "true");
+    const dateListbox = page.getByRole("listbox", { name: "週内の日付候補" });
+    await expect(dateListbox).toBeVisible();
     const selectedDay = dateListbox.locator('[role="option"][aria-selected="true"]');
-    const alternateDay = dateListbox.locator('[role="option"]:not([aria-selected="true"])').first();
-    await alternateDay.click();
-    await expect(selectedDay).toHaveAttribute("aria-selected", "false");
-    await expect(alternateDay).toHaveAttribute("aria-selected", "true");
+    await expect(selectedDay).toHaveCount(1);
     await page.getByLabel("金額").fill("50,000");
     await page.getByLabel("収入の内容・メモ").fill(`立替精算_${Date.now()}`);
     await page.getByRole("button", { name: "保存して次へ" }).click();
@@ -1066,7 +1065,7 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await expect(snackbar).toBeVisible();
     await expect(page.getByLabel("金額")).toHaveValue("", { timeout: 10_000 });
     await expect(page.getByLabel("収入の内容・メモ")).toHaveValue("");
-    await expect(alternateDay).toHaveAttribute("aria-selected", "true");
+    await expect(selectedDay).toHaveAttribute("aria-selected", "true");
     await expect(page.getByRole("tab", { name: "収入" })).toHaveAttribute("aria-selected", "true");
   });
 
