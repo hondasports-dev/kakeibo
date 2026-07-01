@@ -452,7 +452,6 @@
   }
 
   .input-workbench-queue,
-  .input-workbench-queue > .ai-expense-queue,
   .input-workbench-queue .queue-panel-content,
   .input-workbench-queue .queue-content {
     display: contents;

@@ -148,6 +148,31 @@ describe("ExpenseEntryForm", () => {
       );
     });
 
+    it("収入金額のカンマ区切りを正しく保存する", async () => {
+      const user = userEvent.setup();
+      renderWithProviders(
+        <ExpenseEntryForm
+          weekStartDate="2026-06-02"
+          weekEndDate="2026-06-08"
+          categories={categories}
+        />,
+      );
+
+      await user.click(screen.getByRole("tab", { name: "収入" }));
+      await user.type(screen.getByLabelText("金額"), "320,000");
+      await user.type(screen.getByLabelText("収入の内容・メモ"), "給与");
+      await user.click(screen.getByRole("button", { name: "保存して次へ" }));
+
+      await waitFor(() =>
+        expect(createIncomeEntryMock).toHaveBeenCalledWith({
+          date: "2026-06-02",
+          amountYen: 320000,
+          title: "給与",
+        }),
+      );
+      expect(await screen.findByText("収入を保存しました")).toBeInTheDocument();
+    });
+
     it("種別を往復してもそれぞれの未保存入力を保持する", async () => {
       const user = userEvent.setup();
       renderWithProviders(

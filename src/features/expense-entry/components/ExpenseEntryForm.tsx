@@ -66,7 +66,8 @@ export function ExpenseEntryForm({
 
   const handleIncomeSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    const amountYen = Number(incomeAmount);
+    const normalizedIncomeAmount = incomeAmount.replace(/[^\d]/g, "");
+    const amountYen = Number(normalizedIncomeAmount);
     const amountError =
       !Number.isInteger(amountYen) || amountYen <= 0 ? "1円以上の金額を入力してください" : "";
     const titleError = incomeTitle.trim() ? "" : "収入の内容を入力してください";
