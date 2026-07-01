@@ -852,15 +852,11 @@ describe("AiExpenseQueuePanel", () => {
     const amountInputs = within(dialog).getAllByLabelText("金額");
     await user.type(itemNameInputs[1], "牛乳");
     await user.type(amountInputs[1], "980");
-    await user.click(
-      within(dialog).getByRole("checkbox", { name: "パンをカテゴリ分け対象に選択" }),
-    );
-    await user.click(
-      within(dialog).getByRole("checkbox", { name: "牛乳をカテゴリ分け対象に選択" }),
-    );
-    await user.click(within(dialog).getByRole("combobox", { name: "選択した明細のカテゴリ" }));
+    const categoryInputs = within(dialog).getAllByLabelText("明細カテゴリ");
+    await user.click(categoryInputs[0]);
     await user.click(screen.getByRole("option", { name: "食費" }));
-    await user.click(within(dialog).getByRole("button", { name: "選択項目に設定" }));
+    await user.click(categoryInputs[1]);
+    await user.click(screen.getByRole("option", { name: "食費" }));
     await user.click(within(dialog).getByRole("button", { name: "登録準備OKに戻す" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith({
