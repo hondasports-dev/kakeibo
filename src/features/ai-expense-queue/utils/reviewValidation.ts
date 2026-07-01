@@ -2,16 +2,28 @@ import type { ReviewFormValues, ReviewItemValues } from "../types/types";
 import { isDiscountItemName, isValidReviewItemAmount } from "./discountItems";
 import { computeCategoryAggregates } from "./reviewDialogUtils";
 
+function isValidExpenseDate(value: string) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
+
 export function getReviewFormError(reviewForm: ReviewFormValues): string | null {
   const amountYen = Number(reviewForm.amountYen);
   if (
     !reviewForm.shopName.trim() ||
-    !reviewForm.date ||
+    !isValidExpenseDate(reviewForm.date) ||
     !Number.isInteger(amountYen) ||
     amountYen <= 0 ||
     !reviewForm.categoryId
   ) {
-    return "店名・内容、日付、金額、カテゴリを確認してください。";
+    return "店名・内容、支出日、金額、カテゴリを確認してください。";
   }
   return null;
 }

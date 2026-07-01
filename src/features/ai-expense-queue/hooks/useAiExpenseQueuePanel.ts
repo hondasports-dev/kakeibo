@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { AiExpenseQueueItem, AiExpenseQueuePanelProps } from "../types/types";
 import { useAiExpenseQueueData } from "./useAiExpenseQueueData";
 import { useBulkRegister } from "./useBulkRegister";
@@ -33,6 +34,28 @@ export function useAiExpenseQueuePanel({
     pendingImageDataUrls: imageUpload.pendingImageDataUrls,
     setPendingImageDataUrls: imageUpload.setPendingImageDataUrls,
   });
+  const autoReviewJobId = imageUpload.autoReviewJobId;
+  const autoReviewJob = queueData.jobs?.find((job) => job._id === autoReviewJobId);
+  const selectedReviewDraftId = reviewDialog.selectedReviewDraftId;
+  const handleOpenReview = reviewDialog.handleOpenReview;
+  const setAutoReviewJobId = imageUpload.setAutoReviewJobId;
+
+  useEffect(() => {
+    if (!autoReviewJobId || !autoReviewJob) {
+      return;
+    }
+    if (autoReviewJob.status === "queued" || autoReviewJob.status === "running") {
+      return;
+    }
+    setAutoReviewJobId(null);
+    if (
+      autoReviewJob.status === "needs_review" &&
+      autoReviewJob.draftId &&
+      !selectedReviewDraftId
+    ) {
+      handleOpenReview(autoReviewJob.draftId);
+    }
+  }, [autoReviewJob, autoReviewJobId, handleOpenReview, selectedReviewDraftId, setAutoReviewJobId]);
 
   const wrappedDeleteQueueItem = async (item: AiExpenseQueueItem) => {
     await queueDelete.deleteQueueItem(item);

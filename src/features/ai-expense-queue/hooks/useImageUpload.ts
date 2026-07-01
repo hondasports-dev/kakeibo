@@ -10,6 +10,7 @@ export function useImageUpload() {
   const [pendingConsentFiles, setPendingConsentFiles] = useState<File[] | null>(null);
   const [consentStatus, setConsentStatus] = useState<"idle" | "saving">("idle");
   const [uploadError, setUploadError] = useState("");
+  const [autoReviewJobId, setAutoReviewJobId] = useState<string | null>(null);
 
   const createBatch = useMutation(api.receiptAnalysisJobs.mutations.createBatch);
   const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
@@ -40,6 +41,7 @@ export function useImageUpload() {
       }
       return nextPending;
     });
+    setAutoReviewJobId(result.jobs.length === 1 ? result.jobs[0]._id : null);
 
     for (let i = 0; i < result.jobs.length; i++) {
       analyzeImageJob({ jobId: result.jobs[i]._id, imageDataUrl: fileDataUrls[i] }).catch(() => {
@@ -105,9 +107,11 @@ export function useImageUpload() {
     consentStatus,
     inputRef,
     pendingImageDataUrls,
+    autoReviewJobId,
     uploadError,
     setPendingImageDataUrls,
     setUploadError,
+    setAutoReviewJobId,
     handleAcceptConsent,
     handleDeclineConsent,
     handleFilesSelected,

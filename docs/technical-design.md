@@ -459,6 +459,9 @@ active record が確認できない場合は fail closed にする。
 不一致がある場合も `needs_review` とし、該当する `reviewReasons` を保存する。
 明細が2カテゴリ以上に分かれた場合は `multiple_categories` として `needs_review` にし、ユーザーが
 カテゴリ別登録候補を確認した更新時だけ確認済みとして `ready` へ遷移できる。
+画像解析直後は `user_confirmation_required` を付与して常に `needs_review` とする。確認フォームから
+`updateForReview` を実行すると当該理由を除去し、確定したレシート記載日を `draft.date` に保存する。
+カテゴリ別に生成する全 `expenseEntries.date` はこの確定日を使い、`createdAt` は登録時刻に限定する。
 
 画像解析では所属グループの有効カテゴリ名を先に取得し、OpenAIのプロンプトへ命令ではなくJSONデータとして渡す。
 構造化出力の `categoryName` は空文字列または有効カテゴリ名の動的 enum に制限し、下書き全体と各明細で

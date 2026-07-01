@@ -34,15 +34,15 @@ export function ReviewDialogActions({
             type="button"
             variant="outlined"
           >
-            内訳を変更
+            内容を変更
           </Button>
           <Button
             disabled={isSubmitDisabled}
-            onClick={() => onSubmit(true)}
+            onClick={() => onSubmit(false)}
             type="button"
             variant="contained"
           >
-            {hasMultipleCategories ? "この内容で登録" : "登録する"}
+            確認して準備OK
           </Button>
         </>
       ) : (
@@ -57,16 +57,6 @@ export function ReviewDialogActions({
               一覧に戻る
             </Button>
           )}
-          {!hasMultipleCategories && (
-            <Button
-              disabled={isSubmitDisabled}
-              onClick={() => onSubmit(false)}
-              type="button"
-              variant="outlined"
-            >
-              登録準備OKに戻す
-            </Button>
-          )}
           {hasMultipleCategories ? (
             <Button
               disabled={isSubmitDisabled}
@@ -79,11 +69,11 @@ export function ReviewDialogActions({
           ) : (
             <Button
               disabled={isSubmitDisabled}
-              onClick={() => onSubmit(true)}
+              onClick={() => onSubmit(false)}
               type="button"
               variant="contained"
             >
-              修正して登録
+              確認して準備OK
             </Button>
           )}
         </>
