@@ -39,7 +39,7 @@ export function getReviewDocumentTypeError(
 
 export function getReviewItemsError(reviewItems: ReviewItemValues[]): string | null {
   const unresolvedDiscount = reviewItems.find(
-    (item) => isDiscountItemName(item.itemName) && !item.categoryId,
+    (item) => isDiscountItemName(item.itemName) && !item.discountTargetItemId,
   );
   if (unresolvedDiscount) {
     return "割引対象の商品を選択してください。";
