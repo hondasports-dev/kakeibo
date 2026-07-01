@@ -677,6 +677,28 @@
   border-left: 1px solid var(--color-border-subtle);
 }
 
+.weekly-summary-metric-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  min-width: 0;
+  padding: 0 var(--space-lg);
+  text-align: center;
+  border-right: 1px solid var(--color-border-subtle);
+}
+
+.weekly-summary-metric-stack .weekly-summary-metric {
+  padding: 0;
+  border-left: none;
+}
+
+.receipt-list--income .receipt-list-header--income,
+.receipt-list--income .receipt-row {
+  grid-template-columns:
+    88px minmax(156px, 1.3fr) 104px minmax(140px, 1fr)
+    184px;
+}
+
 .weekly-summary-analysis-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);

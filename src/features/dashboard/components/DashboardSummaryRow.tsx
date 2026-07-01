@@ -10,6 +10,7 @@ import { calcPrevWeekRatio, formatPrevWeekRatioWithArrow } from "../../../lib/we
 type DashboardSummaryRowProps = {
   count: number;
   currentTotalAmountYen: number;
+  totalIncomeYen: number;
   isLoading?: boolean;
   prevWeekTotalAmountYen: number | null;
   weekEndDate: string;
@@ -102,9 +103,45 @@ function SummaryFooter({
   );
 }
 
+function ExpenseIncomeMetricBlock({
+  currentTotalAmountYen,
+  isLoading,
+  totalIncomeYen,
+  valueVariant = "h4",
+}: {
+  currentTotalAmountYen: number;
+  isLoading: boolean;
+  totalIncomeYen: number;
+  valueVariant?: "h4" | "h5";
+}) {
+  return (
+    <Stack spacing={1.5}>
+      <MetricBlock label="今週の支出">
+        {isLoading ? (
+          <Skeleton height={44} variant="text" />
+        ) : (
+          <Typography sx={{ fontWeight: 700 }} variant={valueVariant}>
+            <AnimatedCounter value={currentTotalAmountYen} suffix="円" />
+          </Typography>
+        )}
+      </MetricBlock>
+      <MetricBlock label="今週の収入">
+        {isLoading ? (
+          <Skeleton height={36} variant="text" />
+        ) : (
+          <Typography sx={{ fontWeight: 700 }} variant={valueVariant === "h4" ? "h5" : "h6"}>
+            <AnimatedCounter value={totalIncomeYen} suffix="円" />
+          </Typography>
+        )}
+      </MetricBlock>
+    </Stack>
+  );
+}
+
 export function DashboardSummaryRow({
   count,
   currentTotalAmountYen,
+  totalIncomeYen,
   isLoading = false,
   prevWeekTotalAmountYen,
   weekEndDate,
@@ -118,15 +155,12 @@ export function DashboardSummaryRow({
       <Paper className="paper-panel dashboard-summary-panel" elevation={0}>
         <Box sx={{ p: 2.5 }}>
           <Stack spacing={2}>
-            <MetricBlock label="今週の支出">
-              {isLoading ? (
-                <Skeleton height={44} variant="text" />
-              ) : (
-                <Typography sx={{ color: "primary.main", fontWeight: 700 }} variant="h4">
-                  <AnimatedCounter value={currentTotalAmountYen} suffix="円" />
-                </Typography>
-              )}
-            </MetricBlock>
+            <ExpenseIncomeMetricBlock
+              currentTotalAmountYen={currentTotalAmountYen}
+              isLoading={isLoading}
+              totalIncomeYen={totalIncomeYen}
+              valueVariant="h4"
+            />
 
             <Divider sx={{ borderColor: "var(--color-border-subtle)" }} />
 
@@ -179,15 +213,11 @@ export function DashboardSummaryRow({
             }
             spacing={3}
           >
-            <MetricBlock label="今週の支出">
-              {isLoading ? (
-                <Skeleton height={44} variant="text" />
-              ) : (
-                <Typography sx={{ fontWeight: 700 }} variant="h4">
-                  <AnimatedCounter value={currentTotalAmountYen} suffix="円" />
-                </Typography>
-              )}
-            </MetricBlock>
+            <ExpenseIncomeMetricBlock
+              currentTotalAmountYen={currentTotalAmountYen}
+              isLoading={isLoading}
+              totalIncomeYen={totalIncomeYen}
+            />
             <MetricBlock label="入力済み">
               {isLoading ? (
                 <Skeleton height={36} variant="text" />

@@ -1205,11 +1205,134 @@ describe("getWeekSummaryWithCategories", () => {
     expect(result).toEqual({
       count: 0,
       totalAmountYen: 0,
+      totalIncomeYen: 0,
+      incomeCount: 0,
       byCategory: [],
       prevWeekReceiptCount: 0,
       prevWeekTotalAmountYen: null,
       receipts: [],
+      incomes: [],
     });
+  });
+
+  it("収入の expenseEntries が週次サマリーに含まれ、支出集計には混入しない", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "entry-expense-001",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-01-10",
+        amount: 1500,
+        categoryId: "cat-001",
+        title: "スーパー",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "entry-income-001",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        date: "2024-01-11",
+        amount: 300000,
+        categoryId: "cat-001",
+        title: "給与",
+        entryType: "income",
+        source: "manual",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+    ];
+    const ctx = createQueryCtxForSummary(identity, [], [sampleCategory], expenseEntries);
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.count).toBe(1);
+    expect(result.totalAmountYen).toBe(1500);
+    expect(result.totalIncomeYen).toBe(300000);
+    expect(result.incomeCount).toBe(1);
+    expect(result.incomes).toEqual([
+      {
+        _id: "entry-income-001",
+        date: "2024-01-11",
+        type: "income",
+        bankName: "給与",
+        amountYen: 300000,
+        recordType: "expenseEntry",
+      },
+    ]);
+  });
+
+  it("expenseEntries 収入がない週はレガシー receipts 収入をフォールバックする", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const legacyIncomeReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-income-001",
+      type: "income",
+      bankName: "給与振込",
+      amountYen: 250000,
+      shopName: undefined,
+    };
+    const ctx = createQueryCtxForSummary(identity, [legacyIncomeReceipt], [sampleCategory], []);
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.totalIncomeYen).toBe(250000);
+    expect(result.incomeCount).toBe(1);
+    expect(result.incomes[0]).toMatchObject({
+      _id: "receipt-income-001",
+      type: "income",
+      bankName: "給与振込",
+      amountYen: 250000,
+      recordType: "receipt",
+    });
+  });
+
+  it("expenseEntries が存在する週ではレガシー receipts 収入を返さない", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "entry-expense-only",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-01-10",
+        amount: 1000,
+        categoryId: "cat-001",
+        title: "コンビニ",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const legacyIncomeReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-income-legacy",
+      type: "income",
+      bankName: "賞与",
+      amountYen: 50000,
+      shopName: undefined,
+    };
+    const ctx = createQueryCtxForSummary(
+      identity,
+      [legacyIncomeReceipt],
+      [sampleCategory],
+      expenseEntries,
+    );
+
+    const result = await getWeekSummaryWithCategoriesHandler(ctx, {
+      weekStartDate: "2024-01-08",
+    });
+
+    expect(result.totalIncomeYen).toBe(0);
+    expect(result.incomeCount).toBe(0);
+    expect(result.incomes).toEqual([]);
   });
 
   it("単一カテゴリのレシートがあるとき: カテゴリ別集計が返る", async () => {
