@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { getCurrentClerkTokenIdentifier, gotoAuthenticated } from "./helpers/auth";
 import {
   cleanupGroupInvitationsByUser,
@@ -7,14 +7,14 @@ import {
 } from "./helpers/cleanup";
 import { seedGroupMemberForUser, seedPendingGroupInvitationForUser } from "./helpers/seed";
 
-async function expandDangerZone(page: import("@playwright/test").Page) {
+async function expandDangerZone(page: Page) {
   const trigger = page.getByRole("button", { name: "危険な操作" });
   if ((await trigger.getAttribute("aria-expanded")) !== "true") {
     await trigger.click();
   }
 }
 
-async function expandGroupManagement(page: import("@playwright/test").Page) {
+async function expandGroupManagement(page: Page) {
   const trigger = page.getByRole("button", { name: "管理する" });
   await trigger.waitFor({ state: "visible" });
   if ((await trigger.getAttribute("aria-expanded")) !== "true") {
@@ -23,7 +23,7 @@ async function expandGroupManagement(page: import("@playwright/test").Page) {
 }
 
 /** cleanup 後に Convex subscription が未所属状態へ反映されるまで待つ */
-async function waitForGroupSetupRedirect(page: import("@playwright/test").Page) {
+async function waitForGroupSetupRedirect(page: Page) {
   await page.goto("/");
   await expect
     .poll(

@@ -95,6 +95,14 @@ export function ExpenseEntryEditDialog({
             memo: memo.trim() || undefined,
           });
         }
+      } else if (receipt.type === "income") {
+        await updateReceipt({
+          receiptId: receipt._id as Id<"receipts">,
+          date,
+          amountYen: parsedAmount,
+          bankName: title.trim(),
+          memo: memo.trim() || undefined,
+        });
       } else {
         await updateReceipt({
           receiptId: receipt._id as Id<"receipts">,

@@ -11,6 +11,7 @@ type UpdateReceiptArgs = {
   receiptId: Id<"receipts">;
   date?: string;
   shopName?: string;
+  bankName?: string;
   amountYen?: number;
   categoryId?: Id<"categories">;
   memo?: string;
@@ -47,6 +48,7 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
   const patch: Partial<{
     date: string;
     shopName: string;
+    bankName: string;
     amountYen: number;
     categoryId: Id<"categories">;
     memo: string | undefined;
@@ -60,6 +62,9 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
   }
   if (args.shopName !== undefined) {
     patch.shopName = args.shopName;
+  }
+  if (args.bankName !== undefined) {
+    patch.bankName = args.bankName;
   }
   if (args.amountYen !== undefined) {
     patch.amountYen = args.amountYen;
@@ -135,6 +140,7 @@ export const updateReceipt = mutation({
     receiptId: v.id("receipts"),
     date: v.optional(v.string()),
     shopName: v.optional(v.string()),
+    bankName: v.optional(v.string()),
     amountYen: v.optional(v.number()),
     categoryId: v.optional(v.id("categories")),
     memo: v.optional(v.string()),
