@@ -92,6 +92,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
       categoryId: 1,
     },
     warnings: [],
+    multiCategoryConfirmed: true,
     items: args.items?.map((item) => ({
       itemName: item.itemName,
       amountYen: item.amountYen,

@@ -25,6 +25,7 @@ describe("AI expense draft model", () => {
       "missing_required_field",
       "ambiguous_document_type",
       "ambiguous_category",
+      "multiple_categories",
       "amount_mismatch",
       "parse_failed",
     ]);
@@ -298,6 +299,37 @@ describe("AI expense draft model", () => {
     });
   });
 
+  it("複数カテゴリの明細はユーザー確認が必要に分類する", () => {
+    const input = {
+      documentType: "receipt" as const,
+      shopName: "ドラッグストアA",
+      date: "2026-06-21",
+      amountYen: 1380,
+      categoryId: "category-daily",
+      confidence: {
+        documentType: 0.9,
+        shopName: 0.9,
+        date: 0.9,
+        amountYen: 0.9,
+        categoryId: 0.9,
+      },
+      warnings: [],
+      items: [
+        { itemName: "食品", amountYen: 400, categoryId: "category-food" },
+        { itemName: "日用品", amountYen: 980, categoryId: "category-daily" },
+      ],
+    };
+
+    expect(classifyAiExpenseDraft(input)).toEqual({
+      status: "needs_review",
+      reviewReasons: ["multiple_categories"],
+    });
+    expect(classifyAiExpenseDraft({ ...input, multiCategoryConfirmed: true })).toEqual({
+      status: "ready",
+      reviewReasons: [],
+    });
+  });
+
   it("割引後のカテゴリ正味額が0円以下なら確認が必要に分類する", () => {
     expect(
       classifyAiExpenseDraft({
@@ -322,7 +354,7 @@ describe("AI expense draft model", () => {
       }),
     ).toEqual({
       status: "needs_review",
-      reviewReasons: ["amount_mismatch"],
+      reviewReasons: ["multiple_categories", "amount_mismatch"],
     });
   });
 

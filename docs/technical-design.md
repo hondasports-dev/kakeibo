@@ -457,6 +457,8 @@ active record が確認できない場合は fail closed にする。
 
 `unknown` の書類種別、カテゴリ未確定、AI警告、主要フィールドの低信頼度、下書き金額と明細合計の
 不一致がある場合も `needs_review` とし、該当する `reviewReasons` を保存する。
+明細が2カテゴリ以上に分かれた場合は `multiple_categories` として `needs_review` にし、ユーザーが
+カテゴリ別登録候補を確認した更新時だけ確認済みとして `ready` へ遷移できる。
 
 画像解析では所属グループの有効カテゴリ名を先に取得し、OpenAIのプロンプトへ命令ではなくJSONデータとして渡す。
 構造化出力の `categoryName` は空文字列または有効カテゴリ名の動的 enum に制限し、下書き全体と各明細で

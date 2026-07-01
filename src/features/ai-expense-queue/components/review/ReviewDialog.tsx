@@ -69,6 +69,8 @@ export function ReviewDialog({
   const [isEditMode, setIsEditMode] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
   const hasLineItems = reviewItems.length > 0;
+  const hasMultipleCategories =
+    new Set(reviewItems.map((item) => item.categoryId).filter(Boolean)).size > 1;
   const showSummaryView = hasLineItems && !isEditMode;
   const receiptAmount = Number(reviewForm.amountYen) || 0;
   const isSubmitDisabled =
@@ -172,6 +174,7 @@ export function ReviewDialog({
       </DialogContent>
       <ReviewDialogActions
         hasLineItems={hasLineItems}
+        hasMultipleCategories={hasMultipleCategories}
         isSubmitDisabled={isSubmitDisabled}
         onClose={onClose}
         onEnterEditMode={() => setIsEditMode(true)}

@@ -732,7 +732,53 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(dialog).getByText("パン")).toBeInTheDocument();
     expect(within(dialog).getByText("胃薬")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "内訳を変更" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "登録する" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "この内容で登録" })).toBeInTheDocument();
+  });
+
+  it("複数カテゴリの編集後は登録前の確認画面へ戻る", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "ドラッグストアA",
+          date: "2026-06-21",
+          amountYen: 1380,
+          categoryId: "cat-daily",
+          reviewReasons: ["multiple_categories"],
+          warnings: [],
+        },
+        items: [
+          { _id: "item-food", itemName: "パン", amountYen: 400, categoryId: "cat-food" },
+          { _id: "item-daily", itemName: "洗剤", amountYen: 980, categoryId: "cat-daily" },
+        ],
+      };
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+    const dialog = screen.getByRole("dialog");
+    expect(within(dialog).getByText("複数カテゴリの確認")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "内訳を変更" }));
+    expect(within(dialog).getByRole("button", { name: "変更内容を確認" })).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: "修正して登録" })).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: "登録準備OKに戻す" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole("button", { name: "変更内容を確認" }));
+    expect(within(dialog).getByRole("heading", { name: "登録候補" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "この内容で登録" })).toBeInTheDocument();
+    expect(updateForReviewMock).not.toHaveBeenCalled();
+    expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
   });
 
   it("確認が必要な下書きの明細を表示し、編集・追加・削除して保存できる", async () => {

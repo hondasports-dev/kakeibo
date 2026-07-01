@@ -82,6 +82,12 @@ export function ReviewSummaryView({
         </Alert>
       )}
 
+      {selectedReviewDraft?.reviewReasons?.includes("multiple_categories") && (
+        <Alert severity="info" variant="outlined">
+          複数カテゴリに分類されています。登録候補と明細が正しいか確認してください。
+        </Alert>
+      )}
+
       <Stack spacing={1}>
         <Typography component="h3" sx={{ fontWeight: 700 }} variant="subtitle1">
           登録候補
