@@ -284,11 +284,10 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
 
     await dialog.getByLabel("明細名").nth(1).fill("牛乳");
     await dialog.getByLabel("金額", { exact: true }).nth(1).fill("520");
-    await dialog.getByRole("checkbox", { name: "パンをカテゴリ分け対象に選択" }).click();
-    await dialog.getByRole("checkbox", { name: "牛乳をカテゴリ分け対象に選択" }).click();
-    await dialog.getByLabel("選択した明細のカテゴリ").click();
+    await dialog.getByLabel("明細カテゴリ").nth(0).click();
     await page.getByRole("option", { name: "食費" }).click();
-    await dialog.getByRole("button", { name: "選択項目に設定" }).click();
+    await dialog.getByLabel("明細カテゴリ").nth(1).click();
+    await page.getByRole("option", { name: "食費" }).click();
 
     await dialog.getByLabel("明細カテゴリ").nth(0).click();
     await page.getByRole("option", { name: "水道光熱費" }).click();

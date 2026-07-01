@@ -4,7 +4,6 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
   Chip,
   IconButton,
   MenuItem,
@@ -12,7 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
@@ -44,8 +43,6 @@ export function ReviewItemsEditor({
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
 }) {
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-  const [bulkCategoryId, setBulkCategoryId] = useState("");
   const itemTotal = computeItemTotalYen(reviewItems);
   const difference = receiptAmount - itemTotal;
   const productItems = useMemo(
@@ -56,20 +53,8 @@ export function ReviewItemsEditor({
     () => new Map(categories.map((category) => [category._id, category.name])),
     [categories],
   );
-  const selectedItemIdSet = useMemo(() => new Set(selectedItemIds), [selectedItemIds]);
-
   const handleSplitChange = (split: boolean) => {
-    setSelectedItemIds([]);
-    setBulkCategoryId("");
     onCategorySplitChange(split);
-  };
-
-  const handleBulkAssign = () => {
-    if (!bulkCategoryId || selectedItemIds.length === 0) {
-      return;
-    }
-    onAssignCategoryToItems(selectedItemIds, bulkCategoryId);
-    setSelectedItemIds([]);
   };
 
   return (
@@ -121,47 +106,6 @@ export function ReviewItemsEditor({
         </Alert>
       )}
 
-      {isCategorySplit && productItems.length > 0 && (
-        <Box
-          sx={{
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 1,
-            p: 1.5,
-          }}
-        >
-          <Stack spacing={1}>
-            <Typography variant="body2">
-              別カテゴリにする商品を選び、まとめてカテゴリを設定してください。
-            </Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-              <TextField
-                fullWidth
-                label="選択した明細のカテゴリ"
-                onChange={(event) => setBulkCategoryId(event.target.value)}
-                select
-                value={bulkCategoryId}
-              >
-                <MenuItem value="">カテゴリを選択</MenuItem>
-                {categories.map((category) => (
-                  <MenuItem key={category._id} value={category._id}>
-                    {category.name}
-                  </MenuItem>
-                ))}
-              </TextField>
-              <Button
-                disabled={!bulkCategoryId || selectedItemIds.length === 0}
-                onClick={handleBulkAssign}
-                type="button"
-                variant="contained"
-              >
-                選択項目に設定
-              </Button>
-            </Stack>
-          </Stack>
-        </Box>
-      )}
-
       {reviewItems.length === 0 ? (
         <Typography color="text.secondary" variant="body2">
           明細はありません。既存の単一カテゴリ下書きとして確認できます。
@@ -190,24 +134,6 @@ export function ReviewItemsEditor({
                     sx={{ justifyContent: "space-between", alignItems: "center" }}
                   >
                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                      {isCategorySplit && !discount && (
-                        <Checkbox
-                          checked={selectedItemIdSet.has(item.id)}
-                          onChange={(event) =>
-                            setSelectedItemIds((current) =>
-                              event.target.checked
-                                ? [...current, item.id]
-                                : current.filter((id) => id !== item.id),
-                            )
-                          }
-                          slotProps={{
-                            input: {
-                              "aria-label": `${item.itemName || `明細 ${index + 1}`}をカテゴリ分け対象に選択`,
-                            },
-                          }}
-                          sx={{ p: 0.5 }}
-                        />
-                      )}
                       <Chip label={`明細 ${index + 1}`} size="small" />
                       {!discount && item.categoryId && (
                         <Chip
