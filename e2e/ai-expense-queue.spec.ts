@@ -22,7 +22,7 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 
-/** 週次セッション読み込み後にレシート入力キューが表示されるまで待つ */
+/** 週次セッション読み込み後にレシート入力ワークベンチが表示されるまで待つ */
 async function waitForReceiptInputQueue(page: Page) {
   await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
     timeout: 20_000,
@@ -30,7 +30,10 @@ async function waitForReceiptInputQueue(page: Page) {
   await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible({
     timeout: 20_000,
   });
-  const queue = page.getByRole("region", { name: "レシート入力", exact: true });
+  await expect(page.getByRole("region", { name: "レシート入力", exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  const queue = page.locator(".input-workbench--expense");
   await expect(queue).toBeVisible({ timeout: 20_000 });
   return queue;
 }
@@ -44,10 +47,7 @@ async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: stri
   const consentDialog = page.getByRole("dialog", {
     name: "画像の外部API送信に同意しますか",
   });
-  const firstQueueItem = page
-    .getByRole("region", { name: "レシート入力" })
-    .getByText(firstFileName)
-    .first();
+  const firstQueueItem = page.locator(".input-workbench--expense").getByText(firstFileName).first();
 
   await expect(consentDialog.or(firstQueueItem).first()).toBeVisible({ timeout: 30_000 });
   if (await consentDialog.isVisible()) {
@@ -410,5 +410,39 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     await expect(dialog.getByText("水道光熱費 980円")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "内容を変更" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "確認して準備OK" })).toBeVisible();
+  });
+});
+
+test.describe("Issue #397 登録準備OK状態で再編集できる", () => {
+  test("登録準備OKの下書きを再度編集して準備OKに戻せる", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
+
+    const queue = page.getByRole("region", { name: "レシート入力" });
+    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
+    await dialog.getByLabel("合計金額").fill("9160");
+    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await expect(dialog).toBeHidden();
+
+    const readySection = queue.getByRole("region", { name: "登録準備OK" });
+    const editedReadyItem = readySection
+      .locator(".ai-expense-queue-item")
+      .filter({ hasText: "大阪市水道局" });
+    await expect(editedReadyItem).toBeVisible();
+
+    await editedReadyItem.getByRole("button", { name: "編集する" }).click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 6月分");
+    await dialog.getByLabel("合計金額").fill("9200");
+    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(editedReadyItem.getByText("大阪市水道局 6月分")).toBeVisible();
+    await expect(editedReadyItem.getByText("9,200円")).toBeVisible();
+    await expect(editedReadyItem.getByRole("button", { name: "編集する" })).toBeVisible();
+    await expect(editedReadyItem.getByRole("button", { name: "登録する" })).toBeVisible();
   });
 });

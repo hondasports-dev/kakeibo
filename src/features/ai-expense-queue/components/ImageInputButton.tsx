@@ -24,7 +24,7 @@ export function ImageInputButton({
         display: "flex",
         flexDirection: "column",
         gap: 0.5,
-        width: { xs: "100%", sm: "auto" },
+        width: { xs: "100%", md: "auto" },
       }}
     >
       <Button

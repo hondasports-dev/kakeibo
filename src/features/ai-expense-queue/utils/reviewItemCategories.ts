@@ -20,6 +20,48 @@ function syncTargetedDiscounts(items: ReviewItemValues[]) {
   });
 }
 
+function inferDiscountTargetItemId(
+  items: ReviewItemValues[],
+  discountIndex: number,
+  discountCategoryId: string,
+): string | undefined {
+  const productItemsWithIndex = items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => isProductItem(item));
+
+  const before = productItemsWithIndex.filter(({ index }) => index < discountIndex);
+  const after = productItemsWithIndex.filter(({ index }) => index > discountIndex);
+
+  const closestBefore = (
+    candidates: Array<{ item: ReviewItemValues; index: number }>,
+    matchCategory: boolean,
+  ) => {
+    const filtered =
+      matchCategory && discountCategoryId
+        ? candidates.filter(({ item }) => item.categoryId === discountCategoryId)
+        : candidates;
+    return filtered.sort((a, b) => b.index - a.index)[0]?.item.id;
+  };
+
+  const closestAfter = (
+    candidates: Array<{ item: ReviewItemValues; index: number }>,
+    matchCategory: boolean,
+  ) => {
+    const filtered =
+      matchCategory && discountCategoryId
+        ? candidates.filter(({ item }) => item.categoryId === discountCategoryId)
+        : candidates;
+    return filtered.sort((a, b) => a.index - b.index)[0]?.item.id;
+  };
+
+  return (
+    closestBefore(before, true) ??
+    closestBefore(before, false) ??
+    closestAfter(after, true) ??
+    closestAfter(after, false)
+  );
+}
+
 export function initializeReviewCategoryState(
   items: ReviewItemValues[],
   receiptCategoryId: string,
@@ -41,16 +83,12 @@ export function initializeReviewCategoryState(
       ? soleItemCategoryId
       : receiptCategoryId || soleItemCategoryId;
 
-  const initialized = items.map((item) => {
+  const initialized = items.map((item, index) => {
     if (!isProductItem(item)) {
-      const matchingProducts = productItems.filter(
-        (product) => item.categoryId && product.categoryId === item.categoryId,
-      );
       return {
         ...item,
         discountTargetItemId:
-          item.discountTargetItemId ??
-          (matchingProducts.length === 1 ? matchingProducts[0].id : undefined),
+          item.discountTargetItemId ?? inferDiscountTargetItemId(items, index, item.categoryId),
       };
     }
     if (!isCategorySplit) {

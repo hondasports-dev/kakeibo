@@ -115,6 +115,115 @@ describe("reviewItemCategories", () => {
     });
   });
 
+  describe("initializeReviewCategoryState の割引対象推定", () => {
+    it("同カテゴリ商品が複数でも割引の直前商品を割引対象に選ぶ", () => {
+      const initialized = initializeReviewCategoryState(
+        [
+          {
+            id: "tobacco",
+            itemName: "キャメル・メンソール",
+            amountYen: "1060",
+            categoryId: "cat-other",
+          },
+          { id: "food", itemName: "マルちゃん ごつ盛", amountYen: "139", categoryId: "cat-food" },
+          { id: "daily-a", itemName: "キュレル 化粧水", amountYen: "800", categoryId: "cat-daily" },
+          {
+            id: "daily",
+            itemName: "キュレル ジェルメイク",
+            amountYen: "1100",
+            categoryId: "cat-daily",
+          },
+          {
+            id: "discount",
+            itemName: "クーポン券割引 10%",
+            amountYen: "-110",
+            categoryId: "cat-daily",
+            warnings: ["割引対象はキュレル ジェルメイクと推測"],
+          },
+        ],
+        "cat-other",
+      );
+
+      expect(initialized.items.find((item) => item.id === "discount")).toMatchObject({
+        discountTargetItemId: "daily",
+        categoryId: "cat-daily",
+      });
+    });
+
+    it("割引の categoryId が空でも直前の商品を割引対象に選ぶ", () => {
+      const initialized = initializeReviewCategoryState(
+        [
+          { id: "food", itemName: "マルちゃん ごつ盛", amountYen: "139", categoryId: "cat-food" },
+          {
+            id: "daily",
+            itemName: "キュレル ジェルメイク",
+            amountYen: "1100",
+            categoryId: "cat-daily",
+          },
+          {
+            id: "discount",
+            itemName: "クーポン券割引 10%",
+            amountYen: "-110",
+            categoryId: "",
+          },
+        ],
+        "cat-daily",
+      );
+
+      expect(initialized.items.find((item) => item.id === "discount")).toMatchObject({
+        discountTargetItemId: "daily",
+        categoryId: "cat-daily",
+      });
+    });
+
+    it("割引が先頭で前に商品がない場合は直後の商品を割引対象に選ぶ", () => {
+      const initialized = initializeReviewCategoryState(
+        [
+          {
+            id: "discount",
+            itemName: "クーポン券割引 10%",
+            amountYen: "-110",
+            categoryId: "cat-food",
+          },
+          { id: "food", itemName: "マルちゃん ごつ盛", amountYen: "139", categoryId: "cat-food" },
+        ],
+        "cat-food",
+      );
+
+      expect(initialized.items.find((item) => item.id === "discount")).toMatchObject({
+        discountTargetItemId: "food",
+        categoryId: "cat-food",
+      });
+    });
+
+    it("discountTargetItemId が明示済みなら上書きしない", () => {
+      const initialized = initializeReviewCategoryState(
+        [
+          { id: "food", itemName: "マルちゃん ごつ盛", amountYen: "139", categoryId: "cat-food" },
+          {
+            id: "daily",
+            itemName: "キュレル ジェルメイク",
+            amountYen: "1100",
+            categoryId: "cat-daily",
+          },
+          {
+            id: "discount",
+            itemName: "クーポン券割引 10%",
+            amountYen: "-110",
+            categoryId: "cat-daily",
+            discountTargetItemId: "food",
+          },
+        ],
+        "cat-daily",
+      );
+
+      expect(initialized.items.find((item) => item.id === "discount")).toMatchObject({
+        discountTargetItemId: "food",
+        categoryId: "cat-food",
+      });
+    });
+  });
+
   it("送信前に全体カテゴリと個別指定を最終categoryIdへ展開する", () => {
     const split = assignCategoryToItems(
       applyReceiptCategory(receiptItems, "cat-other"),

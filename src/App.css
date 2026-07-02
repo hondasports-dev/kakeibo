@@ -425,13 +425,17 @@
 .input-workbench {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 1fr);
-  grid-template-areas: "form queue";
+  grid-template-areas:
+    "form queue-header"
+    "form queue-active"
+    "form queue-registered";
   gap: var(--space-lg);
   align-items: start;
 }
 
 .input-workbench--income {
   grid-template-columns: minmax(0, 640px);
+  grid-template-areas: "form";
 }
 
 .input-workbench-form {
@@ -439,39 +443,60 @@
   min-width: 0;
 }
 
-.input-workbench-queue {
-  grid-area: queue;
+.input-workbench-queue-header {
+  grid-area: queue-header;
   min-width: 0;
 }
 
+.input-workbench-queue-active {
+  grid-area: queue-active;
+  min-width: 0;
+}
+
+.input-workbench-queue-registered {
+  grid-area: queue-registered;
+  min-width: 0;
+}
+
+.input-workbench-queue-block {
+  padding: var(--space-sm);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-panel);
+}
+
+@media (min-width: 900px) {
+  .input-workbench--expense .input-workbench-queue-header.ai-expense-queue {
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    border-bottom: none;
+  }
+
+  .input-workbench--expense .input-workbench-queue-active.input-workbench-queue-block,
+  .input-workbench--expense .input-workbench-queue-registered.input-workbench-queue-block {
+    border-radius: 0;
+    border-top: none;
+    border-bottom: none;
+  }
+
+  .input-workbench--expense .input-workbench-queue-registered.input-workbench-queue-block {
+    border-bottom: 1px solid var(--color-border-subtle);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+  }
+}
+
 @media (max-width: 899px) {
-  .input-workbench,
+  .input-workbench--expense {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "queue-header"
+      "queue-active"
+      "form"
+      "queue-registered";
+  }
+
   .input-workbench--income {
-    display: flex;
-    flex-direction: column;
-  }
-
-  .input-workbench-queue,
-  .input-workbench-queue .queue-panel-content,
-  .input-workbench-queue .queue-content {
-    display: contents;
-  }
-
-  .input-workbench-queue .queue-panel-content > *,
-  .input-workbench-queue .queue-content > * {
-    order: 2;
-  }
-
-  .queue-header {
-    order: 1;
-  }
-
-  .input-workbench-form {
-    order: 3;
-  }
-
-  .queue-section-registered {
-    order: 4;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "form";
   }
 
   .input-workbench .MuiButton-root,

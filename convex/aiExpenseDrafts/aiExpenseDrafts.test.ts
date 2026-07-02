@@ -1150,7 +1150,7 @@ describe("aiExpenseDrafts", () => {
     expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 
-  it("確認が必要以外の下書きはレビュー編集できない", async () => {
+  it("登録準備OK状態の下書きはレビュー編集できる", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
         "draft-ready": {
@@ -1165,10 +1165,48 @@ describe("aiExpenseDrafts", () => {
       },
     });
 
+    await updateForReviewHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftId: "draft-ready" as any,
+      documentType: "receipt",
+      shopName: "スーパー青葉 北浜店",
+      date: "2026-06-02",
+      amountYen: 1680,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-food" as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-ready",
+      expect.objectContaining({
+        status: "ready",
+        reviewReasons: [],
+        shopName: "スーパー青葉 北浜店",
+      }),
+    );
+  });
+
+  it("登録済みの下書きはレビュー編集できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-registered": {
+          ...ownedDraft,
+          _id: "draft-registered",
+          status: "registered",
+        },
+        "cat-food": {
+          groupId: GROUP_ID,
+          isActive: true,
+        },
+      },
+    });
+
     await expect(
       updateForReviewHandler(ctx, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        draftId: "draft-ready" as any,
+        draftId: "draft-registered" as any,
         documentType: "receipt",
         shopName: "スーパー青葉",
         date: "2026-06-02",
@@ -1176,7 +1214,7 @@ describe("aiExpenseDrafts", () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         categoryId: "cat-food" as any,
       }),
-    ).rejects.toMatchObject({ data: "Only needs_review AI expense drafts can be edited" });
+    ).rejects.toMatchObject({ data: "Registered AI expense draft cannot be edited" });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();

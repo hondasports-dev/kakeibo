@@ -19,11 +19,11 @@ export function QueueHeader({
   return (
     <Stack
       className="queue-header"
-      direction={{ xs: "column", sm: "row" }}
+      direction={{ xs: "column", md: "row" }}
       spacing={1.5}
       sx={{
         justifyContent: "space-between",
-        alignItems: { xs: "stretch", sm: "flex-start" },
+        alignItems: { xs: "stretch", md: "flex-start" },
         minWidth: 0,
       }}
     >
@@ -33,7 +33,7 @@ export function QueueHeader({
         </Typography>
       </Box>
       <Stack
-        direction={{ xs: "column", sm: "row" }}
+        direction={{ xs: "column", md: "row" }}
         spacing={1}
         sx={{ maxWidth: "100%", minWidth: 0, width: "100%" }}
       >

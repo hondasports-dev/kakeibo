@@ -129,5 +129,46 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expectLocatorInsideViewport(addReceiptButton);
     await expectLocatorInsideViewport(cameraButton);
     await expectLocatorInsideViewport(failedChip);
+    await expect(queueSection.getByRole("region", { name: "登録済み" })).toBeVisible();
+    await expectLocatorInsideViewport(queueSection.getByRole("region", { name: "登録済み" }));
+  });
+
+  test("@smoke シナリオR-4c: 406px viewport で入力ワークベンチが横スクロールせず登録済みがフォームの後", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page);
+    await page.setViewportSize(MOBILE_VIEWPORT);
+    await page.goto("/__e2e__/input-workbench");
+
+    const queueSection = page.locator("section.ai-expense-queue");
+    const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
+    const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
+    const shopNameInput = page.getByLabel("店舗名 / 支払先");
+    const registeredRegion = page.getByRole("region", { name: "登録済み" });
+
+    await expect(addReceiptButton).toBeVisible();
+    await expect(cameraButton).toBeVisible();
+    await expect(shopNameInput).toBeVisible();
+    await expect(registeredRegion).toBeVisible();
+    await expect(registeredRegion.getByText("ジャパン 明石稲美店")).toBeVisible();
+
+    await page.waitForTimeout(400);
+
+    await expectNoHorizontalOverflow(page);
+    await expectLocatorInsideViewport(addReceiptButton);
+    await expectLocatorInsideViewport(cameraButton);
+    await expectLocatorInsideViewport(shopNameInput);
+    await expectLocatorInsideViewport(registeredRegion);
+    await expectLocatorInsideViewport(registeredRegion.getByText("ジャパン 明石稲美店"));
+
+    const addReceiptY = await addReceiptButton.evaluate(
+      (element) => element.getBoundingClientRect().y,
+    );
+    const shopNameY = await shopNameInput.evaluate((element) => element.getBoundingClientRect().y);
+    const registeredY = await registeredRegion.evaluate(
+      (element) => element.getBoundingClientRect().y,
+    );
+    expect(addReceiptY).toBeLessThan(shopNameY);
+    expect(shopNameY).toBeLessThan(registeredY);
   });
 });
