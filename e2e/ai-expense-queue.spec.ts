@@ -22,7 +22,7 @@ import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 const INPUT_PATH = "/weeks/current/input";
 
-/** 週次セッション読み込み後にレシート入力キューが表示されるまで待つ */
+/** 週次セッション読み込み後にレシート入力ワークベンチが表示されるまで待つ */
 async function waitForReceiptInputQueue(page: Page) {
   await expect(page.getByRole("heading", { name: "入力", exact: true })).toBeVisible({
     timeout: 20_000,
@@ -30,7 +30,10 @@ async function waitForReceiptInputQueue(page: Page) {
   await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible({
     timeout: 20_000,
   });
-  const queue = page.getByRole("region", { name: "レシート入力", exact: true });
+  await expect(page.getByRole("region", { name: "レシート入力", exact: true })).toBeVisible({
+    timeout: 20_000,
+  });
+  const queue = page.locator(".input-workbench--expense");
   await expect(queue).toBeVisible({ timeout: 20_000 });
   return queue;
 }
@@ -44,10 +47,7 @@ async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: stri
   const consentDialog = page.getByRole("dialog", {
     name: "画像の外部API送信に同意しますか",
   });
-  const firstQueueItem = page
-    .getByRole("region", { name: "レシート入力" })
-    .getByText(firstFileName)
-    .first();
+  const firstQueueItem = page.locator(".input-workbench--expense").getByText(firstFileName).first();
 
   await expect(consentDialog.or(firstQueueItem).first()).toBeVisible({ timeout: 30_000 });
   if (await consentDialog.isVisible()) {
