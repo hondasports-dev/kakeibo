@@ -412,3 +412,37 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     await expect(dialog.getByRole("button", { name: "確認して準備OK" })).toBeVisible();
   });
 });
+
+test.describe("Issue #397 登録準備OK状態で再編集できる", () => {
+  test("登録準備OKの下書きを再度編集して準備OKに戻せる", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
+
+    const queue = page.getByRole("region", { name: "レシート入力" });
+    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
+    await dialog.getByLabel("合計金額").fill("9160");
+    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await expect(dialog).toBeHidden();
+
+    const readySection = queue.getByRole("region", { name: "登録準備OK" });
+    const editedReadyItem = readySection
+      .locator(".ai-expense-queue-item")
+      .filter({ hasText: "大阪市水道局" });
+    await expect(editedReadyItem).toBeVisible();
+
+    await editedReadyItem.getByRole("button", { name: "編集する" }).click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByLabel("店名・内容").fill("大阪市水道局 6月分");
+    await dialog.getByLabel("合計金額").fill("9200");
+    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+
+    await expect(dialog).toBeHidden();
+    await expect(editedReadyItem.getByText("大阪市水道局 6月分")).toBeVisible();
+    await expect(editedReadyItem.getByText("9,200円")).toBeVisible();
+    await expect(editedReadyItem.getByRole("button", { name: "編集する" })).toBeVisible();
+    await expect(editedReadyItem.getByRole("button", { name: "登録する" })).toBeVisible();
+  });
+});

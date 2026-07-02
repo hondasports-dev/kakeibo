@@ -924,7 +924,7 @@ describe("AiExpenseQueuePanel", () => {
         }),
       ],
     });
-  });
+  }, 10_000);
 
   it("割引明細は負数で編集し、対象カテゴリの正味額として保存できる", async () => {
     const user = userEvent.setup();

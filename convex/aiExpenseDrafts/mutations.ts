@@ -53,8 +53,8 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   if (draft.status === "registered") {
     throw new ConvexError("Registered AI expense draft cannot be edited");
   }
-  if (draft.status !== "needs_review") {
-    throw new ConvexError("Only needs_review AI expense drafts can be edited");
+  if (draft.status !== "needs_review" && draft.status !== "ready") {
+    throw new ConvexError("Only needs_review or ready AI expense drafts can be edited");
   }
 
   await assertActiveCategoryBelongsToGroup(ctx, args.categoryId, groupId);
