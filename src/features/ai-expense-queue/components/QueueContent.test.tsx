@@ -159,4 +159,45 @@ describe("QueueContent の一覧制御", () => {
     await user.click(screen.getByRole("button", { name: "残り2件を確認" }));
     expect(screen.getByText("確認対象 5")).toBeInTheDocument();
   });
+
+  it("登録準備OKの下書きから編集ダイアログを開ける", async () => {
+    const user = userEvent.setup();
+    const onOpenReview = vi.fn();
+    const readyItem: AiExpenseQueueItem = {
+      ...registeredItem,
+      id: "ready-draft",
+      status: "ready",
+      title: "スーパー北浜",
+      amountYen: 4280,
+      date: "2026-06-08",
+      categoryName: "食費",
+    };
+    const props = {
+      clearableCount: 0,
+      deletingIds: [] as string[],
+      groupedItems: {
+        processing: [],
+        ready: [readyItem],
+        needs_review: [],
+        failed: [],
+        registered: [],
+      },
+      itemCount: 1,
+      readyItems: [readyItem],
+      registeringIds: [] as string[],
+      registrationError: "",
+      selectedReadyIds: [] as string[],
+      onClearOpenQueue: vi.fn(async () => {}),
+      onDeleteQueueItem: vi.fn(async () => {}),
+      onOpenReview,
+      onRegisterReady: vi.fn(async () => {}),
+      onRetry: vi.fn(async () => {}),
+      onToggleReadySelection: vi.fn(),
+    };
+
+    render(<QueueActiveContent {...props} />);
+
+    await user.click(screen.getByRole("button", { name: "編集する" }));
+    expect(onOpenReview).toHaveBeenCalledWith("ready-draft");
+  });
 });

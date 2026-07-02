@@ -66,6 +66,15 @@ export function QueueItemActions({
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
         <Button
           disabled={isRegistering}
+          onClick={() => onOpenReview(item.id)}
+          size="small"
+          type="button"
+          variant="outlined"
+        >
+          編集する
+        </Button>
+        <Button
+          disabled={isRegistering}
           onClick={() => onRegisterItem(item.id)}
           size="small"
           type="button"
