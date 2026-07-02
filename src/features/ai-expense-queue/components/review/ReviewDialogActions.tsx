@@ -3,6 +3,7 @@ import { Button, DialogActions } from "@mui/material";
 export function ReviewDialogActions({
   showSummaryView,
   hasLineItems,
+  hasMultipleCategories,
   reviewSubmitting,
   isSubmitDisabled,
   onClose,
@@ -12,6 +13,7 @@ export function ReviewDialogActions({
 }: {
   showSummaryView: boolean;
   hasLineItems: boolean;
+  hasMultipleCategories: boolean;
   reviewSubmitting: boolean;
   isSubmitDisabled: boolean;
   onClose: () => void;
@@ -32,20 +34,20 @@ export function ReviewDialogActions({
             type="button"
             variant="outlined"
           >
-            修正する
+            内容を変更
           </Button>
           <Button
             disabled={isSubmitDisabled}
-            onClick={() => onSubmit(true)}
+            onClick={() => onSubmit(false)}
             type="button"
             variant="contained"
           >
-            登録する
+            確認して準備OK
           </Button>
         </>
       ) : (
         <>
-          {hasLineItems && (
+          {hasLineItems && !hasMultipleCategories && (
             <Button
               disabled={reviewSubmitting}
               onClick={onExitEditMode}
@@ -55,22 +57,25 @@ export function ReviewDialogActions({
               一覧に戻る
             </Button>
           )}
-          <Button
-            disabled={isSubmitDisabled}
-            onClick={() => onSubmit(false)}
-            type="button"
-            variant="outlined"
-          >
-            登録準備OKに戻す
-          </Button>
-          <Button
-            disabled={isSubmitDisabled}
-            onClick={() => onSubmit(true)}
-            type="button"
-            variant="contained"
-          >
-            修正して登録
-          </Button>
+          {hasMultipleCategories ? (
+            <Button
+              disabled={isSubmitDisabled}
+              onClick={onExitEditMode}
+              type="button"
+              variant="contained"
+            >
+              変更内容を確認
+            </Button>
+          ) : (
+            <Button
+              disabled={isSubmitDisabled}
+              onClick={() => onSubmit(false)}
+              type="button"
+              variant="contained"
+            >
+              確認して準備OK
+            </Button>
+          )}
         </>
       )}
     </DialogActions>

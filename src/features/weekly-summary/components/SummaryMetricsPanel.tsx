@@ -39,11 +39,13 @@ function Metric({
 
 export function SummaryMetricsPanel({
   totalAmountYen,
+  totalIncomeYen,
   previousDiff,
   averageRate,
   isLoading = false,
 }: {
   totalAmountYen: number;
+  totalIncomeYen: number;
   previousDiff: number | null;
   averageRate: number | null;
   isLoading?: boolean;
@@ -62,7 +64,14 @@ export function SummaryMetricsPanel({
         </Box>
       ) : (
         <Box className="weekly-summary-metrics-grid">
-          <Metric label="合計支出" value={`${currencyFormatter.format(totalAmountYen)}円`} />
+          <Box className="weekly-summary-metric-stack">
+            <Metric label="合計支出" value={`${currencyFormatter.format(totalAmountYen)}円`} />
+            <Metric
+              label="合計収入"
+              value={`${currencyFormatter.format(totalIncomeYen)}円`}
+              tone="default"
+            />
+          </Box>
           <Metric
             label="前週差"
             value={formatSignedAmount(previousDiff)}

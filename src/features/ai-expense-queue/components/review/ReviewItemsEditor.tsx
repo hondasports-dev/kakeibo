@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { useMemo } from "react";
 import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
@@ -22,6 +23,10 @@ export function ReviewItemsEditor({
   onAddItem,
   onItemChange,
   onRemoveItem,
+  isCategorySplit,
+  onCategorySplitChange,
+  onAssignCategoryToItems,
+  onDiscountTargetChange,
 }: {
   categories: AiExpenseQueueCategory[];
   reviewItems: ReviewItemValues[];
@@ -33,9 +38,24 @@ export function ReviewItemsEditor({
     value: string,
   ) => void;
   onRemoveItem: (itemId: string) => void;
+  isCategorySplit: boolean;
+  onCategorySplitChange: (split: boolean) => void;
+  onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
+  onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
 }) {
   const itemTotal = computeItemTotalYen(reviewItems);
   const difference = receiptAmount - itemTotal;
+  const productItems = useMemo(
+    () => reviewItems.filter((item) => !isDiscountItemName(item.itemName)),
+    [reviewItems],
+  );
+  const categoryNamesById = useMemo(
+    () => new Map(categories.map((category) => [category._id, category.name])),
+    [categories],
+  );
+  const handleSplitChange = (split: boolean) => {
+    onCategorySplitChange(split);
+  };
 
   return (
     <Stack spacing={1}>
@@ -56,12 +76,25 @@ export function ReviewItemsEditor({
             {difference.toLocaleString("ja-JP")}円
           </Typography>
         </Box>
+        {productItems.length > 1 && (
+          <Button
+            onClick={() => handleSplitChange(!isCategorySplit)}
+            size="small"
+            type="button"
+            variant="outlined"
+          >
+            {isCategorySplit ? "単一カテゴリに戻す" : "カテゴリを分ける"}
+          </Button>
+        )}
+      </Stack>
+
+      <Stack direction="row" spacing={1} sx={{ justifyContent: "flex-end" }}>
         <Button
           onClick={onAddItem}
           size="small"
           startIcon={<AddIcon fontSize="small" />}
           type="button"
-          variant="outlined"
+          variant="text"
         >
           明細を追加
         </Button>
@@ -82,6 +115,8 @@ export function ReviewItemsEditor({
           {reviewItems.map((item, index) => {
             const uncategorized = !item.categoryId;
             const lowConfidence = isLowConfidenceItem(item);
+            const discount = isDiscountItemName(item.itemName);
+            const categoryName = categoryNamesById.get(item.categoryId);
             return (
               <Box
                 key={item.id}
@@ -100,6 +135,13 @@ export function ReviewItemsEditor({
                   >
                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
                       <Chip label={`明細 ${index + 1}`} size="small" />
+                      {!discount && item.categoryId && (
+                        <Chip
+                          label={item.usesReceiptCategory ? "全体カテゴリ" : categoryName}
+                          size="small"
+                          variant="outlined"
+                        />
+                      )}
                       {uncategorized && (
                         <Chip color="warning" label="未分類" size="small" variant="outlined" />
                       )}
@@ -154,20 +196,49 @@ export function ReviewItemsEditor({
                       }
                     />
                   </Stack>
-                  <TextField
-                    fullWidth
-                    label="明細カテゴリ"
-                    onChange={(event) => onItemChange(item.id, "categoryId", event.target.value)}
-                    select
-                    value={item.categoryId}
-                  >
-                    <MenuItem value="">カテゴリ未分類</MenuItem>
-                    {categories.map((category) => (
-                      <MenuItem key={category._id} value={category._id}>
-                        {category.name}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  {discount ? (
+                    <TextField
+                      fullWidth
+                      helperText={
+                        item.discountTargetItemId
+                          ? "対象商品のカテゴリから減額します"
+                          : item.categoryId
+                            ? `AI推定カテゴリ: ${categoryName ?? "設定済み"}`
+                            : "割引対象の商品を選択してください"
+                      }
+                      label="割引対象の商品"
+                      onChange={(event) => onDiscountTargetChange(item.id, event.target.value)}
+                      select
+                      value={item.discountTargetItemId ?? ""}
+                    >
+                      <MenuItem value="">割引対象を選択</MenuItem>
+                      {productItems.map((product) => (
+                        <MenuItem key={product.id} value={product.id}>
+                          {product.itemName}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  ) : isCategorySplit ? (
+                    <TextField
+                      fullWidth
+                      label="明細カテゴリ"
+                      onChange={(event) => onAssignCategoryToItems([item.id], event.target.value)}
+                      select
+                      value={item.categoryId}
+                    >
+                      {categories.map((category) => (
+                        <MenuItem key={category._id} value={category._id}>
+                          {category.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                  ) : (
+                    <Typography color="text.secondary" variant="body2">
+                      {item.usesReceiptCategory
+                        ? "レシート全体のカテゴリを使用"
+                        : `個別カテゴリ: ${categoryName ?? "未分類"}`}
+                    </Typography>
+                  )}
                 </Stack>
               </Box>
             );

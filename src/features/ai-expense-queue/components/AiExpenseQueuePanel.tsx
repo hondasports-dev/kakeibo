@@ -30,7 +30,7 @@ export function AiExpenseQueuePanel({
       className="ai-expense-queue"
       component="section"
     >
-      <Stack spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
+      <Stack className="queue-panel-content" spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
         <QueueHeader
           disabled={queue.consentIsLoading}
           inputRef={queue.inputRef}
@@ -86,12 +86,16 @@ export function AiExpenseQueuePanel({
         reviewError={queue.reviewError}
         reviewForm={queue.reviewForm}
         reviewItems={queue.reviewItems}
+        isCategorySplit={queue.isCategorySplit}
         reviewSubmitting={queue.reviewSubmitting}
         onAddItem={queue.handleAddReviewItem}
         onClose={queue.handleCloseReview}
         onFieldChange={queue.handleReviewFieldChange}
         onItemChange={queue.handleReviewItemChange}
         onRemoveItem={queue.handleRemoveReviewItem}
+        onCategorySplitChange={queue.handleCategorySplitChange}
+        onAssignCategoryToItems={queue.handleAssignCategoryToItems}
+        onDiscountTargetChange={queue.handleDiscountTargetChange}
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
       />
 

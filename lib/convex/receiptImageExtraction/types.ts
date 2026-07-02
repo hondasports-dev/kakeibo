@@ -49,11 +49,13 @@ export type ExtractedFields = ExtractReceiptFieldsResult;
 
 export type ExtractReceiptFieldsArgs = {
   imageDataUrl: string;
+  categoryNames?: string[];
 };
 
 export type OpenAIReceiptExtractorArgs = {
   imageDataUrl: string;
   apiKey: string;
+  categoryNames?: string[];
 };
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */

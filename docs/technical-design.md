@@ -388,7 +388,7 @@ active record が確認できない場合は fail closed にする。
 | shopName      | string (optional) | 店名。支出で使う               |
 | bankName      | string (optional) | 銀行名。収入で使う             |
 | amountYen     | number            | 金額。日本円の整数             |
-| categoryId    | Id<"categories">  | カテゴリID                     |
+| categoryId    | Id<"categories"> (optional) | 支出のカテゴリID。収入では未設定 |
 | memo          | string (optional) | 任意メモ                       |
 | weekStartDate | string            | 所属週の開始日。`YYYY-MM-DD`   |
 | createdAt     | number            | 作成日時                       |
@@ -457,6 +457,15 @@ active record が確認できない場合は fail closed にする。
 
 `unknown` の書類種別、カテゴリ未確定、AI警告、主要フィールドの低信頼度、下書き金額と明細合計の
 不一致がある場合も `needs_review` とし、該当する `reviewReasons` を保存する。
+明細が2カテゴリ以上に分かれた場合は `multiple_categories` として `needs_review` にし、ユーザーが
+カテゴリ別登録候補を確認した更新時だけ確認済みとして `ready` へ遷移できる。
+画像解析直後は `user_confirmation_required` を付与して常に `needs_review` とする。確認フォームから
+`updateForReview` を実行すると当該理由を除去し、確定したレシート記載日を `draft.date` に保存する。
+カテゴリ別に生成する全 `expenseEntries.date` はこの確定日を使い、`createdAt` は登録時刻に限定する。
+
+画像解析では所属グループの有効カテゴリ名を先に取得し、OpenAIのプロンプトへ命令ではなくJSONデータとして渡す。
+構造化出力の `categoryName` は空文字列または有効カテゴリ名の動的 enum に制限し、下書き全体と各明細で
+アプリのカテゴリ名へ完全一致させる。返却後は従来どおりサーバー側で `categoryId` を解決する。
 
 ### 8.6 aiExpenseDraftItems
 
@@ -524,8 +533,8 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `receipts.summaries.getMonthlyExpensesSummary(month?)`
 - `receipts.crud.deleteReceiptsByUser(groupId)`（internal）
 
-`receipts` は支出と収入の両方を扱う schema 互換として残る。支出では `shopName`、収入では `bankName` を保存し、
-`type` 未設定の既存データは支出として扱う。収入入力 UI は廃止済み。
+`receipts` は支出と収入の両方を扱う schema 互換として残る。新規手入力は `expenseEntries` を正本とし、
+収入は `entryType: "income"`、カテゴリなし、入力内容を `title` に保存する。
 
 集計は `receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を統合する。
 
@@ -657,8 +666,8 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 集計は Convex query で行う。
 
-`receipts.type: "income"` の入出金表示は schema 互換として残るが、収入入力 UI は廃止済みであり、
-収入を差し引いた純支出計算にはしていない。
+`receipts.type: "income"` はschema互換として残す。新規収入は `expenseEntries.entryType: "income"` へ保存する。
+週次サマリーとダッシュボードでは `getWeekIncomeEntries` で収入を別途集計し、支出集計や純支出計算には含めない。
 
 **週別支出推移（対象週を含む直近3週間）:**
 

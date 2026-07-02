@@ -18,6 +18,7 @@ describe("DashboardSummaryRow", () => {
     renderSummaryRow({
       count: 12,
       currentTotalAmountYen: 38420,
+      totalIncomeYen: 300000,
       isLoading: false,
       prevWeekTotalAmountYen: 41760,
       weekEndDate: "2026-06-21",
@@ -25,8 +26,12 @@ describe("DashboardSummaryRow", () => {
     });
 
     expect(screen.getByText("今週の支出")).toBeInTheDocument();
+    expect(screen.getByText("今週の収入")).toBeInTheDocument();
     expect(
       screen.getByText((_, element) => element?.getAttribute("data-value") === "38,420円"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText((_, element) => element?.getAttribute("data-value") === "300,000円"),
     ).toBeInTheDocument();
     expect(
       screen.getByText((_, element) => element?.getAttribute("data-value") === "12 件"),
@@ -38,6 +43,7 @@ describe("DashboardSummaryRow", () => {
     renderSummaryRow({
       count: 0,
       currentTotalAmountYen: 0,
+      totalIncomeYen: 0,
       isLoading: false,
       prevWeekTotalAmountYen: null,
       weekEndDate: "2026-06-21",

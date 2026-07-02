@@ -9,6 +9,7 @@ import type {
   ReviewFormValues,
   ReviewItemValues,
 } from "../../types/types";
+import { prepareReviewItemsForSubmit } from "../../utils/reviewItemCategories";
 
 export function useReviewSubmit({
   selectedReviewDraftId,
@@ -45,6 +46,7 @@ export function useReviewSubmit({
       return;
     }
     const amountYen = Number(reviewForm.amountYen);
+    const submittedItems = prepareReviewItemsForSubmit(reviewItems, reviewForm.categoryId);
 
     setReviewSubmitting(true);
     setReviewError("");
@@ -58,10 +60,10 @@ export function useReviewSubmit({
             date: reviewForm.date,
             amountYen,
             categoryId: reviewForm.categoryId,
-            items: reviewItems.map((item) => ({
-              ...item,
+            items: submittedItems.map((item) => ({
               itemName: item.itemName.trim(),
               amountYen: Number(item.amountYen),
+              categoryId: item.categoryId,
             })),
           },
           registerAfterUpdate,
@@ -74,7 +76,7 @@ export function useReviewSubmit({
           date: reviewForm.date,
           amountYen,
           categoryId: reviewForm.categoryId as Id<"categories">,
-          items: reviewItems.map((item) => ({
+          items: submittedItems.map((item) => ({
             itemName: item.itemName.trim(),
             amountYen: Number(item.amountYen),
             categoryId: item.categoryId as Id<"categories">,

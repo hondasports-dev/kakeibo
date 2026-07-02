@@ -14,7 +14,7 @@ export const statusLabels: Record<AiExpenseQueueStatus, string> = {
   analyzing: "解析中",
   ready: "登録準備OK",
   needs_review: "確認が必要",
-  failed: "失敗",
+  failed: "未取込",
   registering: "登録中",
   registered: "登録済み",
 };
@@ -25,7 +25,7 @@ export const displayStatusLabels: Record<DisplayQueueStatus, string> = {
   needs_review: "確認が必要",
   ready: "登録準備OK",
   processing: "解析中",
-  failed: "失敗",
+  failed: "未取込",
   registered: "登録済み",
 };
 
@@ -60,6 +60,8 @@ const reviewReasonLabels: Record<string, string> = {
   missing_required_field: "必須項目不足",
   ambiguous_document_type: "書類種別要確認",
   ambiguous_category: "未分類あり",
+  multiple_categories: "複数カテゴリの確認",
+  user_confirmation_required: "内容確認が必要",
   amount_mismatch: "金額不一致",
   parse_failed: "解析失敗",
 };
@@ -88,7 +90,7 @@ export const queueSectionLabels: Record<QueueSectionKey, string> = {
   processing: "読み取り中",
   ready: "登録準備OK",
   needs_review: "確認が必要",
-  failed: "失敗",
+  failed: "未取込",
   registered: "登録済み",
 };
 

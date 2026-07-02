@@ -43,6 +43,8 @@ type DraftDoc = {
     | "missing_required_field"
     | "ambiguous_document_type"
     | "ambiguous_category"
+    | "multiple_categories"
+    | "user_confirmation_required"
     | "amount_mismatch"
     | "parse_failed"
   >;
@@ -461,7 +463,7 @@ describe("aiExpenseDrafts", () => {
     expect(insertedDraft).not.toHaveProperty("image");
   });
 
-  it("下書き保存時に抽出結果から登録準備OKを分類する", async () => {
+  it("下書き保存時は抽出精度にかかわらずユーザー確認を必須にする", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
         "category-food": {
@@ -471,8 +473,8 @@ describe("aiExpenseDrafts", () => {
       insertedDoc: {
         ...ownedDraft,
         _id: "new-draft-id",
-        status: "ready",
-        reviewReasons: [],
+        status: "needs_review",
+        reviewReasons: ["user_confirmation_required"],
       },
     });
 
@@ -498,8 +500,8 @@ describe("aiExpenseDrafts", () => {
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDrafts",
       expect.objectContaining({
-        status: "ready",
-        reviewReasons: [],
+        status: "needs_review",
+        reviewReasons: ["user_confirmation_required"],
       }),
     );
   });
@@ -1127,6 +1129,27 @@ describe("aiExpenseDrafts", () => {
     expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
   });
 
+  it("実在しない支出日の確認下書きは登録準備OKへ戻せない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-owned": ownedDraft,
+        "cat-food": { groupId: GROUP_ID, isActive: true },
+      },
+    });
+
+    await expect(
+      updateForReviewHandler(ctx, {
+        draftId: "draft-owned" as Id<"aiExpenseDrafts">,
+        documentType: "receipt",
+        shopName: "スーパー青葉",
+        date: "2026-02-30",
+        amountYen: 1680,
+        categoryId: "cat-food" as Id<"categories">,
+      }),
+    ).rejects.toMatchObject({ data: "Draft date must be a valid YYYY-MM-DD date" });
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
   it("確認が必要以外の下書きはレビュー編集できない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
@@ -1453,7 +1476,7 @@ describe("aiExpenseDrafts", () => {
                     paymentPurpose: "",
                     date: "2026-06-21",
                     amountYen: 1130,
-                    categoryName: "日用品",
+                    categoryName: "食費",
                     items: [
                       {
                         itemName: "パン",
@@ -1513,6 +1536,20 @@ describe("aiExpenseDrafts", () => {
           await analyzeReceiptImageToDraftHandler(ctx, {
             imageDataUrl: "data:image/jpeg;base64,AAA",
           });
+          const requestBody = JSON.parse(String(extractionSpy.mock.calls[0]?.[1]?.body)) as {
+            text: {
+              format: {
+                schema: {
+                  properties: {
+                    items: { items: { properties: { categoryName: { enum: string[] } } } };
+                  };
+                };
+              };
+            };
+          };
+          expect(
+            requestBody.text.format.schema.properties.items.items.properties.categoryName.enum,
+          ).toEqual(["", "食費", "医療費"]);
         },
       );
     } finally {
@@ -1575,6 +1612,7 @@ describe("aiExpenseDrafts", () => {
           amount: 400,
           aiExpenseDraftId: "draft-ready",
           categoryId: "cat-food",
+          date: "2026-06-01",
           source: "ai_suggested",
         }),
       );
@@ -1585,6 +1623,7 @@ describe("aiExpenseDrafts", () => {
           amount: 980,
           aiExpenseDraftId: "draft-ready",
           categoryId: "cat-medical",
+          date: "2026-06-01",
           source: "ai_suggested",
         }),
       );

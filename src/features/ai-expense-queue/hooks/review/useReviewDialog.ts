@@ -63,6 +63,7 @@ export function useReviewDialog({
     isReviewDraftNotFound: draftSelection.isReviewDraftNotFound,
     reviewForm: formState.reviewForm,
     reviewItems: formState.reviewItems,
+    isCategorySplit: formState.isCategorySplit,
     reviewError: submit.reviewError,
     reviewSubmitting: submit.reviewSubmitting,
     setSelectedReviewDraftId: draftSelection.setSelectedReviewDraftId,
@@ -77,6 +78,9 @@ export function useReviewDialog({
     handleReviewItemChange: formState.handleReviewItemChange,
     handleAddReviewItem: formState.handleAddReviewItem,
     handleRemoveReviewItem: formState.handleRemoveReviewItem,
+    handleCategorySplitChange: formState.handleCategorySplitChange,
+    handleAssignCategoryToItems: formState.handleAssignCategoryToItems,
+    handleDiscountTargetChange: formState.handleDiscountTargetChange,
     handleSubmitReview: submit.handleSubmitReview,
   };
 }

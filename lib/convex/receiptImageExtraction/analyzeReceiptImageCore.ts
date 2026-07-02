@@ -34,9 +34,14 @@ export async function analyzeReceiptImageToDraftCore(
   ctx: ActionCtx,
   args: AnalyzeReceiptImageCoreArgs,
 ): Promise<Doc<"aiExpenseDrafts">> {
+  let categories: Doc<"categories">[];
   let extracted;
   try {
-    extracted = await extractReceiptFieldsHandler(ctx, { imageDataUrl: args.imageDataUrl });
+    categories = await ctx.runQuery(api.categories.queries.listActive, {});
+    extracted = await extractReceiptFieldsHandler(ctx, {
+      imageDataUrl: args.imageDataUrl,
+      categoryNames: categories.map((category) => category.name),
+    });
   } catch (err) {
     return await ctx.runMutation(
       internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
@@ -46,8 +51,6 @@ export async function analyzeReceiptImageToDraftCore(
       },
     );
   }
-
-  const categories = await ctx.runQuery(api.categories.queries.listActive, {});
 
   return await ctx.runMutation(
     internal.aiExpenseDrafts.internal.createFromExtraction,

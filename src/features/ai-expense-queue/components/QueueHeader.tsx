@@ -18,6 +18,7 @@ export function QueueHeader({
 }) {
   return (
     <Stack
+      className="queue-header"
       direction={{ xs: "column", sm: "row" }}
       spacing={1.5}
       sx={{

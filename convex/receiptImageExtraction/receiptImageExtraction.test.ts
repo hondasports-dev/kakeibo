@@ -828,6 +828,7 @@ describe("extractReceiptFieldsHandler", () => {
           const ctx = createActionCtx(createIdentity());
           const result = await extractReceiptFieldsHandler(ctx, {
             imageDataUrl: VALID_IMAGE_DATA_URL,
+            categoryNames: ["食費", "医療費", "日用品"],
           });
 
           expect(result.items).toEqual([
@@ -865,6 +866,20 @@ describe("extractReceiptFieldsHandler", () => {
               warnings: [],
             },
           ]);
+          const requestBody = JSON.parse(String(fetchSpy.mock.calls.at(-1)?.[1]?.body)) as {
+            text: {
+              format: {
+                schema: {
+                  properties: {
+                    items: { items: { properties: { categoryName: { enum: string[] } } } };
+                  };
+                };
+              };
+            };
+          };
+          expect(
+            requestBody.text.format.schema.properties.items.items.properties.categoryName.enum,
+          ).toEqual(["", "食費", "医療費", "日用品"]);
         },
       );
     });

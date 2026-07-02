@@ -62,7 +62,10 @@ function resolveDraftClassification(args: CreateFromExtractionArgs): {
   reviewReasons: AiExpenseDraftReviewReason[];
 } {
   const computed = classifyAiExpenseDraft(args);
-  const reviewReasons = mergeReviewReasons(computed.reviewReasons, args.reviewReasons);
+  const reviewReasons = mergeReviewReasons(computed.reviewReasons, [
+    ...(args.reviewReasons ?? []),
+    "user_confirmation_required",
+  ]);
   return {
     status: reviewReasons.length === 0 ? "ready" : "needs_review",
     reviewReasons,

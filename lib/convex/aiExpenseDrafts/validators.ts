@@ -22,6 +22,8 @@ export const AI_EXPENSE_DRAFT_REVIEW_REASONS = [
   "missing_required_field",
   "ambiguous_document_type",
   "ambiguous_category",
+  "multiple_categories",
+  "user_confirmation_required",
   "amount_mismatch",
   "parse_failed",
 ] as const;
@@ -50,6 +52,8 @@ export const aiExpenseDraftReviewReasonValidator = v.union(
   v.literal("missing_required_field"),
   v.literal("ambiguous_document_type"),
   v.literal("ambiguous_category"),
+  v.literal("multiple_categories"),
+  v.literal("user_confirmation_required"),
   v.literal("amount_mismatch"),
   v.literal("parse_failed"),
 );

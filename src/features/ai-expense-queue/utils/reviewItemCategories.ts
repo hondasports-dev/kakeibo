@@ -1,0 +1,134 @@
+import type { ReviewItemValues } from "../types/types";
+import { isDiscountItemName } from "./discountItems";
+
+function isProductItem(item: ReviewItemValues) {
+  return !isDiscountItemName(item.itemName);
+}
+
+function syncTargetedDiscounts(items: ReviewItemValues[]) {
+  const categoriesByItemId = new Map(
+    items.filter(isProductItem).map((item) => [item.id, item.categoryId]),
+  );
+  return items.map((item) => {
+    if (!isDiscountItemName(item.itemName) || !item.discountTargetItemId) {
+      return item;
+    }
+    return {
+      ...item,
+      categoryId: categoriesByItemId.get(item.discountTargetItemId) ?? "",
+    };
+  });
+}
+
+export function initializeReviewCategoryState(
+  items: ReviewItemValues[],
+  receiptCategoryId: string,
+) {
+  const productItems = items.filter(isProductItem);
+  const distinctCategoryIds = new Set(
+    productItems.map((item) => item.categoryId).filter((categoryId) => categoryId.length > 0),
+  );
+  const soleItemCategoryId = distinctCategoryIds.size === 1 ? [...distinctCategoryIds][0] : "";
+  const hasUncategorizedProducts = productItems.some((item) => !item.categoryId);
+  const isCategorySplit =
+    distinctCategoryIds.size > 1 ||
+    (hasUncategorizedProducts &&
+      !!receiptCategoryId &&
+      !!soleItemCategoryId &&
+      receiptCategoryId !== soleItemCategoryId);
+  const effectiveReceiptCategoryId =
+    !isCategorySplit && soleItemCategoryId
+      ? soleItemCategoryId
+      : receiptCategoryId || soleItemCategoryId;
+
+  const initialized = items.map((item) => {
+    if (!isProductItem(item)) {
+      const matchingProducts = productItems.filter(
+        (product) => item.categoryId && product.categoryId === item.categoryId,
+      );
+      return {
+        ...item,
+        discountTargetItemId:
+          item.discountTargetItemId ??
+          (matchingProducts.length === 1 ? matchingProducts[0].id : undefined),
+      };
+    }
+    if (!isCategorySplit) {
+      return {
+        ...item,
+        categoryId: effectiveReceiptCategoryId,
+        usesReceiptCategory: true,
+      };
+    }
+    const usesReceiptCategory =
+      !item.categoryId ||
+      (effectiveReceiptCategoryId.length > 0 && item.categoryId === effectiveReceiptCategoryId);
+    return {
+      ...item,
+      categoryId: usesReceiptCategory ? effectiveReceiptCategoryId : item.categoryId,
+      usesReceiptCategory,
+    };
+  });
+
+  return {
+    items: syncTargetedDiscounts(initialized),
+    receiptCategoryId: effectiveReceiptCategoryId,
+    isCategorySplit,
+  };
+}
+
+export function applyReceiptCategory(items: ReviewItemValues[], categoryId: string) {
+  return syncTargetedDiscounts(
+    items.map((item) => {
+      if (isProductItem(item)) {
+        return { ...item, categoryId, usesReceiptCategory: true };
+      }
+      if (item.discountTargetItemId || item.categoryId) {
+        return { ...item, categoryId };
+      }
+      return item;
+    }),
+  );
+}
+
+export function assignCategoryToItems(
+  items: ReviewItemValues[],
+  itemIds: string[],
+  categoryId: string,
+) {
+  const selectedIds = new Set(itemIds);
+  return syncTargetedDiscounts(
+    items.map((item) =>
+      selectedIds.has(item.id) && isProductItem(item)
+        ? { ...item, categoryId, usesReceiptCategory: false }
+        : item,
+    ),
+  );
+}
+
+export function assignDiscountTarget(
+  items: ReviewItemValues[],
+  discountItemId: string,
+  targetItemId: string,
+) {
+  const target = items.find((item) => item.id === targetItemId && isProductItem(item));
+  return items.map((item) =>
+    item.id === discountItemId && isDiscountItemName(item.itemName)
+      ? {
+          ...item,
+          categoryId: target?.categoryId ?? "",
+          discountTargetItemId: target?.id,
+        }
+      : item,
+  );
+}
+
+export function prepareReviewItemsForSubmit(items: ReviewItemValues[], receiptCategoryId: string) {
+  return syncTargetedDiscounts(
+    items.map((item) =>
+      isProductItem(item) && item.usesReceiptCategory
+        ? { ...item, categoryId: receiptCategoryId }
+        : item,
+    ),
+  );
+}

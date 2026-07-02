@@ -19,4 +19,9 @@ describe("ai-expense-queue responsive styles", () => {
     expect(css).toContain(".ai-expense-queue-item-secondary");
     expect(css).toMatch(/\.ai-expense-queue-item-secondary[\s\S]*overflow-wrap:\s*anywhere/);
   });
+
+  it("SPでは登録済み一覧を手入力フォームの後へ並べる", () => {
+    expect(css).toMatch(/\.input-workbench-form\s*\{[^}]*order:\s*3/);
+    expect(css).toMatch(/\.queue-section-registered\s*\{[^}]*order:\s*4/);
+  });
 });

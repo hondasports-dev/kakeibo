@@ -15,39 +15,38 @@
 ## ブランチ運用
 
 - `main` は保護対象のデフォルトブランチとする。
-- コード変更を含む作業ブランチは、ローカルの `main` を最新化してから原則 `git worktree` で作成する。
+- 開発統合は `preview` ブランチで行う（[preview ブランチ / PREVIEW 運用](#preview-ブランチ--preview-運用) 参照）。
+- コード変更を含む作業ブランチは、最新化した `preview` から原則 `git worktree` で作成する。
 - `main` へ直接 push しない。
 - ブランチ名は読みやすければよく、厳密な命名規則は設けない。
 
-作業開始時は、通常の checkout で `main` を最新化します。
-
-```bash
-git checkout main
-git pull
-```
-
-その後、コード変更を含む作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
-作業ごとのディレクトリを分けます。
-
-```bash
-git worktree add ../kakeibo-worktrees/<branch-name> -b <branch-name>
-cd ../kakeibo-worktrees/<branch-name>
-```
-
-Issue や UI 変更でローカル E2E を回す場合は、**`preview` 用 worktree** も同じ
-`<worktrees-dir>`（既定: リポジトリルートの `../kakeibo-worktrees`）に 1 本用意し、
-そこにある `.env.local` を正本にします（初回のみ）:
+作業開始時は `preview` を最新化し、**`preview` 用 worktree** を同じ
+`<worktrees-dir>`（既定: リポジトリルートの `../kakeibo-worktrees`）に用意します。
+ここにある `.env.local` をローカル E2E の正本にします（[`.env.local` 同期](#envlocal-同期ローカル-e2e-前に毎回) 参照）。
 
 ```bash
 git fetch origin preview
+
+# 初回のみ: preview 用 worktree
 git worktree add ../kakeibo-worktrees/preview preview
+
+# preview 用 worktree を最新化（既存の場合）
+git -C ../kakeibo-worktrees/preview pull
+```
+
+その後、コード変更を含む作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
+`preview` から作業ごとのディレクトリを分けます。
+
+```bash
+git worktree add ../kakeibo-worktrees/<branch-name> -b <branch-name> origin/preview
+cd ../kakeibo-worktrees/<branch-name>
 ```
 
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
 Plan 契約（`AGENTS.md`）や Implementer ロールで作業ブランチを作成する場合も、
 この `git worktree` 手順に従います。ただし、ドキュメントのみの改善、マージ後の
-`main` 最新化、またはユーザーが既存PRへ混ぜるよう明示した修正では、新しい
+`preview` または `main` の最新化、またはユーザーが既存PRへ混ぜるよう明示した修正では、新しい
 `git worktree` を機械的に作成しません。
 
 推奨例:
@@ -430,7 +429,7 @@ Vercel Git Integration 由来の Preview Deployment に対する補助的な E2E
     <branch-name>/                # Issue 作業用 worktree
 ```
 
-**1. `preview` 用 worktree を用意する**（未作成時のみ、`<repo>` で実行）
+**1. `preview` 用 worktree を用意する**（[ブランチ運用](#ブランチ運用) で既に作成済みなら省略。未作成時のみ、`<repo>` で実行）
 
 ```bash
 git fetch origin preview
@@ -645,7 +644,7 @@ Convex 側の関数が未デプロイだと `FunctionNotFound` エラーにな�
 npx convex dev --once
 ```
 
-worktree 環境では、mainのworktree と dev deployment が共有される場合がある。
+worktree 環境では、`preview` 用 worktree や Issue 作業用 worktree と dev deployment が共有される場合がある。
 branch 切り替え後は必ず `npx convex dev --once` を実行して、使用中の関数が
 dev に揃っていることを確認する。
 

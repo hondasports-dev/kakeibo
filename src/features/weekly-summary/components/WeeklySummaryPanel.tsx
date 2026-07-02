@@ -1,16 +1,27 @@
 import { Box, Stack } from "@mui/material";
 import { WeeklyTrendChart } from "./WeeklyTrendChart";
 import { ReceiptListCard } from "./ReceiptListCard";
+import { IncomeListCard } from "./IncomeListCard";
 import { SummaryMetricsPanel } from "./SummaryMetricsPanel";
 import { WeeklyCategoryBreakdown } from "./WeeklyCategoryBreakdown";
 import type { WeeklySummaryPanelProps } from "../types/types";
+import { incomeItemToReceiptItem, type IncomeItem, type ReceiptItem } from "../types/types";
+
+function mapIncomeHandler(
+  handler: ((receipt: ReceiptItem) => void) | undefined,
+): ((income: IncomeItem) => void) | undefined {
+  return handler ? (income) => handler(incomeItemToReceiptItem(income)) : undefined;
+}
 
 export function WeeklySummaryPanel({
   count,
   totalAmountYen,
+  totalIncomeYen = 0,
+  incomeCount = 0,
   byCategory,
   prevWeekTotalAmountYen,
   receipts,
+  incomes = [],
   isLoading = false,
   weeklyExpenseTrend,
   onDeleteReceipt,
@@ -29,6 +40,7 @@ export function WeeklySummaryPanel({
         isLoading={isLoading || weeklyExpenseTrend === undefined}
         previousDiff={previousDiff}
         totalAmountYen={totalAmountYen}
+        totalIncomeYen={totalIncomeYen}
       />
 
       <Box className="weekly-summary-analysis-grid">
@@ -47,12 +59,21 @@ export function WeeklySummaryPanel({
       </Box>
 
       <ReceiptListCard
-        key={weekStartDate}
+        key={`expense-${weekStartDate}`}
         count={count}
         isLoading={isLoading}
         receipts={receipts}
         onDeleteReceipt={onDeleteReceipt}
         onEditReceipt={onEditReceipt}
+      />
+
+      <IncomeListCard
+        key={`income-${weekStartDate}`}
+        count={incomeCount}
+        incomes={incomes}
+        isLoading={isLoading}
+        onDeleteIncome={mapIncomeHandler(onDeleteReceipt)}
+        onEditIncome={mapIncomeHandler(onEditReceipt)}
       />
     </Stack>
   );

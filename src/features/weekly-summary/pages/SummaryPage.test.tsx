@@ -24,9 +24,12 @@ describe("SummaryPage", () => {
     useQueryMock.mockReturnValue({
       count: 0,
       totalAmountYen: 0,
+      totalIncomeYen: 0,
+      incomeCount: 0,
       byCategory: [],
       prevWeekTotalAmountYen: null,
       receipts: [],
+      incomes: [],
       weeks: [],
     });
   });

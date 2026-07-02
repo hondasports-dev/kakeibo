@@ -21,11 +21,13 @@ describe("WeeklySummaryPanel", () => {
 
     // When: 週次サマリーを確認する
     // Then: 空状態が表示され、予算情報は表示されない
-    expect(screen.getByText("0円")).toBeInTheDocument();
+    expect(screen.getByLabelText("合計支出")).toHaveTextContent("0円");
+    expect(screen.getByLabelText("合計収入")).toHaveTextContent("0円");
     expect(screen.queryByText("未設定")).not.toBeInTheDocument();
     expect(screen.queryByText("予算")).not.toBeInTheDocument();
     expect(screen.getByText("まだ支出がありません")).toBeInTheDocument();
     expect(screen.getByText("まだレシートがありません")).toBeInTheDocument();
+    expect(screen.getByText("まだ収入がありません")).toBeInTheDocument();
   });
 
   it("複数レシートの合計、カテゴリ別、前週比、支出一覧を表示する", async () => {
@@ -184,8 +186,10 @@ describe("WeeklySummaryPanel", () => {
   it("支出と収入の種別が判別できる", () => {
     renderWithProviders(
       <WeeklySummaryPanel
-        count={2}
-        totalAmountYen={304280}
+        count={1}
+        totalAmountYen={4280}
+        totalIncomeYen={300000}
+        incomeCount={1}
         byCategory={[]}
         prevWeekTotalAmountYen={null}
         receipts={[
@@ -200,24 +204,26 @@ describe("WeeklySummaryPanel", () => {
             categoryColor: "#AAB7C4",
             recordType: "expenseEntry",
           },
+        ]}
+        incomes={[
           {
             _id: "income-1",
             date: "2026-05-18",
             type: "income",
             bankName: "三菱UFJ銀行",
             amountYen: 300000,
-            categoryId: "cat-income",
-            categoryName: "給与",
-            categoryColor: "#F4A27A",
             recordType: "expenseEntry",
           },
         ]}
         weekStartDate="2026-05-13"
+        weeklyExpenseTrend={null}
       />,
     );
 
     expect(screen.getByText("支出")).toBeInTheDocument();
     expect(screen.getByText("収入")).toBeInTheDocument();
+    expect(screen.getByLabelText("合計収入")).toHaveTextContent("300,000円");
+    expect(screen.getByText("収入一覧（1件）")).toBeInTheDocument();
   });
 
   // 振り返りメモとセッション完了UIは Issue #309 で削除済み。

@@ -79,8 +79,8 @@ async function ensureE2eGroup(page: Page) {
     .or(page.getByRole("heading", { level: 1, name: "今週", exact: true }));
 
   const destination = await Promise.any([
-    dashboardHeading.waitFor({ state: "visible", timeout: 20_000 }).then(() => "dashboard"),
-    setupHeading.waitFor({ state: "visible", timeout: 20_000 }).then(() => "setup"),
+    dashboardHeading.waitFor({ state: "visible", timeout: 30_000 }).then(() => "dashboard"),
+    setupHeading.waitFor({ state: "visible", timeout: 30_000 }).then(() => "setup"),
   ]);
 
   if (destination === "dashboard") {

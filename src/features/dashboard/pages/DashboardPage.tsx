@@ -58,6 +58,7 @@ export function DashboardPage() {
   const isLoading = summary === undefined;
   const count = summary?.count ?? 0;
   const totalAmountYen = summary?.totalAmountYen ?? 0;
+  const totalIncomeYen = summary?.totalIncomeYen ?? 0;
   const prevWeekTotalAmountYen = summary?.prevWeekTotalAmountYen ?? null;
   const byCategory = summary?.byCategory ?? [];
 
@@ -115,6 +116,7 @@ export function DashboardPage() {
         <DashboardSummaryRow
           count={count}
           currentTotalAmountYen={totalAmountYen}
+          totalIncomeYen={totalIncomeYen}
           isLoading={isLoading}
           prevWeekTotalAmountYen={prevWeekTotalAmountYen}
           weekEndDate={weekEndDate}

@@ -22,12 +22,40 @@ export type ReceiptItem = {
   recordType: "expenseEntry" | "receipt";
 };
 
+export type IncomeItem = {
+  _id: string;
+  date: string;
+  type: "income";
+  bankName?: string;
+  amountYen: number;
+  memo?: string;
+  recordType: "expenseEntry" | "receipt";
+};
+
+export function incomeItemToReceiptItem(income: IncomeItem): ReceiptItem {
+  return {
+    _id: income._id,
+    date: income.date,
+    type: "income",
+    bankName: income.bankName,
+    amountYen: income.amountYen,
+    memo: income.memo,
+    recordType: income.recordType,
+    categoryId: "",
+    categoryName: "",
+    categoryColor: "#AAB7C4",
+  };
+}
+
 export type WeeklySummaryPanelProps = {
   count: number;
   totalAmountYen: number;
+  totalIncomeYen?: number;
+  incomeCount?: number;
   byCategory: CategorySummary[];
   prevWeekTotalAmountYen: number | null;
   receipts: ReceiptItem[];
+  incomes?: IncomeItem[];
   isLoading?: boolean;
   weekStartDate: string;
   weeklyExpenseTrend?: WeeklyExpenseChartData | null;

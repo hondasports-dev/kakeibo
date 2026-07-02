@@ -77,12 +77,30 @@ export function ExpenseEntryEditDialog({
     setError("");
     try {
       if (receipt.recordType === "expenseEntry") {
-        await updateExpenseEntry({
-          expenseEntryId: receipt._id as Id<"expenseEntries">,
+        if (receipt.type === "income") {
+          await updateExpenseEntry({
+            expenseEntryId: receipt._id as Id<"expenseEntries">,
+            date,
+            amountYen: parsedAmount,
+            title: title.trim(),
+            memo: memo.trim() || undefined,
+          });
+        } else {
+          await updateExpenseEntry({
+            expenseEntryId: receipt._id as Id<"expenseEntries">,
+            date,
+            amountYen: parsedAmount,
+            categoryId: categoryId as Id<"categories">,
+            title: title.trim(),
+            memo: memo.trim() || undefined,
+          });
+        }
+      } else if (receipt.type === "income") {
+        await updateReceipt({
+          receiptId: receipt._id as Id<"receipts">,
           date,
           amountYen: parsedAmount,
-          categoryId: categoryId as Id<"categories">,
-          title: title.trim(),
+          bankName: title.trim(),
           memo: memo.trim() || undefined,
         });
       } else {
@@ -105,6 +123,7 @@ export function ExpenseEntryEditDialog({
   };
 
   const entryLabel = receipt?.type === "income" ? "収入" : "支出";
+  const isIncome = receipt?.type === "income";
 
   return (
     <Dialog fullWidth maxWidth="sm" onClose={onClose} open={open}>
@@ -131,19 +150,21 @@ export function ExpenseEntryEditDialog({
             slotProps={{ htmlInput: { inputMode: "numeric" } }}
             value={amountYen}
           />
-          <TextField
-            fullWidth
-            label="カテゴリ"
-            onChange={(event) => setCategoryId(event.target.value)}
-            select
-            value={categoryId}
-          >
-            {categories.map((category) => (
-              <MenuItem key={category._id} value={category._id}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </TextField>
+          {!isIncome && (
+            <TextField
+              fullWidth
+              label="カテゴリ"
+              onChange={(event) => setCategoryId(event.target.value)}
+              select
+              value={categoryId}
+            >
+              {categories.map((category) => (
+                <MenuItem key={category._id} value={category._id}>
+                  {category.name}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <TextField
             fullWidth
             label={receipt?.type === "income" ? "内容" : "タイトル"}

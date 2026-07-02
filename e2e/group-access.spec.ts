@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { getCurrentClerkTokenIdentifier, gotoAuthenticated } from "./helpers/auth";
 import {
   cleanupGroupInvitationsByUser,
@@ -7,19 +7,37 @@ import {
 } from "./helpers/cleanup";
 import { seedGroupMemberForUser, seedPendingGroupInvitationForUser } from "./helpers/seed";
 
-async function expandDangerZone(page: import("@playwright/test").Page) {
+async function expandDangerZone(page: Page) {
   const trigger = page.getByRole("button", { name: "危険な操作" });
   if ((await trigger.getAttribute("aria-expanded")) !== "true") {
     await trigger.click();
   }
 }
 
-async function expandGroupManagement(page: import("@playwright/test").Page) {
+async function expandGroupManagement(page: Page) {
   const trigger = page.getByRole("button", { name: "管理する" });
   await trigger.waitFor({ state: "visible" });
   if ((await trigger.getAttribute("aria-expanded")) !== "true") {
     await trigger.click();
   }
+}
+
+/** cleanup 後に Convex subscription が未所属状態へ反映されるまで待つ */
+async function waitForGroupSetupRedirect(page: Page) {
+  await page.goto("/");
+  await expect
+    .poll(
+      async () => {
+        const pathname = new URL(page.url()).pathname;
+        if (pathname === "/group/setup") {
+          return pathname;
+        }
+        await page.reload({ waitUntil: "domcontentloaded" });
+        return new URL(page.url()).pathname;
+      },
+      { timeout: 30_000, intervals: [1000, 2000, 3000] },
+    )
+    .toBe("/group/setup");
 }
 
 test.describe("グループアクセス", () => {
@@ -47,8 +65,7 @@ test.describe("グループアクセス", () => {
     currentUserIdForCleanup = currentUserId;
     await cleanupGroupMembershipsByUser(currentUserId);
 
-    await page.goto("/");
-    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+    await waitForGroupSetupRedirect(page);
     await expect(page.getByRole("heading", { name: "家族グループを作成" })).toBeVisible({
       timeout: 15_000,
     });
@@ -79,8 +96,7 @@ test.describe("グループアクセス", () => {
     currentUserIdForCleanup = currentUserId;
     await cleanupGroupMembershipsByUser(currentUserId);
 
-    await page.goto("/");
-    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+    await waitForGroupSetupRedirect(page);
 
     await page.getByRole("textbox", { name: "グループ名" }).fill("佐藤家");
     await page.getByRole("button", { name: "グループを作成" }).click();
@@ -107,8 +123,7 @@ test.describe("グループアクセス", () => {
     currentUserIdForCleanup = currentUserId;
     await cleanupGroupMembershipsByUser(currentUserId);
 
-    await page.goto("/");
-    await expect(page).toHaveURL("/group/setup", { timeout: 15_000 });
+    await waitForGroupSetupRedirect(page);
 
     await page.getByRole("textbox", { name: "グループ名" }).fill("監査ログ空状態テスト");
     await page.getByRole("button", { name: "グループを作成" }).click();

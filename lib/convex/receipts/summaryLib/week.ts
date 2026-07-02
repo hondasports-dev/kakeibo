@@ -1,7 +1,10 @@
 import type { QueryCtx } from "../../../../convex/_generated/server";
 import { requireGroupMembership } from "../../../../convex/groups/membership";
 import { calculateRelativeWeekStartDate } from "../../../../convex/lib/weekDates";
-import { getWeekSpendingEntries } from "../../../../convex/receipts/spendingEntries";
+import {
+  getWeekIncomeEntries,
+  getWeekSpendingEntries,
+} from "../../../../convex/receipts/spendingEntries";
 import {
   buildCategoryInfoMap,
   summarizeByCategory,
@@ -39,6 +42,8 @@ type GetWeekSummaryWithCategoriesArgs = {
 export type WeekSummaryWithCategories = {
   count: number;
   totalAmountYen: number;
+  totalIncomeYen: number;
+  incomeCount: number;
   byCategory: CategorySummary[];
   prevWeekReceiptCount: number;
   prevWeekTotalAmountYen: number | null;
@@ -52,6 +57,15 @@ export type WeekSummaryWithCategories = {
     categoryId: string;
     categoryName: string;
     categoryColor: string;
+    memo?: string;
+    recordType: "expenseEntry" | "receipt";
+  }>;
+  incomes: Array<{
+    _id: string;
+    date: string;
+    type: "income";
+    bankName?: string;
+    amountYen: number;
     memo?: string;
     recordType: "expenseEntry" | "receipt";
   }>;
@@ -99,13 +113,20 @@ export async function getWeekSummaryWithCategoriesHandler(
 
   const byCategory = summarizeByCategory(receipts, categoryInfoMap);
 
+  const incomeEntries = await getWeekIncomeEntries(ctx, groupId, args.weekStartDate);
+  const totalIncomeYen = incomeEntries.reduce((sum, entry) => sum + entry.amountYen, 0);
+  const incomeCount = incomeEntries.length;
+
   return {
     count,
     totalAmountYen,
+    totalIncomeYen,
+    incomeCount,
     byCategory,
     prevWeekReceiptCount: prevWeekSummary.count,
     prevWeekTotalAmountYen: prevWeekSummary.count > 0 ? prevWeekSummary.totalAmountYen : null,
     receipts: receiptsWithCategory,
+    incomes: incomeEntries,
   };
 }
 
