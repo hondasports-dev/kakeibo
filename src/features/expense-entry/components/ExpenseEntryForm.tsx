@@ -4,7 +4,13 @@ import { useMutation } from "convex/react";
 import { Alert, Box, Button, Paper, Snackbar, Stack, Tab, Tabs, TextField } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import { useExpenseEntryForm } from "../hooks/useExpenseEntryForm";
-import { AiExpenseQueuePanel } from "../../ai-expense-queue";
+import { AiExpenseQueuePanelProvider } from "../../ai-expense-queue/context/AiExpenseQueuePanelContext";
+import {
+  QueuePanelActive,
+  QueuePanelDialogs,
+  QueuePanelHeader,
+  QueuePanelRegistered,
+} from "../../ai-expense-queue/components/QueuePanelSlots";
 import { ConfirmDifferenceDialog } from "./ConfirmDifferenceDialog";
 import { ExpenseFormActions } from "./ExpenseFormActions";
 import { ExpenseFormHeading } from "./ExpenseFormHeading";
@@ -92,6 +98,116 @@ export function ExpenseEntryForm({
     }
   };
 
+  const workbenchForm = (
+    <form
+      className="input-workbench-form"
+      noValidate
+      onSubmit={entryType === "expense" ? handleSubmit : handleIncomeSubmit}
+    >
+      <Stack spacing={2.5} sx={{ maxWidth: "100%", minWidth: 0 }}>
+        <ExpenseFormHeading isMultiMode={isMultiMode} />
+
+        {(entryType === "expense" ? apiError : incomeError) && (
+          <Alert severity="error" variant="outlined">
+            {entryType === "expense" ? apiError : incomeError}
+          </Alert>
+        )}
+
+        <WeekDaySelector
+          weekStartDate={weekStartDate}
+          weekEndDate={weekEndDate}
+          selectedDate={date}
+          onSelectDate={setDate}
+        />
+
+        {entryType === "income" ? (
+          <Stack spacing={2}>
+            <TextField
+              autoComplete="off"
+              error={Boolean(incomeAmountError)}
+              fullWidth
+              helperText={incomeAmountError}
+              label="金額"
+              name="incomeAmountYen"
+              onChange={(event) => {
+                setIncomeAmount(event.target.value);
+                setIncomeAmountError("");
+              }}
+              placeholder="例: 320,000…"
+              slotProps={{ htmlInput: { inputMode: "numeric" } }}
+              value={incomeAmount}
+            />
+            <TextField
+              autoComplete="off"
+              error={Boolean(incomeTitleError)}
+              fullWidth
+              helperText={incomeTitleError || "給与、賞与、立替精算など"}
+              label="収入の内容・メモ"
+              minRows={2}
+              multiline
+              name="incomeDescription"
+              onChange={(event) => {
+                setIncomeTitle(event.target.value);
+                setIncomeTitleError("");
+              }}
+              placeholder="例: 給与、賞与、立替精算など…"
+              value={incomeTitle}
+            />
+          </Stack>
+        ) : isMultiMode ? (
+          <SourceSummary sourceAmount={sourceAmountNum} shopName={shopName} />
+        ) : (
+          <SingleEntryFields
+            categories={categories}
+            itemCategoryId={items[0]?.categoryId}
+            memo={items[0]?.memo ?? ""}
+            shopName={shopName}
+            shopNameError={shopNameError}
+            sourceAmount={sourceAmount}
+            sourceAmountError={sourceAmountError}
+            categoryError={itemErrors[0]?.categoryId}
+            onShopNameChange={setShopName}
+            onSourceAmountChange={setSourceAmount}
+            onItemChange={(field, value) => handleItemChange(0, field, value)}
+          />
+        )}
+
+        {entryType === "expense" && isMultiMode && (
+          <MultiEntryFields
+            categories={categories}
+            difference={difference}
+            itemErrors={itemErrors}
+            items={items}
+            sourceAmount={sourceAmountNum}
+            onAddItem={handleAddItem}
+            onItemChange={handleItemChange}
+            onRemoveItem={handleRemoveItem}
+          />
+        )}
+
+        {entryType === "expense" ? (
+          <ExpenseFormActions
+            isMultiMode={isMultiMode}
+            isOverExceeded={isOverExceeded}
+            isSubmitting={status === "submitting"}
+            onEnterMultiMode={handleEnterMultiMode}
+          />
+        ) : (
+          <Button
+            aria-busy={incomeSubmitting}
+            disabled={incomeSubmitting}
+            size="large"
+            sx={{ minHeight: 44 }}
+            type="submit"
+            variant="contained"
+          >
+            {incomeSubmitting ? "保存中…" : "保存して次へ"}
+          </Button>
+        )}
+      </Stack>
+    </form>
+  );
+
   return (
     <Paper className="paper-panel" elevation={0} sx={{ maxWidth: "100%", minWidth: 0 }}>
       <Box sx={{ maxWidth: "100%", minWidth: 0, p: 2.5 }}>
@@ -105,120 +221,22 @@ export function ExpenseEntryForm({
             <Tab label="支出" value="expense" />
             <Tab label="収入" value="income" />
           </Tabs>
-          <Box className={`input-workbench input-workbench--${entryType}`}>
-            <form
-              className="input-workbench-form"
-              noValidate
-              onSubmit={entryType === "expense" ? handleSubmit : handleIncomeSubmit}
-            >
-              <Stack spacing={2.5} sx={{ maxWidth: "100%", minWidth: 0 }}>
-                <ExpenseFormHeading isMultiMode={isMultiMode} />
-
-                {(entryType === "expense" ? apiError : incomeError) && (
-                  <Alert severity="error" variant="outlined">
-                    {entryType === "expense" ? apiError : incomeError}
-                  </Alert>
-                )}
-
-                <WeekDaySelector
-                  weekStartDate={weekStartDate}
-                  weekEndDate={weekEndDate}
-                  selectedDate={date}
-                  onSelectDate={setDate}
+          {entryType === "expense" ? (
+            <AiExpenseQueuePanelProvider categories={categories}>
+              <Box className="input-workbench input-workbench--expense">
+                <QueuePanelHeader
+                  className="input-workbench-queue-header ai-expense-queue"
+                  component="section"
                 />
-
-                {entryType === "income" ? (
-                  <Stack spacing={2}>
-                    <TextField
-                      autoComplete="off"
-                      error={Boolean(incomeAmountError)}
-                      fullWidth
-                      helperText={incomeAmountError}
-                      label="金額"
-                      name="incomeAmountYen"
-                      onChange={(event) => {
-                        setIncomeAmount(event.target.value);
-                        setIncomeAmountError("");
-                      }}
-                      placeholder="例: 320,000…"
-                      slotProps={{ htmlInput: { inputMode: "numeric" } }}
-                      value={incomeAmount}
-                    />
-                    <TextField
-                      autoComplete="off"
-                      error={Boolean(incomeTitleError)}
-                      fullWidth
-                      helperText={incomeTitleError || "給与、賞与、立替精算など"}
-                      label="収入の内容・メモ"
-                      minRows={2}
-                      multiline
-                      name="incomeDescription"
-                      onChange={(event) => {
-                        setIncomeTitle(event.target.value);
-                        setIncomeTitleError("");
-                      }}
-                      placeholder="例: 給与、賞与、立替精算など…"
-                      value={incomeTitle}
-                    />
-                  </Stack>
-                ) : isMultiMode ? (
-                  <SourceSummary sourceAmount={sourceAmountNum} shopName={shopName} />
-                ) : (
-                  <SingleEntryFields
-                    categories={categories}
-                    itemCategoryId={items[0]?.categoryId}
-                    memo={items[0]?.memo ?? ""}
-                    shopName={shopName}
-                    shopNameError={shopNameError}
-                    sourceAmount={sourceAmount}
-                    sourceAmountError={sourceAmountError}
-                    categoryError={itemErrors[0]?.categoryId}
-                    onShopNameChange={setShopName}
-                    onSourceAmountChange={setSourceAmount}
-                    onItemChange={(field, value) => handleItemChange(0, field, value)}
-                  />
-                )}
-
-                {entryType === "expense" && isMultiMode && (
-                  <MultiEntryFields
-                    categories={categories}
-                    difference={difference}
-                    itemErrors={itemErrors}
-                    items={items}
-                    sourceAmount={sourceAmountNum}
-                    onAddItem={handleAddItem}
-                    onItemChange={handleItemChange}
-                    onRemoveItem={handleRemoveItem}
-                  />
-                )}
-
-                {entryType === "expense" ? (
-                  <ExpenseFormActions
-                    isMultiMode={isMultiMode}
-                    isOverExceeded={isOverExceeded}
-                    isSubmitting={status === "submitting"}
-                    onEnterMultiMode={handleEnterMultiMode}
-                  />
-                ) : (
-                  <Button
-                    aria-busy={incomeSubmitting}
-                    disabled={incomeSubmitting}
-                    size="large"
-                    sx={{ minHeight: 44 }}
-                    type="submit"
-                    variant="contained"
-                  >
-                    {incomeSubmitting ? "保存中…" : "保存して次へ"}
-                  </Button>
-                )}
-              </Stack>
-            </form>
-            {entryType === "expense" && (
-              <Box className="input-workbench-queue">
-                <AiExpenseQueuePanel categories={categories} />
+                <QueuePanelActive className="input-workbench-queue-active input-workbench-queue-block" />
+                {workbenchForm}
+                <QueuePanelRegistered className="input-workbench-queue-registered input-workbench-queue-block" />
+                <QueuePanelDialogs categories={categories} />
               </Box>
-            )}
-          </Box>
+            </AiExpenseQueuePanelProvider>
+          ) : (
+            <Box className="input-workbench input-workbench--income">{workbenchForm}</Box>
+          )}
         </Stack>
       </Box>
 

@@ -17,22 +17,7 @@ function reviewPriority(item: AiExpenseQueueItem) {
   return 2;
 }
 
-export function QueueContent({
-  clearableCount,
-  deletingIds,
-  groupedItems,
-  itemCount,
-  readyItems,
-  registeringIds,
-  registrationError,
-  selectedReadyIds,
-  onClearOpenQueue,
-  onDeleteQueueItem,
-  onOpenReview,
-  onRegisterReady,
-  onRetry,
-  onToggleReadySelection,
-}: {
+type QueueContentProps = {
   clearableCount: number;
   deletingIds: string[];
   groupedItems: ReturnType<typeof useAiExpenseQueuePanel>["groupedItems"];
@@ -47,9 +32,13 @@ export function QueueContent({
   onRegisterReady: (itemIds?: string[]) => Promise<void>;
   onRetry: (draftId: string) => Promise<void>;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
-}) {
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [confirmInFlight, setConfirmInFlight] = useState(false);
+};
+
+function useQueueContentState({
+  groupedItems,
+  readyItems,
+  selectedReadyIds,
+}: Pick<QueueContentProps, "groupedItems" | "readyItems" | "selectedReadyIds">) {
   const needsReviewCount = groupedItems.needs_review.length;
   const processingCount = groupedItems.processing.length;
   const failedCount = groupedItems.failed.length;
@@ -62,6 +51,43 @@ export function QueueContent({
     (total, item) => total + (item.amountYen ?? 0),
     0,
   );
+
+  return {
+    failedCount,
+    firstReviewItem,
+    needsReviewCount,
+    prioritizedReviewItems,
+    processingCount,
+    selectedTotalAmountYen,
+  };
+}
+
+export function QueueActiveContent({
+  clearableCount,
+  deletingIds,
+  groupedItems,
+  itemCount,
+  readyItems,
+  registeringIds,
+  registrationError,
+  selectedReadyIds,
+  onClearOpenQueue,
+  onDeleteQueueItem,
+  onOpenReview,
+  onRegisterReady,
+  onRetry,
+  onToggleReadySelection,
+}: QueueContentProps) {
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmInFlight, setConfirmInFlight] = useState(false);
+  const {
+    failedCount,
+    firstReviewItem,
+    needsReviewCount,
+    prioritizedReviewItems,
+    processingCount,
+    selectedTotalAmountYen,
+  } = useQueueContentState({ groupedItems, readyItems, selectedReadyIds });
 
   const handleConfirmRegister = async () => {
     if (confirmInFlight) {
@@ -77,13 +103,13 @@ export function QueueContent({
   };
 
   return (
-    <Stack className="queue-content" spacing={2}>
+    <Stack className="queue-content queue-content-active" spacing={2}>
       {registrationError && (
         <Alert severity="error" variant="outlined">
           {registrationError}
         </Alert>
       )}
-      <Stack direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: "stretch" }}>
+      <Stack direction={{ xs: "column", md: "row" }} spacing={1} sx={{ alignItems: "stretch" }}>
         <Stack
           className="ai-expense-queue-status-summary"
           direction="row"
@@ -124,7 +150,7 @@ export function QueueContent({
             onClick={() => onOpenReview(firstReviewItem.id)}
             type="button"
             variant="outlined"
-            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+            sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
           >
             下書きを確認
           </Button>
@@ -139,7 +165,7 @@ export function QueueContent({
           startIcon={<DeleteIcon />}
           type="button"
           variant="outlined"
-          sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+          sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
         >
           未登録の画像をクリア（{clearableCount}件）
         </Button>
@@ -159,7 +185,7 @@ export function QueueContent({
             onClick={() => setConfirmOpen(true)}
             type="button"
             variant="contained"
-            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" } }}
+            sx={{ alignSelf: { xs: "stretch", md: "flex-start" } }}
           >
             まとめて登録（{selectedReadyIds.length}件）
           </Button>
@@ -226,6 +252,30 @@ export function QueueContent({
         deletingIds={deletingIds}
         registeringIds={registeringIds}
       />
+    </Stack>
+  );
+}
+
+export function QueueRegisteredContent({
+  deletingIds,
+  groupedItems,
+  registeringIds,
+  selectedReadyIds,
+  onOpenReview,
+  onRegisterReady,
+  onToggleReadySelection,
+}: Pick<
+  QueueContentProps,
+  | "deletingIds"
+  | "groupedItems"
+  | "registeringIds"
+  | "selectedReadyIds"
+  | "onOpenReview"
+  | "onRegisterReady"
+  | "onToggleReadySelection"
+>) {
+  return (
+    <Stack className="queue-content queue-content-registered" spacing={2}>
       <QueueSection
         sectionKey="registered"
         items={groupedItems.registered}
