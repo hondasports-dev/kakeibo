@@ -1,16 +1,7 @@
 import { Link } from "react-router-dom";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import TaskAltIcon from "@mui/icons-material/TaskAlt";
-import {
-  Box,
-  Button,
-  Chip,
-  Paper,
-  Skeleton,
-  Stack,
-  Typography,
-  useMediaQuery,
-} from "@mui/material";
+import { Box, Button, Paper, Skeleton, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { AnimatedCounter } from "../../ui";
 
@@ -82,22 +73,6 @@ export function DashboardInputPanel({
           <Typography component="h2" variant="h6">
             今週の入力
           </Typography>
-
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{ alignItems: "center", justifyContent: "space-between" }}
-          >
-            <Typography color="text.secondary" variant="body2">
-              入力状況
-            </Typography>
-            <Chip
-              color={isCompleted ? "success" : "warning"}
-              label={isCompleted ? "完了済み" : "● 入力中"}
-              size="small"
-              variant={isCompleted ? "filled" : "outlined"}
-            />
-          </Stack>
 
           <Stack direction="row" spacing={1.5} sx={{ alignItems: "center" }}>
             <TaskAltIcon color="success" sx={{ fontSize: 28 }} />
