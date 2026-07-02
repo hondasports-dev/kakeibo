@@ -995,7 +995,7 @@ describe("AiExpenseQueuePanel", () => {
     );
   });
 
-  it("対象不明の割引は商品選択後に同じカテゴリで保存できる", async () => {
+  it("対象不明の割引でも直前商品が自動選択され保存できる", async () => {
     const user = userEvent.setup();
     useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
       if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
@@ -1041,13 +1041,7 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "内容を変更" }));
 
-    expect(within(dialog).getByText("割引対象の商品を選択してください")).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "確認して準備OK" }));
-    expect(within(dialog).getByText("割引対象の商品を選択してください。")).toBeInTheDocument();
-    expect(updateForReviewMock).not.toHaveBeenCalled();
-
-    await user.click(within(dialog).getByRole("combobox", { name: "割引対象の商品" }));
-    await user.click(screen.getByRole("option", { name: "キュレル ジェルメイク" }));
+    expect(within(dialog).getByText("対象商品のカテゴリから減額します")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "確認して準備OK" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith(
