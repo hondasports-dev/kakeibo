@@ -2,6 +2,7 @@ import { createBrowserRouter, Navigate, type RouteObject } from "react-router-do
 import { useState } from "react";
 import { useAuth } from "@clerk/react";
 import { useMutation, useQuery } from "convex/react";
+import { Box, Button, Stack, TextField } from "@mui/material";
 import { api } from "../convex/_generated/api";
 import type { Id } from "../convex/_generated/dataModel";
 import {
@@ -52,6 +53,16 @@ const devAiExpenseQueueItems: AiExpenseQueueItem[] = [
     documentType: "unknown",
     title: "読み取り失敗",
     reviewReasons: ["parse_failed"],
+  },
+  {
+    id: "e2e-registered-draft",
+    fileName: "17824771095466150171181650108301.jpg",
+    status: "registered",
+    documentType: "receipt",
+    title: "ジャパン 明石稲美店",
+    amountYen: 235,
+    date: "2026-06-26",
+    categoryName: "日用品",
   },
 ];
 
@@ -137,6 +148,36 @@ function E2eAiExpenseQueuePage() {
         );
       }}
     />
+  );
+}
+
+/** Issue #400 E2E: 入力ワークベンチの DOM/CSS 契約を検証する */
+function E2eInputWorkbenchPage() {
+  return (
+    <Box className="app-main" sx={{ minWidth: 0, maxWidth: "100%" }}>
+      <Box className="input-workbench input-workbench--expense">
+        <form
+          className="input-workbench-form"
+          noValidate
+          onSubmit={(event) => {
+            event.preventDefault();
+          }}
+        >
+          <Stack spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
+            <TextField autoComplete="off" label="店舗名 / 支払先" name="shopName" />
+            <Button type="submit" variant="contained">
+              保存して次へ
+            </Button>
+          </Stack>
+        </form>
+        <Box className="input-workbench-queue">
+          <AiExpenseQueuePanel
+            categories={devAiExpenseQueueCategories}
+            initialItems={devAiExpenseQueueItems}
+          />
+        </Box>
+      </Box>
+    </Box>
   );
 }
 
@@ -293,6 +334,10 @@ if (shouldEnableE2eRoutes()) {
   appRoutes.push({
     path: "/__e2e__/ai-expense-queue",
     element: <E2eAiExpenseQueuePage />,
+  });
+  appRoutes.push({
+    path: "/__e2e__/input-workbench",
+    element: <E2eInputWorkbenchPage />,
   });
   appRoutes.push({
     path: "/__e2e__/ai-expense-queue-expense-entries",
