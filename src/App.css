@@ -849,10 +849,6 @@
     margin: 0;
   }
 
-  .weekly-summary-status {
-    margin-left: auto;
-  }
-
   .weekly-summary-metrics {
     padding: var(--space-md) var(--space-xs);
   }
