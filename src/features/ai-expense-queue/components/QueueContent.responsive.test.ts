@@ -22,6 +22,14 @@ describe("ai-expense-queue responsive styles", () => {
 
   it("SPでは登録済み一覧を手入力フォームの後へ並べる", () => {
     expect(css).toMatch(/\.input-workbench-form\s*\{[^}]*order:\s*3/);
-    expect(css).toMatch(/\.queue-section-registered\s*\{[^}]*order:\s*4/);
+    expect(css).toMatch(
+      /\.input-workbench-queue \.queue-content > \.queue-section-registered\s*\{[^}]*order:\s*4/,
+    );
+  });
+
+  it("SPではai-expense-queueをフラット化してorder並べ替えを有効にする", () => {
+    expect(css).toMatch(
+      /@media \(max-width: 899px\)[\s\S]*\.input-workbench-queue > \.ai-expense-queue[\s\S]*display:\s*contents/,
+    );
   });
 });
