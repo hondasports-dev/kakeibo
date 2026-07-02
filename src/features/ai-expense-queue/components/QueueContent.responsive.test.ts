@@ -20,16 +20,30 @@ describe("ai-expense-queue responsive styles", () => {
     expect(css).toMatch(/\.ai-expense-queue-item-secondary[\s\S]*overflow-wrap:\s*anywhere/);
   });
 
-  it("SPでは登録済み一覧を手入力フォームの後へ並べる", () => {
-    expect(css).toMatch(/\.input-workbench-form\s*\{[^}]*order:\s*3/);
-    expect(css).toMatch(
-      /\.input-workbench-queue \.queue-content > \.queue-section-registered\s*\{[^}]*order:\s*4/,
+  it("入力ワークベンチは display: contents に依存しない", () => {
+    expect(css).not.toMatch(/\.input-workbench[\s\S]*display:\s*contents/);
+    expect(css).not.toMatch(
+      /@media \(max-width: 899px\)[\s\S]*\.input-workbench-queue[\s\S]*display:\s*contents/,
     );
   });
 
-  it("SPではai-expense-queueをフラット化してorder並べ替えを有効にする", () => {
+  it("PCでは2カラム grid-template-areas でフォームとキュー3ブロックを配置する", () => {
     expect(css).toMatch(
-      /@media \(max-width: 899px\)[\s\S]*\.input-workbench-queue > \.ai-expense-queue[\s\S]*display:\s*contents/,
+      /\.input-workbench\s*\{[^}]*grid-template-areas:\s*[^;]*"form queue-header"/,
+    );
+    expect(css).toMatch(/grid-template-areas:[^;]*"form queue-active"/);
+    expect(css).toMatch(/grid-template-areas:[^;]*"form queue-registered"/);
+    expect(css).toMatch(/\.input-workbench-form\s*\{[^}]*grid-area:\s*form/);
+    expect(css).toMatch(/\.input-workbench-queue-header\s*\{[^}]*grid-area:\s*queue-header/);
+    expect(css).toMatch(/\.input-workbench-queue-active\s*\{[^}]*grid-area:\s*queue-active/);
+    expect(css).toMatch(
+      /\.input-workbench-queue-registered\s*\{[^}]*grid-area:\s*queue-registered/,
+    );
+  });
+
+  it("SPでは1カラム grid-template-areas でヘッダー→アクティブ→フォーム→登録済みの順に並べる", () => {
+    expect(css).toMatch(
+      /@media \(max-width: 899px\)[\s\S]*grid-template-areas:\s*[^;]*"queue-header"[^;]*"queue-active"[^;]*"form"[^;]*"queue-registered"/,
     );
   });
 });

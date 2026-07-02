@@ -12,7 +12,17 @@ import {
   PrivacyPolicyPage,
   TermsPage,
 } from "./features/app-shell";
-import { AiExpenseQueuePanel, type AiExpenseQueueItem } from "./features/ai-expense-queue";
+import {
+  AiExpenseQueuePanel,
+  AiExpenseQueuePanelProvider,
+  type AiExpenseQueueItem,
+} from "./features/ai-expense-queue";
+import {
+  QueuePanelActive,
+  QueuePanelDialogs,
+  QueuePanelHeader,
+  QueuePanelRegistered,
+} from "./features/ai-expense-queue/components/QueuePanelSlots";
 import { DashboardPage } from "./features/dashboard";
 import { InputPage } from "./features/expense-entry";
 import {
@@ -151,32 +161,38 @@ function E2eAiExpenseQueuePage() {
   );
 }
 
-/** Issue #400 E2E: 入力ワークベンチの DOM/CSS 契約を検証する */
+/** Issue #400 / #401 E2E: 入力ワークベンチの DOM/CSS 契約を検証する */
 function E2eInputWorkbenchPage() {
   return (
     <Box className="app-main" sx={{ minWidth: 0, maxWidth: "100%" }}>
-      <Box className="input-workbench input-workbench--expense">
-        <form
-          className="input-workbench-form"
-          noValidate
-          onSubmit={(event) => {
-            event.preventDefault();
-          }}
-        >
-          <Stack spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
-            <TextField autoComplete="off" label="店舗名 / 支払先" name="shopName" />
-            <Button type="submit" variant="contained">
-              保存して次へ
-            </Button>
-          </Stack>
-        </form>
-        <Box className="input-workbench-queue">
-          <AiExpenseQueuePanel
-            categories={devAiExpenseQueueCategories}
-            initialItems={devAiExpenseQueueItems}
+      <AiExpenseQueuePanelProvider
+        categories={devAiExpenseQueueCategories}
+        initialItems={devAiExpenseQueueItems}
+      >
+        <Box className="input-workbench input-workbench--expense">
+          <QueuePanelHeader
+            className="input-workbench-queue-header ai-expense-queue"
+            component="section"
           />
+          <QueuePanelActive className="input-workbench-queue-active input-workbench-queue-block" />
+          <form
+            className="input-workbench-form"
+            noValidate
+            onSubmit={(event) => {
+              event.preventDefault();
+            }}
+          >
+            <Stack spacing={2} sx={{ maxWidth: "100%", minWidth: 0 }}>
+              <TextField autoComplete="off" label="店舗名 / 支払先" name="shopName" />
+              <Button type="submit" variant="contained">
+                保存して次へ
+              </Button>
+            </Stack>
+          </form>
+          <QueuePanelRegistered className="input-workbench-queue-registered input-workbench-queue-block" />
+          <QueuePanelDialogs categories={devAiExpenseQueueCategories} />
         </Box>
-      </Box>
+      </AiExpenseQueuePanelProvider>
     </Box>
   );
 }

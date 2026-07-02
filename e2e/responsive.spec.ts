@@ -159,11 +159,16 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expectLocatorInsideViewport(cameraButton);
     await expectLocatorInsideViewport(shopNameInput);
     await expectLocatorInsideViewport(registeredRegion);
+    await expectLocatorInsideViewport(registeredRegion.getByText("ジャパン 明石稲美店"));
 
+    const addReceiptY = await addReceiptButton.evaluate(
+      (element) => element.getBoundingClientRect().y,
+    );
     const shopNameY = await shopNameInput.evaluate((element) => element.getBoundingClientRect().y);
     const registeredY = await registeredRegion.evaluate(
       (element) => element.getBoundingClientRect().y,
     );
+    expect(addReceiptY).toBeLessThan(shopNameY);
     expect(shopNameY).toBeLessThan(registeredY);
   });
 });

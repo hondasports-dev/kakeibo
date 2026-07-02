@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { QueueContent } from "./QueueContent";
+import { QueueActiveContent, QueueRegisteredContent } from "./QueueContent";
 import type { AiExpenseQueueItem } from "../types/types";
 
 const registeredItem: AiExpenseQueueItem = {
@@ -23,23 +23,35 @@ function renderQueueContent(groupedItems: {
   registered: AiExpenseQueueItem[];
 }) {
   const items = Object.values(groupedItems).flat();
+  const props = {
+    clearableCount: 0,
+    deletingIds: [] as string[],
+    groupedItems,
+    itemCount: items.length,
+    readyItems: groupedItems.ready,
+    registeringIds: [] as string[],
+    registrationError: "",
+    selectedReadyIds: [] as string[],
+    onClearOpenQueue: vi.fn(async () => {}),
+    onDeleteQueueItem: vi.fn(async () => {}),
+    onOpenReview: vi.fn(),
+    onRegisterReady: vi.fn(async () => {}),
+    onRetry: vi.fn(async () => {}),
+    onToggleReadySelection: vi.fn(),
+  };
   return render(
-    <QueueContent
-      clearableCount={0}
-      deletingIds={[]}
-      groupedItems={groupedItems}
-      itemCount={items.length}
-      readyItems={groupedItems.ready}
-      registeringIds={[]}
-      registrationError=""
-      selectedReadyIds={[]}
-      onClearOpenQueue={vi.fn(async () => {})}
-      onDeleteQueueItem={vi.fn(async () => {})}
-      onOpenReview={vi.fn()}
-      onRegisterReady={vi.fn(async () => {})}
-      onRetry={vi.fn(async () => {})}
-      onToggleReadySelection={vi.fn()}
-    />,
+    <>
+      <QueueActiveContent {...props} />
+      <QueueRegisteredContent
+        deletingIds={props.deletingIds}
+        groupedItems={props.groupedItems}
+        registeringIds={props.registeringIds}
+        selectedReadyIds={props.selectedReadyIds}
+        onOpenReview={props.onOpenReview}
+        onRegisterReady={props.onRegisterReady}
+        onToggleReadySelection={props.onToggleReadySelection}
+      />
+    </>,
   );
 }
 

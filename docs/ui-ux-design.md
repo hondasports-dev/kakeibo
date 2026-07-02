@@ -190,8 +190,25 @@ MVPで最も重要な画面とする。
 ## 6. 支出入力フロー
 
 入力コンテンツの先頭で `支出 / 収入` を切り替える。初期値は支出とし、種別ごとの未保存値を
-切替後も保持する。PC（900px以上）は入力フォームとAI下書きを2カラム、SPはAI確認要約、
-手入力フォーム、登録済み一覧の順に1カラム表示する。
+切替後も保持する。
+
+### 6.0 入力ワークベンチのレイアウト契約（実装正本）
+
+breakpoint は **900px**（`max-width: 899px` が SP）。MUI のキュー内 flex 切替も `md`（900px）に揃える。
+
+支出タブの `.input-workbench` 直下は **4 兄弟ブロック**（DOM 順 = SP 表示順）:
+
+| grid-area | クラス | 内容 |
+| --- | --- | --- |
+| `queue-header` | `input-workbench-queue-header` | レシート入力見出し・追加/撮影ボタン |
+| `queue-active` | `input-workbench-queue-active` | ステータスサマリー・処理中/ready/確認待ち/失敗 |
+| `form` | `input-workbench-form` | 手入力フォーム |
+| `queue-registered` | `input-workbench-queue-registered` | 登録済み一覧 |
+
+- **SP（899px 以下）:** 1 カラム。上表の順（ヘッダー → アクティブ → フォーム → 登録済み）
+- **PC（900px 以上）:** 2 カラム。左にフォーム、右にキュー 3 ブロック（ヘッダー → アクティブ → 登録済み）
+- `display: contents` や flex `order` による並べ替えは使わない（`grid-template-areas` で配置）
+- 収入タブ（`input-workbench--income`）はフォーム単体の 1 カラムを維持する
 
 入力順は以下を基本にする。
 
