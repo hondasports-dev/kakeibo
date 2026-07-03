@@ -135,6 +135,7 @@ export function summarizeItems(
   draft: { amountYen?: number },
   items: Array<{
     amountYen: number;
+    normalizedAmountYen?: number;
     categoryId?: Id<"categories">;
     confidence: {
       itemName?: number;
@@ -154,13 +155,14 @@ export function summarizeItems(
   let hasLowConfidenceItems = false;
 
   for (const item of items) {
-    itemTotalYen += item.amountYen;
+    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
+    itemTotalYen += registrationAmountYen;
     if (item.categoryId === undefined) {
       hasUncategorizedItems = true;
     } else {
       categoryAmounts.set(
         item.categoryId,
-        (categoryAmounts.get(item.categoryId) ?? 0) + item.amountYen,
+        (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
       );
     }
     if (hasLowConfidenceItem(item)) {
@@ -197,7 +199,8 @@ export function aggregateDraftItemsByCategory(
   let itemTotal = 0;
   const categoryAmounts = new Map<Id<"categories">, number>();
   for (const item of items) {
-    if (!isValidSignedLineItemAmount(item.itemName, item.amountYen)) {
+    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
+    if (!isValidSignedLineItemAmount(item.itemName, registrationAmountYen)) {
       throw new ConvexError("Draft item amount is required to register");
     }
     if (item.categoryId === undefined) {
@@ -207,10 +210,10 @@ export function aggregateDraftItemsByCategory(
       throw new ConvexError("Low confidence draft items must be reviewed before register");
     }
 
-    itemTotal += item.amountYen;
+    itemTotal += registrationAmountYen;
     categoryAmounts.set(
       item.categoryId,
-      (categoryAmounts.get(item.categoryId) ?? 0) + item.amountYen,
+      (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
     );
   }
 
