@@ -72,6 +72,9 @@ export const aiExpenseDraftConfidenceValidator = v.object({
 export const aiExpenseDraftItemConfidenceValidator = v.object({
   itemName: v.optional(v.number()),
   amountYen: v.optional(v.number()),
+  printedAmountYen: v.optional(v.number()),
+  amountBasis: v.optional(v.number()),
+  taxRatePercent: v.optional(v.number()),
   categoryName: v.optional(v.number()),
   categoryId: v.optional(v.number()),
 });
