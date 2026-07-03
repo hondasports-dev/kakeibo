@@ -5,6 +5,9 @@ import {
   aiExpenseDraftDocumentTypeValidator,
   aiExpenseDraftItemConfidenceValidator,
   aiExpenseDraftReviewReasonValidator,
+  amountBasisValidator,
+  receiptItemTaxRatePercentValidator,
+  taxSummaryValidator,
 } from "../../lib/convex/aiExpenseDrafts/validators";
 import {
   createFailedDraftFromImageAnalysisHandler,
@@ -44,6 +47,7 @@ export const createFromExtraction = internalMutation({
     paymentPurpose: v.optional(v.string()),
     date: v.optional(v.string()),
     amountYen: v.optional(v.number()),
+    taxSummaries: v.optional(v.array(taxSummaryValidator)),
     categoryId: v.optional(v.id("categories")),
     imageFileName: v.optional(v.string()),
     confidence: aiExpenseDraftConfidenceValidator,
@@ -54,6 +58,14 @@ export const createFromExtraction = internalMutation({
         v.object({
           itemName: v.string(),
           amountYen: v.number(),
+          printedAmountYen: v.optional(v.number()),
+          amountBasis: v.optional(amountBasisValidator),
+          taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+          taxMarker: v.optional(v.string()),
+          allocatedTaxYen: v.optional(v.number()),
+          normalizedAmountYen: v.optional(v.number()),
+          quantity: v.optional(v.number()),
+          unitPriceYen: v.optional(v.number()),
           categoryName: v.optional(v.string()),
           categoryId: v.optional(v.id("categories")),
           confidence: aiExpenseDraftItemConfidenceValidator,
