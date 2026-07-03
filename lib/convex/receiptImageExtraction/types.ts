@@ -9,14 +9,49 @@ export type ExtractionConfidence = {
   categoryName?: number;
 };
 
+export type TaxRatePercent = 0 | 8 | 10;
+export type ReceiptItemTaxRatePercent = TaxRatePercent | null;
+export type AmountBasis = "tax_included" | "tax_excluded" | "unknown";
+export type TaxMode = "external" | "included" | "mixed" | "unknown";
+export type RoundingMethod = "floor" | "round" | "ceil" | "unknown";
+
 export type ExtractReceiptItemResult = {
   itemName: string;
+  /** @deprecated 税対応の抽出結果では printedAmountYen を使用する。 */
   amountYen: number;
+  /** #411/#412 の schema・parse 移行完了までは既存レスポンスとの互換用に optional。 */
+  printedAmountYen?: number;
+  amountBasis?: AmountBasis;
+  taxRatePercent?: ReceiptItemTaxRatePercent;
+  taxMarker?: string;
+  quantity?: number;
+  unitPriceYen?: number;
   categoryName?: string;
   confidence: {
     itemName?: number;
     amountYen?: number;
+    printedAmountYen?: number;
+    amountBasis?: number;
+    taxRatePercent?: number;
     categoryName?: number;
+  };
+  warnings: string[];
+};
+
+export type ExtractedTaxSummary = {
+  taxRatePercent: TaxRatePercent;
+  taxMode: TaxMode;
+  taxableAmountYen: number;
+  taxableAmountBasis: AmountBasis;
+  taxYen: number;
+  taxIncludedAmountYen?: number;
+  roundingMethod: RoundingMethod;
+  confidence: {
+    taxRatePercent?: number;
+    taxMode?: number;
+    taxableAmountYen?: number;
+    taxableAmountBasis?: number;
+    taxYen?: number;
   };
   warnings: string[];
 };
@@ -31,6 +66,7 @@ export type ExtractReceiptFieldsResult = {
   paymentPurpose?: string;
   categoryName?: string;
   items?: ExtractReceiptItemResult[];
+  taxSummaries?: ExtractedTaxSummary[];
   confidence: ExtractionConfidence;
   warnings: string[];
 };
