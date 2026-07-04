@@ -53,6 +53,14 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
 | `E2E_CLERK_USER_ID`  | テストユーザーの Clerk tokenIdentifier    | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret                    |
 
+`E2E_CLEANUP_SECRET` を Convex deployment に設定すると、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E 専用 HTTP エンドポイントが有効化される。いずれもヘッダ `X-E2E-Cleanup-Secret` が必要。
+
+| エンドポイント | 用途 |
+| --- | --- |
+| `POST /e2e/cleanup` | E2E テストデータのクリーンアップ |
+| `POST /e2e/seed-ai-expense-draft` | AI 下書きのシード（認証なし疎通確認） |
+| `POST /e2e/seed-pending-group-invitation` | pending 招待のシード（`group-access` E2E 用） |
+
 ## 環境ごとの設定方針
 
 ### Local開発環境
@@ -203,7 +211,7 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 - `CLERK_PUBLISHABLE_KEY` — Clerk Dev instance の公開鍵
 - `CLERK_SECRET_KEY` — Clerk Dev instance の秘密鍵
 - `E2E_CLERK_USER_EMAIL` — E2E テストユーザーのメールアドレス
-- `E2E_CLERK_USER_PASSWORD` — E2E テストユーザーのパスワード
+- `E2E_CLERK_USER_PASSWORD` — レガシー。現行 E2E は Testing Token 方式のため未使用
 - `VITE_CONVEX_URL` — Dev deployment の Convex WebSocket URL
 - `DEV_VITE_CONVEX_SITE_URL` — PR Preview が接続する Dev deployment の Convex HTTP URL
 - `DEV_E2E_CLEANUP_SECRET` — Dev deployment の E2E クリーンアップ API 認証シークレット

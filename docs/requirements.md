@@ -120,10 +120,12 @@ MVPでは、ユーザーが週1回まとめて入力し、その週の支出傾�
 表示項目:
 
 - 今週の合計支出
+- 今週の合計収入
 - カテゴリ別支出
-- 今週の入力済みレシート件数
-- 未完了の週次入力セッション
+- 今週の入力済み件数（`expenseEntries` ベース）
 - 前週比
+
+セッション状態（未開始 / 入力中 / 完了）は独立表示せず、主要操作ボタンの文言（「今週の入力を開始」「入力を再開」「週次サマリーを見る」）に内包する。
 
 主要操作:
 
@@ -159,10 +161,12 @@ MVPでは、ユーザーが週1回まとめて入力し、その週の支出傾�
 表示項目:
 
 - 合計支出
+- 合計収入（合計支出の直下）
 - カテゴリ別支出
 - 前週比
 - **週別支出推移（対象週を含む直近3週間の棒グラフ）**
-- 支出一覧
+- 支出一覧（各項目にメモがある場合は表示。長文は「もっと見る」で展開）
+- 収入一覧（支出一覧と同様の行形式。カテゴリ列なし。5件超は展開）
 
 主要操作:
 
@@ -323,12 +327,14 @@ MVPでは、ユーザーが週1回まとめて入力し、その週の支出傾�
 
 画像解析結果は `receipts` に直接保存せず、`aiExpenseDrafts` と `aiExpenseDraftItems` に下書きとして保存する。
 
-- `aiExpenseDrafts`: 書類種別、解析状態、支払先/支払場所/支払内容、候補日付、金額、カテゴリ、信頼度、確認理由、登録済みreceipt IDを持つ。
-- `aiExpenseDraftItems`: 親下書きに紐づく明細行を別テーブルで持つ。
+- `aiExpenseDrafts`: 書類種別、解析状態、支払先/支払場所/支払内容、候補日付、金額、税率別集計（`taxSummaries`）、カテゴリ、信頼度、確認理由を持つ。`registeredReceiptId` はレガシー互換用で、主導線では未使用。
+- `aiExpenseDraftItems`: 親下書きに紐づく明細行を別テーブルで持つ。印字額、税込・税抜（`amountBasis`）、税率、按分税、正規化登録額（`normalizedAmountYen`）を保持する。
 - 対応する書類種別は `receipt`、`convenience_payment`、`unknown`。
 - 状態は `queued`、`analyzing`、`ready`、`needs_review`、`failed`、`registered`。
 - 登録時は ready 下書きを `expenseEntries` に変換し（`registerReadyDraftsAsExpenseEntries`）、下書きを `registered` に更新する。
 - 商品明細は印字された税込金額を保持し、税額集計行は明細として登録しない。
+- 外税・内税・税率不明は正規化処理で登録額を算出し、確認不能な場合は警告として下書き確認画面に表示する。
+- 手入力 MVP の「税込合計のみ」方針（§2.3）とは別に、AI 解析では明細レベルで税情報を扱う。
 - 画像解析時は現在有効なカテゴリ名をOpenAIへ候補として渡し、下書き全体と各商品明細のカテゴリ名を候補内から返させる。
 - 画像解析で作成した下書きは単一・複数カテゴリを問わず確認必須とし、確認後に登録準備OKへ移動する。
 - 支出日は画像の読込日・登録日ではなく、レシートまたは払込票に記載された日付を初期値としてユーザーが確定する。
@@ -361,7 +367,7 @@ schema（`sourceDocuments`、`expenseEntries`、`receiptAnalysisBatches`、`rece
 
 1. schema と用語の確定 — **完了**
 2. 既存 `receipts` との互換・移行方針の確定 — **完了**（`convex/receipts/spendingEntries.ts`）
-3. 週次集計とサマリーの `expenseEntries` 寄せ — **一部完了**（期間内に `expenseEntries` があれば当該期間の `receipts` を集計から除外）
+3. 週次集計とサマリーの `expenseEntries` 寄せ — **完了**（`convex/receipts/spendingEntries.ts`）
 4. 入力元から複数の支出項目を作る UI — **完了**（`ExpenseEntryForm` の複数支出項目モード）
 5. AI下書きから支出項目候補を作る導線の整理 — **完了**（`registerReadyDraftsAsExpenseEntries`）
 
