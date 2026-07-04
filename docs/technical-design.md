@@ -356,6 +356,7 @@ active record が確認できない場合は fail closed にする。
 | `/maintenance`                 | メンテナンス       | 認証不要でメンテナンス表示する             |
 | `/sso-callback`                | 認証コールバック   | Clerk SSO後のコールバックを処理する         |
 | `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
+| `/__e2e__/input-workbench`     | E2E専用画面        | 開発時のみ入力ワークベンチのレイアウトを検証する |
 | `/__e2e__/ai-expense-queue-expense-entries` | E2E専用画面 | 開発時のみ expenseEntries 登録を検証する |
 
 現行コードには `/sign-in`、`/weeks/:weekStartDate/review`、`/export` の個別ルートはない。
@@ -388,7 +389,7 @@ active record が確認できない場合は fail closed にする。
 | shopName      | string (optional) | 店名。支出で使う               |
 | bankName      | string (optional) | 銀行名。収入で使う             |
 | amountYen     | number            | 金額。日本円の整数             |
-| categoryId    | Id<"categories"> (optional) | 支出のカテゴリID。収入では未設定 |
+| categoryId    | Id<"categories">              | カテゴリID（schema 上は必須。収入レコードは互換層として残存） |
 | memo          | string (optional) | 任意メモ                       |
 | weekStartDate | string            | 所属週の開始日。`YYYY-MM-DD`   |
 | createdAt     | number            | 作成日時                       |
@@ -437,11 +438,12 @@ active record が確認できない場合は fail closed にする。
 | paymentPurpose      | string (optional)                                                  | 支払内容                              |
 | date                | string (optional)                                                  | 支出日。`YYYY-MM-DD`                  |
 | amountYen           | number (optional)                                                  | 合計金額。日本円の整数                |
+| taxSummaries        | array (optional)                                                   | 税率別集計（`taxRatePercent`, `taxMode`, `taxableAmountYen`, `taxYen` 等） |
 | categoryId          | Id<"categories"> (optional)                                        | 登録候補カテゴリ                      |
 | confidence          | object                                                             | 主要フィールドごとのAI信頼度          |
-| warnings            | string[]                                                           | 解析時の警告                          |
+| warnings            | string[] (optional)                                                | 解析時の警告                          |
 | reviewReasons       | fixed enum array                                                   | 確認が必要な理由                      |
-| registeredReceiptId | Id<"receipts"> (optional)                                          | 登録後に作成されたreceipt             |
+| registeredReceiptId | Id<"receipts"> (optional)                                          | レガシー `registerReadyDrafts` 用。主導線では未設定 |
 | createdAt           | number                                                             | 作成日時                              |
 | updatedAt           | number                                                             | 更新日時                              |
 
@@ -473,16 +475,28 @@ active record が確認できない場合は fail closed にする。
 MVPの画面で全明細を常時表示しない場合でも、将来の複数カテゴリ登録へ安全に拡張できる
 構造にする。
 
-| 項目       | 型                          | 説明                           |
-| ---------- | --------------------------- | ------------------------------ |
-| groupId    | Id<"groups">                | 家計データの所有境界             |
-| draftId    | Id<"aiExpenseDrafts">       | 親下書きID                     |
-| itemName   | string                      | 明細名                         |
-| amountYen  | number                      | 税込明細金額。値引き明細のみ負数 |
-| categoryId | Id<"categories"> (optional) | 明細候補カテゴリ               |
-| confidence | object                      | 明細フィールドごとのAI信頼度   |
-| createdAt  | number                      | 作成日時                       |
-| updatedAt  | number                      | 更新日時                       |
+| 項目                 | 型                          | 説明                                           |
+| -------------------- | --------------------------- | ---------------------------------------------- |
+| groupId              | Id<"groups">                | 家計データの所有境界                             |
+| draftId              | Id<"aiExpenseDrafts">       | 親下書きID                                     |
+| itemName             | string                      | 明細名                                         |
+| amountYen            | number                      | 編集用金額。値引き明細のみ負数                   |
+| printedAmountYen     | number (optional)           | レシート印字額                                 |
+| amountBasis          | enum (optional)             | `tax_included` / `tax_excluded` / `unknown`    |
+| taxRatePercent       | 0 / 8 / 10 / null (optional) | 税率                                        |
+| taxMarker            | string (optional)           | 印字上の税マーカー                             |
+| allocatedTaxYen      | number (optional)           | 按分税額                                       |
+| normalizedAmountYen  | number (optional)           | 登録用正規化金額                               |
+| quantity             | number (optional)           | 数量                                           |
+| unitPriceYen         | number (optional)           | 単価                                           |
+| categoryName         | string (optional)           | AI が返したカテゴリ名                          |
+| categoryId           | Id<"categories"> (optional) | 明細候補カテゴリ                               |
+| confidence           | object                      | 明細フィールドごとのAI信頼度                   |
+| warnings             | string[] (optional)         | 明細単位の税・金額警告                         |
+| createdAt            | number                      | 作成日時                                       |
+| updatedAt            | number                      | 更新日時                                       |
+
+登録時は `normalizedAmountYen` を優先し、未設定時は `amountYen` を使う。税額集計行（例: 消費税計）は明細として登録しない。
 
 ## 9. Convex index設計
 
@@ -503,6 +517,19 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 | aiExpenseDrafts | `by_group_id_and_created_at` | 指定グループの下書き一覧を作成順で取得             |
 | aiExpenseDrafts | `by_group_id_and_registered_receipt_id` | receipt登録済み下書きの参照・重複登録防止          |
 | aiExpenseDraftItems | `by_group_id_and_draft_id` | 所属グループ確認済みの明細取得                     |
+| aiExpenseDraftItems | `by_draft_id` | 下書きに紐づく明細取得（グループ確認は呼び出し側で実施） |
+| sourceDocuments | `by_group_id_and_status_and_created_at` | 入力元の状態別一覧 |
+| sourceDocuments | `by_group_id_and_date` | 期間指定の入力元取得 |
+| expenseEntries | `by_group_id_and_date` | 期間指定の支出項目取得 |
+| expenseEntries | `by_group_id_and_category_id_and_date` | カテゴリ別期間集計 |
+| expenseEntries | `by_group_id_and_source_document_id` | 入力元に紐づく支出項目 |
+| expenseEntries | `by_group_id_and_ai_expense_draft_id` | AI下書きに紐づく支出項目 |
+| receiptAnalysisBatches | `by_group_id_and_status` | バッチ状態別取得 |
+| receiptAnalysisBatches | `by_group_id_and_created_at` | バッチ一覧 |
+| receiptAnalysisImageJobs | `by_batch_id` | バッチ内ジョブ取得 |
+| receiptAnalysisImageJobs | `by_group_id_and_status` | グループ・状態別ジョブ取得 |
+| receiptAnalysisImageJobs | `by_draft_id` | 下書きに紐づく解析ジョブ |
+| managementAuditLogs | `by_group_id_and_created_at` | グループ管理操作ログ |
 
 ## 10. Convex function設計
 
@@ -589,7 +616,8 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `aiExpenseDrafts.queries.listByStatus(status)`
 - `aiExpenseDrafts.queries.getWithItems(draftId)`
 - `aiExpenseDrafts.mutations.updateForReview(draftId, input)`
-- `aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries(draftIds)`
+- `aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries(draftIds)`（主導線）
+- `aiExpenseDrafts.mutations.registerReadyDrafts(draftIds)`（レガシー。`receipts` へ登録し `registeredReceiptId` を設定）
 - `aiExpenseDrafts.actions.analyzeReceiptImageToDraft(input)`
 - `aiExpenseDrafts.internal.createFromExtraction(input)`（internal）
 - `aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis(input)`（internal）
@@ -597,10 +625,17 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 ### 10.9 receipt analysis jobs
 
 - `receiptAnalysisJobs.mutations.createBatch(input)`
-- `receiptAnalysisJobs.queries.getBatchStatus(batchId)`
-- `receiptAnalysisJobs.actions.processBatch(batchId)`（internal scheduler 経由）
+- `receiptAnalysisJobs.queries.listBatches()`
+- `receiptAnalysisJobs.queries.listJobs()`
+- `receiptAnalysisJobs.queries.listJobsByBatch(batchId)`
+- `receiptAnalysisJobs.queries.getJobByDraftId(draftId)`
+- `receiptAnalysisJobs.actions.analyzeImageJob(jobId, imageDataUrl)`
+- `receiptAnalysisJobs.mutations.retryImageJob(jobId)`
+- `receiptAnalysisJobs.mutations.cancelImageJob(jobId)`
+- `receiptAnalysisJobs.internal.finalizeBatchStatus(batchId)`（internal）
 
 バッチ画像解析は `receiptAnalysisBatches` / `receiptAnalysisImageJobs` テーブルで管理する。
+各ジョブは `analyzeImageJob` action で非同期に処理され、完了時に internal の `finalizeBatchStatus` でバッチ状態を更新する。
 
 下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` と `groupMembers` から
 active group を解決する。`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの
@@ -609,11 +644,14 @@ active group を解決する。`draftId` や `categoryId` を受け取る処理�
 
 `expenseEntries` への登録時は、既存の週次集計との互換性を優先する。変換方針は次の通り。
 
-| 下書き種別 | 明細がない場合の `expenseEntries.itemName` 変換方針 |
-| ---------- | --------------------------------------------------- |
+| 下書き種別 | 明細がない場合の `expenseEntries.title` 変換方針 |
+| ---------- | ------------------------------------------------ |
 | `receipt` | `shopName` を使う。空の場合は `payeeName`、`paymentPlace` の順に補完する。 |
 | `convenience_payment` | `payeeName` と `paymentPurpose` を連結する。空の場合は `paymentPlace`、`shopName` の順に補完する。 |
 | `unknown` | 確認が必要な下書きとして扱い、登録前にユーザーが必要項目を確定する。 |
+
+主導線の `registerReadyDraftsAsExpenseEntries` は `expenseEntries` を作成し、下書きを `status: "registered"` に更新する。
+`registeredReceiptId` は設定しない。レガシーの `registerReadyDrafts` のみ `receipts` を作成し `registeredReceiptId` を保存する。
 
 既存データへの migration / backfill は不要とする。新しい下書きテーブルの追加のみで、
 既存 `receipts`、`categories`、`weekSessions` の必須項目は変更しないため、既存データの読み取りは
@@ -685,6 +723,15 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 - 直前入力の日付とカテゴリを次の入力の初期値に使う
 - 過去の `shopName` から候補を出す
 - 店名とカテゴリの過去組み合わせから、カテゴリ候補を推定する
+
+### 12.4 レシート税情報の正規化
+
+AI 画像解析では、明細ごとに税込・税抜・税率を抽出し、`lib/convex/receiptImageExtraction/taxNormalization.ts` で正規化する。
+
+- 外税・内税・混在を `amountBasis` と `taxSummaries` に分離する
+- 登録額は `normalizedAmountYen` を正本とし、未設定時は `amountYen` にフォールバックする
+- 税額集計行は明細として登録しない
+- 警告コード（`unknown_tax_rate`, `unknown_amount_basis`, `taxable_amount_mismatch`, `missing_tax_items` 等）は下書き・明細の `warnings` に保存し、UI では `src/features/ai-expense-queue/utils/taxWarnings.ts` で日本語化する
 
 ## 13. CSVエクスポート設計
 
@@ -940,7 +987,7 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 | --- | --- | --- |
 | #177 | `sourceDocuments` / `expenseEntries` の schema 設計 | 完了 |
 | #180 | 既存 `receipts` との互換・移行方針（`spendingEntries.ts`） | 完了 |
-| #178 | カテゴリ別集計の `expenseEntries` 化 | 一部完了 |
+| #178 | カテゴリ別集計の `expenseEntries` 化 | 完了（`spendingEntries.ts`） |
 | #181 | 入力元から複数のカテゴリ別支出項目を作るUI（`ExpenseEntryForm`） | 完了 |
 | #173 | レシート画像認識時のカテゴリ自動判定 | 未着手 |
 | #179 | AI下書きからカテゴリ別支出項目候補を作成 | 完了（`registerReadyDraftsAsExpenseEntries`） |
@@ -949,18 +996,19 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 
 ### 21.4 主要 mutation / query 方針
 
-- `sourceDocuments` は入力元の正本として CRUD する。
+- `sourceDocuments` は schema 上の正本だが、**公開 CRUD API は未実装**。現行の手入力・AI 登録は `expenseEntries` と `aiExpenseDrafts` を直接使う。
 - `expenseEntries` は家計簿集計の正本として CRUD する。
 - 手入力では `sourceDocumentId` なしの `expenseEntries` を許容する。
-- 1つの `sourceDocuments` から 0 件以上の `expenseEntries` を作れるようにする。
-- 既存 `receipts` の query / mutation は当面の互換層として残し、後続 Issue で `expenseEntries` 中心に移行する。
+- AI 登録では `aiExpenseDraftId` で下書きと支出項目を紐づける。
+- 1つの `sourceDocuments` から 0 件以上の `expenseEntries` を作れる設計だが、現行フローでは未使用。
+- 既存 `receipts` の query / mutation は当面の互換層として残す。
 - 所有境界は `ctx.auth.getUserIdentity()`、`groupMembers`、`users.activeGroupId` から解決した `groupId` を基準に統一する。
 
 ### 21.5 schema 案
 
 #### sourceDocuments
 
-入力元の原本を表す。手入力・レシート・払込票・AI 下書きの共通入口にする。
+入力元の原本を表す。手入力・レシート・払込票・AI 下書きの共通入口にする。**schema のみ実装済み。公開 API は未実装。**
 
 - `groupId`: `Id<"groups">`
 - `sourceType`: `manual` / `receipt` / `convenience_payment` / `invoice` / `unknown`
@@ -972,7 +1020,6 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 - `payeeName`: `string` optional
 - `paymentPurpose`: `string` optional
 - `imageStorageId`: `Id<"_storage">` optional
-- `aiExtraction`: object optional
 - `createdAt`: `number`
 - `updatedAt`: `number`
 
@@ -982,9 +1029,10 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 
 - `groupId`: `Id<"groups">`
 - `sourceDocumentId`: `Id<"sourceDocuments">` optional
+- `aiExpenseDraftId`: `Id<"aiExpenseDrafts">` optional
 - `date`: `string`
 - `amount`: `number`
-- `categoryId`: `Id<"categories">`
+- `categoryId`: `Id<"categories">` optional（支出では実質必須。収入は未設定）
 - `title`: `string`
 - `memo`: `string` optional
 - `entryType`: `expense` / `income`
@@ -1008,6 +1056,9 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
   - `by_group_id_and_date`
   - `by_group_id_and_category_id_and_date`
   - `by_group_id_and_source_document_id`
+  - `by_group_id_and_ai_expense_draft_id`
+- `managementAuditLogs`
+  - `by_group_id_and_created_at`
 
 ### 21.7 互換境界
 

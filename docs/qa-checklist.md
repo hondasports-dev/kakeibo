@@ -46,7 +46,15 @@ Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合�
 - 設定: カテゴリ設定と週の開始・終了曜日を保存できること
 - グループ管理（`e2e/group-access.spec.ts`）: グループ作成、招待、切り替え、メンバー削除
 - 公開ページ（`e2e/public-pages.spec.ts`）: `/privacy`、`/terms` が認証なしで表示されること
-- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、`registerReadyDraftsAsExpenseEntries` によるまとめて登録
+- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、税警告表示、`registerReadyDraftsAsExpenseEntries` によるまとめて登録
+- 認証（`e2e/auth.spec.ts`）: 未認証時のリダイレクト、ログイン後のダッシュボード表示
+- ナビゲーション（`e2e/navigation.spec.ts`）: 主要画面間の遷移
+- 設定（`e2e/settings.spec.ts`）: カテゴリ・週設定の保存
+- レスポンシブ（`e2e/responsive.spec.ts`）: SP/PC 幅でのレイアウト崩れがないこと
+- レシート画像抽出（`e2e/receipt-image-extraction.spec.ts`）: 画像解析フローの疎通
+- ダッシュボード（`e2e/dashboard-home.spec.ts`）: ホーム画面の集計・導線
+- レシートフォーム（`e2e/receipt-form.spec.ts`）: 手入力フォームの保存
+- `e2e/monthly-income.spec.ts` は空のプレースホルダー（#79 で月収入 UI 削除済み）。削除候補
 
 ## Clerk Restricted mode + Invitation 手動 QA
 
