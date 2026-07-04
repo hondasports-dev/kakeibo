@@ -20,5 +20,12 @@ export function formatTaxWarning(warning: string) {
 }
 
 export function formatTaxWarnings(warnings: string[]) {
-  return warnings.map(formatTaxWarning).join(" / ");
+  const counts = new Map<string, number>();
+  warnings.forEach((warning) => {
+    const label = formatTaxWarning(warning);
+    counts.set(label, (counts.get(label) ?? 0) + 1);
+  });
+  return [...counts.entries()]
+    .map(([label, count]) => (count > 1 ? `${label}（${count}件）` : label))
+    .join(" / ");
 }

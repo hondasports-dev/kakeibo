@@ -58,7 +58,7 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
   const items = parseOptionalItems(obj.items);
   const taxSummaries = parseOptionalTaxSummaries(obj.taxSummaries);
 
-  return {
+  return reconcileTaxFields({
     shopName: obj.shopName,
     date: obj.date,
     amountYen: obj.amountYen,
@@ -73,7 +73,46 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
     warnings: Array.isArray(obj.warnings)
       ? (obj.warnings as string[]).filter((w) => typeof w === "string")
       : [],
-  };
+  });
+}
+
+function reconcileTaxFields(extracted: ExtractedFields): ExtractedFields {
+  if (!extracted.items || !extracted.taxSummaries) return extracted;
+
+  const taxSummaries = extracted.taxSummaries.map((summary) => {
+    const isExternalByAmounts =
+      summary.taxYen > 0 &&
+      summary.taxIncludedAmountYen === extracted.amountYen &&
+      summary.taxableAmountYen + summary.taxYen === extracted.amountYen;
+    return isExternalByAmounts
+      ? { ...summary, taxMode: "external" as const, taxableAmountBasis: "tax_excluded" as const }
+      : summary;
+  });
+
+  const externallyTaxedRates = new Set(
+    taxSummaries
+      .filter((summary) => {
+        if (summary.taxMode !== "external") return false;
+        const matchingTotal = extracted.items
+          ?.filter(
+            (item) =>
+              item.taxRatePercent === summary.taxRatePercent && item.amountBasis !== "tax_included",
+          )
+          .reduce((sum, item) => sum + (item.printedAmountYen ?? item.amountYen), 0);
+        return matchingTotal === summary.taxableAmountYen;
+      })
+      .map((summary) => summary.taxRatePercent),
+  );
+  const items = extracted.items.map((item) =>
+    item.amountBasis === "unknown" &&
+    item.taxRatePercent !== null &&
+    item.taxRatePercent !== undefined &&
+    externallyTaxedRates.has(item.taxRatePercent)
+      ? { ...item, amountBasis: "tax_excluded" as const }
+      : item,
+  );
+
+  return { ...extracted, items, taxSummaries };
 }
 
 function parseOptionalItems(value: unknown): ExtractReceiptItemResult[] | undefined {

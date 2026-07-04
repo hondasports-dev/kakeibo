@@ -96,6 +96,39 @@ describe("parseOpenAIResponse tax boundary", () => {
     });
   });
 
+  it("外税の金額関係が確定している場合はモデルの内税・不明判定を補正する", () => {
+    const payload = structuredClone(trialExtraction);
+    payload.items[0].printedAmountYen = 1559;
+    payload.items[0].amountBasis = "unknown";
+    payload.taxSummaries[0].taxMode = "included";
+    payload.taxSummaries[0].taxableAmountBasis = "tax_included";
+
+    const result = parse(payload);
+
+    expect(result.items?.[0].amountBasis).toBe("tax_excluded");
+    expect(result.taxSummaries?.[0]).toMatchObject({
+      taxMode: "external",
+      taxableAmountBasis: "tax_excluded",
+    });
+  });
+
+  it("税額を含む対象額の内税判定は維持する", () => {
+    const payload = structuredClone(trialExtraction);
+    payload.amountYen = 110;
+    payload.items[0].printedAmountYen = 110;
+    payload.items[0].amountBasis = "tax_included";
+    payload.taxSummaries[0].taxMode = "included";
+    payload.taxSummaries[0].taxableAmountYen = 110;
+    payload.taxSummaries[0].taxableAmountBasis = "tax_included";
+    payload.taxSummaries[0].taxYen = 10;
+    payload.taxSummaries[0].taxIncludedAmountYen = 110;
+
+    const result = parse(payload);
+
+    expect(result.items?.[0].amountBasis).toBe("tax_included");
+    expect(result.taxSummaries?.[0].taxMode).toBe("included");
+  });
+
   it.each([0, 8, 10, null])("item税率 %s を通す", (taxRatePercent) => {
     const payload = structuredClone(trialExtraction);
     payload.items[0].taxRatePercent = taxRatePercent as never;
