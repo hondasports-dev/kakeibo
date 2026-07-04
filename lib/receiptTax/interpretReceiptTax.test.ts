@@ -76,7 +76,7 @@ describe("interpretReceiptTax", () => {
 
   it("解決済みマーカー群を除いた残額を残りsummaryへ割り当てる", () => {
     const result = interpretReceiptTax({
-      amountYen: 2299,
+      amountYen: 2405,
       items: [item(139, ["*"]), item(1060), item(1100), item(-110)],
       taxSummaries: [summary(8, 139, 11, "tax_excluded"), summary(10, 2050, 205, "tax_excluded")],
       markerDefinitions: [{ marker: "*", description: "8%対象" }],
@@ -86,6 +86,21 @@ describe("interpretReceiptTax", () => {
     expect(result.items.slice(1).every((value) => value.taxContext.status === "resolved")).toBe(
       true,
     );
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("明細の組み合わせが一意ならsummaryとの照合で税率を解決する", () => {
+    const result = interpretReceiptTax({
+      amountYen: 700,
+      items: [item(100), item(200), item(400)],
+      taxSummaries: [summary(8, 300, 0, "tax_included"), summary(10, 400, 0, "tax_included")],
+    });
+    expect(result.items.map((value) => value.taxRatePercent)).toEqual([8, 8, 10]);
+    expect(result.items.map((value) => value.taxContext)).toEqual([
+      expect.objectContaining({ source: "summary_reconciliation" }),
+      expect.objectContaining({ source: "summary_reconciliation" }),
+      expect.objectContaining({ source: "summary_reconciliation" }),
+    ]);
   });
 
   it("複数税率の組み合わせが一意でなければ未解決のままにする", () => {
@@ -107,6 +122,24 @@ describe("interpretReceiptTax", () => {
       taxSummaries: [],
     });
     expect(result.items[0].taxContext.status).toBe("unresolved");
+    expect(result.items[0].warnings).toEqual(
+      expect.arrayContaining(["unresolved_tax_rate", "unresolved_amount_basis"]),
+    );
+  });
+
+  it("明示basisとsummaryのbasisが矛盾すれば不整合を警告する", () => {
+    const explicit = {
+      ...item(100),
+      taxRatePercent: 8 as const,
+      amountBasis: "tax_included" as const,
+    };
+    const result = interpretReceiptTax({
+      amountYen: 108,
+      items: [explicit],
+      taxSummaries: [summary(8, 100, 8, "tax_excluded")],
+    });
+    expect(result.warnings).toContain("taxable_amount_mismatch:8");
+    expect(result.items[0].allocatedTaxYen).toBe(0);
   });
 
   it("重複summaryを二重按分せず警告する", () => {
