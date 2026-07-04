@@ -5,6 +5,13 @@ import type {
   TaxContextResolution,
 } from "./types";
 
+function expectedBasis(summary: ExtractedTaxSummary) {
+  if (summary.taxableAmountBasis !== "unknown") return summary.taxableAmountBasis;
+  if (summary.taxMode === "external") return "tax_excluded";
+  if (summary.taxMode === "included") return "tax_included";
+  return "unknown";
+}
+
 function allocateTax(taxYen: number, taxableAmountYen: number, amounts: number[]) {
   if (amounts.length === 0 || taxableAmountYen === 0) return amounts.map(() => 0);
   const shares = amounts.map((amount, index) => {
@@ -25,11 +32,13 @@ export function normalizeAmounts(args: {
 }): InterpretedReceiptItem[] {
   const result = args.items.map((item, index) => {
     const context = args.contexts[index];
+    const contextWarnings = context.status === "unresolved" ? context.reasons : [];
     return {
       ...item,
       taxRatePercent: context.taxRatePercent,
       amountBasis: context.amountBasis,
       taxContext: context,
+      warnings: [...new Set([...item.warnings, ...contextWarnings])],
       allocatedTaxYen: 0,
       normalizedAmountYen: item.printedAmountYen,
     } satisfies InterpretedReceiptItem;
@@ -39,7 +48,9 @@ export function normalizeAmounts(args: {
       .map((item, index) => ({ item, index }))
       .filter(
         ({ item }) =>
-          item.taxContext.status === "resolved" && item.taxRatePercent === summary.taxRatePercent,
+          item.taxContext.status === "resolved" &&
+          item.taxRatePercent === summary.taxRatePercent &&
+          (expectedBasis(summary) === "unknown" || item.amountBasis === expectedBasis(summary)),
       )
       .map(({ index }) => index);
     const printedTotal = indexes.reduce((sum, index) => sum + result[index].printedAmountYen, 0);

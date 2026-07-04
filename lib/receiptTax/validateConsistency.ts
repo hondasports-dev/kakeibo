@@ -1,5 +1,12 @@
 import type { ExtractedTaxSummary, InterpretedReceiptItem } from "./types";
 
+function expectedBasis(summary: ExtractedTaxSummary) {
+  if (summary.taxableAmountBasis !== "unknown") return summary.taxableAmountBasis;
+  if (summary.taxMode === "external") return "tax_excluded";
+  if (summary.taxMode === "included") return "tax_included";
+  return "unknown";
+}
+
 export function validateConsistency(args: {
   amountYen: number;
   items: InterpretedReceiptItem[];
@@ -13,12 +20,19 @@ export function validateConsistency(args: {
     }
   });
   for (const summary of args.taxSummaries) {
-    const matching = args.items.filter(
+    const sameRate = args.items.filter(
       (item) =>
         item.taxContext.status === "resolved" && item.taxRatePercent === summary.taxRatePercent,
     );
+    const matching = sameRate.filter(
+      (item) => expectedBasis(summary) === "unknown" || item.amountBasis === expectedBasis(summary),
+    );
     if (matching.length === 0) {
-      warnings.push(`missing_tax_items:${summary.taxRatePercent}`);
+      warnings.push(
+        sameRate.length === 0
+          ? `missing_tax_items:${summary.taxRatePercent}`
+          : `taxable_amount_mismatch:${summary.taxRatePercent}`,
+      );
       continue;
     }
     if (
