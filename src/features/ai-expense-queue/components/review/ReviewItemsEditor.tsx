@@ -137,13 +137,6 @@ export function ReviewItemsEditor({
                   >
                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
                       <Chip label={`明細 ${index + 1}`} size="small" />
-                      {!discount && item.categoryId && (
-                        <Chip
-                          label={item.usesReceiptCategory ? "全体カテゴリ" : categoryName}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
                       {uncategorized && (
                         <Chip color="warning" label="未分類" size="small" variant="outlined" />
                       )}
