@@ -36,7 +36,7 @@ describe("normalizeReceiptAmounts", () => {
 
   it("8%と10%を税率別に按分する", () => {
     const result = normalizeReceiptAmounts({
-      amountYen: 326,
+      amountYen: 328,
       items: [
         {
           itemName: "food",
@@ -79,6 +79,37 @@ describe("normalizeReceiptAmounts", () => {
       ],
     });
     expect(result.items.map((item) => item.allocatedTaxYen)).toEqual([8, 20]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it("同じ税率集計が複数回対応しても按分税と登録額を同じだけ累積する", () => {
+    const summary = {
+      taxRatePercent: 8 as const,
+      taxMode: "external" as const,
+      taxableAmountYen: 100,
+      taxableAmountBasis: "tax_excluded" as const,
+      taxYen: 8,
+      roundingMethod: "floor" as const,
+      confidence: {},
+      warnings: [],
+    };
+    const result = normalizeReceiptAmounts({
+      amountYen: 116,
+      items: [
+        {
+          itemName: "food",
+          printedAmountYen: 100,
+          amountBasis: "tax_excluded",
+          taxRatePercent: 8,
+          taxMarker: "*",
+          warnings: [],
+        },
+      ],
+      taxSummaries: [summary, summary],
+    });
+
+    expect(result.items[0]).toMatchObject({ allocatedTaxYen: 16, normalizedAmountYen: 116 });
+    expect(result.warnings).toEqual([]);
   });
 
   it("内税は印字額を登録額として維持する", () => {

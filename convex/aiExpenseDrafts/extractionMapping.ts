@@ -19,7 +19,7 @@ export function mapExtractionToDraftArgs(
   });
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
   const normalization =
-    extracted.items && extracted.taxSummaries
+    extracted.items && extracted.items.length > 0 && extracted.taxSummaries
       ? normalizeReceiptAmounts({
           amountYen: extracted.amountYen,
           items: extracted.items.map((item) => ({

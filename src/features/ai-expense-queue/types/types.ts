@@ -92,10 +92,7 @@ export type AiExpenseDraft = {
   };
 };
 
-export type AiExpenseDraftItem = {
-  _id?: string;
-  itemName: string;
-  amountYen: number;
+export type AiExpenseItemTaxDetails = {
   printedAmountYen?: number;
   amountBasis?: "tax_included" | "tax_excluded" | "unknown";
   taxRatePercent?: 0 | 8 | 10 | null;
@@ -104,6 +101,12 @@ export type AiExpenseDraftItem = {
   normalizedAmountYen?: number;
   quantity?: number;
   unitPriceYen?: number;
+};
+
+export type AiExpenseDraftItem = AiExpenseItemTaxDetails & {
+  _id?: string;
+  itemName: string;
+  amountYen: number;
   categoryName?: string;
   categoryId?: string;
   confidence?: {
@@ -128,17 +131,10 @@ export type ReviewFormValues = {
   categoryId: string;
 };
 
-export type ReviewItemValues = {
+export type ReviewItemValues = AiExpenseItemTaxDetails & {
   id: string;
   itemName: string;
   amountYen: string;
-  printedAmountYen?: number;
-  amountBasis?: AiExpenseDraftItem["amountBasis"];
-  taxRatePercent?: AiExpenseDraftItem["taxRatePercent"];
-  taxMarker?: string;
-  allocatedTaxYen?: number;
-  quantity?: number;
-  unitPriceYen?: number;
   categoryId: string;
   usesReceiptCategory?: boolean;
   discountTargetItemId?: string;

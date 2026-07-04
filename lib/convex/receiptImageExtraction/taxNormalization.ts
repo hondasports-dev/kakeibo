@@ -86,7 +86,7 @@ export function normalizeReceiptAmounts(args: {
     const allocations = allocateByPrintedAmount(summary.taxYen, printedTotal, indexes, args.items);
     indexes.forEach((itemIndex, allocationIndex) => {
       const allocatedTaxYen = allocations[allocationIndex];
-      normalizedItems[itemIndex].allocatedTaxYen = allocatedTaxYen;
+      normalizedItems[itemIndex].allocatedTaxYen += allocatedTaxYen;
       if (summary.taxMode === "external") {
         normalizedItems[itemIndex].normalizedAmountYen += allocatedTaxYen;
       }

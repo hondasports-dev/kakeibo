@@ -7,6 +7,7 @@ export const RECEIPT_EXTRACTION_PROMPT_LINES = [
   "商品明細の金額は税込と決め打ちせず、レシートの印字値を printedAmountYen に、税込・税抜・不明を amountBasis に入れてください。",
   "税率は 8、10、0、null のいずれかで返し、0.08 や 0.10 は返さないでください。税率記号は taxMarker に入れてください。",
   "レシート下部の税率別対象額と正式な税額は taxSummaries に入れてください。消費税計・小計・合計・決済情報は items に含めないでください。",
+  "taxSummaries の taxMode は外税なら external、内税なら included、混在なら mixed、判別不能なら unknown にしてください。taxableAmountBasis は対象額の税込・税抜表記に合わせ、taxIncludedAmountYen は税込額の表示があれば設定し、なければ null にしてください。roundingMethod は端数処理表記から floor、round、ceil を選び、判別不能なら unknown にしてください。",
   "値引き・クーポン・ポイント充当は負の printedAmountYen として items に含めてください。印字順を維持し、割引行の直前または近接する商品、商品名、割引率から対象商品を判断できる場合は、対象商品と同じ categoryName を設定してください。対象が不明な場合は推測でカテゴリを設定せず、categoryName を空文字列にして warnings に理由を入れてください。",
   "明細や税率別集計が読み取れない場合、またはコンビニ払込票の場合は items と taxSummaries を空配列 [] にしてください。",
   "読み取れない項目は空文字列または0を使用し、該当項目の confidence を低くしてください。",

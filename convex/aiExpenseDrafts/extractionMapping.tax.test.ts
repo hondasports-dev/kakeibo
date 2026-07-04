@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { Doc, Id } from "../_generated/dataModel";
-import { trialExternal8Fixture } from "../../lib/convex/receiptImageExtraction/fixtures/taxFixtures";
+import {
+  conveniencePaymentFixture,
+  trialExternal8Fixture,
+} from "../../lib/convex/receiptImageExtraction/fixtures/taxFixtures";
 import { mapExtractionToDraftArgs } from "./extractionMapping";
 
 const foodCategory: Doc<"categories"> = {
@@ -36,5 +39,13 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     ]);
     expect(mapped.warnings).toContain("normalized_amount_mismatch");
     expect(mapped.reviewReasons).toContain("amount_mismatch");
+  });
+
+  it("明細のない払込票には金額不整合を付与しない", () => {
+    const mapped = mapExtractionToDraftArgs(conveniencePaymentFixture, [foodCategory]);
+
+    expect(mapped.items).toEqual([]);
+    expect(mapped.warnings).not.toContain("normalized_amount_mismatch");
+    expect(mapped.reviewReasons).toBeUndefined();
   });
 });

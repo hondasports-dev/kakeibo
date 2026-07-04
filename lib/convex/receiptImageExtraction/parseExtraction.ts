@@ -146,6 +146,7 @@ function parseItemConfidence(
   const confidence = value as Record<string, unknown>;
   return {
     itemName: parseOptionalConfidenceScore(confidence.itemName, `items[${index}].itemName`),
+    // amountYen は後方互換フィールドのため、印字額の信頼度を意図的に引き継ぐ。
     amountYen: parseOptionalConfidenceScore(
       confidence.printedAmountYen,
       `items[${index}].printedAmountYen`,
