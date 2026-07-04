@@ -18,6 +18,7 @@ import {
   resolveReviewShopName,
 } from "../../utils/reviewDialogUtils";
 import { ReviewItemsReadOnly } from "./ReviewItemsReadOnly";
+import { formatTaxWarnings } from "../../utils/taxWarnings";
 
 export function ReviewSummaryView({
   categories,
@@ -78,7 +79,7 @@ export function ReviewSummaryView({
 
       {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
         <Alert severity="warning" variant="outlined">
-          {selectedReviewDraft.warnings.join(" / ")}
+          {formatTaxWarnings(selectedReviewDraft.warnings)}
         </Alert>
       )}
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapDraftToQueueItem } from "./mappers";
+import { mapDraftItemsToReviewItems, mapDraftToQueueItem } from "./mappers";
 
 describe("mapDraftToQueueItem", () => {
   it("統合済みの払込票は店名・内容を一覧タイトルに使う", () => {
@@ -58,6 +58,32 @@ describe("mapDraftToQueueItem", () => {
         { categoryId: "cat-food", categoryName: "食費", amountYen: 400 },
         { categoryId: "cat-medical", categoryName: "医療費", amountYen: 980 },
       ],
+    });
+  });
+});
+
+describe("mapDraftItemsToReviewItems", () => {
+  it("normalizedAmountYenを編集用金額にし、印字額と税情報を保持する", () => {
+    const [item] = mapDraftItemsToReviewItems([
+      {
+        _id: "item-1",
+        itemName: "たまご",
+        amountYen: 298,
+        printedAmountYen: 298,
+        amountBasis: "tax_excluded",
+        taxRatePercent: 8,
+        allocatedTaxYen: 24,
+        normalizedAmountYen: 322,
+        categoryId: "cat-food",
+      },
+    ]);
+
+    expect(item).toMatchObject({
+      amountYen: "322",
+      printedAmountYen: 298,
+      amountBasis: "tax_excluded",
+      taxRatePercent: 8,
+      allocatedTaxYen: 24,
     });
   });
 });
