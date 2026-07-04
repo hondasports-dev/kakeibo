@@ -67,7 +67,7 @@ export const trialExternal8Fixture: ExtractReceiptFieldsResult = {
 
 export const mixedTaxFixture: ExtractReceiptFieldsResult = {
   ...trialExternal8Fixture,
-  amountYen: 326,
+  amountYen: 328,
   items: [item("food", 100, 8, "tax_excluded"), item("goods", 200, 10, "tax_excluded")],
   taxSummaries: [
     {

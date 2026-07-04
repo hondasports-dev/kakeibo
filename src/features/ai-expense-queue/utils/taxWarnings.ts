@@ -13,7 +13,10 @@ export function formatTaxWarning(warning: string) {
   if (warning.startsWith("missing_tax_items:")) {
     return "税率別集計に対応する明細がありません。";
   }
-  return warningLabels[warning] ?? warning;
+  return (
+    warningLabels[warning] ??
+    (/^[a-z][a-z0-9_]*(?::.*)?$/.test(warning) ? "税情報を確認してください。" : warning)
+  );
 }
 
 export function formatTaxWarnings(warnings: string[]) {
