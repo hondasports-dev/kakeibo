@@ -27,4 +27,29 @@ describe("ReviewItemTaxDetails", () => {
     expect(screen.getByText("按分税 24円")).toBeInTheDocument();
     expect(screen.getByText("2点 × 149円")).toBeInTheDocument();
   });
+
+  it("登録額と同じ印字額・不明基準・0円税・1点表記は省略する", () => {
+    render(
+      <ReviewItemTaxDetails
+        item={{
+          id: "item-1",
+          itemName: "日用品",
+          amountYen: "1100",
+          categoryId: "cat-daily",
+          printedAmountYen: 1100,
+          amountBasis: "unknown",
+          taxRatePercent: 10,
+          allocatedTaxYen: 0,
+          quantity: 1,
+          unitPriceYen: 1100,
+        }}
+      />,
+    );
+
+    expect(screen.queryByText("印字額 1,100円")).not.toBeInTheDocument();
+    expect(screen.queryByText("税込・税抜不明")).not.toBeInTheDocument();
+    expect(screen.queryByText("按分税 0円")).not.toBeInTheDocument();
+    expect(screen.queryByText("1点 × 1,100円")).not.toBeInTheDocument();
+    expect(screen.getByText("税率 10%")).toBeInTheDocument();
+  });
 });

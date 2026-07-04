@@ -28,5 +28,6 @@ describe("ReviewItemsReadOnly", () => {
     expect(screen.getByText("税率 8%")).toBeInTheDocument();
     expect(screen.getByText("按分税 24円")).toBeInTheDocument();
     expect(screen.getByText("税額を確認してください")).toBeInTheDocument();
+    expect(screen.getByRole("listitem")).toHaveStyle({ display: "grid" });
   });
 });

@@ -8,13 +8,18 @@ const amountBasisLabels = {
 } as const;
 
 export function ReviewItemTaxDetails({ item }: { item: ReviewItemValues }) {
+  const showPrintedAmount =
+    item.printedAmountYen !== undefined && item.printedAmountYen !== Number(item.amountYen);
+  const showAmountBasis = item.amountBasis !== undefined && item.amountBasis !== "unknown";
+  const showAllocatedTax = item.allocatedTaxYen !== undefined && item.allocatedTaxYen !== 0;
+  const showQuantity =
+    item.quantity !== undefined && item.quantity > 1 && item.unitPriceYen !== undefined;
   const hasDetails =
-    item.printedAmountYen !== undefined ||
-    item.amountBasis !== undefined ||
+    showPrintedAmount ||
+    showAmountBasis ||
     item.taxRatePercent !== undefined ||
-    item.allocatedTaxYen !== undefined ||
-    item.quantity !== undefined ||
-    item.unitPriceYen !== undefined;
+    showAllocatedTax ||
+    showQuantity;
   if (!hasDetails) return null;
 
   return (
@@ -24,12 +29,12 @@ export function ReviewItemTaxDetails({ item }: { item: ReviewItemValues }) {
       spacing={1.5}
       sx={{ flexWrap: "wrap" }}
     >
-      {item.printedAmountYen !== undefined && (
+      {showPrintedAmount && item.printedAmountYen !== undefined && (
         <Typography color="text.secondary" variant="body2">
           印字額 {item.printedAmountYen.toLocaleString("ja-JP")}円
         </Typography>
       )}
-      {item.amountBasis !== undefined && (
+      {showAmountBasis && item.amountBasis !== undefined && (
         <Typography color="text.secondary" variant="body2">
           {amountBasisLabels[item.amountBasis]}
         </Typography>
@@ -39,12 +44,12 @@ export function ReviewItemTaxDetails({ item }: { item: ReviewItemValues }) {
           税率 {item.taxRatePercent === null ? "不明" : `${item.taxRatePercent}%`}
         </Typography>
       )}
-      {item.allocatedTaxYen !== undefined && (
+      {showAllocatedTax && item.allocatedTaxYen !== undefined && (
         <Typography color="text.secondary" variant="body2">
           按分税 {item.allocatedTaxYen.toLocaleString("ja-JP")}円
         </Typography>
       )}
-      {item.quantity !== undefined && item.unitPriceYen !== undefined && (
+      {showQuantity && item.quantity !== undefined && item.unitPriceYen !== undefined && (
         <Typography color="text.secondary" variant="body2">
           {item.quantity}点 × {item.unitPriceYen.toLocaleString("ja-JP")}円
         </Typography>

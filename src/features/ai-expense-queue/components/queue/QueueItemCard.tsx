@@ -104,29 +104,6 @@ export function QueueItemCard({
           />
         )}
 
-        {item.categoryAggregates && item.categoryAggregates.length > 0 && (
-          <Stack spacing={0.75}>
-            <Typography color="text.secondary" variant="body2">
-              カテゴリ別登録候補
-              {item.itemTotalYen !== undefined &&
-                ` ${queueAmountFormatter.format(item.itemTotalYen)}円`}
-              {item.itemDifferenceYen !== undefined &&
-                item.itemDifferenceYen !== 0 &&
-                ` / 差額 ${queueAmountFormatter.format(item.itemDifferenceYen)}円`}
-            </Typography>
-            <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-              {item.categoryAggregates.map((aggregate) => (
-                <Chip
-                  key={aggregate.categoryId}
-                  label={`${aggregate.categoryName ?? "カテゴリ"} ${queueAmountFormatter.format(aggregate.amountYen)}円`}
-                  size="small"
-                  variant="outlined"
-                />
-              ))}
-            </Stack>
-          </Stack>
-        )}
-
         <QueueItemActions
           isDeleting={isDeleting}
           isRegistering={isRegistering}

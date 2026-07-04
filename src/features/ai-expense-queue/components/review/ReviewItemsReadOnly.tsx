@@ -20,27 +20,34 @@ export function ReviewItemsReadOnly({
           <Box
             component="li"
             key={item.id}
-            sx={{ borderBottom: "1px solid", borderColor: "divider", pb: 0.75 }}
+            sx={{
+              alignItems: "baseline",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              columnGap: 1.5,
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr) minmax(72px, auto) minmax(56px, auto)",
+              pb: 0.75,
+              rowGap: 0.25,
+            }}
           >
-            <Stack
-              direction={{ xs: "column", sm: "row" }}
-              spacing={1}
-              sx={{
-                alignItems: { xs: "flex-start", sm: "center" },
-                justifyContent: "space-between",
-              }}
+            <Typography sx={{ minWidth: 0, overflowWrap: "anywhere" }} variant="body2">
+              {item.itemName || "（名称なし）"}
+            </Typography>
+            <Typography
+              sx={{ fontVariantNumeric: "tabular-nums", textAlign: "right", whiteSpace: "nowrap" }}
+              variant="body2"
             >
-              <Typography variant="body2">{item.itemName || "（名称なし）"}</Typography>
-              <Typography sx={{ textAlign: "right", whiteSpace: "nowrap" }} variant="body2">
-                {amountYen.toLocaleString("ja-JP")}円
-              </Typography>
-              <Typography color="text.secondary" sx={{ whiteSpace: "nowrap" }} variant="body2">
-                {categoryName}
-              </Typography>
-            </Stack>
-            <ReviewItemTaxDetails item={item} />
+              {amountYen.toLocaleString("ja-JP")}円
+            </Typography>
+            <Typography color="text.secondary" sx={{ textAlign: "right" }} variant="body2">
+              {categoryName}
+            </Typography>
+            <Box sx={{ gridColumn: "1 / -1" }}>
+              <ReviewItemTaxDetails item={item} />
+            </Box>
             {item.warnings && item.warnings.length > 0 && (
-              <Alert severity="warning" sx={{ mt: 0.75 }} variant="outlined">
+              <Alert severity="warning" sx={{ gridColumn: "1 / -1", mt: 0.5 }} variant="outlined">
                 {formatTaxWarnings(item.warnings)}
               </Alert>
             )}
