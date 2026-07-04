@@ -70,6 +70,19 @@ export const receiptItemTaxRatePercentValidator = v.union(
   v.null(),
 );
 export const receiptMarkersValidator = v.array(v.string());
+export const taxResolutionStatusValidator = v.union(v.literal("resolved"), v.literal("unresolved"));
+export const taxResolutionSourceValidator = v.union(
+  v.literal("item_explicit"),
+  v.literal("single_summary"),
+  v.literal("summary_reconciliation"),
+  v.literal("remaining_summary"),
+  v.literal("marker_reconciled"),
+);
+export const receiptMarkerDefinitionValidator = v.object({
+  marker: v.string(),
+  description: v.string(),
+});
+export const markerDefinitionsValidator = v.array(receiptMarkerDefinitionValidator);
 export const taxSummaryValidator = v.object({
   taxRatePercent: v.union(v.literal(0), v.literal(8), v.literal(10)),
   taxMode: v.union(

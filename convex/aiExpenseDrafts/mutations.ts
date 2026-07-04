@@ -5,7 +5,9 @@ import type { Id } from "../_generated/dataModel";
 import {
   aiExpenseDraftItemConfidenceValidator,
   aiExpenseDraftDocumentTypeValidator,
+  amountBasisValidator,
   classifyAiExpenseDraft,
+  receiptItemTaxRatePercentValidator,
 } from "./model";
 import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
 import { requireGroupMembership } from "../groups/membership";
@@ -19,6 +21,7 @@ import {
 } from "../../lib/convex/aiExpenseDrafts/reviewValidation";
 import { registerReadyDraftsHandler } from "../../lib/convex/aiExpenseDrafts/registerToReceipts";
 import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiExpenseDrafts/registerToExpenseEntries";
+import { updateDraftItemTaxOverridesHandler } from "../../lib/convex/aiExpenseDrafts/updateItemTaxOverrides";
 
 type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -131,6 +134,19 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   return updated;
 }
 
+export async function updateDraftItemTaxOverridesMutationHandler(
+  ctx: MutationCtx,
+  args: {
+    draftId: Id<"aiExpenseDrafts">;
+    itemId: Id<"aiExpenseDraftItems">;
+    taxRatePercent?: 0 | 8 | 10 | null;
+    amountBasis?: "tax_included" | "tax_excluded" | "unknown";
+  },
+) {
+  const { groupId } = await requireGroupMembership(ctx);
+  return await updateDraftItemTaxOverridesHandler(ctx, args, groupId);
+}
+
 export { registerReadyDraftsHandler } from "../../lib/convex/aiExpenseDrafts/registerToReceipts";
 export { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiExpenseDrafts/registerToExpenseEntries";
 
@@ -165,6 +181,16 @@ export const updateForReview = mutation({
     ),
   },
   handler: updateForReviewHandler,
+});
+
+export const updateDraftItemTaxOverrides = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    itemId: v.id("aiExpenseDraftItems"),
+    taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+    amountBasis: v.optional(amountBasisValidator),
+  },
+  handler: updateDraftItemTaxOverridesMutationHandler,
 });
 
 export const registerReadyDrafts = mutation({
