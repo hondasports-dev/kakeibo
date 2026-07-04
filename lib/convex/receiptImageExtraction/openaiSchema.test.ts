@@ -69,6 +69,8 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(itemSchema.properties.amountBasis).toMatchObject({
       enum: ["tax_included", "tax_excluded", "unknown"],
     });
+    expect(itemSchema.properties.markers).toMatchObject({ type: "array" });
+    expect(itemSchema.required).toContain("markers");
     expect(itemSchema.required).toContain("printedAmountYen");
     expect(itemSchema.additionalProperties).toBe(false);
     expect(schema.properties.items.maxItems).toBe(100);
@@ -84,6 +86,7 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     ]);
     expect(taxSummarySchema.additionalProperties).toBe(false);
     expect(schema.required).toContain("taxSummaries");
+    expect(schema.required).toContain("markerDefinitions");
   });
 
   it("mock結果が印字金額と税率別集計を持つ", () => {

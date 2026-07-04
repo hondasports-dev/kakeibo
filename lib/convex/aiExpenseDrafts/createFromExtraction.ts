@@ -22,6 +22,7 @@ type AiExpenseDraftItemInput = {
   printedAmountYen?: number;
   amountBasis?: AmountBasis;
   taxRatePercent?: ReceiptItemTaxRatePercent;
+  markers?: string[];
   taxMarker?: string;
   allocatedTaxYen?: number;
   normalizedAmountYen?: number;
@@ -117,6 +118,7 @@ async function insertDraftItems(
       printedAmountYen: item.printedAmountYen,
       amountBasis: item.amountBasis,
       taxRatePercent: item.taxRatePercent,
+      markers: item.markers,
       taxMarker: item.taxMarker,
       allocatedTaxYen: item.allocatedTaxYen,
       normalizedAmountYen: item.normalizedAmountYen,

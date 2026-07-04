@@ -96,6 +96,7 @@ export type AiExpenseItemTaxDetails = {
   printedAmountYen?: number;
   amountBasis?: "tax_included" | "tax_excluded" | "unknown";
   taxRatePercent?: 0 | 8 | 10 | null;
+  markers?: string[];
   taxMarker?: string;
   allocatedTaxYen?: number;
   normalizedAmountYen?: number;

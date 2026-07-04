@@ -30,6 +30,7 @@ describe("receipt extraction tax types", () => {
       ReceiptItemTaxRatePercent | undefined
     >();
     expectTypeOf<ExtractReceiptItemResult["taxMarker"]>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<ExtractReceiptItemResult["markers"]>().toEqualTypeOf<string[] | undefined>();
     expectTypeOf<ExtractReceiptItemResult["quantity"]>().toEqualTypeOf<number | undefined>();
     expectTypeOf<ExtractReceiptItemResult["unitPriceYen"]>().toEqualTypeOf<number | undefined>();
     expectTypeOf<ExtractReceiptFieldsResult["taxSummaries"]>().toEqualTypeOf<
