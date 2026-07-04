@@ -69,6 +69,7 @@ export const receiptItemTaxRatePercentValidator = v.union(
   v.literal(10),
   v.null(),
 );
+export const receiptMarkersValidator = v.array(v.string());
 export const taxSummaryValidator = v.object({
   taxRatePercent: v.union(v.literal(0), v.literal(8), v.literal(10)),
   taxMode: v.union(

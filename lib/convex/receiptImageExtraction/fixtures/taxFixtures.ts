@@ -13,6 +13,7 @@ function item(
     printedAmountYen,
     amountBasis,
     taxRatePercent,
+    markers: taxRatePercent === 8 ? ["*"] : taxRatePercent === 10 ? ["#"] : [],
     taxMarker: taxRatePercent === 8 ? "*" : taxRatePercent === 10 ? "#" : "",
     categoryName: "食費",
     confidence: {

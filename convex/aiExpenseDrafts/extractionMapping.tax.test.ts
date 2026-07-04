@@ -48,4 +48,42 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.warnings).not.toContain("normalized_amount_mismatch");
     expect(mapped.reviewReasons).toBeUndefined();
   });
+
+  it("税率を一意に解決できない明細を確認対象へ送る", () => {
+    const source = {
+      ...trialExternal8Fixture,
+      amountYen: 1000,
+      items: [
+        ...trialExternal8Fixture.items!.slice(0, 3).map((item, index) => ({
+          ...item,
+          amountYen: [300, 300, 400][index],
+          printedAmountYen: [300, 300, 400][index],
+          amountBasis: "unknown" as const,
+          taxRatePercent: null,
+          markers: [],
+          taxMarker: "",
+        })),
+      ],
+      taxSummaries: [
+        {
+          ...trialExternal8Fixture.taxSummaries![0],
+          taxableAmountYen: 500,
+          taxYen: 0,
+          taxMode: "included" as const,
+          taxableAmountBasis: "tax_included" as const,
+        },
+        {
+          ...trialExternal8Fixture.taxSummaries![0],
+          taxRatePercent: 10 as const,
+          taxableAmountYen: 500,
+          taxYen: 0,
+          taxMode: "included" as const,
+          taxableAmountBasis: "tax_included" as const,
+        },
+      ],
+    };
+    const mapped = mapExtractionToDraftArgs(source, [foodCategory]);
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+    expect(mapped.warnings).toContain("unresolved_tax_rate:items[0]");
+  });
 });

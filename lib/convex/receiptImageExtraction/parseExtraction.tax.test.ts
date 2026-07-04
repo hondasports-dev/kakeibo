@@ -96,7 +96,7 @@ describe("parseOpenAIResponse tax boundary", () => {
     });
   });
 
-  it("外税の金額関係が確定している場合はモデルの内税・不明判定を補正する", () => {
+  it("parserでは外税の金額関係から税属性を補正しない", () => {
     const payload = structuredClone(trialExtraction);
     payload.items[0].printedAmountYen = 1559;
     payload.items[0].amountBasis = "unknown";
@@ -105,10 +105,10 @@ describe("parseOpenAIResponse tax boundary", () => {
 
     const result = parse(payload);
 
-    expect(result.items?.[0].amountBasis).toBe("tax_excluded");
+    expect(result.items?.[0].amountBasis).toBe("unknown");
     expect(result.taxSummaries?.[0]).toMatchObject({
-      taxMode: "external",
-      taxableAmountBasis: "tax_excluded",
+      taxMode: "included",
+      taxableAmountBasis: "tax_included",
     });
   });
 

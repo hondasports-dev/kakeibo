@@ -2,7 +2,7 @@ import type { Doc } from "../_generated/dataModel";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categories/candidate";
 import type { ExtractReceiptFieldsResult } from "../receiptImageExtraction/extraction";
 import type { CreateFromExtractionArgs } from "./internal";
-import { normalizeReceiptAmounts } from "../../lib/convex/receiptImageExtraction/taxNormalization";
+import { interpretReceiptTax } from "../../lib/receiptTax";
 
 export function mapExtractionToDraftArgs(
   extracted: ExtractReceiptFieldsResult,
@@ -18,15 +18,16 @@ export function mapExtractionToDraftArgs(
     categories,
   });
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
-  const normalization =
+  const interpretation =
     extracted.items && extracted.items.length > 0 && extracted.taxSummaries
-      ? normalizeReceiptAmounts({
+      ? interpretReceiptTax({
           amountYen: extracted.amountYen,
           items: extracted.items.map((item) => ({
             itemName: item.itemName,
             printedAmountYen: item.printedAmountYen ?? item.amountYen,
-            amountBasis: item.amountBasis ?? "tax_included",
+            amountBasis: item.amountBasis ?? "unknown",
             taxRatePercent: item.taxRatePercent ?? null,
+            markers: item.markers ?? (item.taxMarker ? [item.taxMarker] : []),
             taxMarker: item.taxMarker ?? "",
             categoryName: item.categoryName,
             quantity: item.quantity,
@@ -34,10 +35,11 @@ export function mapExtractionToDraftArgs(
             warnings: item.warnings,
           })),
           taxSummaries: extracted.taxSummaries,
+          markerDefinitions: extracted.markerDefinitions,
         })
       : undefined;
   const items = extracted.items?.map((item, index) => {
-    const normalized = normalization?.items[index];
+    const normalized = interpretation?.items[index];
     const itemCandidates = buildCategoryCandidates({
       documentType: extracted.documentType,
       categoryName: item.categoryName,
@@ -51,6 +53,7 @@ export function mapExtractionToDraftArgs(
       printedAmountYen: normalized?.printedAmountYen ?? item.printedAmountYen,
       amountBasis: normalized?.amountBasis ?? item.amountBasis,
       taxRatePercent: normalized?.taxRatePercent ?? item.taxRatePercent,
+      markers: normalized?.markers ?? item.markers,
       taxMarker: normalized?.taxMarker ?? item.taxMarker,
       allocatedTaxYen: normalized?.allocatedTaxYen,
       normalizedAmountYen: normalized?.normalizedAmountYen,
@@ -67,6 +70,19 @@ export function mapExtractionToDraftArgs(
       warnings: normalized?.warnings ?? item.warnings,
     };
   });
+  const hasUnresolvedTax = interpretation?.warnings.some(
+    (warning) => warning.startsWith("unresolved_") || warning.startsWith("missing_tax_items:"),
+  );
+  const hasTaxMismatch = interpretation?.warnings.some(
+    (warning) =>
+      warning === "normalized_amount_mismatch" ||
+      warning.startsWith("taxable_amount_mismatch:") ||
+      warning.startsWith("duplicate_tax_summary:"),
+  );
+  const taxReviewReasons = [
+    ...(hasUnresolvedTax ? (["user_confirmation_required"] as const) : []),
+    ...(hasTaxMismatch ? (["amount_mismatch"] as const) : []),
+  ];
 
   return {
     documentType: extracted.documentType,
@@ -76,7 +92,7 @@ export function mapExtractionToDraftArgs(
     paymentPurpose: extracted.paymentPurpose || undefined,
     date: extracted.date || undefined,
     amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
-    taxSummaries: extracted.taxSummaries,
+    taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
     categoryId,
     imageFileName,
     confidence: {
@@ -89,8 +105,8 @@ export function mapExtractionToDraftArgs(
       amountYen: extracted.confidence.amountYen,
       categoryId: extracted.confidence.categoryName,
     },
-    warnings: [...extracted.warnings, ...(normalization?.warnings ?? [])],
-    reviewReasons: normalization?.warnings.length ? ["amount_mismatch"] : undefined,
+    warnings: [...new Set([...extracted.warnings, ...(interpretation?.warnings ?? [])])],
+    reviewReasons: taxReviewReasons.length > 0 ? taxReviewReasons : undefined,
     items,
   };
 }

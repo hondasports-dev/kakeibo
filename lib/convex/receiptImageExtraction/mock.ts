@@ -34,6 +34,7 @@ export function getMockResult(): ExtractReceiptFieldsResult {
         printedAmountYen: 734,
         amountBasis: "tax_included",
         taxRatePercent: 10,
+        markers: [],
         taxMarker: "",
         quantity: 1,
         unitPriceYen: 734,
@@ -54,6 +55,7 @@ export function getMockResult(): ExtractReceiptFieldsResult {
         printedAmountYen: 500,
         amountBasis: "tax_included",
         taxRatePercent: 10,
+        markers: [],
         taxMarker: "",
         quantity: 1,
         unitPriceYen: 500,
@@ -88,6 +90,7 @@ export function getMockResult(): ExtractReceiptFieldsResult {
         warnings: [],
       },
     ],
+    markerDefinitions: [],
     confidence: {
       shopName: 0.95,
       date: 0.98,

@@ -226,6 +226,7 @@ export default defineSchema({
     printedAmountYen: v.optional(v.number()),
     amountBasis: v.optional(amountBasisValidator),
     taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+    markers: v.optional(v.array(v.string())),
     taxMarker: v.optional(v.string()),
     allocatedTaxYen: v.optional(v.number()),
     normalizedAmountYen: v.optional(v.number()),
