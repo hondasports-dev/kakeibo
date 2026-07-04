@@ -12,16 +12,25 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo } from "react";
-import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
+import type { AmountBasis } from "../../../../../lib/receiptTax/types";
+import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
+import {
+  buildTaxContextFromReviewItem,
+  toReceiptItemTaxViewModel,
+} from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
-import { ReviewItemTaxDetails } from "./ReviewItemTaxDetails";
+import { AmountBasisSelect } from "./AmountBasisSelect";
+import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
+import { TaxRateSelect } from "./TaxRateSelect";
 
 export function ReviewItemsEditor({
   categories,
+  selectedReviewDraft,
   reviewItems,
   receiptAmount,
+  taxUpdatingItemId,
   onAddItem,
   onItemChange,
   onRemoveItem,
@@ -29,10 +38,14 @@ export function ReviewItemsEditor({
   onCategorySplitChange,
   onAssignCategoryToItems,
   onDiscountTargetChange,
+  onTaxRateChange,
+  onAmountBasisChange,
 }: {
   categories: AiExpenseQueueCategory[];
+  selectedReviewDraft: AiExpenseDraft | null;
   reviewItems: ReviewItemValues[];
   receiptAmount: number;
+  taxUpdatingItemId?: string | null;
   onAddItem: () => void;
   onItemChange: (
     itemId: string,
@@ -44,6 +57,8 @@ export function ReviewItemsEditor({
   onCategorySplitChange: (split: boolean) => void;
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
+  onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
+  onAmountBasisChange?: (itemId: string, amountBasis: AmountBasis) => void;
 }) {
   const itemTotal = computeItemTotalYen(reviewItems);
   const difference = receiptAmount - itemTotal;
@@ -119,6 +134,9 @@ export function ReviewItemsEditor({
             const lowConfidence = isLowConfidenceItem(item);
             const discount = isDiscountItemName(item.itemName);
             const categoryName = categoryNamesById.get(item.categoryId);
+            const taxContext = buildTaxContextFromReviewItem(item);
+            const taxVm = toReceiptItemTaxViewModel(item);
+            const isTaxUpdating = taxUpdatingItemId === item.id;
             return (
               <Box
                 key={item.id}
@@ -191,7 +209,24 @@ export function ReviewItemsEditor({
                       }
                     />
                   </Stack>
-                  <ReviewItemTaxDetails item={item} />
+                  {taxContext.status === "unresolved" ? (
+                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+                      <TaxRateSelect
+                        disabled={isTaxUpdating}
+                        onChange={(value) => onTaxRateChange?.(item.id, value)}
+                        value={item.taxRatePercent}
+                      />
+                      {taxVm.showAmountBasisSelect && (
+                        <AmountBasisSelect
+                          disabled={isTaxUpdating}
+                          onChange={(value) => onAmountBasisChange?.(item.id, value)}
+                          value={item.amountBasis}
+                        />
+                      )}
+                    </Stack>
+                  ) : (
+                    <ReceiptItemTaxDetail draft={selectedReviewDraft} item={item} />
+                  )}
                   {discount ? (
                     <TextField
                       fullWidth

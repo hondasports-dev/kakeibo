@@ -30,6 +30,8 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
       1683,
     );
     expect(mapped.items?.every((item) => item.categoryId === foodCategory._id)).toBe(true);
+    expect(mapped.items?.every((item) => item.taxResolutionStatus === "resolved")).toBe(true);
+    expect(mapped.items?.every((item) => item.taxResolutionSource !== undefined)).toBe(true);
     expect(mapped.reviewReasons).toBeUndefined();
   });
 
@@ -84,6 +86,7 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     };
     const mapped = mapExtractionToDraftArgs(source, [foodCategory]);
     expect(mapped.reviewReasons).toContain("user_confirmation_required");
+    expect(mapped.items?.every((item) => item.taxResolutionStatus === "unresolved")).toBe(true);
     expect(mapped.warnings).toContain("unresolved_tax_rate:items[0]");
   });
 });

@@ -140,6 +140,9 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onAssignCategoryToItems={queue.handleAssignCategoryToItems}
         onDiscountTargetChange={queue.handleDiscountTargetChange}
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
+        taxUpdatingItemId={queue.taxUpdatingItemId}
+        onTaxRateChange={queue.handleTaxRateChange}
+        onAmountBasisChange={queue.handleAmountBasisChange}
       />
 
       <ReceiptImageConsentDialog

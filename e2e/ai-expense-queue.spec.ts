@@ -316,6 +316,26 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
   });
 });
 
+test.describe("Issue #431 レシート税判定UI", () => {
+  test("@smoke 下書き確認に分析ステータスと明細税率が表示される", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
+
+    const queue = page.getByRole("region", { name: "レシート入力" });
+    await queue
+      .getByRole("region", { name: "確認が必要" })
+      .getByRole("button", { name: "確認する" })
+      .click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await expect(
+      dialog.getByText(/レシート分析完了|分析結果を確認してください/),
+    ).toBeVisible();
+
+    await dialog.getByRole("button", { name: "明細を見る" }).click();
+    await expect(dialog.getByText("未設定").first()).toBeVisible();
+  });
+});
+
 test.describe("Issue #179 AI下書きからexpenseEntriesへ登録", () => {
   test.beforeEach(async () => {
     await cleanupE2eExpenseEntries();

@@ -6,6 +6,7 @@ import type {
 import { useReviewDraftSelection } from "./useReviewDraftSelection";
 import { useReviewFormState } from "./useReviewFormState";
 import { useReviewSubmit } from "./useReviewSubmit";
+import { useReviewTaxOverrides } from "./useReviewTaxOverrides";
 
 export function useReviewDialog({
   initialReviewDrafts,
@@ -38,6 +39,12 @@ export function useReviewDialog({
     onRegister,
     clearSelection: draftSelection.clearSelection,
     resetForm: formState.resetForm,
+  });
+
+  const taxOverrides = useReviewTaxOverrides({
+    selectedReviewDraftId: draftSelection.selectedReviewDraftId,
+    setReviewItems: formState.setReviewItems,
+    setReviewError: submit.setReviewError,
   });
 
   const handleOpenReview = (itemId: string) => {
@@ -82,5 +89,8 @@ export function useReviewDialog({
     handleAssignCategoryToItems: formState.handleAssignCategoryToItems,
     handleDiscountTargetChange: formState.handleDiscountTargetChange,
     handleSubmitReview: submit.handleSubmitReview,
+    taxUpdatingItemId: taxOverrides.taxUpdatingItemId,
+    handleTaxRateChange: taxOverrides.handleTaxRateChange,
+    handleAmountBasisChange: taxOverrides.handleAmountBasisChange,
   };
 }

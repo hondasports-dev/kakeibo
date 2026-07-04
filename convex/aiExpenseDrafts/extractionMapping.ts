@@ -3,6 +3,10 @@ import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../cat
 import type { ExtractReceiptFieldsResult } from "../receiptImageExtraction/extraction";
 import type { CreateFromExtractionArgs } from "./internal";
 import { interpretReceiptTax } from "../../lib/receiptTax";
+import {
+  deriveTaxReviewReasons,
+  interpretedItemToDraftFields,
+} from "../../lib/receiptTax/draftTaxMapping";
 
 export function mapExtractionToDraftArgs(
   extracted: ExtractReceiptFieldsResult,
@@ -47,16 +51,20 @@ export function mapExtractionToDraftArgs(
       categories,
     });
     const itemCategoryId = resolveCategoryIdFromCandidates(item.categoryName, itemCandidates);
+    const taxFields = normalized ? interpretedItemToDraftFields(normalized) : undefined;
     return {
       itemName: item.itemName,
       amountYen: normalized?.normalizedAmountYen ?? item.amountYen,
-      printedAmountYen: normalized?.printedAmountYen ?? item.printedAmountYen,
-      amountBasis: normalized?.amountBasis ?? item.amountBasis,
-      taxRatePercent: normalized?.taxRatePercent ?? item.taxRatePercent,
+      printedAmountYen: taxFields?.printedAmountYen ?? item.printedAmountYen,
+      amountBasis: taxFields?.amountBasis ?? item.amountBasis,
+      taxRatePercent: taxFields?.taxRatePercent ?? item.taxRatePercent,
       markers: normalized?.markers ?? item.markers,
       taxMarker: normalized?.taxMarker ?? item.taxMarker,
-      allocatedTaxYen: normalized?.allocatedTaxYen,
-      normalizedAmountYen: normalized?.normalizedAmountYen,
+      allocatedTaxYen: taxFields?.allocatedTaxYen,
+      normalizedAmountYen: taxFields?.normalizedAmountYen,
+      taxResolutionStatus: taxFields?.taxResolutionStatus,
+      taxResolutionSource: taxFields?.taxResolutionSource,
+      taxReviewReasons: taxFields?.taxReviewReasons,
       quantity: normalized?.quantity ?? item.quantity,
       unitPriceYen: normalized?.unitPriceYen ?? item.unitPriceYen,
       categoryName: item.categoryName,
@@ -67,23 +75,10 @@ export function mapExtractionToDraftArgs(
         categoryName: item.confidence.categoryName,
         categoryId: item.confidence.categoryName,
       },
-      warnings: normalized?.warnings ?? item.warnings,
+      warnings: taxFields?.warnings ?? item.warnings,
     };
   });
-  const hasUnresolvedTax = interpretation?.warnings.some(
-    (warning) => warning.startsWith("unresolved_") || warning.startsWith("missing_tax_items:"),
-  );
-  const hasTaxMismatch = interpretation?.warnings.some(
-    (warning) =>
-      warning === "normalized_amount_mismatch" ||
-      warning.startsWith("taxable_amount_mismatch:") ||
-      warning.startsWith("duplicate_tax_summary:") ||
-      warning.startsWith("conflicting_tax_summary:"),
-  );
-  const taxReviewReasons = [
-    ...(hasUnresolvedTax ? (["user_confirmation_required"] as const) : []),
-    ...(hasTaxMismatch ? (["amount_mismatch"] as const) : []),
-  ];
+  const taxReviewReasons = deriveTaxReviewReasons(interpretation);
 
   return {
     documentType: extracted.documentType,
@@ -94,6 +89,7 @@ export function mapExtractionToDraftArgs(
     date: extracted.date || undefined,
     amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
     taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
+    markerDefinitions: extracted.markerDefinitions,
     categoryId,
     imageFileName,
     confidence: {

@@ -80,6 +80,17 @@ export type AiExpenseDraft = {
   categoryId?: string;
   reviewReasons: string[];
   warnings?: string[];
+  taxSummaries?: Array<{
+    taxRatePercent: 0 | 8 | 10;
+    taxMode: "external" | "included" | "mixed" | "unknown";
+    taxableAmountYen: number;
+    taxableAmountBasis: "tax_included" | "tax_excluded" | "unknown";
+    taxYen: number;
+    taxIncludedAmountYen?: number;
+    roundingMethod: "floor" | "round" | "ceil" | "unknown";
+    warnings: string[];
+  }>;
+  markerDefinitions?: Array<{ marker: string; description: string }>;
   itemSummary?: {
     itemTotalYen: number;
     itemDifferenceYen?: number;
@@ -100,6 +111,14 @@ export type AiExpenseItemTaxDetails = {
   taxMarker?: string;
   allocatedTaxYen?: number;
   normalizedAmountYen?: number;
+  taxResolutionStatus?: "resolved" | "unresolved";
+  taxResolutionSource?:
+    | "item_explicit"
+    | "single_summary"
+    | "summary_reconciliation"
+    | "remaining_summary"
+    | "marker_reconciled";
+  taxReviewReasons?: string[];
   quantity?: number;
   unitPriceYen?: number;
 };

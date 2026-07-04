@@ -42,6 +42,9 @@ export function ReviewDialog({
   onAssignCategoryToItems,
   onDiscountTargetChange,
   onSubmit,
+  taxUpdatingItemId,
+  onTaxRateChange,
+  onAmountBasisChange,
 }: {
   open: boolean;
   categories: AiExpenseQueueCategory[];
@@ -66,6 +69,12 @@ export function ReviewDialog({
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
   onSubmit: (registerAfterUpdate: boolean) => void;
+  taxUpdatingItemId?: string | null;
+  onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
+  onAmountBasisChange?: (
+    itemId: string,
+    amountBasis: "tax_included" | "tax_excluded" | "unknown",
+  ) => void;
 }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -161,10 +170,14 @@ export function ReviewDialog({
                       <ReviewItemsEditor
                         categories={categories}
                         onAddItem={onAddItem}
+                        onAmountBasisChange={onAmountBasisChange}
                         onItemChange={onItemChange}
                         onRemoveItem={onRemoveItem}
+                        onTaxRateChange={onTaxRateChange}
                         receiptAmount={receiptAmount}
                         reviewItems={reviewItems}
+                        selectedReviewDraft={selectedReviewDraft}
+                        taxUpdatingItemId={taxUpdatingItemId}
                         isCategorySplit={isCategorySplit}
                         onCategorySplitChange={onCategorySplitChange}
                         onAssignCategoryToItems={onAssignCategoryToItems}

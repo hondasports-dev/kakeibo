@@ -120,6 +120,9 @@ export function useAiExpenseQueuePanel({
     handleAssignCategoryToItems: reviewDialog.handleAssignCategoryToItems,
     handleDiscountTargetChange: reviewDialog.handleDiscountTargetChange,
     handleSubmitReview: reviewDialog.handleSubmitReview,
+    taxUpdatingItemId: reviewDialog.taxUpdatingItemId,
+    handleTaxRateChange: reviewDialog.handleTaxRateChange,
+    handleAmountBasisChange: reviewDialog.handleAmountBasisChange,
     handleToggleReadySelection: bulkRegister.handleToggleReadySelection,
     deleteQueueItem: wrappedDeleteQueueItem,
   };
