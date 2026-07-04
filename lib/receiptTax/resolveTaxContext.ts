@@ -38,14 +38,16 @@ function findUniqueSubset(
     [0, { count: 1, indexes: [] }],
   ]);
   for (const itemIndex of indexes) {
-    const next = new Map(states);
+    const next = new Map(
+      [...states].map(([sum, state]) => [sum, { count: state.count, indexes: [...state.indexes] }]),
+    );
     for (const [sum, state] of states) {
       const newSum = sum + items[itemIndex].printedAmountYen;
       const existing = next.get(newSum);
       if (!existing) {
         next.set(newSum, { count: state.count, indexes: [...state.indexes, itemIndex] });
       } else {
-        existing.count = 2;
+        next.set(newSum, { count: 2, indexes: [...existing.indexes] });
       }
     }
     if (next.size > 20_000) return undefined;
@@ -81,20 +83,23 @@ export function resolveTaxContext(args: {
         source: "item_explicit",
       };
     } else if (matching.length === 1) {
-      const context = resolved(matching[0], "item_explicit");
+      const context = resolved(matching[0], "summary_reconciliation");
       if (context) contexts[index] = context;
     }
   });
 
   const markerRates = new Map<number, TaxRatePercent>();
+  const conflictedMarkerIndexes = new Set<number>();
   for (const evidence of args.evidence) {
     if (evidence.type !== "marker_legend" || evidence.interpretedTaxRatePercent === undefined)
       continue;
+    if (conflictedMarkerIndexes.has(evidence.itemIndex)) continue;
     const previous = markerRates.get(evidence.itemIndex);
     if (previous === undefined || previous === evidence.interpretedTaxRatePercent) {
       markerRates.set(evidence.itemIndex, evidence.interpretedTaxRatePercent);
     } else {
       markerRates.delete(evidence.itemIndex);
+      conflictedMarkerIndexes.add(evidence.itemIndex);
     }
   }
   for (const summary of args.taxSummaries) {

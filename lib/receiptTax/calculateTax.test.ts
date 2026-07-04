@@ -9,6 +9,7 @@ describe("calculateTaxYen", () => {
     [999, 10, "floor", 99],
     [999, 10, "round", 100],
     [999, 10, "ceil", 100],
+    [1000, 10, "floor", 100],
     [1559, 0, "ceil", 0],
   ] as const)(
     "%i円 税率%i%% %s => %i円",

@@ -7,6 +7,7 @@ import {
   aiExpenseDraftReviewReasonValidator,
   amountBasisValidator,
   receiptItemTaxRatePercentValidator,
+  receiptMarkersValidator,
   taxSummaryValidator,
 } from "../../lib/convex/aiExpenseDrafts/validators";
 import {
@@ -61,7 +62,7 @@ export const createFromExtraction = internalMutation({
           printedAmountYen: v.optional(v.number()),
           amountBasis: v.optional(amountBasisValidator),
           taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
-          markers: v.optional(v.array(v.string())),
+          markers: v.optional(receiptMarkersValidator),
           taxMarker: v.optional(v.string()),
           allocatedTaxYen: v.optional(v.number()),
           normalizedAmountYen: v.optional(v.number()),
