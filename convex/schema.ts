@@ -7,6 +7,9 @@ import {
   aiExpenseDraftReviewReasonValidator,
   aiExpenseDraftSourceTypeValidator,
   aiExpenseDraftStatusValidator,
+  amountBasisValidator,
+  receiptItemTaxRatePercentValidator,
+  taxSummaryValidator,
 } from "./aiExpenseDrafts/model";
 import {
   managementAuditActionValidator,
@@ -201,6 +204,7 @@ export default defineSchema({
     paymentPurpose: v.optional(v.string()),
     date: v.optional(v.string()),
     amountYen: v.optional(v.number()),
+    taxSummaries: v.optional(v.array(taxSummaryValidator)),
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftConfidenceValidator,
     // 既存の dev 下書きには warnings が無いものがあるため optional とする。
@@ -219,6 +223,14 @@ export default defineSchema({
     draftId: v.id("aiExpenseDrafts"),
     itemName: v.string(),
     amountYen: v.number(),
+    printedAmountYen: v.optional(v.number()),
+    amountBasis: v.optional(amountBasisValidator),
+    taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+    taxMarker: v.optional(v.string()),
+    allocatedTaxYen: v.optional(v.number()),
+    normalizedAmountYen: v.optional(v.number()),
+    quantity: v.optional(v.number()),
+    unitPriceYen: v.optional(v.number()),
     categoryName: v.optional(v.string()),
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftItemConfidenceValidator,

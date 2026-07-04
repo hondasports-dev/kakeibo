@@ -2,6 +2,7 @@ import type { Doc } from "../_generated/dataModel";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categories/candidate";
 import type { ExtractReceiptFieldsResult } from "../receiptImageExtraction/extraction";
 import type { CreateFromExtractionArgs } from "./internal";
+import { normalizeReceiptAmounts } from "../../lib/convex/receiptImageExtraction/taxNormalization";
 
 export function mapExtractionToDraftArgs(
   extracted: ExtractReceiptFieldsResult,
@@ -17,7 +18,26 @@ export function mapExtractionToDraftArgs(
     categories,
   });
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
-  const items = extracted.items?.map((item) => {
+  const normalization =
+    extracted.items && extracted.taxSummaries
+      ? normalizeReceiptAmounts({
+          amountYen: extracted.amountYen,
+          items: extracted.items.map((item) => ({
+            itemName: item.itemName,
+            printedAmountYen: item.printedAmountYen ?? item.amountYen,
+            amountBasis: item.amountBasis ?? "tax_included",
+            taxRatePercent: item.taxRatePercent ?? null,
+            taxMarker: item.taxMarker ?? "",
+            categoryName: item.categoryName,
+            quantity: item.quantity,
+            unitPriceYen: item.unitPriceYen,
+            warnings: item.warnings,
+          })),
+          taxSummaries: extracted.taxSummaries,
+        })
+      : undefined;
+  const items = extracted.items?.map((item, index) => {
+    const normalized = normalization?.items[index];
     const itemCandidates = buildCategoryCandidates({
       documentType: extracted.documentType,
       categoryName: item.categoryName,
@@ -27,7 +47,15 @@ export function mapExtractionToDraftArgs(
     const itemCategoryId = resolveCategoryIdFromCandidates(item.categoryName, itemCandidates);
     return {
       itemName: item.itemName,
-      amountYen: item.amountYen,
+      amountYen: normalized?.normalizedAmountYen ?? item.amountYen,
+      printedAmountYen: normalized?.printedAmountYen ?? item.printedAmountYen,
+      amountBasis: normalized?.amountBasis ?? item.amountBasis,
+      taxRatePercent: normalized?.taxRatePercent ?? item.taxRatePercent,
+      taxMarker: normalized?.taxMarker ?? item.taxMarker,
+      allocatedTaxYen: normalized?.allocatedTaxYen,
+      normalizedAmountYen: normalized?.normalizedAmountYen,
+      quantity: normalized?.quantity ?? item.quantity,
+      unitPriceYen: normalized?.unitPriceYen ?? item.unitPriceYen,
       categoryName: item.categoryName,
       categoryId: itemCategoryId,
       confidence: {
@@ -36,7 +64,7 @@ export function mapExtractionToDraftArgs(
         categoryName: item.confidence.categoryName,
         categoryId: item.confidence.categoryName,
       },
-      warnings: item.warnings,
+      warnings: normalized?.warnings ?? item.warnings,
     };
   });
 
@@ -48,6 +76,7 @@ export function mapExtractionToDraftArgs(
     paymentPurpose: extracted.paymentPurpose || undefined,
     date: extracted.date || undefined,
     amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
+    taxSummaries: extracted.taxSummaries,
     categoryId,
     imageFileName,
     confidence: {
@@ -60,7 +89,8 @@ export function mapExtractionToDraftArgs(
       amountYen: extracted.confidence.amountYen,
       categoryId: extracted.confidence.categoryName,
     },
-    warnings: extracted.warnings,
+    warnings: [...extracted.warnings, ...(normalization?.warnings ?? [])],
+    reviewReasons: normalization?.warnings.length ? ["amount_mismatch"] : undefined,
     items,
   };
 }

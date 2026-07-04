@@ -10,10 +10,23 @@ import {
 } from "../../../convex/aiExpenseDrafts/model";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { deleteDraftAndItems } from "./draftRepository";
+import type {
+  AmountBasis,
+  ExtractedTaxSummary,
+  ReceiptItemTaxRatePercent,
+} from "../receiptImageExtraction/types";
 
 type AiExpenseDraftItemInput = {
   itemName: string;
   amountYen: number;
+  printedAmountYen?: number;
+  amountBasis?: AmountBasis;
+  taxRatePercent?: ReceiptItemTaxRatePercent;
+  taxMarker?: string;
+  allocatedTaxYen?: number;
+  normalizedAmountYen?: number;
+  quantity?: number;
+  unitPriceYen?: number;
   categoryName?: string;
   categoryId?: Id<"categories">;
   confidence: {
@@ -33,6 +46,7 @@ export type CreateFromExtractionArgs = {
   paymentPurpose?: string;
   date?: string;
   amountYen?: number;
+  taxSummaries?: ExtractedTaxSummary[];
   categoryId?: Id<"categories">;
   imageFileName?: string;
   confidence: AiExpenseDraftConfidence;
@@ -100,6 +114,14 @@ async function insertDraftItems(
       draftId,
       itemName: item.itemName,
       amountYen: item.amountYen,
+      printedAmountYen: item.printedAmountYen,
+      amountBasis: item.amountBasis,
+      taxRatePercent: item.taxRatePercent,
+      taxMarker: item.taxMarker,
+      allocatedTaxYen: item.allocatedTaxYen,
+      normalizedAmountYen: item.normalizedAmountYen,
+      quantity: item.quantity,
+      unitPriceYen: item.unitPriceYen,
       categoryName: item.categoryName,
       categoryId: item.categoryId,
       confidence: item.confidence,
@@ -131,6 +153,7 @@ export async function createFromExtractionHandler(
     paymentPurpose: args.paymentPurpose,
     date: args.date,
     amountYen: args.amountYen,
+    taxSummaries: args.taxSummaries,
     categoryId: args.categoryId,
     confidence: args.confidence,
     warnings: args.warnings,
