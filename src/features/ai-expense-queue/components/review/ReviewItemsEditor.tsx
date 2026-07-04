@@ -15,6 +15,8 @@ import { useMemo } from "react";
 import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
+import { formatTaxWarnings } from "../../utils/taxWarnings";
+import { ReviewItemTaxDetails } from "./ReviewItemTaxDetails";
 
 export function ReviewItemsEditor({
   categories,
@@ -161,7 +163,7 @@ export function ReviewItemsEditor({
 
                   {item.warnings && item.warnings.length > 0 && (
                     <Alert severity="warning" variant="outlined">
-                      {item.warnings.join(" / ")}
+                      {formatTaxWarnings(item.warnings)}
                     </Alert>
                   )}
 
@@ -196,6 +198,7 @@ export function ReviewItemsEditor({
                       }
                     />
                   </Stack>
+                  <ReviewItemTaxDetails item={item} />
                   {discount ? (
                     <TextField
                       fullWidth
