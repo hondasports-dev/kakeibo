@@ -4,13 +4,7 @@ import type {
   InterpretedReceiptItem,
   TaxContextResolution,
 } from "./types";
-
-function expectedBasis(summary: ExtractedTaxSummary) {
-  if (summary.taxableAmountBasis !== "unknown") return summary.taxableAmountBasis;
-  if (summary.taxMode === "external") return "tax_excluded";
-  if (summary.taxMode === "included") return "tax_included";
-  return "unknown";
-}
+import { resolveAmountBasis } from "./resolveAmountBasis";
 
 function allocateTax(taxYen: number, taxableAmountYen: number, amounts: number[]) {
   if (amounts.length === 0 || taxableAmountYen === 0) return amounts.map(() => 0);
@@ -44,13 +38,14 @@ export function normalizeAmounts(args: {
     } satisfies InterpretedReceiptItem;
   });
   for (const summary of args.taxSummaries) {
+    const amountBasis = resolveAmountBasis(summary);
     const indexes = result
       .map((item, index) => ({ item, index }))
       .filter(
         ({ item }) =>
           item.taxContext.status === "resolved" &&
           item.taxRatePercent === summary.taxRatePercent &&
-          (expectedBasis(summary) === "unknown" || item.amountBasis === expectedBasis(summary)),
+          (amountBasis === "unknown" || item.amountBasis === amountBasis),
       )
       .map(({ index }) => index);
     const printedTotal = indexes.reduce((sum, index) => sum + result[index].printedAmountYen, 0);

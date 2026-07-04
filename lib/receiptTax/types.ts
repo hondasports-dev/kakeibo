@@ -18,7 +18,6 @@ export type ExtractedReceiptItem = {
   quantity?: number;
   unitPriceYen?: number;
   warnings: string[];
-  [key: string]: unknown;
 };
 
 export type ExtractedTaxSummary = {
@@ -31,7 +30,6 @@ export type ExtractedTaxSummary = {
   roundingMethod: RoundingMethod;
   confidence: Record<string, number | undefined>;
   warnings: string[];
-  [key: string]: unknown;
 };
 
 export type TaxResolutionSource =
@@ -92,5 +90,7 @@ export type TaxEvidence =
 
 export type ReconciliationResult = {
   taxSummaries: ExtractedTaxSummary[];
+  resolvableTaxSummaries: ExtractedTaxSummary[];
   duplicateWarnings: string[];
+  conflictingWarnings: string[];
 };

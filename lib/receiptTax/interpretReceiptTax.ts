@@ -17,22 +17,28 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
   const reconciliation = reconcileTaxSummaries(normalizedInput);
   const contexts = resolveTaxContext({
     items: normalizedInput.items,
-    taxSummaries: reconciliation.taxSummaries,
+    taxSummaries: reconciliation.resolvableTaxSummaries,
     evidence,
   });
   const items = normalizeAmounts({
     items: normalizedInput.items,
     contexts,
-    taxSummaries: reconciliation.taxSummaries,
+    taxSummaries: reconciliation.resolvableTaxSummaries,
   });
   const validationWarnings = validateConsistency({
     amountYen: input.amountYen,
     items,
-    taxSummaries: reconciliation.taxSummaries,
+    taxSummaries: reconciliation.resolvableTaxSummaries,
   });
   return {
     items,
     taxSummaries: reconciliation.taxSummaries,
-    warnings: [...new Set([...reconciliation.duplicateWarnings, ...validationWarnings])],
+    warnings: [
+      ...new Set([
+        ...reconciliation.duplicateWarnings,
+        ...reconciliation.conflictingWarnings,
+        ...validationWarnings,
+      ]),
+    ],
   };
 }

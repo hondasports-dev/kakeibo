@@ -12,6 +12,7 @@ export {
   aiExpenseDraftItemConfidenceValidator,
   amountBasisValidator,
   receiptItemTaxRatePercentValidator,
+  receiptMarkersValidator,
   taxSummaryValidator,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,

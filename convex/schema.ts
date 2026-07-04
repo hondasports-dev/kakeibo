@@ -9,6 +9,7 @@ import {
   aiExpenseDraftStatusValidator,
   amountBasisValidator,
   receiptItemTaxRatePercentValidator,
+  receiptMarkersValidator,
   taxSummaryValidator,
 } from "./aiExpenseDrafts/model";
 import {
@@ -226,7 +227,7 @@ export default defineSchema({
     printedAmountYen: v.optional(v.number()),
     amountBasis: v.optional(amountBasisValidator),
     taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
-    markers: v.optional(v.array(v.string())),
+    markers: v.optional(receiptMarkersValidator),
     taxMarker: v.optional(v.string()),
     allocatedTaxYen: v.optional(v.number()),
     normalizedAmountYen: v.optional(v.number()),

@@ -77,7 +77,8 @@ export function mapExtractionToDraftArgs(
     (warning) =>
       warning === "normalized_amount_mismatch" ||
       warning.startsWith("taxable_amount_mismatch:") ||
-      warning.startsWith("duplicate_tax_summary:"),
+      warning.startsWith("duplicate_tax_summary:") ||
+      warning.startsWith("conflicting_tax_summary:"),
   );
   const taxReviewReasons = [
     ...(hasUnresolvedTax ? (["user_confirmation_required"] as const) : []),

@@ -152,4 +152,15 @@ describe("interpretReceiptTax", () => {
     expect(result.items[0].allocatedTaxYen).toBe(8);
     expect(result.warnings).toContain("duplicate_tax_summary:8");
   });
+
+  it("同一税率で内容が異なるsummaryは矛盾として按分しない", () => {
+    const result = interpretReceiptTax({
+      amountYen: 108,
+      items: [item(100)],
+      taxSummaries: [summary(8, 100, 8, "tax_excluded"), summary(8, 90, 7, "tax_excluded")],
+    });
+
+    expect(result.items[0].allocatedTaxYen).toBe(0);
+    expect(result.warnings).toContain("conflicting_tax_summary:8");
+  });
 });
