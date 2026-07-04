@@ -1,5 +1,5 @@
 import { useQuery } from "convex/react";
-import { Alert, Box, Chip, Stack, Typography, useMediaQuery } from "@mui/material";
+import { Alert, Box, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { api } from "../../../../convex/_generated/api";
 import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryBreakdownCard";
@@ -10,19 +10,6 @@ import { DashboardSummaryLink } from "../components/DashboardSummaryLink";
 import { DashboardSummaryRow } from "../components/DashboardSummaryRow";
 import { WeekComparisonChart } from "../components/WeekComparisonChart";
 import { useWeekSession } from "../hooks/useWeekSession";
-
-function DashboardStatusChip({ status }: { status: "draft" | "completed" }) {
-  const isCompleted = status === "completed";
-
-  return (
-    <Chip
-      color={isCompleted ? "success" : "warning"}
-      label={isCompleted ? "完了済み" : "● 入力中"}
-      size="small"
-      variant={isCompleted ? "filled" : "outlined"}
-    />
-  );
-}
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
@@ -86,31 +73,21 @@ export function DashboardPage() {
     <Box className="app-main">
       <Stack spacing={2.5}>
         {isCompact ? (
-          <Stack
-            direction="row"
-            spacing={1.5}
-            sx={{ alignItems: "center", justifyContent: "space-between" }}
-          >
-            <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
-              <Box
-                alt=""
-                component="img"
-                src="/suzumemo-app-icon.png"
-                sx={{ height: 28, width: 28 }}
-              />
-              <Typography component="h1" variant="h5">
-                今週
-              </Typography>
-            </Stack>
-            <DashboardStatusChip status={status} />
+          <Stack direction="row" spacing={1.25} sx={{ alignItems: "center" }}>
+            <Box
+              alt=""
+              component="img"
+              src="/suzumemo-app-icon.png"
+              sx={{ height: 28, width: 28 }}
+            />
+            <Typography component="h1" variant="h5">
+              今週
+            </Typography>
           </Stack>
         ) : (
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: "center", flexWrap: "wrap" }}>
-            <Typography component="h1" variant="h4">
-              今週のダッシュボード
-            </Typography>
-            <DashboardStatusChip status={status} />
-          </Stack>
+          <Typography component="h1" variant="h4">
+            今週のダッシュボード
+          </Typography>
         )}
 
         <DashboardSummaryRow

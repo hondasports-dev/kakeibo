@@ -92,7 +92,18 @@ export type AiExpenseDraft = {
   };
 };
 
-export type AiExpenseDraftItem = {
+export type AiExpenseItemTaxDetails = {
+  printedAmountYen?: number;
+  amountBasis?: "tax_included" | "tax_excluded" | "unknown";
+  taxRatePercent?: 0 | 8 | 10 | null;
+  taxMarker?: string;
+  allocatedTaxYen?: number;
+  normalizedAmountYen?: number;
+  quantity?: number;
+  unitPriceYen?: number;
+};
+
+export type AiExpenseDraftItem = AiExpenseItemTaxDetails & {
   _id?: string;
   itemName: string;
   amountYen: number;
@@ -120,7 +131,7 @@ export type ReviewFormValues = {
   categoryId: string;
 };
 
-export type ReviewItemValues = {
+export type ReviewItemValues = AiExpenseItemTaxDetails & {
   id: string;
   itemName: string;
   amountYen: string;

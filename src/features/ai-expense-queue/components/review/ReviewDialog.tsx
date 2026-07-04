@@ -20,6 +20,7 @@ import { ReviewDialogActions } from "./ReviewDialogActions";
 import { ReviewFormFields } from "./ReviewFormFields";
 import { ReviewItemsEditor } from "./ReviewItemsEditor";
 import { ReviewSummaryView } from "./ReviewSummaryView";
+import { formatTaxWarnings } from "../../utils/taxWarnings";
 
 export function ReviewDialog({
   open,
@@ -89,7 +90,13 @@ export function ReviewDialog({
   }, [selectedReviewDraft?._id]);
 
   return (
-    <Dialog fullWidth maxWidth="sm" onClose={onClose} open={open}>
+    <Dialog
+      fullWidth
+      maxWidth="sm"
+      onClose={onClose}
+      open={open}
+      slotProps={{ paper: { sx: { overscrollBehavior: "contain" } } }}
+    >
       <DialogTitle>下書き確認</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -116,7 +123,6 @@ export function ReviewDialog({
                   categories={categories}
                   itemsExpanded={itemsExpanded}
                   onToggleItemsExpanded={() => setItemsExpanded((current) => !current)}
-                  receiptAmount={receiptAmount}
                   reviewForm={reviewForm}
                   reviewItems={reviewItems}
                   selectedReviewDraft={selectedReviewDraft}
@@ -139,7 +145,7 @@ export function ReviewDialog({
 
                   {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
                     <Alert severity="warning" variant="outlined">
-                      {selectedReviewDraft.warnings.join(" / ")}
+                      {formatTaxWarnings(selectedReviewDraft.warnings)}
                     </Alert>
                   )}
 

@@ -1,10 +1,16 @@
 import { ConvexError } from "convex/values";
 import { isDiscountItemName } from "../../../convex/lib/discountItems";
 import type {
+  AmountBasis,
+  ExtractedTaxSummary,
   ExtractedFields,
   ExtractionConfidence,
   ExtractReceiptItemResult,
   OpenAIResponsesApiResponse,
+  ReceiptItemTaxRatePercent,
+  RoundingMethod,
+  TaxMode,
+  TaxRatePercent,
 } from "./types";
 import { MAX_EXTRACTED_LINE_ITEMS } from "./types";
 import { validateExtractedDate } from "./validators";
@@ -50,8 +56,9 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
   const paymentPurpose = parseOptionalString(obj.paymentPurpose, "paymentPurpose");
   const categoryName = parseOptionalString(obj.categoryName, "categoryName");
   const items = parseOptionalItems(obj.items);
+  const taxSummaries = parseOptionalTaxSummaries(obj.taxSummaries);
 
-  return {
+  return reconcileTaxFields({
     shopName: obj.shopName,
     date: obj.date,
     amountYen: obj.amountYen,
@@ -61,11 +68,51 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
     paymentPurpose,
     categoryName,
     items,
+    taxSummaries,
     confidence,
     warnings: Array.isArray(obj.warnings)
       ? (obj.warnings as string[]).filter((w) => typeof w === "string")
       : [],
-  };
+  });
+}
+
+function reconcileTaxFields(extracted: ExtractedFields): ExtractedFields {
+  if (!extracted.items || !extracted.taxSummaries) return extracted;
+
+  const taxSummaries = extracted.taxSummaries.map((summary) => {
+    const isExternalByAmounts =
+      summary.taxYen > 0 &&
+      summary.taxIncludedAmountYen === extracted.amountYen &&
+      summary.taxableAmountYen + summary.taxYen === extracted.amountYen;
+    return isExternalByAmounts
+      ? { ...summary, taxMode: "external" as const, taxableAmountBasis: "tax_excluded" as const }
+      : summary;
+  });
+
+  const externallyTaxedRates = new Set(
+    taxSummaries
+      .filter((summary) => {
+        if (summary.taxMode !== "external") return false;
+        const matchingTotal = extracted.items
+          ?.filter(
+            (item) =>
+              item.taxRatePercent === summary.taxRatePercent && item.amountBasis !== "tax_included",
+          )
+          .reduce((sum, item) => sum + (item.printedAmountYen ?? item.amountYen), 0);
+        return matchingTotal === summary.taxableAmountYen;
+      })
+      .map((summary) => summary.taxRatePercent),
+  );
+  const items = extracted.items.map((item) =>
+    item.amountBasis === "unknown" &&
+    item.taxRatePercent !== null &&
+    item.taxRatePercent !== undefined &&
+    externallyTaxedRates.has(item.taxRatePercent)
+      ? { ...item, amountBasis: "tax_excluded" as const }
+      : item,
+  );
+
+  return { ...extracted, items, taxSummaries };
 }
 
 function parseOptionalItems(value: unknown): ExtractReceiptItemResult[] | undefined {
@@ -91,22 +138,30 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
   if (typeof item.itemName !== "string") {
     throw new ConvexError(`OpenAI レスポンスの items[${index}].itemName が文字列ではありません`);
   }
-  if (typeof item.amountYen !== "number") {
-    throw new ConvexError(`OpenAI レスポンスの items[${index}].amountYen が数値ではありません`);
-  }
-  if (
-    !Number.isInteger(item.amountYen) ||
-    (item.amountYen < 0 && !isDiscountItemName(item.itemName))
-  ) {
-    throw new ConvexError(
-      `OpenAI レスポンスの items[${index}].amountYen は通常明細では0以上、割引明細では負の整数である必要があります`,
-    );
+  const printedAmountYen = parseSignedItemInteger(
+    item.printedAmountYen,
+    `items[${index}].printedAmountYen`,
+    item.itemName,
+  );
+  const amountBasis = parseAmountBasis(item.amountBasis, `items[${index}].amountBasis`);
+  const taxRatePercent = parseItemTaxRatePercent(
+    item.taxRatePercent,
+    `items[${index}].taxRatePercent`,
+  );
+  if (typeof item.taxMarker !== "string") {
+    throw new ConvexError(`OpenAI レスポンスの items[${index}].taxMarker が文字列ではありません`);
   }
 
   const confidence = parseItemConfidence(item.confidence, index);
   return {
     itemName: item.itemName,
-    amountYen: item.amountYen,
+    amountYen: printedAmountYen,
+    printedAmountYen,
+    amountBasis,
+    taxRatePercent,
+    taxMarker: item.taxMarker,
+    quantity: parseOptionalInteger(item.quantity, `items[${index}].quantity`),
+    unitPriceYen: parseOptionalInteger(item.unitPriceYen, `items[${index}].unitPriceYen`),
     categoryName: parseOptionalString(item.categoryName, `items[${index}].categoryName`),
     confidence,
     warnings: Array.isArray(item.warnings)
@@ -130,12 +185,152 @@ function parseItemConfidence(
   const confidence = value as Record<string, unknown>;
   return {
     itemName: parseOptionalConfidenceScore(confidence.itemName, `items[${index}].itemName`),
-    amountYen: parseOptionalConfidenceScore(confidence.amountYen, `items[${index}].amountYen`),
+    // amountYen は後方互換フィールドのため、印字額の信頼度を意図的に引き継ぐ。
+    amountYen: parseOptionalConfidenceScore(
+      confidence.printedAmountYen,
+      `items[${index}].printedAmountYen`,
+    ),
+    printedAmountYen: parseOptionalConfidenceScore(
+      confidence.printedAmountYen,
+      `items[${index}].printedAmountYen`,
+    ),
+    amountBasis: parseOptionalConfidenceScore(
+      confidence.amountBasis,
+      `items[${index}].amountBasis`,
+    ),
+    taxRatePercent: parseOptionalConfidenceScore(
+      confidence.taxRatePercent,
+      `items[${index}].taxRatePercent`,
+    ),
     categoryName: parseOptionalConfidenceScore(
       confidence.categoryName,
       `items[${index}].categoryName`,
     ),
   };
+}
+
+function parseOptionalTaxSummaries(value: unknown): ExtractedTaxSummary[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new ConvexError("OpenAI レスポンスの taxSummaries が配列ではありません");
+  }
+  return value.map((summary, index) => parseTaxSummary(summary, index));
+}
+
+function parseTaxSummary(value: unknown, index: number): ExtractedTaxSummary {
+  const field = `taxSummaries[${index}]`;
+  if (typeof value !== "object" || value === null) {
+    throw new ConvexError(`OpenAI レスポンスの ${field} がオブジェクトではありません`);
+  }
+  const summary = value as Record<string, unknown>;
+  const confidence = parseTaxSummaryConfidence(summary.confidence, field);
+  return {
+    taxRatePercent: parseTaxRatePercent(summary.taxRatePercent, `${field}.taxRatePercent`),
+    taxMode: parseTaxMode(summary.taxMode, `${field}.taxMode`),
+    taxableAmountYen: parseNonNegativeInteger(
+      summary.taxableAmountYen,
+      `${field}.taxableAmountYen`,
+    ),
+    taxableAmountBasis: parseAmountBasis(summary.taxableAmountBasis, `${field}.taxableAmountBasis`),
+    taxYen: parseNonNegativeInteger(summary.taxYen, `${field}.taxYen`),
+    taxIncludedAmountYen: parseOptionalNonNegativeInteger(
+      summary.taxIncludedAmountYen,
+      `${field}.taxIncludedAmountYen`,
+    ),
+    roundingMethod: parseRoundingMethod(summary.roundingMethod, `${field}.roundingMethod`),
+    confidence,
+    warnings: Array.isArray(summary.warnings)
+      ? summary.warnings.filter((warning): warning is string => typeof warning === "string")
+      : [],
+  };
+}
+
+function parseTaxSummaryConfidence(
+  value: unknown,
+  field: string,
+): ExtractedTaxSummary["confidence"] {
+  if (typeof value !== "object" || value === null) {
+    throw new ConvexError(`OpenAI レスポンスの ${field}.confidence がオブジェクトではありません`);
+  }
+  const confidence = value as Record<string, unknown>;
+  return {
+    taxRatePercent: parseOptionalConfidenceScore(
+      confidence.taxRatePercent,
+      `${field}.taxRatePercent`,
+    ),
+    taxMode: parseOptionalConfidenceScore(confidence.taxMode, `${field}.taxMode`),
+    taxableAmountYen: parseOptionalConfidenceScore(
+      confidence.taxableAmountYen,
+      `${field}.taxableAmountYen`,
+    ),
+    taxableAmountBasis: parseOptionalConfidenceScore(
+      confidence.taxableAmountBasis,
+      `${field}.taxableAmountBasis`,
+    ),
+    taxYen: parseOptionalConfidenceScore(confidence.taxYen, `${field}.taxYen`),
+  };
+}
+
+function parseTaxRatePercent(value: unknown, field: string): TaxRatePercent {
+  if (value === 0 || value === 8 || value === 10) return value;
+  throw new ConvexError(`OpenAI レスポンスの ${field} は 0, 8, 10 のいずれかである必要があります`);
+}
+
+function parseItemTaxRatePercent(value: unknown, field: string): ReceiptItemTaxRatePercent {
+  if (value === null) return null;
+  return parseTaxRatePercent(value, field);
+}
+
+function parseAmountBasis(value: unknown, field: string): AmountBasis {
+  if (value === "tax_included" || value === "tax_excluded" || value === "unknown") return value;
+  throw new ConvexError(`OpenAI レスポンスの ${field} が不正です`);
+}
+
+function parseTaxMode(value: unknown, field: string): TaxMode {
+  if (value === "external" || value === "included" || value === "mixed" || value === "unknown") {
+    return value;
+  }
+  throw new ConvexError(`OpenAI レスポンスの ${field} が不正です`);
+}
+
+function parseRoundingMethod(value: unknown, field: string): RoundingMethod {
+  if (value === "floor" || value === "round" || value === "ceil" || value === "unknown") {
+    return value;
+  }
+  throw new ConvexError(`OpenAI レスポンスの ${field} が不正です`);
+}
+
+function parseNonNegativeInteger(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 0) {
+    throw new ConvexError(`OpenAI レスポンスの ${field} は0以上の整数である必要があります`);
+  }
+  return value;
+}
+
+function parseOptionalNonNegativeInteger(value: unknown, field: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  return parseNonNegativeInteger(value, field);
+}
+
+function parseOptionalInteger(value: unknown, field: string): number | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new ConvexError(`OpenAI レスポンスの ${field} は整数である必要があります`);
+  }
+  return value;
+}
+
+function parseSignedItemInteger(value: unknown, field: string, itemName: string): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isInteger(value) ||
+    (value < 0 && !isDiscountItemName(itemName))
+  ) {
+    throw new ConvexError(
+      `OpenAI レスポンスの ${field} は通常明細では0以上、割引明細では負の整数である必要があります`,
+    );
+  }
+  return value;
 }
 
 function parseOptionalString(value: unknown, fieldName: string): string | undefined {

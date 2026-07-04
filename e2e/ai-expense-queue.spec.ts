@@ -270,11 +270,10 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
-    await expect(dialog.getByText("食費 120円")).toBeVisible();
-    await expect(dialog.getByText("水道光熱費 980円")).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "登録候補" })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "明細を見る" })).toBeVisible();
     await expect(dialog.getByText("未分類の明細があります")).toHaveCount(0);
-    await expect(dialog.getByText("低信頼度の明細があります")).toBeVisible();
+    await expect(dialog.getByText("低信頼度の明細があります")).toHaveCount(0);
 
     await dialog.getByRole("button", { name: "内容を変更" }).click();
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
@@ -305,9 +304,10 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await dialog.getByLabel("合計金額").fill("920");
     await dialog.getByRole("button", { name: "変更内容を確認" }).click();
 
-    await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
-    await expect(dialog.getByText("水道光熱費 400円")).toBeVisible();
-    await expect(dialog.getByText("食費 520円")).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "登録候補" })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "明細を見る" }).click();
+    await expect(dialog.getByText("大阪市水道局 水道料金")).toBeVisible();
+    await expect(dialog.getByText("牛乳")).toBeVisible();
     await dialog.getByRole("button", { name: "確認して準備OK" }).click();
 
     await expect(dialog).toBeHidden();
@@ -394,7 +394,7 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     await expectLocatorInsideViewport(statusSummary);
   });
 
-  test("@smoke SP幅で下書き詳細の登録候補と修正導線が読める", async ({ page }) => {
+  test("@smoke SP幅で簡潔な下書き詳細と修正導線が読める", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
 
@@ -405,9 +405,10 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
       .click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
-    await expect(dialog.getByRole("heading", { name: "登録候補" })).toBeVisible();
-    await expect(dialog.getByText("食費 120円")).toBeVisible();
-    await expect(dialog.getByText("水道光熱費 980円")).toBeVisible();
+    await expect(dialog.getByRole("heading", { name: "登録候補" })).toHaveCount(0);
+    await dialog.getByRole("button", { name: "明細を見る" }).click();
+    await expect(dialog.getByText("パン")).toBeVisible();
+    await expect(dialog.getByText("胃薬")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "内容を変更" })).toBeVisible();
     await expect(dialog.getByRole("button", { name: "確認して準備OK" })).toBeVisible();
   });

@@ -58,6 +58,45 @@ export const aiExpenseDraftReviewReasonValidator = v.union(
   v.literal("parse_failed"),
 );
 
+export const amountBasisValidator = v.union(
+  v.literal("tax_included"),
+  v.literal("tax_excluded"),
+  v.literal("unknown"),
+);
+export const receiptItemTaxRatePercentValidator = v.union(
+  v.literal(0),
+  v.literal(8),
+  v.literal(10),
+  v.null(),
+);
+export const taxSummaryValidator = v.object({
+  taxRatePercent: v.union(v.literal(0), v.literal(8), v.literal(10)),
+  taxMode: v.union(
+    v.literal("external"),
+    v.literal("included"),
+    v.literal("mixed"),
+    v.literal("unknown"),
+  ),
+  taxableAmountYen: v.number(),
+  taxableAmountBasis: amountBasisValidator,
+  taxYen: v.number(),
+  taxIncludedAmountYen: v.optional(v.number()),
+  roundingMethod: v.union(
+    v.literal("floor"),
+    v.literal("round"),
+    v.literal("ceil"),
+    v.literal("unknown"),
+  ),
+  confidence: v.object({
+    taxRatePercent: v.optional(v.number()),
+    taxMode: v.optional(v.number()),
+    taxableAmountYen: v.optional(v.number()),
+    taxableAmountBasis: v.optional(v.number()),
+    taxYen: v.optional(v.number()),
+  }),
+  warnings: v.array(v.string()),
+});
+
 export const aiExpenseDraftConfidenceValidator = v.object({
   documentType: v.optional(v.number()),
   shopName: v.optional(v.number()),
@@ -72,6 +111,9 @@ export const aiExpenseDraftConfidenceValidator = v.object({
 export const aiExpenseDraftItemConfidenceValidator = v.object({
   itemName: v.optional(v.number()),
   amountYen: v.optional(v.number()),
+  printedAmountYen: v.optional(v.number()),
+  amountBasis: v.optional(v.number()),
+  taxRatePercent: v.optional(v.number()),
   categoryName: v.optional(v.number()),
   categoryId: v.optional(v.number()),
 });

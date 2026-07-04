@@ -15,6 +15,8 @@ import { useMemo } from "react";
 import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
+import { formatTaxWarnings } from "../../utils/taxWarnings";
+import { ReviewItemTaxDetails } from "./ReviewItemTaxDetails";
 
 export function ReviewItemsEditor({
   categories,
@@ -135,13 +137,6 @@ export function ReviewItemsEditor({
                   >
                     <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
                       <Chip label={`明細 ${index + 1}`} size="small" />
-                      {!discount && item.categoryId && (
-                        <Chip
-                          label={item.usesReceiptCategory ? "全体カテゴリ" : categoryName}
-                          size="small"
-                          variant="outlined"
-                        />
-                      )}
                       {uncategorized && (
                         <Chip color="warning" label="未分類" size="small" variant="outlined" />
                       )}
@@ -161,7 +156,7 @@ export function ReviewItemsEditor({
 
                   {item.warnings && item.warnings.length > 0 && (
                     <Alert severity="warning" variant="outlined">
-                      {item.warnings.join(" / ")}
+                      {formatTaxWarnings(item.warnings)}
                     </Alert>
                   )}
 
@@ -196,6 +191,7 @@ export function ReviewItemsEditor({
                       }
                     />
                   </Stack>
+                  <ReviewItemTaxDetails item={item} />
                   {discount ? (
                     <TextField
                       fullWidth

@@ -463,6 +463,66 @@ describe("aiExpenseDrafts", () => {
     expect(insertedDraft).not.toHaveProperty("image");
   });
 
+  it("税率別集計と正規化済み明細を下書きへ保存する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      insertedDoc: { ...ownedDraft, _id: "new-draft-id", status: "needs_review" },
+    });
+
+    await createFromExtractionHandler(ctx, {
+      documentType: "receipt",
+      shopName: "TRIAL",
+      date: "2026-07-03",
+      amountYen: 1683,
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 1559,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 124,
+          taxIncludedAmountYen: 1683,
+          roundingMethod: "floor",
+          confidence: {},
+          warnings: [],
+        },
+      ],
+      confidence: { shopName: 1, date: 1, amountYen: 1 },
+      warnings: [],
+      items: [
+        {
+          itemName: "たまご",
+          amountYen: 322,
+          printedAmountYen: 298,
+          amountBasis: "tax_excluded",
+          taxRatePercent: 8,
+          taxMarker: "*",
+          allocatedTaxYen: 24,
+          normalizedAmountYen: 322,
+          quantity: 1,
+          unitPriceYen: 298,
+          confidence: {},
+          warnings: [],
+        },
+      ],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDrafts",
+      expect.objectContaining({ amountYen: 1683, taxSummaries: expect.any(Array) }),
+    );
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        amountYen: 322,
+        printedAmountYen: 298,
+        allocatedTaxYen: 24,
+        normalizedAmountYen: 322,
+      }),
+    );
+  });
+
   it("下書き保存時は抽出精度にかかわらずユーザー確認を必須にする", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
@@ -1518,27 +1578,42 @@ describe("aiExpenseDrafts", () => {
                     items: [
                       {
                         itemName: "パン",
-                        amountYen: 150,
+                        printedAmountYen: 150,
+                        amountBasis: "tax_included",
+                        taxRatePercent: 10,
+                        taxMarker: "",
+                        quantity: 1,
+                        unitPriceYen: 150,
                         categoryName: "食費",
                         confidence: {
                           itemName: 0.9,
-                          amountYen: 0.95,
+                          printedAmountYen: 0.95,
+                          amountBasis: 0.9,
+                          taxRatePercent: 0.9,
                           categoryName: 0.8,
                         },
                         warnings: [],
                       },
                       {
                         itemName: "胃薬",
-                        amountYen: 980,
+                        printedAmountYen: 980,
+                        amountBasis: "tax_included",
+                        taxRatePercent: 10,
+                        taxMarker: "",
+                        quantity: 1,
+                        unitPriceYen: 980,
                         categoryName: "医療費",
                         confidence: {
                           itemName: 0.85,
-                          amountYen: 0.95,
+                          printedAmountYen: 0.95,
+                          amountBasis: 0.9,
+                          taxRatePercent: 0.9,
                           categoryName: 0.82,
                         },
                         warnings: ["品名が不鮮明です"],
                       },
                     ],
+                    taxSummaries: [],
                     confidence: {
                       documentType: 0.92,
                       shopName: 0.85,
