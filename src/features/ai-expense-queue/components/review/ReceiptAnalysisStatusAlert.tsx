@@ -27,8 +27,9 @@ export function ReceiptAnalysisStatusAlert({ analysis }: { analysis: ReceiptAnal
         )}
         {analysis.showDifference && analysis.differenceYen !== undefined && (
           <Typography variant="body2">
-            登録用明細合計 {analysis.normalizedItemsTotalLabel}（差額{" "}
-            {Math.abs(analysis.differenceYen).toLocaleString("ja-JP")}円）
+            登録用明細合計 {analysis.normalizedItemsTotalLabel}（
+            {analysis.differenceYen > 0 ? "支払合計が" : "明細合計が"}
+            {Math.abs(analysis.differenceYen).toLocaleString("ja-JP")}円多い）
           </Typography>
         )}
       </Stack>

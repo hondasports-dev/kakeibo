@@ -1,7 +1,7 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Alert, Box, Button, Collapse, Stack, Typography } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ReviewReasonChips } from "../ReviewReasonChips";
 import { StatusChip } from "../StatusChip";
 import type {
@@ -33,6 +33,11 @@ export function ReviewSummaryView({
   onToggleItemsExpanded: () => void;
 }) {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setExpandedItemId(null);
+  }, [selectedReviewDraft?._id]);
+
   const shopName = resolveReviewShopName(
     reviewForm,
     selectedReviewDraft?.shopName ?? selectedReviewDraft?.payeeName,

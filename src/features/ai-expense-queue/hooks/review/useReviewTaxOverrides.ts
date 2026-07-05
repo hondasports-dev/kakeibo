@@ -1,5 +1,5 @@
 import { useMutation } from "convex/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
 import { mapConvexDraftToAiExpenseDraft, mapDraftItemsToReviewItems } from "../../utils/mappers";
@@ -19,6 +19,7 @@ export function useReviewTaxOverrides({
   setReviewError: (error: string) => void;
 }) {
   const [taxUpdatingItemId, setTaxUpdatingItemId] = useState<string | null>(null);
+  const taxOverrideRequestIdRef = useRef(0);
   const updateDraftItemTaxOverrides = useMutation(
     api.aiExpenseDrafts.mutations.updateDraftItemTaxOverrides,
   );
@@ -33,6 +34,7 @@ export function useReviewTaxOverrides({
     if (!selectedReviewDraftId) {
       return;
     }
+    const requestId = ++taxOverrideRequestIdRef.current;
     setTaxUpdatingItemId(itemId);
     setReviewError("");
     try {
@@ -41,12 +43,20 @@ export function useReviewTaxOverrides({
         itemId: itemId as Id<"aiExpenseDraftItems">,
         ...overrides,
       });
+      if (requestId !== taxOverrideRequestIdRef.current) {
+        return;
+      }
       setReviewDraftOverride(mapConvexDraftToAiExpenseDraft(result.draft));
       setReviewItems(mapDraftItemsToReviewItems(result.items));
     } catch (error) {
+      if (requestId !== taxOverrideRequestIdRef.current) {
+        return;
+      }
       setReviewError(toUserFacingReviewError(error));
     } finally {
-      setTaxUpdatingItemId(null);
+      if (requestId === taxOverrideRequestIdRef.current) {
+        setTaxUpdatingItemId(null);
+      }
     }
   };
 

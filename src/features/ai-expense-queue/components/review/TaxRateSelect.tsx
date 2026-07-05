@@ -11,8 +11,7 @@ export function TaxRateSelect({
   disabled?: boolean;
   onChange: (value: 0 | 8 | 10 | null) => void;
 }) {
-  const selectValue =
-    value === 0 || value === 8 || value === 10 || value === null ? String(value) : "unset";
+  const selectValue = value === 0 || value === 8 || value === 10 ? String(value) : "unset";
 
   return (
     <TextField
