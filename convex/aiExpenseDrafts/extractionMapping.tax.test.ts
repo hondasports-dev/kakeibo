@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Doc, Id } from "../_generated/dataModel";
 import {
   conveniencePaymentFixture,
+  ishimoriExternalMisreadFixture,
   trialExternal8Fixture,
 } from "../../lib/convex/receiptImageExtraction/fixtures/taxFixtures";
 import { mapExtractionToDraftArgs } from "./extractionMapping";
@@ -89,5 +90,30 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.items?.every((item) => item.taxResolutionStatus === "unresolved")).toBe(true);
     expect(mapped.items?.every((item) => item.taxRatePercent === null)).toBe(true);
     expect(mapped.warnings).toContain("unresolved_tax_rate:items[0]");
+  });
+
+  it("フレッシュ石守相当のOCR内税誤判定を外税として正規化する", () => {
+    const mapped = mapExtractionToDraftArgs(ishimoriExternalMisreadFixture, [foodCategory]);
+
+    expect(mapped.amountYen).toBe(8562);
+    expect(mapped.taxSummaries?.[0]).toMatchObject({
+      taxRatePercent: 8,
+      taxMode: "external",
+      taxableAmountBasis: "tax_excluded",
+    });
+    expect(mapped.items?.reduce((sum, item) => sum + (item.printedAmountYen ?? 0), 0)).toBe(7958);
+    expect(mapped.items?.reduce((sum, item) => sum + (item.allocatedTaxYen ?? 0), 0)).toBe(604);
+    expect(mapped.items?.reduce((sum, item) => sum + (item.normalizedAmountYen ?? 0), 0)).toBe(
+      8562,
+    );
+    expect(
+      mapped.items
+        ?.filter((item) => item.printedAmountYen !== undefined && item.printedAmountYen >= 0)
+        .every((item) => item.taxResolutionStatus === "resolved"),
+    ).toBe(true);
+    expect(mapped.warnings).toContain("taxable_amount_mismatch:8");
+    expect(mapped.reviewReasons).toContain("amount_mismatch");
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+    expect(mapped.items?.[2]?.taxResolutionStatus).toBe("unresolved");
   });
 });

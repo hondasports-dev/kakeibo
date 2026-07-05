@@ -57,7 +57,10 @@ function findUniqueSubset(
   return match?.count === 1 && match.indexes.length > 0 ? match.indexes : undefined;
 }
 
+const PAID_TOTAL_IMPLIED_TAX_TOLERANCE_YEN = 30;
+
 export function resolveTaxContext(args: {
+  amountYen: number;
   items: ExtractedReceiptItem[];
   taxSummaries: ExtractedTaxSummary[];
   evidence: TaxEvidence[];
@@ -177,6 +180,28 @@ export function resolveTaxContext(args: {
     if (candidates.length === 1) {
       const context = resolved(candidates[0], "remaining_summary");
       if (context) unresolvedIndexes.forEach((index) => (contexts[index] = context));
+    }
+  }
+
+  if (args.taxSummaries.length === 1) {
+    const summary = args.taxSummaries[0];
+    const printedTotal = args.items.reduce((sum, item) => sum + item.printedAmountYen, 0);
+    const impliedTaxYen = args.amountYen - printedTotal;
+    const isExternalSummary =
+      summary.taxMode === "external" && summary.taxableAmountBasis === "tax_excluded";
+    if (
+      isExternalSummary &&
+      args.amountYen > printedTotal &&
+      impliedTaxYen > 0 &&
+      impliedTaxYen <= summary.taxYen + PAID_TOTAL_IMPLIED_TAX_TOLERANCE_YEN
+    ) {
+      const context = resolved(summary, "paid_total_reconciliation");
+      if (context) {
+        for (const index of unresolved()) {
+          if (args.items[index].printedAmountYen < 0) continue;
+          contexts[index] = context;
+        }
+      }
     }
   }
 

@@ -153,3 +153,33 @@ export const conveniencePaymentFixture: ExtractReceiptFieldsResult = {
   confidence,
   warnings: [],
 };
+
+/** OCR が内税と誤判定した外税レシート（フレッシュ石守相当・簡略 fixture） */
+export const ishimoriExternalMisreadFixture: ExtractReceiptFieldsResult = {
+  documentType: "receipt",
+  shopName: "フレッシュ石守",
+  date: "2026-07-03",
+  amountYen: 8562,
+  categoryName: "食費",
+  items: [
+    item("商品A", 4000, null, "unknown", { markers: ["※"], taxMarker: "※" }),
+    item("商品B", 3966, null, "unknown", { markers: ["※"], taxMarker: "※" }),
+    item("値引", -8, null, "unknown"),
+  ],
+  taxSummaries: [
+    {
+      taxRatePercent: 8,
+      taxMode: "included",
+      taxableAmountYen: 7928,
+      taxableAmountBasis: "tax_included",
+      taxYen: 634,
+      taxIncludedAmountYen: 8562,
+      roundingMethod: "unknown",
+      confidence: {},
+      warnings: [],
+    },
+  ],
+  markerDefinitions: [{ marker: "※", description: "軽減税率8%適応商品" }],
+  confidence,
+  warnings: [],
+};

@@ -1,6 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import type { AiExpenseDraft } from "../../types/types";
-import { formatYenLabel, getAmountBasisLabel } from "../../utils/receiptTaxLabels";
+import { formatYenLabel } from "../../utils/receiptTaxLabels";
 import { getTaxModeLabel } from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
 
@@ -30,8 +30,8 @@ export function ReceiptTaxSummary({ draft }: { draft: AiExpenseDraft | null }) {
             {summary.taxRatePercent}% {getTaxModeLabel(summary.taxMode)}
           </Typography>
           <Typography color="text.secondary" variant="body2">
-            対象額 {formatYenLabel(summary.taxableAmountYen)}（
-            {getAmountBasisLabel(summary.taxableAmountBasis)}）
+            小計 {formatYenLabel(summary.taxableAmountYen)}（{summary.taxRatePercent}%
+            {getTaxModeLabel(summary.taxMode)}）
           </Typography>
           <Typography color="text.secondary" variant="body2">
             税額 {formatYenLabel(summary.taxYen)}

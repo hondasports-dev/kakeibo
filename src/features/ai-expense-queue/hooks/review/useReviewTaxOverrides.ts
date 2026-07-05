@@ -19,9 +19,13 @@ export function useReviewTaxOverrides({
   setReviewError: (error: string) => void;
 }) {
   const [taxUpdatingItemId, setTaxUpdatingItemId] = useState<string | null>(null);
+  const [isApplyingReceiptTax, setIsApplyingReceiptTax] = useState(false);
   const taxOverrideRequestIdRef = useRef(0);
   const updateDraftItemTaxOverrides = useMutation(
     api.aiExpenseDrafts.mutations.updateDraftItemTaxOverrides,
+  );
+  const applyReceiptTaxSettings = useMutation(
+    api.aiExpenseDrafts.mutations.applyReceiptTaxSettings,
   );
 
   const applyTaxOverride = async (
@@ -60,11 +64,41 @@ export function useReviewTaxOverrides({
     }
   };
 
+  const handleApplyReceiptTaxSettings = async () => {
+    if (!selectedReviewDraftId) {
+      return;
+    }
+    const requestId = ++taxOverrideRequestIdRef.current;
+    setIsApplyingReceiptTax(true);
+    setReviewError("");
+    try {
+      const result = await applyReceiptTaxSettings({
+        draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
+      });
+      if (requestId !== taxOverrideRequestIdRef.current) {
+        return;
+      }
+      setReviewDraftOverride(mapConvexDraftToAiExpenseDraft(result.draft));
+      setReviewItems(mapDraftItemsToReviewItems(result.items));
+    } catch (error) {
+      if (requestId !== taxOverrideRequestIdRef.current) {
+        return;
+      }
+      setReviewError(toUserFacingReviewError(error));
+    } finally {
+      if (requestId === taxOverrideRequestIdRef.current) {
+        setIsApplyingReceiptTax(false);
+      }
+    }
+  };
+
   return {
     taxUpdatingItemId,
+    isApplyingReceiptTax,
     handleTaxRateChange: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) =>
       void applyTaxOverride(itemId, { taxRatePercent }),
     handleAmountBasisChange: (itemId: string, amountBasis: AmountBasis) =>
       void applyTaxOverride(itemId, { amountBasis }),
+    handleApplyReceiptTaxSettings: () => void handleApplyReceiptTaxSettings(),
   };
 }

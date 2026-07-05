@@ -1,6 +1,6 @@
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Alert, Box, Button, Collapse, Stack, Typography } from "@mui/material";
+import { Box, Button, Collapse, Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
 import { ReviewReasonChips } from "../ReviewReasonChips";
 import { StatusChip } from "../StatusChip";
@@ -11,10 +11,9 @@ import type {
   ReviewItemValues,
 } from "../../types/types";
 import { formatReviewDraftHeader, resolveReviewShopName } from "../../utils/reviewDialogUtils";
-import { toReceiptAnalysisViewModel } from "../../utils/receiptItemTaxViewModel";
-import { formatTaxWarnings } from "../../utils/taxWarnings";
-import { ReceiptAnalysisStatusAlert } from "./ReceiptAnalysisStatusAlert";
+import { ReceiptBulkTaxApply } from "./ReceiptBulkTaxApply";
 import { ReceiptTaxSummary } from "./ReceiptTaxSummary";
+import { ReceiptTotalsPanel } from "./ReceiptTotalsPanel";
 import { ReviewItemsReadOnly } from "./ReviewItemsReadOnly";
 
 export function ReviewSummaryView({
@@ -24,6 +23,8 @@ export function ReviewSummaryView({
   reviewItems,
   itemsExpanded,
   onToggleItemsExpanded,
+  onApplyReceiptTaxSettings,
+  isApplyingReceiptTax,
 }: {
   categories: AiExpenseQueueCategory[];
   selectedReviewDraft: AiExpenseDraft | null;
@@ -31,6 +32,8 @@ export function ReviewSummaryView({
   reviewItems: ReviewItemValues[];
   itemsExpanded: boolean;
   onToggleItemsExpanded: () => void;
+  onApplyReceiptTaxSettings?: () => void;
+  isApplyingReceiptTax?: boolean;
 }) {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
@@ -42,11 +45,6 @@ export function ReviewSummaryView({
     reviewForm,
     selectedReviewDraft?.shopName ?? selectedReviewDraft?.payeeName,
   );
-  const analysis = toReceiptAnalysisViewModel({
-    reviewItems,
-    paidTotalYen: selectedReviewDraft?.amountYen,
-    draftWarnings: selectedReviewDraft?.warnings,
-  });
 
   return (
     <>
@@ -62,19 +60,27 @@ export function ReviewSummaryView({
         </Typography>
       </Box>
 
-      <ReceiptAnalysisStatusAlert analysis={analysis} />
+      <ReceiptTotalsPanel
+        bulkTaxAction={
+          onApplyReceiptTaxSettings ? (
+            <ReceiptBulkTaxApply
+              isApplying={isApplyingReceiptTax}
+              onApply={onApplyReceiptTaxSettings}
+              reviewItems={reviewItems}
+              taxSummaries={selectedReviewDraft?.taxSummaries}
+            />
+          ) : undefined
+        }
+        paidTotalYen={selectedReviewDraft?.amountYen}
+        reviewItems={reviewItems}
+        taxSummaries={selectedReviewDraft?.taxSummaries}
+      />
 
       {selectedReviewDraft?.reviewReasons && selectedReviewDraft.reviewReasons.length > 0 && (
         <ReviewReasonChips
           reasons={selectedReviewDraft.reviewReasons}
           status={selectedReviewDraft.status}
         />
-      )}
-
-      {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
-        <Alert severity="warning" variant="outlined">
-          {formatTaxWarnings(selectedReviewDraft.warnings)}
-        </Alert>
       )}
 
       <ReceiptTaxSummary draft={selectedReviewDraft} />

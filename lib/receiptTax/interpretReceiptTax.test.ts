@@ -163,4 +163,38 @@ describe("interpretReceiptTax", () => {
     expect(result.items[0].allocatedTaxYen).toBe(0);
     expect(result.warnings).toContain("conflicting_tax_summary:8");
   });
+
+  it("フレッシュ石守相当: OCR内税誤判定を外税補正し支払合計へ按分する", () => {
+    const wrongOcrSummary = {
+      taxRatePercent: 8 as const,
+      taxMode: "included" as const,
+      taxableAmountYen: 7928,
+      taxableAmountBasis: "tax_included" as const,
+      taxYen: 634,
+      roundingMethod: "unknown" as const,
+      confidence: {},
+      warnings: [] as string[],
+    };
+    const result = interpretReceiptTax({
+      amountYen: 8562,
+      items: [item(4000), item(3966), item(-8)],
+      taxSummaries: [wrongOcrSummary],
+    });
+
+    expect(result.taxSummaries[0]).toMatchObject({
+      taxMode: "external",
+      taxableAmountBasis: "tax_excluded",
+    });
+    expect(result.items[0].taxContext).toMatchObject({
+      status: "resolved",
+      taxRatePercent: 8,
+      amountBasis: "tax_excluded",
+      source: "paid_total_reconciliation",
+    });
+    expect(result.items[1].taxContext.status).toBe("resolved");
+    expect(result.items[2].taxContext.status).toBe("unresolved");
+    expect(result.items.reduce((sum, value) => sum + value.allocatedTaxYen, 0)).toBe(604);
+    expect(result.items.reduce((sum, value) => sum + value.normalizedAmountYen, 0)).toBe(8562);
+    expect(result.warnings).toContain("taxable_amount_mismatch:8");
+  });
 });

@@ -19,7 +19,12 @@ function allocateTax(taxYen: number, taxableAmountYen: number, amounts: number[]
   return shares.map((share) => share.base);
 }
 
+function hasTaxIncludedResolvedItem(result: InterpretedReceiptItem[], indexes: number[]) {
+  return indexes.some((index) => result[index].amountBasis === "tax_included");
+}
+
 export function normalizeAmounts(args: {
+  amountYen: number;
   items: ExtractedReceiptItem[];
   contexts: TaxContextResolution[];
   taxSummaries: ExtractedTaxSummary[];
@@ -49,18 +54,46 @@ export function normalizeAmounts(args: {
       )
       .map(({ index }) => index);
     const printedTotal = indexes.reduce((sum, index) => sum + result[index].printedAmountYen, 0);
-    if (indexes.length === 0 || printedTotal !== summary.taxableAmountYen) continue;
-    const allocations = allocateTax(
-      summary.taxYen,
-      summary.taxableAmountYen,
-      indexes.map((index) => result[index].printedAmountYen),
-    );
-    indexes.forEach((itemIndex, allocationIndex) => {
-      result[itemIndex].allocatedTaxYen = allocations[allocationIndex];
-      if (result[itemIndex].amountBasis === "tax_excluded") {
-        result[itemIndex].normalizedAmountYen += allocations[allocationIndex];
+    if (indexes.length === 0) continue;
+
+    let allocated = false;
+    if (printedTotal === summary.taxableAmountYen) {
+      const allocations = allocateTax(
+        summary.taxYen,
+        summary.taxableAmountYen,
+        indexes.map((index) => result[index].printedAmountYen),
+      );
+      indexes.forEach((itemIndex, allocationIndex) => {
+        result[itemIndex].allocatedTaxYen = allocations[allocationIndex];
+        if (result[itemIndex].amountBasis === "tax_excluded") {
+          result[itemIndex].normalizedAmountYen += allocations[allocationIndex];
+        }
+      });
+      allocated = true;
+    }
+
+    if (
+      !allocated &&
+      args.taxSummaries.length === 1 &&
+      amountBasis === "tax_excluded" &&
+      !hasTaxIncludedResolvedItem(result, indexes)
+    ) {
+      const allPrintedTotal = result.reduce((sum, item) => sum + item.printedAmountYen, 0);
+      const impliedTaxYen = args.amountYen - allPrintedTotal;
+      if (impliedTaxYen > 0 && args.amountYen > allPrintedTotal && printedTotal > 0) {
+        const allocations = allocateTax(
+          impliedTaxYen,
+          printedTotal,
+          indexes.map((index) => result[index].printedAmountYen),
+        );
+        indexes.forEach((itemIndex, allocationIndex) => {
+          result[itemIndex].allocatedTaxYen = allocations[allocationIndex];
+          if (result[itemIndex].amountBasis === "tax_excluded") {
+            result[itemIndex].normalizedAmountYen += allocations[allocationIndex];
+          }
+        });
       }
-    });
+    }
   }
   return result;
 }

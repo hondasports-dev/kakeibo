@@ -21,8 +21,8 @@ describe("toReceiptItemTaxViewModel", () => {
     expect(vm.printedAmountLabel).toBe("298円");
     expect(vm.normalizedAmountLabel).toBe("322円");
     expect(vm.taxRateLabel).toBe("8%");
-    expect(vm.amountBasisLabel).toBe("税抜印字");
-    expect(vm.resolutionReasonLabel).toBe("単一の税率別集計と明細合計が一致しました");
+    expect(vm.amountBasisLabel).toBe("税抜");
+    expect(vm.resolutionReasonLabel).toBe("レシート小計と商品合計が一致しました");
   });
 
   it("shows unset tax rate label for null", () => {

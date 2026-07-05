@@ -104,4 +104,54 @@ describe("reinterpretDraftTax", () => {
     expect(after.itemFields[1]?.taxResolutionStatus).toBe("unresolved");
     expect(after.itemFields[2]?.taxResolutionStatus).toBe("unresolved");
   });
+
+  it("bulkUnresolvedOverride は未解決行すべてに税率とamountBasisを適用する", () => {
+    const unresolvedItems = [
+      {
+        itemName: "A",
+        printedAmountYen: 4000,
+        amountBasis: "unknown" as const,
+        taxRatePercent: null,
+        taxResolutionStatus: "unresolved" as const,
+        markers: [] as string[],
+        warnings: [] as string[],
+      },
+      {
+        itemName: "B",
+        printedAmountYen: 3928,
+        amountBasis: "unknown" as const,
+        taxRatePercent: null,
+        taxResolutionStatus: "unresolved" as const,
+        markers: [] as string[],
+        warnings: [] as string[],
+      },
+    ];
+
+    const result = reinterpretDraftTax({
+      amountYen: 8562,
+      items: unresolvedItems,
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 7928,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 634,
+          roundingMethod: "unknown",
+          confidence: {},
+          warnings: [],
+        },
+      ],
+      bulkUnresolvedOverride: {
+        taxRatePercent: 8,
+        amountBasis: "tax_excluded",
+      },
+    });
+
+    expect(result.itemFields.every((field) => field.taxResolutionStatus === "resolved")).toBe(true);
+    expect(result.itemFields.every((field) => field.taxRatePercent === 8)).toBe(true);
+    expect(
+      result.itemFields.reduce((sum, field) => sum + (field.normalizedAmountYen ?? 0), 0),
+    ).toBe(8562);
+  });
 });

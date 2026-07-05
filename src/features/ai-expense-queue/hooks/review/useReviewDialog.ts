@@ -92,7 +92,9 @@ export function useReviewDialog({
     handleDiscountTargetChange: formState.handleDiscountTargetChange,
     handleSubmitReview: submit.handleSubmitReview,
     taxUpdatingItemId: taxOverrides.taxUpdatingItemId,
+    isApplyingReceiptTax: taxOverrides.isApplyingReceiptTax,
     handleTaxRateChange: taxOverrides.handleTaxRateChange,
     handleAmountBasisChange: taxOverrides.handleAmountBasisChange,
+    handleApplyReceiptTaxSettings: taxOverrides.handleApplyReceiptTaxSettings,
   };
 }

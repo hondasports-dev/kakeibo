@@ -22,7 +22,7 @@ describe("ReviewItemTaxDetails", () => {
     );
 
     expect(screen.getByText("印字額 298円")).toBeInTheDocument();
-    expect(screen.getByText("税抜印字")).toBeInTheDocument();
+    expect(screen.getByText("税抜")).toBeInTheDocument();
     expect(screen.getByText("税率 8%")).toBeInTheDocument();
     expect(screen.getByText("按分税 24円")).toBeInTheDocument();
     expect(screen.getByText("2点 × 149円")).toBeInTheDocument();
