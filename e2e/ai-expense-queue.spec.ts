@@ -336,9 +336,8 @@ test.describe("Issue #431 レシート税判定UI", () => {
     await expect(dialog.getByText("登録合計（税込）")).toBeVisible();
 
     await dialog.getByRole("button", { name: "明細を見る" }).click();
-    await expect(
-      dialog.getByRole("list").getByText("未設定", { exact: true }).first(),
-    ).toBeVisible();
+    const itemsList = dialog.getByRole("list");
+    await expect(itemsList.getByText("未設定", { exact: true }).first()).toBeVisible();
   });
 });
 

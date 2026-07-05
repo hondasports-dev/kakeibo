@@ -136,6 +136,79 @@ describe("toReceiptTotalsViewModel", () => {
     expect(vm.guidanceLines).toEqual(["金額は一致しています"]);
   });
 
+  it("未確定・差分・小計ずれが同時でも未確定案内を優先表示する", () => {
+    const vm = toReceiptTotalsViewModel({
+      paidTotalYen: 2000,
+      reviewItems: [item(500), item(500)],
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 900,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 72,
+          roundingMethod: "unknown",
+          warnings: [],
+        },
+      ],
+    });
+
+    expect(vm.guidanceLines).toHaveLength(2);
+    expect(vm.guidanceLines[0]).toContain("件の税率が未確定");
+    expect(vm.guidanceLines[1]).toMatch(/お支払いより|印字合計とレシート小計/);
+  });
+
+  it("空の金額入力は合計に 0 として数えない", () => {
+    const vm = toReceiptTotalsViewModel({
+      paidTotalYen: 100,
+      reviewItems: [
+        {
+          id: "1",
+          itemName: "商品",
+          amountYen: "",
+          categoryId: "cat1",
+          taxResolutionStatus: "unresolved",
+        },
+      ],
+    });
+
+    expect(vm.itemsPrintedTotalYen).toBe(0);
+    expect(vm.itemsNormalizedTotalYen).toBe(0);
+  });
+
+  it("外税サマリのみでも印字合計ラベルに税抜を付ける", () => {
+    const vm = toReceiptTotalsViewModel({
+      paidTotalYen: 108,
+      reviewItems: [
+        {
+          id: "1",
+          itemName: "商品",
+          amountYen: "100",
+          categoryId: "cat1",
+          printedAmountYen: 100,
+          normalizedAmountYen: 100,
+          taxResolutionStatus: "resolved",
+          taxRatePercent: 8,
+          amountBasis: "tax_excluded",
+          taxResolutionSource: "single_summary",
+        },
+      ],
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 100,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 8,
+          roundingMethod: "unknown",
+          warnings: [],
+        },
+      ],
+    });
+
+    expect(vm.printedTotalLabel).toBe("印字合計（税抜）");
+  });
+
   it("明細なしはパネル非表示", () => {
     const vm = toReceiptTotalsViewModel({
       paidTotalYen: 1000,

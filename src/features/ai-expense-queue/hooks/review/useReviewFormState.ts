@@ -111,6 +111,9 @@ export function useReviewFormState({
           };
         }
         if (field === "amountYen") {
+          if (value.trim() === "") {
+            return { ...item, amountYen: value };
+          }
           const amountNum = Number(value);
           if (!Number.isFinite(amountNum)) {
             return { ...item, amountYen: value };
@@ -156,6 +159,11 @@ export function useReviewFormState({
       });
 
       if (field !== "amountYen") {
+        return updated;
+      }
+
+      const editedItem = updated.find((item) => item.id === itemId);
+      if (editedItem?.amountYen.trim() === "") {
         return updated;
       }
 
