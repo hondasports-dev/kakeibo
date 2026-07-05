@@ -105,26 +105,33 @@ export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
 export function mapDraftItemsToReviewItems(
   items: AiExpenseDraftWithItems["items"],
 ): ReviewItemValues[] {
-  return items.map((item, index) => ({
-    id: item._id ?? `item-${index}`,
-    itemName: item.itemName,
-    amountYen: (item.normalizedAmountYen ?? item.amountYen).toString(),
-    printedAmountYen: item.printedAmountYen,
-    amountBasis: item.amountBasis,
-    taxRatePercent: item.taxRatePercent,
-    taxMarker: item.taxMarker,
-    markers: item.markers,
-    allocatedTaxYen: item.allocatedTaxYen,
-    normalizedAmountYen: item.normalizedAmountYen,
-    taxResolutionStatus: item.taxResolutionStatus,
-    taxResolutionSource: item.taxResolutionSource,
-    taxReviewReasons: item.taxReviewReasons,
-    quantity: item.quantity,
-    unitPriceYen: item.unitPriceYen,
-    categoryId: item.categoryId ?? "",
-    confidence: item.confidence,
-    warnings: item.warnings,
-  }));
+  return items.map((item, index) => {
+    const displayAmountYen =
+      item.taxResolutionStatus === "resolved" && item.normalizedAmountYen != null
+        ? item.normalizedAmountYen
+        : (item.printedAmountYen ?? item.normalizedAmountYen ?? item.amountYen);
+
+    return {
+      id: item._id ?? `item-${index}`,
+      itemName: item.itemName,
+      amountYen: displayAmountYen.toString(),
+      printedAmountYen: item.printedAmountYen,
+      amountBasis: item.amountBasis,
+      taxRatePercent: item.taxRatePercent,
+      taxMarker: item.taxMarker,
+      markers: item.markers,
+      allocatedTaxYen: item.allocatedTaxYen,
+      normalizedAmountYen: item.normalizedAmountYen,
+      taxResolutionStatus: item.taxResolutionStatus,
+      taxResolutionSource: item.taxResolutionSource,
+      taxReviewReasons: item.taxReviewReasons,
+      quantity: item.quantity,
+      unitPriceYen: item.unitPriceYen,
+      categoryId: item.categoryId ?? "",
+      confidence: item.confidence,
+      warnings: item.warnings,
+    };
+  });
 }
 
 export function isDraftWithItems(value: unknown): value is AiExpenseDraftWithItems {

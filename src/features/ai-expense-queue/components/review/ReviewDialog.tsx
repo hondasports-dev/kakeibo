@@ -30,6 +30,7 @@ export function ReviewDialog({
   isReviewDraftNotFound,
   selectedReviewDraft,
   reviewError,
+  reviewSaveNotice,
   reviewForm,
   reviewItems,
   isCategorySplit,
@@ -54,6 +55,7 @@ export function ReviewDialog({
   isReviewDraftNotFound: boolean;
   selectedReviewDraft: AiExpenseDraft | null;
   reviewError: string;
+  reviewSaveNotice?: string;
   reviewForm: ReviewFormValues;
   reviewItems: ReviewItemValues[];
   isCategorySplit: boolean;
@@ -131,6 +133,12 @@ export function ReviewDialog({
 
           {!isReviewDraftLoading && !isReviewDraftNotFound && (
             <>
+              {reviewSaveNotice && (
+                <Alert severity="info" variant="outlined">
+                  {reviewSaveNotice}
+                </Alert>
+              )}
+
               {reviewError && (
                 <Alert severity="error" variant="outlined">
                   {reviewError}

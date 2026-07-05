@@ -59,6 +59,54 @@ export const e2eSeedAiExpenseDraftHandler = httpAction(async (ctx, req) => {
   });
 });
 
+export const e2eSeedTaxReviewDraftHandler = httpAction(async (ctx, req) => {
+  const authError = requireE2eSecret(req, "E2E seeding is not enabled in this environment.");
+  if (authError) {
+    return authError;
+  }
+
+  let body: { userId?: string; email?: string; groupId?: string };
+  try {
+    body = (await req.json()) as { userId?: string; email?: string; groupId?: string };
+  } catch {
+    return invalidJsonResponse();
+  }
+  const userIdByEmail = body.email
+    ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
+    : null;
+  const resolvedUserId = userIdByEmail ?? body.userId ?? null;
+  const resolvedGroupId =
+    body.groupId ??
+    (resolvedUserId
+      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
+      : null);
+
+  if (!resolvedGroupId) {
+    return new Response(JSON.stringify({ error: "groupId is required." }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const categoryId = await ctx.runMutation(internal.categories.internal.ensureE2eCategoryByUser, {
+    groupId: resolvedGroupId as never,
+    name: "E2Eカテゴリ-食費-税レビュー",
+    color: "#AAB7C4",
+  });
+  const draftId = await ctx.runMutation(
+    internal.aiExpenseDrafts.internal.createE2eTaxReviewDraftForUser,
+    {
+      groupId: resolvedGroupId as never,
+      categoryId,
+    },
+  );
+
+  return new Response(JSON.stringify({ draftId, categoryId }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+});
+
 export const e2eSeedPendingGroupInvitationHandler = httpAction(async (ctx, req) => {
   const authError = requireE2eSecret(req, "E2E seeding is not enabled in this environment.");
   if (authError) {

@@ -92,6 +92,9 @@ vi.mock("convex/react", () => ({
     return vi.fn();
   },
   useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
+  useConvex: () => ({
+    query: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 describe("AiExpenseQueuePanel", () => {

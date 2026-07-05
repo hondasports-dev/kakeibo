@@ -74,6 +74,7 @@ describe("mapDraftItemsToReviewItems", () => {
         taxRatePercent: 8,
         allocatedTaxYen: 24,
         normalizedAmountYen: 322,
+        taxResolutionStatus: "resolved",
         categoryId: "cat-food",
       },
     ]);
@@ -85,5 +86,21 @@ describe("mapDraftItemsToReviewItems", () => {
       taxRatePercent: 8,
       allocatedTaxYen: 24,
     });
+  });
+
+  it("税未確定の明細は印字金額を編集用金額にする", () => {
+    const [item] = mapDraftItemsToReviewItems([
+      {
+        _id: "item-1",
+        itemName: "E2E税テスト商品",
+        amountYen: 108,
+        printedAmountYen: 99,
+        normalizedAmountYen: 108,
+        taxResolutionStatus: "unresolved",
+        categoryId: "cat-food",
+      },
+    ]);
+
+    expect(item.amountYen).toBe("99");
   });
 });

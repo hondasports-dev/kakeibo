@@ -250,24 +250,38 @@ export async function replaceDraftItemsForReview(
   for (const item of existingItems) {
     await ctx.db.delete(item._id);
   }
-  for (const item of items) {
+  for (const [index, item] of items.entries()) {
     const itemName = trimOptional(item.itemName);
     if (!itemName || !isValidSignedLineItemAmount(itemName, item.amountYen)) {
       throw new ConvexError("Draft item name and amount are required");
     }
     await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
+    const previous = existingItems[index];
     await ctx.db.insert("aiExpenseDraftItems", {
       groupId,
       draftId,
       itemName,
       amountYen: item.amountYen,
+      printedAmountYen: item.amountYen,
       categoryId: item.categoryId,
+      amountBasis: previous?.amountBasis,
+      taxRatePercent: previous?.taxRatePercent,
+      markers: previous?.markers,
+      taxMarker: previous?.taxMarker,
+      allocatedTaxYen: previous?.allocatedTaxYen,
+      normalizedAmountYen: previous?.normalizedAmountYen,
+      taxResolutionStatus: previous?.taxResolutionStatus,
+      taxResolutionSource: previous?.taxResolutionSource,
+      taxReviewReasons: previous?.taxReviewReasons,
+      quantity: previous?.quantity,
+      unitPriceYen: previous?.unitPriceYen,
+      categoryName: previous?.categoryName,
       confidence: item.confidence ?? {
         itemName: 1,
         amountYen: 1,
         categoryId: 1,
       },
-      warnings: item.warnings,
+      warnings: item.warnings ?? previous?.warnings,
       createdAt: now,
       updatedAt: now,
     });

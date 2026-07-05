@@ -19,6 +19,10 @@ import {
   trimOptional,
   type UpdateForReviewArgs,
 } from "../../lib/convex/aiExpenseDrafts/reviewValidation";
+import {
+  nonTaxReviewReasons,
+  persistDraftTaxInterpretation,
+} from "../../lib/convex/aiExpenseDrafts/persistTaxInterpretation";
 import { registerReadyDraftsHandler } from "../../lib/convex/aiExpenseDrafts/registerToReceipts";
 import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiExpenseDrafts/registerToExpenseEntries";
 import { updateDraftItemTaxOverridesHandler } from "../../lib/convex/aiExpenseDrafts/updateItemTaxOverrides";
@@ -69,6 +73,23 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     assertPositiveCategoryTotals(args.items);
     await replaceDraftItemsForReview(ctx, args.draftId, groupId, args.items, now);
   }
+
+  const reviewConfidence = {
+    ...draft.confidence,
+    documentType: 1,
+    shopName: trimOptional(args.shopName) ? 1 : draft.confidence.shopName,
+    paymentPlace: trimOptional(args.paymentPlace) ? 1 : draft.confidence.paymentPlace,
+    payeeName:
+      trimOptional(args.payeeName) || trimOptional(args.shopName) ? 1 : draft.confidence.payeeName,
+    paymentPurpose:
+      trimOptional(args.paymentPurpose) || trimOptional(args.shopName)
+        ? 1
+        : draft.confidence.paymentPurpose,
+    date: 1,
+    amountYen: 1,
+    categoryId: 1,
+  };
+
   const classification = classifyAiExpenseDraft({
     documentType: args.documentType,
     shopName: trimOptional(args.shopName),
@@ -78,23 +99,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     date: trimOptional(args.date),
     amountYen: args.amountYen,
     categoryId: args.categoryId,
-    confidence: {
-      ...draft.confidence,
-      documentType: 1,
-      shopName: trimOptional(args.shopName) ? 1 : draft.confidence.shopName,
-      paymentPlace: trimOptional(args.paymentPlace) ? 1 : draft.confidence.paymentPlace,
-      payeeName:
-        trimOptional(args.payeeName) || trimOptional(args.shopName)
-          ? 1
-          : draft.confidence.payeeName,
-      paymentPurpose:
-        trimOptional(args.paymentPurpose) || trimOptional(args.shopName)
-          ? 1
-          : draft.confidence.paymentPurpose,
-      date: 1,
-      amountYen: 1,
-      categoryId: 1,
-    },
+    confidence: reviewConfidence,
     warnings: [],
     multiCategoryConfirmed: true,
     items: args.items?.map((item) => ({
@@ -103,8 +108,8 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
       categoryId: item.categoryId,
     })),
   });
+
   await ctx.db.patch(args.draftId, {
-    status: classification.status,
     documentType: args.documentType,
     shopName: trimOptional(args.shopName),
     paymentPlace: trimOptional(args.paymentPlace),
@@ -113,17 +118,21 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     date: trimOptional(args.date),
     amountYen: args.amountYen,
     categoryId: args.categoryId,
-    confidence: {
-      ...draft.confidence,
-      documentType: 1,
-      shopName: trimOptional(args.shopName) ? 1 : draft.confidence.shopName,
-      paymentPlace: trimOptional(args.paymentPlace) ? 1 : draft.confidence.paymentPlace,
-      payeeName: trimOptional(args.payeeName) ? 1 : draft.confidence.payeeName,
-      paymentPurpose: trimOptional(args.paymentPurpose) ? 1 : draft.confidence.paymentPurpose,
-      date: 1,
-      amountYen: 1,
-      categoryId: 1,
-    },
+    confidence: reviewConfidence,
+    updatedAt: now,
+  });
+
+  if (draft.taxSummaries && draft.taxSummaries.length > 0) {
+    const { draft: updated } = await persistDraftTaxInterpretation(ctx, {
+      draftId: args.draftId,
+      groupId,
+      preservedNonTaxReasons: nonTaxReviewReasons(classification.reviewReasons),
+    });
+    return updated;
+  }
+
+  await ctx.db.patch(args.draftId, {
+    status: classification.status,
     reviewReasons: classification.reviewReasons,
     updatedAt: now,
   });

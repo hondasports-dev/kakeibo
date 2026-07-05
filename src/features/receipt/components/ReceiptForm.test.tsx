@@ -107,6 +107,9 @@ vi.mock("convex/react", () => ({
     }
     return undefined;
   },
+  useConvex: () => ({
+    query: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 const categories = [
