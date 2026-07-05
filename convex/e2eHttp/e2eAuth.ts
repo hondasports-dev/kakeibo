@@ -1,3 +1,5 @@
+import { httpAction } from "../_generated/server";
+
 export function invalidJsonResponse() {
   return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
     status: 400,
@@ -24,3 +26,21 @@ export function requireE2eSecret(req: Request, notEnabledMessage: string): Respo
 
   return null;
 }
+
+export function createE2eAuthCheckResponse(req: Request): Response {
+  const authError = requireE2eSecret(
+    req,
+    "E2E cleanup authentication is not enabled in this environment.",
+  );
+  if (authError) {
+    return authError;
+  }
+  return new Response(JSON.stringify({ ok: true }), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export const e2eCleanupAuthCheckHandler = httpAction(async (_ctx, req) =>
+  createE2eAuthCheckResponse(req),
+);

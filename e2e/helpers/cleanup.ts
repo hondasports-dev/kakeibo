@@ -70,26 +70,23 @@ async function resolveCleanupIdentity(
 export async function verifyCleanupAuth(): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
-  const userId = getCleanupUserId();
-  const email = getCleanupUserEmail();
 
-  if (!siteUrl || !secret || (!userId && !email)) {
+  if (!siteUrl || !secret) {
     if (process.env.CI) {
       throw new Error(
         "E2E cleanup の事前検証に必要な環境変数が未設定です。" +
-          "VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET, E2E_CLERK_USER_ID または E2E_CLERK_USER_EMAIL を設定してください。",
+          "VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET を設定してください。",
       );
     }
     return;
   }
 
-  const res = await fetch(`${siteUrl}/e2e/cleanup`, {
+  const res = await fetch(`${siteUrl}/e2e/cleanup-auth-check`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-E2E-Cleanup-Secret": secret,
     },
-    body: JSON.stringify(userId ? { userId } : { email }),
   });
 
   if (res.ok) {

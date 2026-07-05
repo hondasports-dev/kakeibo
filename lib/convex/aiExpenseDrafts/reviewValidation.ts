@@ -9,6 +9,7 @@ import {
 import { resolveReceiptShopNameFromDraft } from "./display";
 
 export type UpdateForReviewItem = {
+  itemId?: Id<"aiExpenseDraftItems">;
   itemName: string;
   amountYen: number;
   categoryId: Id<"categories">;
@@ -298,16 +299,30 @@ export async function replaceDraftItemsForReview(
     .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId).eq("draftId", draftId))
     .order("asc")
     .take(100);
+  const existingItemsById = new Map(existingItems.map((item) => [item._id, item]));
+  const submittedItemIds = new Set<Id<"aiExpenseDraftItems">>();
+  for (const item of items) {
+    if (item.itemId === undefined) {
+      continue;
+    }
+    if (submittedItemIds.has(item.itemId)) {
+      throw new ConvexError("Draft item ID must not be duplicated");
+    }
+    if (!existingItemsById.has(item.itemId)) {
+      throw new ConvexError("Draft item does not belong to the current draft");
+    }
+    submittedItemIds.add(item.itemId);
+  }
   for (const item of existingItems) {
     await ctx.db.delete(item._id);
   }
-  for (const [index, item] of items.entries()) {
+  for (const item of items) {
     const itemName = trimOptional(item.itemName);
     if (!itemName || !isValidSignedLineItemAmount(itemName, item.amountYen)) {
       throw new ConvexError("Draft item name and amount are required");
     }
     await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
-    const previous = existingItems[index];
+    const previous = item.itemId === undefined ? undefined : existingItemsById.get(item.itemId);
     const amounts = resolveReviewItemAmountsForReplace(item.amountYen, previous);
     await ctx.db.insert("aiExpenseDraftItems", {
       groupId,

@@ -71,13 +71,22 @@ function shouldShowPrintedAsTaxExcluded(
   reviewItems: ReviewItemValues[],
   taxSummaries?: AiExpenseDraft["taxSummaries"],
 ): boolean {
-  if (hasResolvedExternalTax(reviewItems)) {
+  const allItemsAreResolvedExternalTax =
+    reviewItems.length > 0 &&
+    reviewItems.every(
+      (item) => item.taxResolutionStatus === "resolved" && item.amountBasis === "tax_excluded",
+    );
+  if (hasResolvedExternalTax(reviewItems) && allItemsAreResolvedExternalTax) {
     return true;
   }
   return (
-    taxSummaries?.some(
-      (summary) => summary.taxMode === "external" && summary.taxableAmountBasis === "tax_excluded",
-    ) ?? false
+    allItemsAreResolvedExternalTax &&
+    Boolean(
+      taxSummaries?.some(
+        (summary) =>
+          summary.taxMode === "external" && summary.taxableAmountBasis === "tax_excluded",
+      ),
+    )
   );
 }
 

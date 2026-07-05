@@ -115,6 +115,7 @@ export function mapDraftItemsToReviewItems(
 
     return {
       id: item._id ?? `item-${index}`,
+      persistedItemId: item._id,
       itemName: item.itemName,
       amountYen: displayAmountYen.toString(),
       printedAmountYen: item.printedAmountYen,

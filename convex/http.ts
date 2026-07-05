@@ -1,5 +1,6 @@
 import { httpRouter } from "convex/server";
 import { e2eCleanupHandler } from "./e2eHttp/e2eCleanup";
+import { e2eCleanupAuthCheckHandler } from "./e2eHttp/e2eAuth";
 import {
   e2eSeedAiExpenseDraftHandler,
   e2eSeedPendingGroupInvitationHandler,
@@ -8,6 +9,11 @@ import {
 
 const http = httpRouter();
 
+http.route({
+  path: "/e2e/cleanup-auth-check",
+  method: "POST",
+  handler: e2eCleanupAuthCheckHandler,
+});
 http.route({
   path: "/e2e/cleanup",
   method: "POST",
