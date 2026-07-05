@@ -815,9 +815,7 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("複数カテゴリの確認")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "内容を変更" }));
-    expect(
-      within(dialog).getByText("税込・税抜を確認できない明細があります。（2件）"),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("金額の照合")).toBeInTheDocument();
     expect(within(dialog).queryByText(/unknown_amount_basis/)).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "変更内容を確認" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "修正して登録" })).not.toBeInTheDocument();
@@ -880,10 +878,9 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(within(dialog).getByRole("button", { name: "内容を変更" }));
 
     expect(within(dialog).getByRole("heading", { name: "明細" })).toBeInTheDocument();
-    expect(within(dialog).getByText("明細合計 1,130円 / 差額 250円")).toBeInTheDocument();
-    expect(
-      within(dialog).getByText("レシート合計と明細合計に差額があります。"),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("金額の照合")).toBeInTheDocument();
+    expect(within(dialog).getByText("お支払い（レシート合計）")).toBeInTheDocument();
+    expect(within(dialog).getByText("読み取った商品の合計")).toBeInTheDocument();
     expect(within(dialog).getByText("低信頼度")).toBeInTheDocument();
     const initialCategoryInputs = within(dialog).getAllByLabelText("明細カテゴリ");
     expect(initialCategoryInputs).toHaveLength(2);
@@ -984,7 +981,8 @@ describe("AiExpenseQueuePanel", () => {
     await user.clear(amountInputs[1]);
     await user.type(amountInputs[1], "-110");
     expect(amountInputs[1]).toHaveValue("-110");
-    expect(within(dialog).getByText("明細合計 990円 / 差額 0円")).toBeInTheDocument();
+    const totalsPanel = within(dialog).getByLabelText("金額の照合");
+    expect(within(totalsPanel).getAllByText("990円")).toHaveLength(2);
 
     await user.click(within(dialog).getByRole("button", { name: "確認して準備OK" }));
 

@@ -9,7 +9,7 @@ export function ReceiptAnalysisStatusAlert({ analysis }: { analysis: ReceiptAnal
           <Typography variant="body2">レシート分析完了</Typography>
           <Typography variant="body2">支払合計 {analysis.paidTotalLabel}</Typography>
           <Typography color="text.secondary" variant="body2">
-            明細合計 {analysis.normalizedItemsTotalLabel}
+            登録用明細合計 {analysis.normalizedItemsTotalLabel}
           </Typography>
         </Stack>
       </Alert>

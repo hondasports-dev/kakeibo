@@ -37,7 +37,8 @@ export type TaxResolutionSource =
   | "single_summary"
   | "summary_reconciliation"
   | "remaining_summary"
-  | "marker_reconciled";
+  | "marker_reconciled"
+  | "paid_total_reconciliation";
 
 export type TaxContextResolution =
   | {

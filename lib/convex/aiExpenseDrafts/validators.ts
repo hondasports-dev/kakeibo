@@ -77,6 +77,7 @@ export const taxResolutionSourceValidator = v.union(
   v.literal("summary_reconciliation"),
   v.literal("remaining_summary"),
   v.literal("marker_reconciled"),
+  v.literal("paid_total_reconciliation"),
 );
 export const receiptMarkerDefinitionValidator = v.object({
   marker: v.string(),

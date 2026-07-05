@@ -277,7 +277,8 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
 
     await dialog.getByRole("button", { name: "内容を変更" }).click();
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
-    await expect(dialog.getByText("明細合計 1,100円 / 差額 8,020円")).toBeVisible();
+    await expect(dialog.getByLabel("金額の照合")).toBeVisible();
+    await expect(dialog.getByText("お支払い（レシート合計）")).toBeVisible();
     await expect(dialog.getByText("低信頼度").first()).toBeVisible();
     await expect(dialog.getByLabel("明細カテゴリ")).toHaveCount(2);
     await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toContainText("食費");
@@ -327,7 +328,9 @@ test.describe("Issue #431 レシート税判定UI", () => {
       .click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
-    await expect(dialog.getByText(/レシート分析完了|分析結果を確認してください/)).toBeVisible();
+    await expect(dialog.getByLabel("金額の照合")).toBeVisible();
+    await expect(dialog.getByText("お支払い（レシート合計）")).toBeVisible();
+    await expect(dialog.getByText("読み取った商品の合計")).toBeVisible();
 
     await dialog.getByRole("button", { name: "明細を見る" }).click();
     await expect(

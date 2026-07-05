@@ -2,8 +2,8 @@ import { Stack, Typography } from "@mui/material";
 import type { ReviewItemValues } from "../../types/types";
 
 const amountBasisLabels = {
-  tax_included: "税込印字",
-  tax_excluded: "税抜印字",
+  tax_included: "税込",
+  tax_excluded: "税抜",
   unknown: "税込・税抜不明",
 } as const;
 

@@ -63,6 +63,6 @@ describe("ReceiptTaxSummary", () => {
       />,
     );
 
-    expect(screen.getByText("税情報を確認してください。")).toBeInTheDocument();
+    expect(screen.getByText("金額を確認してください。")).toBeInTheDocument();
   });
 });

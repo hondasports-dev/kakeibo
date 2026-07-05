@@ -2,24 +2,25 @@ import type { AmountBasis, TaxResolutionSource } from "../../../../lib/receiptTa
 
 export const TAX_RESOLUTION_SOURCE_LABELS = {
   item_explicit: "レシート明細に税率表記があります",
-  single_summary: "単一の税率別集計と明細合計が一致しました",
-  summary_reconciliation: "税率別対象額との金額整合から判定しました",
+  single_summary: "レシート小計と商品合計が一致しました",
+  summary_reconciliation: "レシート小計との照合で判定しました",
   remaining_summary: "他の税率区分を除いた残額と一致しました",
-  marker_reconciled: "レシート記号の情報と税率別対象額が一致しました",
+  marker_reconciled: "レシート記号と小計が一致しました",
+  paid_total_reconciliation: "お支払いと商品合計の差から外税として判定しました",
 } satisfies Record<TaxResolutionSource, string>;
 
 export const TAX_REVIEW_REASON_LABELS: Record<string, string> = {
   multiple_tax_summaries: "複数の税率があり、明細との対応を特定できませんでした",
-  cannot_reconcile_item_amounts: "明細金額と税率別対象額が一致しませんでした",
+  cannot_reconcile_item_amounts: "商品合計とレシート小計が一致しませんでした",
   unresolved_tax_rate: "税率を判定できませんでした",
-  unresolved_amount_basis: "印字金額が税込か税抜か判定できませんでした",
-  taxable_amount_mismatch: "税率別対象額と明細合計が一致しません",
-  normalized_amount_mismatch: "登録金額合計と支払合計が一致しません",
+  unresolved_amount_basis: "税込・税抜を判定できませんでした",
+  taxable_amount_mismatch: "商品合計とレシート小計が一致しません",
+  normalized_amount_mismatch: "お支払いと商品合計が一致しません",
 };
 
 export const AMOUNT_BASIS_LABELS = {
-  tax_included: "税込印字",
-  tax_excluded: "税抜印字",
+  tax_included: "税込",
+  tax_excluded: "税抜",
   unknown: "不明",
 } satisfies Record<AmountBasis, string>;
 

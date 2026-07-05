@@ -26,6 +26,7 @@ describe("resolveTaxContext", () => {
   it("明示税率にsummaryからbasisを補完した由来をsummary照合として記録する", () => {
     const explicitRateItem = { ...item(100), taxRatePercent: 8 as const };
     const [context] = resolveTaxContext({
+      amountYen: 100,
       items: [explicitRateItem],
       taxSummaries: [summary(8, 100)],
       evidence: [],
@@ -36,6 +37,7 @@ describe("resolveTaxContext", () => {
 
   it("同額明細を含む一意な部分集合を過去stateの汚染なく解決する", () => {
     const contexts = resolveTaxContext({
+      amountYen: 37,
       items: [item(5), item(5), item(20), item(7)],
       taxSummaries: [summary(8, 10), summary(10, 20)],
       evidence: [],
@@ -69,6 +71,7 @@ describe("resolveTaxContext", () => {
       },
     ];
     const [context] = resolveTaxContext({
+      amountYen: 100,
       items: [item(100)],
       taxSummaries: [summary(8, 100)],
       evidence,

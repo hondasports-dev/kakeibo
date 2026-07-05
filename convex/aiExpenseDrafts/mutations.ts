@@ -22,6 +22,7 @@ import {
 import { registerReadyDraftsHandler } from "../../lib/convex/aiExpenseDrafts/registerToReceipts";
 import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiExpenseDrafts/registerToExpenseEntries";
 import { updateDraftItemTaxOverridesHandler } from "../../lib/convex/aiExpenseDrafts/updateItemTaxOverrides";
+import { applyReceiptTaxSettingsHandler } from "../../lib/convex/aiExpenseDrafts/applyReceiptTaxSettings";
 
 type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -183,6 +184,18 @@ export const updateForReview = mutation({
   handler: updateForReviewHandler,
 });
 
+export async function applyReceiptTaxSettingsMutationHandler(
+  ctx: MutationCtx,
+  args: {
+    draftId: Id<"aiExpenseDrafts">;
+    taxRatePercent?: Infer<typeof receiptItemTaxRatePercentValidator>;
+    amountBasis?: Infer<typeof amountBasisValidator>;
+  },
+) {
+  const { groupId } = await requireGroupMembership(ctx);
+  return await applyReceiptTaxSettingsHandler(ctx, args, groupId);
+}
+
 export const updateDraftItemTaxOverrides = mutation({
   args: {
     draftId: v.id("aiExpenseDrafts"),
@@ -191,6 +204,15 @@ export const updateDraftItemTaxOverrides = mutation({
     amountBasis: v.optional(amountBasisValidator),
   },
   handler: updateDraftItemTaxOverridesMutationHandler,
+});
+
+export const applyReceiptTaxSettings = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+    amountBasis: v.optional(amountBasisValidator),
+  },
+  handler: applyReceiptTaxSettingsMutationHandler,
 });
 
 export const registerReadyDrafts = mutation({

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
 
 describe("ReceiptItemTaxDetail", () => {
-  it("shows printed and normalized amounts separately", () => {
+  it("レシートの金額と税率・判定理由を表示する", () => {
     render(
       <ReceiptItemTaxDetail
         draft={{
@@ -26,11 +26,12 @@ describe("ReceiptItemTaxDetail", () => {
       />,
     );
 
-    expect(screen.getByText("印字金額 198円")).toBeInTheDocument();
-    expect(screen.getByText("登録金額 214円")).toBeInTheDocument();
-    expect(screen.getByText("按分税 16円")).toBeInTheDocument();
-    expect(screen.getByText("レシート記号 *")).toBeInTheDocument();
-    expect(screen.getByText("レシート内の説明: 軽減税率8%対象")).toBeInTheDocument();
-    expect(screen.getByText("税率別対象額との金額整合から判定しました")).toBeInTheDocument();
+    expect(screen.getByText("金額 198円")).toBeInTheDocument();
+    expect(screen.getByText("記号 *")).toBeInTheDocument();
+    expect(screen.getByText("軽減税率8%対象")).toBeInTheDocument();
+    expect(screen.getByText("税率 8%")).toBeInTheDocument();
+    expect(screen.getByText("レシート小計との照合で判定しました")).toBeInTheDocument();
+    expect(screen.queryByText("按分税")).not.toBeInTheDocument();
+    expect(screen.queryByText("登録金額")).not.toBeInTheDocument();
   });
 });

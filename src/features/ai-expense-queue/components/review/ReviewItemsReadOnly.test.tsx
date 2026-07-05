@@ -33,7 +33,7 @@ describe("ReviewItemsReadOnly", () => {
     expect(screen.getByText("税額を確認してください")).toBeInTheDocument();
   });
 
-  it("詳細展開時に印字額と按分税を表示する", () => {
+  it("詳細展開時にレシートの金額を表示する", () => {
     render(
       <ReviewItemsReadOnly
         categories={[{ _id: "cat-food", name: "食費", color: "#000000" }]}
@@ -43,7 +43,7 @@ describe("ReviewItemsReadOnly", () => {
       />,
     );
 
-    expect(screen.getByText("印字金額 298円")).toBeInTheDocument();
-    expect(screen.getByText("按分税 24円")).toBeInTheDocument();
+    expect(screen.getByText("金額 298円")).toBeInTheDocument();
+    expect(screen.queryByText("按分税 24円")).not.toBeInTheDocument();
   });
 });

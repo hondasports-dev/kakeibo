@@ -1,27 +1,28 @@
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
-  Alert,
   Box,
   Button,
   Chip,
+  Collapse,
   IconButton,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { AmountBasis } from "../../../../../lib/receiptTax/types";
 import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
-import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
+import { isLowConfidenceItem } from "../../utils/reviewDialogUtils";
 import {
   buildTaxContextFromReviewItem,
   toReceiptItemTaxViewModel,
 } from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
-import { AmountBasisSelect } from "./AmountBasisSelect";
 import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
 import { TaxRateSelect } from "./TaxRateSelect";
 
@@ -29,7 +30,7 @@ export function ReviewItemsEditor({
   categories,
   selectedReviewDraft,
   reviewItems,
-  receiptAmount,
+  taxSummaries,
   taxUpdatingItemId,
   onAddItem,
   onItemChange,
@@ -39,12 +40,13 @@ export function ReviewItemsEditor({
   onAssignCategoryToItems,
   onDiscountTargetChange,
   onTaxRateChange,
-  onAmountBasisChange,
+  onAmountBasisChange: _onAmountBasisChange,
 }: {
   categories: AiExpenseQueueCategory[];
   selectedReviewDraft: AiExpenseDraft | null;
   reviewItems: ReviewItemValues[];
   receiptAmount: number;
+  taxSummaries?: AiExpenseDraft["taxSummaries"];
   taxUpdatingItemId?: string | null;
   onAddItem: () => void;
   onItemChange: (
@@ -60,8 +62,7 @@ export function ReviewItemsEditor({
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
   onAmountBasisChange?: (itemId: string, amountBasis: AmountBasis) => void;
 }) {
-  const itemTotal = computeItemTotalYen(reviewItems);
-  const difference = receiptAmount - itemTotal;
+  const [expandedDetailIds, setExpandedDetailIds] = useState<Set<string>>(new Set());
   const productItems = useMemo(
     () => reviewItems.filter((item) => !isDiscountItemName(item.itemName)),
     [reviewItems],
@@ -70,8 +71,18 @@ export function ReviewItemsEditor({
     () => new Map(categories.map((category) => [category._id, category.name])),
     [categories],
   );
-  const handleSplitChange = (split: boolean) => {
-    onCategorySplitChange(split);
+  const isMixedTaxSummaries = (taxSummaries?.length ?? 0) > 1;
+
+  const toggleDetail = (itemId: string) => {
+    setExpandedDetailIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -84,18 +95,12 @@ export function ReviewItemsEditor({
           alignItems: { xs: "stretch", sm: "center" },
         }}
       >
-        <Box>
-          <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-            明細
-          </Typography>
-          <Typography color="text.secondary" variant="body2">
-            明細合計 {itemTotal.toLocaleString("ja-JP")}円 / 差額{" "}
-            {difference.toLocaleString("ja-JP")}円
-          </Typography>
-        </Box>
+        <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+          明細
+        </Typography>
         {productItems.length > 1 && (
           <Button
-            onClick={() => handleSplitChange(!isCategorySplit)}
+            onClick={() => onCategorySplitChange(!isCategorySplit)}
             size="small"
             type="button"
             variant="outlined"
@@ -117,12 +122,6 @@ export function ReviewItemsEditor({
         </Button>
       </Stack>
 
-      {difference !== 0 && reviewItems.length > 0 && (
-        <Alert severity="warning" variant="outlined">
-          レシート合計と明細合計に差額があります。
-        </Alert>
-      )}
-
       {reviewItems.length === 0 ? (
         <Typography color="text.secondary" variant="body2">
           明細はありません。既存の単一カテゴリ下書きとして確認できます。
@@ -137,6 +136,9 @@ export function ReviewItemsEditor({
             const taxContext = buildTaxContextFromReviewItem(item);
             const taxVm = toReceiptItemTaxViewModel(item);
             const isTaxUpdating = taxUpdatingItemId === item.id;
+            const showMixedRateSelect = isMixedTaxSummaries && taxContext.status === "unresolved";
+            const isDetailExpanded = expandedDetailIds.has(item.id);
+
             return (
               <Box
                 key={item.id}
@@ -161,6 +163,9 @@ export function ReviewItemsEditor({
                       {lowConfidence && (
                         <Chip color="warning" label="低信頼度" size="small" variant="outlined" />
                       )}
+                      {taxContext.status === "unresolved" && (
+                        <Chip color="warning" label="要確認" size="small" variant="outlined" />
+                      )}
                     </Stack>
                     <IconButton
                       aria-label={`${item.itemName || `明細 ${index + 1}`}を削除`}
@@ -173,9 +178,9 @@ export function ReviewItemsEditor({
                   </Stack>
 
                   {item.warnings && item.warnings.length > 0 && (
-                    <Alert severity="warning" variant="outlined">
+                    <Typography color="warning.main" variant="body2">
                       {formatTaxWarnings(item.warnings)}
-                    </Alert>
+                    </Typography>
                   )}
 
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -209,24 +214,35 @@ export function ReviewItemsEditor({
                       }
                     />
                   </Stack>
-                  {taxContext.status === "unresolved" ? (
-                    <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                      <TaxRateSelect
-                        disabled={isTaxUpdating}
-                        onChange={(value) => onTaxRateChange?.(item.id, value)}
-                        value={item.taxRatePercent}
-                      />
-                      {taxVm.showAmountBasisSelect && (
-                        <AmountBasisSelect
+
+                  {taxContext.status === "resolved" && (
+                    <Typography color="text.secondary" variant="body2">
+                      税率 {taxVm.taxRateLabel}
+                    </Typography>
+                  )}
+
+                  <Button
+                    endIcon={isDetailExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    onClick={() => toggleDetail(item.id)}
+                    size="small"
+                    type="button"
+                    variant="text"
+                  >
+                    詳細（通常は不要）
+                  </Button>
+                  <Collapse in={isDetailExpanded}>
+                    <Stack spacing={1} sx={{ pt: 0.5 }}>
+                      {showMixedRateSelect && (
+                        <TaxRateSelect
                           disabled={isTaxUpdating}
-                          onChange={(value) => onAmountBasisChange?.(item.id, value)}
-                          value={item.amountBasis}
+                          onChange={(value) => onTaxRateChange?.(item.id, value)}
+                          value={item.taxRatePercent}
                         />
                       )}
+                      <ReceiptItemTaxDetail draft={selectedReviewDraft} item={item} />
                     </Stack>
-                  ) : (
-                    <ReceiptItemTaxDetail draft={selectedReviewDraft} item={item} />
-                  )}
+                  </Collapse>
+
                   {discount ? (
                     <TextField
                       fullWidth
