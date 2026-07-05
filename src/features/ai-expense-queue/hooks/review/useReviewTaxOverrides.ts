@@ -2,18 +2,20 @@ import { useMutation } from "convex/react";
 import { useState } from "react";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
-import { mapDraftItemsToReviewItems } from "../../utils/mappers";
+import { mapConvexDraftToAiExpenseDraft, mapDraftItemsToReviewItems } from "../../utils/mappers";
 import type { AmountBasis } from "../../../../../lib/receiptTax/types";
-import type { ReviewItemValues } from "../../types/types";
+import type { ReviewItemValues, AiExpenseDraft } from "../../types/types";
 import { toUserFacingReviewError } from "../../utils/userFacingErrors";
 
 export function useReviewTaxOverrides({
   selectedReviewDraftId,
   setReviewItems,
+  setReviewDraftOverride,
   setReviewError,
 }: {
   selectedReviewDraftId: string | null;
   setReviewItems: (items: ReviewItemValues[]) => void;
+  setReviewDraftOverride: (draft: AiExpenseDraft) => void;
   setReviewError: (error: string) => void;
 }) {
   const [taxUpdatingItemId, setTaxUpdatingItemId] = useState<string | null>(null);
@@ -39,6 +41,7 @@ export function useReviewTaxOverrides({
         itemId: itemId as Id<"aiExpenseDraftItems">,
         ...overrides,
       });
+      setReviewDraftOverride(mapConvexDraftToAiExpenseDraft(result.draft));
       setReviewItems(mapDraftItemsToReviewItems(result.items));
     } catch (error) {
       setReviewError(toUserFacingReviewError(error));

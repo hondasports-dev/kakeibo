@@ -44,10 +44,12 @@ export function useReviewDialog({
   const taxOverrides = useReviewTaxOverrides({
     selectedReviewDraftId: draftSelection.selectedReviewDraftId,
     setReviewItems: formState.setReviewItems,
+    setReviewDraftOverride: draftSelection.setReviewDraftOverride,
     setReviewError: submit.setReviewError,
   });
 
   const handleOpenReview = (itemId: string) => {
+    draftSelection.setReviewDraftOverride(null);
     draftSelection.setSelectedReviewDraftId(itemId);
     formState.prepareForDraft();
     submit.clearReviewError();

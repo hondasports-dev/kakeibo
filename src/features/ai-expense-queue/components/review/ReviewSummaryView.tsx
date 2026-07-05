@@ -14,9 +14,8 @@ import { formatReviewDraftHeader, resolveReviewShopName } from "../../utils/revi
 import { toReceiptAnalysisViewModel } from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
 import { ReceiptAnalysisStatusAlert } from "./ReceiptAnalysisStatusAlert";
-import { ReceiptItemRow } from "./ReceiptItemRow";
-import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
 import { ReceiptTaxSummary } from "./ReceiptTaxSummary";
+import { ReviewItemsReadOnly } from "./ReviewItemsReadOnly";
 
 export function ReviewSummaryView({
   categories,
@@ -84,37 +83,15 @@ export function ReviewSummaryView({
         {itemsExpanded ? "明細を閉じる" : "明細を見る"}
       </Button>
       <Collapse in={itemsExpanded}>
-        <Stack component="ul" spacing={1} sx={{ listStyle: "none", m: 0, p: 0 }}>
-          {reviewItems.map((item) => {
-            const categoryName =
-              categories.find((category) => category._id === item.categoryId)?.name ?? "未分類";
-            const isDetailOpen = expandedItemId === item.id;
-            return (
-              <Box
-                component="li"
-                key={item.id}
-                sx={{
-                  borderBottom: "1px solid",
-                  borderColor: "divider",
-                  pb: 1,
-                }}
-              >
-                <ReceiptItemRow
-                  item={item}
-                  onOpenDetail={() => setExpandedItemId(isDetailOpen ? null : item.id)}
-                />
-                <Typography color="text.secondary" sx={{ mt: 0.5 }} variant="caption">
-                  カテゴリ: {categoryName}
-                </Typography>
-                <Collapse in={isDetailOpen}>
-                  <Box sx={{ mt: 1 }}>
-                    <ReceiptItemTaxDetail draft={selectedReviewDraft} item={item} />
-                  </Box>
-                </Collapse>
-              </Box>
-            );
-          })}
-        </Stack>
+        <ReviewItemsReadOnly
+          categories={categories}
+          draft={selectedReviewDraft}
+          expandedItemId={expandedItemId}
+          onToggleItemDetail={(itemId) =>
+            setExpandedItemId(expandedItemId === itemId ? null : itemId)
+          }
+          reviewItems={reviewItems}
+        />
       </Collapse>
     </>
   );
