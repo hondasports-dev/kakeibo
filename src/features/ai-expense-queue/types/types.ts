@@ -1,4 +1,5 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
+import type { TaxResolutionSource } from "../../../../lib/receiptTax/types";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -112,12 +113,7 @@ export type AiExpenseItemTaxDetails = {
   allocatedTaxYen?: number;
   normalizedAmountYen?: number;
   taxResolutionStatus?: "resolved" | "unresolved";
-  taxResolutionSource?:
-    | "item_explicit"
-    | "single_summary"
-    | "summary_reconciliation"
-    | "remaining_summary"
-    | "marker_reconciled";
+  taxResolutionSource?: TaxResolutionSource;
   taxReviewReasons?: string[];
   quantity?: number;
   unitPriceYen?: number;

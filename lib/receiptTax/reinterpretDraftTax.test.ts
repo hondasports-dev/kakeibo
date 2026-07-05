@@ -101,5 +101,7 @@ describe("reinterpretDraftTax", () => {
     expect(after.itemFields[0]?.taxResolutionStatus).toBe("resolved");
     expect(after.itemFields[0]?.taxRatePercent).toBe(8);
     expect(after.itemFields[0]?.printedAmountYen).toBe(300);
+    expect(after.itemFields[1]?.taxResolutionStatus).toBe("unresolved");
+    expect(after.itemFields[2]?.taxResolutionStatus).toBe("unresolved");
   });
 });

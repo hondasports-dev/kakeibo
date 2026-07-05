@@ -1,4 +1,5 @@
 import type {
+  AmountBasis,
   ExtractedTaxSummary,
   TaxContextResolution,
   TaxResolutionSource,
@@ -38,7 +39,15 @@ export type ReceiptAnalysisViewModel = {
   showDifference: boolean;
 };
 
-export function buildTaxContextFromReviewItem(item: ReviewItemValues): TaxContextResolution {
+type TaxContextSourceItem = {
+  taxResolutionStatus?: "resolved" | "unresolved";
+  taxResolutionSource?: TaxResolutionSource;
+  taxRatePercent?: 0 | 8 | 10 | null;
+  amountBasis?: AmountBasis;
+  taxReviewReasons?: string[];
+};
+
+function buildTaxContext(item: TaxContextSourceItem): TaxContextResolution {
   if (
     item.taxResolutionStatus === "resolved" &&
     item.taxResolutionSource &&
@@ -62,28 +71,12 @@ export function buildTaxContextFromReviewItem(item: ReviewItemValues): TaxContex
   };
 }
 
+export function buildTaxContextFromReviewItem(item: ReviewItemValues): TaxContextResolution {
+  return buildTaxContext(item);
+}
+
 export function buildTaxContextFromDraftItem(item: AiExpenseDraftItem): TaxContextResolution {
-  if (
-    item.taxResolutionStatus === "resolved" &&
-    item.taxResolutionSource &&
-    item.taxRatePercent !== null &&
-    item.taxRatePercent !== undefined &&
-    item.amountBasis &&
-    item.amountBasis !== "unknown"
-  ) {
-    return {
-      status: "resolved",
-      taxRatePercent: item.taxRatePercent,
-      amountBasis: item.amountBasis,
-      source: item.taxResolutionSource,
-    };
-  }
-  return {
-    status: "unresolved",
-    taxRatePercent: item.taxRatePercent ?? null,
-    amountBasis: item.amountBasis ?? "unknown",
-    reasons: item.taxReviewReasons ?? [],
-  };
+  return buildTaxContext(item);
 }
 
 export function toReceiptItemTaxViewModel(item: ReviewItemValues): ReceiptItemTaxViewModel {
@@ -104,9 +97,7 @@ export function toReceiptItemTaxViewModel(item: ReviewItemValues): ReceiptItemTa
     allocatedTaxLabel: formatYenLabel(item.allocatedTaxYen),
     status: context.status,
     resolutionReasonLabel:
-      context.status === "resolved"
-        ? getTaxResolutionSourceLabel(context.source as TaxResolutionSource)
-        : undefined,
+      context.status === "resolved" ? getTaxResolutionSourceLabel(context.source) : undefined,
     reviewReasonLabels:
       context.status === "unresolved" ? context.reasons.map(getReviewReasonLabel) : [],
     markerLabels: item.markers ?? (item.taxMarker ? [item.taxMarker] : []),

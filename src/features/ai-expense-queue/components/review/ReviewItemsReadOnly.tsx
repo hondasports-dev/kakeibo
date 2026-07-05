@@ -37,6 +37,8 @@ export function ReviewItemsReadOnly({
             }}
           >
             <ReceiptItemRow
+              detailPanelId={`receipt-item-tax-detail-${item.id}`}
+              isDetailOpen={isDetailOpen}
               item={item}
               onOpenDetail={onToggleItemDetail ? () => onToggleItemDetail(item.id) : undefined}
             />
@@ -49,7 +51,7 @@ export function ReviewItemsReadOnly({
               </Typography>
             )}
             {isDetailOpen && (
-              <Box sx={{ mt: 1 }}>
+              <Box id={`receipt-item-tax-detail-${item.id}`} sx={{ mt: 1 }}>
                 <ReceiptItemTaxDetail draft={draft} item={item} />
               </Box>
             )}

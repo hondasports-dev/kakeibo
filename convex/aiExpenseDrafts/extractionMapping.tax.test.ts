@@ -87,6 +87,7 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     const mapped = mapExtractionToDraftArgs(source, [foodCategory]);
     expect(mapped.reviewReasons).toContain("user_confirmation_required");
     expect(mapped.items?.every((item) => item.taxResolutionStatus === "unresolved")).toBe(true);
+    expect(mapped.items?.every((item) => item.taxRatePercent === null)).toBe(true);
     expect(mapped.warnings).toContain("unresolved_tax_rate:items[0]");
   });
 });
