@@ -45,7 +45,6 @@ export function ReviewDialog({
   onSubmit,
   taxUpdatingItemId,
   onTaxRateChange,
-  onAmountBasisChange,
   onApplyReceiptTaxSettings,
   isApplyingReceiptTax,
 }: {
@@ -74,10 +73,6 @@ export function ReviewDialog({
   onSubmit: (registerAfterUpdate: boolean) => void;
   taxUpdatingItemId?: string | null;
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
-  onAmountBasisChange?: (
-    itemId: string,
-    amountBasis: "tax_included" | "tax_excluded" | "unknown",
-  ) => void;
   onApplyReceiptTaxSettings?: () => void;
   isApplyingReceiptTax?: boolean;
 }) {
@@ -190,14 +185,12 @@ export function ReviewDialog({
                       <ReviewItemsEditor
                         categories={categories}
                         onAddItem={onAddItem}
-                        onAmountBasisChange={onAmountBasisChange}
                         onItemChange={onItemChange}
                         onRemoveItem={onRemoveItem}
                         onTaxRateChange={onTaxRateChange}
                         receiptAmount={receiptAmount}
                         reviewItems={reviewItems}
                         selectedReviewDraft={selectedReviewDraft}
-                        taxSummaries={selectedReviewDraft?.taxSummaries}
                         taxUpdatingItemId={taxUpdatingItemId}
                         isCategorySplit={isCategorySplit}
                         onCategorySplitChange={onCategorySplitChange}

@@ -1,8 +1,10 @@
 import type { ReceiptTaxInput, TaxEvidence, TaxRatePercent } from "./types";
 
 function interpretLegend(description: string): TaxRatePercent | undefined {
-  if (/(?:^|\D)8\s*%|軽減税率\s*8|8\s*%?\s*適応|8\s*%?\s*適用/.test(description)) return 8;
-  if (/(?:^|\D)10\s*%|標準税率\s*10/.test(description)) return 10;
+  if (/(?:^|\D)8\s*%|軽減税率\s*8|(?:^|\D)8\s*%?\s*適応|(?:^|\D)8\s*%?\s*適用/.test(description)) {
+    return 8;
+  }
+  if (/(?:^|\D)10\s*%|(?:^|\D)標準税率\s*10(?:\D|$)/.test(description)) return 10;
   if (/(?:^|\D)0\s*%|非課税|免税/.test(description)) return 0;
   return undefined;
 }

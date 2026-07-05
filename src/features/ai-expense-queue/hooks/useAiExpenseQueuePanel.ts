@@ -122,7 +122,6 @@ export function useAiExpenseQueuePanel({
     handleSubmitReview: reviewDialog.handleSubmitReview,
     taxUpdatingItemId: reviewDialog.taxUpdatingItemId,
     handleTaxRateChange: reviewDialog.handleTaxRateChange,
-    handleAmountBasisChange: reviewDialog.handleAmountBasisChange,
     isApplyingReceiptTax: reviewDialog.isApplyingReceiptTax,
     handleApplyReceiptTaxSettings: reviewDialog.handleApplyReceiptTaxSettings,
     handleToggleReadySelection: bulkRegister.handleToggleReadySelection,

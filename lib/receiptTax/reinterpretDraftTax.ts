@@ -47,7 +47,7 @@ function shouldApplyBulkOverride(
   if (item.taxResolutionStatus === "unresolved") {
     return true;
   }
-  return extracted.amountBasis === "unknown" || extracted.taxRatePercent === null;
+  return extracted.amountBasis === "unknown" && extracted.taxRatePercent === null;
 }
 
 export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): ReinterpretDraftTaxResult {

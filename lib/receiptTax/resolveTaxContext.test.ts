@@ -79,4 +79,25 @@ describe("resolveTaxContext", () => {
 
     expect(context).toMatchObject({ status: "resolved", source: "single_summary" });
   });
+
+  it("paid_total_reconciliation は implied tax が summary.taxYen と大きく乖離する場合は適用しない", () => {
+    const externalSummary: ExtractedTaxSummary = {
+      taxRatePercent: 8,
+      taxMode: "external",
+      taxableAmountYen: 7928,
+      taxableAmountBasis: "tax_excluded",
+      taxYen: 634,
+      roundingMethod: "unknown",
+      confidence: {},
+      warnings: [],
+    };
+    const contexts = resolveTaxContext({
+      amountYen: 7929,
+      items: [item(4000), item(3927)],
+      taxSummaries: [externalSummary],
+      evidence: [],
+    });
+
+    expect(contexts.every((context) => context.status === "unresolved")).toBe(true);
+  });
 });

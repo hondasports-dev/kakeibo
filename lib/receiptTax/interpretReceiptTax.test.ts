@@ -164,6 +164,18 @@ describe("interpretReceiptTax", () => {
     expect(result.warnings).toContain("conflicting_tax_summary:8");
   });
 
+  it("内税解決済み明細がある混合レシートでは外税summaryの implied tax 按分をスキップする", () => {
+    const result = interpretReceiptTax({
+      amountYen: 1100,
+      items: [{ ...item(1000), taxRatePercent: 10, amountBasis: "tax_included" }, item(50)],
+      taxSummaries: [summary(8, 100, 8, "tax_excluded")],
+    });
+
+    expect(result.items[0].amountBasis).toBe("tax_included");
+    expect(result.items[1].allocatedTaxYen).toBe(0);
+    expect(result.items[1].normalizedAmountYen).toBe(50);
+  });
+
   it("フレッシュ石守相当: OCR内税誤判定を外税補正し支払合計へ按分する", () => {
     const wrongOcrSummary = {
       taxRatePercent: 8 as const,

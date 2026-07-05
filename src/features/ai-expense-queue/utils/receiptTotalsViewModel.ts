@@ -81,6 +81,16 @@ function buildGuidanceLines(args: {
     return lines;
   }
 
+  if (args.unresolvedCount > 0) {
+    if (args.canBulkApplyTax) {
+      lines.push(
+        `${args.unresolvedCount}件の税率が未確定です。下の一括適用を試すか、金額を確認してください`,
+      );
+    } else {
+      lines.push(`${args.unresolvedCount}件の税率が未確定です。金額を確認してください`);
+    }
+  }
+
   if (args.gapPaidVsItems !== undefined && args.gapPaidVsItems !== 0) {
     const abs = Math.abs(args.gapPaidVsItems).toLocaleString("ja-JP");
     if (args.gapPaidVsItems > 0) {
@@ -95,16 +105,6 @@ function buildGuidanceLines(args: {
     lines.push(
       `読み取った商品の合計とレシート小計が${abs}円ずれています。金額が怪しい行を確認してください`,
     );
-  }
-
-  if (args.unresolvedCount > 0) {
-    if (args.canBulkApplyTax) {
-      lines.push(
-        `${args.unresolvedCount}件の税率が未確定です。下の一括適用を試すか、金額を確認してください`,
-      );
-    } else {
-      lines.push(`${args.unresolvedCount}件の税率が未確定です。金額を確認してください`);
-    }
   }
 
   return lines.slice(0, 2);

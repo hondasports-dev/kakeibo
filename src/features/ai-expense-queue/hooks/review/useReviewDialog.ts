@@ -94,7 +94,6 @@ export function useReviewDialog({
     taxUpdatingItemId: taxOverrides.taxUpdatingItemId,
     isApplyingReceiptTax: taxOverrides.isApplyingReceiptTax,
     handleTaxRateChange: taxOverrides.handleTaxRateChange,
-    handleAmountBasisChange: taxOverrides.handleAmountBasisChange,
     handleApplyReceiptTaxSettings: taxOverrides.handleApplyReceiptTaxSettings,
   };
 }

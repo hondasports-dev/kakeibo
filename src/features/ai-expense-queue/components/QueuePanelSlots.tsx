@@ -142,7 +142,6 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
         taxUpdatingItemId={queue.taxUpdatingItemId}
         onTaxRateChange={queue.handleTaxRateChange}
-        onAmountBasisChange={queue.handleAmountBasisChange}
         onApplyReceiptTaxSettings={queue.handleApplyReceiptTaxSettings}
         isApplyingReceiptTax={queue.isApplyingReceiptTax}
       />
