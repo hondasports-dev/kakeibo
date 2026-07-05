@@ -371,6 +371,7 @@ test.describe("下書き確認の税状態保存", () => {
     await expect(dialog.getByText("金額は一致しています")).toBeVisible();
 
     await dialog.getByLabel("レシートの金額", { exact: true }).fill("99");
+    await expect(dialog.getByText(/登録額: \d+円（税込）/)).toBeVisible();
     await dialog.getByRole("button", { name: "確認して準備OK" }).click();
 
     await expect(dialog).toBeVisible();
