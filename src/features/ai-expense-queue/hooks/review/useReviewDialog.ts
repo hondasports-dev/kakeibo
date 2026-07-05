@@ -39,6 +39,9 @@ export function useReviewDialog({
     onRegister,
     clearSelection: draftSelection.clearSelection,
     resetForm: formState.resetForm,
+    setReviewDraftOverride: draftSelection.setReviewDraftOverride,
+    setReviewItems: formState.setReviewItems,
+    setInitializedReviewDraftId: formState.setInitializedReviewDraftId,
   });
 
   const taxOverrides = useReviewTaxOverrides({
@@ -53,6 +56,7 @@ export function useReviewDialog({
     draftSelection.setSelectedReviewDraftId(itemId);
     formState.prepareForDraft();
     submit.clearReviewError();
+    submit.clearReviewSaveNotice();
   };
 
   const handleCloseReview = () => {
@@ -62,6 +66,7 @@ export function useReviewDialog({
     draftSelection.clearSelection();
     formState.resetForm();
     submit.clearReviewError();
+    submit.clearReviewSaveNotice();
   };
 
   return {
@@ -74,6 +79,7 @@ export function useReviewDialog({
     reviewItems: formState.reviewItems,
     isCategorySplit: formState.isCategorySplit,
     reviewError: submit.reviewError,
+    reviewSaveNotice: submit.reviewSaveNotice,
     reviewSubmitting: submit.reviewSubmitting,
     setSelectedReviewDraftId: draftSelection.setSelectedReviewDraftId,
     setInitializedReviewDraftId: formState.setInitializedReviewDraftId,

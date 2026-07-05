@@ -3,6 +3,7 @@ import { e2eCleanupHandler } from "./e2eHttp/e2eCleanup";
 import {
   e2eSeedAiExpenseDraftHandler,
   e2eSeedPendingGroupInvitationHandler,
+  e2eSeedTaxReviewDraftHandler,
 } from "./e2eHttp/e2eSeedDraft";
 
 const http = httpRouter();
@@ -16,6 +17,11 @@ http.route({
   path: "/e2e/seed-ai-expense-draft",
   method: "POST",
   handler: e2eSeedAiExpenseDraftHandler,
+});
+http.route({
+  path: "/e2e/seed-tax-review-draft",
+  method: "POST",
+  handler: e2eSeedTaxReviewDraftHandler,
 });
 http.route({
   path: "/e2e/seed-pending-group-invitation",

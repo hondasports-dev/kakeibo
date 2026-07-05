@@ -9,7 +9,10 @@ import {
   cleanupE2eExpenseEntriesByUser,
   cleanupTestCategoriesByUser,
 } from "./helpers/cleanup";
-import { seedAiExpenseDraftForExpenseEntriesByUser } from "./helpers/seed";
+import {
+  seedAiExpenseDraftForExpenseEntriesByUser,
+  seedTaxReviewDraftByUser,
+} from "./helpers/seed";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
 /**
@@ -336,6 +339,50 @@ test.describe("Issue #431 レシート税判定UI", () => {
     await expect(
       dialog.getByRole("list").getByText("未設定", { exact: true }).first(),
     ).toBeVisible();
+  });
+});
+
+test.describe("下書き確認の税状態保存", () => {
+  test.beforeEach(async () => {
+    await cleanupAiExpenseQueue();
+  });
+
+  test("一括適用後の明細編集保存で税状態が再オープン後も維持される", async ({ page }) => {
+    const userId = process.env.E2E_CLERK_USER_ID?.trim();
+    if (!userId) {
+      test.skip();
+      return;
+    }
+
+    await seedTaxReviewDraftByUser(userId);
+    await gotoAuthenticated(page, INPUT_PATH);
+
+    const queue = await waitForReceiptInputQueue(page);
+    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    await expect(reviewSection.getByText("E2E税レビュー店")).toBeVisible({ timeout: 15_000 });
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await dialog.getByRole("button", { name: "内容を変更" }).click();
+    await dialog.getByRole("button", { name: "この設定ですべての商品に適用" }).click();
+    await expect(dialog.getByText(/税率 8%/).first()).toBeVisible({ timeout: 15_000 });
+
+    await dialog.getByLabel("金額", { exact: true }).fill("99");
+    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText(/保存しました。税率の確定/)).toBeVisible();
+    await expect(dialog.getByText(/税率 8%/).first()).toBeVisible();
+
+    await dialog.getByRole("button", { name: "キャンセル" }).click();
+    await expect(dialog).toBeHidden();
+
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
+    await dialog.getByRole("button", { name: "内容を変更" }).click();
+    await expect(dialog.getByText(/税率 8%/).first()).toBeVisible({ timeout: 10_000 });
+    await expect(dialog.getByLabel("金額", { exact: true })).not.toHaveValue("100", {
+      timeout: 10_000,
+    });
   });
 });
 

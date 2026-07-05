@@ -978,11 +978,16 @@ describe("aiExpenseDrafts", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenCalledWith(
+    expect(dbPatch).toHaveBeenLastCalledWith(
       "draft-owned",
       expect.objectContaining({
         status: "ready",
         reviewReasons: [],
+      }),
+    );
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-owned",
+      expect.objectContaining({
         shopName: "スーパー青葉 北浜店",
         paymentPlace: "北浜",
         payeeName: "スーパー青葉",
@@ -1238,11 +1243,16 @@ describe("aiExpenseDrafts", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenCalledWith(
+    expect(dbPatch).toHaveBeenLastCalledWith(
       "draft-ready",
       expect.objectContaining({
         status: "ready",
         reviewReasons: [],
+      }),
+    );
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-ready",
+      expect.objectContaining({
         shopName: "スーパー青葉 北浜店",
       }),
     );
@@ -1303,10 +1313,16 @@ describe("aiExpenseDrafts", () => {
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenLastCalledWith(
       "draft-owned",
       expect.objectContaining({
         status: "ready",
+      }),
+    );
+    expect(dbPatch).toHaveBeenCalledWith(
+      "draft-owned",
+      expect.objectContaining({
         shopName: "大阪市水道局 水道料金",
         paymentPlace: undefined,
         payeeName: undefined,

@@ -91,6 +91,7 @@ export function useAiExpenseQueuePanel({
     retryError: imageUpload.uploadError || retry.retryError,
     retryInputRef: retry.retryInputRef,
     reviewError: reviewDialog.reviewError,
+    reviewSaveNotice: reviewDialog.reviewSaveNotice,
     reviewForm: reviewDialog.reviewForm,
     reviewItems: reviewDialog.reviewItems,
     isCategorySplit: reviewDialog.isCategorySplit,
