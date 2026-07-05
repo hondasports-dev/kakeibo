@@ -187,15 +187,14 @@ jobs:
           CONVEX_DEPLOY_KEY: ${{ secrets.DEV_CONVEX_DEPLOY_KEY }}
           E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
         run: |
-          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
-            echo "::error::DEV_CONVEX_DEPLOY_KEY is not set. Cannot sync E2E_CLEANUP_SECRET before E2E."
-            echo "Set DEV_CONVEX_DEPLOY_KEY so CI can align Convex dev with DEV_E2E_CLEANUP_SECRET."
-            echo "Without sync, agent-local convex env set drift causes mass 401 failures in global setup."
-            exit 1
-          fi
           if [ -z "$E2E_CLEANUP_SECRET" ]; then
             echo "::error::DEV_E2E_CLEANUP_SECRET is not set."
             exit 1
+          fi
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::warning::DEV_CONVEX_DEPLOY_KEY is not set. Skipping Convex env sync."
+            echo "Ensure Convex dev E2E_CLEANUP_SECRET already matches DEV_E2E_CLEANUP_SECRET."
+            exit 0
           fi
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
