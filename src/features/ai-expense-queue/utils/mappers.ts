@@ -1,6 +1,7 @@
-import type { Id } from "../../../../convex/_generated/dataModel";
+import type { Doc, Id } from "../../../../convex/_generated/dataModel";
 import type {
   AiExpenseDraft,
+  AiExpenseDraftStatus,
   AiExpenseDraftWithItems,
   AiExpenseQueueItem,
   AiExpenseQueueStatus,
@@ -54,6 +55,26 @@ export function mapDraftToQueueItem(
     hasUncategorizedItems: draft.itemSummary?.hasUncategorizedItems,
     hasLowConfidenceItems: draft.itemSummary?.hasLowConfidenceItems,
     categoryAggregates,
+  };
+}
+
+export function mapConvexDraftToAiExpenseDraft(draft: Doc<"aiExpenseDrafts">): AiExpenseDraft {
+  return {
+    _id: draft._id,
+    status: draft.status as AiExpenseDraftStatus,
+    documentType: draft.documentType,
+    imageFileName: draft.imageFileName,
+    shopName: draft.shopName,
+    paymentPlace: draft.paymentPlace,
+    payeeName: draft.payeeName,
+    paymentPurpose: draft.paymentPurpose,
+    date: draft.date,
+    amountYen: draft.amountYen,
+    categoryId: draft.categoryId,
+    reviewReasons: draft.reviewReasons,
+    warnings: draft.warnings,
+    taxSummaries: draft.taxSummaries,
+    markerDefinitions: draft.markerDefinitions,
   };
 }
 

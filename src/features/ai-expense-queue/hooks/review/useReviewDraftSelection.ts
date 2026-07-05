@@ -17,6 +17,7 @@ export function useReviewDraftSelection({
   initialReviewDraftItems: Record<string, AiExpenseDraftItem[]>;
 }) {
   const [selectedReviewDraftId, setSelectedReviewDraftId] = useState<string | null>(null);
+  const [reviewDraftOverride, setReviewDraftOverride] = useState<AiExpenseDraft | null>(null);
 
   const localReviewDraft = selectedReviewDraftId
     ? initialReviewDrafts[selectedReviewDraftId]
@@ -31,11 +32,13 @@ export function useReviewDraftSelection({
       : "skip",
   ) as AiExpenseDraftWithItems | null | undefined;
 
-  const selectedReviewDraft = localReviewDraft
-    ? localReviewDraft
-    : isDraftWithItems(selectedReviewDraftDetails)
-      ? selectedReviewDraftDetails.draft
-      : null;
+  const selectedReviewDraft =
+    reviewDraftOverride ??
+    (localReviewDraft
+      ? localReviewDraft
+      : isDraftWithItems(selectedReviewDraftDetails)
+        ? selectedReviewDraftDetails.draft
+        : null);
   const isReviewDraftNotFound =
     selectedReviewDraftId !== null && !localReviewDraft && selectedReviewDraftDetails === null;
   const isReviewDraftLoading =
@@ -43,6 +46,7 @@ export function useReviewDraftSelection({
 
   const clearSelection = () => {
     setSelectedReviewDraftId(null);
+    setReviewDraftOverride(null);
   };
 
   return {
@@ -54,5 +58,6 @@ export function useReviewDraftSelection({
     isReviewDraftNotFound,
     isReviewDraftLoading,
     clearSelection,
+    setReviewDraftOverride,
   };
 }
