@@ -9,8 +9,11 @@ export type ReceiptTotalsViewModel = {
   status: ReceiptTotalsStatus;
   paidTotalYen?: number;
   paidTotalLabel: string;
+  itemsNormalizedTotalYen: number;
+  itemsNormalizedTotalLabel: string;
   itemsPrintedTotalYen: number;
   itemsPrintedTotalLabel: string;
+  printedTotalLabel: string;
   receiptSubtotalYen?: number;
   receiptSubtotalLabel: string;
   subtotalRateLabel?: string;
@@ -35,6 +38,27 @@ function sumItemsPrintedTotal(reviewItems: ReviewItemValues[]): number {
       (Number.isFinite(Number(item.amountYen)) ? Number(item.amountYen) : 0);
     return sum + printed;
   }, 0);
+}
+
+function sumItemsNormalizedTotal(reviewItems: ReviewItemValues[]): number {
+  return reviewItems.reduce((sum, item) => {
+    if (item.taxResolutionStatus === "resolved" && item.normalizedAmountYen != null) {
+      return sum + item.normalizedAmountYen;
+    }
+    const fallback = Number.isFinite(Number(item.amountYen)) ? Number(item.amountYen) : 0;
+    return sum + fallback;
+  }, 0);
+}
+
+function hasResolvedExternalTax(reviewItems: ReviewItemValues[]): boolean {
+  return reviewItems.some(
+    (item) =>
+      item.taxResolutionStatus === "resolved" &&
+      item.amountBasis === "tax_excluded" &&
+      item.normalizedAmountYen != null &&
+      item.printedAmountYen != null &&
+      item.normalizedAmountYen !== item.printedAmountYen,
+  );
 }
 
 function resolveReceiptSubtotal(taxSummaries: AiExpenseDraft["taxSummaries"]): {
@@ -105,9 +129,7 @@ function buildGuidanceLines(args: {
 
   if (args.hasSubtotal && args.gapItemsVsSubtotal !== undefined && args.gapItemsVsSubtotal !== 0) {
     const abs = Math.abs(args.gapItemsVsSubtotal).toLocaleString("ja-JP");
-    lines.push(
-      `読み取った商品の合計とレシート小計が${abs}円ずれています。金額が怪しい行を確認してください`,
-    );
+    lines.push(`印字合計とレシート小計が${abs}円ずれています。金額が怪しい行を確認してください`);
   }
 
   return lines.slice(0, 2);
@@ -122,11 +144,13 @@ export function toReceiptTotalsViewModel(args: {
   const showPanel = reviewItems.length > 0;
 
   const itemsPrintedTotalYen = sumItemsPrintedTotal(reviewItems);
+  const itemsNormalizedTotalYen = sumItemsNormalizedTotal(reviewItems);
+  const showPrintedAsTaxExcluded = hasResolvedExternalTax(reviewItems);
   const { subtotalYen: receiptSubtotalYen, rateLabel: subtotalRateLabel } =
     resolveReceiptSubtotal(taxSummaries);
 
   const gapPaidVsItems =
-    paidTotalYen !== undefined ? paidTotalYen - itemsPrintedTotalYen : undefined;
+    paidTotalYen !== undefined ? paidTotalYen - itemsNormalizedTotalYen : undefined;
   const gapItemsVsSubtotal =
     receiptSubtotalYen !== undefined ? itemsPrintedTotalYen - receiptSubtotalYen : undefined;
 
@@ -172,8 +196,11 @@ export function toReceiptTotalsViewModel(args: {
     status,
     paidTotalYen,
     paidTotalLabel: formatYenLabel(paidTotalYen),
+    itemsNormalizedTotalYen,
+    itemsNormalizedTotalLabel: formatYenLabel(itemsNormalizedTotalYen),
     itemsPrintedTotalYen,
     itemsPrintedTotalLabel: formatYenLabel(itemsPrintedTotalYen),
+    printedTotalLabel: showPrintedAsTaxExcluded ? "印字合計（税抜）" : "印字合計",
     receiptSubtotalYen,
     receiptSubtotalLabel: hasSubtotal ? formatYenLabel(receiptSubtotalYen) : "読み取れませんでした",
     subtotalRateLabel,
@@ -185,7 +212,7 @@ export function toReceiptTotalsViewModel(args: {
         : undefined,
     gapItemsVsSubtotalNote:
       gapItemsVsSubtotal !== undefined && gapItemsVsSubtotal !== 0
-        ? formatGapNote(-gapItemsVsSubtotal, "商品合計")
+        ? formatGapNote(gapItemsVsSubtotal, "レシート小計")
         : undefined,
     guidanceLines,
     unresolvedCount,

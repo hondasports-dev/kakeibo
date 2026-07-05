@@ -132,6 +132,16 @@ export function ReviewItemsEditor({
             const isTaxUpdating = taxUpdatingItemId === item.id;
             const showTaxRateSelect = taxContext.status === "unresolved";
             const isDetailExpanded = expandedDetailIds.has(item.id);
+            const isExternalTaxResolved =
+              taxContext.status === "resolved" &&
+              item.amountBasis === "tax_excluded" &&
+              item.normalizedAmountYen != null &&
+              item.printedAmountYen != null &&
+              item.normalizedAmountYen !== item.printedAmountYen;
+            const showRegistrationAmount =
+              taxContext.status === "resolved" &&
+              item.normalizedAmountYen != null &&
+              isExternalTaxResolved;
 
             return (
               <Box
@@ -186,7 +196,7 @@ export function ReviewItemsEditor({
                       value={item.itemName}
                     />
                     <TextField
-                      label="金額"
+                      label="レシートの金額"
                       onChange={(event) =>
                         onItemChange(
                           item.id,
@@ -204,10 +214,20 @@ export function ReviewItemsEditor({
                       sx={{ minWidth: { sm: 140 } }}
                       value={item.amountYen}
                       helperText={
-                        isDiscountItemName(item.itemName) ? "割引額はマイナスで入力" : undefined
+                        isDiscountItemName(item.itemName)
+                          ? "割引額はマイナスで入力"
+                          : isExternalTaxResolved
+                            ? "税抜の印字額です。登録は下の税込額を使います"
+                            : undefined
                       }
                     />
                   </Stack>
+
+                  {showRegistrationAmount && item.normalizedAmountYen != null && (
+                    <Typography color="text.secondary" variant="body2">
+                      登録額: {item.normalizedAmountYen.toLocaleString("ja-JP")}円（税込）
+                    </Typography>
+                  )}
 
                   {taxContext.status === "resolved" && (
                     <Typography color="text.secondary" variant="body2">

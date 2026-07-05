@@ -59,15 +59,16 @@ export function ReceiptTotalsPanel({
       <Stack spacing={1}>
         <TotalsRow label="お支払い（レシート合計）" amountLabel={vm.paidTotalLabel} />
         <TotalsRow
-          amountLabel={vm.itemsPrintedTotalLabel}
-          label="読み取った商品の合計"
+          amountLabel={vm.itemsNormalizedTotalLabel}
+          label="登録合計（税込）"
           note={vm.gapPaidVsItemsNote}
         />
         <TotalsRow
-          amountLabel={vm.receiptSubtotalLabel}
-          label={subtotalLabel}
+          amountLabel={vm.itemsPrintedTotalLabel}
+          label={vm.printedTotalLabel}
           note={vm.gapItemsVsSubtotalNote}
         />
+        <TotalsRow amountLabel={vm.receiptSubtotalLabel} label={subtotalLabel} />
         {vm.guidanceLines.map((line) => (
           <Typography key={line} variant="body2">
             {line}
