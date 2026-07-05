@@ -28,14 +28,20 @@ export type ReceiptTotalsViewModel = {
   bulkTaxLabel?: string;
 };
 
+function parseReviewItemAmountYen(amountYen: string): number | undefined {
+  if (amountYen.trim() === "") {
+    return undefined;
+  }
+  const parsed = Number(amountYen);
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function sumItemsPrintedTotal(reviewItems: ReviewItemValues[]): number {
   return reviewItems.reduce((sum, item) => {
     if (item.taxResolutionStatus === "resolved" && item.printedAmountYen != null) {
       return sum + item.printedAmountYen;
     }
-    const printed =
-      item.printedAmountYen ??
-      (Number.isFinite(Number(item.amountYen)) ? Number(item.amountYen) : 0);
+    const printed = item.printedAmountYen ?? parseReviewItemAmountYen(item.amountYen) ?? 0;
     return sum + printed;
   }, 0);
 }
@@ -45,7 +51,7 @@ function sumItemsNormalizedTotal(reviewItems: ReviewItemValues[]): number {
     if (item.taxResolutionStatus === "resolved" && item.normalizedAmountYen != null) {
       return sum + item.normalizedAmountYen;
     }
-    const fallback = Number.isFinite(Number(item.amountYen)) ? Number(item.amountYen) : 0;
+    const fallback = parseReviewItemAmountYen(item.amountYen) ?? 0;
     return sum + fallback;
   }, 0);
 }
@@ -58,6 +64,20 @@ function hasResolvedExternalTax(reviewItems: ReviewItemValues[]): boolean {
       item.normalizedAmountYen != null &&
       item.printedAmountYen != null &&
       item.normalizedAmountYen !== item.printedAmountYen,
+  );
+}
+
+function shouldShowPrintedAsTaxExcluded(
+  reviewItems: ReviewItemValues[],
+  taxSummaries?: AiExpenseDraft["taxSummaries"],
+): boolean {
+  if (hasResolvedExternalTax(reviewItems)) {
+    return true;
+  }
+  return (
+    taxSummaries?.some(
+      (summary) => summary.taxMode === "external" && summary.taxableAmountBasis === "tax_excluded",
+    ) ?? false
   );
 }
 
@@ -108,31 +128,32 @@ function buildGuidanceLines(args: {
     return lines;
   }
 
+  let unresolvedLine: string | undefined;
   if (args.unresolvedCount > 0) {
-    if (args.canBulkApplyTax) {
-      lines.push(
-        `${args.unresolvedCount}件の税率が未確定です。下の一括適用を試すか、金額を確認してください`,
-      );
-    } else {
-      lines.push(`${args.unresolvedCount}件の税率が未確定です。金額を確認してください`);
-    }
+    unresolvedLine = args.canBulkApplyTax
+      ? `${args.unresolvedCount}件の税率が未確定です。下の一括適用を試すか、金額を確認してください`
+      : `${args.unresolvedCount}件の税率が未確定です。金額を確認してください`;
   }
 
+  const otherLines: string[] = [];
   if (args.gapPaidVsItems !== undefined && args.gapPaidVsItems !== 0) {
     const abs = Math.abs(args.gapPaidVsItems).toLocaleString("ja-JP");
     if (args.gapPaidVsItems > 0) {
-      lines.push(`お支払いより${abs}円不足しています`);
+      otherLines.push(`お支払いより${abs}円不足しています`);
     } else {
-      lines.push(`お支払いより${abs}円超過しています`);
+      otherLines.push(`お支払いより${abs}円超過しています`);
     }
   }
 
   if (args.hasSubtotal && args.gapItemsVsSubtotal !== undefined && args.gapItemsVsSubtotal !== 0) {
     const abs = Math.abs(args.gapItemsVsSubtotal).toLocaleString("ja-JP");
-    lines.push(`印字合計とレシート小計が${abs}円ずれています。金額が怪しい行を確認してください`);
+    otherLines.push(
+      `印字合計とレシート小計が${abs}円ずれています。金額が怪しい行を確認してください`,
+    );
   }
 
-  return lines.slice(0, 2);
+  const maxOtherLines = unresolvedLine ? 1 : 2;
+  return [...(unresolvedLine ? [unresolvedLine] : []), ...otherLines.slice(0, maxOtherLines)];
 }
 
 export function toReceiptTotalsViewModel(args: {
@@ -145,7 +166,7 @@ export function toReceiptTotalsViewModel(args: {
 
   const itemsPrintedTotalYen = sumItemsPrintedTotal(reviewItems);
   const itemsNormalizedTotalYen = sumItemsNormalizedTotal(reviewItems);
-  const showPrintedAsTaxExcluded = hasResolvedExternalTax(reviewItems);
+  const showPrintedAsTaxExcluded = shouldShowPrintedAsTaxExcluded(reviewItems, taxSummaries);
   const { subtotalYen: receiptSubtotalYen, rateLabel: subtotalRateLabel } =
     resolveReceiptSubtotal(taxSummaries);
 

@@ -132,16 +132,10 @@ export function ReviewItemsEditor({
             const isTaxUpdating = taxUpdatingItemId === item.id;
             const showTaxRateSelect = taxContext.status === "unresolved";
             const isDetailExpanded = expandedDetailIds.has(item.id);
-            const isExternalTaxResolved =
-              taxContext.status === "resolved" &&
-              item.amountBasis === "tax_excluded" &&
-              item.normalizedAmountYen != null &&
-              item.printedAmountYen != null &&
-              item.normalizedAmountYen !== item.printedAmountYen;
             const showRegistrationAmount =
               taxContext.status === "resolved" &&
-              item.normalizedAmountYen != null &&
-              isExternalTaxResolved;
+              item.amountBasis === "tax_excluded" &&
+              item.normalizedAmountYen != null;
 
             return (
               <Box
@@ -216,7 +210,7 @@ export function ReviewItemsEditor({
                       helperText={
                         isDiscountItemName(item.itemName)
                           ? "割引額はマイナスで入力"
-                          : isExternalTaxResolved
+                          : item.amountBasis === "tax_excluded" && taxContext.status === "resolved"
                             ? "税抜の印字額です。登録は下の税込額を使います"
                             : undefined
                       }

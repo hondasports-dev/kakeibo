@@ -58,7 +58,11 @@ export function mapExtractionToDraftArgs(
       printedAmountYen: taxFields?.printedAmountYen ?? item.printedAmountYen,
       amountBasis: taxFields?.amountBasis ?? item.amountBasis,
       taxRatePercent:
-        taxFields !== undefined ? (taxFields.taxRatePercent ?? null) : item.taxRatePercent,
+        taxFields?.taxResolutionStatus === "unresolved"
+          ? null
+          : taxFields !== undefined
+            ? (taxFields.taxRatePercent ?? null)
+            : item.taxRatePercent,
       markers: normalized?.markers ?? item.markers,
       taxMarker: normalized?.taxMarker ?? item.taxMarker,
       allocatedTaxYen: taxFields?.allocatedTaxYen,

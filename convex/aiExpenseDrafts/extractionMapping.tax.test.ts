@@ -115,5 +115,6 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.reviewReasons).toContain("amount_mismatch");
     expect(mapped.reviewReasons).toContain("user_confirmation_required");
     expect(mapped.items?.[2]?.taxResolutionStatus).toBe("unresolved");
+    expect(mapped.items?.[2]?.taxRatePercent).toBeNull();
   });
 });
