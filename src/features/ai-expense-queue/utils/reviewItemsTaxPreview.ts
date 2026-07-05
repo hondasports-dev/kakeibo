@@ -1,6 +1,16 @@
 import { reinterpretDraftTax } from "../../../../lib/receiptTax/reinterpretDraftTax";
 import type { DraftItemTaxFields } from "../../../../lib/receiptTax/draftTaxMapping";
+import type { ExtractedTaxSummary } from "../../../../lib/receiptTax/types";
 import type { AiExpenseDraft, ReviewItemValues } from "../types/types";
+
+function toExtractedTaxSummaries(
+  taxSummaries: NonNullable<AiExpenseDraft["taxSummaries"]>,
+): ExtractedTaxSummary[] {
+  return taxSummaries.map((summary) => ({
+    ...summary,
+    confidence: {},
+  }));
+}
 
 function reviewItemToDraftFields(item: ReviewItemValues): DraftItemTaxFields {
   const printedAmountYen =
@@ -47,7 +57,7 @@ export function applyReviewItemsTaxPreview(
   const { itemFields } = reinterpretDraftTax({
     amountYen: paidTotalYen,
     items: items.map(reviewItemToDraftFields),
-    taxSummaries: args.taxSummaries,
+    taxSummaries: toExtractedTaxSummaries(args.taxSummaries),
     markerDefinitions: args.markerDefinitions,
   });
 
