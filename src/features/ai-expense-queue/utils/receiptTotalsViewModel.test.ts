@@ -40,6 +40,7 @@ describe("toReceiptTotalsViewModel", () => {
     });
 
     expect(vm.itemsPrintedTotalYen).toBe(7958);
+    expect(vm.itemsNormalizedTotalYen).toBe(7958);
     expect(vm.gapPaidVsItems).toBe(604);
     expect(vm.gapItemsVsSubtotal).toBe(30);
     expect(vm.status).toBe("mismatch");
@@ -79,6 +80,7 @@ describe("toReceiptTotalsViewModel", () => {
     });
 
     expect(vm.status).toBe("matched");
+    expect(vm.itemsNormalizedTotalYen).toBe(1060);
     expect(vm.guidanceLines).toEqual(["金額は一致しています"]);
     expect(vm.canBulkApplyTax).toBe(false);
   });
@@ -95,14 +97,14 @@ describe("toReceiptTotalsViewModel", () => {
     expect(vm.status).toBe("subtotalUnavailable");
   });
 
-  it("外税確定明細は印字金額だけを商品合計に使う", () => {
+  it("外税確定明細は登録合計でお支払いと照合し、印字合計で小計と照合する", () => {
     const vm = toReceiptTotalsViewModel({
       paidTotalYen: 108,
       reviewItems: [
         {
           id: "1",
           itemName: "商品",
-          amountYen: "108",
+          amountYen: "100",
           categoryId: "cat1",
           printedAmountYen: 100,
           normalizedAmountYen: 108,
@@ -126,9 +128,12 @@ describe("toReceiptTotalsViewModel", () => {
     });
 
     expect(vm.itemsPrintedTotalYen).toBe(100);
-    expect(vm.gapPaidVsItems).toBe(8);
+    expect(vm.itemsNormalizedTotalYen).toBe(108);
+    expect(vm.gapPaidVsItems).toBe(0);
     expect(vm.gapItemsVsSubtotal).toBe(0);
-    expect(vm.status).toBe("mismatch");
+    expect(vm.printedTotalLabel).toBe("印字合計（税抜）");
+    expect(vm.status).toBe("matched");
+    expect(vm.guidanceLines).toEqual(["金額は一致しています"]);
   });
 
   it("明細なしはパネル非表示", () => {
