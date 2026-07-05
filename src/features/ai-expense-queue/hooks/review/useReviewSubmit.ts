@@ -112,6 +112,9 @@ export function useReviewSubmit({
           amountYen,
           categoryId: reviewForm.categoryId as Id<"categories">,
           items: submittedItems.map((item) => ({
+            ...(item.persistedItemId
+              ? { itemId: item.persistedItemId as Id<"aiExpenseDraftItems"> }
+              : {}),
             itemName: item.itemName.trim(),
             amountYen: Number(item.amountYen),
             categoryId: item.categoryId as Id<"categories">,

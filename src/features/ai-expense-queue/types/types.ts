@@ -149,6 +149,7 @@ export type ReviewFormValues = {
 
 export type ReviewItemValues = AiExpenseItemTaxDetails & {
   id: string;
+  persistedItemId?: string;
   itemName: string;
   amountYen: string;
   categoryId: string;

@@ -209,6 +209,40 @@ describe("toReceiptTotalsViewModel", () => {
     expect(vm.printedTotalLabel).toBe("印字合計（税抜）");
   });
 
+  it("内税と外税が混在する場合は印字合計を税抜と表示しない", () => {
+    const external: ReviewItemValues = {
+      ...item(100, false),
+      normalizedAmountYen: 108,
+    };
+    const included: ReviewItemValues = {
+      ...item(110, false),
+      id: "included",
+      amountBasis: "tax_included",
+      taxRatePercent: 10,
+      normalizedAmountYen: 110,
+    };
+
+    const vm = toReceiptTotalsViewModel({
+      paidTotalYen: 218,
+      reviewItems: [external, included],
+    });
+
+    expect(vm.printedTotalLabel).toBe("印字合計");
+  });
+
+  it("外税と未確定が混在する場合は印字合計を税抜と表示しない", () => {
+    const external: ReviewItemValues = {
+      ...item(100, false),
+      normalizedAmountYen: 108,
+    };
+    const vm = toReceiptTotalsViewModel({
+      paidTotalYen: 208,
+      reviewItems: [external, item(100)],
+    });
+
+    expect(vm.printedTotalLabel).toBe("印字合計");
+  });
+
   it("明細なしはパネル非表示", () => {
     const vm = toReceiptTotalsViewModel({
       paidTotalYen: 1000,

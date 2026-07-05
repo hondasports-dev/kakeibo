@@ -930,6 +930,9 @@ describe("AiExpenseQueuePanel", () => {
         }),
       ],
     });
+    const submittedItems = updateForReviewMock.mock.calls.at(-1)?.[0].items;
+    expect(submittedItems[0]).toMatchObject({ itemId: "item-food" });
+    expect(submittedItems[1]).not.toHaveProperty("itemId");
   }, 10_000);
 
   it("割引明細は負数で編集し、対象カテゴリの正味額として保存できる", async () => {

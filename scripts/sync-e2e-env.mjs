@@ -43,24 +43,20 @@ function loadLocalEnv() {
 async function verifyCleanupAuth(env) {
   const siteUrl = env.get("VITE_CONVEX_SITE_URL");
   const secret = env.get("E2E_CLEANUP_SECRET");
-  const userId = env.get("E2E_CLERK_USER_ID");
-  const email = env.get("E2E_CLERK_USER_EMAIL");
 
-  if (!siteUrl || !secret || (!userId && !email)) {
+  if (!siteUrl || !secret) {
     console.warn(
-      "[e2e:env-sync] cleanup 検証をスキップ（VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_* が不足）",
+      "[e2e:env-sync] cleanup 検証をスキップ（VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET が不足）",
     );
     return;
   }
 
-  const body = userId ? { userId } : { email };
-  const res = await fetch(`${siteUrl}/e2e/cleanup`, {
+  const res = await fetch(`${siteUrl}/e2e/cleanup-auth-check`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-E2E-Cleanup-Secret": secret,
     },
-    body: JSON.stringify(body),
   });
 
   if (res.ok) {

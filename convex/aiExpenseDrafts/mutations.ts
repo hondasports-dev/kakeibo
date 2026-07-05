@@ -181,6 +181,7 @@ export const updateForReview = mutation({
     items: v.optional(
       v.array(
         v.object({
+          itemId: v.optional(v.id("aiExpenseDraftItems")),
           itemName: v.string(),
           amountYen: v.number(),
           categoryId: v.id("categories"),

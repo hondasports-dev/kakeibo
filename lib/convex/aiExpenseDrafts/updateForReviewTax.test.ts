@@ -4,6 +4,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import { updateForReviewHandler } from "../../../convex/aiExpenseDrafts/mutations";
 import { applyReceiptTaxSettingsHandler } from "./applyReceiptTaxSettings";
+import { replaceDraftItemsForReview } from "./reviewValidation";
 
 const GROUP_ID = "group-001" as Id<"groups">;
 const DRAFT_ID = "draft-tax" as Id<"aiExpenseDrafts">;
@@ -115,6 +116,126 @@ const externalTaxSummaries = [
 ];
 
 describe("updateForReviewHandler tax reinterpretation", () => {
+  it("削除・並べ替え・追加後も税情報を元の itemId にだけ引き継ぐ", async () => {
+    const { ctx, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+      },
+      items: [
+        {
+          _id: "item-a",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "削除する商品",
+          amountYen: 100,
+          printedAmountYen: 100,
+          categoryId: CAT_ID,
+          amountBasis: "tax_included",
+          taxRatePercent: 10,
+          taxResolutionStatus: "resolved",
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          _id: "item-b",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "残す商品",
+          amountYen: 200,
+          printedAmountYen: 200,
+          categoryId: CAT_ID,
+          amountBasis: "tax_excluded",
+          taxRatePercent: 8,
+          allocatedTaxYen: 16,
+          normalizedAmountYen: 216,
+          taxResolutionStatus: "resolved",
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+    });
+
+    await replaceDraftItemsForReview(
+      ctx,
+      DRAFT_ID,
+      GROUP_ID,
+      [
+        {
+          itemId: "item-b" as Id<"aiExpenseDraftItems">,
+          itemName: "残す商品",
+          amountYen: 200,
+          categoryId: CAT_ID,
+        },
+        {
+          itemName: "追加商品",
+          amountYen: 300,
+          categoryId: CAT_ID,
+        },
+      ] as Parameters<typeof replaceDraftItemsForReview>[3],
+      3,
+    );
+
+    const remaining = getItems().find((item) => item.itemName === "残す商品");
+    const added = getItems().find((item) => item.itemName === "追加商品");
+    expect(remaining).toMatchObject({
+      amountBasis: "tax_excluded",
+      taxRatePercent: 8,
+      allocatedTaxYen: 16,
+      normalizedAmountYen: 216,
+    });
+    expect(added?.amountBasis).toBeUndefined();
+    expect(added?.taxRatePercent).toBeUndefined();
+    expect(added?.allocatedTaxYen).toBeUndefined();
+  });
+
+  it.each([
+    {
+      name: "同じ itemId の重複",
+      itemIds: ["item-a", "item-a"],
+      message: "Draft item ID must not be duplicated",
+    },
+    {
+      name: "現在の下書きに存在しない itemId",
+      itemIds: ["item-a", "item-other"],
+      message: "Draft item does not belong to the current draft",
+    },
+  ])("$name を拒否する", async ({ itemIds, message }) => {
+    const { ctx } = createInMemoryMutationCtx({
+      draft: { _id: DRAFT_ID, groupId: GROUP_ID },
+      items: [
+        {
+          _id: "item-a",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "商品A",
+          amountYen: 100,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    await expect(
+      replaceDraftItemsForReview(
+        ctx,
+        DRAFT_ID,
+        GROUP_ID,
+        itemIds.map((itemId, index) => ({
+          itemId: itemId as Id<"aiExpenseDraftItems">,
+          itemName: `商品${index}`,
+          amountYen: 100,
+          categoryId: CAT_ID,
+        })),
+        2,
+      ),
+    ).rejects.toThrow(message);
+  });
+
   it("税サマリ付き下書きの明細更新後も税再解釈を実行し printedAmountYen を保持する", async () => {
     const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
       draft: {
@@ -394,7 +515,7 @@ describe("updateForReviewHandler tax reinterpretation", () => {
       items: [
         {
           itemName: "商品A",
-          amountYen: afterBulk!.printedAmountYen!,
+          amountYen: Number(afterBulk!.printedAmountYen),
           categoryId: CAT_ID,
           confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
         },
