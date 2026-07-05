@@ -40,6 +40,7 @@ pnpm exec convex dev --once
 a. **`.env.local` 同期**（E2E 直前毎回。worktree 作成直後も同手順）
 
 - 正本: `docs/development-process.md`「`.env.local` 同期」
+- **コマンド**: `pnpm run e2e:env-sync`（`pnpm run e2e` / `e2e:smoke` も先頭で実行）
 - 秘密値の扱いは `service-ops-safety` に従う
 
 b. **Playwright** — 未導入なら `pnpm exec playwright install chromium`
