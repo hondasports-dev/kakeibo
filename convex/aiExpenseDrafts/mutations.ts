@@ -1,4 +1,4 @@
-import { ConvexError, v } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
@@ -139,8 +139,8 @@ export async function updateDraftItemTaxOverridesMutationHandler(
   args: {
     draftId: Id<"aiExpenseDrafts">;
     itemId: Id<"aiExpenseDraftItems">;
-    taxRatePercent?: 0 | 8 | 10 | null;
-    amountBasis?: "tax_included" | "tax_excluded" | "unknown";
+    taxRatePercent?: Infer<typeof receiptItemTaxRatePercentValidator>;
+    amountBasis?: Infer<typeof amountBasisValidator>;
   },
 ) {
   const { groupId } = await requireGroupMembership(ctx);

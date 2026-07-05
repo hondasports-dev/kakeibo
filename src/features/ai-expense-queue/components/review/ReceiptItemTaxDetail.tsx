@@ -1,6 +1,6 @@
 import { Stack, Typography } from "@mui/material";
+import { useMemo } from "react";
 import type { ReviewItemValues } from "../../types/types";
-import { getAmountBasisLabel } from "../../utils/receiptTaxLabels";
 import {
   buildTaxContextFromReviewItem,
   toReceiptItemTaxViewModel,
@@ -16,6 +16,13 @@ export function ReceiptItemTaxDetail({
 }) {
   const vm = toReceiptItemTaxViewModel(item);
   const context = buildTaxContextFromReviewItem(item);
+  const markerDefinitionByMarker = useMemo(() => {
+    const map = new Map<string, { marker: string; description: string }>();
+    for (const entry of draft?.markerDefinitions ?? []) {
+      map.set(entry.marker, entry);
+    }
+    return map;
+  }, [draft?.markerDefinitions]);
 
   return (
     <Stack aria-label={`${vm.itemName || "明細"}の税詳細`} spacing={0.75}>
@@ -27,7 +34,7 @@ export function ReceiptItemTaxDetail({
         <Typography variant="body2">レシート記号 {vm.markerLabels.join(", ")}</Typography>
       )}
       {vm.markerLabels.map((marker) => {
-        const definition = draft?.markerDefinitions?.find((entry) => entry.marker === marker);
+        const definition = markerDefinitionByMarker.get(marker);
         if (!definition) {
           return null;
         }
@@ -43,7 +50,7 @@ export function ReceiptItemTaxDetail({
       </Typography>
       <Typography variant="body2">登録金額 {vm.normalizedAmountLabel}</Typography>
       <Typography variant="body2">税率 {vm.taxRateLabel}</Typography>
-      <Typography variant="body2">金額種別 {getAmountBasisLabel(context.amountBasis)}</Typography>
+      <Typography variant="body2">金額種別 {vm.amountBasisLabel}</Typography>
       <Typography variant="body2">按分税 {vm.allocatedTaxLabel}</Typography>
       <Typography variant="body2">
         判定状態 {context.status === "resolved" ? "解決済み" : "要確認"}

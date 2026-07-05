@@ -5,9 +5,13 @@ import { toReceiptItemTaxViewModel } from "../../utils/receiptItemTaxViewModel";
 export function ReceiptItemRow({
   item,
   onOpenDetail,
+  isDetailOpen,
+  detailPanelId,
 }: {
   item: ReviewItemValues;
   onOpenDetail?: () => void;
+  isDetailOpen?: boolean;
+  detailPanelId?: string;
 }) {
   const vm = toReceiptItemTaxViewModel(item);
 
@@ -40,6 +44,8 @@ export function ReceiptItemRow({
 
       {onOpenDetail && (
         <Button
+          aria-controls={detailPanelId}
+          aria-expanded={isDetailOpen ?? false}
           aria-label={`${vm.itemName || "明細"}の税詳細を表示`}
           onClick={onOpenDetail}
           size="small"
