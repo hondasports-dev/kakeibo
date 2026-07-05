@@ -109,8 +109,9 @@ gh run watch <run_id> --exit-status
    |--------------|------------------|------------------|
    | フォーマット違反 | `oxfmt`, `format` | `pnpm run format` → 再commit → 再push |
    | lint警告 | `oxlint`, `warning` | 修正 → `pnpm run lint` → 再commit |
-   | E2E 失敗（Playwright） | `Timeout`, `strict mode`, `FunctionNotFound` | ローカルで該当 spec を再実行 → `convex dev --once` 未反映なら実行 → 修正 → 再 push |
-   | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
+ | E2E 失敗（Playwright） | `Timeout`, `strict mode`, `FunctionNotFound` | ローカルで該当 spec を再実行 → `convex dev --once` 未反映なら実行 → 修正 → 再 push |
+ | E2E cleanup 401 | `E2E クリーンアップに失敗しました: 401`, `Unauthorized` | `DEV_E2E_CLEANUP_SECRET` と Convex dev の `E2E_CLEANUP_SECRET` を一致させる（`e2e.yml` の Sync ステップ / `docs/development-process.md` 参照）→ 再 push |
+ | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
 
 3. **修正後は必ず再検証してから再push**
    ```bash

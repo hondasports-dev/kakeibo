@@ -530,6 +530,10 @@ PR をマージします。
   503 を返す（本番誤操作防止）。dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
   **接続先 deployment** に対して実行する（秘密値はログに出さない）
+- ローカルで `convex env set E2E_CLEANUP_SECRET` したあと CI E2E が 401 になる場合、
+  `.env.local` の値が GitHub `DEV_E2E_CLEANUP_SECRET` とズレている。正本は GitHub Secret とし、
+  ローカル反映時も同じ値を使う。`e2e.yml` の「Sync E2E cleanup secret」ステップ（要 `DEV_CONVEX_DEPLOY_KEY`）で
+  CI 実行前に Convex dev へ自動同期できる
 
 詳細は `docs/environment-variables.md` の `E2E_CLEANUP_SECRET` を参照。
 
