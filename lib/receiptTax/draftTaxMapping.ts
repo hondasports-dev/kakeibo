@@ -72,6 +72,17 @@ export function interpretedItemToDraftFields(item: InterpretedReceiptItem) {
   };
 }
 
+export function isTaxInterpretationWarning(warning: string): boolean {
+  return (
+    warning.startsWith("unresolved_") ||
+    warning.startsWith("missing_tax_items:") ||
+    warning === "normalized_amount_mismatch" ||
+    warning.startsWith("taxable_amount_mismatch:") ||
+    warning.startsWith("duplicate_tax_summary:") ||
+    warning.startsWith("conflicting_tax_summary:")
+  );
+}
+
 export function deriveTaxReviewReasons(
   interpretation: ReceiptTaxInterpretation | undefined,
 ): AiExpenseDraftReviewReason[] {

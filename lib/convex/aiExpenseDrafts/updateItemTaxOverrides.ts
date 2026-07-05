@@ -6,7 +6,10 @@ import {
   classifyAiExpenseDraft,
   type AiExpenseDraftReviewReason,
 } from "../../../convex/aiExpenseDrafts/model";
-import { deriveTaxReviewReasons } from "../../receiptTax/draftTaxMapping";
+import {
+  deriveTaxReviewReasons,
+  isTaxInterpretationWarning,
+} from "../../receiptTax/draftTaxMapping";
 import { reinterpretDraftTax } from "../../receiptTax/reinterpretDraftTax";
 import type { AmountBasis } from "../../receiptTax/types";
 import type { ReceiptItemTaxRatePercent } from "../receiptImageExtraction/types";
@@ -134,13 +137,7 @@ export async function updateDraftItemTaxOverridesHandler(
   }
 
   const nonInterpretationWarnings = (draft.warnings ?? []).filter(
-    (warning) =>
-      !warning.startsWith("unresolved_") &&
-      !warning.startsWith("missing_tax_items:") &&
-      warning !== "normalized_amount_mismatch" &&
-      !warning.startsWith("taxable_amount_mismatch:") &&
-      !warning.startsWith("duplicate_tax_summary:") &&
-      !warning.startsWith("conflicting_tax_summary:"),
+    (warning) => !isTaxInterpretationWarning(warning),
   );
 
   await ctx.db.patch(args.draftId, {

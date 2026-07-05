@@ -1,6 +1,5 @@
 import { Alert, Box, Stack, Typography } from "@mui/material";
 import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
-import { buildTaxContextFromReviewItem } from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
 import { ReceiptItemRow } from "./ReceiptItemRow";
 import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
@@ -23,7 +22,6 @@ export function ReviewItemsReadOnly({
       {reviewItems.map((item) => {
         const categoryName =
           categories.find((category) => category._id === item.categoryId)?.name ?? "未分類";
-        const context = buildTaxContextFromReviewItem(item);
         const isDetailOpen = expandedItemId === item.id;
 
         return (
@@ -45,11 +43,6 @@ export function ReviewItemsReadOnly({
             <Typography color="text.secondary" sx={{ mt: 0.25 }} variant="caption">
               カテゴリ: {categoryName}
             </Typography>
-            {context.status === "unresolved" && (
-              <Typography color="warning.main" sx={{ mt: 0.25 }} variant="caption">
-                税率を確認してください
-              </Typography>
-            )}
             {isDetailOpen && (
               <Box id={`receipt-item-tax-detail-${item.id}`} sx={{ mt: 1 }}>
                 <ReceiptItemTaxDetail draft={draft} item={item} />

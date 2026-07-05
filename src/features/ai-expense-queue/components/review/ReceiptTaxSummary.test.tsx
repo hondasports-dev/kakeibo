@@ -39,4 +39,30 @@ describe("ReceiptTaxSummary", () => {
     expect(screen.getByText("8% 外税")).toBeInTheDocument();
     expect(screen.getByText("10% 内税")).toBeInTheDocument();
   });
+
+  it("renders tax summary warnings", () => {
+    render(
+      <ReceiptTaxSummary
+        draft={{
+          _id: "draft-1",
+          status: "needs_review",
+          documentType: "receipt",
+          reviewReasons: [],
+          taxSummaries: [
+            {
+              taxRatePercent: 8,
+              taxMode: "external",
+              taxableAmountYen: 139,
+              taxableAmountBasis: "tax_excluded",
+              taxYen: 11,
+              roundingMethod: "unknown",
+              warnings: ["rounding_method_unknown"],
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByText("税情報を確認してください。")).toBeInTheDocument();
+  });
 });

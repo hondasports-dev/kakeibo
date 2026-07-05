@@ -2,6 +2,7 @@ import { Stack, Typography } from "@mui/material";
 import type { AiExpenseDraft } from "../../types/types";
 import { formatYenLabel, getAmountBasisLabel } from "../../utils/receiptTaxLabels";
 import { getTaxModeLabel } from "../../utils/receiptItemTaxViewModel";
+import { formatTaxWarnings } from "../../utils/taxWarnings";
 
 export function ReceiptTaxSummary({ draft }: { draft: AiExpenseDraft | null }) {
   const summaries = draft?.taxSummaries ?? [];
@@ -38,6 +39,11 @@ export function ReceiptTaxSummary({ draft }: { draft: AiExpenseDraft | null }) {
           {summary.taxIncludedAmountYen !== undefined && (
             <Typography color="text.secondary" variant="body2">
               税込合計 {formatYenLabel(summary.taxIncludedAmountYen)}
+            </Typography>
+          )}
+          {summary.warnings.length > 0 && (
+            <Typography color="warning.main" variant="body2">
+              {formatTaxWarnings(summary.warnings)}
             </Typography>
           )}
         </Stack>
