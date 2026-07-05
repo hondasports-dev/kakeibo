@@ -193,7 +193,7 @@ export function resolveTaxContext(args: {
       isExternalSummary &&
       args.amountYen > printedTotal &&
       impliedTaxYen > 0 &&
-      impliedTaxYen <= summary.taxYen + PAID_TOTAL_IMPLIED_TAX_TOLERANCE_YEN
+      Math.abs(impliedTaxYen - summary.taxYen) <= PAID_TOTAL_IMPLIED_TAX_TOLERANCE_YEN
     ) {
       const context = resolved(summary, "paid_total_reconciliation");
       if (context) {

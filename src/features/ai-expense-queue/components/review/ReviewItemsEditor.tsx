@@ -14,7 +14,6 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import type { AmountBasis } from "../../../../../lib/receiptTax/types";
 import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { isLowConfidenceItem } from "../../utils/reviewDialogUtils";
@@ -30,7 +29,6 @@ export function ReviewItemsEditor({
   categories,
   selectedReviewDraft,
   reviewItems,
-  taxSummaries,
   taxUpdatingItemId,
   onAddItem,
   onItemChange,
@@ -40,13 +38,11 @@ export function ReviewItemsEditor({
   onAssignCategoryToItems,
   onDiscountTargetChange,
   onTaxRateChange,
-  onAmountBasisChange: _onAmountBasisChange,
 }: {
   categories: AiExpenseQueueCategory[];
   selectedReviewDraft: AiExpenseDraft | null;
   reviewItems: ReviewItemValues[];
   receiptAmount: number;
-  taxSummaries?: AiExpenseDraft["taxSummaries"];
   taxUpdatingItemId?: string | null;
   onAddItem: () => void;
   onItemChange: (
@@ -60,7 +56,6 @@ export function ReviewItemsEditor({
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
-  onAmountBasisChange?: (itemId: string, amountBasis: AmountBasis) => void;
 }) {
   const [expandedDetailIds, setExpandedDetailIds] = useState<Set<string>>(new Set());
   const productItems = useMemo(
@@ -71,7 +66,6 @@ export function ReviewItemsEditor({
     () => new Map(categories.map((category) => [category._id, category.name])),
     [categories],
   );
-  const isMixedTaxSummaries = (taxSummaries?.length ?? 0) > 1;
 
   const toggleDetail = (itemId: string) => {
     setExpandedDetailIds((current) => {
@@ -136,7 +130,7 @@ export function ReviewItemsEditor({
             const taxContext = buildTaxContextFromReviewItem(item);
             const taxVm = toReceiptItemTaxViewModel(item);
             const isTaxUpdating = taxUpdatingItemId === item.id;
-            const showMixedRateSelect = isMixedTaxSummaries && taxContext.status === "unresolved";
+            const showTaxRateSelect = taxContext.status === "unresolved";
             const isDetailExpanded = expandedDetailIds.has(item.id);
 
             return (
@@ -232,7 +226,7 @@ export function ReviewItemsEditor({
                   </Button>
                   <Collapse in={isDetailExpanded}>
                     <Stack spacing={1} sx={{ pt: 0.5 }}>
-                      {showMixedRateSelect && (
+                      {showTaxRateSelect && (
                         <TaxRateSelect
                           disabled={isTaxUpdating}
                           onChange={(value) => onTaxRateChange?.(item.id, value)}

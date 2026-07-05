@@ -19,8 +19,10 @@ function allocateTax(taxYen: number, taxableAmountYen: number, amounts: number[]
   return shares.map((share) => share.base);
 }
 
-function hasTaxIncludedResolvedItem(result: InterpretedReceiptItem[], indexes: number[]) {
-  return indexes.some((index) => result[index].amountBasis === "tax_included");
+function hasTaxIncludedResolvedItem(result: InterpretedReceiptItem[]) {
+  return result.some(
+    (item) => item.taxContext.status === "resolved" && item.amountBasis === "tax_included",
+  );
 }
 
 export function normalizeAmounts(args: {
@@ -76,7 +78,7 @@ export function normalizeAmounts(args: {
       !allocated &&
       args.taxSummaries.length === 1 &&
       amountBasis === "tax_excluded" &&
-      !hasTaxIncludedResolvedItem(result, indexes)
+      !hasTaxIncludedResolvedItem(result)
     ) {
       const allPrintedTotal = result.reduce((sum, item) => sum + item.printedAmountYen, 0);
       const impliedTaxYen = args.amountYen - allPrintedTotal;

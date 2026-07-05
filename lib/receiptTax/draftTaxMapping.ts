@@ -86,10 +86,11 @@ export function isTaxInterpretationWarning(warning: string): boolean {
 export function deriveTaxReviewReasons(
   interpretation: ReceiptTaxInterpretation | undefined,
 ): AiExpenseDraftReviewReason[] {
-  const hasUnresolvedTax = interpretation?.warnings.some(
+  const taxWarnings = (interpretation?.warnings ?? []).filter(isTaxInterpretationWarning);
+  const hasUnresolvedTax = taxWarnings.some(
     (warning) => warning.startsWith("unresolved_") || warning.startsWith("missing_tax_items:"),
   );
-  const hasTaxMismatch = interpretation?.warnings.some(
+  const hasTaxMismatch = taxWarnings.some(
     (warning) =>
       warning === "normalized_amount_mismatch" ||
       warning.startsWith("taxable_amount_mismatch:") ||

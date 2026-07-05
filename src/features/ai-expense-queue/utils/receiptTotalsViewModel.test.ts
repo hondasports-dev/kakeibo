@@ -43,8 +43,8 @@ describe("toReceiptTotalsViewModel", () => {
     expect(vm.gapPaidVsItems).toBe(604);
     expect(vm.gapItemsVsSubtotal).toBe(30);
     expect(vm.status).toBe("mismatch");
-    expect(vm.guidanceLines[0]).toBe("お支払いより604円不足しています");
-    expect(vm.guidanceLines[1]).toContain("30円ずれ");
+    expect(vm.guidanceLines[0]).toContain("件の税率が未確定");
+    expect(vm.guidanceLines[1]).toBe("お支払いより604円不足しています");
     expect(vm.canBulkApplyTax).toBe(true);
     expect(vm.bulkTaxLabel).toBe("このレシートは「8%・外税」と読み取りました");
   });

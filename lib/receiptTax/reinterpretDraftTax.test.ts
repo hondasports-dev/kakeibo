@@ -154,4 +154,50 @@ describe("reinterpretDraftTax", () => {
       result.itemFields.reduce((sum, field) => sum + (field.normalizedAmountYen ?? 0), 0),
     ).toBe(8562);
   });
+
+  it("bulkUnresolvedOverride は部分上書き済みの税率を維持する", () => {
+    const items = [
+      {
+        itemName: "A",
+        printedAmountYen: 500,
+        amountBasis: "unknown" as const,
+        taxRatePercent: 8 as const,
+        markers: [] as string[],
+        warnings: [] as string[],
+      },
+      {
+        itemName: "B",
+        printedAmountYen: 500,
+        amountBasis: "unknown" as const,
+        taxRatePercent: null,
+        markers: [] as string[],
+        warnings: [] as string[],
+      },
+    ];
+
+    const result = reinterpretDraftTax({
+      amountYen: 1000,
+      items,
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "included",
+          taxableAmountYen: 1000,
+          taxableAmountBasis: "tax_included",
+          taxYen: 74,
+          roundingMethod: "unknown",
+          confidence: {},
+          warnings: [],
+        },
+      ],
+      bulkUnresolvedOverride: {
+        taxRatePercent: 10,
+        amountBasis: "tax_included",
+      },
+    });
+
+    expect(result.itemFields[0]?.taxRatePercent).toBe(8);
+    expect(result.itemFields[1]?.taxRatePercent).toBe(10);
+    expect(result.itemFields[1]?.amountBasis).toBe("tax_included");
+  });
 });
