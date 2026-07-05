@@ -125,7 +125,7 @@ export async function persistDraftTaxInterpretation(
       continue;
     }
     await ctx.db.patch(item._id, {
-      printedAmountYen: fields.printedAmountYen ?? item.printedAmountYen ?? item.amountYen,
+      printedAmountYen: item.printedAmountYen ?? fields.printedAmountYen ?? item.amountYen,
       amountYen: fields.normalizedAmountYen ?? item.amountYen,
       amountBasis: fields.amountBasis,
       taxRatePercent: fields.taxRatePercent,

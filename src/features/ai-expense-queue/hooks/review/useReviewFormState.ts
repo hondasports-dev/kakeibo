@@ -109,6 +109,29 @@ export function useReviewFormState({
             discountTargetItemId: undefined,
           };
         }
+        if (field === "amountYen") {
+          const amountNum = Number(value);
+          if (!Number.isFinite(amountNum)) {
+            return { ...item, amountYen: value };
+          }
+          if (item.taxResolutionStatus === "resolved" && item.amountBasis === "tax_included") {
+            return {
+              ...item,
+              amountYen: value,
+              printedAmountYen: amountNum,
+              normalizedAmountYen: amountNum,
+            };
+          }
+          return {
+            ...item,
+            amountYen: value,
+            printedAmountYen: amountNum,
+            normalizedAmountYen:
+              item.taxResolutionStatus === "resolved" && item.amountBasis === "tax_excluded"
+                ? undefined
+                : item.normalizedAmountYen,
+          };
+        }
         if (field !== "itemName") {
           return { ...item, [field]: value };
         }

@@ -95,6 +95,42 @@ describe("toReceiptTotalsViewModel", () => {
     expect(vm.status).toBe("subtotalUnavailable");
   });
 
+  it("外税確定明細は印字金額だけを商品合計に使う", () => {
+    const vm = toReceiptTotalsViewModel({
+      paidTotalYen: 108,
+      reviewItems: [
+        {
+          id: "1",
+          itemName: "商品",
+          amountYen: "108",
+          categoryId: "cat1",
+          printedAmountYen: 100,
+          normalizedAmountYen: 108,
+          taxResolutionStatus: "resolved",
+          taxRatePercent: 8,
+          amountBasis: "tax_excluded",
+          taxResolutionSource: "single_summary",
+        },
+      ],
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 100,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 8,
+          roundingMethod: "unknown",
+          warnings: [],
+        },
+      ],
+    });
+
+    expect(vm.itemsPrintedTotalYen).toBe(100);
+    expect(vm.gapPaidVsItems).toBe(8);
+    expect(vm.gapItemsVsSubtotal).toBe(0);
+    expect(vm.status).toBe("mismatch");
+  });
+
   it("明細なしはパネル非表示", () => {
     const vm = toReceiptTotalsViewModel({
       paidTotalYen: 1000,

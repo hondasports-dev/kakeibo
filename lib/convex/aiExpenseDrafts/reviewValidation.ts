@@ -232,6 +232,57 @@ export function aggregateDraftItemsByCategory(
   }));
 }
 
+type ReviewReplacePreviousItem = Pick<
+  Doc<"aiExpenseDraftItems">,
+  "amountYen" | "printedAmountYen" | "normalizedAmountYen" | "taxResolutionStatus" | "amountBasis"
+>;
+
+export function resolveReviewItemAmountsForReplace(
+  submittedAmountYen: number,
+  previous: ReviewReplacePreviousItem | undefined,
+): {
+  amountYen: number;
+  printedAmountYen: number;
+  normalizedAmountYen?: number;
+} {
+  if (previous?.taxResolutionStatus === "resolved" && previous.printedAmountYen !== undefined) {
+    if (previous.amountBasis === "tax_included") {
+      const previousDisplay = previous.normalizedAmountYen ?? previous.amountYen;
+      if (submittedAmountYen === previousDisplay) {
+        return {
+          amountYen: previousDisplay,
+          printedAmountYen: previous.printedAmountYen,
+          normalizedAmountYen: previous.normalizedAmountYen ?? previousDisplay,
+        };
+      }
+      return {
+        amountYen: submittedAmountYen,
+        printedAmountYen: submittedAmountYen,
+        normalizedAmountYen: submittedAmountYen,
+      };
+    }
+
+    const previousPrinted = previous.printedAmountYen;
+    if (submittedAmountYen === previousPrinted) {
+      return {
+        amountYen: previous.normalizedAmountYen ?? submittedAmountYen,
+        printedAmountYen: previousPrinted,
+        normalizedAmountYen: previous.normalizedAmountYen,
+      };
+    }
+    return {
+      amountYen: submittedAmountYen,
+      printedAmountYen: submittedAmountYen,
+      normalizedAmountYen: undefined,
+    };
+  }
+
+  return {
+    amountYen: submittedAmountYen,
+    printedAmountYen: submittedAmountYen,
+  };
+}
+
 export async function replaceDraftItemsForReview(
   ctx: Pick<MutationCtx, "db">,
   draftId: Id<"aiExpenseDrafts">,
@@ -257,19 +308,23 @@ export async function replaceDraftItemsForReview(
     }
     await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
     const previous = existingItems[index];
+    const amounts = resolveReviewItemAmountsForReplace(item.amountYen, previous);
     await ctx.db.insert("aiExpenseDraftItems", {
       groupId,
       draftId,
       itemName,
-      amountYen: item.amountYen,
-      printedAmountYen: item.amountYen,
+      amountYen: amounts.amountYen,
+      printedAmountYen: amounts.printedAmountYen,
       categoryId: item.categoryId,
       amountBasis: previous?.amountBasis,
       taxRatePercent: previous?.taxRatePercent,
       markers: previous?.markers,
       taxMarker: previous?.taxMarker,
       allocatedTaxYen: previous?.allocatedTaxYen,
-      normalizedAmountYen: previous?.normalizedAmountYen,
+      normalizedAmountYen:
+        "normalizedAmountYen" in amounts
+          ? amounts.normalizedAmountYen
+          : previous?.normalizedAmountYen,
       taxResolutionStatus: previous?.taxResolutionStatus,
       taxResolutionSource: previous?.taxResolutionSource,
       taxReviewReasons: previous?.taxReviewReasons,
