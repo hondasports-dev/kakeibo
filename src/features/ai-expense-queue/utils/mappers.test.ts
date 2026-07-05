@@ -63,12 +63,12 @@ describe("mapDraftToQueueItem", () => {
 });
 
 describe("mapDraftItemsToReviewItems", () => {
-  it("normalizedAmountYenを編集用金額にし、印字額と税情報を保持する", () => {
+  it("外税確定の明細は印字金額を編集用金額にする", () => {
     const [item] = mapDraftItemsToReviewItems([
       {
         _id: "item-1",
         itemName: "たまご",
-        amountYen: 298,
+        amountYen: 322,
         printedAmountYen: 298,
         amountBasis: "tax_excluded",
         taxRatePercent: 8,
@@ -80,12 +80,31 @@ describe("mapDraftItemsToReviewItems", () => {
     ]);
 
     expect(item).toMatchObject({
-      amountYen: "322",
+      amountYen: "298",
       printedAmountYen: 298,
       amountBasis: "tax_excluded",
       taxRatePercent: 8,
       allocatedTaxYen: 24,
+      normalizedAmountYen: 322,
     });
+  });
+
+  it("内税確定の明細は登録用金額を編集用金額にする", () => {
+    const [item] = mapDraftItemsToReviewItems([
+      {
+        _id: "item-1",
+        itemName: "パン",
+        amountYen: 108,
+        printedAmountYen: 108,
+        amountBasis: "tax_included",
+        taxRatePercent: 8,
+        normalizedAmountYen: 108,
+        taxResolutionStatus: "resolved",
+        categoryId: "cat-food",
+      },
+    ]);
+
+    expect(item.amountYen).toBe("108");
   });
 
   it("税未確定の明細は印字金額を編集用金額にする", () => {

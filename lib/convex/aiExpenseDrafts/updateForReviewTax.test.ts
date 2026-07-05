@@ -344,4 +344,65 @@ describe("updateForReviewHandler tax reinterpretation", () => {
     expect(items[0]?.printedAmountYen).toBe(99);
     expect(items[0]?.taxResolutionStatus).toBe("resolved");
   });
+
+  it("外税一括適用後に印字金額を変えず保存すると ready になり得る", async () => {
+    const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        shopName: "テスト店",
+        date: "2026-07-04",
+        amountYen: 108,
+        categoryId: CAT_ID,
+        confidence: { shopName: 1, date: 1, amountYen: 1, categoryId: 1 },
+        warnings: [],
+        reviewReasons: ["user_confirmation_required"],
+        taxSummaries: externalTaxSummaries,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [
+        {
+          _id: "item-1",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "商品A",
+          amountYen: 100,
+          printedAmountYen: 100,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    await applyReceiptTaxSettingsHandler(ctx, { draftId: DRAFT_ID }, GROUP_ID);
+    const afterBulk = getItems()[0];
+    expect(afterBulk?.taxResolutionStatus).toBe("resolved");
+    expect(afterBulk?.printedAmountYen).toBe(100);
+
+    const result = await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-07-04",
+      amountYen: 108,
+      categoryId: CAT_ID,
+      items: [
+        {
+          itemName: "商品A",
+          amountYen: afterBulk!.printedAmountYen!,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+        },
+      ],
+    });
+
+    expect(result.status).toBe("ready");
+    expect(getItems()[0]?.printedAmountYen).toBe(100);
+    expect(getDraft().reviewReasons).not.toContain("amount_mismatch");
+  });
 });

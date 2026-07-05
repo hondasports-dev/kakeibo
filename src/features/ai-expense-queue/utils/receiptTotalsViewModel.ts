@@ -27,6 +27,9 @@ export type ReceiptTotalsViewModel = {
 
 function sumItemsPrintedTotal(reviewItems: ReviewItemValues[]): number {
   return reviewItems.reduce((sum, item) => {
+    if (item.taxResolutionStatus === "resolved" && item.printedAmountYen != null) {
+      return sum + item.printedAmountYen;
+    }
     const printed =
       item.printedAmountYen ??
       (Number.isFinite(Number(item.amountYen)) ? Number(item.amountYen) : 0);

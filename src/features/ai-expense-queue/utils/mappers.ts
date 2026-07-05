@@ -107,7 +107,9 @@ export function mapDraftItemsToReviewItems(
 ): ReviewItemValues[] {
   return items.map((item, index) => {
     const displayAmountYen =
-      item.taxResolutionStatus === "resolved" && item.normalizedAmountYen != null
+      item.taxResolutionStatus === "resolved" &&
+      item.amountBasis === "tax_included" &&
+      item.normalizedAmountYen != null
         ? item.normalizedAmountYen
         : (item.printedAmountYen ?? item.normalizedAmountYen ?? item.amountYen);
 
