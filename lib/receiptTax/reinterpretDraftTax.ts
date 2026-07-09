@@ -23,6 +23,11 @@ export type BulkUnresolvedTaxOverride = {
   amountBasis: AmountBasis;
 };
 
+export type DraftSummaryOverride = {
+  index: number;
+  summary: Partial<ExtractedTaxSummary>;
+};
+
 export type ReinterpretDraftTaxInput = {
   amountYen: number;
   items: DraftItemTaxFields[];
@@ -30,6 +35,7 @@ export type ReinterpretDraftTaxInput = {
   markerDefinitions?: ReceiptMarkerDefinition[];
   override?: DraftTaxOverride;
   bulkUnresolvedOverride?: BulkUnresolvedTaxOverride;
+  summaryOverride?: DraftSummaryOverride;
 };
 
 export type ReinterpretDraftTaxResult = {
@@ -51,6 +57,13 @@ function shouldApplyBulkOverride(
 }
 
 export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): ReinterpretDraftTaxResult {
+  const taxSummaries = input.taxSummaries.map((summary, index) => {
+    if (input.summaryOverride?.index === index) {
+      return { ...summary, ...input.summaryOverride.summary };
+    }
+    return summary;
+  });
+
   const items = input.items.map((item, index) => {
     const extracted = draftItemToExtractedReceiptItem(item);
     if (input.override?.itemIndex === index) {
@@ -80,7 +93,7 @@ export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): Reinterpre
   const interpretation = interpretReceiptTax({
     amountYen: input.amountYen,
     items,
-    taxSummaries: input.taxSummaries,
+    taxSummaries,
     markerDefinitions: input.markerDefinitions,
   });
 

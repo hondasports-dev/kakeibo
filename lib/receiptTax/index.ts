@@ -8,6 +8,11 @@ export {
   taxContextToDraftFields,
 } from "./draftTaxMapping";
 export { reinterpretDraftTax } from "./reinterpretDraftTax";
+export {
+  normalizeTaxSummary,
+  reconcileTaxSummary,
+  validateTaxSummaryConsistency,
+} from "./taxSummaryConsistency";
 export type { DraftItemTaxFields } from "./draftTaxMapping";
 export type { DraftTaxOverride, ReinterpretDraftTaxInput } from "./reinterpretDraftTax";
 export type {
@@ -21,4 +26,7 @@ export type {
   TaxContextResolution,
   TaxRatePercent,
   TaxResolutionSource,
+  TaxSummaryConsistency,
+  TaxSummaryConsistencyReason,
+  TaxSummaryConsistencyStatus,
 } from "./types";

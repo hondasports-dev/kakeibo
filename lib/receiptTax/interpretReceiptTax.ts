@@ -3,7 +3,7 @@ import { normalizeAmounts } from "./normalizeAmounts";
 import { normalizeTaxSummaries } from "./normalizeTaxSummaries";
 import { reconcileTaxSummaries } from "./reconcileTaxSummaries";
 import { resolveTaxContext } from "./resolveTaxContext";
-import type { ReceiptTaxInput, ReceiptTaxInterpretation } from "./types";
+import type { ExtractedTaxSummary, ReceiptTaxInput, ReceiptTaxInterpretation } from "./types";
 import { validateConsistency } from "./validateConsistency";
 
 export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpretation {
@@ -15,34 +15,42 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
     })),
   };
   const reconciliation = reconcileTaxSummaries(normalizedInput);
-  const normalizedSummaries = normalizeTaxSummaries({
+  const normalizedAllSummaries = normalizeTaxSummaries({
+    amountYen: input.amountYen,
+    taxSummaries: reconciliation.taxSummaries,
+  });
+  const normalizedResolvableSummaries = normalizeTaxSummaries({
     amountYen: input.amountYen,
     taxSummaries: reconciliation.resolvableTaxSummaries,
   });
+  const processableSummaries = normalizedResolvableSummaries.filter(
+    (summary): summary is ExtractedTaxSummary & { status: "coherent" | "reconcilable" } =>
+      summary.status !== "conflicting",
+  );
   const evidence = collectTaxEvidence({
     ...normalizedInput,
-    taxSummaries: normalizedSummaries,
+    taxSummaries: processableSummaries,
   });
   const contexts = resolveTaxContext({
     amountYen: input.amountYen,
     items: normalizedInput.items,
-    taxSummaries: normalizedSummaries,
+    taxSummaries: processableSummaries,
     evidence,
   });
   const items = normalizeAmounts({
     amountYen: input.amountYen,
     items: normalizedInput.items,
     contexts,
-    taxSummaries: normalizedSummaries,
+    taxSummaries: processableSummaries,
   });
   const validationWarnings = validateConsistency({
     amountYen: input.amountYen,
     items,
-    taxSummaries: normalizedSummaries,
+    taxSummaries: processableSummaries,
   });
   return {
     items,
-    taxSummaries: normalizedSummaries,
+    taxSummaries: normalizedAllSummaries,
     warnings: [
       ...new Set([
         ...reconciliation.duplicateWarnings,
