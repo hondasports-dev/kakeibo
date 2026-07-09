@@ -51,10 +51,15 @@ git log --oneline origin/preview..HEAD
    - フロント（`src/**`）: `frontend-review-checklist.md`
    - バックエンド（`convex/**`）: `backend-review-checklist.md` + `convex/_generated/ai/guidelines.md`
    - 共通: `security-checklist.md`
-3. **専門 Skill（差分がある場合のみ追加）**
-   - `convex/**` → `convex-performance-audit`
-   - `src/**` React → `vercel-react-best-practices`
-   - UI/UX → `web-design-guidelines`
+3. **専門 Skill / テストケース判定レビュー（対象ファイルがあれば必須）**
+   - `convex/**` → `convex-performance-audit`（必須）
+   - `src/**` React → `vercel-react-best-practices`（必須）
+   - UI/UX コンポーネント → `web-design-guidelines`
+   - 外部コンテンツを参照・引用・実行する PR → `prompt-injection-guard`（Web 検索、GitHub Issue/PR コメント、MCP ログ/レスポンス等）
+   - secret / 環境変数 / 外部サービス操作に関わる変更 → `service-ops-safety`
+   - 認証 / Clerk 関連 → `virtual-company`（Reviewer ロール）
+   - テストケース判定レビュー — 変更に対応する `.test.{ts,tsx}`、`convex/**/*.test.ts`、`e2e/*.spec.ts` がある場合は `test-case-review-checklist.md` を読む
+   - 各専門スキル/チェックリストの結果は `review-template.md` の「専門スキルレビュー結果」「テストケース判定レビュー」にまとめる
 4. **正しさ** — 正常系・異常系・境界値、エラーハンドリング。
 5. **セキュリティ／プライバシー** — 機密情報、注入、XSS、認可。
 6. **保守性** — 責務分離、命名、重複、将来の拡張。
@@ -87,6 +92,7 @@ diff 内かどうかの判断に「本筋外」などの主観語を使わない
 - diff 内ファイルに関する Nice-to-have が **すべて修正済み**
 - diff 外のみの Nice-to-have は **すべてフォローアップ Issue リンク済み**（該当なしなら省略可）
 - 各観点（正しさ、セキュリティ、保守性、テスト、副作用）で「問題なし」または残リスクを明記
+- 専門スキル・テストケース判定レビューで追加された Must-fix / Nice-to-have も 0 件または対応済み
 - `review-template.md` を出力済み
 - **ループ上限**: Must-fix / Nice-to-have の修正対応を合算して **3 回**。超えたら **ESCALATE**（ユーザー確認）
 
@@ -96,3 +102,4 @@ diff 内かどうかの判断に「本筋外」などの主観語を使わない
 - `frontend-review-checklist.md`
 - `backend-review-checklist.md`
 - `security-checklist.md`
+- `test-case-review-checklist.md` — テストケース判定レビュー
