@@ -127,6 +127,20 @@ describe("updateSummaryTaxOverridesHandler", () => {
     expect(result.items[0].taxResolutionStatus).toBe("resolved");
   });
 
+  it("少なくとも1つの override フィールドが必要", async () => {
+    const { ctx } = createCtx();
+    await expect(
+      updateSummaryTaxOverridesHandler(
+        ctx,
+        {
+          draftId: DRAFT_ID,
+          summaryIndex: 0,
+        },
+        GROUP_ID,
+      ),
+    ).rejects.toThrow("At least one tax override field");
+  });
+
   it("summaryIndex が範囲外の場合はエラー", async () => {
     const { ctx } = createCtx();
     await expect(

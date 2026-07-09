@@ -18,10 +18,12 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
   const normalizedAllSummaries = normalizeTaxSummaries({
     amountYen: input.amountYen,
     taxSummaries: reconciliation.taxSummaries,
+    resolvableTaxSummaries: reconciliation.resolvableTaxSummaries,
   });
   const normalizedResolvableSummaries = normalizeTaxSummaries({
     amountYen: input.amountYen,
     taxSummaries: reconciliation.resolvableTaxSummaries,
+    resolvableTaxSummaries: reconciliation.resolvableTaxSummaries,
   });
   const processableSummaries = normalizedResolvableSummaries.filter(
     (summary): summary is ExtractedTaxSummary & { status: "coherent" | "reconcilable" } =>

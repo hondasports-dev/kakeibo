@@ -73,6 +73,10 @@ export async function updateSummaryTaxOverridesHandler(
   if (args.taxIncludedAmountYen !== undefined)
     summary.taxIncludedAmountYen = args.taxIncludedAmountYen;
 
+  if (Object.keys(summary).length === 0) {
+    throw new ConvexError("At least one tax override field must be provided");
+  }
+
   return await persistDraftTaxInterpretation(ctx, {
     draftId: args.draftId,
     groupId,
