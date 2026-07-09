@@ -14,6 +14,7 @@ import {
 import {
   reinterpretDraftTax,
   type BulkUnresolvedTaxOverride,
+  type DraftSummaryOverride,
   type DraftTaxOverride,
 } from "../../receiptTax/reinterpretDraftTax";
 
@@ -55,6 +56,7 @@ export type PersistDraftTaxInterpretationArgs = {
   preservedNonTaxReasons?: AiExpenseDraftReviewReason[];
   override?: DraftTaxOverride;
   bulkUnresolvedOverride?: BulkUnresolvedTaxOverride;
+  summaryOverride?: DraftSummaryOverride;
 };
 
 export type PersistDraftTaxInterpretationResult = {
@@ -92,6 +94,7 @@ export async function persistDraftTaxInterpretation(
     items: items.map(draftItemToTaxFields),
     override: args.override,
     bulkUnresolvedOverride: args.bulkUnresolvedOverride,
+    summaryOverride: args.summaryOverride,
   });
 
   const taxReviewReasons = deriveTaxReviewReasons(interpretation);

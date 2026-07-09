@@ -26,7 +26,9 @@ import {
 import { registerReadyDraftsHandler } from "../../lib/convex/aiExpenseDrafts/registerToReceipts";
 import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiExpenseDrafts/registerToExpenseEntries";
 import { updateDraftItemTaxOverridesHandler } from "../../lib/convex/aiExpenseDrafts/updateItemTaxOverrides";
+import { updateSummaryTaxOverridesHandler } from "../../lib/convex/aiExpenseDrafts/updateSummaryTaxOverrides";
 import { applyReceiptTaxSettingsHandler } from "../../lib/convex/aiExpenseDrafts/applyReceiptTaxSettings";
+import type { TaxMode, TaxRatePercent } from "../../lib/receiptTax/types";
 
 type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -214,6 +216,44 @@ export const updateDraftItemTaxOverrides = mutation({
     amountBasis: v.optional(amountBasisValidator),
   },
   handler: updateDraftItemTaxOverridesMutationHandler,
+});
+
+export async function updateSummaryTaxOverridesMutationHandler(
+  ctx: MutationCtx,
+  args: {
+    draftId: Id<"aiExpenseDrafts">;
+    summaryIndex: number;
+    taxRatePercent?: TaxRatePercent;
+    taxMode?: TaxMode;
+    taxableAmountYen?: number;
+    taxableAmountBasis?: Infer<typeof amountBasisValidator>;
+    taxYen?: number;
+    taxIncludedAmountYen?: number;
+  },
+) {
+  const { groupId } = await requireGroupMembership(ctx);
+  return await updateSummaryTaxOverridesHandler(ctx, args, groupId);
+}
+
+export const updateSummaryTaxOverrides = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    summaryIndex: v.number(),
+    taxRatePercent: v.optional(v.union(v.literal(0), v.literal(8), v.literal(10))),
+    taxMode: v.optional(
+      v.union(
+        v.literal("external"),
+        v.literal("included"),
+        v.literal("mixed"),
+        v.literal("unknown"),
+      ),
+    ),
+    taxableAmountYen: v.optional(v.number()),
+    taxableAmountBasis: v.optional(amountBasisValidator),
+    taxYen: v.optional(v.number()),
+    taxIncludedAmountYen: v.optional(v.number()),
+  },
+  handler: updateSummaryTaxOverridesMutationHandler,
 });
 
 export const applyReceiptTaxSettings = mutation({

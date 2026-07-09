@@ -42,6 +42,8 @@ describe("normalizeTaxSummaries", () => {
 
   it("複数summaryはそのまま返す", () => {
     const summaries = [summary(100, 8), summary(200, 20)];
-    expect(normalizeTaxSummaries({ amountYen: 328, taxSummaries: summaries })).toEqual(summaries);
+    expect(normalizeTaxSummaries({ amountYen: 328, taxSummaries: summaries })).toEqual(
+      summaries.map((s) => ({ ...s, status: "coherent", reasons: [] })),
+    );
   });
 });

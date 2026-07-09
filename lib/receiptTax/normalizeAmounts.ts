@@ -45,14 +45,16 @@ export function normalizeAmounts(args: {
     } satisfies InterpretedReceiptItem;
   });
   for (const summary of args.taxSummaries) {
+    if (summary.status === "conflicting") continue;
     const amountBasis = resolveAmountBasis(summary);
+    if (amountBasis === "unknown") continue;
     const indexes = result
       .map((item, index) => ({ item, index }))
       .filter(
         ({ item }) =>
           item.taxContext.status === "resolved" &&
           item.taxRatePercent === summary.taxRatePercent &&
-          (amountBasis === "unknown" || item.amountBasis === amountBasis),
+          item.amountBasis === amountBasis,
       )
       .map(({ index }) => index);
     const printedTotal = indexes.reduce((sum, index) => sum + result[index].printedAmountYen, 0);

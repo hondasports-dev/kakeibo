@@ -110,6 +110,23 @@ export const taxSummaryValidator = v.object({
     taxYen: v.optional(v.number()),
   }),
   warnings: v.array(v.string()),
+  status: v.optional(
+    v.union(v.literal("coherent"), v.literal("reconcilable"), v.literal("conflicting")),
+  ),
+  reasons: v.optional(
+    v.array(
+      v.union(
+        v.literal("included_mode_with_tax_excluded_basis"),
+        v.literal("external_mode_with_tax_included_basis"),
+        v.literal("tax_summary_amount_mismatch"),
+        v.literal("tax_included_amount_mismatch"),
+        v.literal("reconciled_to_included"),
+        v.literal("reconciled_to_external"),
+        v.literal("mixed_tax_mode"),
+        v.literal("unresolved_tax_summary"),
+      ),
+    ),
+  ),
 });
 
 export const aiExpenseDraftConfidenceValidator = v.object({

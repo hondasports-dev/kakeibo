@@ -72,9 +72,13 @@ export function resolveTaxContext(args: {
     reasons: [],
   }));
 
+  const processableSummaries = args.taxSummaries.filter(
+    (summary) => summary.status !== "conflicting",
+  );
+
   args.items.forEach((item, index) => {
     if (item.taxRatePercent === null) return;
-    const matching = args.taxSummaries.filter(
+    const matching = processableSummaries.filter(
       (summary) => summary.taxRatePercent === item.taxRatePercent,
     );
     const basis = item.amountBasis;
@@ -105,7 +109,7 @@ export function resolveTaxContext(args: {
       conflictedMarkerIndexes.add(evidence.itemIndex);
     }
   }
-  for (const summary of args.taxSummaries) {
+  for (const summary of processableSummaries) {
     const indexes = args.items
       .map((_, index) => index)
       .filter(

@@ -14,6 +14,7 @@ export function validateConsistency(args: {
     }
   });
   for (const summary of args.taxSummaries) {
+    if (summary.status === "conflicting") continue;
     const amountBasis = resolveAmountBasis(summary);
     const sameRate = args.items.filter(
       (item) =>

@@ -4,6 +4,23 @@ export type ResolvedAmountBasis = Exclude<AmountBasis, "unknown">;
 export type TaxMode = "external" | "included" | "mixed" | "unknown";
 export type RoundingMethod = "floor" | "round" | "ceil" | "unknown";
 
+export type TaxSummaryConsistencyStatus = "coherent" | "reconcilable" | "conflicting";
+
+export type TaxSummaryConsistencyReason =
+  | "included_mode_with_tax_excluded_basis"
+  | "external_mode_with_tax_included_basis"
+  | "tax_summary_amount_mismatch"
+  | "tax_included_amount_mismatch"
+  | "reconciled_to_included"
+  | "reconciled_to_external"
+  | "mixed_tax_mode"
+  | "unresolved_tax_summary";
+
+export type TaxSummaryConsistency = {
+  status: TaxSummaryConsistencyStatus;
+  reasons: TaxSummaryConsistencyReason[];
+};
+
 export type ReceiptMarkerDefinition = { marker: string; description: string };
 
 export type ExtractedReceiptItem = {
@@ -30,6 +47,8 @@ export type ExtractedTaxSummary = {
   roundingMethod: RoundingMethod;
   confidence: Record<string, number | undefined>;
   warnings: string[];
+  status?: TaxSummaryConsistencyStatus;
+  reasons?: TaxSummaryConsistencyReason[];
 };
 
 export type TaxResolutionSource =
