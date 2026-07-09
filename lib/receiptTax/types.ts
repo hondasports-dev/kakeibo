@@ -51,6 +51,21 @@ export type ExtractedTaxSummary = {
   reasons?: TaxSummaryConsistencyReason[];
 };
 
+export type DraftSummaryOverride = {
+  index: number;
+  summary: Partial<
+    Pick<
+      ExtractedTaxSummary,
+      | "taxRatePercent"
+      | "taxMode"
+      | "taxableAmountYen"
+      | "taxableAmountBasis"
+      | "taxYen"
+      | "taxIncludedAmountYen"
+    >
+  >;
+};
+
 export type TaxResolutionSource =
   | "item_explicit"
   | "single_summary"

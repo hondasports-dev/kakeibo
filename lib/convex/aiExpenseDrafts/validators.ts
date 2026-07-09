@@ -63,6 +63,13 @@ export const amountBasisValidator = v.union(
   v.literal("tax_excluded"),
   v.literal("unknown"),
 );
+export const taxSummaryTaxRatePercentValidator = v.union(v.literal(0), v.literal(8), v.literal(10));
+export const taxModeValidator = v.union(
+  v.literal("external"),
+  v.literal("included"),
+  v.literal("mixed"),
+  v.literal("unknown"),
+);
 export const receiptItemTaxRatePercentValidator = v.union(
   v.literal(0),
   v.literal(8),
@@ -85,13 +92,8 @@ export const receiptMarkerDefinitionValidator = v.object({
 });
 export const markerDefinitionsValidator = v.array(receiptMarkerDefinitionValidator);
 export const taxSummaryValidator = v.object({
-  taxRatePercent: v.union(v.literal(0), v.literal(8), v.literal(10)),
-  taxMode: v.union(
-    v.literal("external"),
-    v.literal("included"),
-    v.literal("mixed"),
-    v.literal("unknown"),
-  ),
+  taxRatePercent: taxSummaryTaxRatePercentValidator,
+  taxMode: taxModeValidator,
   taxableAmountYen: v.number(),
   taxableAmountBasis: amountBasisValidator,
   taxYen: v.number(),

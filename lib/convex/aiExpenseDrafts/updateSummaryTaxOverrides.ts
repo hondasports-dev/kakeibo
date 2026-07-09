@@ -7,7 +7,7 @@ import {
 } from "./persistTaxInterpretation";
 import type {
   AmountBasis,
-  ExtractedTaxSummary,
+  DraftSummaryOverride,
   TaxMode,
   TaxRatePercent,
 } from "../../receiptTax/types";
@@ -24,6 +24,12 @@ export type UpdateSummaryTaxOverridesArgs = {
 };
 
 export type UpdateSummaryTaxOverridesResult = PersistDraftTaxInterpretationResult;
+
+function assertNonNegativeFinite(value: number | undefined, name: string) {
+  if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
+    throw new ConvexError(`${name} must be a finite non-negative number`);
+  }
+}
 
 export async function updateSummaryTaxOverridesHandler(
   ctx: MutationCtx,
@@ -46,11 +52,19 @@ export async function updateSummaryTaxOverridesHandler(
   if (draft.amountYen === undefined || !draft.taxSummaries || draft.taxSummaries.length === 0) {
     throw new ConvexError("Tax reinterpretation requires draft amount and tax summaries");
   }
-  if (args.summaryIndex < 0 || args.summaryIndex >= draft.taxSummaries.length) {
+  if (
+    !Number.isInteger(args.summaryIndex) ||
+    args.summaryIndex < 0 ||
+    args.summaryIndex >= draft.taxSummaries.length
+  ) {
     throw new ConvexError("Tax summary index is out of range");
   }
 
-  const summary: Partial<ExtractedTaxSummary> = {};
+  assertNonNegativeFinite(args.taxableAmountYen, "taxableAmountYen");
+  assertNonNegativeFinite(args.taxYen, "taxYen");
+  assertNonNegativeFinite(args.taxIncludedAmountYen, "taxIncludedAmountYen");
+
+  const summary: DraftSummaryOverride["summary"] = {};
   if (args.taxRatePercent !== undefined) summary.taxRatePercent = args.taxRatePercent;
   if (args.taxMode !== undefined) summary.taxMode = args.taxMode;
   if (args.taxableAmountYen !== undefined) summary.taxableAmountYen = args.taxableAmountYen;

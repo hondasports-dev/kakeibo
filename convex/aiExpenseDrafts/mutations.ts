@@ -8,6 +8,8 @@ import {
   amountBasisValidator,
   classifyAiExpenseDraft,
   receiptItemTaxRatePercentValidator,
+  taxModeValidator,
+  taxSummaryTaxRatePercentValidator,
 } from "./model";
 import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
 import { requireGroupMembership } from "../groups/membership";
@@ -239,15 +241,8 @@ export const updateSummaryTaxOverrides = mutation({
   args: {
     draftId: v.id("aiExpenseDrafts"),
     summaryIndex: v.number(),
-    taxRatePercent: v.optional(v.union(v.literal(0), v.literal(8), v.literal(10))),
-    taxMode: v.optional(
-      v.union(
-        v.literal("external"),
-        v.literal("included"),
-        v.literal("mixed"),
-        v.literal("unknown"),
-      ),
-    ),
+    taxRatePercent: v.optional(taxSummaryTaxRatePercentValidator),
+    taxMode: v.optional(taxModeValidator),
     taxableAmountYen: v.optional(v.number()),
     taxableAmountBasis: v.optional(amountBasisValidator),
     taxYen: v.optional(v.number()),
