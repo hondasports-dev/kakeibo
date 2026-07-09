@@ -142,6 +142,40 @@ describe("updateSummaryTaxOverridesHandler", () => {
     ).rejects.toThrow("out of range");
   });
 
+  it("summaryIndex が小数・NaN・負数の場合はエラー", async () => {
+    const { ctx } = createCtx();
+    for (const summaryIndex of [0.5, NaN, -1]) {
+      await expect(
+        updateSummaryTaxOverridesHandler(
+          ctx,
+          {
+            draftId: DRAFT_ID,
+            summaryIndex,
+            taxYen: 0,
+          },
+          GROUP_ID,
+        ),
+      ).rejects.toThrow("out of range");
+    }
+  });
+
+  it("金額が負数・NaN・Infinity の場合はエラー", async () => {
+    const { ctx } = createCtx();
+    for (const taxableAmountYen of [-1, NaN, Infinity, -Infinity]) {
+      await expect(
+        updateSummaryTaxOverridesHandler(
+          ctx,
+          {
+            draftId: DRAFT_ID,
+            summaryIndex: 0,
+            taxableAmountYen,
+          },
+          GROUP_ID,
+        ),
+      ).rejects.toThrow("must be a finite non-negative number");
+    }
+  });
+
   it("登録済み draft は編集不可", async () => {
     const { ctx, docs } = createCtx();
     docs.set(DRAFT_ID, { ...docs.get(DRAFT_ID)!, status: "registered" });

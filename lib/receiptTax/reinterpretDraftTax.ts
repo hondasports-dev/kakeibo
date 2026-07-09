@@ -6,11 +6,14 @@ import {
 import { interpretReceiptTax } from "./interpretReceiptTax";
 import type {
   AmountBasis,
+  DraftSummaryOverride,
   ExtractedTaxSummary,
   ReceiptMarkerDefinition,
   ReceiptTaxInterpretation,
   TaxRatePercent,
 } from "./types";
+
+export type { DraftSummaryOverride } from "./types";
 
 export type DraftTaxOverride = {
   itemIndex: number;
@@ -21,11 +24,6 @@ export type DraftTaxOverride = {
 export type BulkUnresolvedTaxOverride = {
   taxRatePercent: TaxRatePercent;
   amountBasis: AmountBasis;
-};
-
-export type DraftSummaryOverride = {
-  index: number;
-  summary: Partial<ExtractedTaxSummary>;
 };
 
 export type ReinterpretDraftTaxInput = {
