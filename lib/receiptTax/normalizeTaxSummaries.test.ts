@@ -46,4 +46,20 @@ describe("normalizeTaxSummaries", () => {
       summaries.map((s) => ({ ...s, status: "coherent", reasons: [] })),
     );
   });
+
+  it("resolvableTaxSummaries が1件のとき、全体が複数でもその1件に amountYen を適用する", () => {
+    const resolvable = summary(7928, 634, "included", "tax_included");
+    const conflicting = summary(100, 8, "external", "tax_excluded");
+    const result = normalizeTaxSummaries({
+      amountYen: 8562,
+      taxSummaries: [conflicting, resolvable],
+      resolvableTaxSummaries: [resolvable],
+    });
+    const normalizedResolvable = result.find((s) => s.taxableAmountYen === 7928);
+    expect(normalizedResolvable).toMatchObject({
+      taxMode: "external",
+      taxableAmountBasis: "tax_excluded",
+      status: "coherent",
+    });
+  });
 });

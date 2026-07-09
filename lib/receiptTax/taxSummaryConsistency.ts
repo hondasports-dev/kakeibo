@@ -138,9 +138,6 @@ export function reconcileTaxSummary({
       targetMode = targetFromAmount.mode;
     }
 
-    if (targetMode === taxMode) {
-      return { status: "reconcilable", reasons: [resolveReason(targetMode)] };
-    }
     return { status: "reconcilable", reasons: [resolveReason(targetMode)] };
   }
 
@@ -241,11 +238,18 @@ export function normalizeTaxSummary(
 export function validateTaxSummaryConsistency({
   amountYen,
   taxSummaries,
+  resolvableTaxSummaries,
 }: {
   amountYen: number;
   taxSummaries: ExtractedTaxSummary[];
+  resolvableTaxSummaries?: ExtractedTaxSummary[];
 }): ExtractedTaxSummary[] {
+  const resolvableSet = new Set(resolvableTaxSummaries ?? taxSummaries);
+  const singleResolvable = resolvableSet.size === 1;
   return taxSummaries.map((summary) =>
-    normalizeTaxSummary(summary, taxSummaries.length === 1 ? amountYen : undefined),
+    normalizeTaxSummary(
+      summary,
+      singleResolvable && resolvableSet.has(summary) ? amountYen : undefined,
+    ),
   );
 }
