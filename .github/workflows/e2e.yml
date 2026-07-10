@@ -45,7 +45,7 @@ jobs:
       contains(github.event.deployment_status.target_url, '.vercel.app') &&
       github.event.deployment.ref != 'preview'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Verify trusted deployment source
         id: trust

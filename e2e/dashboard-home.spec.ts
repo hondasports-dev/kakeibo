@@ -10,7 +10,7 @@ import { gotoAuthenticated } from "./helpers/auth";
  */
 
 test.describe("ホーム画面拡充（Issue #370）", () => {
-  test("[Issue #370] PC幅でサマリー指標と前週比較が表示される", async ({ page }) => {
+  test("@smoke [Issue #370] PC幅でサマリー指標と前週比較が表示される", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -26,7 +26,7 @@ test.describe("ホーム画面拡充（Issue #370）", () => {
     await expect(page.getByRole("link", { name: "今週のサマリーを見る ›" })).toBeVisible();
   });
 
-  test("[Issue #370] SP幅で入力パネルがカテゴリより上に表示される", async ({ page }) => {
+  test("@smoke [Issue #370] SP幅で入力パネルがカテゴリより上に表示される", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await gotoAuthenticated(page);
 
@@ -52,7 +52,7 @@ test.describe("ホーム画面拡充（Issue #370）", () => {
     expect(inputBeforeCategory).toBe(true);
   });
 
-  test("[Issue #370] SP幅で今週のサマリー導線が下部に表示される", async ({ page }) => {
+  test("@smoke [Issue #370] SP幅で今週のサマリー導線が下部に表示される", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
 

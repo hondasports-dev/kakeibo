@@ -39,7 +39,7 @@ import { clickUserMenuItem } from "./helpers/ui";
  * gotoAuthenticated でログイン状態を作り、ログアウト後の状態を確認する。
  */
 test.describe("ログアウト", () => {
-  test("シナリオ4: ログアウトするとログイン画面に戻る", async ({ page }) => {
+  test("@smoke シナリオ4: ログアウトするとログイン画面に戻る", async ({ page }) => {
     await gotoAuthenticated(page);
     await expect(page.locator("text=今週のダッシュボード")).toBeVisible();
 
