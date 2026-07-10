@@ -1,10 +1,6 @@
 ---
 name: issue-gate-0
-description: Plan 契約フェーズ0。GitHub Issue 対応の実装前ゲート。複数ロール要件・仕様ゲートの正本。統合判定 Go までコード変更禁止。
-argument-hint: "<issue-number> [--light|--full]"
-triggers:
-  - user
-  - model
+description: GitHub Issue の要件、依存、認可、UI 状態、E2E 方針を複数ロールで確認し、実装可否を判定する。Plan 契約フェーズ0で使い、統合判定 Go まで編集を禁止する。
 ---
 
 # Issue Gate 0（フェーズ0・仕様ゲート）
@@ -14,7 +10,12 @@ triggers:
 Issue 本文だけで実装に進まない。統合判定 **Go** と **GATE0 成果物** を出力するまで、
 本リポジトリのソースコード・テスト・設定ファイルを編集してはいけない。
 
-## 引数
+## 入力
+
+- Issue 番号
+- mode: `full`（デフォルト）または条件を満たす場合の `light`
+
+## mode
 
 - `issue_number`: 対象 Issue 番号
 - `mode`:

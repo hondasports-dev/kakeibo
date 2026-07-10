@@ -1,12 +1,18 @@
 ---
 name: verify-pre-push
-description: Plan 契約フェーズ3。push 前検証（基本4本、convex dev --once、ローカル E2E）。コマンド正本は AGENTS.md と development-process.md。
-triggers:
-  - user
-  - model
+description: 変更パスに応じて基本4本、Convex 反映、ローカル E2E を実行し、push 可否を判定する。Plan 契約フェーズ3または push 前検証で使う。
 ---
 
 # push 前検証（Plan 契約フェーズ3）
+
+## 目的
+
+変更に必要な検証をすべて実行し、証拠付きで次の `code-review` へ渡す。
+
+## 入力
+
+- `origin/preview...HEAD` の変更ファイル一覧
+- GATE0 と TDD/E2E の検証方針
 
 ## 前提
 
@@ -60,7 +66,7 @@ pnpm run e2e -- --project=chromium
 - 上記該当項目がすべて成功、または実行不能理由が記録済み
 - 次フェーズ: `code-review`（PASS まで push 禁止）
 
-## 危険信号
+## 停止条件
 
 - 基本4本未実行で push しようとしている
 - `src/**` / `e2e/**` 変更でローカル E2E を CI 任せにしている

@@ -1,13 +1,18 @@
 ---
 name: e2e-author
-description: Plan 契約フェーズ2（該当時）。E2E 追加・更新・省略の判断と Playwright spec 作成。GATE0 E2E 方針と整合させる。
-argument-hint: "<issue-number>"
-triggers:
-  - user
-  - model
+description: GATE0 の E2E 方針に従って Playwright spec の追加・更新・省略を決める。Plan 契約フェーズ2や、ユーザー導線・認証・保存・主要ナビゲーションの変更時に使う。
 ---
 
 # E2E テスト作成（Plan 契約フェーズ2）
+
+## 目的
+
+Issue の受け入れ条件を適切な Playwright E2E で検証し、不要な場合は根拠を残す。
+
+## 入力
+
+- Issue 番号
+- GATE0 の E2E 方針と受け入れ条件
 
 ## 前提
 
@@ -49,3 +54,8 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 
 - GATE0 E2E 方針どおり spec を追加/更新した、または省略理由を PR/Issue に記録した
 - 次フェーズ: `verify-pre-push`
+
+## 停止条件と出力
+
+- 必要な `.env.local` や資格情報がない場合は値を作らず、正本の同期手順を使う。
+- 実行不能な E2E を成功扱いにせず、理由と結果を Issue/PR に記録する。
