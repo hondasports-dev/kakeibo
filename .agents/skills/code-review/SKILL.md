@@ -1,15 +1,20 @@
 ---
 name: code-review
-description: Plan 契約フェーズ4。PR前セルフレビュー／PRレビュー手順。preview 差分を対象に Must-fix / Nice-to-have を洗い出し、push 前修正ループの正本。
-argument-hint: "[--base preview|main]"
-triggers:
-  - user
-  - model
+description: origin/preview との差分を PR 前または PR レビュー時に精査し、Must-fix と Nice-to-have を closure まで追跡する。Plan 契約フェーズ4、セルフレビュー、レビュー指摘の再確認で使う。
 ---
 
 # code-review
 
-## 振る舞いと制約
+## 目的
+
+Issue の完了条件に対する差分の正しさ、安全性、保守性、テスト、影響範囲を確認し、push 可否を判定する。
+
+## 入力
+
+- 比較 base。省略時は `origin/preview`、存在しない場合は `origin/main`
+- Issue の完了条件と対象差分
+
+## レビュー原則
 
 1. **攻撃的かつ建設的なレビュー**
    - 曖昧な褒め言葉は不要。バグや設計ミスは鋭く指摘する。
@@ -25,11 +30,6 @@ triggers:
 
 4. **安全性の証明**
    - 問題がなくても「〇〇の観点でチェックしたが問題なし」と明記する。沈黙は禁止。
-
-## 使う場面
-
-- AGENTS.md Plan 契約フェーズ4 の push 前セルフレビュー（**必須**）
-- PR レビュー、レビュー指摘の追跡
 
 ## 比較基準ブランチ
 
@@ -65,8 +65,7 @@ git log --oneline origin/preview..HEAD
 6. **保守性** — 責務分離、命名、重複、将来の拡張。
 7. **テスト** — 追加・更新・不足観点。
 8. **副作用・影響範囲** — 変更されていないが影響しうるファイル、リスク。
-9. **`private_docs/`** — AGENTS.md の参照ルール表に従い、更新漏れがないか確認。
-10. **結果出力** — `review-template.md` の形式でまとめる。
+9. **結果出力** — `review-template.md` の形式でまとめる。
 
 ## 指摘の分類と対応ルール
 
@@ -86,6 +85,11 @@ git log --oneline origin/preview..HEAD
 
 diff 内かどうかの判断に「本筋外」などの主観語を使わない。対象ファイルパスで決める。
 
+## 停止条件
+
+- Must-fix または diff 内 Nice-to-have が残る間は PASS にしない。
+- 修正対応が合算3回を超えたら ESCALATE する。
+
 ## 完了条件（レビュー PASS）
 
 - Must-fix が **0 件**
@@ -94,7 +98,10 @@ diff 内かどうかの判断に「本筋外」などの主観語を使わない
 - 各観点（正しさ、セキュリティ、保守性、テスト、副作用）で「問題なし」または残リスクを明記
 - 専門スキル・テストケース判定レビューで追加された Must-fix / Nice-to-have も 0 件または対応済み
 - `review-template.md` を出力済み
-- **ループ上限**: Must-fix / Nice-to-have の修正対応を合算して **3 回**。超えたら **ESCALATE**（ユーザー確認）
+
+## 出力
+
+`review-template.md` で PASS / FAIL、指摘、専門 Skill の結果、検証、残リスクを返す。
 
 ## 関連ファイル
 

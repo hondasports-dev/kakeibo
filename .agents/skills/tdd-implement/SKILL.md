@@ -1,13 +1,18 @@
 ---
 name: tdd-implement
-description: Plan 契約フェーズ1。GATE0 Go 後の TDD 実装（RED/GREEN、Issue 再検討、失敗切り分け）。worktree 手順は development-process 参照。
-argument-hint: "<issue-number>"
-triggers:
-  - user
-  - model
+description: GATE0 Go 後に RED/GREEN で最小実装し、失敗原因を切り分ける。Plan 契約フェーズ1や、Issue の振る舞い変更・バグ修正を TDD で実装するときに使う。
 ---
 
 # TDD 実装（Plan 契約フェーズ1）
+
+## 目的
+
+GATE0 の範囲内で、失敗するテストから始めて最小変更で受け入れ条件を満たす。
+
+## 入力
+
+- Issue 番号と GATE0 成果物
+- 受け入れ条件、影響範囲、E2E 方針
 
 ## 前提
 
@@ -16,7 +21,7 @@ triggers:
 
 ## 併用ガード
 
-- コード変更前に作業ブランチまたは worktree を分離する（`development-process.md` 参照）
+- コード変更前に作業ブランチまたは worktree を分離する（`docs/development-process.md` 参照）
 - Convex 編集前に `convex/_generated/ai/guidelines.md` を読む
 - 振る舞い変更・バグ修正は TDD を基本とする
 
@@ -24,7 +29,7 @@ triggers:
 
 - 問題、期待する振る舞い、影響ファイル、受け入れ条件を自分の言葉で要約する
 - UI/UX 変更の有無、画面状態、ユーザー導線、E2E 追加・更新・省略理由を実装前に決める
-- `e2e-test-case.md`、`implementation-plan.md`、`delivery-notes.md` などの一時メモファイルは作らない
+- e2e-test-case.md、implementation-plan.md、delivery-notes.md などの一時メモファイルは作らない
 - UI 変更では既存 UI/UX ドキュメントとコンポーネントパターンを確認してから編集する
 - 自動判断ルール:
   - Issue 本文に「->」「〜に変更」「置き換え」などがあれば、既存機能を置き換える形と判断する
@@ -53,7 +58,7 @@ triggers:
 - GATE0 成果物の実装範囲内で完了条件を満たしている
 - 次フェーズ: `e2e-author`（該当時）→ `verify-pre-push`
 
-## 危険信号
+## 停止条件
 
 - 失敗するテストなしで振る舞い変更を実装しようとしている
 - 別 Issue のブランチに混ぜようとしている
