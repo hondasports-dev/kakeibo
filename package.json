@@ -16,6 +16,7 @@
     "e2e": "node scripts/sync-e2e-env.mjs && playwright test",
     "e2e:env-sync": "node scripts/sync-e2e-env.mjs",
     "e2e:smoke": "node scripts/sync-e2e-env.mjs && playwright test --grep @smoke",
+    "e2e:public": "node scripts/sync-e2e-env.mjs && playwright test --grep @public",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
     "clerk:login": "clerk auth login",
