@@ -42,6 +42,18 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | `RECEIPT_IMAGE_EXTRACTOR_MODE` | OpenAI 呼び出しの切り替え（`mock` / `real`） | ✅    | ✅             | ✅         | ✅   | ❌         | Convex Dashboard       |
 | `APP_ENV`                      | real mode の許可判定（`development` / `preview` / `production`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
 
+### トランザクションメール (Resend) 関連
+
+| 変数名                       | 用途                                       | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所            |
+| ---------------------------- | ------------------------------------------ | ----- | -------------- | ---------- | ---- | ---------- | ------------------- |
+| `RESEND_API_KEY`             | Resend API 認証キー                        | ✅    | ✅             | ✅         | ✅   | ✅         | Convex Dashboard    |
+| `RESEND_FROM_ADDRESS`        | 送信元 From アドレス（`Name <email@domain>`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
+| `RESEND_WEBHOOK_SECRET`      | Resend webhook 署名検証用シークレット      | ✅    | ✅             | ✅         | ✅   | ✅         | Convex Dashboard    |
+
+> `RESEND_API_KEY` と `RESEND_WEBHOOK_SECRET` は Convex Action 内（サーバー側）でのみ使用する。フロントエンドには渡さない。
+> `APP_ENV` が `production` 以外の場合、`RESEND_API_KEY` を使っても実メールは送信されず、モック応答（`providerMessageId` に `mock-` 接頭辞）が返る。Local / DEV / PREVIEW / CI では実メールを送らない。
+> `RESEND_FROM_ADDRESS` に設定するドメインは Resend Dashboard で verified domain にする必要がある。
+
 > `OPENAI_API_KEY` は Convex Action 内（サーバー側）でのみ使用する。フロントエンドには渡さない。
 > ローカル・PR・Preview・CI では `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、OpenAI API を呼ばない。
 > `real` mode は `APP_ENV=production` のときのみ許可する。

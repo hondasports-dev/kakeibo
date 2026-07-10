@@ -19,6 +19,12 @@ import {
   managementAuditActionValidator,
   managementAuditTargetKindValidator,
 } from "./groups/lib/managementAuditLogModel";
+import {
+  emailSuppressionReasonValidator,
+  emailWebhookEventTypeValidator,
+  transactionalEmailJobStatusValidator,
+  transactionalEmailTypeValidator,
+} from "./email/model";
 
 export default defineSchema({
   users: defineTable({
@@ -288,4 +294,56 @@ export default defineSchema({
     .index("by_batch_id", ["batchId"])
     .index("by_group_id_and_status", ["groupId", "status", "createdAt"])
     .index("by_draft_id", ["draftId"]),
+
+  transactionalEmailJobs: defineTable({
+    templateType: transactionalEmailTypeValidator,
+    payloadJson: v.string(),
+    recipientEmail: v.string(),
+    normalizedRecipientEmail: v.string(),
+    subject: v.string(),
+    html: v.string(),
+    text: v.string(),
+    provider: v.string(),
+    status: transactionalEmailJobStatusValidator,
+    providerMessageId: v.optional(v.string()),
+    lastProviderEventAt: v.optional(v.number()),
+    attemptCount: v.number(),
+    maxAttempts: v.number(),
+    nextRetryAt: v.optional(v.number()),
+    errorMessage: v.optional(v.string()),
+    errorCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_status_and_updated_at", ["status", "updatedAt"])
+    .index("by_provider_message_id", ["providerMessageId"])
+    .index("by_normalized_recipient_email", ["normalizedRecipientEmail"])
+    .index("by_next_retry_at", ["nextRetryAt"]),
+
+  emailSuppressions: defineTable({
+    email: v.string(),
+    normalizedEmail: v.string(),
+    reason: emailSuppressionReasonValidator,
+    source: v.optional(v.string()),
+    providerMessageId: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_normalized_email", ["normalizedEmail"])
+    .index("by_provider_message_id", ["providerMessageId"]),
+
+  emailWebhookEvents: defineTable({
+    svixId: v.string(),
+    provider: v.string(),
+    eventType: emailWebhookEventTypeValidator,
+    providerMessageId: v.optional(v.string()),
+    recipientEmail: v.optional(v.string()),
+    payloadJson: v.string(),
+    eventCreatedAt: v.optional(v.number()),
+    processedAt: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_svix_id", ["svixId"])
+    .index("by_provider_message_id_and_created_at", ["providerMessageId", "createdAt"])
+    .index("by_processed_at", ["processedAt"]),
 });
