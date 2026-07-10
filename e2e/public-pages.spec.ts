@@ -10,7 +10,7 @@ import { test, expect } from "@playwright/test";
 test.describe("公開・異常系ページ", () => {
   test.use({ storageState: { cookies: [], origins: [] } });
 
-  test("@smoke 未ログインで /privacy を表示できる (#249)", async ({ page }) => {
+  test("@public @smoke 未ログインで /privacy を表示できる (#249)", async ({ page }) => {
     await page.goto("/privacy");
 
     await expect(page.getByRole("heading", { name: "プライバシーポリシー" })).toBeVisible();
@@ -28,7 +28,7 @@ test.describe("公開・異常系ページ", () => {
     );
   });
 
-  test("@smoke 未ログインで /terms を表示できる (#250)", async ({ page }) => {
+  test("@public @smoke 未ログインで /terms を表示できる (#250)", async ({ page }) => {
     await page.goto("/terms");
 
     await expect(page.getByRole("heading", { name: "利用規約" })).toBeVisible();
@@ -39,7 +39,7 @@ test.describe("公開・異常系ページ", () => {
     await expect(page.getByText(/家計管理・支出記録の正確性を保証しません/)).toBeVisible();
   });
 
-  test("未ログインで存在しないURLに404を表示する (#253/#266)", async ({ page }) => {
+  test("@public 未ログインで存在しないURLに404を表示する (#253/#266)", async ({ page }) => {
     await page.goto("/this-route-does-not-exist-m23");
 
     await expect(page.getByText("404 Not Found")).toBeVisible();
@@ -63,7 +63,9 @@ test.describe("公開・異常系ページ", () => {
     );
   });
 
-  test("未ログインのログイン画面から法務ページへリンクできる (#249/#250)", async ({ page }) => {
+  test("@public 未ログインのログイン画面から法務ページへリンクできる (#249/#250)", async ({
+    page,
+  }) => {
     await page.goto("/");
 
     await expect(page.getByRole("button", { name: "Googleでログイン" })).toBeVisible();
@@ -79,7 +81,7 @@ test.describe("公開・異常系ページ", () => {
     );
   });
 
-  test("未ログインで /maintenance を表示できる (#255)", async ({ page }) => {
+  test("@public 未ログインで /maintenance を表示できる (#255)", async ({ page }) => {
     await page.goto("/maintenance");
 
     await expect(page.getByText("Maintenance")).toBeVisible();
@@ -101,7 +103,9 @@ test.describe("公開・異常系ページ", () => {
     );
   });
 
-  test("未ログインで Error Boundary のデザイン画面を表示する (#254/#268)", async ({ page }) => {
+  test("@public 未ログインで Error Boundary のデザイン画面を表示する (#254/#268)", async ({
+    page,
+  }) => {
     await page.goto("/__e2e__/app-error-boundary");
 
     await expect(page.getByRole("alert")).toBeVisible();
