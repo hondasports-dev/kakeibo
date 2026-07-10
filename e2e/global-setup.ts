@@ -1,5 +1,6 @@
 import { clerkSetup } from "@clerk/testing/playwright";
 import { test as setup } from "@playwright/test";
+import { verifyCleanupAuth } from "./helpers/cleanup";
 
 /**
  * Playwright グローバルセットアップ
@@ -24,4 +25,5 @@ setup("global setup", async () => {
     process.env.CLERK_PUBLISHABLE_KEY = process.env.VITE_CLERK_PUBLISHABLE_KEY;
   }
   await clerkSetup();
+  await verifyCleanupAuth();
 });

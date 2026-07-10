@@ -1,4 +1,5 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
+import type { ExtractedTaxSummary, TaxResolutionSource } from "../../../../lib/receiptTax/types";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -80,6 +81,8 @@ export type AiExpenseDraft = {
   categoryId?: string;
   reviewReasons: string[];
   warnings?: string[];
+  taxSummaries?: Array<Omit<ExtractedTaxSummary, "confidence">>;
+  markerDefinitions?: Array<{ marker: string; description: string }>;
   itemSummary?: {
     itemTotalYen: number;
     itemDifferenceYen?: number;
@@ -96,9 +99,13 @@ export type AiExpenseItemTaxDetails = {
   printedAmountYen?: number;
   amountBasis?: "tax_included" | "tax_excluded" | "unknown";
   taxRatePercent?: 0 | 8 | 10 | null;
+  markers?: string[];
   taxMarker?: string;
   allocatedTaxYen?: number;
   normalizedAmountYen?: number;
+  taxResolutionStatus?: "resolved" | "unresolved";
+  taxResolutionSource?: TaxResolutionSource;
+  taxReviewReasons?: string[];
   quantity?: number;
   unitPriceYen?: number;
 };
@@ -133,6 +140,7 @@ export type ReviewFormValues = {
 
 export type ReviewItemValues = AiExpenseItemTaxDetails & {
   id: string;
+  persistedItemId?: string;
   itemName: string;
   amountYen: string;
   categoryId: string;

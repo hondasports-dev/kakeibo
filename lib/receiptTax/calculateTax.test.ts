@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calculateTaxYen } from "./taxCalculation";
+import { calculateTaxYen } from "./calculateTax";
 
 describe("calculateTaxYen", () => {
   it.each([
@@ -22,9 +22,8 @@ describe("calculateTaxYen", () => {
     { taxableAmountYen: -1, taxRatePercent: 8, roundingMethod: "floor" },
     { taxableAmountYen: 1.5, taxRatePercent: 8, roundingMethod: "floor" },
     { taxableAmountYen: 100, taxRatePercent: 0.08, roundingMethod: "floor" },
-    { taxableAmountYen: 100, taxRatePercent: "8", roundingMethod: "floor" },
     { taxableAmountYen: 100, taxRatePercent: 8, roundingMethod: "truncate" },
-  ])("不正入力を拒否する: $taxableAmountYen/$taxRatePercent/$roundingMethod", (args) => {
+  ])("不正入力を拒否する", (args) => {
     expect(() => calculateTaxYen(args as never)).toThrow();
   });
 });

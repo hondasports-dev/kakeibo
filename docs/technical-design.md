@@ -726,12 +726,14 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 ### 12.4 レシート税情報の正規化
 
-AI 画像解析では、明細ごとに税込・税抜・税率を抽出し、`lib/convex/receiptImageExtraction/taxNormalization.ts` で正規化する。
+AI 画像解析では印字事実を抽出し、`lib/receiptTax/interpretReceiptTax.ts` で税率別集計との整合性から税コンテキストを解決・正規化する。
 
 - 外税・内税・混在を `amountBasis` と `taxSummaries` に分離する
 - 登録額は `normalizedAmountYen` を正本とし、未設定時は `amountYen` にフォールバックする
 - 税額集計行は明細として登録しない
-- 警告コード（`unknown_tax_rate`, `unknown_amount_basis`, `taxable_amount_mismatch`, `missing_tax_items` 等）は下書き・明細の `warnings` に保存し、UI では `src/features/ai-expense-queue/utils/taxWarnings.ts` で日本語化する
+- マーカーは印字文字列とレシート内の凡例を補助証拠として扱い、単独では税率を確定しない
+- 一意に解決できない税率・税込税抜区分は未解決のまま確認対象にする
+- 警告コード（`unresolved_tax_rate:items[i]`, `unresolved_amount_basis:items[i]`, `taxable_amount_mismatch`, `missing_tax_items` 等）は下書き・明細の `warnings` に保存し、UI では `src/features/ai-expense-queue/utils/taxWarnings.ts` で日本語化する
 
 ## 13. CSVエクスポート設計
 

@@ -332,7 +332,7 @@ MVPでは、ユーザーが週1回まとめて入力し、その週の支出傾�
 - 対応する書類種別は `receipt`、`convenience_payment`、`unknown`。
 - 状態は `queued`、`analyzing`、`ready`、`needs_review`、`failed`、`registered`。
 - 登録時は ready 下書きを `expenseEntries` に変換し（`registerReadyDraftsAsExpenseEntries`）、下書きを `registered` に更新する。
-- 商品明細は印字された税込金額を保持し、税額集計行は明細として登録しない。
+- 商品明細はレシートに印字された行金額（`printedAmountYen`）を保持し、登録は正規化した税込額（`normalizedAmountYen`）とする。税額集計行は明細として登録しない。
 - 外税・内税・税率不明は正規化処理で登録額を算出し、確認不能な場合は警告として下書き確認画面に表示する。
 - 手入力 MVP の「税込合計のみ」方針（§2.3）とは別に、AI 解析では明細レベルで税情報を扱う。
 - 画像解析時は現在有効なカテゴリ名をOpenAIへ候補として渡し、下書き全体と各商品明細のカテゴリ名を候補内から返させる。

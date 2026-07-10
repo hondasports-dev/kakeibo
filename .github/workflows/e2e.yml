@@ -14,6 +14,7 @@ name: E2E
 #   E2E_CLERK_USER_PASSWORD          — テストユーザーのパスワード
 #   DEV_VITE_CONVEX_SITE_URL         — Dev deployment の Convex HTTP URL
 #   DEV_E2E_CLEANUP_SECRET           — Dev deployment の E2E cleanup 認証シークレット
+#   DEV_CONVEX_DEPLOY_KEY            — Dev deployment の deploy key（CI で E2E_CLEANUP_SECRET を同期）
 #   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
 #
 # 詳細: docs/development-process.md「E2E 確認方針」
@@ -27,7 +28,7 @@ permissions:
 
 jobs:
   e2e:
-    name: E2E (Playwright / Chromium)
+    name: E2E (Playwright / Chromium / ${{ matrix.name }})
     # Vercel の Preview デプロイが成功した時のみ実行
     # Production デプロイ（environment == 'Production'）は除外する
     # GitHub Environment の deployment_status は target_url が Actions job URL になるため除外する
@@ -39,7 +40,20 @@ jobs:
       contains(github.event.deployment_status.target_url, '.vercel.app') &&
       github.event.deployment.ref != 'preview'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: ${{ matrix.timeout }}
+    concurrency:
+      group: e2e-preview-smoke-${{ matrix.name }}
+      cancel-in-progress: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: public
+            e2e_command: pnpm run e2e:public -- --project=chromium --workers=3
+            timeout: 10
+          - name: authenticated
+            e2e_command: pnpm run e2e:smoke -- --project=chromium --grep-invert @public --workers=1
+            timeout: 20
     steps:
       - name: Verify trusted deployment source
         id: trust
@@ -151,7 +165,7 @@ jobs:
       - uses: actions/setup-node@v6
         if: steps.trust.outputs.trusted == 'true'
         with:
-          node-version: 22
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
@@ -175,9 +189,26 @@ jobs:
         if: steps.trust.outputs.trusted == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
+      - name: Sync E2E cleanup secret to dev deployment
+        if: steps.trust.outputs.trusted == 'true'
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.DEV_CONVEX_DEPLOY_KEY }}
+          E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
+        run: |
+          if [ -z "$E2E_CLEANUP_SECRET" ]; then
+            echo "::error::DEV_E2E_CLEANUP_SECRET is not set."
+            exit 1
+          fi
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
+            echo "::warning::DEV_CONVEX_DEPLOY_KEY is not set. Skipping Convex env sync."
+            echo "Ensure Convex dev E2E_CLEANUP_SECRET already matches DEV_E2E_CLEANUP_SECRET."
+            exit 0
+          fi
+          pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
+
       - name: Run smoke E2E tests
         if: steps.trust.outputs.trusted == 'true'
-        run: pnpm run e2e:smoke --project=chromium
+        run: ${{ matrix.e2e_command }}
         env:
           # Vercel Preview の URL（Vercel が deployment_status に埋め込む）
           E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}

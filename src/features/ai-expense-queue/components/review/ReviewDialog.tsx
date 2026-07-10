@@ -16,11 +16,13 @@ import type {
   ReviewFormValues,
   ReviewItemValues,
 } from "../../types/types";
+import { ReceiptBulkTaxApply } from "./ReceiptBulkTaxApply";
+import { ReceiptTotalsPanel } from "./ReceiptTotalsPanel";
 import { ReviewDialogActions } from "./ReviewDialogActions";
 import { ReviewFormFields } from "./ReviewFormFields";
 import { ReviewItemsEditor } from "./ReviewItemsEditor";
 import { ReviewSummaryView } from "./ReviewSummaryView";
-import { formatTaxWarnings } from "../../utils/taxWarnings";
+import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 
 export function ReviewDialog({
   open,
@@ -29,6 +31,7 @@ export function ReviewDialog({
   isReviewDraftNotFound,
   selectedReviewDraft,
   reviewError,
+  reviewSaveNotice,
   reviewForm,
   reviewItems,
   isCategorySplit,
@@ -42,6 +45,12 @@ export function ReviewDialog({
   onAssignCategoryToItems,
   onDiscountTargetChange,
   onSubmit,
+  taxUpdatingItemId,
+  onTaxRateChange,
+  onApplyReceiptTaxSettings,
+  isApplyingReceiptTax,
+  taxSummaryUpdatingIndex,
+  onTaxSummaryChange,
 }: {
   open: boolean;
   categories: AiExpenseQueueCategory[];
@@ -49,6 +58,7 @@ export function ReviewDialog({
   isReviewDraftNotFound: boolean;
   selectedReviewDraft: AiExpenseDraft | null;
   reviewError: string;
+  reviewSaveNotice?: string;
   reviewForm: ReviewFormValues;
   reviewItems: ReviewItemValues[];
   isCategorySplit: boolean;
@@ -66,6 +76,12 @@ export function ReviewDialog({
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
   onSubmit: (registerAfterUpdate: boolean) => void;
+  taxUpdatingItemId?: string | null;
+  onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
+  onApplyReceiptTaxSettings?: () => void;
+  isApplyingReceiptTax?: boolean;
+  taxSummaryUpdatingIndex?: number | null;
+  onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
 }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -88,6 +104,16 @@ export function ReviewDialog({
     setIsEditMode(false);
     setItemsExpanded(false);
   }, [selectedReviewDraft?._id]);
+
+  const bulkTaxAction =
+    onApplyReceiptTaxSettings && hasLineItems ? (
+      <ReceiptBulkTaxApply
+        isApplying={isApplyingReceiptTax}
+        onApply={onApplyReceiptTaxSettings}
+        reviewItems={reviewItems}
+        taxSummaries={selectedReviewDraft?.taxSummaries}
+      />
+    ) : undefined;
 
   return (
     <Dialog
@@ -112,6 +138,12 @@ export function ReviewDialog({
 
           {!isReviewDraftLoading && !isReviewDraftNotFound && (
             <>
+              {reviewSaveNotice && (
+                <Alert severity="info" variant="outlined">
+                  {reviewSaveNotice}
+                </Alert>
+              )}
+
               {reviewError && (
                 <Alert severity="error" variant="outlined">
                   {reviewError}
@@ -121,11 +153,15 @@ export function ReviewDialog({
               {showSummaryView ? (
                 <ReviewSummaryView
                   categories={categories}
+                  isApplyingReceiptTax={isApplyingReceiptTax}
                   itemsExpanded={itemsExpanded}
+                  onApplyReceiptTaxSettings={onApplyReceiptTaxSettings}
                   onToggleItemsExpanded={() => setItemsExpanded((current) => !current)}
+                  onTaxSummaryChange={onTaxSummaryChange}
                   reviewForm={reviewForm}
                   reviewItems={reviewItems}
                   selectedReviewDraft={selectedReviewDraft}
+                  taxSummaryUpdatingIndex={taxSummaryUpdatingIndex}
                 />
               ) : (
                 <>
@@ -143,10 +179,13 @@ export function ReviewDialog({
                       </Stack>
                     )}
 
-                  {selectedReviewDraft?.warnings && selectedReviewDraft.warnings.length > 0 && (
-                    <Alert severity="warning" variant="outlined">
-                      {formatTaxWarnings(selectedReviewDraft.warnings)}
-                    </Alert>
+                  {hasLineItems && (
+                    <ReceiptTotalsPanel
+                      bulkTaxAction={bulkTaxAction}
+                      paidTotalYen={receiptAmount || selectedReviewDraft?.amountYen}
+                      reviewItems={reviewItems}
+                      taxSummaries={selectedReviewDraft?.taxSummaries}
+                    />
                   )}
 
                   <ReviewFormFields
@@ -163,8 +202,11 @@ export function ReviewDialog({
                         onAddItem={onAddItem}
                         onItemChange={onItemChange}
                         onRemoveItem={onRemoveItem}
+                        onTaxRateChange={onTaxRateChange}
                         receiptAmount={receiptAmount}
                         reviewItems={reviewItems}
+                        selectedReviewDraft={selectedReviewDraft}
+                        taxUpdatingItemId={taxUpdatingItemId}
                         isCategorySplit={isCategorySplit}
                         onCategorySplitChange={onCategorySplitChange}
                         onAssignCategoryToItems={onAssignCategoryToItems}

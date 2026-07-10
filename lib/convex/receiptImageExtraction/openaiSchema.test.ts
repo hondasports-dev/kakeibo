@@ -16,6 +16,8 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(prompt).toContain("taxSummaries");
     expect(prompt).toContain("0.08");
     expect(prompt).toContain("返さない");
+    expect(prompt).toContain("推測せず markers に文字列のまま");
+    expect(prompt).toContain("markerDefinitions");
   });
 
   it("割引は印字位置を考慮して対象商品カテゴリへ帰属させ、不明時は推測しない", () => {
@@ -69,6 +71,8 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(itemSchema.properties.amountBasis).toMatchObject({
       enum: ["tax_included", "tax_excluded", "unknown"],
     });
+    expect(itemSchema.properties.markers).toMatchObject({ type: "array" });
+    expect(itemSchema.required).toContain("markers");
     expect(itemSchema.required).toContain("printedAmountYen");
     expect(itemSchema.additionalProperties).toBe(false);
     expect(schema.properties.items.maxItems).toBe(100);
@@ -84,6 +88,7 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     ]);
     expect(taxSummarySchema.additionalProperties).toBe(false);
     expect(schema.required).toContain("taxSummaries");
+    expect(schema.required).toContain("markerDefinitions");
   });
 
   it("mock結果が印字金額と税率別集計を持つ", () => {

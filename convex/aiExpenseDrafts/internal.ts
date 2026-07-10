@@ -6,7 +6,11 @@ import {
   aiExpenseDraftItemConfidenceValidator,
   aiExpenseDraftReviewReasonValidator,
   amountBasisValidator,
+  markerDefinitionsValidator,
   receiptItemTaxRatePercentValidator,
+  receiptMarkersValidator,
+  taxResolutionSourceValidator,
+  taxResolutionStatusValidator,
   taxSummaryValidator,
 } from "../../lib/convex/aiExpenseDrafts/validators";
 import {
@@ -16,6 +20,8 @@ import {
 } from "../../lib/convex/aiExpenseDrafts/createFromExtraction";
 import {
   createE2eReadyDraftForUserHandler,
+  createE2eTaxReviewDraftForUserHandler,
+  createE2eTaxSummaryConflictDraftForUserHandler,
   deleteDraftsByUserBatchHandler,
 } from "../../lib/convex/aiExpenseDrafts/e2eDraftFixtures";
 
@@ -28,6 +34,8 @@ export {
 export {
   deleteDraftsByUserBatchHandler,
   createE2eReadyDraftForUserHandler,
+  createE2eTaxReviewDraftForUserHandler,
+  createE2eTaxSummaryConflictDraftForUserHandler,
 } from "../../lib/convex/aiExpenseDrafts/e2eDraftFixtures";
 export type {
   CreateFromExtractionArgs,
@@ -48,6 +56,7 @@ export const createFromExtraction = internalMutation({
     date: v.optional(v.string()),
     amountYen: v.optional(v.number()),
     taxSummaries: v.optional(v.array(taxSummaryValidator)),
+    markerDefinitions: v.optional(markerDefinitionsValidator),
     categoryId: v.optional(v.id("categories")),
     imageFileName: v.optional(v.string()),
     confidence: aiExpenseDraftConfidenceValidator,
@@ -61,9 +70,13 @@ export const createFromExtraction = internalMutation({
           printedAmountYen: v.optional(v.number()),
           amountBasis: v.optional(amountBasisValidator),
           taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+          markers: v.optional(receiptMarkersValidator),
           taxMarker: v.optional(v.string()),
           allocatedTaxYen: v.optional(v.number()),
           normalizedAmountYen: v.optional(v.number()),
+          taxResolutionStatus: v.optional(taxResolutionStatusValidator),
+          taxResolutionSource: v.optional(taxResolutionSourceValidator),
+          taxReviewReasons: v.optional(v.array(v.string())),
           quantity: v.optional(v.number()),
           unitPriceYen: v.optional(v.number()),
           categoryName: v.optional(v.string()),
@@ -107,4 +120,22 @@ export const createE2eReadyDraftForUser = internalMutation({
     secondaryCategoryId: v.optional(v.id("categories")),
   },
   handler: createE2eReadyDraftForUserHandler,
+});
+
+export const createE2eTaxReviewDraftForUser = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    categoryId: v.id("categories"),
+    secondaryCategoryId: v.optional(v.id("categories")),
+  },
+  handler: createE2eTaxReviewDraftForUserHandler,
+});
+
+export const createE2eTaxSummaryConflictDraftForUser = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    categoryId: v.id("categories"),
+    secondaryCategoryId: v.optional(v.id("categories")),
+  },
+  handler: createE2eTaxSummaryConflictDraftForUserHandler,
 });

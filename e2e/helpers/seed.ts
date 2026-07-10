@@ -6,49 +6,52 @@ function getRequiredEnv(name: string): string {
   return value;
 }
 
-export async function seedAiExpenseDraftForExpenseEntriesByUser(userId: string): Promise<{
-  draftId: string;
-}> {
+async function postE2eSeed(path: string, body: Record<string, unknown>) {
   const siteUrl = getRequiredEnv("VITE_CONVEX_SITE_URL");
   const secret = getRequiredEnv("E2E_CLEANUP_SECRET");
-  const res = await fetch(`${siteUrl}/e2e/seed-ai-expense-draft`, {
+  const res = await fetch(`${siteUrl}${path}`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "X-E2E-Cleanup-Secret": secret,
     },
-    body: JSON.stringify({ userId }),
+    body: JSON.stringify(body),
   });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`AI expense draft seed に失敗しました: ${res.status} ${text}`);
+    throw new Error(`E2E seed ${path} に失敗しました: ${res.status} ${text}`);
   }
 
-  return (await res.json()) as { draftId: string };
+  return res.json();
+}
+
+export async function seedAiExpenseDraftForExpenseEntriesByUser(userId: string): Promise<{
+  draftId: string;
+}> {
+  return (await postE2eSeed("/e2e/seed-ai-expense-draft", { userId })) as { draftId: string };
+}
+
+export async function seedTaxReviewDraftByUser(userId: string): Promise<{ draftId: string }> {
+  return (await postE2eSeed("/e2e/seed-tax-review-draft", { userId })) as { draftId: string };
+}
+
+export async function seedTaxSummaryConflictDraftByUser(
+  userId: string,
+): Promise<{ draftId: string }> {
+  return (await postE2eSeed("/e2e/seed-tax-summary-conflict-draft", { userId })) as {
+    draftId: string;
+  };
 }
 
 export async function seedPendingGroupInvitationForUser(
   userId: string,
   invitationEmail: string,
 ): Promise<{ invitationId: string }> {
-  const siteUrl = getRequiredEnv("VITE_CONVEX_SITE_URL");
-  const secret = getRequiredEnv("E2E_CLEANUP_SECRET");
-  const res = await fetch(`${siteUrl}/e2e/seed-pending-group-invitation`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-E2E-Cleanup-Secret": secret,
-    },
-    body: JSON.stringify({ userId, invitationEmail }),
-  });
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`pending 招待 seed に失敗しました: ${res.status} ${text}`);
-  }
-
-  return (await res.json()) as { invitationId: string };
+  return (await postE2eSeed("/e2e/seed-pending-group-invitation", {
+    userId,
+    invitationEmail,
+  })) as { invitationId: string };
 }
 
 export async function seedGroupMemberForUser(

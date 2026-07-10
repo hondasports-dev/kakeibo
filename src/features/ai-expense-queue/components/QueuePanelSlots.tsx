@@ -127,6 +127,7 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         isReviewDraftNotFound={queue.isReviewDraftNotFound}
         selectedReviewDraft={queue.selectedReviewDraft}
         reviewError={queue.reviewError}
+        reviewSaveNotice={queue.reviewSaveNotice}
         reviewForm={queue.reviewForm}
         reviewItems={queue.reviewItems}
         isCategorySplit={queue.isCategorySplit}
@@ -140,6 +141,12 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onAssignCategoryToItems={queue.handleAssignCategoryToItems}
         onDiscountTargetChange={queue.handleDiscountTargetChange}
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
+        taxUpdatingItemId={queue.taxUpdatingItemId}
+        onTaxRateChange={queue.handleTaxRateChange}
+        onApplyReceiptTaxSettings={queue.handleApplyReceiptTaxSettings}
+        isApplyingReceiptTax={queue.isApplyingReceiptTax}
+        taxSummaryUpdatingIndex={queue.taxSummaryUpdatingIndex}
+        onTaxSummaryChange={queue.handleTaxSummaryChange}
       />
 
       <ReceiptImageConsentDialog

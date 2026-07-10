@@ -9,6 +9,7 @@ import {
 import { resolveReceiptShopNameFromDraft } from "./display";
 
 export type UpdateForReviewItem = {
+  itemId?: Id<"aiExpenseDraftItems">;
   itemName: string;
   amountYen: number;
   categoryId: Id<"categories">;
@@ -232,6 +233,57 @@ export function aggregateDraftItemsByCategory(
   }));
 }
 
+type ReviewReplacePreviousItem = Pick<
+  Doc<"aiExpenseDraftItems">,
+  "amountYen" | "printedAmountYen" | "normalizedAmountYen" | "taxResolutionStatus" | "amountBasis"
+>;
+
+export function resolveReviewItemAmountsForReplace(
+  submittedAmountYen: number,
+  previous: ReviewReplacePreviousItem | undefined,
+): {
+  amountYen: number;
+  printedAmountYen: number;
+  normalizedAmountYen?: number;
+} {
+  if (previous?.taxResolutionStatus === "resolved" && previous.printedAmountYen !== undefined) {
+    if (previous.amountBasis === "tax_included") {
+      const previousDisplay = previous.normalizedAmountYen ?? previous.amountYen;
+      if (submittedAmountYen === previousDisplay) {
+        return {
+          amountYen: previousDisplay,
+          printedAmountYen: previous.printedAmountYen,
+          normalizedAmountYen: previous.normalizedAmountYen ?? previousDisplay,
+        };
+      }
+      return {
+        amountYen: submittedAmountYen,
+        printedAmountYen: submittedAmountYen,
+        normalizedAmountYen: submittedAmountYen,
+      };
+    }
+
+    const previousPrinted = previous.printedAmountYen;
+    if (submittedAmountYen === previousPrinted) {
+      return {
+        amountYen: previous.normalizedAmountYen ?? submittedAmountYen,
+        printedAmountYen: previousPrinted,
+        normalizedAmountYen: previous.normalizedAmountYen,
+      };
+    }
+    return {
+      amountYen: submittedAmountYen,
+      printedAmountYen: submittedAmountYen,
+      normalizedAmountYen: undefined,
+    };
+  }
+
+  return {
+    amountYen: submittedAmountYen,
+    printedAmountYen: submittedAmountYen,
+  };
+}
+
 export async function replaceDraftItemsForReview(
   ctx: Pick<MutationCtx, "db">,
   draftId: Id<"aiExpenseDrafts">,
@@ -247,6 +299,20 @@ export async function replaceDraftItemsForReview(
     .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId).eq("draftId", draftId))
     .order("asc")
     .take(100);
+  const existingItemsById = new Map(existingItems.map((item) => [item._id, item]));
+  const submittedItemIds = new Set<Id<"aiExpenseDraftItems">>();
+  for (const item of items) {
+    if (item.itemId === undefined) {
+      continue;
+    }
+    if (submittedItemIds.has(item.itemId)) {
+      throw new ConvexError("Draft item ID must not be duplicated");
+    }
+    if (!existingItemsById.has(item.itemId)) {
+      throw new ConvexError("Draft item does not belong to the current draft");
+    }
+    submittedItemIds.add(item.itemId);
+  }
   for (const item of existingItems) {
     await ctx.db.delete(item._id);
   }
@@ -256,18 +322,36 @@ export async function replaceDraftItemsForReview(
       throw new ConvexError("Draft item name and amount are required");
     }
     await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
+    const previous = item.itemId === undefined ? undefined : existingItemsById.get(item.itemId);
+    const amounts = resolveReviewItemAmountsForReplace(item.amountYen, previous);
     await ctx.db.insert("aiExpenseDraftItems", {
       groupId,
       draftId,
       itemName,
-      amountYen: item.amountYen,
+      amountYen: amounts.amountYen,
+      printedAmountYen: amounts.printedAmountYen,
       categoryId: item.categoryId,
+      amountBasis: previous?.amountBasis,
+      taxRatePercent: previous?.taxRatePercent,
+      markers: previous?.markers,
+      taxMarker: previous?.taxMarker,
+      allocatedTaxYen: previous?.allocatedTaxYen,
+      normalizedAmountYen:
+        "normalizedAmountYen" in amounts
+          ? amounts.normalizedAmountYen
+          : previous?.normalizedAmountYen,
+      taxResolutionStatus: previous?.taxResolutionStatus,
+      taxResolutionSource: previous?.taxResolutionSource,
+      taxReviewReasons: previous?.taxReviewReasons,
+      quantity: previous?.quantity,
+      unitPriceYen: previous?.unitPriceYen,
+      categoryName: previous?.categoryName,
       confidence: item.confidence ?? {
         itemName: 1,
         amountYen: 1,
         categoryId: 1,
       },
-      warnings: item.warnings,
+      warnings: item.warnings ?? previous?.warnings,
       createdAt: now,
       updatedAt: now,
     });

@@ -1,27 +1,35 @@
+import ExpandLessIcon from "@mui/icons-material/ExpandLess";
+import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteIcon from "@mui/icons-material/Delete";
 import {
-  Alert,
   Box,
   Button,
   Chip,
+  Collapse,
   IconButton,
   MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
-import { useMemo } from "react";
-import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
+import { useMemo, useState } from "react";
+import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
-import { computeItemTotalYen, isLowConfidenceItem } from "../../utils/reviewDialogUtils";
+import { isLowConfidenceItem } from "../../utils/reviewDialogUtils";
+import {
+  buildTaxContextFromReviewItem,
+  toReceiptItemTaxViewModel,
+} from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
-import { ReviewItemTaxDetails } from "./ReviewItemTaxDetails";
+import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
+import { TaxRateSelect } from "./TaxRateSelect";
 
 export function ReviewItemsEditor({
   categories,
+  selectedReviewDraft,
   reviewItems,
-  receiptAmount,
+  taxUpdatingItemId,
   onAddItem,
   onItemChange,
   onRemoveItem,
@@ -29,10 +37,13 @@ export function ReviewItemsEditor({
   onCategorySplitChange,
   onAssignCategoryToItems,
   onDiscountTargetChange,
+  onTaxRateChange,
 }: {
   categories: AiExpenseQueueCategory[];
+  selectedReviewDraft: AiExpenseDraft | null;
   reviewItems: ReviewItemValues[];
   receiptAmount: number;
+  taxUpdatingItemId?: string | null;
   onAddItem: () => void;
   onItemChange: (
     itemId: string,
@@ -44,9 +55,9 @@ export function ReviewItemsEditor({
   onCategorySplitChange: (split: boolean) => void;
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
+  onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
 }) {
-  const itemTotal = computeItemTotalYen(reviewItems);
-  const difference = receiptAmount - itemTotal;
+  const [expandedDetailIds, setExpandedDetailIds] = useState<Set<string>>(new Set());
   const productItems = useMemo(
     () => reviewItems.filter((item) => !isDiscountItemName(item.itemName)),
     [reviewItems],
@@ -55,8 +66,17 @@ export function ReviewItemsEditor({
     () => new Map(categories.map((category) => [category._id, category.name])),
     [categories],
   );
-  const handleSplitChange = (split: boolean) => {
-    onCategorySplitChange(split);
+
+  const toggleDetail = (itemId: string) => {
+    setExpandedDetailIds((current) => {
+      const next = new Set(current);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
   };
 
   return (
@@ -69,18 +89,12 @@ export function ReviewItemsEditor({
           alignItems: { xs: "stretch", sm: "center" },
         }}
       >
-        <Box>
-          <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
-            明細
-          </Typography>
-          <Typography color="text.secondary" variant="body2">
-            明細合計 {itemTotal.toLocaleString("ja-JP")}円 / 差額{" "}
-            {difference.toLocaleString("ja-JP")}円
-          </Typography>
-        </Box>
+        <Typography component="h3" variant="subtitle1" sx={{ fontWeight: 700 }}>
+          明細
+        </Typography>
         {productItems.length > 1 && (
           <Button
-            onClick={() => handleSplitChange(!isCategorySplit)}
+            onClick={() => onCategorySplitChange(!isCategorySplit)}
             size="small"
             type="button"
             variant="outlined"
@@ -102,12 +116,6 @@ export function ReviewItemsEditor({
         </Button>
       </Stack>
 
-      {difference !== 0 && reviewItems.length > 0 && (
-        <Alert severity="warning" variant="outlined">
-          レシート合計と明細合計に差額があります。
-        </Alert>
-      )}
-
       {reviewItems.length === 0 ? (
         <Typography color="text.secondary" variant="body2">
           明細はありません。既存の単一カテゴリ下書きとして確認できます。
@@ -119,6 +127,16 @@ export function ReviewItemsEditor({
             const lowConfidence = isLowConfidenceItem(item);
             const discount = isDiscountItemName(item.itemName);
             const categoryName = categoryNamesById.get(item.categoryId);
+            const taxContext = buildTaxContextFromReviewItem(item);
+            const taxVm = toReceiptItemTaxViewModel(item);
+            const isTaxUpdating = taxUpdatingItemId === item.id;
+            const showTaxRateSelect = taxContext.status === "unresolved";
+            const isDetailExpanded = expandedDetailIds.has(item.id);
+            const showRegistrationAmount =
+              taxContext.status === "resolved" &&
+              item.amountBasis === "tax_excluded" &&
+              item.normalizedAmountYen != null;
+
             return (
               <Box
                 key={item.id}
@@ -143,6 +161,9 @@ export function ReviewItemsEditor({
                       {lowConfidence && (
                         <Chip color="warning" label="低信頼度" size="small" variant="outlined" />
                       )}
+                      {taxContext.status === "unresolved" && (
+                        <Chip color="warning" label="要確認" size="small" variant="outlined" />
+                      )}
                     </Stack>
                     <IconButton
                       aria-label={`${item.itemName || `明細 ${index + 1}`}を削除`}
@@ -155,9 +176,9 @@ export function ReviewItemsEditor({
                   </Stack>
 
                   {item.warnings && item.warnings.length > 0 && (
-                    <Alert severity="warning" variant="outlined">
+                    <Typography color="warning.main" variant="body2">
                       {formatTaxWarnings(item.warnings)}
-                    </Alert>
+                    </Typography>
                   )}
 
                   <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
@@ -169,7 +190,7 @@ export function ReviewItemsEditor({
                       value={item.itemName}
                     />
                     <TextField
-                      label="金額"
+                      label="レシートの金額"
                       onChange={(event) =>
                         onItemChange(
                           item.id,
@@ -187,11 +208,49 @@ export function ReviewItemsEditor({
                       sx={{ minWidth: { sm: 140 } }}
                       value={item.amountYen}
                       helperText={
-                        isDiscountItemName(item.itemName) ? "割引額はマイナスで入力" : undefined
+                        isDiscountItemName(item.itemName)
+                          ? "割引額はマイナスで入力"
+                          : item.amountBasis === "tax_excluded" && taxContext.status === "resolved"
+                            ? "税抜の印字額です。登録は下の税込額を使います"
+                            : undefined
                       }
                     />
                   </Stack>
-                  <ReviewItemTaxDetails item={item} />
+
+                  {showRegistrationAmount && item.normalizedAmountYen != null && (
+                    <Typography color="text.secondary" variant="body2">
+                      登録額: {item.normalizedAmountYen.toLocaleString("ja-JP")}円（税込）
+                    </Typography>
+                  )}
+
+                  {taxContext.status === "resolved" && (
+                    <Typography color="text.secondary" variant="body2">
+                      税率 {taxVm.taxRateLabel}
+                    </Typography>
+                  )}
+
+                  <Button
+                    endIcon={isDetailExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                    onClick={() => toggleDetail(item.id)}
+                    size="small"
+                    type="button"
+                    variant="text"
+                  >
+                    詳細（通常は不要）
+                  </Button>
+                  <Collapse in={isDetailExpanded}>
+                    <Stack spacing={1} sx={{ pt: 0.5 }}>
+                      {showTaxRateSelect && (
+                        <TaxRateSelect
+                          disabled={isTaxUpdating}
+                          onChange={(value) => onTaxRateChange?.(item.id, value)}
+                          value={item.taxRatePercent}
+                        />
+                      )}
+                      <ReceiptItemTaxDetail draft={selectedReviewDraft} item={item} />
+                    </Stack>
+                  </Collapse>
+
                   {discount ? (
                     <TextField
                       fullWidth

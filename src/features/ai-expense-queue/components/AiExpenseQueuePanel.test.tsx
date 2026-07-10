@@ -92,6 +92,9 @@ vi.mock("convex/react", () => ({
     return vi.fn();
   },
   useQuery: (reference: string, args: unknown) => useQueryMock(reference, args),
+  useConvex: () => ({
+    query: vi.fn().mockResolvedValue(null),
+  }),
 }));
 
 describe("AiExpenseQueuePanel", () => {
@@ -815,9 +818,7 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("複数カテゴリの確認")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "内容を変更" }));
-    expect(
-      within(dialog).getByText("税込・税抜を確認できない明細があります。（2件）"),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("金額の照合")).toBeInTheDocument();
     expect(within(dialog).queryByText(/unknown_amount_basis/)).not.toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "変更内容を確認" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "修正して登録" })).not.toBeInTheDocument();
@@ -880,10 +881,9 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(within(dialog).getByRole("button", { name: "内容を変更" }));
 
     expect(within(dialog).getByRole("heading", { name: "明細" })).toBeInTheDocument();
-    expect(within(dialog).getByText("明細合計 1,130円 / 差額 250円")).toBeInTheDocument();
-    expect(
-      within(dialog).getByText("レシート合計と明細合計に差額があります。"),
-    ).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("金額の照合")).toBeInTheDocument();
+    expect(within(dialog).getByText("お支払い（レシート合計）")).toBeInTheDocument();
+    expect(within(dialog).getByText("登録合計（税込）")).toBeInTheDocument();
     expect(within(dialog).getByText("低信頼度")).toBeInTheDocument();
     const initialCategoryInputs = within(dialog).getAllByLabelText("明細カテゴリ");
     expect(initialCategoryInputs).toHaveLength(2);
@@ -895,12 +895,12 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(dialog).getAllByLabelText("明細カテゴリ")[0]).toHaveTextContent("日用品");
 
     await user.clear(within(dialog).getByDisplayValue("150"));
-    await user.type(within(dialog).getAllByLabelText("金額")[0], "400");
+    await user.type(within(dialog).getAllByLabelText("レシートの金額")[0], "400");
     await user.click(within(dialog).getByRole("button", { name: "胃薬を削除" }));
     await user.click(within(dialog).getByRole("button", { name: "明細を追加" }));
 
     const itemNameInputs = within(dialog).getAllByLabelText("明細名");
-    const amountInputs = within(dialog).getAllByLabelText("金額");
+    const amountInputs = within(dialog).getAllByLabelText("レシートの金額");
     await user.type(itemNameInputs[1], "牛乳");
     await user.type(amountInputs[1], "980");
     const categoryInputs = within(dialog).getAllByLabelText("明細カテゴリ");
@@ -930,6 +930,9 @@ describe("AiExpenseQueuePanel", () => {
         }),
       ],
     });
+    const submittedItems = updateForReviewMock.mock.calls.at(-1)?.[0].items;
+    expect(submittedItems[0]).toMatchObject({ itemId: "item-food" });
+    expect(submittedItems[1]).not.toHaveProperty("itemId");
   }, 10_000);
 
   it("割引明細は負数で編集し、対象カテゴリの正味額として保存できる", async () => {
@@ -979,12 +982,13 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     await user.click(within(dialog).getByRole("button", { name: "内容を変更" }));
 
-    const amountInputs = within(dialog).getAllByLabelText("金額");
+    const amountInputs = within(dialog).getAllByLabelText("レシートの金額");
     expect(amountInputs[1]).toHaveAttribute("inputmode", "text");
     await user.clear(amountInputs[1]);
     await user.type(amountInputs[1], "-110");
     expect(amountInputs[1]).toHaveValue("-110");
-    expect(within(dialog).getByText("明細合計 990円 / 差額 0円")).toBeInTheDocument();
+    const totalsPanel = within(dialog).getByLabelText("金額の照合");
+    expect(within(totalsPanel).getAllByText("990円").length).toBeGreaterThanOrEqual(2);
 
     await user.click(within(dialog).getByRole("button", { name: "確認して準備OK" }));
 

@@ -6,6 +6,8 @@ import type {
 import { useReviewDraftSelection } from "./useReviewDraftSelection";
 import { useReviewFormState } from "./useReviewFormState";
 import { useReviewSubmit } from "./useReviewSubmit";
+import { useReviewTaxOverrides } from "./useReviewTaxOverrides";
+import { useReviewTaxSummaryOverrides } from "./useReviewTaxSummaryOverrides";
 
 export function useReviewDialog({
   initialReviewDrafts,
@@ -38,12 +40,31 @@ export function useReviewDialog({
     onRegister,
     clearSelection: draftSelection.clearSelection,
     resetForm: formState.resetForm,
+    setReviewDraftOverride: draftSelection.setReviewDraftOverride,
+    setReviewItems: formState.setReviewItems,
+    setInitializedReviewDraftId: formState.setInitializedReviewDraftId,
+  });
+
+  const taxOverrides = useReviewTaxOverrides({
+    selectedReviewDraftId: draftSelection.selectedReviewDraftId,
+    setReviewItems: formState.setReviewItems,
+    setReviewDraftOverride: draftSelection.setReviewDraftOverride,
+    setReviewError: submit.setReviewError,
+  });
+
+  const taxSummaryOverrides = useReviewTaxSummaryOverrides({
+    selectedReviewDraftId: draftSelection.selectedReviewDraftId,
+    setReviewDraftOverride: draftSelection.setReviewDraftOverride,
+    setReviewItems: formState.setReviewItems,
+    setReviewError: submit.setReviewError,
   });
 
   const handleOpenReview = (itemId: string) => {
+    draftSelection.setReviewDraftOverride(null);
     draftSelection.setSelectedReviewDraftId(itemId);
     formState.prepareForDraft();
     submit.clearReviewError();
+    submit.clearReviewSaveNotice();
   };
 
   const handleCloseReview = () => {
@@ -53,6 +74,7 @@ export function useReviewDialog({
     draftSelection.clearSelection();
     formState.resetForm();
     submit.clearReviewError();
+    submit.clearReviewSaveNotice();
   };
 
   return {
@@ -65,6 +87,7 @@ export function useReviewDialog({
     reviewItems: formState.reviewItems,
     isCategorySplit: formState.isCategorySplit,
     reviewError: submit.reviewError,
+    reviewSaveNotice: submit.reviewSaveNotice,
     reviewSubmitting: submit.reviewSubmitting,
     setSelectedReviewDraftId: draftSelection.setSelectedReviewDraftId,
     setInitializedReviewDraftId: formState.setInitializedReviewDraftId,
@@ -82,5 +105,11 @@ export function useReviewDialog({
     handleAssignCategoryToItems: formState.handleAssignCategoryToItems,
     handleDiscountTargetChange: formState.handleDiscountTargetChange,
     handleSubmitReview: submit.handleSubmitReview,
+    taxUpdatingItemId: taxOverrides.taxUpdatingItemId,
+    isApplyingReceiptTax: taxOverrides.isApplyingReceiptTax,
+    handleTaxRateChange: taxOverrides.handleTaxRateChange,
+    handleApplyReceiptTaxSettings: taxOverrides.handleApplyReceiptTaxSettings,
+    taxSummaryUpdatingIndex: taxSummaryOverrides.taxSummaryUpdatingIndex,
+    handleTaxSummaryChange: taxSummaryOverrides.handleTaxSummaryChange,
   };
 }

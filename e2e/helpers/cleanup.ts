@@ -63,6 +63,50 @@ async function resolveCleanupIdentity(
   return getCleanupIdentity();
 }
 
+/**
+ * CI / global setup 用: cleanup API の認証だけを検証する（データは変更しない）。
+ * 401 の場合は GitHub DEV_E2E_CLEANUP_SECRET と Convex dev の E2E_CLEANUP_SECRET 不一致を示す。
+ */
+export async function verifyCleanupAuth(): Promise<void> {
+  const siteUrl = process.env.VITE_CONVEX_SITE_URL;
+  const secret = process.env.E2E_CLEANUP_SECRET;
+
+  if (!siteUrl || !secret) {
+    if (process.env.CI) {
+      throw new Error(
+        "E2E cleanup の事前検証に必要な環境変数が未設定です。" +
+          "VITE_CONVEX_SITE_URL, E2E_CLEANUP_SECRET を設定してください。",
+      );
+    }
+    return;
+  }
+
+  const res = await fetch(`${siteUrl}/e2e/cleanup-auth-check`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-E2E-Cleanup-Secret": secret,
+    },
+  });
+
+  if (res.ok) {
+    return;
+  }
+
+  const text = await res.text();
+  if (res.status === 401) {
+    throw new Error(
+      "E2E cleanup の認証に失敗しました (401)。" +
+        "GitHub Secrets の DEV_E2E_CLEANUP_SECRET と Convex dev deployment の E2E_CLEANUP_SECRET が一致しているか確認してください。" +
+        "ローカルで convex env set した場合は、GitHub DEV_E2E_CLEANUP_SECRET と同じ値を使うか、" +
+        "e2e.yml の Sync E2E cleanup secret ステップ用に DEV_CONVEX_DEPLOY_KEY を設定してください。" +
+        ` (${text})`,
+    );
+  }
+
+  throw new Error(`E2E cleanup の事前検証に失敗しました: ${res.status} ${text}`);
+}
+
 export async function cleanupTestReceipts(options?: CleanupOptions): Promise<void> {
   await callCleanupEndpoint(await resolveCleanupIdentity(options));
 }

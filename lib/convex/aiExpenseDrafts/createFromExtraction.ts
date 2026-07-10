@@ -15,6 +15,8 @@ import type {
   ExtractedTaxSummary,
   ReceiptItemTaxRatePercent,
 } from "../receiptImageExtraction/types";
+import type { ReceiptMarkerDefinition } from "../../receiptTax/types";
+import type { TaxResolutionSource } from "../../receiptTax/types";
 
 type AiExpenseDraftItemInput = {
   itemName: string;
@@ -22,9 +24,13 @@ type AiExpenseDraftItemInput = {
   printedAmountYen?: number;
   amountBasis?: AmountBasis;
   taxRatePercent?: ReceiptItemTaxRatePercent;
+  markers?: string[];
   taxMarker?: string;
   allocatedTaxYen?: number;
   normalizedAmountYen?: number;
+  taxResolutionStatus?: "resolved" | "unresolved";
+  taxResolutionSource?: TaxResolutionSource;
+  taxReviewReasons?: string[];
   quantity?: number;
   unitPriceYen?: number;
   categoryName?: string;
@@ -47,6 +53,7 @@ export type CreateFromExtractionArgs = {
   date?: string;
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
+  markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: Id<"categories">;
   imageFileName?: string;
   confidence: AiExpenseDraftConfidence;
@@ -117,9 +124,13 @@ async function insertDraftItems(
       printedAmountYen: item.printedAmountYen,
       amountBasis: item.amountBasis,
       taxRatePercent: item.taxRatePercent,
+      markers: item.markers,
       taxMarker: item.taxMarker,
       allocatedTaxYen: item.allocatedTaxYen,
       normalizedAmountYen: item.normalizedAmountYen,
+      taxResolutionStatus: item.taxResolutionStatus,
+      taxResolutionSource: item.taxResolutionSource,
+      taxReviewReasons: item.taxReviewReasons,
       quantity: item.quantity,
       unitPriceYen: item.unitPriceYen,
       categoryName: item.categoryName,
@@ -154,6 +165,7 @@ export async function createFromExtractionHandler(
     date: args.date,
     amountYen: args.amountYen,
     taxSummaries: args.taxSummaries,
+    markerDefinitions: args.markerDefinitions,
     categoryId: args.categoryId,
     confidence: args.confidence,
     warnings: args.warnings,

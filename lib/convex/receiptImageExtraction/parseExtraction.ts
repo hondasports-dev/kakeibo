@@ -8,6 +8,7 @@ import type {
   ExtractReceiptItemResult,
   OpenAIResponsesApiResponse,
   ReceiptItemTaxRatePercent,
+  ReceiptMarkerDefinition,
   RoundingMethod,
   TaxMode,
   TaxRatePercent,
@@ -57,8 +58,9 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
   const categoryName = parseOptionalString(obj.categoryName, "categoryName");
   const items = parseOptionalItems(obj.items);
   const taxSummaries = parseOptionalTaxSummaries(obj.taxSummaries);
+  const markerDefinitions = parseOptionalMarkerDefinitions(obj.markerDefinitions);
 
-  return reconcileTaxFields({
+  return {
     shopName: obj.shopName,
     date: obj.date,
     amountYen: obj.amountYen,
@@ -69,50 +71,12 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
     categoryName,
     items,
     taxSummaries,
+    markerDefinitions,
     confidence,
     warnings: Array.isArray(obj.warnings)
       ? (obj.warnings as string[]).filter((w) => typeof w === "string")
       : [],
-  });
-}
-
-function reconcileTaxFields(extracted: ExtractedFields): ExtractedFields {
-  if (!extracted.items || !extracted.taxSummaries) return extracted;
-
-  const taxSummaries = extracted.taxSummaries.map((summary) => {
-    const isExternalByAmounts =
-      summary.taxYen > 0 &&
-      summary.taxIncludedAmountYen === extracted.amountYen &&
-      summary.taxableAmountYen + summary.taxYen === extracted.amountYen;
-    return isExternalByAmounts
-      ? { ...summary, taxMode: "external" as const, taxableAmountBasis: "tax_excluded" as const }
-      : summary;
-  });
-
-  const externallyTaxedRates = new Set(
-    taxSummaries
-      .filter((summary) => {
-        if (summary.taxMode !== "external") return false;
-        const matchingTotal = extracted.items
-          ?.filter(
-            (item) =>
-              item.taxRatePercent === summary.taxRatePercent && item.amountBasis !== "tax_included",
-          )
-          .reduce((sum, item) => sum + (item.printedAmountYen ?? item.amountYen), 0);
-        return matchingTotal === summary.taxableAmountYen;
-      })
-      .map((summary) => summary.taxRatePercent),
-  );
-  const items = extracted.items.map((item) =>
-    item.amountBasis === "unknown" &&
-    item.taxRatePercent !== null &&
-    item.taxRatePercent !== undefined &&
-    externallyTaxedRates.has(item.taxRatePercent)
-      ? { ...item, amountBasis: "tax_excluded" as const }
-      : item,
-  );
-
-  return { ...extracted, items, taxSummaries };
+  };
 }
 
 function parseOptionalItems(value: unknown): ExtractReceiptItemResult[] | undefined {
@@ -148,9 +112,8 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
     item.taxRatePercent,
     `items[${index}].taxRatePercent`,
   );
-  if (typeof item.taxMarker !== "string") {
-    throw new ConvexError(`OpenAI レスポンスの items[${index}].taxMarker が文字列ではありません`);
-  }
+  const markers = parseStringArray(item.markers, `items[${index}].markers`);
+  const taxMarker = parseOptionalString(item.taxMarker, `items[${index}].taxMarker`);
 
   const confidence = parseItemConfidence(item.confidence, index);
   return {
@@ -159,7 +122,8 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
     printedAmountYen,
     amountBasis,
     taxRatePercent,
-    taxMarker: item.taxMarker,
+    markers: markers ?? (taxMarker ? [taxMarker] : []),
+    taxMarker: taxMarker ?? markers?.[0] ?? "",
     quantity: parseOptionalInteger(item.quantity, `items[${index}].quantity`),
     unitPriceYen: parseOptionalInteger(item.unitPriceYen, `items[${index}].unitPriceYen`),
     categoryName: parseOptionalString(item.categoryName, `items[${index}].categoryName`),
@@ -168,6 +132,31 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
       ? (item.warnings as string[]).filter((warning) => typeof warning === "string")
       : [],
   };
+}
+
+function parseOptionalMarkerDefinitions(value: unknown): ReceiptMarkerDefinition[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new ConvexError("OpenAI レスポンスの markerDefinitions が配列ではありません");
+  }
+  return value.map((raw, index) => {
+    if (typeof raw !== "object" || raw === null) {
+      throw new ConvexError(`OpenAI レスポンスの markerDefinitions[${index}] が不正です`);
+    }
+    const definition = raw as Record<string, unknown>;
+    if (typeof definition.marker !== "string" || typeof definition.description !== "string") {
+      throw new ConvexError(`OpenAI レスポンスの markerDefinitions[${index}] が不正です`);
+    }
+    return { marker: definition.marker, description: definition.description };
+  });
+}
+
+function parseStringArray(value: unknown, field: string): string[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string")) {
+    throw new ConvexError(`OpenAI レスポンスの ${field} が文字列配列ではありません`);
+  }
+  return [...new Set(value)];
 }
 
 function parseItemConfidence(

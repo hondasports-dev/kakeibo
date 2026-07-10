@@ -63,20 +63,37 @@ export const amountBasisValidator = v.union(
   v.literal("tax_excluded"),
   v.literal("unknown"),
 );
+export const taxSummaryTaxRatePercentValidator = v.union(v.literal(0), v.literal(8), v.literal(10));
+export const taxModeValidator = v.union(
+  v.literal("external"),
+  v.literal("included"),
+  v.literal("mixed"),
+  v.literal("unknown"),
+);
 export const receiptItemTaxRatePercentValidator = v.union(
   v.literal(0),
   v.literal(8),
   v.literal(10),
   v.null(),
 );
+export const receiptMarkersValidator = v.array(v.string());
+export const taxResolutionStatusValidator = v.union(v.literal("resolved"), v.literal("unresolved"));
+export const taxResolutionSourceValidator = v.union(
+  v.literal("item_explicit"),
+  v.literal("single_summary"),
+  v.literal("summary_reconciliation"),
+  v.literal("remaining_summary"),
+  v.literal("marker_reconciled"),
+  v.literal("paid_total_reconciliation"),
+);
+export const receiptMarkerDefinitionValidator = v.object({
+  marker: v.string(),
+  description: v.string(),
+});
+export const markerDefinitionsValidator = v.array(receiptMarkerDefinitionValidator);
 export const taxSummaryValidator = v.object({
-  taxRatePercent: v.union(v.literal(0), v.literal(8), v.literal(10)),
-  taxMode: v.union(
-    v.literal("external"),
-    v.literal("included"),
-    v.literal("mixed"),
-    v.literal("unknown"),
-  ),
+  taxRatePercent: taxSummaryTaxRatePercentValidator,
+  taxMode: taxModeValidator,
   taxableAmountYen: v.number(),
   taxableAmountBasis: amountBasisValidator,
   taxYen: v.number(),
@@ -95,6 +112,23 @@ export const taxSummaryValidator = v.object({
     taxYen: v.optional(v.number()),
   }),
   warnings: v.array(v.string()),
+  status: v.optional(
+    v.union(v.literal("coherent"), v.literal("reconcilable"), v.literal("conflicting")),
+  ),
+  reasons: v.optional(
+    v.array(
+      v.union(
+        v.literal("included_mode_with_tax_excluded_basis"),
+        v.literal("external_mode_with_tax_included_basis"),
+        v.literal("tax_summary_amount_mismatch"),
+        v.literal("tax_included_amount_mismatch"),
+        v.literal("reconciled_to_included"),
+        v.literal("reconciled_to_external"),
+        v.literal("mixed_tax_mode"),
+        v.literal("unresolved_tax_summary"),
+      ),
+    ),
+  ),
 });
 
 export const aiExpenseDraftConfidenceValidator = v.object({

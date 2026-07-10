@@ -8,7 +8,11 @@ import {
   aiExpenseDraftSourceTypeValidator,
   aiExpenseDraftStatusValidator,
   amountBasisValidator,
+  markerDefinitionsValidator,
   receiptItemTaxRatePercentValidator,
+  receiptMarkersValidator,
+  taxResolutionSourceValidator,
+  taxResolutionStatusValidator,
   taxSummaryValidator,
 } from "./aiExpenseDrafts/model";
 import {
@@ -205,6 +209,7 @@ export default defineSchema({
     date: v.optional(v.string()),
     amountYen: v.optional(v.number()),
     taxSummaries: v.optional(v.array(taxSummaryValidator)),
+    markerDefinitions: v.optional(markerDefinitionsValidator),
     categoryId: v.optional(v.id("categories")),
     confidence: aiExpenseDraftConfidenceValidator,
     // 既存の dev 下書きには warnings が無いものがあるため optional とする。
@@ -226,9 +231,13 @@ export default defineSchema({
     printedAmountYen: v.optional(v.number()),
     amountBasis: v.optional(amountBasisValidator),
     taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+    markers: v.optional(receiptMarkersValidator),
     taxMarker: v.optional(v.string()),
     allocatedTaxYen: v.optional(v.number()),
     normalizedAmountYen: v.optional(v.number()),
+    taxResolutionStatus: v.optional(taxResolutionStatusValidator),
+    taxResolutionSource: v.optional(taxResolutionSourceValidator),
+    taxReviewReasons: v.optional(v.array(v.string())),
     quantity: v.optional(v.number()),
     unitPriceYen: v.optional(v.number()),
     categoryName: v.optional(v.string()),

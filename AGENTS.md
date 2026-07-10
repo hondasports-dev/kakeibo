@@ -109,8 +109,9 @@ gh run watch <run_id> --exit-status
    |--------------|------------------|------------------|
    | フォーマット違反 | `oxfmt`, `format` | `pnpm run format` → 再commit → 再push |
    | lint警告 | `oxlint`, `warning` | 修正 → `pnpm run lint` → 再commit |
-   | E2E 失敗（Playwright） | `Timeout`, `strict mode`, `FunctionNotFound` | ローカルで該当 spec を再実行 → `convex dev --once` 未反映なら実行 → 修正 → 再 push |
-   | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
+ | E2E 失敗（Playwright） | `Timeout`, `strict mode`, `FunctionNotFound` | ローカルで該当 spec を再実行 → `convex dev --once` 未反映なら実行 → 修正 → 再 push |
+ | E2E cleanup 401 | `E2E クリーンアップに失敗しました: 401`, `Unauthorized` | `pnpm run e2e:env-sync`（正本コピー + Convex 同期 + 認証検証）。エージェントが独自 secret で `convex env set` していないか確認 → CI は `DEV_CONVEX_DEPLOY_KEY` 必須（e2e.yml Sync ステップ） |
+ | 型エラー | `TypeScript`, `type error`, `TS` | `tsc` 出力確認 → 修正 → 再push |
 
 3. **修正後は必ず再検証してから再push**
    ```bash
@@ -349,8 +350,10 @@ build=`pnpm run build`、dev=`pnpm run dev`、convex=`pnpm run convex:dev`）。
   （`VITE_CLERK_PUBLISHABLE_KEY` / `CLERK_SECRET_KEY` / `E2E_CLERK_USER_EMAIL` /
   `VITE_CONVEX_URL` / `VITE_CONVEX_SITE_URL` / `E2E_CLEANUP_SECRET`）です。
 - Issue 用 worktree では `.env.local` が自動では入らない。**ローカル E2E の前に**
-  `docs/development-process.md` の「ローカル E2E 実行 → `.env.local` 同期」に従い、
-  `../kakeibo-worktrees/preview` の `.env.local` をコピーする。
+  `pnpm run e2e:env-sync`（または `docs/development-process.md` の「`.env.local` 同期」）を実施する。
+  `pnpm run e2e` / `e2e:smoke` は先頭で env 同期を実行する。エージェントが独自 secret で
+  `convex env set` すると共有 dev deployment が CI の `DEV_E2E_CLEANUP_SECRET` とズレ、
+  CI E2E が global setup で連鎖 401 になる。
 - E2E は**単一の Clerk テストユーザーと共有 Dev DB**を直列で使うため、
   `e2e/ai-expense-queue.spec.ts` の AI処理キュー系テストは非同期ジョブの subscription
   反映タイミングで稀に flaky になります（同名ファイルの過去ジョブ残りが原因）。

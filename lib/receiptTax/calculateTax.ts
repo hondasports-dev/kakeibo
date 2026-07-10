@@ -17,10 +17,8 @@ export function calculateTaxYen(args: {
   if (roundingMethod !== "floor" && roundingMethod !== "round" && roundingMethod !== "ceil") {
     throw new TypeError("roundingMethod must be floor, round, or ceil");
   }
-  const product = taxableAmountYen * taxRatePercent;
-  const quotient = Math.floor(product / 100);
-  const remainder = product % 100;
-  if (roundingMethod === "round") return quotient + (remainder >= 50 ? 1 : 0);
-  if (roundingMethod === "ceil") return quotient + (remainder > 0 ? 1 : 0);
-  return quotient;
+  const exact = (taxableAmountYen * taxRatePercent) / 100;
+  if (roundingMethod === "round") return Math.round(exact);
+  if (roundingMethod === "ceil") return Math.ceil(exact);
+  return Math.floor(exact);
 }

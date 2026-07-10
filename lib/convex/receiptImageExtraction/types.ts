@@ -23,6 +23,8 @@ export type ExtractReceiptItemResult = {
   printedAmountYen?: number;
   amountBasis?: AmountBasis;
   taxRatePercent?: ReceiptItemTaxRatePercent;
+  markers?: string[];
+  /** @deprecated markers を使用する。 */
   taxMarker?: string;
   quantity?: number;
   unitPriceYen?: number;
@@ -36,6 +38,11 @@ export type ExtractReceiptItemResult = {
     categoryName?: number;
   };
   warnings: string[];
+};
+
+export type ReceiptMarkerDefinition = {
+  marker: string;
+  description: string;
 };
 
 export type ExtractedTaxSummary = {
@@ -67,6 +74,7 @@ export type ExtractReceiptFieldsResult = {
   categoryName?: string;
   items?: ExtractReceiptItemResult[];
   taxSummaries?: ExtractedTaxSummary[];
+  markerDefinitions?: ReceiptMarkerDefinition[];
   confidence: ExtractionConfidence;
   warnings: string[];
 };

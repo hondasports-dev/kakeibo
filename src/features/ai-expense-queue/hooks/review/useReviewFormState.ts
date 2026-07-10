@@ -20,6 +20,7 @@ import {
   prepareReviewItemsForSubmit,
 } from "../../utils/reviewItemCategories";
 import { isDiscountItemName } from "../../utils/discountItems";
+import { applyReviewItemsTaxPreview } from "../../utils/reviewItemsTaxPreview";
 
 export function useReviewFormState({
   selectedReviewDraftId,
@@ -98,7 +99,7 @@ export function useReviewFormState({
       if (field === "categoryId" && targetItem && !isDiscountItemName(targetItem.itemName)) {
         return assignCategoryToItems(current, [itemId], value);
       }
-      return current.map((item) => {
+      const updated = current.map((item) => {
         if (item.id !== itemId) {
           return item;
         }
@@ -107,6 +108,28 @@ export function useReviewFormState({
             ...item,
             categoryId: value,
             discountTargetItemId: undefined,
+          };
+        }
+        if (field === "amountYen") {
+          if (value.trim() === "") {
+            return { ...item, amountYen: value };
+          }
+          const amountNum = Number(value);
+          if (!Number.isFinite(amountNum)) {
+            return { ...item, amountYen: value };
+          }
+          if (item.taxResolutionStatus === "resolved" && item.amountBasis === "tax_included") {
+            return {
+              ...item,
+              amountYen: value,
+              printedAmountYen: amountNum,
+              normalizedAmountYen: amountNum,
+            };
+          }
+          return {
+            ...item,
+            amountYen: value,
+            printedAmountYen: amountNum,
           };
         }
         if (field !== "itemName") {
@@ -133,6 +156,22 @@ export function useReviewFormState({
           };
         }
         return { ...item, itemName: value };
+      });
+
+      if (field !== "amountYen") {
+        return updated;
+      }
+
+      const editedItem = updated.find((item) => item.id === itemId);
+      if (editedItem?.amountYen.trim() === "") {
+        return updated;
+      }
+
+      const paidTotalYen = Number(reviewForm.amountYen);
+      return applyReviewItemsTaxPreview(updated, {
+        paidTotalYen: Number.isFinite(paidTotalYen) ? paidTotalYen : undefined,
+        taxSummaries: selectedReviewDraft?.taxSummaries,
+        markerDefinitions: selectedReviewDraft?.markerDefinitions,
       });
     });
   };

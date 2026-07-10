@@ -37,7 +37,7 @@ test.describe("設定台帳（Issue #375）", () => {
     await expect(page.getByRole("heading", { name: "グループの削除", level: 3 })).toBeVisible();
   });
 
-  test("週設定を保存して成功通知を表示する", async ({ page }) => {
+  test("@smoke 週設定を保存して成功通知を表示する", async ({ page }) => {
     await page.getByRole("button", { name: "変更を保存" }).click();
     await expect(page.getByText("週の設定を保存しました")).toBeVisible({ timeout: 15_000 });
   });

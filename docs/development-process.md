@@ -458,10 +458,10 @@ Copy-Item ../preview/.env.local .env.local -Force
 
 **3. 付随チェック**（E2E 実行前）
 
+- **推奨（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `E2E_CLEANUP_SECRET` 反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
 - Playwright ブラウザ未導入なら一度だけ: `pnpm exec playwright install chromium`
 - `convex/**` を変更した PR では: `pnpm exec convex dev --once`
-- E2E cleanup / seed が `401 Unauthorized` のときは、`.env.local` の `E2E_CLEANUP_SECRET` を
-  dev deployment へ反映する（値は表示しない）:
+- 手動で `convex env set E2E_CLEANUP_SECRET` だけ実行しない（GitHub `DEV_E2E_CLEANUP_SECRET` と正本 `.env.local` がズレ、CI E2E が連鎖 401 になる）。どうしても手動なら正本と同じ値のみ:
 
   ```powershell
   # PowerShell 例: 値をログに出さず convex env set する
@@ -530,6 +530,10 @@ PR をマージします。
   503 を返す（本番誤操作防止）。dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
   **接続先 deployment** に対して実行する（秘密値はログに出さない）
+- ローカルで `convex env set E2E_CLEANUP_SECRET` したあと CI E2E が 401 になる場合、
+  `.env.local` の値が GitHub `DEV_E2E_CLEANUP_SECRET` とズレている。正本は GitHub Secret とし、
+  ローカル反映時も同じ値を使う。`e2e.yml` の「Sync E2E cleanup secret」ステップ（要 `DEV_CONVEX_DEPLOY_KEY`）で
+  CI 実行前に Convex dev へ自動同期できる
 
 詳細は `docs/environment-variables.md` の `E2E_CLEANUP_SECRET` を参照。
 
