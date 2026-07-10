@@ -42,7 +42,7 @@ export function createResendEmailProvider({
           const error = classifyResendApiError({
             statusCode,
             message,
-            error: response.error as unknown as { code?: string },
+            error: response.error as unknown as { code?: string; name?: string },
           });
           return { ok: false, error };
         }
@@ -61,7 +61,7 @@ export function createResendEmailProvider({
           ok: false,
           error: classifyResendApiError({
             message: err.message,
-            error: (error as { code?: string }) ?? undefined,
+            error: (error as { code?: string; name?: string }) ?? undefined,
           }),
         };
       }

@@ -106,7 +106,7 @@ export const getLatestWebhookEventForProviderMessageId = internalQuery({
   handler: async (ctx, { providerMessageId }) => {
     const events = await ctx.db
       .query("emailWebhookEvents")
-      .withIndex("by_provider_message_id_and_created_at", (q) =>
+      .withIndex("by_provider_message_id_and_event_created_at", (q) =>
         q.eq("providerMessageId", providerMessageId),
       )
       .order("desc")

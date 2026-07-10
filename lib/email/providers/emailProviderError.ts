@@ -7,9 +7,9 @@ export function classifyResendApiError({
 }: {
   statusCode?: number;
   message: string;
-  error?: { code?: string };
+  error?: { code?: string; name?: string };
 }): EmailProviderError {
-  const code = error?.code;
+  const code = error?.code ?? error?.name;
 
   if (statusCode === 429) {
     return new EmailProviderError("rate_limited", message, true, "resend");

@@ -344,6 +344,6 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_svix_id", ["svixId"])
-    .index("by_provider_message_id_and_created_at", ["providerMessageId", "createdAt"])
+    .index("by_provider_message_id_and_event_created_at", ["providerMessageId", "eventCreatedAt"])
     .index("by_processed_at", ["processedAt"]),
 });
