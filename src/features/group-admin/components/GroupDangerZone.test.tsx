@@ -80,4 +80,68 @@ describe("GroupDangerZone", () => {
     expect(trigger).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByRole("button", { name: "メンバーをグループから外す" })).toBeVisible();
   });
+
+  it("オーナーでなければ危険な操作セクションを表示しない", () => {
+    useQueryMock.mockImplementation((reference: string, args?: unknown) => {
+      if (args === "skip") return undefined;
+      if (reference === "group") return { _id: "group-1", name: "わが家", role: "member" };
+      if (reference === "groups") {
+        return [{ _id: "group-1", name: "わが家", role: "member", isActive: true }];
+      }
+      if (reference === "members") {
+        return [{ userId: "owner-id", role: "owner", displayName: "オーナー", createdAt: 1 }];
+      }
+      return null;
+    });
+
+    renderWithProviders(<GroupDangerZone />);
+    expect(screen.queryByTestId("danger-zone-section")).not.toBeInTheDocument();
+  });
+
+  it("解除できるメンバーがいない場合はその旨を表示する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args?: unknown) => {
+      if (args === "skip") return undefined;
+      if (reference === "group") return { _id: "group-1", name: "わが家", role: "owner" };
+      if (reference === "groups") {
+        return [{ _id: "group-1", name: "わが家", role: "owner", isActive: true }];
+      }
+      if (reference === "members") {
+        return [{ userId: "owner-id", role: "owner", displayName: "オーナー", createdAt: 1 }];
+      }
+      return null;
+    });
+
+    renderWithProviders(<GroupDangerZone />);
+    const trigger = screen.getByRole("button", { name: "危険な操作" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+
+    expect(screen.getByText("解除できるメンバーはいません。")).toBeInTheDocument();
+    expect(screen.getByText("譲渡先となるメンバーがいません。")).toBeInTheDocument();
+  });
+
+  it("メンバー削除ボタンを押すと確認ダイアログを表示する", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupDangerZone />);
+    const trigger = screen.getByRole("button", { name: "危険な操作" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+
+    await user.click(screen.getByRole("button", { name: "メンバーをグループから外す" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("メンバーをグループから外しますか？")).toBeInTheDocument();
+  });
+
+  it("削除開始ボタンを押すとグループ削除ダイアログを表示する", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<GroupDangerZone />);
+    const trigger = screen.getByRole("button", { name: "危険な操作" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+
+    await user.click(screen.getByTestId("delete-group-request-button"));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByText("グループを削除しますか？")).toBeInTheDocument();
+  });
 });
