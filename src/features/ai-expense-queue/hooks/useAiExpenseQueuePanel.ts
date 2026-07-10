@@ -125,6 +125,8 @@ export function useAiExpenseQueuePanel({
     handleTaxRateChange: reviewDialog.handleTaxRateChange,
     isApplyingReceiptTax: reviewDialog.isApplyingReceiptTax,
     handleApplyReceiptTaxSettings: reviewDialog.handleApplyReceiptTaxSettings,
+    taxSummaryUpdatingIndex: reviewDialog.taxSummaryUpdatingIndex,
+    handleTaxSummaryChange: reviewDialog.handleTaxSummaryChange,
     handleToggleReadySelection: bulkRegister.handleToggleReadySelection,
     deleteQueueItem: wrappedDeleteQueueItem,
   };

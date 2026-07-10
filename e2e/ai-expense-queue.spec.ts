@@ -1,5 +1,5 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
-import { gotoAuthenticated } from "./helpers/auth";
+import { getCurrentClerkTokenIdentifier, gotoAuthenticated } from "./helpers/auth";
 import { expectLocatorInsideContainer, expectLocatorInsideViewport } from "./helpers/viewport";
 import {
   cleanupAiExpenseQueue,
@@ -12,6 +12,7 @@ import {
 import {
   seedAiExpenseDraftForExpenseEntriesByUser,
   seedTaxReviewDraftByUser,
+  seedTaxSummaryConflictDraftByUser,
 } from "./helpers/seed";
 import { createSyntheticReceiptImage } from "./helpers/syntheticImage";
 
@@ -518,5 +519,70 @@ test.describe("Issue #397 登録準備OK状態で再編集できる", () => {
     await expect(editedReadyItem.getByText("9,200円")).toBeVisible();
     await expect(editedReadyItem.getByRole("button", { name: "編集する" })).toBeVisible();
     await expect(editedReadyItem.getByRole("button", { name: "登録する" })).toBeVisible();
+  });
+});
+
+test.describe("Issue #435 税率別集計の conflict 修正", () => {
+  test.beforeEach(async () => {
+    await cleanupAiExpenseQueue();
+  });
+
+  test("税率別集計の矛盾を編集して保存すると下書きが再描画される", async ({ page }) => {
+    if (!process.env.E2E_CLERK_USER_EMAIL) {
+      test.skip();
+      return;
+    }
+
+    await gotoAuthenticated(page, "/");
+    const userId = await getCurrentClerkTokenIdentifier(page);
+    await seedTaxSummaryConflictDraftByUser(userId);
+    await page.goto(INPUT_PATH);
+
+    const queue = await waitForReceiptInputQueue(page);
+    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    await expect(reviewSection.getByText("E2E税率別集計店")).toBeVisible({ timeout: 15_000 });
+    await reviewSection.getByRole("button", { name: "確認する" }).click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await expect(dialog).toBeVisible();
+
+    const summarySection = dialog.getByLabel("税率別集計", { exact: true });
+    await expect(summarySection).toBeVisible();
+    await expect(
+      dialog.getByText("内税として読み取りましたが、対象額は税抜として読み取られています"),
+    ).toBeVisible();
+    await expect(dialog.getByText("税込額と支払合計が一致しません")).toBeVisible();
+
+    const taxableAmountInput = dialog.getByRole("spinbutton", { name: "対象額" });
+    await expect(taxableAmountInput).toBeVisible();
+    await taxableAmountInput.fill("1060");
+
+    const basisSelect = dialog.getByRole("combobox", { name: "対象額種別" });
+    await basisSelect.click();
+    await page.getByRole("option", { name: "税込印字" }).click();
+
+    const taxIncludedAmountInput = dialog.getByRole("spinbutton", { name: "税込合計" });
+    await taxIncludedAmountInput.fill("1060");
+
+    await dialog.getByRole("button", { name: "保存" }).click();
+    await expect(dialog.getByRole("button", { name: "保存中…" })).toHaveCount(0, {
+      timeout: 15_000,
+    });
+
+    await expect(
+      dialog.getByText("内税として読み取りましたが、対象額は税抜として読み取られています"),
+    ).toHaveCount(0);
+    await expect(dialog.getByText("税込額と支払合計が一致しません")).toHaveCount(0);
+    await expect(dialog.getByText("対象額 1,060円（税込）")).toBeVisible();
+    await expect(dialog.getByText("税額 96円")).toBeVisible();
+    await expect(dialog.getByText("税込合計 1,060円")).toBeVisible();
+
+    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await expect(dialog).toBeHidden();
+
+    const readySection = queue.getByRole("region", { name: "登録準備OK" });
+    await readySection.getByRole("button", { name: "編集する" }).click();
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByText("対象額 1,060円（税込）")).toBeVisible({ timeout: 10_000 });
   });
 });

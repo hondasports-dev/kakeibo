@@ -22,6 +22,7 @@ import { ReviewDialogActions } from "./ReviewDialogActions";
 import { ReviewFormFields } from "./ReviewFormFields";
 import { ReviewItemsEditor } from "./ReviewItemsEditor";
 import { ReviewSummaryView } from "./ReviewSummaryView";
+import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 
 export function ReviewDialog({
   open,
@@ -48,6 +49,8 @@ export function ReviewDialog({
   onTaxRateChange,
   onApplyReceiptTaxSettings,
   isApplyingReceiptTax,
+  taxSummaryUpdatingIndex,
+  onTaxSummaryChange,
 }: {
   open: boolean;
   categories: AiExpenseQueueCategory[];
@@ -77,6 +80,8 @@ export function ReviewDialog({
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
   onApplyReceiptTaxSettings?: () => void;
   isApplyingReceiptTax?: boolean;
+  taxSummaryUpdatingIndex?: number | null;
+  onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
 }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -152,9 +157,11 @@ export function ReviewDialog({
                   itemsExpanded={itemsExpanded}
                   onApplyReceiptTaxSettings={onApplyReceiptTaxSettings}
                   onToggleItemsExpanded={() => setItemsExpanded((current) => !current)}
+                  onTaxSummaryChange={onTaxSummaryChange}
                   reviewForm={reviewForm}
                   reviewItems={reviewItems}
                   selectedReviewDraft={selectedReviewDraft}
+                  taxSummaryUpdatingIndex={taxSummaryUpdatingIndex}
                 />
               ) : (
                 <>
