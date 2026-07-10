@@ -21,7 +21,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Cache node_modules
@@ -51,7 +51,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Cache node_modules
@@ -79,7 +79,7 @@ jobs:
 
       - uses: actions/setup-node@v6
         with:
-          node-version: 22
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Cache node_modules

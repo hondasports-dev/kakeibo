@@ -157,7 +157,7 @@ jobs:
       - uses: actions/setup-node@v6
         if: steps.trust.outputs.trusted == 'true'
         with:
-          node-version: 22
+          node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
