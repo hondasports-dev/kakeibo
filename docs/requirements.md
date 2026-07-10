@@ -327,8 +327,8 @@ MVPでは、ユーザーが週1回まとめて入力し、その週の支出傾�
 
 画像解析結果は `receipts` に直接保存せず、`aiExpenseDrafts` と `aiExpenseDraftItems` に下書きとして保存する。
 
-- `aiExpenseDrafts`: 書類種別、解析状態、支払先/支払場所/支払内容、候補日付、金額、税率別集計（`taxSummaries`）、カテゴリ、信頼度、確認理由を持つ。`registeredReceiptId` はレガシー互換用で、主導線では未使用。
-- `aiExpenseDraftItems`: 親下書きに紐づく明細行を別テーブルで持つ。印字額、税込・税抜（`amountBasis`）、税率、按分税、正規化登録額（`normalizedAmountYen`）を保持する。
+- `aiExpenseDrafts`: 書類種別、解析状態、画像ファイル名（`imageFileName`）、支払先/支払場所/支払内容、候補日付、金額、税率別集計（`taxSummaries`）、税記号・マーカー定義（`markerDefinitions`）、カテゴリ、信頼度、警告、確認理由を持つ。`registeredReceiptId` はレガシー互換用で、主導線では未使用。
+- `aiExpenseDraftItems`: 親下書きに紐づく明細行を別テーブルで持つ。印字額、税込・税抜（`amountBasis`）、税率、税マーカー（`markers`/`taxMarker`）、按分税、正規化登録額（`normalizedAmountYen`）、税解決状態（`taxResolutionStatus`/`taxResolutionSource`/`taxReviewReasons`）を保持する。
 - 対応する書類種別は `receipt`、`convenience_payment`、`unknown`。
 - 状態は `queued`、`analyzing`、`ready`、`needs_review`、`failed`、`registered`。
 - 登録時は ready 下書きを `expenseEntries` に変換し（`registerReadyDraftsAsExpenseEntries`）、下書きを `registered` に更新する。
@@ -366,8 +366,8 @@ schema（`sourceDocuments`、`expenseEntries`、`receiptAnalysisBatches`、`rece
 現行の移行状況:
 
 1. schema と用語の確定 — **完了**
-2. 既存 `receipts` との互換・移行方針の確定 — **完了**（`convex/receipts/spendingEntries.ts`）
-3. 週次集計とサマリーの `expenseEntries` 寄せ — **完了**（`convex/receipts/spendingEntries.ts`）
+2. 既存 `receipts` との互換・移行方針の確定 — **完了**（`lib/convex/receipts/spendingEntries.ts`）
+3. 週次集計とサマリーの `expenseEntries` 寄せ — **完了**（`lib/convex/receipts/spendingEntries.ts`）
 4. 入力元から複数の支出項目を作る UI — **完了**（`ExpenseEntryForm` の複数支出項目モード）
 5. AI下書きから支出項目候補を作る導線の整理 — **完了**（`registerReadyDraftsAsExpenseEntries`）
 

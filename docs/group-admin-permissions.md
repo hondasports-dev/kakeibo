@@ -270,7 +270,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | owner はグループ管理画面でグループ情報・メンバー・pending 招待を確認できる | `GroupSettingsPanel` UI + `e2e/group-access.spec.ts` | [x] |
 | owner は Phase1 対象の管理操作を実行できる | `convex/groups/members.ts` mutations + E2E smoke | [x] |
 | member は管理操作を実行できない | UI 非表示 + `GroupSettingsPanel.test.tsx` | [x] |
-| member が直接 mutation を呼んでも拒否される | `convex/groups.test.ts` Phase1 owner-only permissions | [x] |
+| member が直接 mutation を呼んでも拒否される | `convex/groups/groups.test.ts` Phase1 owner-only permissions | [x] |
 | グループからのメンバー解除と Clerk ユーザー削除が混同されていない | §7.1 + `removeMemberHandler` unit test | [x] |
 | pending 招待の表示・取り消しができる | `GroupPendingInvitationList` + E2E | [x] |
 | 危険操作には確認導線がある | `ConfirmDangerousActionDialog` + E2E | [x] |
