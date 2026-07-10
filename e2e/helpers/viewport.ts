@@ -1,4 +1,6 @@
 import { expect, type Locator } from "@playwright/test";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 
 export async function expectLocatorInsideViewport(locator: Locator) {
   await expect
@@ -51,9 +53,41 @@ export async function expectLocatorInsideContainer(locator: Locator, container: 
 }
 
 export async function expectNoHorizontalOverflow(page: import("@playwright/test").Page) {
-  const hasHorizontalOverflow = await page.evaluate(() => {
+  const result = await page.evaluate(() => {
     const root = document.documentElement;
-    return root.scrollWidth > root.clientWidth + 1;
+    const hasHorizontalOverflow = root.scrollWidth > root.clientWidth + 1;
+    if (hasHorizontalOverflow) {
+      const clientWidth = root.clientWidth;
+      const scrollWidth = root.scrollWidth;
+      const offenders = Array.from(document.querySelectorAll("*"))
+        .map((el) => {
+          const rect = el.getBoundingClientRect();
+          return {
+            tag: el.tagName,
+            className: el.className,
+            id: (el as HTMLElement).id,
+            right: rect.right,
+            width: rect.width,
+            text: (el.textContent ?? "").slice(0, 80).replace(/\s+/g, " "),
+          };
+        })
+        .filter((el) => el.right > clientWidth + 1)
+        .sort((a, b) => b.right - a.right)
+        .slice(0, 20);
+      return { hasHorizontalOverflow, clientWidth, scrollWidth, offenders };
+    }
+    return { hasHorizontalOverflow };
   });
-  expect(hasHorizontalOverflow).toBe(false);
+  if (result.hasHorizontalOverflow) {
+    const debugDir = join(process.cwd(), "test-results");
+    if (!existsSync(debugDir)) {
+      mkdirSync(debugDir, { recursive: true });
+    }
+    const html = await page.evaluate(() => document.body.innerHTML);
+    const htmlPath = join(debugDir, `overflow-debug-${Date.now()}.html`);
+    writeFileSync(htmlPath, html);
+    console.log("[expectNoHorizontalOverflow] overflow detected", result);
+    console.log("[expectNoHorizontalOverflow] body HTML saved to", htmlPath);
+  }
+  expect(result.hasHorizontalOverflow).toBe(false);
 }
