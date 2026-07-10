@@ -22,43 +22,43 @@
     "convex:dev": "convex dev"
   },
   "dependencies": {
-    "@clerk/backend": "^3.6.1",
-    "@clerk/react": "^6.7.1",
+    "@clerk/backend": "^3.11.3",
+    "@clerk/react": "^6.12.2",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^9.0.1",
-    "@mui/material": "^9.1.0",
-    "@mui/x-charts": "^9.6.0",
-    "convex": "^1.41.0",
-    "framer-motion": "^12.40.0",
+    "@mui/icons-material": "^9.2.0",
+    "@mui/material": "^9.2.0",
+    "@mui/x-charts": "^9.9.0",
+    "convex": "^1.42.1",
+    "framer-motion": "^12.42.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "react-router-dom": "^7.18.0",
+    "react-router-dom": "^7.18.1",
     "valibot": "^1.4.2"
   },
   "devDependencies": {
-    "@clerk/testing": "^2.2.4",
-    "@playwright/test": "^1.61.0",
+    "@clerk/testing": "^2.2.6",
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
-    "@types/node": "^26.0.1",
+    "@types/node": "^26.1.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "chrome-devtools-mcp": "^1.4.0",
-    "clerk": "^1.5.0",
+    "chrome-devtools-mcp": "^1.5.0",
+    "clerk": "^2.0.0",
     "dotenv": "^17.4.2",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
-    "lint-staged": "^17.0.7",
+    "lint-staged": "^17.0.8",
     "oxfmt": "^0.58.0",
     "oxlint": "^1.73.0",
-    "tailwindcss": "^4.3.0",
-    "typescript": "~6.0.2",
-    "vercel": "^54.21.1",
-    "vite": "^8.0.16",
-    "vitest": "^4.1.9"
+    "tailwindcss": "^4.3.2",
+    "typescript": "~7.0.2",
+    "vercel": "^55.0.0",
+    "vite": "^8.1.4",
+    "vitest": "^4.1.10"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -68,6 +68,9 @@
     "*.{json,css}": [
       "oxfmt --check"
     ]
+  },
+  "engines": {
+    "node": "^24.18.0"
   },
   "packageManager": "pnpm@11.1.2"
 }
