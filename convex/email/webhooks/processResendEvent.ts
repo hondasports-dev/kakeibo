@@ -42,7 +42,11 @@ export async function processResendEventHandler(
 
   const providerMessageId = typedData.email_id;
   const recipientEmail = typedData.to?.[0];
-  const eventCreatedAt = typedData.created_at ? Date.parse(typedData.created_at) : undefined;
+  let eventCreatedAt: number | undefined;
+  if (typedData.created_at) {
+    const parsed = Date.parse(typedData.created_at);
+    eventCreatedAt = Number.isNaN(parsed) ? undefined : parsed;
+  }
 
   const duplicate = await ctx.runQuery(internal.email.internal.getWebhookEventBySvixId, {
     svixId: args.svixId,

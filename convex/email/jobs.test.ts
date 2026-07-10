@@ -6,11 +6,9 @@ function createMutationCtx({ insertId = "job-123" }: { insertId?: string } = {})
   return {
     db: {
       insert: vi.fn().mockResolvedValue(insertId),
-      query: vi
-        .fn()
-        .mockReturnValue({
-          withIndex: vi.fn().mockReturnValue({ unique: vi.fn().mockResolvedValue(null) }),
-        }),
+      query: vi.fn().mockReturnValue({
+        withIndex: vi.fn().mockReturnValue({ unique: vi.fn().mockResolvedValue(null) }),
+      }),
       get: vi.fn().mockResolvedValue(null),
       patch: vi.fn().mockResolvedValue(undefined),
       delete: vi.fn().mockResolvedValue(undefined),
