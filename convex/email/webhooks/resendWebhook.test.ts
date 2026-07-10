@@ -1,10 +1,21 @@
-// @vitest-environment node
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { ActionCtx } from "../../_generated/server";
 import { createResendWebhookHandler } from "./resendWebhook";
 
+class MockResponse {
+  status: number;
+  body: string;
+
+  constructor(body: string, init?: { status?: number }) {
+    this.body = body;
+    this.status = init?.status ?? 200;
+  }
+}
+
 beforeEach(() => {
   process.env.RESEND_WEBHOOK_SECRET = "whsec_test";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).Response = MockResponse;
 });
 
 function createActionCtx(): ActionCtx {
@@ -18,19 +29,17 @@ function createActionCtx(): ActionCtx {
   } as any as ActionCtx;
 }
 
-function createRequest({
-  body,
-  headers,
-}: {
-  body: string;
-  headers: Record<string, string>;
-}): Request {
-  const request = new Request("https://example.com/webhooks/resend", {
-    method: "POST",
-    body,
-    headers,
-  });
-  return request;
+function createRequest({ body, headers }: { body: string; headers: Record<string, string> }): {
+  text: () => Promise<string>;
+  headers: { get: (name: string) => string | null };
+} {
+  const headersMap = new Map(Object.entries(headers));
+  return {
+    text: () => Promise.resolve(body),
+    headers: {
+      get: (name: string) => (headersMap.get(name) ?? null) as string | null,
+    },
+  };
 }
 
 describe("createResendWebhookHandler", () => {
@@ -48,10 +57,31 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = await handler(ctx, req);
+    const response = (await handler(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(401);
     expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when webhook secret is missing", async () => {
+    delete process.env.RESEND_WEBHOOK_SECRET;
+    const handler = createResendWebhookHandler(() => ({
+      type: "email.delivered",
+      data: {},
+    }));
+    const ctx = createActionCtx();
+    const req = createRequest({
+      body: "{}",
+      headers: {
+        "webhook-id": "id-1",
+        "webhook-timestamp": "1000",
+        "webhook-signature": "sig",
+      },
+    });
+
+    const response = (await handler(ctx, req as any)) as MockResponse;
+
+    expect(response.status).toBe(500);
   });
 
   it("returns 200 and processes email webhook events", async () => {
@@ -76,7 +106,7 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = await handler(ctx, req);
+    const response = (await handler(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(200);
     expect(ctx.runMutation).toHaveBeenCalledWith(
@@ -105,7 +135,7 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = await handler(ctx, req);
+    const response = (await handler(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(200);
     expect(ctx.runMutation).not.toHaveBeenCalled();
