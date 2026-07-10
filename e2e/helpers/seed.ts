@@ -36,6 +36,14 @@ export async function seedTaxReviewDraftByUser(userId: string): Promise<{ draftI
   return (await postE2eSeed("/e2e/seed-tax-review-draft", { userId })) as { draftId: string };
 }
 
+export async function seedTaxSummaryConflictDraftByUser(
+  userId: string,
+): Promise<{ draftId: string }> {
+  return (await postE2eSeed("/e2e/seed-tax-summary-conflict-draft", { userId })) as {
+    draftId: string;
+  };
+}
+
 export async function seedPendingGroupInvitationForUser(
   userId: string,
   invitationEmail: string,

@@ -208,3 +208,67 @@ export async function createE2eTaxReviewDraftForUserHandler(
 
   return draftId;
 }
+
+export async function createE2eTaxSummaryConflictDraftForUserHandler(
+  ctx: MutationCtx,
+  args: CreateE2eReadyDraftForUserArgs,
+) {
+  const now = Date.now();
+  const draftId = await ctx.db.insert("aiExpenseDrafts", {
+    groupId: args.groupId,
+    sourceType: "image_upload",
+    status: "needs_review",
+    documentType: "receipt",
+    imageFileName: "e2e-tax-summary-conflict.png",
+    shopName: "E2E税率別集計店",
+    date: "2026-07-05",
+    amountYen: 1060,
+    categoryId: args.categoryId,
+    confidence: {
+      documentType: 1,
+      shopName: 1,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    },
+    taxSummaries: [
+      {
+        taxRatePercent: 10,
+        taxMode: "included",
+        taxableAmountYen: 960,
+        taxableAmountBasis: "tax_excluded",
+        taxYen: 96,
+        taxIncludedAmountYen: 1050,
+        roundingMethod: "unknown",
+        confidence: {},
+        warnings: [],
+        status: "conflicting",
+        reasons: ["included_mode_with_tax_excluded_basis", "tax_included_amount_mismatch"],
+      },
+    ],
+    warnings: ["tax_summary_amount_mismatch"],
+    reviewReasons: ["user_confirmation_required", "amount_mismatch"],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await ctx.db.insert("aiExpenseDraftItems", {
+    groupId: args.groupId,
+    draftId,
+    itemName: "E2E税率別集計商品",
+    amountYen: 1060,
+    printedAmountYen: 1060,
+    categoryId: args.categoryId,
+    confidence: {
+      itemName: 1,
+      amountYen: 1,
+      categoryId: 1,
+    },
+    taxResolutionStatus: "unresolved",
+    taxReviewReasons: ["unresolved_tax_rate"],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  return draftId;
+}

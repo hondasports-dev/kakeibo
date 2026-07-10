@@ -145,6 +145,8 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onTaxRateChange={queue.handleTaxRateChange}
         onApplyReceiptTaxSettings={queue.handleApplyReceiptTaxSettings}
         isApplyingReceiptTax={queue.isApplyingReceiptTax}
+        taxSummaryUpdatingIndex={queue.taxSummaryUpdatingIndex}
+        onTaxSummaryChange={queue.handleTaxSummaryChange}
       />
 
       <ReceiptImageConsentDialog

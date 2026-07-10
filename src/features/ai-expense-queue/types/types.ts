@@ -1,5 +1,5 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
-import type { TaxResolutionSource } from "../../../../lib/receiptTax/types";
+import type { ExtractedTaxSummary, TaxResolutionSource } from "../../../../lib/receiptTax/types";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -81,16 +81,7 @@ export type AiExpenseDraft = {
   categoryId?: string;
   reviewReasons: string[];
   warnings?: string[];
-  taxSummaries?: Array<{
-    taxRatePercent: 0 | 8 | 10;
-    taxMode: "external" | "included" | "mixed" | "unknown";
-    taxableAmountYen: number;
-    taxableAmountBasis: "tax_included" | "tax_excluded" | "unknown";
-    taxYen: number;
-    taxIncludedAmountYen?: number;
-    roundingMethod: "floor" | "round" | "ceil" | "unknown";
-    warnings: string[];
-  }>;
+  taxSummaries?: Array<Omit<ExtractedTaxSummary, "confidence">>;
   markerDefinitions?: Array<{ marker: string; description: string }>;
   itemSummary?: {
     itemTotalYen: number;

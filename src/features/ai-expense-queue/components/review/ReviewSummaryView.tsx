@@ -15,6 +15,7 @@ import { ReceiptBulkTaxApply } from "./ReceiptBulkTaxApply";
 import { ReceiptTaxSummary } from "./ReceiptTaxSummary";
 import { ReceiptTotalsPanel } from "./ReceiptTotalsPanel";
 import { ReviewItemsReadOnly } from "./ReviewItemsReadOnly";
+import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 
 export function ReviewSummaryView({
   categories,
@@ -25,6 +26,8 @@ export function ReviewSummaryView({
   onToggleItemsExpanded,
   onApplyReceiptTaxSettings,
   isApplyingReceiptTax,
+  taxSummaryUpdatingIndex,
+  onTaxSummaryChange,
 }: {
   categories: AiExpenseQueueCategory[];
   selectedReviewDraft: AiExpenseDraft | null;
@@ -34,6 +37,8 @@ export function ReviewSummaryView({
   onToggleItemsExpanded: () => void;
   onApplyReceiptTaxSettings?: () => void;
   isApplyingReceiptTax?: boolean;
+  taxSummaryUpdatingIndex?: number | null;
+  onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
 }) {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
 
@@ -83,7 +88,11 @@ export function ReviewSummaryView({
         />
       )}
 
-      <ReceiptTaxSummary draft={selectedReviewDraft} />
+      <ReceiptTaxSummary
+        draft={selectedReviewDraft}
+        onSummaryChange={onTaxSummaryChange}
+        updatingIndex={taxSummaryUpdatingIndex}
+      />
 
       <Button
         endIcon={itemsExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
