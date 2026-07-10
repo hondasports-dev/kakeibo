@@ -8,6 +8,7 @@ import {
   assertReceiptImageConsent,
   getSafeFailureWarning,
 } from "../../lib/convex/receiptImageExtraction/analyzeReceiptImageCore";
+import { getExtractorMode } from "../../lib/convex/receiptImageExtraction/mode";
 
 export type AnalyzeImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
@@ -32,6 +33,11 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     jobId: args.jobId,
     status: "running",
   });
+
+  const appEnv = process.env.APP_ENV ?? "development";
+  if (getExtractorMode(appEnv) === "mock") {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
 
   const isRetry = job.draftId !== undefined;
 
