@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  mergeGeneratedAndManualDrafts,
   mergeProductUpdates,
   ProductUpdateValidationError,
   sortProductUpdates,
@@ -250,6 +251,63 @@ describe("mergeProductUpdates", () => {
         publishedAt: "2026-07-11",
       }),
     ).toThrow(ProductUpdateValidationError);
+  });
+});
+
+describe("mergeGeneratedAndManualDrafts", () => {
+  test("returns generated drafts when manual is empty", () => {
+    const generated = [
+      { id: "pr-1", title: "PR 1", summary: "Summary 1" },
+      { id: "pr-2", title: "PR 2", summary: "Summary 2" },
+    ];
+
+    const merged = mergeGeneratedAndManualDrafts({ generated, manual: [] });
+
+    expect(merged.map((d) => d.id)).toEqual(["pr-1", "pr-2"]);
+  });
+
+  test("manual drafts override generated drafts with the same id", () => {
+    const generated = [
+      { id: "pr-1", title: "PR 1", summary: "Generated summary" },
+      { id: "pr-2", title: "PR 2", summary: "Summary 2" },
+    ];
+    const manual = [{ id: "pr-1", title: "PR 1", summary: "Manual summary" }];
+
+    const merged = mergeGeneratedAndManualDrafts({ generated, manual });
+
+    expect(merged.map((d) => d.id)).toEqual(["pr-1", "pr-2"]);
+    expect(merged[0]).toEqual({ id: "pr-1", title: "PR 1", summary: "Manual summary" });
+  });
+
+  test("manual drafts are placed before generated drafts", () => {
+    const generated = [{ id: "pr-2", title: "PR 2", summary: "Summary 2" }];
+    const manual = [{ id: "pr-1", title: "PR 1", summary: "Summary 1" }];
+
+    const merged = mergeGeneratedAndManualDrafts({ generated, manual });
+
+    expect(merged.map((d) => d.id)).toEqual(["pr-1", "pr-2"]);
+  });
+
+  test("rejects duplicate generated ids", () => {
+    const generated = [
+      { id: "pr-1", title: "PR 1", summary: "Summary 1" },
+      { id: "pr-1", title: "PR 1", summary: "Summary 2" },
+    ];
+
+    expect(() => mergeGeneratedAndManualDrafts({ generated, manual: [] })).toThrow(
+      ProductUpdateValidationError,
+    );
+  });
+
+  test("rejects duplicate manual ids", () => {
+    const manual = [
+      { id: "pr-1", title: "PR 1", summary: "Summary 1" },
+      { id: "pr-1", title: "PR 1", summary: "Summary 2" },
+    ];
+
+    expect(() => mergeGeneratedAndManualDrafts({ generated: [], manual })).toThrow(
+      ProductUpdateValidationError,
+    );
   });
 });
 
