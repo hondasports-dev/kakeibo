@@ -51,7 +51,12 @@ export function sanitizeExternalText(text: string): string {
 }
 
 function removeHtmlComments(text: string): string {
-  return text.replace(/<!--[\s\S]*?-->/gu, "");
+  let previous;
+  do {
+    previous = text;
+    text = text.replace(/<!--[\s\S]*?(?:-->|$)/gu, "");
+  } while (text !== previous);
+  return text;
 }
 
 export function toProductUpdateDrafts(
