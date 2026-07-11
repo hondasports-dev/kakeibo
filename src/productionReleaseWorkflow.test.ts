@@ -94,4 +94,11 @@ describe("production-release workflow", () => {
 
     expect(yaml).toContain("contents: write");
   });
+
+  test("exposes OPENAI_API_KEY and BASE_REF to the generate product updates step", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("OPENAI_API_KEY");
+    expect(yaml).toContain("BASE_REF");
+  });
 });

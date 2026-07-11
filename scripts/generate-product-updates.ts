@@ -1,8 +1,15 @@
+import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { productUpdateDrafts } from "../src/content/product-updates.ts";
 import {
+  fetchMergedPullRequests,
+  summarizePullRequest,
+} from "../src/lib/generateProductUpdates.ts";
+import {
+  compareVersionStrings,
+  mergeGeneratedAndManualDrafts,
   mergeProductUpdates,
   ProductUpdate,
   ProductUpdateValidationError,
@@ -74,8 +81,62 @@ async function downloadAssetText(assetId: number, token: string): Promise<string
   return response.text();
 }
 
+function resolveSourceRef(): string | undefined {
+  const sourceRef = process.env.SOURCE_REF;
+  if (!sourceRef) return undefined;
+  try {
+    return execSync(`git rev-parse "${sourceRef}"`, { encoding: "utf8" }).trim();
+  } catch {
+    return sourceRef;
+  }
+}
+
+function normalizeTimestamp(timestamp: string): string {
+  return new Date(timestamp).toISOString().replace(/\.\d{3}Z$/, "Z");
+}
+
+async function fetchSourceMergeTime(sourceSha: string, token: string): Promise<string | undefined> {
+  const { owner, repo } = parseRepoSlug();
+
+  const pullsResponse = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/commits/${sourceSha}/pulls?per_page=10`,
+    {
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "suzumemo-release-script",
+      },
+    },
+  );
+
+  if (pullsResponse.ok) {
+    const pulls = (await pullsResponse.json()) as Array<{ merged_at: string | null }>;
+    const mergedAts = pulls
+      .map((p) => p.merged_at)
+      .filter((t): t is string => t !== null)
+      .sort((a, b) => b.localeCompare(a));
+    if (mergedAts.length > 0) {
+      return normalizeTimestamp(mergedAts[0]);
+    }
+  }
+
+  try {
+    const commit = await fetchJson<{ commit: { committer: { date: string } } }>(
+      `https://api.github.com/repos/${owner}/${repo}/commits/${sourceSha}`,
+      token,
+    );
+    return normalizeTimestamp(commit.commit.committer.date);
+  } catch {
+    return undefined;
+  }
+}
+
 type GitHubRelease = {
   tag_name: string;
+  created_at: string;
+  published_at: string;
+  target_commitish: string;
   assets: Array<{ id: number; name: string }>;
 };
 
@@ -85,7 +146,7 @@ async function loadPastUpdates({
 }: {
   appVersion: string;
   token: string;
-}): Promise<ProductUpdate[]> {
+}): Promise<{ pastUpdates: ProductUpdate[]; latestRelease?: GitHubRelease }> {
   const { owner, repo } = parseRepoSlug();
   const releases = await fetchJson<GitHubRelease[]>(
     `https://api.github.com/repos/${owner}/${repo}/releases?per_page=100`,
@@ -94,6 +155,7 @@ async function loadPastUpdates({
 
   const pastUpdates: ProductUpdate[] = [];
   const seenIds = new Map<string, string>();
+  let latestRelease: GitHubRelease | undefined;
 
   for (const release of releases) {
     if (!release.tag_name.startsWith("app-v")) {
@@ -106,6 +168,13 @@ async function loadPastUpdates({
     }
 
     validateAppVersion(releaseVersion);
+
+    if (
+      !latestRelease ||
+      compareVersionStrings(releaseVersion, latestRelease.tag_name.slice("app-v".length)) < 0
+    ) {
+      latestRelease = release;
+    }
 
     const asset = release.assets.find((a) => a.name === "product-updates.json");
     if (!asset) {
@@ -144,7 +213,7 @@ async function loadPastUpdates({
     }
   }
 
-  return pastUpdates;
+  return { pastUpdates, latestRelease };
 }
 
 function writeJsonFile(path: string, data: unknown): void {
@@ -156,6 +225,8 @@ async function main(): Promise<void> {
   const appVersion = getRequiredEnv("APP_VERSION");
   const publishedAt = getRequiredEnv("PUBLISHED_AT");
   const token = getRequiredEnv("GITHUB_TOKEN");
+  const openaiApiKey = process.env.OPENAI_API_KEY;
+  const base = process.env.BASE_REF || "main";
 
   validateAppVersion(appVersion);
 
@@ -163,10 +234,33 @@ async function main(): Promise<void> {
     throw new ProductUpdateValidationError(`Invalid PUBLISHED_AT: ${publishedAt}`);
   }
 
-  const pastUpdates = await loadPastUpdates({ appVersion, token });
+  const { pastUpdates, latestRelease } = await loadPastUpdates({ appVersion, token });
+  const { owner, repo } = parseRepoSlug();
+
+  const sourceSha = resolveSourceRef();
+  const before = sourceSha ? await fetchSourceMergeTime(sourceSha, token) : undefined;
+
+  const pulls = await fetchMergedPullRequests({
+    owner,
+    repo,
+    base,
+    since: latestRelease?.published_at,
+    before,
+    token,
+  });
+
+  const generatedDrafts = await Promise.all(
+    pulls.map((pull) => summarizePullRequest({ ...pull, apiKey: openaiApiKey })),
+  );
+
+  const mergedDrafts = mergeGeneratedAndManualDrafts({
+    generated: generatedDrafts,
+    manual: productUpdateDrafts,
+  });
+
   const { allUpdates, currentUpdates } = mergeProductUpdates({
     pastUpdates,
-    drafts: productUpdateDrafts,
+    drafts: mergedDrafts,
     appVersion,
     publishedAt,
   });
@@ -185,6 +279,7 @@ async function main(): Promise<void> {
   console.log(`Generated ${currentReleasePath}`);
   console.log(`Total updates: ${allUpdates.length}`);
   console.log(`Current release updates: ${currentUpdates.length}`);
+  console.log(`Generated drafts from ${pulls.length} pull requests`);
 }
 
 main().catch((error) => {

@@ -62,7 +62,7 @@ function versionDateTimestamp(version: string): number {
   return new Date(year, month - 1, day).getTime();
 }
 
-function compareVersionStrings(a: string, b: string): number {
+export function compareVersionStrings(a: string, b: string): number {
   const aTimestamp = versionDateTimestamp(a);
   const bTimestamp = versionDateTimestamp(b);
   if (aTimestamp !== bTimestamp) {
@@ -118,6 +118,43 @@ export function validateProductUpdate(update: ProductUpdate): void {
   if (!PUBLISHED_AT_PATTERN.test(update.publishedAt)) {
     throw new ProductUpdateValidationError(`Invalid publishedAt: ${update.publishedAt}`);
   }
+}
+
+export function mergeGeneratedAndManualDrafts({
+  generated,
+  manual,
+}: {
+  generated: ProductUpdateDraft[];
+  manual: ProductUpdateDraft[];
+}): ProductUpdateDraft[] {
+  const seen = new Set<string>();
+  const manualMap = new Map<string, ProductUpdateDraft>();
+
+  for (const draft of manual) {
+    validateProductUpdateDraft(draft, seen);
+    seen.add(draft.id);
+    manualMap.set(draft.id, draft);
+  }
+
+  const merged: ProductUpdateDraft[] = [...manual];
+  const generatedSeen = new Set<string>();
+
+  for (const draft of generated) {
+    if (manualMap.has(draft.id)) {
+      continue;
+    }
+
+    if (generatedSeen.has(draft.id)) {
+      throw new ProductUpdateValidationError(`Generated draft id is duplicated: ${draft.id}`);
+    }
+    generatedSeen.add(draft.id);
+
+    validateProductUpdateDraft(draft, seen);
+    seen.add(draft.id);
+    merged.push(draft);
+  }
+
+  return merged;
 }
 
 export function validateProductionProductUpdates(
