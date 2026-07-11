@@ -16,10 +16,12 @@ export async function enqueueTransactionalEmailJobHandler(
     templateType,
     payloadJson,
     recipientEmail,
+    businessDedupeKey,
   }: {
     templateType: TransactionalEmailType;
     payloadJson: string;
     recipientEmail: string;
+    businessDedupeKey?: string;
   },
 ): Promise<string> {
   let payload: unknown;
@@ -38,12 +40,21 @@ export async function enqueueTransactionalEmailJobHandler(
   const normalized = normalizeEmail(recipientEmail);
   const now = Date.now();
 
+  if (businessDedupeKey) {
+    const existing = await ctx.db
+      .query("transactionalEmailJobs")
+      .withIndex("by_business_dedupe_key", (q) => q.eq("businessDedupeKey", businessDedupeKey))
+      .unique();
+    if (existing) return existing._id;
+  }
+
   const jobId = await ctx.db.insert("transactionalEmailJobs", {
     templateType,
     payloadJson,
     recipientEmail,
     normalizedRecipientEmail: normalized,
     subject: subject ?? "",
+    ...(businessDedupeKey ? { businessDedupeKey } : {}),
     provider: "resend",
     status: "queued",
     attemptCount: 0,
@@ -62,6 +73,7 @@ export const enqueueTransactionalEmailJob = internalMutation({
     templateType: transactionalEmailTypeValidator,
     payloadJson: v.string(),
     recipientEmail: v.string(),
+    businessDedupeKey: v.optional(v.string()),
   },
   handler: enqueueTransactionalEmailJobHandler,
 });

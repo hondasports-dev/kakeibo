@@ -192,6 +192,9 @@ function createMockDb(state: {
             indexName === "by_group_id_and_status"
           );
         }
+        if (tableName === "accountDeletionRequests") {
+          return indexName === "by_user_id";
+        }
         return false;
       };
 
@@ -209,7 +212,9 @@ function createMockDb(state: {
                 ? groupMembers
                 : tableName === "groupInvitations"
                   ? groupInvitations
-                  : [];
+                  : tableName === "accountDeletionRequests"
+                    ? []
+                    : [];
 
         return source.filter((doc) => {
           if (indexName.startsWith("by_group_id") && "groupId" in doc) {

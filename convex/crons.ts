@@ -10,4 +10,11 @@ crons.interval(
   {},
 );
 
+crons.interval(
+  "cleanup completed account deletion requests",
+  { hours: 24 },
+  internal.accountDeletion.cleanupCompletedRequests,
+  {},
+);
+
 export default crons;

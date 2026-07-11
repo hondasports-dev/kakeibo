@@ -20,6 +20,7 @@ export const GROUP_OWNERSHIP_TRANSFERRED_TYPE: TransactionalEmailType =
   "group_ownership_transferred";
 export const GROUP_DELETED_TYPE: TransactionalEmailType = "group_deleted";
 export const AI_REVIEW_REQUIRED_TYPE: TransactionalEmailType = "ai_review_required";
+export const ACCOUNT_DELETION_COMPLETED_TYPE: TransactionalEmailType = "account_deletion_completed";
 
 export const emailDeliveryTestSubject = "Suzumemo メール配信テスト";
 export const groupMembershipRemovedSubject = "「{groupName}」から外れました | Suzumemo";
@@ -29,6 +30,7 @@ export const groupOwnershipTransferredSubject =
   "「{groupName}」のオーナー権限を譲渡しました | Suzumemo";
 export const groupDeletedSubject = "「{groupName}」が削除されました | Suzumemo";
 export const aiReviewRequiredSubject = "確認が必要なレシートが{pendingCount}件あります | Suzumemo";
+export const accountDeletionCompletedSubject = "Suzumemoの退会が完了しました";
 
 function makeSubjectTemplate(subject: string) {
   return (payload: Record<string, string | number>) =>
@@ -75,6 +77,11 @@ export const groupDeletedPayloadSchema = v.object({
 
 export const aiReviewRequiredPayloadSchema = v.object({
   pendingCount: v.pipe(v.number(), v.integer(), v.minValue(1, "pendingCount must be at least 1")),
+});
+
+export const accountDeletionCompletedPayloadSchema = v.object({
+  leftGroupCount: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  deletedGroupCount: v.pipe(v.number(), v.integer(), v.minValue(0)),
 });
 
 export const templateDefinitions: TemplateMetadata[] = [
@@ -141,6 +148,15 @@ export const templateDefinitions: TemplateMetadata[] = [
       v.BaseIssue<unknown>
     >,
   },
+  {
+    type: ACCOUNT_DELETION_COMPLETED_TYPE,
+    subject: accountDeletionCompletedSubject,
+    schema: accountDeletionCompletedPayloadSchema as unknown as v.BaseSchema<
+      unknown,
+      TransactionalEmailPayload[typeof ACCOUNT_DELETION_COMPLETED_TYPE],
+      v.BaseIssue<unknown>
+    >,
+  },
 ];
 
 export const subjectRenderers: Record<
@@ -154,6 +170,7 @@ export const subjectRenderers: Record<
   [GROUP_OWNERSHIP_TRANSFERRED_TYPE]: makeSubjectTemplate(groupOwnershipTransferredSubject),
   [GROUP_DELETED_TYPE]: makeSubjectTemplate(groupDeletedSubject),
   [AI_REVIEW_REQUIRED_TYPE]: makeSubjectTemplate(aiReviewRequiredSubject),
+  [ACCOUNT_DELETION_COMPLETED_TYPE]: makeSubjectTemplate(accountDeletionCompletedSubject),
 };
 
 export const templateDefinitionsByType = new Map<TransactionalEmailType, TemplateMetadata>(
