@@ -563,7 +563,7 @@ production-release.yml でPROD反映
 
 PROD 反映は `main` への push で `production-release.yml` が自動起動します。PREVIEW で確認した内容を
 `main` へ merge し、preflight の成功後に GitHub Environment `production` の承認を待ちます。
-承認後は Convex Production、Vercel Production、PROD smoke checklist の順で実行します。
+承認後は Convex Production、Vercel Production、PROD smoke checklist（`<title>` と `<meta name="app-version">` の再検証含む）の順で実行します。
 Actions 以外の Vercel Dashboard、Convex Dashboard、ローカル CLI からの直接 Production deploy は
 正規ルートにしません。
 

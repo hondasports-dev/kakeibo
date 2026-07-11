@@ -2,6 +2,8 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, vi } from "vitest";
 
+import.meta.env.VITE_APP_VERSION = "local";
+
 afterEach(() => {
   cleanup();
 });
