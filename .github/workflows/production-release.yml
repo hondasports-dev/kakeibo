@@ -137,7 +137,6 @@ jobs:
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       PRODUCTION_SMOKE_URL: ${{ vars.PRODUCTION_SMOKE_URL }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      OPENAI_API_KEY: ${{ secrets.RELEASE_NOTE }}
       BASE_REF: ${{ github.event_name == 'push' && 'main' || inputs.source_ref }}
       RELEASE_MODE: ${{ github.event_name == 'push' && 'main_push' || 'manual' }}
       SOURCE_REF: ${{ github.event_name == 'push' && github.sha || inputs.source_ref }}
@@ -189,7 +188,7 @@ jobs:
           APP_VERSION: ${{ env.APP_VERSION }}
           PUBLISHED_AT: ${{ env.PUBLISHED_AT }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OPENAI_API_KEY: ${{ secrets.RELEASE_NOTE }}
+          OPENAI_API_KEY: ${{ secrets.PRODUCT_UPDATE_OPENAI_API_KEY }}
           BASE_REF: ${{ env.BASE_REF }}
           SOURCE_REF: ${{ env.SOURCE_REF }}
 

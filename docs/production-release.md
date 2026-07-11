@@ -122,7 +122,7 @@ GitHub Environment `production` に以下を設定する。
 | -------- | ---------------------- | ------------------------------------- |
 | Secret   | `VERCEL_TOKEN`         | GitHub Actions から Vercel CLI を実行する |
 | Secret   | `CONVEX_DEPLOY_KEY`    | Convex Production deployment へ反映する |
-| Secret   | `RELEASE_NOTE`         | 任意。PR タイトル/本文を要約して Product Update 草案を生成する |
+| Secret   | `PRODUCT_UPDATE_OPENAI_API_KEY` | 任意。PR から Product Update 草案を生成する OpenAI API key |
 | Variable | `VERCEL_ORG_ID`        | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID`    | Vercel project ID                     |
 | Variable | `PRODUCTION_SMOKE_URL` | 任意。custom domain など smoke 対象を固定したい場合に設定 |
@@ -145,11 +145,14 @@ Vercel Production Environment には Clerk Production instance と Convex Produc
 
 1. 過去の `app-v*` GitHub Release から `product-updates.json` asset を取得し、既に公開済みの更新を得る。
 2. 直近の `app-v*` Release 以降かつ `SOURCE_REF` までに `main`（または `BASE_REF`）へマージされた PR を GitHub API 検索で取得する。
-3. 取得した PR のタイトル/本文を `OPENAI_API_KEY`（オプション）で要約し、`ProductUpdateDraft` にする。`OPENAI_API_KEY` が未設定の場合は PR タイトルを `title` に、PR 本文の先頭行を `summary` の元に使う。
-4. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
-5. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
+3. 取得した PR リストを `OPENAI_API_KEY`（オプション）でリリース単位で判定し、ユーザーに見える価値がある場合だけ `ProductUpdateDraft` にする。ユーザーに見えない PR（内部リファクタリング、テスト、CI/CD、依存関係更新、ドキュメントのみなど）は掲載しない。関連する PR は 1 つの `ProductUpdateDraft` にまとめる。
+4. `id` はコード側で決定する。単一 PR の場合は `pr-{number}`、複数 PR の場合は `prs-{number}-{number}-...`（番号は昇順）となる。AI には `id` を生成させない。
+5. `OPENAI_API_KEY` が未設定、OpenAI API エラー、JSON 解析失敗、または生成結果の validation に失敗した場合は、自動生成は 0 件として扱い、リリースを中断しない。`src/content/product-updates.ts` の手動ドラフトがあればそれを使う。
+6. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
+7. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
+8. 生成結果の統計と判定明細を Actions Summary に出力する。
 
-手動で内容を調整したい場合は `src/content/product-updates.ts` に `id` を `pr-{number}`（例: `pr-459`）で指定するか、新規の `id` を追加する。
+手動で内容を調整したい場合は `src/content/product-updates.ts` に `id` を `pr-{number}`（例: `pr-459`）または `prs-{number}-{number}`（例: `prs-459-460`）で指定するか、新規の `id` を追加する。
 
 ## DB/schema変更時のチェックリスト
 

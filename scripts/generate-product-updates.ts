@@ -1,11 +1,12 @@
 import { execSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { productUpdateDrafts } from "../src/content/product-updates.ts";
 import {
   fetchMergedPullRequests,
-  summarizePullRequest,
+  generateProductUpdateCandidates,
+  toProductUpdateDrafts,
 } from "../src/lib/generateProductUpdates.ts";
 import {
   compareVersionStrings,
@@ -249,12 +250,13 @@ async function main(): Promise<void> {
     token,
   });
 
-  const generatedDrafts = await Promise.all(
-    pulls.map((pull) => summarizePullRequest({ ...pull, apiKey: openaiApiKey })),
-  );
+  const generationResult = await generateProductUpdateCandidates(pulls, {
+    apiKey: openaiApiKey,
+  });
+  const generatedCandidates = toProductUpdateDrafts(generationResult.decisions);
 
   const mergedDrafts = mergeGeneratedAndManualDrafts({
-    generated: generatedDrafts,
+    generated: generatedCandidates,
     manual: productUpdateDrafts,
   });
 
@@ -275,11 +277,87 @@ async function main(): Promise<void> {
     updates: currentUpdates,
   });
 
+  printGenerationSummary({
+    pulls,
+    decisions: generationResult.decisions,
+    candidates: generatedCandidates,
+    manualCount: productUpdateDrafts.length,
+    hasApiKey: !!openaiApiKey,
+  });
+
   console.log(`Generated ${generatedPath}`);
   console.log(`Generated ${currentReleasePath}`);
   console.log(`Total updates: ${allUpdates.length}`);
   console.log(`Current release updates: ${currentUpdates.length}`);
   console.log(`Generated drafts from ${pulls.length} pull requests`);
+}
+
+type SummaryInput = {
+  pulls: Array<{ number: number }>;
+  decisions: Array<{
+    sourcePullRequestNumbers: number[];
+    publish: boolean;
+    reason: string;
+  }>;
+  candidates: Array<{ id: string }>;
+  manualCount: number;
+  hasApiKey: boolean;
+};
+
+function printGenerationSummary({
+  pulls,
+  decisions,
+  candidates,
+  manualCount,
+  hasApiKey,
+}: SummaryInput): void {
+  const publishedCount = candidates.length;
+  const skippedCount = decisions.length - publishedCount;
+  const status = hasApiKey ? (decisions.length > 0 ? "success" : "failed") : "skipped (no API key)";
+
+  const details: string[] = [];
+  if (pulls.length === 0) {
+    details.push("No merged pull requests found.");
+  } else if (decisions.length === 0) {
+    if (hasApiKey) {
+      details.push("OpenAI generation failed; using manual drafts only.");
+    } else {
+      details.push("OPENAI_API_KEY is not set; using manual drafts only.");
+    }
+  } else {
+    let candidateIndex = 0;
+    for (const decision of decisions) {
+      const numbers = [...decision.sourcePullRequestNumbers].sort((a, b) => a - b);
+      const prLabels = numbers.map((n) => `#${n}`).join(", ");
+      if (decision.publish) {
+        const candidate = candidates[candidateIndex++];
+        details.push(`PR ${prLabels} → published as ${candidate?.id ?? "unknown"}`);
+      } else {
+        details.push(`PR ${prLabels} → skipped: ${decision.reason}`);
+      }
+    }
+  }
+
+  const lines = [
+    "## Product update generation",
+    "",
+    "| Item | Value |",
+    "| --- | --- |",
+    `| Target PRs | ${pulls.length} |`,
+    `| Published product updates | ${publishedCount} |`,
+    `| Skipped PRs | ${skippedCount} |`,
+    `| Manual drafts | ${manualCount} |`,
+    `| OpenAI generation status | ${status} |`,
+    "",
+    ...details,
+  ];
+
+  const summary = `${lines.join("\n")}\n`;
+  console.log(summary);
+
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    appendFileSync(process.env.GITHUB_STEP_SUMMARY, summary);
+  }
 }
 
 main().catch((error) => {

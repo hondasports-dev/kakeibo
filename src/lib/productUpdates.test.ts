@@ -252,6 +252,28 @@ describe("mergeProductUpdates", () => {
       }),
     ).toThrow(ProductUpdateValidationError);
   });
+
+  test("rejects a multi-PR id that is already published with a different version", () => {
+    const pastUpdates = [
+      {
+        id: "prs-459-460",
+        title: "A",
+        summary: "A",
+        version: "2026.07.10-100",
+        publishedAt: "2026-07-10",
+      },
+    ];
+    const drafts = [{ id: "prs-459-460", title: "A", summary: "A" }];
+
+    expect(() =>
+      mergeProductUpdates({
+        pastUpdates,
+        drafts,
+        appVersion: "2026.07.11-458",
+        publishedAt: "2026-07-11",
+      }),
+    ).toThrow(ProductUpdateValidationError);
+  });
 });
 
 describe("mergeGeneratedAndManualDrafts", () => {
@@ -308,6 +330,31 @@ describe("mergeGeneratedAndManualDrafts", () => {
     expect(() => mergeGeneratedAndManualDrafts({ generated: [], manual })).toThrow(
       ProductUpdateValidationError,
     );
+  });
+
+  test("manual drafts override generated drafts with multi-PR ids", () => {
+    const generated = [
+      { id: "prs-459-460", title: "Generated title", summary: "Generated summary" },
+      { id: "pr-461", title: "PR 461", summary: "Summary 461" },
+    ];
+    const manual = [{ id: "prs-459-460", title: "Manual title", summary: "Manual summary" }];
+
+    const merged = mergeGeneratedAndManualDrafts({ generated, manual });
+
+    expect(merged.map((d) => d.id)).toEqual(["prs-459-460", "pr-461"]);
+    expect(merged[0]).toEqual({
+      id: "prs-459-460",
+      title: "Manual title",
+      summary: "Manual summary",
+    });
+  });
+
+  test("manual drafts are used when generated is empty", () => {
+    const manual = [{ id: "pr-1", title: "Manual PR 1", summary: "Manual summary" }];
+
+    const merged = mergeGeneratedAndManualDrafts({ generated: [], manual });
+
+    expect(merged).toEqual([{ id: "pr-1", title: "Manual PR 1", summary: "Manual summary" }]);
   });
 });
 
