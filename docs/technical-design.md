@@ -352,6 +352,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 7. 複数グループに所属しているユーザーは `/group/select` または設定画面から表示対象グループを切り替える。
 8. メンバーを外す場合は、オーナーが `/settings` からそのユーザーを削除する。
 9. 削除対象ユーザーの activeGroupId が削除されたグループだった場合、残りの所属グループへ切り替える。
+10. メンバーのグループ解除、ロール変更、オーナー権限譲渡、グループ削除の実行時には、影響を受けたメンバーへメール通知を送信する。
 
 この運用では、次の制約を前提にする。
 
@@ -678,9 +679,18 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `receiptAnalysisJobs.mutations.retryImageJob(jobId)`
 - `receiptAnalysisJobs.mutations.cancelImageJob(jobId)`
 - `receiptAnalysisJobs.internal.finalizeBatchStatus(batchId)`（internal）
+- `receiptAnalysisJobs.internal.getBatchById(batchId)`（internal）
+- `receiptAnalysisJobs.internal.countNeedsReviewJobsByBatchId(batchId)`（internal）
+- `receiptAnalysisJobs.actions.checkAiReviewRequired(batchId)`（internal action）
 
 バッチ画像解析は `receiptAnalysisBatches` / `receiptAnalysisImageJobs` テーブルで管理する。
 各ジョブは `analyzeImageJob` action で非同期に処理され、完了時に internal の `finalizeBatchStatus` でバッチ状態を更新する。
+
+`createBatch` 時に `receiptAnalysisBatches.createdByUserId` に実行ユーザーの `tokenIdentifier` を保存する。
+ジョブが `needs_review` など terminal 状態に更新されると、`updateJobStatus` は `aiReviewNotificationScheduledAt` を記録し、
+60 分後に `checkAiReviewRequired` をスケジュールする。60 分後に `needs_review` ジョブが残っていれば、
+`createdByUserId` に紐づくメールアドレスへ `ai_review_required` テンプレートの通知を送信する。
+`aiReviewNotificationScheduledAt` は重複スケジュールを防ぐ。
 
 下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` と `groupMembers` から
 active group を解決する。`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの
