@@ -20,7 +20,8 @@
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
     "clerk:login": "clerk auth login",
-    "convex:dev": "convex dev"
+    "convex:dev": "convex dev",
+    "test:email-integration": "vitest run -c vitest.integration.config.ts"
   },
   "dependencies": {
     "@clerk/backend": "^3.11.3",

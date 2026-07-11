@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { WebhookEventPayload } from "resend";
 import type { ActionCtx } from "../../_generated/server";
 import { createResendWebhookHandler } from "./resendWebhook";
+
+// PublicHttpAction は callable として型付けされていないため、テストでは any として呼び出す
+const asAny = (value: unknown): any => value as any;
 
 class MockResponse {
   status: number;
@@ -57,7 +61,7 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = (await handler(ctx, req as any)) as MockResponse;
+    const response = (await asAny(handler)(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(401);
     expect(ctx.runMutation).not.toHaveBeenCalled();
@@ -65,10 +69,13 @@ describe("createResendWebhookHandler", () => {
 
   it("returns 500 when webhook secret is missing", async () => {
     delete process.env.RESEND_WEBHOOK_SECRET;
-    const handler = createResendWebhookHandler(() => ({
-      type: "email.delivered",
-      data: {},
-    }));
+    const handler = createResendWebhookHandler(
+      () =>
+        asAny({
+          type: "email.delivered",
+          data: {},
+        }) as WebhookEventPayload,
+    );
     const ctx = createActionCtx();
     const req = createRequest({
       body: "{}",
@@ -79,22 +86,26 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = (await handler(ctx, req as any)) as MockResponse;
+    const response = (await asAny(handler)(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(500);
   });
 
   it("returns 200 and processes email webhook events", async () => {
-    const handler = createResendWebhookHandler(() => ({
-      type: "email.delivered",
-      data: {
-        email_id: "msg-1",
-        created_at: "2026-07-10T12:00:00Z",
-        to: ["test@example.com"],
-        from: "noreply@example.com",
-        subject: "test",
-      },
-    }));
+    const handler = createResendWebhookHandler(
+      () =>
+        asAny({
+          type: "email.delivered",
+          created_at: "2026-07-10T12:00:00Z",
+          data: {
+            email_id: "msg-1",
+            created_at: "2026-07-10T12:00:00Z",
+            to: ["test@example.com"],
+            from: "noreply@example.com",
+            subject: "test",
+          },
+        }) as WebhookEventPayload,
+    );
 
     const ctx = createActionCtx();
     const req = createRequest({
@@ -106,7 +117,7 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = (await handler(ctx, req as any)) as MockResponse;
+    const response = (await asAny(handler)(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(200);
     expect(ctx.runMutation).toHaveBeenCalledWith(
@@ -120,10 +131,13 @@ describe("createResendWebhookHandler", () => {
   });
 
   it("returns 200 without processing for unsupported event types", async () => {
-    const handler = createResendWebhookHandler(() => ({
-      type: "email.clicked",
-      data: {},
-    }));
+    const handler = createResendWebhookHandler(
+      () =>
+        asAny({
+          type: "email.clicked",
+          data: {},
+        }) as WebhookEventPayload,
+    );
 
     const ctx = createActionCtx();
     const req = createRequest({
@@ -135,7 +149,7 @@ describe("createResendWebhookHandler", () => {
       },
     });
 
-    const response = (await handler(ctx, req as any)) as MockResponse;
+    const response = (await asAny(handler)(ctx, req as any)) as MockResponse;
 
     expect(response.status).toBe(200);
     expect(ctx.runMutation).not.toHaveBeenCalled();
