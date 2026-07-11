@@ -18,14 +18,18 @@ import { SettingsPage } from "./features/settings";
 import { AccountDeletionPage, AccountDeletionStatusPage } from "./features/account-deletion";
 import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
-import { useQuery } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 
 function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
-  const deletionStatus = useQuery(api.accountDeletion.getMyAccountDeletionStatus);
+  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
+  const deletionStatus = useQuery(
+    api.accountDeletion.getMyAccountDeletionStatus,
+    isAuthenticated ? {} : "skip",
+  );
 
-  if (isLoading || deletionStatus === undefined) {
+  if (isAuthLoading || isLoading || (isAuthenticated && deletionStatus === undefined)) {
     return (
       <SuzumemoLoadingState
         label="グループ情報を確認中"
