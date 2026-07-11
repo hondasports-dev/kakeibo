@@ -98,7 +98,16 @@ describe("production-release workflow", () => {
   test("exposes OPENAI_API_KEY and BASE_REF to the generate product updates step", () => {
     const yaml = workflow();
 
-    expect(yaml).toContain("OPENAI_API_KEY");
+    expect(yaml).toContain("OPENAI_API_KEY: ${{ secrets.PRODUCT_UPDATE_OPENAI_API_KEY }}");
     expect(yaml).toContain("BASE_REF");
+    expect(yaml).not.toContain("OPENAI_API_KEY: ${{ secrets.RELEASE_NOTE }}");
+  });
+
+  test("preserves release_note workflow input and RELEASE_NOTE for GitHub releases", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("release_note:");
+    expect(yaml).toContain("RELEASE_NOTE:");
+    expect(yaml).toContain("--notes-file /tmp/release-notes.md");
   });
 });
