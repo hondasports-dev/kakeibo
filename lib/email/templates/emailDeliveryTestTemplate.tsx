@@ -1,20 +1,7 @@
 import { render, toPlainText } from "react-email";
-import * as v from "valibot";
-import {
-  type BuiltEmail,
-  type EmailDeliveryTestPayload,
-  type TransactionalEmailType,
-} from "../model";
+import { type BuiltEmail, type EmailDeliveryTestPayload } from "../model";
+import { emailDeliveryTestSubject } from "../templateDefinitions";
 import { EmailDeliveryTest } from "./EmailDeliveryTest";
-
-export const EMAIL_DELIVERY_TEST_TYPE: TransactionalEmailType = "email_delivery_test";
-
-export const emailDeliveryTestPayloadSchema = v.object({
-  to: v.string(),
-  groupName: v.optional(v.string()),
-});
-
-export const emailDeliveryTestSubject = "Suzumemo メール配信テスト";
 
 export async function renderEmailDeliveryTest(
   payload: EmailDeliveryTestPayload,

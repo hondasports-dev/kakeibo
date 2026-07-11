@@ -1,3 +1,5 @@
+"use node";
+
 import { v } from "convex/values";
 import { internalAction } from "../_generated/server";
 import type { ActionCtx } from "../_generated/server";
@@ -5,6 +7,7 @@ import type { Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { getRetryDelayMs, isMaxAttemptsReached } from "../../lib/email/retryPolicy";
 import { getEmailProvider } from "./lib/providers";
+import { buildTransactionalEmail } from "../../lib/email/templateFactory";
 
 export async function processEmailJobHandler(
   ctx: ActionCtx,
@@ -39,13 +42,29 @@ export async function processEmailJobHandler(
     return;
   }
 
+  let payload: unknown;
+  try {
+    payload = JSON.parse(job.payloadJson);
+  } catch {
+    await ctx.runMutation(internal.email.internal.updateJobForFailure, {
+      jobId,
+      status: "failed",
+      errorMessage: "Invalid payload JSON",
+      errorCode: "invalid_request",
+      updatedAt: Date.now(),
+    });
+    return;
+  }
+
+  const built = await buildTransactionalEmail(job.templateType, payload as never);
+
   const provider = getEmailProvider();
   const result = await provider.send({
     to: job.recipientEmail,
     from: process.env.RESEND_FROM_ADDRESS ?? "Suzumemo <noreply@example.com>",
-    subject: job.subject,
-    html: job.html,
-    text: job.text,
+    subject: built.subject,
+    html: built.html,
+    text: built.text,
     idempotencyKey: jobId,
   });
 
@@ -56,6 +75,8 @@ export async function processEmailJobHandler(
       jobId,
       providerMessageId: result.providerMessageId,
       status: "sent",
+      html: built.html,
+      text: built.text,
       updatedAt: now,
     });
     return;

@@ -1,9 +1,13 @@
 import { describe, it, expect, beforeAll, afterEach, afterAll } from "vitest";
 import { spawn, type ChildProcess } from "node:child_process";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { readFile } from "node:fs/promises";
 import { ConvexHttpClient } from "convex/browser";
 import { internal } from "../../convex/_generated/api.js";
 import { normalizeEmail } from "./model";
+
+const execFileAsync = promisify(execFile);
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const isConfigured =
@@ -84,16 +88,98 @@ async function cleanupTestRecords(client: ConvexHttpClient, email: string): Prom
   });
 }
 
+async function getConvexEnv(adminKey: string): Promise<Record<string, string>> {
+  const { stdout } = await execFileAsync(
+    "node",
+    [
+      "node_modules/convex/bin/main.js",
+      "env",
+      "list",
+      "--url",
+      "http://127.0.0.1:3210",
+      "--admin-key",
+      adminKey,
+    ],
+    { cwd: process.cwd() },
+  );
+  const result: Record<string, string> = {};
+  for (const line of stdout.split("\n")) {
+    const idx = line.indexOf("=");
+    if (idx > 0) {
+      result[line.slice(0, idx)] = line.slice(idx + 1);
+    }
+  }
+  return result;
+}
+
+async function setConvexEnv(adminKey: string, name: string, value: string): Promise<void> {
+  await execFileAsync(
+    "node",
+    [
+      "node_modules/convex/bin/main.js",
+      "env",
+      "set",
+      "--url",
+      "http://127.0.0.1:3210",
+      "--admin-key",
+      adminKey,
+      name,
+      value,
+    ],
+    { cwd: process.cwd() },
+  );
+}
+
+async function removeConvexEnv(adminKey: string, name: string): Promise<void> {
+  await execFileAsync(
+    "node",
+    [
+      "node_modules/convex/bin/main.js",
+      "env",
+      "remove",
+      "--url",
+      "http://127.0.0.1:3210",
+      "--admin-key",
+      adminKey,
+      name,
+    ],
+    { cwd: process.cwd() },
+  );
+}
+
+async function restoreConvexEnv(adminKey: string, original: Record<string, string>): Promise<void> {
+  const current = await getConvexEnv(adminKey);
+  for (const name of Object.keys(current)) {
+    if (name in original) {
+      if (current[name] !== original[name]) {
+        await setConvexEnv(adminKey, name, original[name]);
+      }
+    } else {
+      await removeConvexEnv(adminKey, name);
+    }
+  }
+  for (const name of Object.keys(original)) {
+    if (!(name in current)) {
+      await setConvexEnv(adminKey, name, original[name]);
+    }
+  }
+}
+
 describeWhen("transactional email integration", () => {
   let convex: ChildProcess;
   let client: ConvexHttpClient;
+  let originalConvexEnv: Record<string, string> | undefined;
+  let adminKey: string;
+
+  const testResendFromAddress = "Suzumemo <onboarding@resend.dev>";
 
   beforeAll(async () => {
     const env = {
       ...process.env,
-      APP_ENV: "production",
-      RESEND_FROM_ADDRESS: process.env.RESEND_FROM_ADDRESS ?? "Suzumemo <onboarding@resend.dev>",
+      CONVEX_AGENT_MODE: "anonymous",
+      CLERK_JWT_ISSUER_DOMAIN: process.env.CLERK_JWT_ISSUER_DOMAIN,
     };
+    delete env.CONVEX_DEPLOYMENT;
 
     convex = spawn("node", ["node_modules/convex/bin/main.js", "dev", "--typecheck", "disable"], {
       cwd: process.cwd(),
@@ -105,11 +191,21 @@ describeWhen("transactional email integration", () => {
     await waitForOutput(convex, "Convex functions ready", 60000);
 
     const config = JSON.parse(await readFile(".convex/local/default/config.json", "utf8"));
+    adminKey = config.adminKey;
 
     client = new ConvexHttpClient("http://127.0.0.1:3210", {
       skipConvexDeploymentUrlCheck: true,
     });
-    client.setAdminAuth(config.adminKey);
+    client.setAdminAuth(adminKey);
+
+    originalConvexEnv = await getConvexEnv(adminKey);
+
+    await setConvexEnv(adminKey, "RESEND_FROM_ADDRESS", testResendFromAddress);
+    await setConvexEnv(adminKey, "RESEND_API_KEY", RESEND_API_KEY);
+    await setConvexEnv(adminKey, "APP_ENV", "production");
+    if (process.env.CLERK_JWT_ISSUER_DOMAIN && !("CLERK_JWT_ISSUER_DOMAIN" in originalConvexEnv)) {
+      await setConvexEnv(adminKey, "CLERK_JWT_ISSUER_DOMAIN", process.env.CLERK_JWT_ISSUER_DOMAIN);
+    }
   }, 120000);
 
   afterEach(async () => {
@@ -125,6 +221,9 @@ describeWhen("transactional email integration", () => {
       } catch {
         // 既に終了している場合は無視
       }
+    }
+    if (originalConvexEnv) {
+      await restoreConvexEnv(adminKey, originalConvexEnv);
     }
   }, 10000);
 
