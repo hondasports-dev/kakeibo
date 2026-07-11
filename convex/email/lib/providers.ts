@@ -20,12 +20,17 @@ export function getEmailProvider(): EmailProvider {
   }
 
   const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    throw new Error("Missing RESEND_API_KEY");
-  }
   const from = process.env.RESEND_FROM_ADDRESS;
-  if (!from) {
-    throw new Error("Missing RESEND_FROM_ADDRESS");
+
+  const shouldMock =
+    apiKey === undefined ||
+    apiKey === "re_change_me" ||
+    apiKey === "" ||
+    from === undefined ||
+    from === "";
+
+  if (shouldMock) {
+    return mockEmailProvider();
   }
 
   const resend = new Resend(apiKey);

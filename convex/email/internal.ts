@@ -23,12 +23,16 @@ export const updateJobForSend = internalMutation({
     jobId: v.id("transactionalEmailJobs"),
     providerMessageId: v.string(),
     status: v.literal("sent"),
+    html: v.optional(v.string()),
+    text: v.optional(v.string()),
     updatedAt: v.number(),
   },
   handler: async (ctx, args) => {
     await ctx.db.patch(args.jobId, {
       providerMessageId: args.providerMessageId,
       status: args.status,
+      html: args.html,
+      text: args.text,
       updatedAt: args.updatedAt,
       nextRetryAt: undefined,
       errorMessage: undefined,

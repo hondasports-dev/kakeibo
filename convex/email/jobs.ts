@@ -3,9 +3,9 @@ import { internalMutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import {
-  buildTransactionalEmail,
+  getTemplateSubject,
   validatePayloadForTemplate,
-} from "../../lib/email/templateFactory";
+} from "../../lib/email/templateDefinitions";
 import { normalizeEmail } from "../../lib/email/model";
 import { transactionalEmailTypeValidator } from "./model";
 import type { TransactionalEmailType } from "../../lib/email/model";
@@ -34,7 +34,7 @@ export async function enqueueTransactionalEmailJobHandler(
     throw new ConvexError("Invalid transactional email payload");
   }
 
-  const built = await buildTransactionalEmail(templateType, validation.data);
+  const subject = getTemplateSubject(templateType);
   const normalized = normalizeEmail(recipientEmail);
   const now = Date.now();
 
@@ -43,9 +43,7 @@ export async function enqueueTransactionalEmailJobHandler(
     payloadJson,
     recipientEmail,
     normalizedRecipientEmail: normalized,
-    subject: built.subject,
-    html: built.html,
-    text: built.text,
+    subject: subject ?? "",
     provider: "resend",
     status: "queued",
     attemptCount: 0,

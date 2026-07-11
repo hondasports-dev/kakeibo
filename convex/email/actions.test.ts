@@ -41,9 +41,9 @@ const queuedJob = {
   status: "queued",
   normalizedRecipientEmail: "test@example.com",
   recipientEmail: "test@example.com",
+  templateType: "email_delivery_test",
+  payloadJson: JSON.stringify({ to: "test@example.com", groupName: "Demo" }),
   subject: "Suzumemo メール配信テスト",
-  html: "<html></html>",
-  text: "text",
   attemptCount: 0,
 };
 
