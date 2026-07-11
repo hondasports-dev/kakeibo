@@ -1,4 +1,12 @@
-export const TRANSACTIONAL_EMAIL_TYPES = ["email_delivery_test"] as const;
+export const TRANSACTIONAL_EMAIL_TYPES = [
+  "email_delivery_test",
+  "group_membership_removed",
+  "group_role_changed",
+  "group_ownership_received",
+  "group_ownership_transferred",
+  "group_deleted",
+  "ai_review_required",
+] as const;
 
 export type TransactionalEmailType = (typeof TRANSACTIONAL_EMAIL_TYPES)[number];
 
@@ -7,8 +15,41 @@ export type EmailDeliveryTestPayload = {
   groupName?: string;
 };
 
+export type GroupMembershipRemovedPayload = {
+  groupName: string;
+};
+
+export type GroupRoleChangedPayload = {
+  groupName: string;
+  previousRole: "owner" | "member";
+  newRole: "owner" | "member";
+};
+
+export type GroupOwnershipReceivedPayload = {
+  groupName: string;
+};
+
+export type GroupOwnershipTransferredPayload = {
+  groupName: string;
+  newOwnerDisplayName: string;
+};
+
+export type GroupDeletedPayload = {
+  groupName: string;
+};
+
+export type AiReviewRequiredPayload = {
+  pendingCount: number;
+};
+
 export type TransactionalEmailPayload = {
   email_delivery_test: EmailDeliveryTestPayload;
+  group_membership_removed: GroupMembershipRemovedPayload;
+  group_role_changed: GroupRoleChangedPayload;
+  group_ownership_received: GroupOwnershipReceivedPayload;
+  group_ownership_transferred: GroupOwnershipTransferredPayload;
+  group_deleted: GroupDeletedPayload;
+  ai_review_required: AiReviewRequiredPayload;
 };
 
 export type BuiltEmail = {

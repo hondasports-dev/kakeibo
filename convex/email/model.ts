@@ -1,6 +1,14 @@
 import { v } from "convex/values";
 
-export const TRANSACTIONAL_EMAIL_TYPES = ["email_delivery_test"] as const;
+export const TRANSACTIONAL_EMAIL_TYPES = [
+  "email_delivery_test",
+  "group_membership_removed",
+  "group_role_changed",
+  "group_ownership_received",
+  "group_ownership_transferred",
+  "group_deleted",
+  "ai_review_required",
+] as const;
 
 export const transactionalEmailTypeValidator = v.union(
   ...TRANSACTIONAL_EMAIL_TYPES.map((t) => v.literal(t)),
