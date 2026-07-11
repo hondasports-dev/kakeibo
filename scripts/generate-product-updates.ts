@@ -313,7 +313,13 @@ function printGenerationSummary({
 }: SummaryInput): void {
   const publishedCount = candidates.length;
   const skippedCount = decisions.length - publishedCount;
-  const status = hasApiKey ? (decisions.length > 0 ? "success" : "failed") : "skipped (no API key)";
+  const status = hasApiKey
+    ? pulls.length === 0
+      ? "skipped (no PRs)"
+      : decisions.length > 0
+        ? "success"
+        : "failed"
+    : "skipped (no API key)";
 
   const details: string[] = [];
   if (pulls.length === 0) {
