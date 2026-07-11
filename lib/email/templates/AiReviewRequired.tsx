@@ -12,11 +12,16 @@ export function AiReviewRequired({ pendingCount }: AiReviewRequiredPayload) {
         <Container style={{ backgroundColor: "#ffffff", padding: "24px" }}>
           <Heading as="h1">確認が必要なレシートが{String(pendingCount)}件あります</Heading>
           <Section>
-            <Text>レシートの読み取りで、{String(pendingCount)}件だけ確認したいところがあります。</Text>
+            <Text>
+              レシートの読み取りで、{String(pendingCount)}件だけ確認したいところがあります。
+            </Text>
             <Text>内容を確認すると、そのまま登録できます。</Text>
           </Section>
           <Section>
-            <Button href={buildEmailUrl("/weeks/current/input")} style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}>
+            <Button
+              href={buildEmailUrl("/weeks/current/input")}
+              style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}
+            >
               確認する
             </Button>
           </Section>

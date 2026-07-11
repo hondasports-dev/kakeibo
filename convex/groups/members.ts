@@ -178,13 +178,7 @@ export async function changeMemberRoleHandler(
     afterValue: formatGroupRoleLabel(args.newRole),
   });
 
-  await enqueueGroupRoleChangedEmail(
-    ctx,
-    group.name,
-    currentRole,
-    args.newRole,
-    targetUser?.email,
-  );
+  await enqueueGroupRoleChangedEmail(ctx, group.name, currentRole, args.newRole, targetUser?.email);
 }
 
 export async function transferGroupOwnershipHandler(
@@ -193,6 +187,11 @@ export async function transferGroupOwnershipHandler(
 ) {
   const { groupId, userId, membershipId: actorMembershipId } = await requireGroupOwner(ctx);
   assertNotSelfOperator(userId, args.targetUserId);
+
+  const group = await ctx.db.get(groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
 
   const targetMembership = await readQueryDoc(
     ctx.db
@@ -243,6 +242,14 @@ export async function transferGroupOwnershipHandler(
     beforeValue: `オーナー: ${actorLabel}`,
     afterValue: `オーナー: ${targetLabel}（${actorLabel} → ${formatGroupRoleLabel("member")}）`,
   });
+
+  const newOwnerDisplayName =
+    targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
+
+  await Promise.all([
+    enqueueGroupOwnershipReceivedEmail(ctx, group.name, targetUser?.email),
+    enqueueGroupOwnershipTransferredEmail(ctx, group.name, newOwnerDisplayName, actorUser?.email),
+  ]);
 }
 
 export const addMemberByEmail = mutation({

@@ -2,7 +2,61 @@ import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
+import { internal } from "../_generated/api";
 import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
+
+const TERMINAL_IMAGE_JOB_STATUSES = new Set(["ready", "needs_review", "failed", "cancelled"]);
+
+export function isTerminalImageJobStatus(status: string): boolean {
+  return TERMINAL_IMAGE_JOB_STATUSES.has(status);
+}
+
+export async function getBatchByIdHandler(
+  ctx: QueryCtx,
+  { batchId }: { batchId: Id<"receiptAnalysisBatches"> },
+) {
+  return await ctx.db.get(batchId);
+}
+
+export async function countNeedsReviewJobsByBatchIdHandler(
+  ctx: QueryCtx,
+  { batchId }: { batchId: Id<"receiptAnalysisBatches"> },
+): Promise<number> {
+  const jobs = await ctx.db
+    .query("receiptAnalysisImageJobs")
+    .withIndex("by_batch_id", (q) => q.eq("batchId", batchId))
+    .collect();
+
+  return jobs.filter((job) => job.status === "needs_review").length;
+}
+
+export async function scheduleAiReviewNotificationIfNeeded(
+  ctx: MutationCtx,
+  { batchId, status }: { batchId: Id<"receiptAnalysisBatches">; status: string },
+) {
+  if (!isTerminalImageJobStatus(status)) {
+    return;
+  }
+
+  const batch = await ctx.db.get(batchId);
+  if (!batch || batch.aiReviewNotificationScheduledAt) {
+    return;
+  }
+
+  const now = Date.now();
+  await ctx.db.patch(batchId, {
+    aiReviewNotificationScheduledAt: now,
+    updatedAt: now,
+  });
+
+  await ctx.scheduler.runAfter(
+    60 * 60 * 1000,
+    internal.receiptAnalysisJobs.actions.checkAiReviewRequired,
+    {
+      batchId,
+    },
+  );
+}
 
 type DeleteReceiptAnalysisDataByUserBatchArgs = {
   groupId: Id<"groups">;
@@ -38,6 +92,8 @@ export async function updateJobStatusHandler(
   if (args.error !== undefined) patch.error = args.error;
 
   await ctx.db.patch(args.jobId, patch);
+
+  await scheduleAiReviewNotificationIfNeeded(ctx, { batchId: job.batchId, status: args.status });
 }
 
 export async function incrementBatchProcessedCountHandler(
@@ -160,6 +216,20 @@ export const finalizeBatchStatus = internalMutation({
     batchId: v.id("receiptAnalysisBatches"),
   },
   handler: finalizeBatchStatusHandler,
+});
+
+export const getBatchById = internalQuery({
+  args: {
+    batchId: v.id("receiptAnalysisBatches"),
+  },
+  handler: getBatchByIdHandler,
+});
+
+export const countNeedsReviewJobsByBatchId = internalQuery({
+  args: {
+    batchId: v.id("receiptAnalysisBatches"),
+  },
+  handler: countNeedsReviewJobsByBatchIdHandler,
 });
 
 export const getJobById = internalQuery({

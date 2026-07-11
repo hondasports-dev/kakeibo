@@ -99,9 +99,29 @@ function createMockDb(state: {
   const groupMembers = [...(state.groupMembers ?? [])];
   const groupInvitations = [...(state.groupInvitations ?? [])];
 
+  const groupIds = new Set<Id<"groups">>([
+    ...groupMembers.map((m) => m.groupId),
+    ...groupInvitations.map((i) => i.groupId),
+  ]);
+  for (const groupId of groupIds) {
+    if (!groups.some((g) => g._id === groupId)) {
+      groups.push({
+        _id: groupId,
+        name: "Test Group",
+        createdAt: 1000,
+        updatedAt: 1000,
+      });
+    }
+  }
+
   const insert = vi.fn(async (tableName: string, doc: Record<string, unknown>) => {
     const id = `${tableName}-${insert.mock.calls.length}` as Id<
-      "groups" | "users" | "groupMembers" | "groupInvitations" | "managementAuditLogs"
+      | "groups"
+      | "users"
+      | "groupMembers"
+      | "groupInvitations"
+      | "managementAuditLogs"
+      | "transactionalEmailJobs"
     >;
     const created = { _id: id, _creationTime: Date.now(), ...doc } as never;
     if (tableName === "groups") groups.push(created as GroupDoc);
@@ -245,6 +265,9 @@ function createMockDb(state: {
     },
     storage: {
       delete: vi.fn(async () => undefined),
+    },
+    scheduler: {
+      runAfter: vi.fn(async () => undefined),
     },
     db: {
       get,

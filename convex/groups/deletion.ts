@@ -9,6 +9,7 @@ import type { GroupDoc } from "./lib/groupTypes";
 import { normalizeGroupName } from "./lib/groupName";
 import { readQueryDoc } from "./lib/groupQueryHelpers";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
+import { enqueueGroupDeletedEmail } from "./lib/emailNotifications";
 import { findNextActiveGroupIdForUser, requireGroupOwner } from "./membership";
 import { groupDeletionPreviewValidator } from "./validators";
 
@@ -80,6 +81,14 @@ export async function deleteGroupHandler(
       affectedCounts,
     }),
   });
+
+  const groupName = group.name;
+  for (const member of members) {
+    const memberUser = await readQueryDoc(
+      ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", member.userId)),
+    );
+    await enqueueGroupDeletedEmail(ctx, groupName, memberUser?.email);
+  }
 
   await deleteAllGroupScopedData(ctx, groupId);
 }

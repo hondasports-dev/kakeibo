@@ -40,6 +40,7 @@ import type * as groups_deletion from "../groups/deletion.js";
 import type * as groups_e2e from "../groups/e2e.js";
 import type * as groups_invitations from "../groups/invitations.js";
 import type * as groups_lib_deleteGroupPhysically from "../groups/lib/deleteGroupPhysically.js";
+import type * as groups_lib_emailNotifications from "../groups/lib/emailNotifications.js";
 import type * as groups_lib_groupDeletionImpact from "../groups/lib/groupDeletionImpact.js";
 import type * as groups_lib_groupEmailMatching from "../groups/lib/groupEmailMatching.js";
 import type * as groups_lib_groupLifecycle from "../groups/lib/groupLifecycle.js";
@@ -114,6 +115,7 @@ declare const fullApi: ApiFromModules<{
   "groups/e2e": typeof groups_e2e;
   "groups/invitations": typeof groups_invitations;
   "groups/lib/deleteGroupPhysically": typeof groups_lib_deleteGroupPhysically;
+  "groups/lib/emailNotifications": typeof groups_lib_emailNotifications;
   "groups/lib/groupDeletionImpact": typeof groups_lib_groupDeletionImpact;
   "groups/lib/groupEmailMatching": typeof groups_lib_groupEmailMatching;
   "groups/lib/groupLifecycle": typeof groups_lib_groupLifecycle;

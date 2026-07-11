@@ -16,7 +16,10 @@ export function GroupOwnershipReceived({ groupName }: GroupOwnershipReceivedPayl
             <Text>これからは、メンバーや招待などのグループ管理を行えます。</Text>
           </Section>
           <Section>
-            <Button href={buildEmailUrl("/settings")} style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}>
+            <Button
+              href={buildEmailUrl("/settings")}
+              style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}
+            >
               グループ設定を確認する
             </Button>
           </Section>

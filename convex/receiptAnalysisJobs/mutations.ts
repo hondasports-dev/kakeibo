@@ -21,7 +21,7 @@ export async function createBatchHandler(
   ctx: MutationCtx,
   args: CreateBatchArgs,
 ): Promise<{ batch: Doc<"receiptAnalysisBatches">; jobs: Doc<"receiptAnalysisImageJobs">[] }> {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const now = Date.now();
   const totalCount = args.fileNames.length;
 
@@ -31,6 +31,7 @@ export async function createBatchHandler(
 
   const batchId = await ctx.db.insert("receiptAnalysisBatches", {
     groupId,
+    createdByUserId: userId,
     totalCount,
     processedCount: 0,
     status: "queued",

@@ -119,18 +119,28 @@ describe("templateFactory", () => {
   });
 
   it("rejects ai_review_required with invalid pendingCount", () => {
-    expect(validatePayloadForTemplate("ai_review_required", { pendingCount: 0 }).success).toBe(false);
-    expect(validatePayloadForTemplate("ai_review_required", { pendingCount: 1.5 }).success).toBe(false);
-    expect(validatePayloadForTemplate("ai_review_required", { pendingCount: "2" }).success).toBe(false);
+    expect(validatePayloadForTemplate("ai_review_required", { pendingCount: 0 }).success).toBe(
+      false,
+    );
+    expect(validatePayloadForTemplate("ai_review_required", { pendingCount: 1.5 }).success).toBe(
+      false,
+    );
+    expect(validatePayloadForTemplate("ai_review_required", { pendingCount: "2" }).success).toBe(
+      false,
+    );
   });
 
   it("rejects empty groupName", () => {
-    expect(validatePayloadForTemplate("group_membership_removed", { groupName: "  " }).success).toBe(false);
+    expect(
+      validatePayloadForTemplate("group_membership_removed", { groupName: "  " }).success,
+    ).toBe(false);
     expect(validatePayloadForTemplate("group_deleted", { groupName: "" }).success).toBe(false);
   });
 
   it("returns subject for known template", () => {
     expect(getTemplateSubject("email_delivery_test")).toBe("Suzumemo メール配信テスト");
-    expect(getTemplateSubject("group_membership_removed")).toBe("「{groupName}」から外れました | Suzumemo");
+    expect(getTemplateSubject("group_membership_removed")).toBe(
+      "「{groupName}」から外れました | Suzumemo",
+    );
   });
 });
