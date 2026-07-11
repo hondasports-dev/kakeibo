@@ -1,10 +1,10 @@
-# 週1レシート入力Web家計簿 技術設計
+# 軽く・サクッと記録できるWeb家計簿 技術設計
 
 ## 1. 設計方針
 
 本MVPは、ClerkのGoogleアカウント認証でユーザーを識別し、Convexで家計データを保存・同期するWebアプリとして実装する。
 
-目的は、ユーザーがPCやスマートフォンから同じ家計データへアクセスし、週1回のレシート入力と振り返りを軽快に行えることを検証することである。
+目的は、ユーザーがPCやスマートフォンから同じ家計データへアクセスし、思いついた時に軽く・サクッと支出や収入を記録し、週単位の振り返りも軽快に行えることを検証することである。
 
 Honoは初期構成には含めない。Convexはquery、mutation、action、HTTP actionを持つため、MVPの通常CRUD、同期、サーバー側処理の多くをConvex側で扱える。
 
@@ -579,7 +579,7 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 
 ### 10.1 手入力（expenseEntries）
 
-現行の週次入力 UI（`ExpenseEntryForm`）は `expenseEntries` を正本とする。
+現行の入力 UI（`ExpenseEntryForm`）は `expenseEntries` を正本とする。
 
 1枚の入力元を複数カテゴリへ分ける場合も、1件に複数カテゴリIDを保持せず、カテゴリ別の
 `expenseEntries` を作成する。AI下書きの値引きは `aiExpenseDraftItems` で負数として保持し、
@@ -1013,7 +1013,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 ## 21. M18. 支出項目モデル再設計
 
-M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿の中心を `receipts` から `expenseEntries` に寄せ、レシートや払込票などの入力元を `sourceDocuments` として分離する。`inputSources` は説明用の言い換えとして扱う。
+M18では、既存MVP利用者向けに、家計簿の中心を `receipts` から `expenseEntries` に寄せ、レシートや払込票などの入力元を `sourceDocuments` として分離する。`inputSources` は説明用の言い換えとして扱う。
 
 ### 21.1 用語の役割
 
