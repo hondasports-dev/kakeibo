@@ -6,6 +6,7 @@ export const TRANSACTIONAL_EMAIL_TYPES = [
   "group_ownership_transferred",
   "group_deleted",
   "ai_review_required",
+  "account_deletion_completed",
 ] as const;
 
 export type TransactionalEmailType = (typeof TRANSACTIONAL_EMAIL_TYPES)[number];
@@ -42,6 +43,11 @@ export type AiReviewRequiredPayload = {
   pendingCount: number;
 };
 
+export type AccountDeletionCompletedPayload = {
+  leftGroupCount: number;
+  deletedGroupCount: number;
+};
+
 export type TransactionalEmailPayload = {
   email_delivery_test: EmailDeliveryTestPayload;
   group_membership_removed: GroupMembershipRemovedPayload;
@@ -50,6 +56,7 @@ export type TransactionalEmailPayload = {
   group_ownership_transferred: GroupOwnershipTransferredPayload;
   group_deleted: GroupDeletedPayload;
   ai_review_required: AiReviewRequiredPayload;
+  account_deletion_completed: AccountDeletionCompletedPayload;
 };
 
 export type BuiltEmail = {

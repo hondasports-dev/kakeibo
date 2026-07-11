@@ -8,6 +8,7 @@ export const TRANSACTIONAL_EMAIL_TYPES = [
   "group_ownership_transferred",
   "group_deleted",
   "ai_review_required",
+  "account_deletion_completed",
 ] as const;
 
 export const transactionalEmailTypeValidator = v.union(

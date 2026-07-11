@@ -3,6 +3,7 @@ import type { MutationCtx } from "../../../../convex/_generated/server";
 import { invitationEmailsMatchAny } from "../../../../convex/groups/lib/groupEmailMatching";
 import { readQueryDoc } from "../../../../convex/groups/lib/groupQueryHelpers";
 import { revokeGroupInvitationsForEmailInGroup } from "./staleCleanup";
+import { assertAccountDeletionNotInProgress } from "../../../../convex/accountDeletion";
 
 export async function acceptGroupInvitationForVerifiedEmailsHandler(
   ctx: MutationCtx,
@@ -19,6 +20,7 @@ export async function acceptGroupInvitationForVerifiedEmailsHandler(
   if (!invitationEmailsMatchAny(args.acceptedEmails, invite.email)) {
     throw new ConvexError("招待先メールアドレスと一致しません");
   }
+  await assertAccountDeletionNotInProgress(ctx, args.acceptedUserId);
 
   const existingMembershipQuery = ctx.db
     .query("groupMembers")

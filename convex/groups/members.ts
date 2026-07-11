@@ -20,6 +20,7 @@ import {
   enqueueGroupOwnershipTransferredEmail,
   enqueueGroupRoleChangedEmail,
 } from "./lib/emailNotifications";
+import { assertAccountDeletionNotInProgress } from "../accountDeletion";
 
 export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: string }) {
   const { groupId } = await requireGroupOwner(ctx);
@@ -32,6 +33,7 @@ export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: s
   if (user === null) {
     throw new ConvexError("Clerkで招待済みのユーザーがログインした後に追加できます");
   }
+  await assertAccountDeletionNotInProgress(ctx, user.userId);
 
   const existingMembershipInGroup = await readQueryDoc(
     ctx.db

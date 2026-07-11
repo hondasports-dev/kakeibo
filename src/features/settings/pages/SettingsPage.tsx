@@ -1,4 +1,5 @@
-import { Box, Divider, Paper, Stack, Typography } from "@mui/material";
+import { Box, Button, Divider, Paper, Stack, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 import { CategorySettingsPanel } from "../components/CategorySettingsPanel";
 import { GroupDangerZone, GroupSettingsPanel, GroupSettingsProvider } from "../../group-admin";
 import { WeekDaySettingsPanel } from "../components/WeekDaySettingsPanel";
@@ -35,6 +36,24 @@ export function SettingsPage() {
               <SettingsSectionErrorBoundary>
                 <WeekDaySettingsPanel />
               </SettingsSectionErrorBoundary>
+            </Box>
+            <Divider />
+            <Box className="settings-ledger-section settings-ledger-section--danger">
+              <Typography component="h2" variant="h6">
+                アカウント
+              </Typography>
+              <Typography color="text.secondary" sx={{ mt: 0.75 }} variant="body2">
+                Suzumemoのアカウントと、あなたのみが利用している家計データを削除します。
+              </Typography>
+              <Button
+                color="error"
+                component={RouterLink}
+                sx={{ mt: 1.5 }}
+                to="/settings/account/delete"
+                variant="outlined"
+              >
+                アカウントを削除
+              </Button>
             </Box>
             <Divider />
             <Box className="settings-ledger-section settings-ledger-section--danger">

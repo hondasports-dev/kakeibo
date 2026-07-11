@@ -15,13 +15,17 @@ import {
   useGroupMembership,
 } from "./features/group-admin";
 import { SettingsPage } from "./features/settings";
+import { AccountDeletionPage, AccountDeletionStatusPage } from "./features/account-deletion";
 import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
+import { useQuery } from "convex/react";
+import { api } from "../convex/_generated/api";
 
 function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
+  const deletionStatus = useQuery(api.accountDeletion.getMyAccountDeletionStatus);
 
-  if (isLoading) {
+  if (isLoading || deletionStatus === undefined) {
     return (
       <SuzumemoLoadingState
         label="グループ情報を確認中"
@@ -29,6 +33,10 @@ function GroupRouteGuard() {
         variant="fullscreen"
       />
     );
+  }
+
+  if (deletionStatus !== null) {
+    return <Navigate to="/settings/account/delete/status" replace />;
   }
 
   if (!hasGroups) {
@@ -74,6 +82,10 @@ const appRoutes: RouteObject[] = [
     element: <SettingsPage />,
   },
   {
+    path: "/settings/account/delete",
+    element: <AccountDeletionPage />,
+  },
+  {
     path: "/categories",
     element: <SettingsPage />,
   },
@@ -107,6 +119,10 @@ export const router = createBrowserRouter([
   {
     path: "/group/invitations/accept",
     element: <GroupInvitationAcceptPage />,
+  },
+  {
+    path: "/settings/account/delete/status",
+    element: <AccountDeletionStatusPage />,
   },
   {
     element: <GroupRouteGuard />,

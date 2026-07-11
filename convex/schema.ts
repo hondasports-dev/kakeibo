@@ -303,6 +303,7 @@ export default defineSchema({
     recipientEmail: v.string(),
     normalizedRecipientEmail: v.string(),
     subject: v.string(),
+    businessDedupeKey: v.optional(v.string()),
     html: v.optional(v.string()),
     text: v.optional(v.string()),
     provider: v.string(),
@@ -320,7 +321,8 @@ export default defineSchema({
     .index("by_status_and_updated_at", ["status", "updatedAt"])
     .index("by_provider_message_id", ["providerMessageId"])
     .index("by_normalized_recipient_email", ["normalizedRecipientEmail"])
-    .index("by_next_retry_at", ["nextRetryAt"]),
+    .index("by_next_retry_at", ["nextRetryAt"])
+    .index("by_business_dedupe_key", ["businessDedupeKey"]),
 
   emailSuppressions: defineTable({
     email: v.string(),
@@ -348,4 +350,33 @@ export default defineSchema({
     .index("by_svix_id", ["svixId"])
     .index("by_provider_message_id_and_event_created_at", ["providerMessageId", "eventCreatedAt"])
     .index("by_processed_at", ["processedAt"]),
+
+  accountDeletionRequests: defineTable({
+    userId: v.string(),
+    clerkUserId: v.string(),
+    recipientEmailSnapshot: v.optional(v.string()),
+    status: v.union(
+      v.literal("requested"),
+      v.literal("deleting_identity"),
+      v.literal("retry_wait"),
+      v.literal("identity_deleted"),
+      v.literal("finalization_retry_wait"),
+      v.literal("completed"),
+      v.literal("failed"),
+    ),
+    leftGroupCount: v.number(),
+    deletedGroupCount: v.number(),
+    attemptCount: v.number(),
+    maxAttempts: v.number(),
+    nextRetryAt: v.optional(v.number()),
+    lastErrorCode: v.optional(v.string()),
+    lastErrorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    identityDeletedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_status_and_updated_at", ["status", "updatedAt"])
+    .index("by_next_retry_at", ["nextRetryAt"]),
 });

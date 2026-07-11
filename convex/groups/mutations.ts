@@ -8,9 +8,11 @@ import { recordManagementAuditLog } from "./lib/managementAuditLog";
 import { readQueryDoc } from "./lib/groupQueryHelpers";
 import { requireAuthenticatedUserId } from "../users/auth";
 import { requireGroupOwner } from "./membership";
+import { assertAccountDeletionNotInProgress } from "../accountDeletion";
 
 export async function createGroupHandler(ctx: MutationCtx, args: { name: string }) {
   const userId = await requireAuthenticatedUserId(ctx);
+  await assertAccountDeletionNotInProgress(ctx, userId);
   const name = normalizeGroupName(args.name);
 
   const now = Date.now();

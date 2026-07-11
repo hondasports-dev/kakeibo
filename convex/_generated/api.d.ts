@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as accountDeletion from "../accountDeletion.js";
+import type * as accountDeletionActions from "../accountDeletionActions.js";
 import type * as aiExpenseDrafts_actions from "../aiExpenseDrafts/actions.js";
 import type * as aiExpenseDrafts_extractionMapping from "../aiExpenseDrafts/extractionMapping.js";
 import type * as aiExpenseDrafts_internal from "../aiExpenseDrafts/internal.js";
@@ -83,6 +85,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountDeletion: typeof accountDeletion;
+  accountDeletionActions: typeof accountDeletionActions;
   "aiExpenseDrafts/actions": typeof aiExpenseDrafts_actions;
   "aiExpenseDrafts/extractionMapping": typeof aiExpenseDrafts_extractionMapping;
   "aiExpenseDrafts/internal": typeof aiExpenseDrafts_internal;
