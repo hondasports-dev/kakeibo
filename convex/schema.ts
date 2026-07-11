@@ -258,7 +258,7 @@ export default defineSchema({
 
   receiptAnalysisBatches: defineTable({
     groupId: v.id("groups"),
-    createdByUserId: v.string(),
+    createdByUserId: v.optional(v.string()),
     totalCount: v.number(),
     processedCount: v.number(),
     status: v.union(
