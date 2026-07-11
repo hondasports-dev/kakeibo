@@ -3,7 +3,7 @@ import { ConvexError } from "convex/values";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
-import { analyzeImageJobHandler } from "./actions";
+import { analyzeImageJobHandler, checkAiReviewRequiredHandler } from "./actions";
 import { updateJobStatusHandler } from "./internal";
 import { cancelImageJobHandler, createBatchHandler, retryImageJobHandler } from "./mutations";
 import { listBatchesHandler, listJobsByBatchHandler } from "./queries";
@@ -40,6 +40,7 @@ function createMutationCtx(
   });
   const patchMock = vi.fn().mockResolvedValue(undefined);
   const deleteMock = vi.fn().mockResolvedValue(undefined);
+  const runAfterMock = vi.fn().mockResolvedValue(undefined);
   const getMock = vi.fn().mockImplementation(async (id: string) => {
     if (opts.docs && id in opts.docs) {
       return opts.docs[id];
@@ -80,6 +81,9 @@ function createMutationCtx(
   return {
     auth: {
       getUserIdentity: vi.fn().mockResolvedValue(identity),
+    },
+    scheduler: {
+      runAfter: runAfterMock,
     },
     db: {
       insert: insertMock,
@@ -216,7 +220,8 @@ describe("createBatchHandler", () => {
   });
 
   it("batch と jobs を作成する", async () => {
-    const ctx = createMutationCtx(createIdentity(), {
+    const identity = createIdentity();
+    const ctx = createMutationCtx(identity, {
       docs: {
         "new-batch-id": { _id: "new-batch-id", groupId: GROUP_ID },
         "new-job-id-0": { _id: "new-job-id-0", groupId: GROUP_ID },
@@ -227,6 +232,11 @@ describe("createBatchHandler", () => {
     expect(result.batch).toBeTruthy();
     expect(result.jobs).toHaveLength(2);
     expect(ctx.db.insert).toHaveBeenCalledTimes(3); // batch + 2 jobs
+    expect(ctx.db.insert).toHaveBeenNthCalledWith(
+      1,
+      "receiptAnalysisBatches",
+      expect.objectContaining({ createdByUserId: identity.tokenIdentifier }),
+    );
   });
 });
 
@@ -374,6 +384,96 @@ describe("updateJobStatusHandler", () => {
     expect(ctx.db.delete).toHaveBeenCalledWith("draft-1");
     expect(ctx.db.patch).not.toHaveBeenCalled();
   });
+
+  it("job が needs_review になったら batch に 60 分後の通知をスケジュールする", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          groupId: GROUP_ID,
+          batchId: "batch-1",
+          status: "running",
+        },
+        "batch-1": {
+          _id: "batch-1",
+          groupId: GROUP_ID,
+          createdByUserId: "https://issuer.example|user-001",
+        },
+      },
+    });
+
+    await updateJobStatusHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      status: "needs_review",
+      draftId: "draft-1" as Id<"aiExpenseDrafts">,
+    });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "job-1",
+      expect.objectContaining({ status: "needs_review" }),
+    );
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "batch-1",
+      expect.objectContaining({ aiReviewNotificationScheduledAt: expect.any(Number) }),
+    );
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledWith(
+      60 * 60 * 1000,
+      expect.anything(),
+      expect.objectContaining({ batchId: "batch-1" }),
+    );
+  });
+
+  it("通知スケジュール済みの batch には重複スケジュールしない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          groupId: GROUP_ID,
+          batchId: "batch-1",
+          status: "running",
+        },
+        "batch-1": {
+          _id: "batch-1",
+          groupId: GROUP_ID,
+          createdByUserId: "https://issuer.example|user-001",
+          aiReviewNotificationScheduledAt: 1000,
+        },
+      },
+    });
+
+    await updateJobStatusHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      status: "needs_review",
+      draftId: "draft-1" as Id<"aiExpenseDrafts">,
+    });
+
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  it("running への遷移では通知をスケジュールしない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          groupId: GROUP_ID,
+          batchId: "batch-1",
+          status: "queued",
+        },
+        "batch-1": {
+          _id: "batch-1",
+          groupId: GROUP_ID,
+          createdByUserId: "https://issuer.example|user-001",
+        },
+      },
+    });
+
+    await updateJobStatusHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      status: "running",
+    });
+
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
 });
 
 describe("analyzeImageJobHandler", () => {
@@ -485,5 +585,84 @@ describe("analyzeImageJobHandler", () => {
 
       expect(ctx.runMutation).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("checkAiReviewRequiredHandler", () => {
+  it("needs_review 待ちがあれば作成者へ ai_review_required メールを enqueue する", async () => {
+    const ctx = createActionCtx(createIdentity());
+
+    ctx.runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "batch-1",
+        createdByUserId: "https://issuer.example|user-001",
+      })
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce({
+        userId: "https://issuer.example|user-001",
+        email: "user@example.com",
+        displayName: "ユーザー",
+      });
+
+    ctx.runMutation = vi.fn().mockResolvedValueOnce("email-job-1");
+
+    await checkAiReviewRequiredHandler(ctx, {
+      batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+    });
+
+    expect(ctx.runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        templateType: "ai_review_required",
+        payloadJson: JSON.stringify({ pendingCount: 2 }),
+        recipientEmail: "user@example.com",
+      }),
+    );
+  });
+
+  it("needs_review 待ちが 0 なら何もしない", async () => {
+    const ctx = createActionCtx(createIdentity());
+
+    ctx.runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "batch-1",
+        createdByUserId: "https://issuer.example|user-001",
+      })
+      .mockResolvedValueOnce(0);
+
+    ctx.runMutation = vi.fn();
+
+    await checkAiReviewRequiredHandler(ctx, {
+      batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+    });
+
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
+  it("作成者の email が未設定なら何もしない", async () => {
+    const ctx = createActionCtx(createIdentity());
+
+    ctx.runQuery = vi
+      .fn()
+      .mockResolvedValueOnce({
+        _id: "batch-1",
+        createdByUserId: "https://issuer.example|user-001",
+      })
+      .mockResolvedValueOnce(2)
+      .mockResolvedValueOnce({
+        userId: "https://issuer.example|user-001",
+        email: null,
+        displayName: "ユーザー",
+      });
+
+    ctx.runMutation = vi.fn();
+
+    await checkAiReviewRequiredHandler(ctx, {
+      batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+    });
+
+    expect(ctx.runMutation).not.toHaveBeenCalled();
   });
 });

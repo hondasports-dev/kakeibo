@@ -1,7 +1,7 @@
 # デザイントークン
 
 Suzumemo では、`小さな支出と日々のメモを軽く残す` というブランド方向と、
-既存の `週末に溜まったレシートを、止まらず処理できる入力作業台` という
+`思いついた時に、軽く・サクッと支出や収入を記録できる静かなメモ帳` という
 UI/UX コンセプトを両立するため、色・余白・角丸・タイポグラフィを
 `src/designTokens.ts` に集約する。
 
@@ -20,12 +20,14 @@ UI/UX コンセプトを両立するため、色・余白・角丸・タイポ�
 
 | グループ | 例 | 用途 |
 | --- | --- | --- |
-| `color.brand` | `#8B5E3C`, `#F7EDE2`, `#A6B28B`, `#F4A27A`, `#AAB7C4` | Suzumemo ブランドパレット |
-| `color.primary` | `#8B5E3C` | 主要ボタン、フォーカス、選択状態 |
-| `color.secondary` | `#6F7F55` | 補助操作、補助情報 |
+| `color.brand.sparrow` / `paper` / `leaf` / `coral` / `mist` | `#8B5E3C`, `#F7EDE2`, `#A6B28B`, `#F4A27A`, `#AAB7C4` | Suzumemo ブランドパレット |
+| `color.primary` | `light` / `main` `#8B5E3C` / `dark` / `contrastText` | 主要ボタン、フォーカス、選択状態 |
+| `color.secondary` | `light` / `main` `#6F7F55` / `dark` / `contrastText` | 補助操作、補助情報 |
 | `color.success` / `warning` / `error` | `#5F7D4A` / `#C9734B` / `#B85A4C` | 成功・警告・エラー |
-| `color.surface` | `canvas`, `panel`, `sunken`, `accent` | 画面背景、パネル、補助面 |
+| `color.text` | `primary` `#3D2C22` / `secondary` `#765F4F` / `muted` `#9E9288` | テキスト色 |
+| `color.surface` | `canvas` `#FBF8F2`, `panel` `#FFFDF8`, `sunken` `#F7EDE2`, `accent` `#F2F5EA` | 画面背景、パネル、補助面 |
 | `color.border` | `subtle`, `emphasis`, `track` | 区切り線、強調枠、進捗バー下地 |
+| `color.category.default` | `#8B5E3C` | カテゴリ未設定時のデフォルト色 |
 
 ### 余白
 
@@ -48,6 +50,7 @@ UI/UX コンセプトを両立するため、色・余白・角丸・タイポ�
 | `radius.pill` | `999px` | Progress, indicator |
 | `size.buttonMinHeight` | `40px` | 主要ボタン |
 | `size.inputMinHeight` | `36px` | 入力欄 |
+| `size.bottomNavHeight` | `56px` | ボトムナビゲーション |
 
 ### タイポグラフィ
 
@@ -66,6 +69,7 @@ UI/UX コンセプトを両立するため、色・余白・角丸・タイポ�
 - CSS で使う必要がある値は `MuiCssBaseline` から `:root` の CSS 変数として公開する
 - 新しい色を直接 `sx={{ bgcolor: "#..." }}` に書く前に、既存トークンで表現できないか確認する
 - `App.css` のレイアウト系クラスは CSS 変数を参照し、画面幅ごとの差分だけを media query に残す
+- `designTokens.ts` の `rootCssVariables` から `:root` の CSS 変数を生成する
 
 ## 追加時のチェック
 

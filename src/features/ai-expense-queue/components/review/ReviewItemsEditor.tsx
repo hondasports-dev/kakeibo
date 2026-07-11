@@ -1,29 +1,9 @@
-import ExpandLessIcon from "@mui/icons-material/ExpandLess";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import {
-  Box,
-  Button,
-  Chip,
-  Collapse,
-  IconButton,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Button, Stack, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
-import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
-import { isLowConfidenceItem } from "../../utils/reviewDialogUtils";
-import {
-  buildTaxContextFromReviewItem,
-  toReceiptItemTaxViewModel,
-} from "../../utils/receiptItemTaxViewModel";
-import { formatTaxWarnings } from "../../utils/taxWarnings";
-import { ReceiptItemTaxDetail } from "./ReceiptItemTaxDetail";
-import { TaxRateSelect } from "./TaxRateSelect";
+import { isDiscountItemName } from "../../utils/discountItems";
+import { ReviewItemCard } from "./ReviewItemCard";
 
 export function ReviewItemsEditor({
   categories,
@@ -122,182 +102,26 @@ export function ReviewItemsEditor({
         </Typography>
       ) : (
         <Stack spacing={1}>
-          {reviewItems.map((item, index) => {
-            const uncategorized = !item.categoryId;
-            const lowConfidence = isLowConfidenceItem(item);
-            const discount = isDiscountItemName(item.itemName);
-            const categoryName = categoryNamesById.get(item.categoryId);
-            const taxContext = buildTaxContextFromReviewItem(item);
-            const taxVm = toReceiptItemTaxViewModel(item);
-            const isTaxUpdating = taxUpdatingItemId === item.id;
-            const showTaxRateSelect = taxContext.status === "unresolved";
-            const isDetailExpanded = expandedDetailIds.has(item.id);
-            const showRegistrationAmount =
-              taxContext.status === "resolved" &&
-              item.amountBasis === "tax_excluded" &&
-              item.normalizedAmountYen != null;
-
-            return (
-              <Box
-                key={item.id}
-                sx={{
-                  border: "1px solid",
-                  borderColor: uncategorized || lowConfidence ? "warning.main" : "divider",
-                  borderRadius: 1,
-                  p: 1.5,
-                }}
-              >
-                <Stack spacing={1}>
-                  <Stack
-                    direction="row"
-                    spacing={1}
-                    sx={{ justifyContent: "space-between", alignItems: "center" }}
-                  >
-                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                      <Chip label={`明細 ${index + 1}`} size="small" />
-                      {uncategorized && (
-                        <Chip color="warning" label="未分類" size="small" variant="outlined" />
-                      )}
-                      {lowConfidence && (
-                        <Chip color="warning" label="低信頼度" size="small" variant="outlined" />
-                      )}
-                      {taxContext.status === "unresolved" && (
-                        <Chip color="warning" label="要確認" size="small" variant="outlined" />
-                      )}
-                    </Stack>
-                    <IconButton
-                      aria-label={`${item.itemName || `明細 ${index + 1}`}を削除`}
-                      onClick={() => onRemoveItem(item.id)}
-                      size="small"
-                      sx={{ minHeight: 44, minWidth: 44 }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </Stack>
-
-                  {item.warnings && item.warnings.length > 0 && (
-                    <Typography color="warning.main" variant="body2">
-                      {formatTaxWarnings(item.warnings)}
-                    </Typography>
-                  )}
-
-                  <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-                    <TextField
-                      fullWidth
-                      label="明細名"
-                      onChange={(event) => onItemChange(item.id, "itemName", event.target.value)}
-                      slotProps={{ htmlInput: { autoComplete: "off", name: `item-name-${index}` } }}
-                      value={item.itemName}
-                    />
-                    <TextField
-                      label="レシートの金額"
-                      onChange={(event) =>
-                        onItemChange(
-                          item.id,
-                          "amountYen",
-                          sanitizeSignedYenInput(item.itemName, event.target.value),
-                        )
-                      }
-                      slotProps={{
-                        htmlInput: {
-                          autoComplete: "off",
-                          inputMode: isDiscountItemName(item.itemName) ? "text" : "numeric",
-                          name: `item-amount-${index}`,
-                        },
-                      }}
-                      sx={{ minWidth: { sm: 140 } }}
-                      value={item.amountYen}
-                      helperText={
-                        isDiscountItemName(item.itemName)
-                          ? "割引額はマイナスで入力"
-                          : item.amountBasis === "tax_excluded" && taxContext.status === "resolved"
-                            ? "税抜の印字額です。登録は下の税込額を使います"
-                            : undefined
-                      }
-                    />
-                  </Stack>
-
-                  {showRegistrationAmount && item.normalizedAmountYen != null && (
-                    <Typography color="text.secondary" variant="body2">
-                      登録額: {item.normalizedAmountYen.toLocaleString("ja-JP")}円（税込）
-                    </Typography>
-                  )}
-
-                  {taxContext.status === "resolved" && (
-                    <Typography color="text.secondary" variant="body2">
-                      税率 {taxVm.taxRateLabel}
-                    </Typography>
-                  )}
-
-                  <Button
-                    endIcon={isDetailExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                    onClick={() => toggleDetail(item.id)}
-                    size="small"
-                    type="button"
-                    variant="text"
-                  >
-                    詳細（通常は不要）
-                  </Button>
-                  <Collapse in={isDetailExpanded}>
-                    <Stack spacing={1} sx={{ pt: 0.5 }}>
-                      {showTaxRateSelect && (
-                        <TaxRateSelect
-                          disabled={isTaxUpdating}
-                          onChange={(value) => onTaxRateChange?.(item.id, value)}
-                          value={item.taxRatePercent}
-                        />
-                      )}
-                      <ReceiptItemTaxDetail draft={selectedReviewDraft} item={item} />
-                    </Stack>
-                  </Collapse>
-
-                  {discount ? (
-                    <TextField
-                      fullWidth
-                      helperText={
-                        item.discountTargetItemId
-                          ? "対象商品のカテゴリから減額します"
-                          : item.categoryId
-                            ? `AI推定カテゴリ: ${categoryName ?? "設定済み"}`
-                            : "割引対象の商品を選択してください"
-                      }
-                      label="割引対象の商品"
-                      onChange={(event) => onDiscountTargetChange(item.id, event.target.value)}
-                      select
-                      value={item.discountTargetItemId ?? ""}
-                    >
-                      <MenuItem value="">割引対象を選択</MenuItem>
-                      {productItems.map((product) => (
-                        <MenuItem key={product.id} value={product.id}>
-                          {product.itemName}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  ) : isCategorySplit ? (
-                    <TextField
-                      fullWidth
-                      label="明細カテゴリ"
-                      onChange={(event) => onAssignCategoryToItems([item.id], event.target.value)}
-                      select
-                      value={item.categoryId}
-                    >
-                      {categories.map((category) => (
-                        <MenuItem key={category._id} value={category._id}>
-                          {category.name}
-                        </MenuItem>
-                      ))}
-                    </TextField>
-                  ) : (
-                    <Typography color="text.secondary" variant="body2">
-                      {item.usesReceiptCategory
-                        ? "レシート全体のカテゴリを使用"
-                        : `個別カテゴリ: ${categoryName ?? "未分類"}`}
-                    </Typography>
-                  )}
-                </Stack>
-              </Box>
-            );
-          })}
+          {reviewItems.map((item, index) => (
+            <ReviewItemCard
+              key={item.id}
+              categories={categories}
+              categoryNamesById={categoryNamesById}
+              index={index}
+              isCategorySplit={isCategorySplit}
+              isExpanded={expandedDetailIds.has(item.id)}
+              item={item}
+              productItems={productItems}
+              selectedReviewDraft={selectedReviewDraft}
+              taxUpdatingItemId={taxUpdatingItemId}
+              onAssignCategoryToItems={onAssignCategoryToItems}
+              onDiscountTargetChange={onDiscountTargetChange}
+              onItemChange={onItemChange}
+              onRemoveItem={onRemoveItem}
+              onTaxRateChange={onTaxRateChange}
+              onToggleDetail={() => toggleDetail(item.id)}
+            />
+          ))}
         </Stack>
       )}
     </Stack>

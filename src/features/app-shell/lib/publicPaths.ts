@@ -1,5 +1,6 @@
 export const OAUTH_CALLBACK_PATH = "/sso-callback";
 export const GROUP_INVITATION_ACCEPT_PATH = "/group/invitations/accept";
+export const UPDATES_PATH = "/updates";
 /** E2E専用: AppErrorBoundary の fallback UI 検証用（開発時のみ） */
 export const E2E_APP_ERROR_BOUNDARY_PATH = "/__e2e__/app-error-boundary";
 
@@ -8,6 +9,7 @@ export const PUBLIC_PATHS = [
   "/privacy",
   "/terms",
   "/maintenance",
+  UPDATES_PATH,
   GROUP_INVITATION_ACCEPT_PATH,
 ] as const;
 

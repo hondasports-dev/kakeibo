@@ -80,11 +80,17 @@ preflight（入力確認、lint、format、test、build）
   ↓
 GitHub Environment: production の承認待ち
   ↓
-承認後に Convex Production へ反映
+承認後に APP_VERSION / PUBLISHED_AT / VITE_APP_VERSION を確定
+  ↓
+Product Update 生成（過去 Release asset + `main` マージ PR から自動生成、手動ドラフトで上書き可能）
+  ↓
+Convex Production へ反映
   ↓
 Vercel Production へ反映
   ↓
-PROD smoke checklist
+PROD smoke checklist（title + app-version meta）
+  ↓
+GitHub Release `app-v{APP_VERSION}` と `product-updates.json` asset 作成
   ↓
 Actions Summary に結果を残す
 ```
@@ -108,12 +114,15 @@ Actions Summary に結果を残す
 
 ## Production に必要な設定
 
+`production-release.yml` は `permissions: contents: write` を必要とする。これにより `GITHUB_TOKEN` で GitHub Release と `product-updates.json` asset の読み書きが行える。
+
 GitHub Environment `production` に以下を設定する。
 
 | 種類     | 名前                   | 用途                                  |
 | -------- | ---------------------- | ------------------------------------- |
 | Secret   | `VERCEL_TOKEN`         | GitHub Actions から Vercel CLI を実行する |
 | Secret   | `CONVEX_DEPLOY_KEY`    | Convex Production deployment へ反映する |
+| Secret   | `RELEASE_NOTE`         | 任意。PR タイトル/本文を要約して Product Update 草案を生成する |
 | Variable | `VERCEL_ORG_ID`        | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID`    | Vercel project ID                     |
 | Variable | `PRODUCTION_SMOKE_URL` | 任意。custom domain など smoke 対象を固定したい場合に設定 |
@@ -129,6 +138,18 @@ GitHub Environment `production` 側で設定するもの:
 Convex Production deployment には Production 用の環境変数を設定する。`RECEIPT_IMAGE_EXTRACTOR_MODE=real` は `APP_ENV=production` とセットでのみ使う。
 
 Vercel Production Environment には Clerk Production instance と Convex Production URL に対応する値だけを設定する。DEV/PREVIEW の `pk_test_*` / `sk_test_*` や Convex dev / preview URL は流用しない。
+
+## Product Update 生成
+
+`scripts/generate-product-updates.ts` は、Production リリース時に次の順で Product Update 草案を生成する。
+
+1. 過去の `app-v*` GitHub Release から `product-updates.json` asset を取得し、既に公開済みの更新を得る。
+2. 直近の `app-v*` Release 以降かつ `SOURCE_REF` までに `main`（または `BASE_REF`）へマージされた PR を GitHub API 検索で取得する。
+3. 取得した PR のタイトル/本文を `OPENAI_API_KEY`（オプション）で要約し、`ProductUpdateDraft` にする。`OPENAI_API_KEY` が未設定の場合は PR タイトルを `title` に、PR 本文の先頭行を `summary` の元に使う。
+4. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
+5. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
+
+手動で内容を調整したい場合は `src/content/product-updates.ts` に `id` を `pr-{number}`（例: `pr-459`）で指定するか、新規の `id` を追加する。
 
 ## DB/schema変更時のチェックリスト
 
@@ -156,6 +177,7 @@ Vercel Production Environment には Clerk Production instance と Convex Produc
 
 - `production-release.yml` が Vercel Production deployment URL または `PRODUCTION_SMOKE_URL` へ `Cache-Control: no-cache` 付きで HTTP GET を行い、キャッシュを再検証する。
 - 取得したHTMLの `<title>` が、デプロイ対象refの `index.html` と一致することを確認する。これにより、Production aliasやCDNが旧HTMLを返した場合はリリースを失敗させる。
+- 取得したHTMLの `<meta name="app-version" content="...">` が、`APP_VERSION` 環境変数と一致することを確認する。これにより、Vercel Production ビルドに `VITE_APP_VERSION` が正しく注入されたかを再検証する。
 - Previewや通常のブラウザアクセスに対するレスポンスヘッダーは変更せず、既存のブラウザキャッシュを利用する。
 - Clerk Production のサインイン画面またはアプリ shell が表示可能であることを手動確認する。
 - Convex / Clerk / Vercel の接続先が PROD 用であり、DEV/PREVIEW と混在していないことを確認する。

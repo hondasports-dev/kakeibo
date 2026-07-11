@@ -1,10 +1,31 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
-import type { Id } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 import { deleteAllGroupScopedData } from "./lib/deleteGroupPhysically";
 import { normalizeEmail } from "./lib/groupEmailMatching";
 import { readQueryDoc, readQueryDocs } from "./lib/groupQueryHelpers";
+
+async function deleteMembershipPreservingOwnerInvariant(
+  ctx: MutationCtx,
+  membership: Doc<"groupMembers">,
+) {
+  if (membership.role === "owner") {
+    const groupMembers = await readQueryDocs(
+      ctx.db
+        .query("groupMembers")
+        .withIndex("by_group_id", (q) => q.eq("groupId", membership.groupId)),
+    );
+    const remainingMembers = groupMembers.filter((member) => member._id !== membership._id);
+    const hasRemainingOwner = remainingMembers.some((member) => member.role === "owner");
+    const successor = hasRemainingOwner ? undefined : remainingMembers[0];
+    if (successor) {
+      await ctx.db.patch(successor._id, { role: "owner", updatedAt: Date.now() });
+    }
+  }
+
+  await ctx.db.delete(membership._id);
+}
 
 async function deleteE2eSeededUserByEmailIfExists(ctx: MutationCtx, email: string) {
   const normalizedEmail = normalizeEmail(email);
@@ -21,7 +42,7 @@ async function deleteE2eSeededUserByEmailIfExists(ctx: MutationCtx, email: strin
       .withIndex("by_user_id", (q) => q.eq("userId", existingUser.userId)),
   );
   for (const membership of memberships) {
-    await ctx.db.delete(membership._id);
+    await deleteMembershipPreservingOwnerInvariant(ctx, membership);
   }
   await ctx.db.delete(existingUser._id);
 }
@@ -37,7 +58,7 @@ export async function deleteGroupMembershipsByUserHandler(
   const memberships = await readQueryDocs(membershipQuery);
 
   for (const membership of memberships) {
-    await ctx.db.delete(membership._id);
+    await deleteMembershipPreservingOwnerInvariant(ctx, membership);
   }
 
   const user = await readQueryDoc(

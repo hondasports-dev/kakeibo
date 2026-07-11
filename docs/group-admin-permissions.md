@@ -72,12 +72,12 @@
 | グループ名変更 | 可 | 不可 | Phase1（#215） | |
 | メンバー招待（Clerk invitation） | 可 | 不可 | 既存 | `addMemberByEmail` 等 |
 | pending 招待取り消し | 可 | 不可 | Phase1（#219） | |
-| メンバーのグループ解除 | 可 | 不可 | Phase1（#217） | 対象は `member` のみ（後述） |
+| メンバーのグループ解除 | 可 | 不可 | Phase1（#217） | 対象は `member` のみ（後述）。`group_membership_removed` メール通知を送信 |
 | active group の切り替え | 可 | 可 | 既存 | 自分が所属するグループに限る |
 | 家計データの閲覧・入力 | 可 | 可 | 既存 | 管理権限とは独立 |
-| オーナー権限譲渡 | 可（`member` へ） | 不可 | Phase2（#222 実装済み） | 譲渡元は `member` に降格。`changeMemberRole` とは別 mutation |
-| ロール変更 | 可（自グループ・他メンバー） | 不可 | Phase2（#223 実装済み） | 自分自身は不可。最後の owner 降格不可 |
-| グループ削除 | 可（`owner` のみ） | 不可 | Phase2（#224 実装済み） | 物理削除。家計データ・所属・招待を削除。Clerk / `users` は削除しない |
+| オーナー権限譲渡 | 可（`member` へ） | 不可 | Phase2（#222 実装済み） | 譲渡元は `member` に降格。`changeMemberRole` とは別 mutation。`group_ownership_received` / `group_ownership_transferred` メール通知を送信 |
+| ロール変更 | 可（自グループ・他メンバー） | 不可 | Phase2（#223 実装済み） | 自分自身は不可。最後の owner 降格不可。`group_role_changed` メール通知を送信 |
+| グループ削除 | 可（`owner` のみ） | 不可 | Phase2（#224 実装済み） | 物理削除。家計データ・所属・招待を削除。Clerk / `users` は削除しない。`group_deleted` メール通知をメンバー全員へ送信 |
 | Clerk ユーザー削除 | 不可 | 不可 | Phase2 要否検討（#226） | |
 | アプリ全体管理者操作 | 不可 | 不可 | Phase2 要否検討（#227） | |
 
@@ -95,7 +95,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | --- | --- | --- | --- | --- | --- |
 | 1 | グループ名変更 | #215 | はい | 任意（軽微変更） | active group のみ |
 | 2 | メンバー一覧（管理画面向け） | #216 | 閲覧は member 可、管理 UI は owner 向け | 不要 | 表示構成は #214 |
-| 3 | メンバーのグループ解除 | #217 | はい | **必須** | `member` ロールのみ対象 |
+| 3 | メンバーのグループ解除 | #217 | はい | **必須** | `member` ロールのみ対象。`group_membership_removed` メール通知を送信 |
 | 4 | pending 招待一覧 | #218 | はい | 不要 | |
 | 5 | pending 招待取り消し | #219 | はい | **必須** | |
 
@@ -135,6 +135,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | 譲渡後の旧 owner | **`member` に降格**（共同 owner 化は譲渡では行わない） |
 | 更新順序 | 譲渡先を `owner` に昇格してから、譲渡元を `member` に降格（最後の owner 不在を避ける） |
 | 監査ログ | `owner_transferred` を記録（#225） |
+| 通知 | 譲渡先へ `group_ownership_received`、譲渡元へ `group_ownership_transferred` のメール通知を送信する |
 | 確認 UI | 現在の owner / 譲渡先 / 譲渡後の旧 owner role を確認ダイアログで表示 |
 
 ### 6.2 グループ削除（#224 実装済み）
@@ -148,6 +149,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | 削除しない | `users`, Clerk アカウント, `managementAuditLogs`（監査証跡として保持） |
 | activeGroupId | 削除対象を active にしていた全メンバーへ、別の所属グループまたは `null` を設定 |
 | 監査ログ | 削除実行前に `group_deleted` を記録（`afterValue` に削除件数サマリ `affectedCounts` を含む） |
+| 通知 | 削除前に `groupMembers` 全員へ `group_deleted` のメール通知を送信する |
 | 確認 UI | 対象グループ名、削除対象データの影響範囲（件数付き）、完全削除・復旧不可の警告、Clerk/ユーザー非削除の注記、確認用グループ名入力 |
 | 成功後遷移 | 他に所属グループがあれば `/group/select`、なければ `/group/setup` |
 
@@ -270,7 +272,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 | owner はグループ管理画面でグループ情報・メンバー・pending 招待を確認できる | `GroupSettingsPanel` UI + `e2e/group-access.spec.ts` | [x] |
 | owner は Phase1 対象の管理操作を実行できる | `convex/groups/members.ts` mutations + E2E smoke | [x] |
 | member は管理操作を実行できない | UI 非表示 + `GroupSettingsPanel.test.tsx` | [x] |
-| member が直接 mutation を呼んでも拒否される | `convex/groups.test.ts` Phase1 owner-only permissions | [x] |
+| member が直接 mutation を呼んでも拒否される | `convex/groups/groups.test.ts` Phase1 owner-only permissions | [x] |
 | グループからのメンバー解除と Clerk ユーザー削除が混同されていない | §7.1 + `removeMemberHandler` unit test | [x] |
 | pending 招待の表示・取り消しができる | `GroupPendingInvitationList` + E2E | [x] |
 | 危険操作には確認導線がある | `ConfirmDangerousActionDialog` + E2E | [x] |

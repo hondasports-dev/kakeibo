@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { action } from "../_generated/server";
+import { action, internalAction } from "../_generated/server";
 import { api, internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -9,6 +9,10 @@ import {
   getSafeFailureWarning,
 } from "../../lib/convex/receiptImageExtraction/analyzeReceiptImageCore";
 import { getExtractorMode } from "../../lib/convex/receiptImageExtraction/mode";
+
+export type CheckAiReviewRequiredArgs = {
+  batchId: Id<"receiptAnalysisBatches">;
+};
 
 export type AnalyzeImageJobArgs = {
   jobId: Id<"receiptAnalysisImageJobs">;
@@ -106,4 +110,43 @@ export const analyzeImageJob = action({
     imageDataUrl: v.string(),
   },
   handler: analyzeImageJobHandler,
+});
+
+export async function checkAiReviewRequiredHandler(
+  ctx: ActionCtx,
+  { batchId }: CheckAiReviewRequiredArgs,
+): Promise<void> {
+  const batch = await ctx.runQuery(internal.receiptAnalysisJobs.internal.getBatchById, { batchId });
+  if (!batch || !batch.createdByUserId) {
+    return;
+  }
+
+  const pendingCount = await ctx.runQuery(
+    internal.receiptAnalysisJobs.internal.countNeedsReviewJobsByBatchId,
+    { batchId },
+  );
+
+  if (pendingCount === 0) {
+    return;
+  }
+
+  const user = await ctx.runQuery(internal.users.internal.getUserById, {
+    userId: batch.createdByUserId,
+  });
+  if (!user?.email) {
+    return;
+  }
+
+  await ctx.runMutation(internal.email.jobs.enqueueTransactionalEmailJob, {
+    templateType: "ai_review_required",
+    payloadJson: JSON.stringify({ pendingCount }),
+    recipientEmail: user.email,
+  });
+}
+
+export const checkAiReviewRequired = internalAction({
+  args: {
+    batchId: v.id("receiptAnalysisBatches"),
+  },
+  handler: checkAiReviewRequiredHandler,
 });

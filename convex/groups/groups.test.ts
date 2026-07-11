@@ -19,7 +19,7 @@ import {
   cancelPendingGroupInvitationHandler,
 } from "./invitations";
 import { deleteGroupHandler } from "./deletion";
-import { seedGroupMemberForE2eHandler } from "./e2e";
+import { deleteGroupMembershipsByUserHandler, seedGroupMemberForE2eHandler } from "./e2e";
 import { sortGroupMembersForDisplay } from "./memberDisplay";
 import { getGroupMembership } from "./membership";
 import {
@@ -99,9 +99,29 @@ function createMockDb(state: {
   const groupMembers = [...(state.groupMembers ?? [])];
   const groupInvitations = [...(state.groupInvitations ?? [])];
 
+  const groupIds = new Set<Id<"groups">>([
+    ...groupMembers.map((m) => m.groupId),
+    ...groupInvitations.map((i) => i.groupId),
+  ]);
+  for (const groupId of groupIds) {
+    if (!groups.some((g) => g._id === groupId)) {
+      groups.push({
+        _id: groupId,
+        name: "Test Group",
+        createdAt: 1000,
+        updatedAt: 1000,
+      });
+    }
+  }
+
   const insert = vi.fn(async (tableName: string, doc: Record<string, unknown>) => {
     const id = `${tableName}-${insert.mock.calls.length}` as Id<
-      "groups" | "users" | "groupMembers" | "groupInvitations" | "managementAuditLogs"
+      | "groups"
+      | "users"
+      | "groupMembers"
+      | "groupInvitations"
+      | "managementAuditLogs"
+      | "transactionalEmailJobs"
     >;
     const created = { _id: id, _creationTime: Date.now(), ...doc } as never;
     if (tableName === "groups") groups.push(created as GroupDoc);
@@ -172,6 +192,9 @@ function createMockDb(state: {
             indexName === "by_group_id_and_status"
           );
         }
+        if (tableName === "accountDeletionRequests") {
+          return indexName === "by_user_id";
+        }
         return false;
       };
 
@@ -189,7 +212,9 @@ function createMockDb(state: {
                 ? groupMembers
                 : tableName === "groupInvitations"
                   ? groupInvitations
-                  : [];
+                  : tableName === "accountDeletionRequests"
+                    ? []
+                    : [];
 
         return source.filter((doc) => {
           if (indexName.startsWith("by_group_id") && "groupId" in doc) {
@@ -246,6 +271,9 @@ function createMockDb(state: {
     storage: {
       delete: vi.fn(async () => undefined),
     },
+    scheduler: {
+      runAfter: vi.fn(async () => undefined),
+    },
     db: {
       get,
       insert,
@@ -258,6 +286,38 @@ function createMockDb(state: {
 }
 
 describe("groups", () => {
+  it("E2E cleanup は最後の owner を削除する前に残る member を owner へ昇格する", async () => {
+    const groupId = "group-cleanup" as Id<"groups">;
+    const ctx = createMockDb({
+      groupMembers: [
+        {
+          _id: "membership-owner" as Id<"groupMembers">,
+          groupId,
+          userId: "owner-user",
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "membership-member" as Id<"groupMembers">,
+          groupId,
+          userId: "member-user",
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+
+    await deleteGroupMembershipsByUserHandler(ctx, { userId: "owner-user" });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "membership-member",
+      expect.objectContaining({ role: "owner" }),
+    );
+    expect(ctx.db.delete).toHaveBeenCalledWith("membership-owner");
+  });
+
   it("invitationEmailsMatch は Gmail の plus tag とドット違いを同一メールボックスとして扱う", () => {
     expect(invitationEmailsMatch("invitee@gmail.com", "in.vi.tee+family@gmail.com")).toBe(true);
     expect(invitationEmailsMatch("invitee@googlemail.com", "in.vi.tee+family@gmail.com")).toBe(

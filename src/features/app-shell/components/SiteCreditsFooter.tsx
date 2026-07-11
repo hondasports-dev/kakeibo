@@ -65,11 +65,13 @@ export function SiteCreditsFooter({ variant = "default" }: SiteCreditsFooterProp
       ? [
           { label: "プライバシーポリシー", href: "/privacy" },
           { label: "利用規約", href: "/terms" },
+          { label: "更新履歴", href: "/updates" },
           { label: "GitHub", href: SITE_METADATA.githubProfileUrl, external: true },
         ]
       : [
           { label: "Privacy", href: "/privacy" },
           { label: "Terms", href: "/terms" },
+          { label: "Updates", href: "/updates" },
           { label: "GitHub", href: SITE_METADATA.githubProfileUrl, external: true },
         ];
 

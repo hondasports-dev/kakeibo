@@ -147,7 +147,7 @@ users テーブルにレコードを作成・更新します。
 | `convex/groups/membership.ts`                  | グループ所属確認（`requireGroupMembership` 等）                    |
 | `convex/groups/adminGuards.ts`               | active group スコープ・オーナー権限                                |
 | `src/main.tsx`                                 | ClerkProvider + ConvexProviderWithClerk の Provider 構成           |
-| `src/App.tsx`                                  | 認証状態ガード（AuthenticatedApp）と公開パス分岐                   |
-| `src/router.tsx`                               | ルーティングと `GroupRouteGuard`（`/sso-callback` は Clerk コールバック用） |
-| `src/features/app-shell/lib/publicPaths.ts`    | 公開パス定義                                                       |
+| `src/App.tsx`                                  | 認証状態ガード（AuthenticatedApp）、公開パス分岐、`/sso-callback`（`OAUTH_CALLBACK_PATH`）の Clerk コールバック処理 |
+| `src/router.tsx`                               | ルーティングと `GroupRouteGuard`                                   |
+| `src/features/app-shell/lib/publicPaths.ts`    | 公開パス定義と `shouldUseRouterBeforeAuth`                         |
 | `src/features/auth/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |

@@ -8,6 +8,8 @@
  * @module
  */
 
+import type * as accountDeletion from "../accountDeletion.js";
+import type * as accountDeletionActions from "../accountDeletionActions.js";
 import type * as aiExpenseDrafts_actions from "../aiExpenseDrafts/actions.js";
 import type * as aiExpenseDrafts_extractionMapping from "../aiExpenseDrafts/extractionMapping.js";
 import type * as aiExpenseDrafts_internal from "../aiExpenseDrafts/internal.js";
@@ -18,9 +20,19 @@ import type * as categories_candidate from "../categories/candidate.js";
 import type * as categories_internal from "../categories/internal.js";
 import type * as categories_mutations from "../categories/mutations.js";
 import type * as categories_queries from "../categories/queries.js";
+import type * as crons from "../crons.js";
 import type * as e2eHttp_e2eAuth from "../e2eHttp/e2eAuth.js";
 import type * as e2eHttp_e2eCleanup from "../e2eHttp/e2eCleanup.js";
 import type * as e2eHttp_e2eSeedDraft from "../e2eHttp/e2eSeedDraft.js";
+import type * as email_actions from "../email/actions.js";
+import type * as email_cleanup from "../email/cleanup.js";
+import type * as email_internal from "../email/internal.js";
+import type * as email_jobs from "../email/jobs.js";
+import type * as email_lib_providers from "../email/lib/providers.js";
+import type * as email_model from "../email/model.js";
+import type * as email_suppressions from "../email/suppressions.js";
+import type * as email_webhooks_processResendEvent from "../email/webhooks/processResendEvent.js";
+import type * as email_webhooks_resendWebhook from "../email/webhooks/resendWebhook.js";
 import type * as expenseEntries_internal from "../expenseEntries/internal.js";
 import type * as expenseEntries_mutations from "../expenseEntries/mutations.js";
 import type * as groups_adminGuards from "../groups/adminGuards.js";
@@ -30,6 +42,7 @@ import type * as groups_deletion from "../groups/deletion.js";
 import type * as groups_e2e from "../groups/e2e.js";
 import type * as groups_invitations from "../groups/invitations.js";
 import type * as groups_lib_deleteGroupPhysically from "../groups/lib/deleteGroupPhysically.js";
+import type * as groups_lib_emailNotifications from "../groups/lib/emailNotifications.js";
 import type * as groups_lib_groupDeletionImpact from "../groups/lib/groupDeletionImpact.js";
 import type * as groups_lib_groupEmailMatching from "../groups/lib/groupEmailMatching.js";
 import type * as groups_lib_groupLifecycle from "../groups/lib/groupLifecycle.js";
@@ -72,6 +85,8 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountDeletion: typeof accountDeletion;
+  accountDeletionActions: typeof accountDeletionActions;
   "aiExpenseDrafts/actions": typeof aiExpenseDrafts_actions;
   "aiExpenseDrafts/extractionMapping": typeof aiExpenseDrafts_extractionMapping;
   "aiExpenseDrafts/internal": typeof aiExpenseDrafts_internal;
@@ -82,9 +97,19 @@ declare const fullApi: ApiFromModules<{
   "categories/internal": typeof categories_internal;
   "categories/mutations": typeof categories_mutations;
   "categories/queries": typeof categories_queries;
+  crons: typeof crons;
   "e2eHttp/e2eAuth": typeof e2eHttp_e2eAuth;
   "e2eHttp/e2eCleanup": typeof e2eHttp_e2eCleanup;
   "e2eHttp/e2eSeedDraft": typeof e2eHttp_e2eSeedDraft;
+  "email/actions": typeof email_actions;
+  "email/cleanup": typeof email_cleanup;
+  "email/internal": typeof email_internal;
+  "email/jobs": typeof email_jobs;
+  "email/lib/providers": typeof email_lib_providers;
+  "email/model": typeof email_model;
+  "email/suppressions": typeof email_suppressions;
+  "email/webhooks/processResendEvent": typeof email_webhooks_processResendEvent;
+  "email/webhooks/resendWebhook": typeof email_webhooks_resendWebhook;
   "expenseEntries/internal": typeof expenseEntries_internal;
   "expenseEntries/mutations": typeof expenseEntries_mutations;
   "groups/adminGuards": typeof groups_adminGuards;
@@ -94,6 +119,7 @@ declare const fullApi: ApiFromModules<{
   "groups/e2e": typeof groups_e2e;
   "groups/invitations": typeof groups_invitations;
   "groups/lib/deleteGroupPhysically": typeof groups_lib_deleteGroupPhysically;
+  "groups/lib/emailNotifications": typeof groups_lib_emailNotifications;
   "groups/lib/groupDeletionImpact": typeof groups_lib_groupDeletionImpact;
   "groups/lib/groupEmailMatching": typeof groups_lib_groupEmailMatching;
   "groups/lib/groupLifecycle": typeof groups_lib_groupLifecycle;

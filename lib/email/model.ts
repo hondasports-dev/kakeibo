@@ -1,0 +1,148 @@
+export const TRANSACTIONAL_EMAIL_TYPES = [
+  "email_delivery_test",
+  "group_membership_removed",
+  "group_role_changed",
+  "group_ownership_received",
+  "group_ownership_transferred",
+  "group_deleted",
+  "ai_review_required",
+  "account_deletion_completed",
+] as const;
+
+export type TransactionalEmailType = (typeof TRANSACTIONAL_EMAIL_TYPES)[number];
+
+export type EmailDeliveryTestPayload = {
+  to: string;
+  groupName?: string;
+};
+
+export type GroupMembershipRemovedPayload = {
+  groupName: string;
+};
+
+export type GroupRoleChangedPayload = {
+  groupName: string;
+  previousRole: "owner" | "member";
+  newRole: "owner" | "member";
+};
+
+export type GroupOwnershipReceivedPayload = {
+  groupName: string;
+};
+
+export type GroupOwnershipTransferredPayload = {
+  groupName: string;
+  newOwnerDisplayName: string;
+};
+
+export type GroupDeletedPayload = {
+  groupName: string;
+};
+
+export type AiReviewRequiredPayload = {
+  pendingCount: number;
+};
+
+export type AccountDeletionCompletedPayload = {
+  leftGroupCount: number;
+  deletedGroupCount: number;
+};
+
+export type TransactionalEmailPayload = {
+  email_delivery_test: EmailDeliveryTestPayload;
+  group_membership_removed: GroupMembershipRemovedPayload;
+  group_role_changed: GroupRoleChangedPayload;
+  group_ownership_received: GroupOwnershipReceivedPayload;
+  group_ownership_transferred: GroupOwnershipTransferredPayload;
+  group_deleted: GroupDeletedPayload;
+  ai_review_required: AiReviewRequiredPayload;
+  account_deletion_completed: AccountDeletionCompletedPayload;
+};
+
+export type BuiltEmail = {
+  subject: string;
+  html: string;
+  text: string;
+};
+
+export type SendEmailInput = {
+  to: string;
+  from: string;
+  subject: string;
+  html: string;
+  text: string;
+  idempotencyKey: string;
+};
+
+export type SendEmailSuccess = {
+  ok: true;
+  providerMessageId: string;
+};
+
+export type SendEmailFailure = {
+  ok: false;
+  error: EmailProviderError;
+};
+
+export type SendEmailResult = SendEmailSuccess | SendEmailFailure;
+
+export interface EmailProvider {
+  send(input: SendEmailInput): Promise<SendEmailResult>;
+}
+
+export type EmailProviderErrorCode =
+  | "rate_limited"
+  | "timeout"
+  | "server_error"
+  | "invalid_request"
+  | "unknown"
+  | "suppressed"
+  | "configuration_error";
+
+export class EmailProviderError extends Error {
+  readonly code: EmailProviderErrorCode;
+  readonly retryable: boolean;
+  readonly provider: string;
+  readonly underlyingError?: unknown;
+
+  constructor(
+    code: EmailProviderErrorCode,
+    message: string,
+    retryable: boolean,
+    provider: string,
+    underlyingError?: unknown,
+  ) {
+    super(message);
+    this.name = "EmailProviderError";
+    this.code = code;
+    this.retryable = retryable;
+    this.provider = provider;
+    this.underlyingError = underlyingError;
+  }
+}
+
+export function normalizeEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+export type TransactionalEmailJobStatus =
+  | "queued"
+  | "processing"
+  | "sent"
+  | "delivered"
+  | "bounced"
+  | "complained"
+  | "suppressed"
+  | "failed"
+  | "retrying";
+
+export type EmailSuppressionReason = "bounce" | "complaint" | "provider_suppressed";
+
+export type EmailWebhookEventType =
+  | "email.sent"
+  | "email.delivered"
+  | "email.delivery_delayed"
+  | "email.complained"
+  | "email.bounced"
+  | "email.failed"
+  | "email.suppressed";

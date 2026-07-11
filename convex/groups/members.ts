@@ -14,6 +14,13 @@ import { formatGroupRoleLabel } from "./lib/groupRoleLabel";
 import { recordManagementAuditLog } from "./lib/managementAuditLog";
 import { revokeGroupInvitationsForEmailInGroup } from "./invitations";
 import { requireGroupOwner } from "./membership";
+import {
+  enqueueGroupMembershipRemovedEmail,
+  enqueueGroupOwnershipReceivedEmail,
+  enqueueGroupOwnershipTransferredEmail,
+  enqueueGroupRoleChangedEmail,
+} from "./lib/emailNotifications";
+import { assertAccountDeletionNotInProgress } from "../accountDeletion";
 
 export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: string }) {
   const { groupId } = await requireGroupOwner(ctx);
@@ -26,6 +33,7 @@ export async function addMemberByEmailHandler(ctx: MutationCtx, args: { email: s
   if (user === null) {
     throw new ConvexError("Clerkで招待済みのユーザーがログインした後に追加できます");
   }
+  await assertAccountDeletionNotInProgress(ctx, user.userId);
 
   const existingMembershipInGroup = await readQueryDoc(
     ctx.db
@@ -57,6 +65,11 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
   const { groupId, userId } = await requireGroupOwner(ctx);
   assertNotSelfOperator(userId, args.targetUserId);
 
+  const group = await ctx.db.get(groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
+
   const targetMembership = await readQueryDoc(
     ctx.db
       .query("groupMembers")
@@ -78,6 +91,7 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
   );
   const targetLabel =
     targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
+  const groupName = group.name;
 
   await ctx.db.delete(targetMembership._id);
 
@@ -104,6 +118,8 @@ export async function removeMemberHandler(ctx: MutationCtx, args: { targetUserId
     targetId: args.targetUserId,
     targetLabel,
   });
+
+  await enqueueGroupMembershipRemovedEmail(ctx, groupName, targetUser?.email);
 }
 
 export async function changeMemberRoleHandler(
@@ -112,6 +128,11 @@ export async function changeMemberRoleHandler(
 ) {
   const { groupId, userId } = await requireGroupOwner(ctx);
   assertNotSelfOperator(userId, args.targetUserId);
+
+  const group = await ctx.db.get(groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
 
   const targetMembership = await readQueryDoc(
     ctx.db
@@ -158,6 +179,8 @@ export async function changeMemberRoleHandler(
     beforeValue: formatGroupRoleLabel(currentRole),
     afterValue: formatGroupRoleLabel(args.newRole),
   });
+
+  await enqueueGroupRoleChangedEmail(ctx, group.name, currentRole, args.newRole, targetUser?.email);
 }
 
 export async function transferGroupOwnershipHandler(
@@ -166,6 +189,11 @@ export async function transferGroupOwnershipHandler(
 ) {
   const { groupId, userId, membershipId: actorMembershipId } = await requireGroupOwner(ctx);
   assertNotSelfOperator(userId, args.targetUserId);
+
+  const group = await ctx.db.get(groupId);
+  if (group === null) {
+    throw new ConvexError("グループが見つかりません");
+  }
 
   const targetMembership = await readQueryDoc(
     ctx.db
@@ -216,6 +244,14 @@ export async function transferGroupOwnershipHandler(
     beforeValue: `オーナー: ${actorLabel}`,
     afterValue: `オーナー: ${targetLabel}（${actorLabel} → ${formatGroupRoleLabel("member")}）`,
   });
+
+  const newOwnerDisplayName =
+    targetUser?.displayName?.trim() || targetUser?.email?.trim() || args.targetUserId;
+
+  await Promise.all([
+    enqueueGroupOwnershipReceivedEmail(ctx, group.name, targetUser?.email),
+    enqueueGroupOwnershipTransferredEmail(ctx, group.name, newOwnerDisplayName, actorUser?.email),
+  ]);
 }
 
 export const addMemberByEmail = mutation({

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useClerk, useUser } from "@clerk/react";
 import { Alert, Avatar, Button, Menu, MenuItem } from "@mui/material";
 import { getClerkErrorMessage, getClerkUserFriendlyDisplayName } from "../../auth";
@@ -66,6 +67,9 @@ export function UserMenu() {
         <span>{isSigningOut ? "ログアウト中" : displayName}</span>
       </Button>
       <Menu anchorEl={anchorEl} id="user-menu" onClose={handleClose} open={open}>
+        <MenuItem component={Link} onClick={handleClose} to="/updates">
+          更新履歴
+        </MenuItem>
         <MenuItem disabled={isSigningOut} onClick={handleOpenProfile}>
           アカウント設定
         </MenuItem>

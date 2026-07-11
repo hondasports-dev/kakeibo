@@ -47,4 +47,58 @@ describe("production-release workflow", () => {
     expect(yaml).toContain('echo "| PROD title | $PROD_TITLE |"');
     expect(yaml).not.toContain('echo "| PROD title | ${{ steps.smoke.outputs.title }} |"');
   });
+
+  test("generates APP_VERSION from the Asia/Tokyo date and run number", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("TZ=Asia/Tokyo");
+    expect(yaml).toContain("GITHUB_RUN_NUMBER");
+    expect(yaml).toContain("APP_VERSION=");
+    expect(yaml).toContain("PUBLISHED_AT=");
+  });
+
+  test("injects VITE_APP_VERSION and generates product updates before the build", () => {
+    const yaml = workflow();
+    const generateIndex = yaml.indexOf("Generate product updates");
+    const convexIndex = yaml.indexOf("Deploy Convex Production");
+
+    expect(yaml).toContain("VITE_APP_VERSION");
+    expect(generateIndex).toBeGreaterThan(-1);
+    expect(convexIndex).toBeGreaterThan(generateIndex);
+  });
+
+  test("creates a GitHub Release with a product-updates.json asset after smoke", () => {
+    const yaml = workflow();
+    const smokeIndex = yaml.indexOf("PROD smoke checklist");
+    const releaseIndex = yaml.indexOf("Create GitHub Release");
+    const summaryIndex = yaml.indexOf("Write release summary");
+
+    expect(yaml).toContain("app-v");
+    expect(yaml).toContain("product-updates.json");
+    expect(yaml).toContain("#product-updates.json");
+    expect(releaseIndex).toBeGreaterThan(smokeIndex);
+    expect(summaryIndex).toBeGreaterThan(releaseIndex);
+  });
+
+  test("revalidates the deployed app version in PROD smoke", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("app-version");
+    expect(yaml).toContain("expected_app_version=");
+    expect(yaml).toContain("deployed_app_version=");
+    expect(yaml).toContain("PROD_APP_VERSION: ${{ steps.smoke.outputs.app_version }}");
+  });
+
+  test("grants contents write permission for GitHub releases", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("contents: write");
+  });
+
+  test("exposes OPENAI_API_KEY and BASE_REF to the generate product updates step", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("OPENAI_API_KEY");
+    expect(yaml).toContain("BASE_REF");
+  });
 });

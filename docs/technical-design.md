@@ -1,10 +1,10 @@
-# 週1レシート入力Web家計簿 技術設計
+# 軽く・サクッと記録できるWeb家計簿 技術設計
 
 ## 1. 設計方針
 
 本MVPは、ClerkのGoogleアカウント認証でユーザーを識別し、Convexで家計データを保存・同期するWebアプリとして実装する。
 
-目的は、ユーザーがPCやスマートフォンから同じ家計データへアクセスし、週1回のレシート入力と振り返りを軽快に行えることを検証することである。
+目的は、ユーザーがPCやスマートフォンから同じ家計データへアクセスし、思いついた時に軽く・サクッと支出や収入を記録し、週単位の振り返りも軽快に行えることを検証することである。
 
 Honoは初期構成には含めない。Convexはquery、mutation、action、HTTP actionを持つため、MVPの通常CRUD、同期、サーバー側処理の多くをConvex側で扱える。
 
@@ -69,44 +69,70 @@ Honoを追加すると、フロントエンド、Hono API、Convexの3層にな�
 ```text
 src/
   App.tsx
+  App.css
   main.tsx
   router.tsx
   theme.ts
   designTokens.ts              # MUI sx 用デザイントークン（feature 横断）
+  designTokens.test.ts
+  productionReleaseWorkflow.test.ts
+  index.css
   utils/                       # feature 横断ユーティリティ（例: imageDataUrl）
+  lib/                         # 横断ユーティリティ（例: weekComparison）
+  routing/                     # E2E 専用ルート（e2eRoutes.tsx, e2eFixtures.ts）
+  test/                        # テスト共通ユーティリティ
   features/                    # 機能単位（Feature-based）
     ai-expense-queue/
       components/
-        queue/                 # QueueSection, QueueItemCard 等
-        review/                # ReviewDialog 一式
+        queue/                 # QueueHeader, QueueSection, QueueItemCard, QueueContent 等
+        review/                # ReviewDialog, ReviewItemCard, ReviewItemTaxDetails, ...
+        AiExpenseQueuePanel.tsx
+        BulkRegisterConfirmDialog.tsx
+        ImageInputButton.tsx
+        QueueEmptyState.tsx
+        QueueHeader.tsx
+        QueuePanelSlots.tsx
+        ReviewReasonChips.tsx
+        StatusChip.tsx
+      context/                 # AiExpenseQueuePanelContext
       hooks/
-        review/                # useReviewDialog, useReviewSubmit 等
+        review/                # useReviewTaxOverrides, useReviewTaxSummaryOverrides, ...
+        useAiExpenseQueuePanel.ts
+        useAiExpenseQueueData.ts
+        useQueueDelete.ts
+        useBulkRegister.ts
+        useImageUpload.ts
+        useRetry.ts
+        useReviewDialog.ts
       types/
-      utils/
+      utils/                   # discountItems, taxWarnings, mappers, reviewValidation, ...
       index.ts
     app-shell/                 # レイアウト・公開・異常系ページ
-      components/              # AppLayout, AppDrawer, AppBottomNav, UserMenu
-      lib/
+      components/              # AppLayout, AppDrawer, AppBottomNav, UserMenu, ...
+      lib/                     # publicPaths, navigationConfig, siteMetadata, maintenanceMode
       pages/
       index.ts
     auth/
       hooks/
-      lib/
+      lib/                     # clerkError, convexError, clerkUserDisplayName
       index.ts
     dashboard/
-      pages/
+      components/              # DashboardInputPanel, DashboardSummaryRow, WeekComparisonChart, ...
       hooks/
+      pages/
+      utils/
       index.ts
     expense-entry/
-      components/              # ExpenseEntryForm, SingleEntryFields, MultiEntryFields 等
-      hooks/                   # useExpenseEntryForm, useExpenseEntryMode, useExpenseEntrySubmit
+      components/              # ExpenseEntryForm, SingleEntryFields, MultiEntryFields, ...
+      hooks/                   # useExpenseEntryForm, useExpenseEntryMode, useExpenseEntrySubmit, useInputPageWeek
       pages/
       types/
       validation/
       index.ts
     group-admin/
-      components/              # GroupSettingsPanel, GroupInviteSection 等
-      hooks/                   # useGroupInviteManagement, useGroupRoleManagement 等
+      components/              # GroupSettingsPanel, GroupMemberList, GroupInviteSection, GroupDangerZone, ...
+      components/dangerZone/   # グループ削除・メンバー解除・権限譲渡の危険操作系
+      hooks/                   # useGroupInviteManagement, useGroupRoleManagement, useGroupRenameManagement, ...
       lib/
       pages/
       utils/
@@ -117,12 +143,12 @@ src/
       validation/
       index.ts
     settings/
-      components/              # CategorySettingsPanel, CategorySettingsList 等
+      components/              # CategorySettingsPanel, CategorySettingsList, WeekDaySettingsPanel, ...
       hooks/                   # useCategorySettings
       pages/
       index.ts
     ui/                        # 横断 UI（アニメーション等）
-      components/
+      components/              # SuzumemoLoadingState, AnimatedButton, PageTransition, CollapsibleHelp, ...
       index.ts
     week/                      # 週ナビ・日付ユーティリティ
       components/
@@ -130,11 +156,10 @@ src/
       index.ts
     weekly-summary/
       components/
-      hooks/
       pages/
       types/
+      utils/
       index.ts
-  test/
 
 convex/
   auth.config.ts
@@ -159,6 +184,8 @@ convex/
     deletion.ts
     e2e.ts
     adminGuards.ts
+    auditLogs.ts
+    lib/                       # groupDeletion, managementAuditLog, groupName, groupQueryHelpers 等
     ...
   categories/
     queries.ts
@@ -168,11 +195,13 @@ convex/
   receipts/
     crud.ts
     mutations.ts
+    receipts.test.ts
     summaries.ts
-    spendingEntries.ts
+    spendingEntries.ts         # lib/convex/receipts/spendingEntries.ts への re-export ラッパー
   expenseEntries/
     mutations.ts
     internal.ts
+    expenseEntries.test.ts
   weekSessions/
     queries.ts
     mutations.ts
@@ -192,12 +221,17 @@ convex/
   receiptImageExtraction/
     extraction.ts              # public action の薄いラッパー
 
-lib/convex/                    # Convex 外の純粋ヘルパー（api.d.ts 肥大化回避）
-  aiExpenseDrafts/             # validators, draftRepository, registerTo* 等
-  receiptImageExtraction/      # analyzeReceiptImageCore, openai, parse 等
-  expenseEntries/
-  groups/invitationHandlers/, clerkInvitationLib/
-  receipts/summaryLib/, insert.ts, queries.ts
+lib/                           # Convex 外の純粋ヘルパー（api.d.ts 肥大化回避）
+  convex/
+    aiExpenseDrafts/           # validators, classification, reviewValidation, draftRepository, registerTo*, updateForReview, tax overrides, persistTaxInterpretation, ...
+    dateUtils.ts
+    expenseEntries/            # createFromDraft, expenseEntryValidation
+    groups/
+      clerkInvitationLib/
+      invitationHandlers/
+    receiptImageExtraction/    # analyzeReceiptImageCore, openaiClient, parse, validators, ...
+    receipts/                  # insert, queries, summaryLib, spendingEntries.ts
+  receiptTax/                  # interpretReceiptTax, normalizeTaxSummaries, resolveTaxContext, calculateTax, ...
 ```
 
 フロントエンドは **Feature-based Architecture** を採用する。各 feature は `src/features/<feature-name>/`
@@ -318,6 +352,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 7. 複数グループに所属しているユーザーは `/group/select` または設定画面から表示対象グループを切り替える。
 8. メンバーを外す場合は、オーナーが `/settings` からそのユーザーを削除する。
 9. 削除対象ユーザーの activeGroupId が削除されたグループだった場合、残りの所属グループへ切り替える。
+10. メンバーのグループ解除、ロール変更、オーナー権限譲渡、グループ削除の実行時には、影響を受けたメンバーへメール通知を送信する。
 
 この運用では、次の制約を前提にする。
 
@@ -432,13 +467,15 @@ active record が確認できない場合は fail closed にする。
 | sourceType          | `image_upload`                                                     | 下書きの作成元                        |
 | status              | `queued` / `analyzing` / `ready` / `needs_review` / `failed` / `registered` | AI処理と登録の状態                    |
 | documentType        | `receipt` / `convenience_payment` / `unknown`                      | 書類種別                              |
+| imageFileName       | string (optional)                                                  | レシート画像ファイル名（既存 dev 下書き互換） |
 | shopName            | string (optional)                                                  | レシート上の店名                      |
 | paymentPlace        | string (optional)                                                  | 実際に支払った場所                    |
 | payeeName           | string (optional)                                                  | お金の行き先                          |
 | paymentPurpose      | string (optional)                                                  | 支払内容                              |
 | date                | string (optional)                                                  | 支出日。`YYYY-MM-DD`                  |
 | amountYen           | number (optional)                                                  | 合計金額。日本円の整数                |
-| taxSummaries        | array (optional)                                                   | 税率別集計（`taxRatePercent`, `taxMode`, `taxableAmountYen`, `taxYen` 等） |
+| taxSummaries        | array (optional)                                                   | 税率別集計。各要素は `taxRatePercent`/`taxMode`/`taxableAmountYen`/`taxableAmountBasis`/`taxYen`/`taxIncludedAmountYen`/`roundingMethod`/`confidence`/`warnings`/`status`/`reasons` を含む |
+| markerDefinitions   | array (optional)                                                   | レシート印字に含まれる税記号・マーカーの定義 |
 | categoryId          | Id<"categories"> (optional)                                        | 登録候補カテゴリ                      |
 | confidence          | object                                                             | 主要フィールドごとのAI信頼度          |
 | warnings            | string[] (optional)                                                | 解析時の警告                          |
@@ -448,8 +485,9 @@ active record が確認できない場合は fail closed にする。
 | updatedAt           | number                                                             | 更新日時                              |
 
 `reviewReasons` は文字列自由入力ではなく、UI表示と分類ロジックで扱える固定 enum とする。
-初期値は `low_confidence`、`missing_required_field`、`ambiguous_document_type`、
-`ambiguous_category`、`amount_mismatch`、`parse_failed` とする。
+値は `low_confidence`、`missing_required_field`、`ambiguous_document_type`、
+`ambiguous_category`、`multiple_categories`、`user_confirmation_required`、
+`amount_mismatch`、`parse_failed` とする。
 
 分類ロジックでは、主要フィールドの信頼度しきい値を `0.8` とする。レシート下書きは
 日付、1円以上の金額、店名または支払先相当の名称、カテゴリ候補、主要フィールドの信頼度が
@@ -484,9 +522,13 @@ MVPの画面で全明細を常時表示しない場合でも、将来の複数�
 | printedAmountYen     | number (optional)           | レシート印字額                                 |
 | amountBasis          | enum (optional)             | `tax_included` / `tax_excluded` / `unknown`    |
 | taxRatePercent       | 0 / 8 / 10 / null (optional) | 税率                                        |
-| taxMarker            | string (optional)           | 印字上の税マーカー                             |
+| markers              | string[] (optional)         | 印字上の税マーカー一覧（複数可）               |
+| taxMarker            | string (optional)           | 印字上の税マーカー（単一、互換）               |
 | allocatedTaxYen      | number (optional)           | 按分税額                                       |
 | normalizedAmountYen  | number (optional)           | 登録用正規化金額                               |
+| taxResolutionStatus  | `resolved` / `unresolved` (optional) | 税情報の解決状態                               |
+| taxResolutionSource  | enum (optional)             | `item_explicit` / `single_summary` / `summary_reconciliation` / `remaining_summary` / `marker_reconciled` / `paid_total_reconciliation` |
+| taxReviewReasons     | string[] (optional)         | 税関連の確認・警告理由                         |
 | quantity             | number (optional)           | 数量                                           |
 | unitPriceYen         | number (optional)           | 単価                                           |
 | categoryName         | string (optional)           | AI が返したカテゴリ名                          |
@@ -537,7 +579,7 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 
 ### 10.1 手入力（expenseEntries）
 
-現行の週次入力 UI（`ExpenseEntryForm`）は `expenseEntries` を正本とする。
+現行の入力 UI（`ExpenseEntryForm`）は `expenseEntries` を正本とする。
 
 1枚の入力元を複数カテゴリへ分ける場合も、1件に複数カテゴリIDを保持せず、カテゴリ別の
 `expenseEntries` を作成する。AI下書きの値引きは `aiExpenseDraftItems` で負数として保持し、
@@ -563,7 +605,7 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 `receipts` は支出と収入の両方を扱う schema 互換として残る。新規手入力は `expenseEntries` を正本とし、
 収入は `entryType: "income"`、カテゴリなし、入力内容を `title` に保存する。
 
-集計は `receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を統合する。
+集計は `lib/convex/receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を統合する（`convex/receipts/spendingEntries.ts` は re-export ラッパー）。
 
 ### 10.3 weekSessions
 
@@ -616,6 +658,10 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `aiExpenseDrafts.queries.listByStatus(status)`
 - `aiExpenseDrafts.queries.getWithItems(draftId)`
 - `aiExpenseDrafts.mutations.updateForReview(draftId, input)`
+- `aiExpenseDrafts.mutations.deleteDraft(draftId)`
+- `aiExpenseDrafts.mutations.updateDraftItemTaxOverrides(draftId, itemId, taxRatePercent?, amountBasis?)`
+- `aiExpenseDrafts.mutations.updateSummaryTaxOverrides(draftId, summaryIndex, taxRatePercent?, taxMode?, taxableAmountYen?, taxYen?, ...)`
+- `aiExpenseDrafts.mutations.applyReceiptTaxSettings(draftId, taxRatePercent?, amountBasis?)`
 - `aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries(draftIds)`（主導線）
 - `aiExpenseDrafts.mutations.registerReadyDrafts(draftIds)`（レガシー。`receipts` へ登録し `registeredReceiptId` を設定）
 - `aiExpenseDrafts.actions.analyzeReceiptImageToDraft(input)`
@@ -633,9 +679,18 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `receiptAnalysisJobs.mutations.retryImageJob(jobId)`
 - `receiptAnalysisJobs.mutations.cancelImageJob(jobId)`
 - `receiptAnalysisJobs.internal.finalizeBatchStatus(batchId)`（internal）
+- `receiptAnalysisJobs.internal.getBatchById(batchId)`（internal）
+- `receiptAnalysisJobs.internal.countNeedsReviewJobsByBatchId(batchId)`（internal）
+- `receiptAnalysisJobs.actions.checkAiReviewRequired(batchId)`（internal action）
 
 バッチ画像解析は `receiptAnalysisBatches` / `receiptAnalysisImageJobs` テーブルで管理する。
 各ジョブは `analyzeImageJob` action で非同期に処理され、完了時に internal の `finalizeBatchStatus` でバッチ状態を更新する。
+
+`createBatch` 時に `receiptAnalysisBatches.createdByUserId` に実行ユーザーの `tokenIdentifier` を保存する。
+ジョブが `needs_review` など terminal 状態に更新されると、`updateJobStatus` は `aiReviewNotificationScheduledAt` を記録し、
+60 分後に `checkAiReviewRequired` をスケジュールする。60 分後に `needs_review` ジョブが残っていれば、
+`createdByUserId` に紐づくメールアドレスへ `ai_review_required` テンプレートの通知を送信する。
+`aiReviewNotificationScheduledAt` は重複スケジュールを防ぐ。
 
 下書きの作成・更新・登録処理では、必ず `ctx.auth.getUserIdentity()` と `groupMembers` から
 active group を解決する。`draftId` や `categoryId` を受け取る処理では、取得したドキュメントの
@@ -688,7 +743,7 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 ### 12.2 集計
 
-週次サマリーでは、`convex/receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を
+週次サマリーでは、`lib/convex/receipts/spendingEntries.ts` が `expenseEntries` と `receipts` を
 統合して以下を算出する。
 
 - 合計支出
@@ -696,7 +751,7 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 - 支出件数
 - 前週比
 
-**集計互換ルール（`spendingEntries.ts`）:**
+**集計互換ルール（`lib/convex/receipts/spendingEntries.ts`）:**
 
 - 対象期間（週・日・月）内に **1 件でも** `expenseEntries` が存在する場合、当該期間の `receipts` を
   集計対象から **すべて除外** する（二重計上防止）
@@ -958,7 +1013,7 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 
 ## 21. M18. 支出項目モデル再設計
 
-M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿の中心を `receipts` から `expenseEntries` に寄せ、レシートや払込票などの入力元を `sourceDocuments` として分離する。`inputSources` は説明用の言い換えとして扱う。
+M18では、既存MVP利用者向けに、家計簿の中心を `receipts` から `expenseEntries` に寄せ、レシートや払込票などの入力元を `sourceDocuments` として分離する。`inputSources` は説明用の言い換えとして扱う。
 
 ### 21.1 用語の役割
 
@@ -979,7 +1034,7 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 - `receipts` は互換層として残す
 - 手入力・AI 登録の正本は `expenseEntries` である
 - `sourceDocuments`、`expenseEntries`、`receiptAnalysisBatches`、`receiptAnalysisImageJobs` の schema は **実装済み**
-- 移行期間の集計は `convex/receipts/spendingEntries.ts` が担当する。対象期間（週・日・月）内に
+- 移行期間の集計は `lib/convex/receipts/spendingEntries.ts` が担当する。対象期間（週・日・月）内に
   **1 件でも** `expenseEntries` がある場合、当該期間の `receipts` を集計から **すべて除外** して二重計上を防ぐ
 - `expenseEntries` が存在しない期間は `receipts` を従来どおり集計する
 
@@ -988,8 +1043,8 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 | Issue | 内容 | 状態 |
 | --- | --- | --- |
 | #177 | `sourceDocuments` / `expenseEntries` の schema 設計 | 完了 |
-| #180 | 既存 `receipts` との互換・移行方針（`spendingEntries.ts`） | 完了 |
-| #178 | カテゴリ別集計の `expenseEntries` 化 | 完了（`spendingEntries.ts`） |
+| #180 | 既存 `receipts` との互換・移行方針（`lib/convex/receipts/spendingEntries.ts`） | 完了 |
+| #178 | カテゴリ別集計の `expenseEntries` 化 | 完了（`lib/convex/receipts/spendingEntries.ts`） |
 | #181 | 入力元から複数のカテゴリ別支出項目を作るUI（`ExpenseEntryForm`） | 完了 |
 | #173 | レシート画像認識時のカテゴリ自動判定 | 未着手 |
 | #179 | AI下書きからカテゴリ別支出項目候補を作成 | 完了（`registerReadyDraftsAsExpenseEntries`） |
@@ -1065,5 +1120,5 @@ M18では、週1回まとめ入力する既存MVP利用者向けに、家計簿�
 ### 21.7 互換境界
 
 - `receipts` は互換層として維持する。手入力・AI 登録は `expenseEntries` を正本とする。
-- 集計の正本ロジックは `convex/receipts/spendingEntries.ts` に集約する。
+- 集計の正本ロジックは `lib/convex/receipts/spendingEntries.ts` に集約する。`convex/receipts/spendingEntries.ts` は `lib/convex/receipts/spendingEntries.ts` への re-export ラッパーとして残す。
 - M18 の後続 Issue は `expenseEntries` を正本として扱える。

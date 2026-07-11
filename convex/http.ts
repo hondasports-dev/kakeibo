@@ -1,4 +1,5 @@
 import { httpRouter } from "convex/server";
+import { resendWebhookHandler } from "./email/webhooks/resendWebhook";
 import { e2eCleanupHandler } from "./e2eHttp/e2eCleanup";
 import { e2eCleanupAuthCheckHandler } from "./e2eHttp/e2eAuth";
 import {
@@ -39,6 +40,11 @@ http.route({
   path: "/e2e/seed-pending-group-invitation",
   method: "POST",
   handler: e2eSeedPendingGroupInvitationHandler,
+});
+http.route({
+  path: "/webhooks/resend",
+  method: "POST",
+  handler: resendWebhookHandler,
 });
 
 export default http;

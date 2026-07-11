@@ -1,6 +1,7 @@
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
+import { MemoryRouter } from "react-router-dom";
 import { SettingsPage } from "./SettingsPage";
 
 vi.mock("../components/CategorySettingsPanel", () => ({
@@ -19,22 +20,30 @@ vi.mock("../components/WeekDaySettingsPanel", () => ({
 
 describe("SettingsPage", () => {
   it("h1 見出し「設定」が表示される", () => {
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>,
+    );
 
     expect(screen.getByRole("heading", { name: "設定", level: 1 })).toBeInTheDocument();
   });
 
   it("単一の設定台帳に説明と4セクションを順番どおり表示する", () => {
-    renderWithProviders(<SettingsPage />);
+    renderWithProviders(
+      <MemoryRouter>
+        <SettingsPage />
+      </MemoryRouter>,
+    );
 
     expect(
       screen.getByText("グループやカテゴリ、週の設定を確認・管理します。"),
     ).toBeInTheDocument();
 
     const ledger = screen.getByTestId("settings-ledger");
-    expect(ledger.querySelectorAll(":scope > .settings-ledger-section")).toHaveLength(4);
+    expect(ledger.querySelectorAll(":scope > .settings-ledger-section")).toHaveLength(5);
     expect(
       screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(["グループ", "カテゴリ", "週の設定", "危険な操作"]);
+    ).toEqual(["グループ", "カテゴリ", "週の設定", "アカウント", "危険な操作"]);
   });
 });
