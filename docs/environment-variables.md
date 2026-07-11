@@ -223,7 +223,7 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 | `APP_VERSION` | `2026.07.11-458` | ユーザー向けアプリバージョン | `TZ=Asia/Tokyo date +%Y.%m.%d-${GITHUB_RUN_NUMBER}` |
 | `PUBLISHED_AT` | `2026-07-11` | Product Update の `publishedAt` | `TZ=Asia/Tokyo date +%Y-%m-%d` |
 | `VITE_APP_VERSION` | `2026.07.11-458` | Vite ビルドで `<meta name="app-version">` と React ページに注入 | `APP_VERSION` と同値 |
-| `OPENAI_API_KEY` | `sk-...` | PR 要約による Product Update 生成（オプション） | GitHub Actions secrets |
+| `OPENAI_API_KEY` | `sk-...` | PR 要約による Product Update 生成（オプション） | GitHub Actions secret `RELEASE_NOTE` |
 | `BASE_REF` | `main` | マージ済み PR を検索する base branch | `main` または `inputs.source_ref` |
 
 これらは GitHub Actions 上で生成される。Vercel Dashboard には `VITE_APP_VERSION` を固定値として設定しない。

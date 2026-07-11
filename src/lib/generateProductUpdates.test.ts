@@ -37,7 +37,7 @@ describe("summarizePullRequest", () => {
     expect(draft).toEqual({
       id: "pr-123",
       title: "Add feature",
-      summary: "This is a long description.",
+      summary: "不具合の修正を行いました",
     });
   });
 
@@ -82,7 +82,7 @@ describe("summarizePullRequest", () => {
     vi.unstubAllGlobals();
   });
 
-  test("throws when OpenAI API returns an error", async () => {
+  test("returns fallback draft when OpenAI API returns an error", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -93,20 +93,24 @@ describe("summarizePullRequest", () => {
       }),
     );
 
-    await expect(
-      summarizePullRequest({
-        number: 1,
-        title: "title",
-        body: "body",
-        labels: [],
-        apiKey: "sk-bad",
-      }),
-    ).rejects.toThrow(ProductUpdateValidationError);
+    const draft = await summarizePullRequest({
+      number: 1,
+      title: "title",
+      body: "body",
+      labels: [],
+      apiKey: "sk-bad",
+    });
+
+    expect(draft).toEqual({
+      id: "pr-1",
+      title: "title",
+      summary: "不具合の修正を行いました",
+    });
 
     vi.unstubAllGlobals();
   });
 
-  test("throws when OpenAI response is not valid JSON", async () => {
+  test("returns fallback draft when OpenAI response is not valid JSON", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
@@ -115,15 +119,39 @@ describe("summarizePullRequest", () => {
       }),
     );
 
-    await expect(
-      summarizePullRequest({
-        number: 1,
-        title: "title",
-        body: "body",
-        labels: [],
-        apiKey: "sk-test",
-      }),
-    ).rejects.toThrow(ProductUpdateValidationError);
+    const draft = await summarizePullRequest({
+      number: 1,
+      title: "title",
+      body: "body",
+      labels: [],
+      apiKey: "sk-test",
+    });
+
+    expect(draft).toEqual({
+      id: "pr-1",
+      title: "title",
+      summary: "不具合の修正を行いました",
+    });
+
+    vi.unstubAllGlobals();
+  });
+
+  test("returns fallback draft when fetch throws", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("network")));
+
+    const draft = await summarizePullRequest({
+      number: 1,
+      title: "title",
+      body: "body",
+      labels: [],
+      apiKey: "sk-test",
+    });
+
+    expect(draft).toEqual({
+      id: "pr-1",
+      title: "title",
+      summary: "不具合の修正を行いました",
+    });
 
     vi.unstubAllGlobals();
   });

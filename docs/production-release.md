@@ -122,7 +122,7 @@ GitHub Environment `production` に以下を設定する。
 | -------- | ---------------------- | ------------------------------------- |
 | Secret   | `VERCEL_TOKEN`         | GitHub Actions から Vercel CLI を実行する |
 | Secret   | `CONVEX_DEPLOY_KEY`    | Convex Production deployment へ反映する |
-| Secret   | `OPENAI_API_KEY`       | 任意。PR タイトル/本文を要約して Product Update 草案を生成する |
+| Secret   | `RELEASE_NOTE`         | 任意。PR タイトル/本文を要約して Product Update 草案を生成する |
 | Variable | `VERCEL_ORG_ID`        | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID`    | Vercel project ID                     |
 | Variable | `PRODUCTION_SMOKE_URL` | 任意。custom domain など smoke 対象を固定したい場合に設定 |
