@@ -39,6 +39,25 @@ test.describe("公開・異常系ページ", () => {
     await expect(page.getByText(/家計管理・支出記録の正確性を保証しません/)).toBeVisible();
   });
 
+  test("@public @smoke 未ログインで /updates を表示できる (#285)", async ({ page }) => {
+    await page.goto("/updates");
+
+    await expect(page.getByRole("heading", { name: "Suzumemoの更新履歴" })).toBeVisible();
+    await expect(page.getByText("まだ公開された更新履歴はありません。")).toBeVisible();
+    await expect(page.getByText("今後の新機能や改善内容はこちらでお知らせします。")).toBeVisible();
+    await expect(page.getByText(/^Version /)).toBeVisible();
+    await expect(page.getByRole("link", { name: "プライバシー" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    await expect(page.getByRole("link", { name: "利用規約" })).toHaveAttribute("href", "/terms");
+    await expect(page.getByText("© 2026 Tatsuya Miyamoto")).toBeVisible();
+    await expect(page.getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/hondasports",
+    );
+  });
+
   test("@public 未ログインで存在しないURLに404を表示する (#253/#266)", async ({ page }) => {
     await page.goto("/this-route-does-not-exist-m23");
 

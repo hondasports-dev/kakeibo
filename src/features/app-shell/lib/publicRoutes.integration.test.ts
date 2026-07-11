@@ -4,12 +4,12 @@ import { PUBLIC_PATHS, isPublicPath } from "./publicPaths";
 describe("public legal routes (#251)", () => {
   it("/privacy と /terms を公開パスとして扱う", () => {
     expect(PUBLIC_PATHS).toEqual(
-      expect.arrayContaining(["/privacy", "/terms", "/group/invitations/accept"]),
+      expect.arrayContaining(["/privacy", "/terms", "/updates", "/group/invitations/accept"]),
     );
   });
 
   it("アプリの認証必須パスではない", () => {
-    for (const path of ["/privacy", "/terms"]) {
+    for (const path of ["/privacy", "/terms", "/updates"]) {
       expect(isPublicPath(path)).toBe(true);
     }
 

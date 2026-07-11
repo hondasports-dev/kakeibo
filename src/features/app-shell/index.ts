@@ -1,6 +1,7 @@
 export { TermsPage } from "./pages/TermsPage";
 export { PrivacyPolicyPage } from "./pages/PrivacyPolicyPage";
 export { MaintenancePage } from "./pages/MaintenancePage";
+export { UpdatesPage } from "./pages/UpdatesPage";
 export { NotFoundPage } from "./pages/NotFoundPage";
 export { AppLayout } from "./components/AppLayout";
 export { AppErrorBoundary } from "./components/AppErrorBoundary";

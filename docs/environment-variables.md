@@ -214,6 +214,18 @@ Production には `production-release.yml` から `pnpm exec convex deploy --cmd
 PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行わない。
 Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
 
+### Production リリース時の生成変数
+
+`production-release.yml` は承認後に次の変数を生成し、Vercel Production ビルドに渡す。
+
+| 変数名 | 値例 | 用途 | 生成箇所 |
+| --- | --- | --- | --- |
+| `APP_VERSION` | `2026.07.11-458` | ユーザー向けアプリバージョン | `TZ=Asia/Tokyo date +%Y.%m.%d-${GITHUB_RUN_NUMBER}` |
+| `PUBLISHED_AT` | `2026-07-11` | Product Update の `publishedAt` | `TZ=Asia/Tokyo date +%Y-%m-%d` |
+| `VITE_APP_VERSION` | `2026.07.11-458` | Vite ビルドで `<meta name="app-version">` と React ページに注入 | `APP_VERSION` と同値 |
+
+これらは GitHub Actions 上で生成される。Vercel Dashboard には `VITE_APP_VERSION` を固定値として設定しない。
+
 `preview` branch への push では、`preview-deploy.yml` が固定 Convex staging deployment を更新し、Vercel Preview へデプロイする。
 
 PROD 反映では、`main` への push で `production-release.yml` が自動起動する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。手動リリースや forward-fix では、同じ workflow を `workflow_dispatch` で実行してよい。

@@ -5,6 +5,7 @@ import {
   NotFoundPage,
   PrivacyPolicyPage,
   TermsPage,
+  UpdatesPage,
 } from "./features/app-shell";
 import { DashboardPage } from "./features/dashboard";
 import { InputPage } from "./features/expense-entry";
@@ -111,6 +112,10 @@ export const router = createBrowserRouter([
   {
     path: "/maintenance",
     element: <MaintenancePage />,
+  },
+  {
+    path: "/updates",
+    element: <UpdatesPage />,
   },
   {
     path: "/group/setup",
