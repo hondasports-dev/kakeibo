@@ -140,10 +140,14 @@ export const requestAccountDeletion = mutation({
     );
     if (!user) throw new ConvexError("User not found");
     await assertAccountDeletionNotInProgress(ctx, identity.tokenIdentifier);
-    const { classification, orphanMemberships } = await loadAccountDeletionClassification(
-      ctx,
-      identity.tokenIdentifier,
-    );
+    let loaded: Awaited<ReturnType<typeof loadAccountDeletionClassification>>;
+    try {
+      loaded = await loadAccountDeletionClassification(ctx, identity.tokenIdentifier);
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== GROUP_MEMBERSHIP_INVARIANT) throw error;
+      throw new ConvexError({ code: "GROUP_MEMBERSHIP_INVARIANT" });
+    }
+    const { classification, orphanMemberships } = loaded;
     if (classification.blockingGroups.length)
       throw new ConvexError({
         code: "ACCOUNT_DELETION_BLOCKED",
@@ -171,7 +175,7 @@ export const requestAccountDeletion = mutation({
             q.eq("groupId", group.groupId as Id<"groups">).eq("userId", identity.tokenIdentifier),
           ),
       );
-      if (!membership) throw new ConvexError("Group membership invariant violation");
+      if (!membership) throw new ConvexError(GROUP_MEMBERSHIP_INVARIANT);
       await ctx.db.delete(membership._id);
       if (user.email) {
         await revokeGroupInvitationsForEmailInGroup(ctx, group.groupId as Id<"groups">, user.email);
@@ -234,6 +238,7 @@ export const markIdentityDeleted = internalMutation({
     await ctx.db.patch(args.requestId, {
       status: "identity_deleted",
       identityDeletedAt: Date.now(),
+      attemptCount: 0,
       nextRetryAt: undefined,
       updatedAt: Date.now(),
     });

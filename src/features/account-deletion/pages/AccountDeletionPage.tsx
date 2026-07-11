@@ -81,6 +81,7 @@ export function AccountDeletionPage() {
                 </ListItem>
               ))}
             </List>
+            {error ? <Alert severity="error">{error}</Alert> : null}
           </Stack>
         </Paper>
       </Box>
