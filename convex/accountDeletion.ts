@@ -19,6 +19,7 @@ const activeStatuses = [
   "failed",
 ] as const;
 const retryDelaysMs = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 6 * 60 * 60_000] as const;
+const GROUP_MEMBERSHIP_INVARIANT = "Group membership invariant violation";
 
 async function loadClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
   const memberships = await readQueryDocs(
@@ -27,7 +28,10 @@ async function loadClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
   const values = [];
   for (const membership of memberships) {
     const group = await ctx.db.get(membership.groupId);
-    if (!group) throw new ConvexError("Group membership invariant violation");
+    // Preview treats a stale membership as a recoverable data-integrity state.
+    // Keep this as a plain Error so the public query can convert it into a
+    // structured response instead of leaking a ConvexError to the router.
+    if (!group) throw new Error(GROUP_MEMBERSHIP_INVARIANT);
     const members = await readQueryDocs(
       ctx.db
         .query("groupMembers")
@@ -74,7 +78,7 @@ export const getAccountDeletionPreview = query({
         ...result,
       };
     } catch (error) {
-      if (!(error instanceof Error) || error.message !== "Group membership invariant violation") {
+      if (!(error instanceof Error) || error.message !== GROUP_MEMBERSHIP_INVARIANT) {
         throw error;
       }
       return {
