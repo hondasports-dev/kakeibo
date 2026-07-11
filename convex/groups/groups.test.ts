@@ -19,7 +19,7 @@ import {
   cancelPendingGroupInvitationHandler,
 } from "./invitations";
 import { deleteGroupHandler } from "./deletion";
-import { seedGroupMemberForE2eHandler } from "./e2e";
+import { deleteGroupMembershipsByUserHandler, seedGroupMemberForE2eHandler } from "./e2e";
 import { sortGroupMembersForDisplay } from "./memberDisplay";
 import { getGroupMembership } from "./membership";
 import {
@@ -286,6 +286,38 @@ function createMockDb(state: {
 }
 
 describe("groups", () => {
+  it("E2E cleanup は最後の owner を削除する前に残る member を owner へ昇格する", async () => {
+    const groupId = "group-cleanup" as Id<"groups">;
+    const ctx = createMockDb({
+      groupMembers: [
+        {
+          _id: "membership-owner" as Id<"groupMembers">,
+          groupId,
+          userId: "owner-user",
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "membership-member" as Id<"groupMembers">,
+          groupId,
+          userId: "member-user",
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+
+    await deleteGroupMembershipsByUserHandler(ctx, { userId: "owner-user" });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "membership-member",
+      expect.objectContaining({ role: "owner" }),
+    );
+    expect(ctx.db.delete).toHaveBeenCalledWith("membership-owner");
+  });
+
   it("invitationEmailsMatch は Gmail の plus tag とドット違いを同一メールボックスとして扱う", () => {
     expect(invitationEmailsMatch("invitee@gmail.com", "in.vi.tee+family@gmail.com")).toBe(true);
     expect(invitationEmailsMatch("invitee@googlemail.com", "in.vi.tee+family@gmail.com")).toBe(
