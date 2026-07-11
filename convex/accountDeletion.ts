@@ -1,6 +1,6 @@
 import { ConvexError, v } from "convex/values";
 import { internalMutation, internalQuery, mutation, query } from "./_generated/server";
-import type { QueryCtx } from "./_generated/server";
+import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuthenticatedUserId } from "./users/auth";
 import { readQueryDoc, readQueryDocs } from "./groups/lib/groupQueryHelpers";
@@ -21,17 +21,20 @@ const activeStatuses = [
 const retryDelaysMs = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 6 * 60 * 60_000] as const;
 const GROUP_MEMBERSHIP_INVARIANT = "Group membership invariant violation";
 
-async function loadClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
+export async function loadAccountDeletionClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
   const memberships = await readQueryDocs(
     ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", userId)),
   );
   const values = [];
+  const orphanMemberships = [];
   for (const membership of memberships) {
     const group = await ctx.db.get(membership.groupId);
-    // Preview treats a stale membership as a recoverable data-integrity state.
-    // Keep this as a plain Error so the public query can convert it into a
-    // structured response instead of leaking a ConvexError to the router.
-    if (!group) throw new Error(GROUP_MEMBERSHIP_INVARIANT);
+    // 過去の削除処理で残った孤立 membership は、共有データを持たない。
+    // preview では退会可能性の判定から除外し、開始 mutation で回収する。
+    if (!group) {
+      orphanMemberships.push(membership);
+      continue;
+    }
     const members = await readQueryDocs(
       ctx.db
         .query("groupMembers")
@@ -45,9 +48,21 @@ async function loadClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
       ownerCount: members.filter((row) => row.role === "owner").length,
     });
   }
-  return classifyAccountDeletionGroups(
-    values.map((item) => ({ ...item, groupId: item.groupId as string })),
-  );
+  return {
+    classification: classifyAccountDeletionGroups(
+      values.map((item) => ({ ...item, groupId: item.groupId as string })),
+    ),
+    orphanMemberships,
+  };
+}
+
+export async function deleteOrphanedGroupMemberships(
+  ctx: Pick<MutationCtx, "db">,
+  memberships: Array<{ _id: Id<"groupMembers"> }>,
+) {
+  for (const membership of memberships) {
+    await ctx.db.delete(membership._id);
+  }
 }
 
 export async function assertAccountDeletionNotInProgress(
@@ -71,11 +86,11 @@ export const getAccountDeletionPreview = query({
   handler: async (ctx) => {
     const userId = await requireAuthenticatedUserId(ctx);
     try {
-      const result = await loadClassification(ctx, userId);
+      const { classification } = await loadAccountDeletionClassification(ctx, userId);
       return {
-        canDelete: result.blockingGroups.length === 0,
+        canDelete: classification.blockingGroups.length === 0,
         errorCode: null,
-        ...result,
+        ...classification,
       };
     } catch (error) {
       if (!(error instanceof Error) || error.message !== GROUP_MEMBERSHIP_INVARIANT) {
@@ -125,7 +140,10 @@ export const requestAccountDeletion = mutation({
     );
     if (!user) throw new ConvexError("User not found");
     await assertAccountDeletionNotInProgress(ctx, identity.tokenIdentifier);
-    const classification = await loadClassification(ctx, identity.tokenIdentifier);
+    const { classification, orphanMemberships } = await loadAccountDeletionClassification(
+      ctx,
+      identity.tokenIdentifier,
+    );
     if (classification.blockingGroups.length)
       throw new ConvexError({
         code: "ACCOUNT_DELETION_BLOCKED",
@@ -144,6 +162,7 @@ export const requestAccountDeletion = mutation({
       createdAt: now,
       updatedAt: now,
     });
+    await deleteOrphanedGroupMemberships(ctx, orphanMemberships);
     for (const group of classification.groupsToLeave) {
       const membership = await readQueryDoc(
         ctx.db
