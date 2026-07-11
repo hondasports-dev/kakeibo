@@ -223,7 +223,8 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 | `APP_VERSION` | `2026.07.11-458` | ユーザー向けアプリバージョン | `TZ=Asia/Tokyo date +%Y.%m.%d-${GITHUB_RUN_NUMBER}` |
 | `PUBLISHED_AT` | `2026-07-11` | Product Update の `publishedAt` | `TZ=Asia/Tokyo date +%Y-%m-%d` |
 | `VITE_APP_VERSION` | `2026.07.11-458` | Vite ビルドで `<meta name="app-version">` と React ページに注入 | `APP_VERSION` と同値 |
-| `OPENAI_API_KEY` | `sk-...` | PR 要約による Product Update 生成（オプション） | GitHub Actions secret `RELEASE_NOTE` |
+| `OPENAI_API_KEY` | `sk-...` | PR 判定による Product Update 生成（オプション） | GitHub Actions secret `PRODUCT_UPDATE_OPENAI_API_KEY` |
+| `RELEASE_NOTE` | `m15 PREVIEW URL確認済み` | GitHub Release のリリースノート本文 | `workflow_dispatch.inputs.release_note` または `main` push 時の定型文 |
 | `BASE_REF` | `main` | マージ済み PR を検索する base branch | `main` または `inputs.source_ref` |
 
 これらは GitHub Actions 上で生成される。Vercel Dashboard には `VITE_APP_VERSION` を固定値として設定しない。
@@ -245,6 +246,7 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 - `DEV_CONVEX_DEPLOY_KEY` — Dev deployment の deploy key（PR E2E 前に `E2E_CLEANUP_SECRET` を Convex へ同期）
 - `E2E_CLEANUP_SECRET` — 固定 staging deployment の E2E クリーンアップ API 認証シークレット
 - `E2E_CLERK_USER_ID` — テストユーザーの Clerk tokenIdentifier（`https://xxx.clerk.accounts.dev|user_xxx`）
+- `PRODUCT_UPDATE_OPENAI_API_KEY` — 任意。Product Update 生成用の OpenAI API key
 
 ### GitHub Environment `Preview` に保存する項目
 
@@ -258,6 +260,7 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 
 - `VERCEL_TOKEN` — Vercel CLI 実行用 token
 - `CONVEX_DEPLOY_KEY` — Convex Production Deploy Key
+- `PRODUCT_UPDATE_OPENAI_API_KEY` — 任意。Product Update 生成用の OpenAI API key
 - `VERCEL_ORG_ID` — GitHub Actions Variable として保存
 - `VERCEL_PROJECT_ID` — GitHub Actions Variable として保存
 - `PRODUCTION_SMOKE_URL` — 任意。custom domain など smoke 対象を固定したい場合に Variable として保存
@@ -313,6 +316,7 @@ pnpm exec convex env set OPENAI_API_KEY sk-...
 - `VERCEL_AUTOMATION_BYPASS_SECRET`（E2E導入後も渡さない）
 - `CONVEX_DEPLOY_KEY`
 - `OPENAI_API_KEY`
+- `PRODUCT_UPDATE_OPENAI_API_KEY`
 
 ### 渡しても良い公開情報
 
