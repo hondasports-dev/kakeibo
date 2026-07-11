@@ -1,6 +1,5 @@
 import type { MutationCtx } from "../../_generated/server";
 import { enqueueTransactionalEmailJobHandler } from "../../email/jobs";
-import type { TransactionalEmailType } from "../../../lib/email/model";
 
 export async function enqueueGroupMembershipRemovedEmail(
   ctx: MutationCtx,

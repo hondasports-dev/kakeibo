@@ -44,7 +44,9 @@ export async function buildTransactionalEmail<T extends TransactionalEmailType>(
   }
   const validation = validatePayloadForTemplate(type, payload);
   if (!validation.success) {
-    throw new Error(`Invalid transactional email payload: ${validation.issues.map((issue: v.BaseIssue<unknown>) => issue.message).join(", ")}`);
+    throw new Error(
+      `Invalid transactional email payload: ${validation.issues.map((issue: v.BaseIssue<unknown>) => issue.message).join(", ")}`,
+    );
   }
   const render = renderers[type];
   if (!render) {

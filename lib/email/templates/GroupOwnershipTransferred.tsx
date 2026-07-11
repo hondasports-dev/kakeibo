@@ -3,7 +3,10 @@ import { type GroupOwnershipTransferredPayload } from "../model";
 import { buildEmailUrl } from "../url";
 import { EmailFooter } from "./Footer";
 
-export function GroupOwnershipTransferred({ groupName, newOwnerDisplayName }: GroupOwnershipTransferredPayload) {
+export function GroupOwnershipTransferred({
+  groupName,
+  newOwnerDisplayName,
+}: GroupOwnershipTransferredPayload) {
   return (
     <Html lang="ja">
       <Head />
@@ -19,7 +22,10 @@ export function GroupOwnershipTransferred({ groupName, newOwnerDisplayName }: Gr
             <Text>グループへの所属と家計データの利用は引き続き可能です。</Text>
           </Section>
           <Section>
-            <Button href={buildEmailUrl("/settings")} style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}>
+            <Button
+              href={buildEmailUrl("/settings")}
+              style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}
+            >
               グループ設定を確認する
             </Button>
           </Section>

@@ -14,10 +14,15 @@ export function GroupDeleted({ groupName }: GroupDeletedPayload) {
           <Section>
             <Text>「{groupName}」が削除されました。</Text>
             <Text>このグループに登録されていた家計データも削除され、アクセスできません。</Text>
-            <Text>Suzumemoのアカウント自体は削除されていません。ほかのグループに所属している場合、そのグループには影響ありません。</Text>
+            <Text>
+              Suzumemoのアカウント自体は削除されていません。ほかのグループに所属している場合、そのグループには影響ありません。
+            </Text>
           </Section>
           <Section>
-            <Button href={buildEmailUrl("/")} style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}>
+            <Button
+              href={buildEmailUrl("/")}
+              style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}
+            >
               Suzumemoを開く
             </Button>
           </Section>

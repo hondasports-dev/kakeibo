@@ -16,7 +16,8 @@ export const EMAIL_DELIVERY_TEST_TYPE: TransactionalEmailType = "email_delivery_
 export const GROUP_MEMBERSHIP_REMOVED_TYPE: TransactionalEmailType = "group_membership_removed";
 export const GROUP_ROLE_CHANGED_TYPE: TransactionalEmailType = "group_role_changed";
 export const GROUP_OWNERSHIP_RECEIVED_TYPE: TransactionalEmailType = "group_ownership_received";
-export const GROUP_OWNERSHIP_TRANSFERRED_TYPE: TransactionalEmailType = "group_ownership_transferred";
+export const GROUP_OWNERSHIP_TRANSFERRED_TYPE: TransactionalEmailType =
+  "group_ownership_transferred";
 export const GROUP_DELETED_TYPE: TransactionalEmailType = "group_deleted";
 export const AI_REVIEW_REQUIRED_TYPE: TransactionalEmailType = "ai_review_required";
 
@@ -24,7 +25,8 @@ export const emailDeliveryTestSubject = "Suzumemo メール配信テスト";
 export const groupMembershipRemovedSubject = "「{groupName}」から外れました | Suzumemo";
 export const groupRoleChangedSubject = "「{groupName}」での権限が変更されました | Suzumemo";
 export const groupOwnershipReceivedSubject = "「{groupName}」のオーナーになりました | Suzumemo";
-export const groupOwnershipTransferredSubject = "「{groupName}」のオーナー権限を譲渡しました | Suzumemo";
+export const groupOwnershipTransferredSubject =
+  "「{groupName}」のオーナー権限を譲渡しました | Suzumemo";
 export const groupDeletedSubject = "「{groupName}」が削除されました | Suzumemo";
 export const aiReviewRequiredSubject = "確認が必要なレシートが{pendingCount}件あります | Suzumemo";
 
@@ -141,7 +143,10 @@ export const templateDefinitions: TemplateMetadata[] = [
   },
 ];
 
-export const subjectRenderers: Record<TransactionalEmailType, (payload: Record<string, string | number>) => string> = {
+export const subjectRenderers: Record<
+  TransactionalEmailType,
+  (payload: Record<string, string | number>) => string
+> = {
   [EMAIL_DELIVERY_TEST_TYPE]: makeSubjectTemplate(emailDeliveryTestSubject),
   [GROUP_MEMBERSHIP_REMOVED_TYPE]: makeSubjectTemplate(groupMembershipRemovedSubject),
   [GROUP_ROLE_CHANGED_TYPE]: makeSubjectTemplate(groupRoleChangedSubject),

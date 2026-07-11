@@ -3,7 +3,9 @@ import { type BuiltEmail, type GroupMembershipRemovedPayload } from "../model";
 import { subjectRenderers } from "../templateDefinitions";
 import { GroupMembershipRemoved } from "./GroupMembershipRemoved";
 
-export async function renderGroupMembershipRemoved(payload: GroupMembershipRemovedPayload): Promise<BuiltEmail> {
+export async function renderGroupMembershipRemoved(
+  payload: GroupMembershipRemovedPayload,
+): Promise<BuiltEmail> {
   const html = await render(<GroupMembershipRemoved {...payload} />);
   const text = toPlainText(html);
   return {

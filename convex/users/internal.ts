@@ -61,6 +61,22 @@ export const getUserIdByEmail = internalQuery({
   },
 });
 
+export const getUserById = internalQuery({
+  args: { userId: v.string() },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
+      .unique();
+    if (user === null) return null;
+    return {
+      userId: user.userId,
+      email: user.email,
+      displayName: user.displayName,
+    };
+  },
+});
+
 export const clearUserMonthlyIncome = internalMutation({
   args: { userId: v.string() },
   handler: async (ctx, { userId }) => {

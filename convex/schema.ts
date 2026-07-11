@@ -258,6 +258,7 @@ export default defineSchema({
 
   receiptAnalysisBatches: defineTable({
     groupId: v.id("groups"),
+    createdByUserId: v.string(),
     totalCount: v.number(),
     processedCount: v.number(),
     status: v.union(
@@ -267,6 +268,7 @@ export default defineSchema({
       v.literal("completed"),
       v.literal("failed"),
     ),
+    aiReviewNotificationScheduledAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
