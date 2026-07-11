@@ -46,6 +46,7 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 
 | 変数名                       | 用途                                       | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所            |
 | ---------------------------- | ------------------------------------------ | ----- | -------------- | ---------- | ---- | ---------- | ------------------- |
+| `APP_BASE_URL`               | メール CTA 用の絶対 URL のベース。未設定時は `http://localhost:5173` をフォールバック | 任意  | ✅             | ✅         | ✅   | ❌         | Convex Dashboard    |
 | `RESEND_API_KEY`             | Resend API 認証キー                        | ✅    | ✅             | ✅         | ✅   | ✅         | Convex Dashboard    |
 | `RESEND_FROM_ADDRESS`        | 送信元 From アドレス（`Name <email@domain>`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
 | `RESEND_WEBHOOK_SECRET`      | Resend webhook 署名検証用シークレット      | ✅    | ✅             | ✅         | ✅   | ✅         | Convex Dashboard    |
