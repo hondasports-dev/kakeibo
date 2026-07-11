@@ -328,54 +328,65 @@ export async function fetchMergedPullRequests(
 ): Promise<MergedPullRequest[]> {
   const { owner, repo, base, since, before, token } = options;
 
-  const sinceQuery = since ? encodeURIComponent(`merged:>${since}`) : "";
-  const beforeQuery = before ? encodeURIComponent(`merged:<${before}`) : "";
-  const rangeQuery =
-    since && before ? encodeURIComponent(`merged:${since}..${before}`) : sinceQuery || beforeQuery;
+  const perPage = 100;
+  const results: MergedPullRequest[] = [];
+  let page = 1;
 
-  const query = [
-    encodeURIComponent(`repo:${owner}/${repo}`),
-    encodeURIComponent(`base:${base}`),
-    encodeURIComponent("is:pr"),
-    encodeURIComponent("is:merged"),
-    rangeQuery,
-  ]
-    .filter(Boolean)
-    .join("+");
+  let mergedQualifier = "";
+  if (since && before) {
+    mergedQualifier = ` merged:${since}..${before}`;
+  } else if (since) {
+    mergedQualifier = ` merged:>${since}`;
+  } else if (before) {
+    mergedQualifier = ` merged:<${before}`;
+  }
 
-  const response = await fetch(
-    `https://api.github.com/search/issues?q=${query}&sort=created&order=asc&per_page=100`,
-    {
+  const query = `repo:${owner}/${repo} is:pr is:merged base:${base}${mergedQualifier}`;
+
+  while (page <= 10) {
+    const url = `https://api.github.com/search/issues?q=${encodeURIComponent(query)}&sort=created&order=asc&per_page=${perPage}&page=${page}`;
+
+    const response = await fetch(url, {
       headers: {
         Accept: "application/vnd.github+json",
         Authorization: `Bearer ${token}`,
         "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "suzumemo-release-script",
       },
-    },
-  );
+    });
 
-  if (!response.ok) {
-    const body = await response.text();
-    throw new ProductUpdateValidationError(
-      `GitHub API request failed: ${response.status} ${response.statusText} ${body}`,
-    );
+    if (!response.ok) {
+      const body = await response.text();
+      throw new ProductUpdateValidationError(
+        `GitHub API request failed: ${response.status} ${response.statusText} ${body}`,
+      );
+    }
+
+    const data = (await response.json()) as {
+      items: {
+        number: number;
+        title: string;
+        body: string | null;
+        labels: { name: string }[];
+        merged_at: string | null;
+      }[];
+    };
+
+    const items = data.items.map((item) => ({
+      number: item.number,
+      title: sanitizeExternalText(item.title),
+      body: item.body === null ? null : sanitizeExternalText(item.body),
+      labels: item.labels.map((label) => sanitizeExternalText(label.name)),
+      mergedAt: item.merged_at ?? "",
+    }));
+
+    results.push(...items);
+
+    if (items.length < perPage) {
+      break;
+    }
+    page++;
   }
 
-  const data = (await response.json()) as {
-    items: {
-      number: number;
-      title: string;
-      body: string | null;
-      labels: { name: string }[];
-      merged_at: string | null;
-    }[];
-  };
-
-  return data.items.map((item) => ({
-    number: item.number,
-    title: sanitizeExternalText(item.title),
-    body: item.body === null ? null : sanitizeExternalText(item.body),
-    labels: item.labels.map((label) => sanitizeExternalText(label.name)),
-    mergedAt: item.merged_at ?? "",
-  }));
+  return results;
 }
