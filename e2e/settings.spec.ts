@@ -7,7 +7,7 @@ test.describe("設定台帳（Issue #375）", () => {
     await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
   });
 
-  test("@smoke 3領域の現在値と危険な操作を順序どおり表示する", async ({ page }) => {
+  test("@smoke 4領域の現在値と危険な操作を順序どおり表示する", async ({ page }) => {
     const ledger = page.getByTestId("settings-ledger");
     await expect(ledger).toBeVisible();
     await expect(ledger.getByRole("heading", { name: "グループ", level: 2 })).toBeVisible();
@@ -16,7 +16,7 @@ test.describe("設定台帳（Issue #375）", () => {
     await expect(ledger.getByText(/.+曜日 から .+曜日 まで/)).toBeVisible();
 
     const headings = await ledger.getByRole("heading", { level: 2 }).allTextContents();
-    expect(headings).toEqual(["グループ", "カテゴリ", "週の設定", "危険な操作"]);
+    expect(headings).toEqual(["グループ", "カテゴリ", "週の設定", "アカウント", "危険な操作"]);
 
     const dangerTrigger = ledger.getByRole("button", { name: "危険な操作" });
     await expect(dangerTrigger).toHaveAttribute("aria-expanded", "false");
