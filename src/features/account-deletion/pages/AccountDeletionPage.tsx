@@ -29,6 +29,21 @@ export function AccountDeletionPage() {
         <CircularProgress aria-label="退会情報を読み込み中" />
       </Box>
     );
+  if (preview.errorCode === "GROUP_MEMBERSHIP_INVARIANT")
+    return (
+      <Box className="app-main">
+        <Paper className="settings-ledger" elevation={0}>
+          <Stack spacing={2.5}>
+            <Typography component="h1" variant="h5">
+              アカウントを削除できません
+            </Typography>
+            <Alert severity="error">
+              グループの設定に問題があるため、アカウント削除を開始できません。サポートへお問い合わせください。
+            </Alert>
+          </Stack>
+        </Paper>
+      </Box>
+    );
   if (!preview.canDelete)
     return (
       <Box className="app-main">

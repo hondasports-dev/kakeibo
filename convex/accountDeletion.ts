@@ -66,8 +66,25 @@ export const getAccountDeletionPreview = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireAuthenticatedUserId(ctx);
-    const result = await loadClassification(ctx, userId);
-    return { canDelete: result.blockingGroups.length === 0, ...result };
+    try {
+      const result = await loadClassification(ctx, userId);
+      return {
+        canDelete: result.blockingGroups.length === 0,
+        errorCode: null,
+        ...result,
+      };
+    } catch (error) {
+      if (!(error instanceof Error) || error.message !== "Group membership invariant violation") {
+        throw error;
+      }
+      return {
+        canDelete: false,
+        errorCode: "GROUP_MEMBERSHIP_INVARIANT",
+        groupsToLeave: [],
+        groupsToDelete: [],
+        blockingGroups: [],
+      };
+    }
   },
 });
 
