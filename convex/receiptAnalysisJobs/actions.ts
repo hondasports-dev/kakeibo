@@ -117,7 +117,7 @@ export async function checkAiReviewRequiredHandler(
   { batchId }: CheckAiReviewRequiredArgs,
 ): Promise<void> {
   const batch = await ctx.runQuery(internal.receiptAnalysisJobs.internal.getBatchById, { batchId });
-  if (!batch) {
+  if (!batch || !batch.createdByUserId) {
     return;
   }
 
