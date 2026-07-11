@@ -44,7 +44,7 @@ test("@group-access 唯一ownerは退会をブロックされ、owner譲渡後�
     await page.getByRole("textbox", { name: "確認用入力" }).fill("削除");
     await expect(button).toBeEnabled();
   } finally {
-    if (memberUserId) await cleanupGroupMembershipsByUser(memberUserId);
     if (currentUserId) await cleanupGroupMembershipsByUser(currentUserId);
+    if (memberUserId) await cleanupGroupMembershipsByUser(memberUserId);
   }
 });
