@@ -261,11 +261,12 @@ jobs:
         if: steps.idempotency.outputs.release_exists != 'true'
         run: |
           printf '%s\n' "$RELEASE_NOTE" > /tmp/release-notes.md
+          cp .tmp/product-updates.current-release.json .tmp/product-updates.json
           gh release create "app-v${APP_VERSION}" \
             --title "Suzumemo ${APP_VERSION}" \
             --target "${SOURCE_REF}" \
             --notes-file /tmp/release-notes.md \
-            .tmp/product-updates.current-release.json#product-updates.json
+            .tmp/product-updates.json
 
       - name: Write release summary
         env:
