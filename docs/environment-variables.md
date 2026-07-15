@@ -7,7 +7,7 @@
 このプロジェクトは **DEV / PREVIEW / PROD** を分けて運用する。
 
 - **Local**: 開発環境 (`.env.local`)
-- **DEV**: 通常開発と PR 単位の Vercel Preview
+- **DEV**: 通常開発、PR単位のCI内Vite E2E、PR単位のVercel Preview
 - **PREVIEW**: `preview` branch の統合確認とPROD候補確認
 - **PROD**: Vercel Production環境 (本番用)
 
@@ -31,7 +31,7 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | ---------------------- | ---------------------------------------- | ----- | -------------- | ---------- | ---- | ---------- | ---------------------------------- |
 | `CONVEX_DEPLOYMENT`    | ローカル開発用デプロイメント名           | ✅    | ❌             | ❌         | ❌   | ❌         | .env.local のみ                    |
 | `VITE_CONVEX_URL`      | フロントエンド用Convex接続URL            | ✅    | ✅             | 自動設定   | ✅   | ❌         | .env.local / Vercel Env / Convex deploy |
-| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ✅             | 任意       | ✅   | ❌         | .env.local / GitHub Actions Secret / Vercel Env |
+| `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ✅             | ✅         | ✅   | ❌         | .env.local / GitHub Actions Secret / GitHub Actions Variable / Vercel Env |
 | `CONVEX_DEPLOY_KEY`    | Convex deploy key                        | ❌    | ❌             | ✅         | ✅   | ✅         | GitHub Actions Secret / Vercel Env |
 
 ### OpenAI / レシート画像抽出関連
@@ -229,18 +229,18 @@ Convex 関数のデプロイはローカルの `npx convex dev --once` で行う
 
 これらは GitHub Actions 上で生成される。Vercel Dashboard には `VITE_APP_VERSION` を固定値として設定しない。
 
-`preview` branch への push では、`preview-deploy.yml` が固定 Convex staging deployment を更新し、Vercel Preview へデプロイする。
+`preview` branch への push では、`preview-deploy.yml` が固定 Convex staging deployment を更新し、Vercel Preview へデプロイする。smoke E2E はそのURLではなくCI内Viteを対象にする。
 
-PROD 反映では、`main` への push で `production-release.yml` が自動起動する。preflight の成功後、GitHub Environment `production` の承認を待ち、承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。手動リリースや forward-fix では、同じ workflow を `workflow_dispatch` で実行してよい。
+PROD 反映では、`main` への push で `production-release.yml` が自動起動する。preflight の後にGitHub Environment `Preview` の固定stagingとVercel release candidateでsmoke E2Eを実行し、成功後にGitHub Environment `production` の承認を待つ。承認後に Convex Production、Vercel Production、PROD smoke checklist の順で実行する。手動リリースや forward-fix では、同じ workflow を `workflow_dispatch` で実行してよい。
 
 ### GitHub Actions Secretsに保存する項目
 
-- `VERCEL_AUTOMATION_BYPASS_SECRET` — Vercel Protection Bypass for Automation
+- `VERCEL_AUTOMATION_BYPASS_SECRET` — main／手動Production release candidate E2E用のVercel Protection Bypass for Automation
 - `CLERK_PUBLISHABLE_KEY` — Clerk Dev instance の公開鍵
 - `CLERK_SECRET_KEY` — Clerk Dev instance の秘密鍵
 - `E2E_CLERK_USER_EMAIL` — E2E テストユーザーのメールアドレス
 - `E2E_CLERK_USER_PASSWORD` — レガシー。現行 E2E は Testing Token 方式のため未使用
-- `VITE_CONVEX_URL` — Dev deployment の Convex WebSocket URL
+- `VITE_CONVEX_URL` — PR CI内Viteが接続するDev deploymentのConvex WebSocket URL
 - `DEV_VITE_CONVEX_SITE_URL` — PR Preview が接続する Dev deployment の Convex HTTP URL
 - `DEV_E2E_CLEANUP_SECRET` — Dev deployment の E2E クリーンアップ API 認証シークレット
 - `DEV_CONVEX_DEPLOY_KEY` — Dev deployment の deploy key（PR E2E 前に `E2E_CLEANUP_SECRET` を Convex へ同期）
@@ -325,7 +325,9 @@ pnpm exec convex env set OPENAI_API_KEY sk-...
 
 ### E2E実行方針
 
-- Vercel Protection Bypassを使用 (`VERCEL_AUTOMATION_BYPASS_SECRET` はGitHub Actionsのみ)
+- PR／`preview` のE2Eは `E2E_BASE_URL` を設定せず、GitHub Actions内のVite dev serverを使う
+- Vercel Protection Bypassはmain／手動Production release candidate E2Eだけで使用する
+  (`VERCEL_AUTOMATION_BYPASS_SECRET` はGitHub Actionsのみ)
 - E2E実行フェーズでは、QA Agentはworkflow起動と結果確認のみ担当
 - trace、HAR、スクリーンショットの保存期間は1〜3日に限定
 - forkなど信頼できないPRではSecretを渡すE2Eを実行しない
