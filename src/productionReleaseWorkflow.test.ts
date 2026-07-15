@@ -23,6 +23,21 @@ describe("production-release workflow", () => {
     expect(yaml).toContain("cancel-in-progress: false");
   });
 
+  test("runs Vercel Preview smoke E2E before the production approval gate", () => {
+    const yaml = workflow();
+    const releaseCandidateIndex = yaml.indexOf("Vercel release candidate E2E");
+    const productionIndex = yaml.indexOf("name: Deploy Production");
+
+    expect(releaseCandidateIndex).toBeGreaterThan(-1);
+    expect(productionIndex).toBeGreaterThan(releaseCandidateIndex);
+    expect(yaml).toContain("environment: Preview");
+    expect(yaml).toContain("E2E_BASE_URL: ${{ steps.vercel.outputs.url }}");
+    expect(yaml).toContain(
+      "PLAYWRIGHT_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}",
+    );
+    expect(yaml).toContain("needs: release-candidate");
+  });
+
   test("deploys Convex production before Vercel production and records smoke results", () => {
     const yaml = workflow();
     const convexIndex = yaml.indexOf("Deploy Convex Production");

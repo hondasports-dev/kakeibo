@@ -1,18 +1,19 @@
 name: E2E
 
-# Vercel Git Integration が Preview デプロイを完了した時点で実行する。
+# Vercel Git Integration が Preview デプロイを完了した時点で、CI 内の Vite dev server に対して実行する。
 # deployment_status イベントを使うことで:
 #   1. Vercel が発行するデプロイ完了通知を受け取る
-#   2. github.event.deployment_status.target_url に Preview URL が入る
+#   2. deployment の commit / branch を信頼判定に使う
 #   3. Secrets が GitHub から安全に渡される（pull_request イベントの fork 問題を回避）
+# Preview URL 自体は E2E 対象にしない。Vercel 対象 E2E は main の release candidate だけで実行する。
 #
 # 必要な GitHub Actions Secrets（手動設定が必要）:
-#   VERCEL_AUTOMATION_BYPASS_SECRET  — Vercel Dashboard > Protection Bypass for Automation
 #   CLERK_PUBLISHABLE_KEY            — Clerk Dev instance の pk_test_...
 #   CLERK_SECRET_KEY                 — Clerk Dev instance の sk_test_...
 #   E2E_CLERK_USER_EMAIL             — テストユーザーのメールアドレス
 #   E2E_CLERK_USER_PASSWORD          — テストユーザーのパスワード
 #   DEV_VITE_CONVEX_SITE_URL         — Dev deployment の Convex HTTP URL
+#   VITE_CONVEX_URL                  — Dev deployment の Convex WebSocket URL
 #   DEV_E2E_CLEANUP_SECRET           — Dev deployment の E2E cleanup 認証シークレット
 #   DEV_CONVEX_DEPLOY_KEY            — Dev deployment の deploy key（CI で E2E_CLEANUP_SECRET を同期）
 #   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
@@ -42,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout }}
     concurrency:
-      group: e2e-preview-smoke-${{ matrix.name }}
+      group: e2e-local-smoke-${{ matrix.name }}
       cancel-in-progress: true
     strategy:
       fail-fast: false
@@ -206,21 +207,35 @@ jobs:
           fi
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
-      - name: Run smoke E2E tests
+      - name: Configure local Vite E2E
+        if: steps.trust.outputs.trusted == 'true'
+        env:
+          VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+        run: |
+          if [[ ! "$VITE_CONVEX_URL" =~ ^https://[a-z0-9-]+\.convex\.cloud/?$ ]]; then
+            echo "::error::VITE_CONVEX_URL must be an https://*.convex.cloud URL."
+            exit 1
+          fi
+          VITE_CONVEX_URL="${VITE_CONVEX_URL%/}"
+          if [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then
+            echo "::error::CLERK_PUBLISHABLE_KEY is not set."
+            exit 1
+          fi
+          echo "VITE_CONVEX_URL=$VITE_CONVEX_URL" >> "$GITHUB_ENV"
+          echo "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY" >> "$GITHUB_ENV"
+
+      - name: Run local smoke E2E tests
         if: steps.trust.outputs.trusted == 'true'
         run: ${{ matrix.e2e_command }}
         env:
-          # Vercel Preview の URL（Vercel が deployment_status に埋め込む）
-          E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}
-          # Vercel Protection Bypass for Automation
-          PLAYWRIGHT_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           # Clerk Testing Token 取得用
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           # E2E テストユーザー認証情報（ログ出力禁止）
           E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
-          # PR Preview が接続する Dev deployment と同じ cleanup / seed 設定
+          # CI 内の Vite dev server が接続する Dev deployment の cleanup / seed 設定
           VITE_CONVEX_SITE_URL: ${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
           E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
           E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
