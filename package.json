@@ -31,7 +31,7 @@
     "@mui/icons-material": "^9.2.0",
     "@mui/material": "^9.2.0",
     "@mui/x-charts": "^9.9.0",
-    "convex": "^1.42.1",
+    "convex": "^1.42.2",
     "framer-motion": "^12.42.2",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
