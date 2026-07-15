@@ -51,7 +51,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "chrome-devtools-mcp": "^1.5.0",
-    "clerk": "^2.0.0",
+    "clerk": "^2.2.0",
     "dotenv": "^17.4.2",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
