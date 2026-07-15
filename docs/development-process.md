@@ -489,6 +489,8 @@ pnpm exec clerk env pull --instance dev --file .env.local
 #### 実行コマンド
 
 E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を自動起動します。
+`VITE_APP_VERSION` が未設定のローカル／CIビルドでは、`vite.config.ts` が非リリース値
+`local` を使用します。Production releaseではworkflowが生成した値を優先します。
 
 ```bash
 pnpm run e2e:smoke -- --project=chromium
