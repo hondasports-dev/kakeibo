@@ -329,7 +329,7 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 | ワークフロー | 内容 | 備考 |
 | --- | --- | --- |
 | `CI` (`ci.yml`) | Build / Lint / Test | `pull_request` で起動 |
-| `E2E` (`e2e.yml`) | smoke E2E（Chromium） | Vercel Preview デプロイ成功後に `deployment_status` で起動 |
+| `E2E` (`e2e.yml`) | CI 内 Vite smoke E2E（Chromium） | Vercel Preview デプロイ成功後に `deployment_status` で信頼判定して起動 |
 
 `ci.yml` 内の必須ジョブ:
 
@@ -349,7 +349,7 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 
 Markdown のみを変更する Pull Request / push では、GitHub Actions の CI を実行しません。
 `.github/workflows/ci.yml` は `**/*.md` のみの変更を `paths-ignore` で除外します。
-Vercel Preview 由来の E2E も、関連 Pull Request の変更ファイルが Markdown のみなら
+Vercel の `deployment_status` を契機にする CI 内 Vite E2E も、関連 Pull Request の変更ファイルが Markdown のみなら
 E2E 本体へ進みません。
 
 ### 現状の検証コマンド
@@ -360,13 +360,13 @@ E2E 本体へ進みません。
 | `pnpm run format:check`                 | ✅ 必須       | oxfmt によるフォーマット確認                               |
 | `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
 | `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数、`src/**/*.test.tsx` 等を対象   |
-| `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。Vercel Preview に対して自動実行 |
+| `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。PR / `preview` では CI 内 Vite、main リリース候補では Vercel Preview に対して実行 |
 
 **注意事項:**
 
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
 - フロントエンドのコンポーネントテスト（Testing Library 等）は `src/**/*.test.tsx` に既存。変更時は該当 spec を更新する
-- `preview-deploy.yml` は lint + format:check + test + build + smoke E2E も実行する
+- `preview-deploy.yml` は lint + format:check + test + build + CI 内 Vite smoke E2E も実行する
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
 されている場合は、Issue を作成またはリンクし、理由を記録してから判断します。
@@ -382,22 +382,21 @@ E2E 本体へ進みません。
 
 ## E2E 確認方針
 
-`preview` ブランチのデプロイでは、`.github/workflows/preview-deploy.yml` が
-Vercel Preview URL に対して Playwright smoke E2E を実行します。
-Vercel Git Integration 由来の Preview Deployment に対する補助的な E2E は
-`.github/workflows/e2e.yml` を参照してください。
+PR と `preview` ブランチの通常CIでは、Playwright smoke E2E を GitHub Actions 内の
+Vite dev server に対して実行します。Vercel Preview への自動ブラウザアクセスは、
+`main` push または手動 Production release の release candidate E2E に限定します。
 
 ### 基本方針
 
-- `preview-deploy.yml` では、Vercel CLI が作成した Preview Deployment の URL を対象にします。
-- `e2e.yml` は `deployment_status.target_url` が `.vercel.app` の場合だけ実行し、
-  GitHub Environment の deployment_status など、アプリではないURLは対象にしません。
-- `preview` ブランチ由来の Preview Deployment は `preview-deploy.yml` 内で smoke E2E を実行するため、
-  `e2e.yml` の単独 E2E では対象にしません。
+- `e2e.yml` は `deployment_status.target_url` が `.vercel.app` の場合だけ信頼判定を開始しますが、
+  Preview URL はテスト対象に使いません。`E2E_BASE_URL` を渡さず、CI 内 Viteを自動起動します。
+- `preview-deploy.yml` は固定 staging と Vercel Preview を更新しますが、smoke E2E はCI内Viteを対象にします。
+- `preview` ブランチ由来の Preview Deployment は `e2e.yml` の単独 E2Eでは対象にしません。
+- `production-release.yml` はProduction承認前に、同じrefから固定stagingとVercel release candidateを作成し、
+  そのURLに対するsmoke E2Eを完走させます。
 - smoke E2E は GitHub Actions 上で実行し、QA Agent は結果確認と失敗内容の要約のみを担当します。
 - QA Agent に `VERCEL_AUTOMATION_BYPASS_SECRET` などの秘匿情報を渡しません。
-- Vercel Authentication 付き Preview へのアクセスには、Vercel の
-  Protection Bypass for Automation を使います。
+- Vercel release candidateへのアクセスには、VercelのProtection Bypass for Automationを使います。
 - `VERCEL_AUTOMATION_BYPASS_SECRET` は GitHub Actions Secrets にのみ保存し、ログ、
   Pull Request コメント、チャット、ローカルファイルには出力しません。
 - fork など信頼できない Pull Request では、Secrets を渡す E2E は実行しません。
@@ -516,7 +515,7 @@ PR をマージします。
 
 #### CI Preview E2E で `E2E クリーンアップに失敗しました: 401` が出る場合
 
-`e2e.yml`（Vercel Preview 向け smoke E2E）で global setup / teardown の cleanup が
+`e2e.yml`（PR向けCI内Vite smoke E2E）で global setup / teardown の cleanup が
 `401 Unauthorized` になるとき、テスト本体以前に共有データの初期化に失敗している。
 `receipt-form.spec.ts` など後続 spec が連鎖的に落ちることがある。
 
@@ -548,13 +547,15 @@ feature/*
   ↓
 previewへmerge
   ↓
-preview-deploy.yml が Convex staging → Vercel Preview の順で反映
+preview-deploy.yml が Convex staging → Vercel Preview の順で反映し、CI 内 Vite smoke E2E
   ↓
 PREVIEW URLで動作確認
   ↓
 mainへmerge
   ↓
-production-release.yml でPROD反映
+production-release.yml が Convex staging → Vercel release candidate → smoke E2E
+  ↓
+production承認後にPROD反映
 ```
 
 `preview` ブランチの通常デプロイは、`preview-deploy.yml` が `push` を契機に自動実行します。
@@ -562,7 +563,8 @@ production-release.yml でPROD反映
 固定 Convex staging deployment と Vercel Preview deployment を作成します。
 
 PROD 反映は `main` への push で `production-release.yml` が自動起動します。PREVIEW で確認した内容を
-`main` へ merge し、preflight の成功後に GitHub Environment `production` の承認を待ちます。
+`main` へ merge し、preflight とVercel release candidate smoke E2Eの成功後に
+GitHub Environment `production` の承認を待ちます。
 承認後は Convex Production、Vercel Production、PROD smoke checklist（`<title>` と `<meta name="app-version">` の再検証含む）の順で実行します。
 Actions 以外の Vercel Dashboard、Convex Dashboard、ローカル CLI からの直接 Production deploy は
 正規ルートにしません。
@@ -597,17 +599,16 @@ PROD smoke は初期運用では非破壊確認に限定します。workflow は
 ### 実行環境
 
 - ブラウザ: Chromium
-- CI: GitHub Actions（ubuntu-latest）、`.github/workflows/preview-deploy.yml` と `.github/workflows/e2e.yml`
+- CI: GitHub Actions（ubuntu-latest）、`.github/workflows/preview-deploy.yml` と `.github/workflows/e2e.yml` はCI内Viteを対象にする
 - ローカル: `http://localhost:5173`（`pnpm run dev` 自動起動）
-- Vercel Preview: `preview` ブランチは `preview-deploy.yml` 内で smoke E2E を実行し、
-  PR Preview などの補助的な `.vercel.app` `deployment_status` は `e2e.yml` の対象にする
+- Vercel Preview: `production-release.yml` のrelease candidate jobだけが自動smoke E2Eの対象にする
 - 失敗時のみ trace / screenshot を保存（retention: 1 日）
 
 ### Vercel Preview と Convex subscription の挙動差異（重要）
 
 **Vercel Preview（本番ビルド）は、ローカル Vite dev より Convex subscription の
-更新反映が遅い。** この差異を考慮せずに E2E を書くと、ローカルでは通るが CI
-（Vercel Preview 対象）では flaky になる。
+更新反映が遅い。** PR / `preview` のCI内Viteで通っても、main release candidateの
+Vercel Preview smoke E2Eではこの差異によるflakyが発生しうる。
 
 **NG パターン（避ける）**
 
