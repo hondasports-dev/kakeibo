@@ -217,7 +217,7 @@ Phase1 の実装対象は次のとおり。UI と Convex mutation の両方で�
 
 | ルール | 内容 | 関連 Issue |
 | --- | --- | --- |
-| 最後の owner の降格禁止 | `owner` → `member` で owner が 0 人になる変更を拒否 | #223（`assertGroupHasMinimumOwners`） |
+| 最後の owner の降格禁止 | `owner` → `member` で owner が 0 人になる変更を拒否 | #223, #472（`assertAnotherGroupOwnerRemains`） |
 | 最後の owner のグループ解除禁止 | owner が 1 人のとき、その人を外す操作を拒否 | #217, #222 |
 | オーナー譲渡時の受け渡し | 譲渡先を `owner` に昇格し、譲渡元を `member` に降格（同一 mutation） | #222（`transferGroupOwnership`） |
 | グループ削除時の owner 確認 | 削除実行前に owner であることと不可逆性を確認 | #224 |
