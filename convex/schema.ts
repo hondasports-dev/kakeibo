@@ -75,6 +75,7 @@ export default defineSchema({
   })
     .index("by_user_id", ["userId"])
     .index("by_group_id", ["groupId"])
+    .index("by_group_id_and_role", ["groupId", "role"])
     .index("by_group_id_and_user_id", ["groupId", "userId"]),
 
   groupInvitations: defineTable({
