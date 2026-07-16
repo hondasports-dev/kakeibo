@@ -17,7 +17,7 @@
 | active group 検証 | `assertActiveGroupScope` | 操作対象 `groupId` が active group と一致するか |
 | 自己操作拒否 | `assertNotSelfOperator` | 自分自身を対象にしない |
 | member のみ解除 | `assertRemovableGroupMemberRole` | owner ロールの解除を拒否 |
-| 最後の owner 保護 | `assertGroupHasMinimumOwners` | Phase2 のロール変更・譲渡で利用 |
+| 最後の owner 保護 | `assertAnotherGroupOwnerRemains` | `owner` 降格時に別の owner が残ることを bounded read で確認 |
 | owner 必須ヘルパー | `convex/groups/membership.ts` `requireGroupOwner` | mutation 入口で active group + owner を要求 |
 
 ### 1.1 owner-only mutation の実装パターン
@@ -91,7 +91,7 @@ Clerk API を呼ぶ action は DB コンテキストを持たないため、`api
 | ルール | Phase1 実装 | Phase2 実装 |
 | --- | --- | --- |
 | owner ロールの解除禁止 | `assertRemovableGroupMemberRole` | 継続 |
-| 最後の owner の降格禁止 | — | `assertGroupHasMinimumOwners` + `countGroupOwners`（#223） |
+| 最後の owner の降格禁止 | — | `by_group_id_and_role` + `.take(2)` を使う `assertAnotherGroupOwnerRemains`（#223, #472） |
 | オーナー譲渡時の同時更新 | — | `transferGroupOwnership`（#222）。譲渡先を `owner` にしてから譲渡元を `member` に降格 |
 
 ## 5. 後続 Issue 実装チェックリスト

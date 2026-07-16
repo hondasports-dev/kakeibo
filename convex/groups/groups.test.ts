@@ -182,6 +182,7 @@ function createMockDb(state: {
           return (
             indexName === "by_user_id" ||
             indexName === "by_group_id" ||
+            indexName === "by_group_id_and_role" ||
             indexName === "by_group_id_and_user_id"
           );
         }
@@ -222,6 +223,9 @@ function createMockDb(state: {
               return false;
             }
             if ("userId" in filters && "userId" in doc && doc.userId !== filters.userId) {
+              return false;
+            }
+            if ("role" in filters && "role" in doc && doc.role !== filters.role) {
               return false;
             }
             if ("email" in filters && "email" in doc && doc.email !== filters.email) {
@@ -2337,6 +2341,9 @@ describe("groups", () => {
         newRole: "owner",
       }),
     ).rejects.toThrow("グループオーナーのみ実行できます");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it("changeMemberRoleHandler は自分自身のロール変更を拒否する", async () => {
@@ -2368,6 +2375,9 @@ describe("groups", () => {
     await expect(
       changeMemberRoleHandler(ctx, { targetUserId: ownerId, newRole: "member" }),
     ).rejects.toThrow("自分自身に対してこの操作はできません");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it("changeMemberRoleHandler は共同オーナーを member に降格できる", async () => {
@@ -2422,7 +2432,50 @@ describe("groups", () => {
     );
   });
 
-  it("changeMemberRoleHandler は最後の owner の降格を拒否する", async () => {
+  it("changeMemberRoleHandler は他グループの対象を拒否して副作用を残さない", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const targetUserId = "https://issuer.example|other-group-member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-group" as Id<"groupMembers">,
+          groupId: "group-002" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(changeMemberRoleHandler(ctx, { targetUserId, newRole: "owner" })).rejects.toThrow(
+      "指定されたメンバーが見つかりません",
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  it("changeMemberRoleHandler は owner invariant 違反時に副作用を残さない", async () => {
     const ownerId = "https://issuer.example|owner";
     const otherOwnerId = "https://issuer.example|other-owner";
     const ctx = createMockDb({
@@ -2466,14 +2519,16 @@ describe("groups", () => {
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
 
     const guardSpy = vi
-      .spyOn(groupAdminGuards, "assertGroupHasMinimumOwners")
+      .spyOn(groupAdminGuards, "assertAnotherGroupOwnerRemains")
       .mockRejectedValue(new ConvexError(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED));
 
     await expect(
       changeMemberRoleHandler(ctx, { targetUserId: otherOwnerId, newRole: "member" }),
     ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
-    expect(guardSpy).toHaveBeenCalledWith(ctx, "group-001", 2);
+    expect(guardSpy).toHaveBeenCalledWith(ctx, "group-001", "member-other-owner");
     expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
 
     guardSpy.mockRestore();
   });
@@ -2516,6 +2571,9 @@ describe("groups", () => {
     await expect(changeMemberRoleHandler(ctx, { targetUserId, newRole: "member" })).rejects.toThrow(
       "すでに同じロールです",
     );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it("transferGroupOwnershipHandler は owner 権限を member に譲渡し監査ログを残す", async () => {

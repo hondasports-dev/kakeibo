@@ -295,6 +295,23 @@ test.describe("グループアクセス", () => {
     await expect(page.getByTestId("management-audit-log-section")).toContainText(
       "メンバー → オーナー",
     );
+
+    await roleSelect.getByRole("combobox").click();
+    await page.locator('[role="listbox"] [data-value="member"]').click();
+
+    await expect(
+      page.getByRole("heading", { name: "メンバーのロールを変更しますか？" }),
+    ).toBeVisible();
+    await expect(page.getByText("「オーナー」から「メンバー」")).toBeVisible();
+    await page.getByRole("button", { name: "ロールを変更する" }).click();
+
+    await expect(page.getByText("メンバーのロールを変更しました")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(roleSelect.getByRole("combobox")).toHaveText("メンバー");
+    await expect(page.getByTestId("management-audit-log-section")).toContainText(
+      "オーナー → メンバー",
+    );
   });
 
   test("@smoke @group-access owner はオーナー権限譲渡を確認ダイアログ経由で実行できる", async ({

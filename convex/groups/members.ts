@@ -2,7 +2,7 @@ import { ConvexError, v } from "convex/values";
 import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import {
-  assertGroupHasMinimumOwners,
+  assertAnotherGroupOwnerRemains,
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
   GROUP_ADMIN_ERRORS,
@@ -152,7 +152,7 @@ export async function changeMemberRoleHandler(
   }
 
   if (currentRole === "owner" && args.newRole === "member") {
-    await assertGroupHasMinimumOwners(ctx, groupId, 2);
+    await assertAnotherGroupOwnerRemains(ctx, groupId, targetMembership._id);
   }
 
   const now = Date.now();
