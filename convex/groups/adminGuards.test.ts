@@ -74,11 +74,7 @@ describe("groupAdminGuards", () => {
     ]);
 
     await expect(
-      assertAnotherGroupOwnerRemains(
-        ctx,
-        "group-001" as Id<"groups">,
-        targetMembershipId,
-      ),
+      assertAnotherGroupOwnerRemains(ctx, "group-001" as Id<"groups">, targetMembershipId),
     ).resolves.toBeUndefined();
 
     expect(query).toHaveBeenCalledWith("groupMembers");
@@ -99,11 +95,7 @@ describe("groupAdminGuards", () => {
     );
 
     await expect(
-      assertAnotherGroupOwnerRemains(
-        ctx,
-        "group-001" as Id<"groups">,
-        targetMembershipId,
-      ),
+      assertAnotherGroupOwnerRemains(ctx, "group-001" as Id<"groups">, targetMembershipId),
     ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
   });
 
@@ -112,16 +104,10 @@ describe("groupAdminGuards", () => {
     ["owner が3人以上", ["member-target", "member-other-owner", "member-third-owner"]],
   ])("assertAnotherGroupOwnerRemains は %s なら許可する", async (_label, ids) => {
     const targetMembershipId = "member-target" as Id<"groupMembers">;
-    const { ctx } = createOwnerThresholdContext(
-      ids.map((id) => id as Id<"groupMembers">),
-    );
+    const { ctx } = createOwnerThresholdContext(ids.map((id) => id as Id<"groupMembers">));
 
     await expect(
-      assertAnotherGroupOwnerRemains(
-        ctx,
-        "group-001" as Id<"groups">,
-        targetMembershipId,
-      ),
+      assertAnotherGroupOwnerRemains(ctx, "group-001" as Id<"groups">, targetMembershipId),
     ).resolves.toBeUndefined();
   });
 });

@@ -50,9 +50,7 @@ export async function assertAnotherGroupOwnerRemains(
 ): Promise<void> {
   const owners = await ctx.db
     .query("groupMembers")
-    .withIndex("by_group_id_and_role", (q) =>
-      q.eq("groupId", groupId).eq("role", "owner"),
-    )
+    .withIndex("by_group_id_and_role", (q) => q.eq("groupId", groupId).eq("role", "owner"))
     .take(2);
 
   if (!owners.some((owner) => owner._id !== demotedMembershipId)) {

@@ -2467,9 +2467,9 @@ describe("groups", () => {
     });
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
 
-    await expect(
-      changeMemberRoleHandler(ctx, { targetUserId, newRole: "owner" }),
-    ).rejects.toThrow("指定されたメンバーが見つかりません");
+    await expect(changeMemberRoleHandler(ctx, { targetUserId, newRole: "owner" })).rejects.toThrow(
+      "指定されたメンバーが見つかりません",
+    );
     expect(ctx.db.patch).not.toHaveBeenCalled();
     expect(ctx.db.insert).not.toHaveBeenCalled();
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
