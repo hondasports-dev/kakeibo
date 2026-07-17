@@ -704,7 +704,10 @@ describe("GroupSettingsPanel", () => {
 
     await waitFor(() => {
       expect(deleteGroupMock).toHaveBeenCalledWith({ confirmationGroupName: "佐藤家" });
-      expect(navigateMock).toHaveBeenCalledWith("/group/delete/status/job-001");
+      expect(navigateMock).toHaveBeenCalledWith("/group/delete/status/job-001", {
+        flushSync: true,
+        replace: true,
+      });
     });
   });
 
