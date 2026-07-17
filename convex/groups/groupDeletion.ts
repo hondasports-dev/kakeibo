@@ -19,6 +19,7 @@ import {
 
 const MAX_ATTEMPTS = 6;
 const BATCH_SIZE = 25;
+const FAILURE_NOTIFICATION_MAX_DELAY_MS = 6 * 60 * 60_000;
 
 function emptyDeletedCounts() {
   return {
@@ -54,6 +55,18 @@ async function scheduleBatch(ctx: MutationCtx, jobId: Id<"groupDeletionJobs">, d
   await ctx.scheduler.runAfter(delayMs, internal.groups.groupDeletion.processGroupDeletionBatch, {
     jobId,
   });
+}
+
+async function scheduleFailureNotification(
+  ctx: MutationCtx,
+  jobId: Id<"groupDeletionJobs">,
+  delayMs = 0,
+) {
+  await ctx.scheduler.runAfter(
+    delayMs,
+    internal.groups.groupDeletion.processGroupDeletionFailureNotification,
+    { jobId },
+  );
 }
 
 export async function startGroupDeletionHandler(
@@ -444,22 +457,12 @@ export async function recordRetry(ctx: MutationCtx, job: Doc<"groupDeletionJobs"
       lastErrorCategory: "batch_processing_failed",
       updatedAt: now,
     });
-    if (job.actorUserIdSnapshot && job.failureNotificationHandledAt === undefined) {
-      const requester = await ctx.db
-        .query("users")
-        .withIndex("by_token_identifier", (q) => q.eq("userId", job.actorUserIdSnapshot!))
-        .unique();
-      try {
-        await enqueueGroupDeletionFailedEmail(
-          ctx,
-          job.targetGroupNameSnapshot,
-          requester?.email,
-          `${job._id}:failed:${job.actorUserIdSnapshot}`,
-        );
-        await ctx.db.patch(job._id, { failureNotificationHandledAt: now, updatedAt: now });
-      } catch {
-        // jobのfailed確定を通知キュー障害で巻き戻さない。resume後の再失敗時に再試行する。
-      }
+    if (
+      job.source === "owner" &&
+      job.actorUserIdSnapshot &&
+      job.failureNotificationHandledAt === undefined
+    ) {
+      await scheduleFailureNotification(ctx, job._id);
     }
     return;
   }
@@ -473,6 +476,70 @@ export async function recordRetry(ctx: MutationCtx, job: Doc<"groupDeletionJobs"
   });
   await scheduleBatch(ctx, job._id, retryPlan.delayMs);
 }
+
+export async function processGroupDeletionFailureNotificationHandler(
+  ctx: MutationCtx,
+  args: { jobId: Id<"groupDeletionJobs"> },
+  enqueueFailureEmail = enqueueGroupDeletionFailedEmail,
+) {
+  const job = await ctx.db.get(args.jobId);
+  if (
+    job === null ||
+    job.source !== "owner" ||
+    !job.actorUserIdSnapshot ||
+    job.failureNotificationHandledAt !== undefined
+  ) {
+    return null;
+  }
+
+  const requester = await ctx.db
+    .query("users")
+    .withIndex("by_token_identifier", (q) => q.eq("userId", job.actorUserIdSnapshot!))
+    .unique();
+  const attemptCount = (job.failureNotificationAttemptCount ?? 0) + 1;
+  if (!requester?.email) {
+    const now = Date.now();
+    await ctx.db.patch(job._id, {
+      failureNotificationAttemptCount: attemptCount,
+      failureNotificationHandledAt: now,
+      updatedAt: now,
+    });
+    return null;
+  }
+
+  try {
+    await enqueueFailureEmail(
+      ctx,
+      job.targetGroupNameSnapshot,
+      job._id.toString(),
+      requester.email,
+      `${job._id}:failed:${job.actorUserIdSnapshot}`,
+    );
+    const now = Date.now();
+    await ctx.db.patch(job._id, {
+      failureNotificationAttemptCount: attemptCount,
+      failureNotificationHandledAt: now,
+      updatedAt: now,
+    });
+  } catch {
+    const delayMs = Math.min(
+      60_000 * 2 ** Math.min(attemptCount - 1, 8),
+      FAILURE_NOTIFICATION_MAX_DELAY_MS,
+    );
+    await ctx.db.patch(job._id, {
+      failureNotificationAttemptCount: attemptCount,
+      updatedAt: Date.now(),
+    });
+    await scheduleFailureNotification(ctx, job._id, delayMs);
+  }
+  return null;
+}
+
+export const processGroupDeletionFailureNotification = internalMutation({
+  args: { jobId: v.id("groupDeletionJobs") },
+  returns: v.null(),
+  handler: async (ctx, args) => await processGroupDeletionFailureNotificationHandler(ctx, args),
+});
 
 export const startGroupDeletion = internalMutation({
   args: {
@@ -549,7 +616,9 @@ export async function resumeGroupDeletionHandler(
   const groupId = ctx.db.normalizeId("groups", job.targetGroupIdSnapshot);
   const group = groupId === null ? null : await ctx.db.get(groupId);
   const mayRunAfterGroupDeletion =
-    job.stage === "completedEnqueue" || job.stage === "recipientCleanup";
+    job.stage === "finalSweep" ||
+    job.stage === "completedEnqueue" ||
+    job.stage === "recipientCleanup";
   if (
     (group === null && !mayRunAfterGroupDeletion) ||
     (group !== null && group.status !== "deleting")

@@ -99,13 +99,14 @@ export async function enqueueGroupDeletionStartedEmail(
 export async function enqueueGroupDeletionFailedEmail(
   ctx: MutationCtx,
   groupName: string,
+  jobId: string,
   recipientEmail: string | undefined,
   businessDedupeKey: string,
 ): Promise<void> {
   if (!recipientEmail) return;
   await enqueueTransactionalEmailJobHandler(ctx, {
     templateType: "group_deletion_failed",
-    payloadJson: JSON.stringify({ groupName }),
+    payloadJson: JSON.stringify({ groupName, jobId }),
     recipientEmail,
     businessDedupeKey,
   });

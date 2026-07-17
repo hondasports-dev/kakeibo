@@ -139,6 +139,7 @@ export default defineSchema({
     lastErrorCategory: v.optional(v.string()),
     snapshotCursor: v.optional(v.string()),
     failureNotificationHandledAt: v.optional(v.number()),
+    failureNotificationAttemptCount: v.optional(v.number()),
     deletedCounts: groupDeletionCountsValidator,
     createdAt: v.number(),
     updatedAt: v.number(),

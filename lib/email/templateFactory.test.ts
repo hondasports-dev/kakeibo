@@ -110,6 +110,21 @@ describe("templateFactory", () => {
     expect(built.text).toContain("https://suzumemo.test/");
   });
 
+  it("builds group_deletion_failed email with a direct status link", async () => {
+    const built = await buildTransactionalEmail("group_deletion_failed", {
+      groupName: "山田家",
+      jobId: "job-123",
+    });
+    expect(built.subject).toBe("「山田家」の削除を完了できませんでした | Suzumemo");
+    expect(built.text).toContain("https://suzumemo.test/group/delete/status/job-123");
+  });
+
+  it("rejects group_deletion_failed without a jobId", () => {
+    expect(
+      validatePayloadForTemplate("group_deletion_failed", { groupName: "山田家" }).success,
+    ).toBe(false);
+  });
+
   it("builds ai_review_required email", async () => {
     const built = await buildTransactionalEmail("ai_review_required", { pendingCount: 2 });
     expect(built.subject).toBe("確認が必要なレシートが2件あります | Suzumemo");

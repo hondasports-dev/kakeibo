@@ -42,7 +42,7 @@ export type GroupDeletedPayload = {
 };
 
 export type GroupDeletionStartedPayload = GroupDeletedPayload;
-export type GroupDeletionFailedPayload = GroupDeletedPayload;
+export type GroupDeletionFailedPayload = GroupDeletedPayload & { jobId: string };
 
 export type AiReviewRequiredPayload = {
   pendingCount: number;
