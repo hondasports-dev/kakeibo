@@ -4,5 +4,6 @@ export { GroupSettingsProvider } from "./components/GroupSettingsProvider";
 export { GroupSetupPage } from "./pages/GroupSetupPage";
 export { GroupSelectPage } from "./pages/GroupSelectPage";
 export { GroupInvitationAcceptPage } from "./pages/GroupInvitationAcceptPage";
+export { GroupDeletionStatusPage } from "./pages/GroupDeletionStatusPage";
 export { useGroupMembership } from "./hooks/useGroupMembership";
 export { formatDateTimeForDisplay } from "./lib/datetimeFormat";

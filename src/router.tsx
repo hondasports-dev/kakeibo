@@ -11,6 +11,7 @@ import { DashboardPage } from "./features/dashboard";
 import { InputPage } from "./features/expense-entry";
 import {
   GroupInvitationAcceptPage,
+  GroupDeletionStatusPage,
   GroupSelectPage,
   GroupSetupPage,
   useGroupMembership,
@@ -132,6 +133,10 @@ export const router = createBrowserRouter([
   {
     path: "/settings/account/delete/status",
     element: <AccountDeletionStatusPage />,
+  },
+  {
+    path: "/group/delete/status/:jobId",
+    element: <GroupDeletionStatusPage />,
   },
   {
     element: <GroupRouteGuard />,

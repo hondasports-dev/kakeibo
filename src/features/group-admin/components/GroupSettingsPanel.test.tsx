@@ -73,7 +73,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
         updateGroupName: "groups.mutations.updateGroupName",
       },
       deletion: {
-        deleteGroup: "groups.deletion.deleteGroup",
+        requestGroupDeletion: "groups.deletion.requestGroupDeletion",
         getGroupDeletionPreview: "groups.deletion.getGroupDeletionPreview",
       },
       auditLogs: {
@@ -116,7 +116,7 @@ describe("GroupSettingsPanel", () => {
     removeMemberMock.mockResolvedValue(undefined);
     changeMemberRoleMock.mockResolvedValue(undefined);
     transferGroupOwnershipMock.mockResolvedValue(undefined);
-    deleteGroupMock.mockResolvedValue(null);
+    deleteGroupMock.mockResolvedValue("job-001");
     updateGroupNameMock.mockResolvedValue("group-001");
     useAuthMock.mockReturnValue({ userId: "owner-clerk-id" });
     useUserMock.mockReturnValue({
@@ -142,7 +142,7 @@ describe("GroupSettingsPanel", () => {
       if (reference.includes("groups.members.transferGroupOwnership"))
         return transferGroupOwnershipMock;
       if (reference.includes("groups.mutations.updateGroupName")) return updateGroupNameMock;
-      if (reference.includes("groups.deletion.deleteGroup")) return deleteGroupMock;
+      if (reference.includes("groups.deletion.requestGroupDeletion")) return deleteGroupMock;
       return vi.fn();
     });
     useQueryMock.mockImplementation((reference: string, args?: unknown) => {
@@ -155,18 +155,18 @@ describe("GroupSettingsPanel", () => {
       ) {
         return {
           groupName: "佐藤家",
-          members: 2,
-          invitations: 1,
-          sourceDocuments: 5,
-          expenseEntries: 3,
-          receipts: 4,
-          receiptImages: 2,
-          categories: 6,
-          aiDrafts: 1,
-          aiDraftItems: 2,
-          analysisBatches: 1,
-          analysisJobs: 3,
-          weekSessions: 4,
+          members: { count: 2, accuracy: "exact" },
+          invitations: { count: 1, accuracy: "exact" },
+          sourceDocuments: { count: 100, accuracy: "at_least" },
+          expenseEntries: { count: 3, accuracy: "exact" },
+          receipts: { count: 4, accuracy: "exact" },
+          receiptImages: { count: 0, accuracy: "unknown" },
+          categories: { count: 6, accuracy: "exact" },
+          aiDrafts: { count: 1, accuracy: "exact" },
+          aiDraftItems: { count: 2, accuracy: "exact" },
+          analysisBatches: { count: 1, accuracy: "exact" },
+          analysisJobs: { count: 3, accuracy: "exact" },
+          weekSessions: { count: 4, accuracy: "exact" },
         };
       }
       if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
@@ -693,15 +693,18 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByText(/削除対象: 佐藤家/)).toBeInTheDocument();
     expect(screen.getByText(/所属メンバー: 2件/)).toBeInTheDocument();
     expect(screen.getByText(/支出\/収入データ: 3件/)).toBeInTheDocument();
+    expect(screen.getByText(/取り込み元ドキュメント: 100件以上/)).toBeInTheDocument();
+    expect(screen.getByText(/添付画像: 件数は削除処理中に確定します/)).toBeInTheDocument();
+    expect(screen.getByText(/実行後すぐに利用できなくなります/)).toBeInTheDocument();
     expect(screen.getByText(/users と Clerk アカウントは削除されません/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "グループを削除する" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "削除を開始する" })).toBeDisabled();
 
     await user.type(screen.getByLabelText("確認用グループ名"), "佐藤家");
-    await user.click(screen.getByRole("button", { name: "グループを削除する" }));
+    await user.click(screen.getByRole("button", { name: "削除を開始する" }));
 
     await waitFor(() => {
       expect(deleteGroupMock).toHaveBeenCalledWith({ confirmationGroupName: "佐藤家" });
-      expect(navigateMock).toHaveBeenCalledWith("/group/select");
+      expect(navigateMock).toHaveBeenCalledWith("/group/delete/status/job-001");
     });
   });
 

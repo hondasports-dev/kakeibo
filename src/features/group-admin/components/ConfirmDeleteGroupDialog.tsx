@@ -9,22 +9,29 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+
+export type GroupDeletionPreviewCount = {
+  count: number;
+  accuracy: "exact" | "at_least" | "unknown";
+};
 
 export type GroupDeletionPreview = {
   groupName: string;
-  members: number;
-  invitations: number;
-  sourceDocuments: number;
-  expenseEntries: number;
-  receipts: number;
-  receiptImages: number;
-  categories: number;
-  aiDrafts: number;
-  aiDraftItems: number;
-  analysisBatches: number;
-  analysisJobs: number;
-  weekSessions: number;
+  members: GroupDeletionPreviewCount;
+  invitations: GroupDeletionPreviewCount;
+  sourceDocuments: GroupDeletionPreviewCount;
+  expenseEntries: GroupDeletionPreviewCount;
+  receipts: GroupDeletionPreviewCount;
+  receiptImages: GroupDeletionPreviewCount;
+  categories: GroupDeletionPreviewCount;
+  aiDrafts: GroupDeletionPreviewCount;
+  aiDraftItems: GroupDeletionPreviewCount;
+  analysisBatches: GroupDeletionPreviewCount;
+  analysisJobs: GroupDeletionPreviewCount;
+  weekSessions: GroupDeletionPreviewCount;
 };
 
 type ConfirmDeleteGroupDialogProps = {
@@ -37,8 +44,9 @@ type ConfirmDeleteGroupDialogProps = {
   onConfirm: () => void;
 };
 
-function formatImpactLine(label: string, count: number) {
-  return `${label}: ${count}件`;
+function formatImpactLine(label: string, impact: GroupDeletionPreviewCount) {
+  if (impact.accuracy === "unknown") return `${label}: 件数は削除処理中に確定します`;
+  return `${label}: ${impact.count}件${impact.accuracy === "at_least" ? "以上" : ""}`;
 }
 
 export function ConfirmDeleteGroupDialog({
@@ -50,16 +58,25 @@ export function ConfirmDeleteGroupDialog({
   onCancel,
   onConfirm,
 }: ConfirmDeleteGroupDialogProps) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const groupName = preview?.groupName ?? "";
   const isNameMatched = confirmationName.trim() === groupName.trim() && groupName.trim().length > 0;
 
   return (
-    <Dialog fullWidth maxWidth="sm" onClose={confirming ? undefined : onCancel} open={open}>
+    <Dialog
+      fullScreen={fullScreen}
+      fullWidth
+      maxWidth="sm"
+      onClose={confirming ? undefined : onCancel}
+      open={open}
+    >
       <DialogTitle>グループを削除しますか？</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
           <Alert severity="error" variant="outlined">
-            この操作により、グループと関連する家計データが削除されます。削除後は復元できません。
+            実行後すぐに利用できなくなります。家計データの完全削除はバックグラウンドで進み、
+            この操作は取り消し・復元できません。
           </Alert>
 
           {preview ? (
@@ -105,7 +122,7 @@ export function ConfirmDeleteGroupDialog({
           )}
 
           <Typography color="text.secondary" variant="body2">
-            users と Clerk アカウントは削除されません。
+            users と Clerk アカウントは削除されません。ほかのグループにも影響しません。
           </Typography>
 
           <Typography variant="body2">
@@ -133,7 +150,7 @@ export function ConfirmDeleteGroupDialog({
           startIcon={confirming ? <CircularProgress color="inherit" size={16} /> : undefined}
           variant="contained"
         >
-          グループを削除する
+          削除を開始する
         </Button>
       </DialogActions>
     </Dialog>
