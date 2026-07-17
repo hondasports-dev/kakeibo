@@ -32,6 +32,7 @@ export type GroupDeletionPreview = {
   analysisBatches: GroupDeletionPreviewCount;
   analysisJobs: GroupDeletionPreviewCount;
   weekSessions: GroupDeletionPreviewCount;
+  managementAuditLogs: GroupDeletionPreviewCount;
 };
 
 type ConfirmDeleteGroupDialogProps = {
@@ -119,6 +120,9 @@ export function ConfirmDeleteGroupDialog({
               </Typography>
               <Typography color="text.secondary" variant="body2">
                 {formatImpactLine("週次セッション", preview.weekSessions)}
+              </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("管理操作の監査ログ", preview.managementAuditLogs)}
               </Typography>
             </Stack>
           ) : (

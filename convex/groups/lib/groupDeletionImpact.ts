@@ -21,6 +21,7 @@ export type GroupDeletionImpactCounts = {
   analysisBatches: GroupDeletionPreviewCount;
   analysisJobs: GroupDeletionPreviewCount;
   weekSessions: GroupDeletionPreviewCount;
+  managementAuditLogs: GroupDeletionPreviewCount;
 };
 
 async function boundedCount<Document>(query: { take(limit: number): Promise<Document[]> }) {
@@ -87,6 +88,11 @@ export async function countGroupDeletionImpact(
       .query("weekSessions")
       .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId)),
   );
+  const managementAuditLogs = await boundedCount(
+    ctx.db
+      .query("managementAuditLogs")
+      .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId)),
+  );
 
   return {
     members: members.result,
@@ -109,5 +115,6 @@ export async function countGroupDeletionImpact(
     analysisBatches: analysisBatches.result,
     analysisJobs: analysisJobs.result,
     weekSessions: weekSessions.result,
+    managementAuditLogs: managementAuditLogs.result,
   };
 }

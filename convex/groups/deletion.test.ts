@@ -111,6 +111,14 @@ describe("owner group deletion public API", () => {
           createdAt: index + 2,
           updatedAt: index + 2,
         });
+        await ctx.db.insert("managementAuditLogs", {
+          groupId,
+          actorUserId: OWNER_USER_ID,
+          action: "group_name_changed",
+          targetKind: "group",
+          targetId: groupId,
+          createdAt: index + 2,
+        });
       }
     });
 
@@ -119,6 +127,28 @@ describe("owner group deletion public API", () => {
     expect(preview.sourceDocuments).toEqual({ count: 100, accuracy: "at_least" });
     expect(preview.receiptImages).toEqual({ count: 0, accuracy: "unknown" });
     expect(preview.members).toEqual({ count: 1, accuracy: "exact" });
+    expect(preview.managementAuditLogs).toEqual({ count: 100, accuracy: "at_least" });
+  });
+
+  it("bounded previewは100件以下の管理監査ログ件数をexactで返す", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const groupId = await seedOwnedGroup(t);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 2; index += 1) {
+        await ctx.db.insert("managementAuditLogs", {
+          groupId,
+          actorUserId: OWNER_USER_ID,
+          action: "group_name_changed",
+          targetKind: "group",
+          targetId: groupId,
+          createdAt: index + 2,
+        });
+      }
+    });
+
+    const preview = await asOwner(t).query(api.groups.deletion.getGroupDeletionPreview, {});
+
+    expect(preview.managementAuditLogs).toEqual({ count: 2, accuracy: "exact" });
   });
 
   it("削除開始はjob作成・deleting遷移・requesterのactive group解除を原子的に行う", async () => {
@@ -192,6 +222,18 @@ describe("owner group deletion public API", () => {
       status: "failed",
     });
     expect(strangerStatus).toBeNull();
+
+    await expect(
+      t
+        .withIdentity({ tokenIdentifier: "issuer|stranger" })
+        .mutation(api.groups.deletion.resumeGroupDeletion, { jobId }),
+    ).rejects.toThrow("削除ジョブが見つかりません");
+    expect(await t.run(async (ctx) => await ctx.db.get(jobId))).toMatchObject({
+      status: "failed",
+      stage: "completedEnqueue",
+      isActive: false,
+      attemptCount: 6,
+    });
 
     await asOwner(t).mutation(api.groups.deletion.resumeGroupDeletion, { jobId });
     const resumed = await t.run(async (ctx) => await ctx.db.get(jobId));

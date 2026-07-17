@@ -80,7 +80,10 @@ export const groupDeletedPayloadSchema = v.object({
 });
 
 export const groupDeletionStartedPayloadSchema = groupDeletedPayloadSchema;
-export const groupDeletionFailedPayloadSchema = groupDeletedPayloadSchema;
+export const groupDeletionFailedPayloadSchema = v.object({
+  groupName: v.pipe(v.string(), v.trim(), v.minLength(1, "groupName is required")),
+  jobId: v.pipe(v.string(), v.trim(), v.minLength(1, "jobId is required")),
+});
 
 export const aiReviewRequiredPayloadSchema = v.object({
   pendingCount: v.pipe(v.number(), v.integer(), v.minValue(1, "pendingCount must be at least 1")),

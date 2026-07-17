@@ -167,6 +167,7 @@ describe("GroupSettingsPanel", () => {
           analysisBatches: { count: 1, accuracy: "exact" },
           analysisJobs: { count: 3, accuracy: "exact" },
           weekSessions: { count: 4, accuracy: "exact" },
+          managementAuditLogs: { count: 5, accuracy: "exact" },
         };
       }
       if (typeof reference === "string" && reference.includes("groups.queries.getMyGroup")) {
@@ -695,6 +696,7 @@ describe("GroupSettingsPanel", () => {
     expect(screen.getByText(/支出\/収入データ: 3件/)).toBeInTheDocument();
     expect(screen.getByText(/取り込み元ドキュメント: 100件以上/)).toBeInTheDocument();
     expect(screen.getByText(/添付画像: 件数は削除処理中に確定します/)).toBeInTheDocument();
+    expect(screen.getByText(/管理操作の監査ログ: 5件/)).toBeInTheDocument();
     expect(screen.getByText(/実行後すぐに利用できなくなります/)).toBeInTheDocument();
     expect(screen.getByText(/users と Clerk アカウントは削除されません/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "削除を開始する" })).toBeDisabled();

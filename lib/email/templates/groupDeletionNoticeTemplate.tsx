@@ -5,7 +5,15 @@ import { subjectRenderers } from "../templateDefinitions";
 import { buildEmailUrl } from "../url";
 import { EmailFooter } from "./Footer";
 
-function GroupDeletionNotice({ groupName, failed }: { groupName: string; failed: boolean }) {
+function GroupDeletionNotice({
+  groupName,
+  failed,
+  jobId,
+}: {
+  groupName: string;
+  failed: boolean;
+  jobId?: string;
+}) {
   const heading = failed
     ? `「${groupName}」の削除を完了できませんでした`
     : `「${groupName}」の削除を開始しました`;
@@ -27,7 +35,7 @@ function GroupDeletionNotice({ groupName, failed }: { groupName: string; failed:
           </Section>
           <Section>
             <Button
-              href={buildEmailUrl("/")}
+              href={buildEmailUrl(failed && jobId ? `/group/delete/status/${jobId}` : "/")}
               style={{ padding: "12px 24px", backgroundColor: "#111827", color: "#ffffff" }}
             >
               Suzumemoを開く
@@ -42,8 +50,14 @@ function GroupDeletionNotice({ groupName, failed }: { groupName: string; failed:
   );
 }
 
-async function renderNotice(groupName: string, failed: boolean): Promise<BuiltEmail> {
-  const html = await render(<GroupDeletionNotice failed={failed} groupName={groupName} />);
+async function renderNotice(
+  groupName: string,
+  failed: boolean,
+  jobId?: string,
+): Promise<BuiltEmail> {
+  const html = await render(
+    <GroupDeletionNotice failed={failed} groupName={groupName} jobId={jobId} />,
+  );
   return {
     subject: subjectRenderers[failed ? "group_deletion_failed" : "group_deletion_started"]({
       groupName,
@@ -62,5 +76,5 @@ export async function renderGroupDeletionStarted(
 export async function renderGroupDeletionFailed(
   payload: GroupDeletionFailedPayload,
 ): Promise<BuiltEmail> {
-  return await renderNotice(payload.groupName, true);
+  return await renderNotice(payload.groupName, true, payload.jobId);
 }
