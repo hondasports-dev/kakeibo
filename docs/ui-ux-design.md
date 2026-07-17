@@ -167,6 +167,9 @@ MVPで最も重要な画面とする。
 - 現在値を先に表示し、追加・編集フォームは必要なときだけ展開する
 - 読込・空・エラーはセクション単位、保存中は対象操作単位で表示する
 - 危険な操作はownerのみに表示し、初期状態では折りたたむ
+- グループ削除dialogは bounded previewを「N件」「100件以上」「件数は削除処理中に確定します」で表示し、即時利用不能・background処理・取消復元不可を明示する
+- 削除開始後はGroupRouteGuard外の`/group/delete/status/:jobId`へ遷移し、requested/running/retry_wait/failed/completedを区別する。進捗率、完了見込み、内部エラーは表示しない
+- failedではoriginal requesterだけに再開操作を表示し、completed後はグループ選択またはsetupへ進める
 - PCでは設定行を横並び、320〜899pxでは同じDOM順のまま縦積みにする
 - 長い名前やメールアドレスは折り返し、横スクロールを発生させない
 - 開閉操作はキーボードで実行でき、`aria-expanded`と対象領域を関連付ける

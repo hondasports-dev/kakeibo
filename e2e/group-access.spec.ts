@@ -368,13 +368,27 @@ test.describe("グループアクセス", () => {
     await expect(page.getByRole("heading", { name: "グループを削除しますか？" })).toBeVisible();
     await expect(page.getByText(/削除対象:/)).toBeVisible();
     await expect(page.getByText(/users と Clerk アカウントは削除されません/)).toBeVisible();
-    await expect(page.getByRole("button", { name: "グループを削除する" })).toBeDisabled();
+    await expect(page.getByText(/実行後すぐに利用できなくなります/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "削除を開始する" })).toBeDisabled();
 
     await expect(page.getByTestId("delete-group-target-name")).toBeVisible({ timeout: 15_000 });
     const deletionTargetText = await page.getByTestId("delete-group-target-name").textContent();
     const groupName = deletionTargetText?.replace(/^削除対象:\s*/, "").trim() ?? "";
     await page.getByRole("textbox", { name: "確認用グループ名" }).fill(groupName);
-    await page.getByRole("button", { name: "グループを削除する" }).click();
+    await page.getByRole("button", { name: "削除を開始する" }).click();
+
+    await expect(page).toHaveURL(/\/group\/delete\/status\//, { timeout: 15_000 });
+    await expect(
+      page
+        .getByRole("heading", {
+          name: /グループの削除処理を開始しました|グループを削除しています|グループの削除を自動再試行しています|グループの完全削除が完了しました/,
+        })
+        .first(),
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole("heading", { name: "グループの完全削除が完了しました" }),
+    ).toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "続ける" }).click();
 
     await expect(page).toHaveURL(/\/group\/(setup|select)/, { timeout: 15_000 });
     if (page.url().includes("/group/setup")) {

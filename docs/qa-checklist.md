@@ -44,7 +44,7 @@ Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合�
 - 週次サマリーのレスポンシブ: PCはグラフとカテゴリ内訳が2カラム、SPは1カラムかつ横スクロールなしで、編集・削除操作が44px以上あること
 - 週次サマリー境界値: 直前2週間の支出がともに0円の場合、平均比が「比較データなし」と表示されること
 - 設定: カテゴリ設定と週の開始・終了曜日を保存できること
-- グループ管理（`e2e/group-access.spec.ts`）: グループ作成、招待、切り替え、メンバー削除。オーナー権限譲渡・グループ削除時には `group_*` テンプレートのメール通知が送信されること（バックエンドログ / unit test で確認）
+- グループ管理（`e2e/group-access.spec.ts`）: グループ作成、招待、切り替え、メンバー削除。グループ削除はownerの名称確認、status画面、開始直後のアクセス遮断、実engine完了後の選択/setup遷移を確認する。開始・失敗・完了通知の宛先とdedupeはConvex testで確認する
 - 公開ページ（`e2e/public-pages.spec.ts`）: `/privacy`、`/terms` が認証なしで表示されること
 - AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、税警告表示、`registerReadyDraftsAsExpenseEntries` によるまとめて登録
 - 認証（`e2e/auth.spec.ts`）: 未認証時のリダイレクト、ログイン後のダッシュボード表示
