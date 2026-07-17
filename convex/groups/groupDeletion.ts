@@ -1,8 +1,7 @@
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
-import type { DataModel, Doc, Id, TableNames } from "../_generated/dataModel";
+import type { Doc, Id, TableNames } from "../_generated/dataModel";
 import { internalMutation, internalQuery, type MutationCtx } from "../_generated/server";
-import type { IndexNames, NamedTableInfo } from "convex/server";
 import {
   type GroupDeletionStage,
   groupDeletionCountsValidator,
@@ -130,8 +129,6 @@ export async function startGroupDeletionHandler(
 
 type PurgeStage = (typeof GROUP_DELETION_PURGE_TABLES)[number] & TableNames;
 
-type StageIndex<Stage extends PurgeStage> = IndexNames<NamedTableInfo<DataModel, Stage>>;
-
 type StageProgress = { deleted: number; storageFiles: number };
 
 async function processRecipientNotificationBatch(
@@ -183,38 +180,15 @@ async function processRecipientNotificationBatch(
   await scheduleBatch(ctx, job._id);
 }
 
-async function deleteSimpleStage<
-  TableName extends PurgeStage,
-  IndexName extends StageIndex<TableName>,
->(
+async function deleteSimpleDocuments(
   ctx: MutationCtx,
-  groupId: Id<"groups">,
-  table: TableName,
-  index: IndexName,
+  documents: Array<{ _id: Id<TableNames> }>,
   progress: StageProgress,
 ): Promise<void> {
-  const documents = await ctx.db
-    .query(table)
-    .withIndex(index as any, (q) => (q as any).eq("groupId", groupId))
-    .take(BATCH_SIZE);
   for (const document of documents) {
     await ctx.db.delete(document._id);
     progress.deleted += 1;
   }
-}
-
-async function hasSimpleStage<
-  TableName extends PurgeStage,
-  IndexName extends StageIndex<TableName>,
->(ctx: MutationCtx, groupId: Id<"groups">, table: TableName, index: IndexName): Promise<boolean> {
-  return (
-    (
-      await ctx.db
-        .query(table)
-        .withIndex(index as any, (q) => (q as any).eq("groupId", groupId))
-        .take(1)
-    ).length > 0
-  );
 }
 
 async function deleteStageBatch(
@@ -260,32 +234,76 @@ async function deleteStageBatch(
       }
       return;
     }
-    case "receiptAnalysisImageJobs":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_status", progress);
-    case "aiExpenseDraftItems":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_draft_id", progress);
-    case "aiExpenseDrafts":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_created_at", progress);
-    case "receiptAnalysisBatches":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_created_at", progress);
-    case "expenseEntries":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_date", progress);
-    case "receipts":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_date", progress);
-    case "weekSessions":
-      return await deleteSimpleStage(
-        ctx,
-        groupId,
-        stage,
-        "by_group_id_and_week_start_date",
-        progress,
-      );
-    case "categories":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_sort_order", progress);
-    case "groupInvitations":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id", progress);
-    case "managementAuditLogs":
-      return await deleteSimpleStage(ctx, groupId, stage, "by_group_id_and_created_at", progress);
+    case "receiptAnalysisImageJobs": {
+      const documents = await ctx.db
+        .query("receiptAnalysisImageJobs")
+        .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "aiExpenseDraftItems": {
+      const documents = await ctx.db
+        .query("aiExpenseDraftItems")
+        .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "aiExpenseDrafts": {
+      const documents = await ctx.db
+        .query("aiExpenseDrafts")
+        .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "receiptAnalysisBatches": {
+      const documents = await ctx.db
+        .query("receiptAnalysisBatches")
+        .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "expenseEntries": {
+      const documents = await ctx.db
+        .query("expenseEntries")
+        .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "receipts": {
+      const documents = await ctx.db
+        .query("receipts")
+        .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "weekSessions": {
+      const documents = await ctx.db
+        .query("weekSessions")
+        .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "categories": {
+      const documents = await ctx.db
+        .query("categories")
+        .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "groupInvitations": {
+      const documents = await ctx.db
+        .query("groupInvitations")
+        .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
+    case "managementAuditLogs": {
+      const documents = await ctx.db
+        .query("managementAuditLogs")
+        .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
+        .take(BATCH_SIZE);
+      return await deleteSimpleDocuments(ctx, documents, progress);
+    }
   }
 }
 
@@ -296,29 +314,113 @@ async function hasDocumentsForStage(
 ): Promise<boolean> {
   switch (stage) {
     case "receiptAnalysisImageJobs":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_status");
+      return (
+        (
+          await ctx.db
+            .query("receiptAnalysisImageJobs")
+            .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "aiExpenseDraftItems":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_draft_id");
+      return (
+        (
+          await ctx.db
+            .query("aiExpenseDraftItems")
+            .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "aiExpenseDrafts":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_created_at");
+      return (
+        (
+          await ctx.db
+            .query("aiExpenseDrafts")
+            .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "receiptAnalysisBatches":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_created_at");
+      return (
+        (
+          await ctx.db
+            .query("receiptAnalysisBatches")
+            .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "expenseEntries":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_date");
+      return (
+        (
+          await ctx.db
+            .query("expenseEntries")
+            .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "receipts":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_date");
+      return (
+        (
+          await ctx.db
+            .query("receipts")
+            .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "sourceDocuments":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_date");
+      return (
+        (
+          await ctx.db
+            .query("sourceDocuments")
+            .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "weekSessions":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_week_start_date");
+      return (
+        (
+          await ctx.db
+            .query("weekSessions")
+            .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "categories":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_sort_order");
+      return (
+        (
+          await ctx.db
+            .query("categories")
+            .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "groupInvitations":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id");
+      return (
+        (
+          await ctx.db
+            .query("groupInvitations")
+            .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "managementAuditLogs":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id_and_created_at");
+      return (
+        (
+          await ctx.db
+            .query("managementAuditLogs")
+            .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
     case "groupMembers":
-      return await hasSimpleStage(ctx, groupId, stage, "by_group_id");
+      return (
+        (
+          await ctx.db
+            .query("groupMembers")
+            .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
+            .take(1)
+        ).length > 0
+      );
   }
 }
 
