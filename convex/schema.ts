@@ -20,6 +20,12 @@ import {
   managementAuditTargetKindValidator,
 } from "./groups/lib/managementAuditLogModel";
 import {
+  groupDeletionCountsValidator,
+  groupDeletionSourceValidator,
+  groupDeletionStageValidator,
+  groupDeletionStatusValidator,
+} from "./groups/lib/groupDeletionJobModel";
+import {
   emailSuppressionReasonValidator,
   emailWebhookEventTypeValidator,
   transactionalEmailJobStatusValidator,
@@ -117,6 +123,30 @@ export default defineSchema({
     afterValue: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_group_id_and_created_at", ["groupId", "createdAt"]),
+
+  groupDeletionJobs: defineTable({
+    targetGroupIdSnapshot: v.string(),
+    targetGroupNameSnapshot: v.string(),
+    source: groupDeletionSourceValidator,
+    actorUserIdSnapshot: v.optional(v.string()),
+    status: groupDeletionStatusValidator,
+    stage: groupDeletionStageValidator,
+    isActive: v.boolean(),
+    attemptCount: v.number(),
+    maxAttempts: v.number(),
+    nextRetryAt: v.optional(v.number()),
+    lastErrorCategory: v.optional(v.string()),
+    deletedCounts: groupDeletionCountsValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_target_group_id_snapshot_and_is_active", [
+      "targetGroupIdSnapshot",
+      "isActive",
+    ])
+    .index("by_status_and_updated_at", ["status", "updatedAt"])
+    .index("by_source_and_updated_at", ["source", "updatedAt"]),
 
   // ---------------------------------------------------------------------------
   // データテーブル（userId → groupId に変更済み）
