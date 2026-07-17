@@ -8,7 +8,9 @@ import type { GroupDoc } from "./lib/groupTypes";
 import { normalizeGroupName } from "./lib/groupName";
 import { requireGroupOwner } from "./membership";
 import { groupDeletionPreviewValidator } from "./validators";
-import { startGroupDeletionHandler } from "./groupDeletion";
+import { resumeGroupDeletionHandler, startGroupDeletionHandler } from "./groupDeletion";
+import { requireAuthenticatedUserId } from "../users/auth";
+import { groupDeletionStatusValidator } from "./lib/groupDeletionJobModel";
 
 export async function getGroupDeletionPreviewHandler(ctx: QueryCtx) {
   const { groupId } = await requireGroupOwner(ctx);
@@ -57,6 +59,9 @@ export async function requestGroupDeletionHandler(
   return jobId;
 }
 
+/** @deprecated owner UIはrequestGroupDeletionを使用する。旧handler testの移行期間だけ残す。 */
+export const deleteGroupHandler = requestGroupDeletionHandler;
+
 export const getGroupDeletionPreview = query({
   args: {},
   returns: groupDeletionPreviewValidator,
@@ -67,4 +72,42 @@ export const requestGroupDeletion = mutation({
   args: { confirmationGroupName: v.string() },
   returns: v.id("groupDeletionJobs"),
   handler: requestGroupDeletionHandler,
+});
+
+const publicGroupDeletionStatusValidator = v.object({
+  jobId: v.id("groupDeletionJobs"),
+  groupName: v.string(),
+  status: groupDeletionStatusValidator,
+  updatedAt: v.number(),
+  completedAt: v.optional(v.number()),
+});
+
+export const getGroupDeletionStatus = query({
+  args: { jobId: v.id("groupDeletionJobs") },
+  returns: v.union(v.null(), publicGroupDeletionStatusValidator),
+  handler: async (ctx, args) => {
+    const userId = await requireAuthenticatedUserId(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (job === null || job.actorUserIdSnapshot !== userId || job.source !== "owner") return null;
+    return {
+      jobId: job._id,
+      groupName: job.targetGroupNameSnapshot,
+      status: job.status,
+      updatedAt: job.updatedAt,
+      completedAt: job.completedAt,
+    };
+  },
+});
+
+export const resumeGroupDeletion = mutation({
+  args: { jobId: v.id("groupDeletionJobs") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const userId = await requireAuthenticatedUserId(ctx);
+    const job = await ctx.db.get(args.jobId);
+    if (job === null || job.actorUserIdSnapshot !== userId || job.source !== "owner") {
+      throw new ConvexError("削除ジョブが見つかりません");
+    }
+    return await resumeGroupDeletionHandler(ctx, args);
+  },
 });

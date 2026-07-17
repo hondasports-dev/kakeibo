@@ -15,6 +15,8 @@ export const groupDeletionStatusValidator = v.union(
 );
 
 export const groupDeletionStageValidator = v.union(
+  v.literal("recipientSnapshot"),
+  v.literal("startedEnqueue"),
   v.literal("receiptAnalysisImageJobs"),
   v.literal("aiExpenseDraftItems"),
   v.literal("aiExpenseDrafts"),
@@ -28,6 +30,8 @@ export const groupDeletionStageValidator = v.union(
   v.literal("managementAuditLogs"),
   v.literal("groupMembers"),
   v.literal("finalSweep"),
+  v.literal("completedEnqueue"),
+  v.literal("recipientCleanup"),
 );
 
 export const groupDeletionCountsValidator = v.object({
@@ -50,6 +54,8 @@ export const groupDeletionCountsValidator = v.object({
 export type GroupDeletionStatus = "requested" | "running" | "retry_wait" | "failed" | "completed";
 
 export type GroupDeletionStage =
+  | "recipientSnapshot"
+  | "startedEnqueue"
   | "receiptAnalysisImageJobs"
   | "aiExpenseDraftItems"
   | "aiExpenseDrafts"
@@ -62,4 +68,6 @@ export type GroupDeletionStage =
   | "groupInvitations"
   | "managementAuditLogs"
   | "groupMembers"
-  | "finalSweep";
+  | "finalSweep"
+  | "completedEnqueue"
+  | "recipientCleanup";

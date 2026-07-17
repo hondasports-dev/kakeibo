@@ -6,6 +6,8 @@ export const TRANSACTIONAL_EMAIL_TYPES = [
   "group_role_changed",
   "group_ownership_received",
   "group_ownership_transferred",
+  "group_deletion_started",
+  "group_deletion_failed",
   "group_deleted",
   "ai_review_required",
   "account_deletion_completed",

@@ -11,6 +11,11 @@ import {
 } from "./lib/groupDeletionJobModel";
 import { GROUP_DELETION_PURGE_TABLES } from "./lib/groupDeletionRegistry";
 import { planGroupDeletionRetry } from "./lib/groupDeletionRetry";
+import {
+  enqueueGroupDeletedEmail,
+  enqueueGroupDeletionFailedEmail,
+  enqueueGroupDeletionStartedEmail,
+} from "./lib/emailNotifications";
 
 const MAX_ATTEMPTS = 6;
 const BATCH_SIZE = 25;
@@ -35,7 +40,12 @@ function emptyDeletedCounts() {
 }
 
 function nextStage(stage: GroupDeletionStage): GroupDeletionStage {
-  const stages: ReadonlyArray<GroupDeletionStage> = [...GROUP_DELETION_PURGE_TABLES, "finalSweep"];
+  const stages: ReadonlyArray<GroupDeletionStage> = [
+    ...GROUP_DELETION_PURGE_TABLES,
+    "finalSweep",
+    "completedEnqueue",
+    "recipientCleanup",
+  ];
   const currentIndex = stages.indexOf(stage);
   return stages[Math.min(currentIndex + 1, stages.length - 1)];
 }
@@ -84,7 +94,10 @@ export async function startGroupDeletionHandler(
     source: args.source,
     actorUserIdSnapshot: args.actorUserIdSnapshot,
     status: "requested",
-    stage: GROUP_DELETION_PURGE_TABLES[0],
+    stage:
+      args.source === "owner" && args.actorUserIdSnapshot !== undefined
+        ? "recipientSnapshot"
+        : GROUP_DELETION_PURGE_TABLES[0],
     isActive: true,
     attemptCount: 0,
     maxAttempts: MAX_ATTEMPTS,
@@ -106,7 +119,58 @@ type SimplePurgeTable = Exclude<
   "sourceDocuments" | "groupMembers"
 >;
 
+type PurgeStage = (typeof GROUP_DELETION_PURGE_TABLES)[number];
+
 type StageProgress = { deleted: number; storageFiles: number };
+
+async function processRecipientNotificationBatch(
+  ctx: MutationCtx,
+  job: Doc<"groupDeletionJobs">,
+  event: "started" | "completed",
+) {
+  const indexName =
+    event === "started" ? "by_job_id_and_started_handled_at" : "by_job_id_and_completed_handled_at";
+  const recipients = await ctx.db
+    .query("groupDeletionNotificationRecipients")
+    .withIndex(indexName, (q) => q.eq("jobId", job._id).eq(`${event}HandledAt`, undefined))
+    .take(BATCH_SIZE);
+
+  if (recipients.length === 0) {
+    await ctx.db.patch(job._id, {
+      stage: event === "started" ? GROUP_DELETION_PURGE_TABLES[0] : "recipientCleanup",
+      updatedAt: Date.now(),
+    });
+    await scheduleBatch(ctx, job._id);
+    return;
+  }
+
+  const now = Date.now();
+  for (const recipient of recipients) {
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) => q.eq("userId", recipient.recipientUserId))
+      .unique();
+    const businessDedupeKey = `${job._id}:${event}:${recipient.recipientUserId}`;
+    if (event === "started") {
+      await enqueueGroupDeletionStartedEmail(
+        ctx,
+        job.targetGroupNameSnapshot,
+        user?.email,
+        businessDedupeKey,
+      );
+      await ctx.db.patch(recipient._id, { startedHandledAt: now, updatedAt: now });
+    } else {
+      await enqueueGroupDeletedEmail(
+        ctx,
+        job.targetGroupNameSnapshot,
+        user?.email,
+        businessDedupeKey,
+      );
+      await ctx.db.patch(recipient._id, { completedHandledAt: now, updatedAt: now });
+    }
+  }
+  await scheduleBatch(ctx, job._id);
+}
 
 async function deleteSimpleDocuments<TableName extends SimplePurgeTable>(
   ctx: MutationCtx,
@@ -122,7 +186,7 @@ async function deleteSimpleDocuments<TableName extends SimplePurgeTable>(
 async function deleteStageBatch(
   ctx: MutationCtx,
   groupId: Id<"groups">,
-  stage: Exclude<GroupDeletionStage, "finalSweep">,
+  stage: PurgeStage,
   progress: StageProgress,
 ): Promise<void> {
   switch (stage) {
@@ -238,7 +302,7 @@ async function deleteStageBatch(
 async function hasDocumentsForStage(
   ctx: MutationCtx,
   groupId: Id<"groups">,
-  stage: Exclude<GroupDeletionStage, "finalSweep">,
+  stage: PurgeStage,
 ): Promise<boolean> {
   switch (stage) {
     case "receiptAnalysisImageJobs":
@@ -355,7 +419,7 @@ async function hasDocumentsForStage(
 async function findRemainingStage(
   ctx: MutationCtx,
   groupId: Id<"groups">,
-): Promise<Exclude<GroupDeletionStage, "finalSweep"> | null> {
+): Promise<PurgeStage | null> {
   for (const stage of GROUP_DELETION_PURGE_TABLES) {
     if (await hasDocumentsForStage(ctx, groupId, stage)) {
       return stage;
@@ -380,6 +444,23 @@ async function recordRetry(ctx: MutationCtx, job: Doc<"groupDeletionJobs">): Pro
       lastErrorCategory: "batch_processing_failed",
       updatedAt: now,
     });
+    if (job.actorUserIdSnapshot && job.failureNotificationHandledAt === undefined) {
+      const requester = await ctx.db
+        .query("users")
+        .withIndex("by_token_identifier", (q) => q.eq("userId", job.actorUserIdSnapshot!))
+        .unique();
+      try {
+        await enqueueGroupDeletionFailedEmail(
+          ctx,
+          job.targetGroupNameSnapshot,
+          requester?.email,
+          `${job._id}:failed:${job.actorUserIdSnapshot}`,
+        );
+        await ctx.db.patch(job._id, { failureNotificationHandledAt: now, updatedAt: now });
+      } catch {
+        // jobのfailed確定を通知キュー障害で巻き戻さない。resume後の再失敗時に再試行する。
+      }
+    }
     return;
   }
 
@@ -420,6 +501,8 @@ export const getGroupDeletionStatus = internalQuery({
       maxAttempts: v.number(),
       nextRetryAt: v.optional(v.number()),
       lastErrorCategory: v.optional(v.string()),
+      snapshotCursor: v.optional(v.string()),
+      failureNotificationHandledAt: v.optional(v.number()),
       deletedCounts: groupDeletionCountsValidator,
       createdAt: v.number(),
       updatedAt: v.number(),
@@ -444,6 +527,8 @@ export const getGroupDeletionStatus = internalQuery({
       maxAttempts: job.maxAttempts,
       nextRetryAt: job.nextRetryAt,
       lastErrorCategory: job.lastErrorCategory,
+      snapshotCursor: job.snapshotCursor,
+      failureNotificationHandledAt: job.failureNotificationHandledAt,
       deletedCounts: job.deletedCounts,
       createdAt: job.createdAt,
       updatedAt: job.updatedAt,
@@ -452,43 +537,53 @@ export const getGroupDeletionStatus = internalQuery({
   },
 });
 
+export async function resumeGroupDeletionHandler(
+  ctx: MutationCtx,
+  args: { jobId: Id<"groupDeletionJobs"> },
+) {
+  const job = await ctx.db.get(args.jobId);
+  if (job === null || job.status !== "failed") {
+    throw new ConvexError("failed状態の削除ジョブだけを再開できます");
+  }
+
+  const groupId = ctx.db.normalizeId("groups", job.targetGroupIdSnapshot);
+  const group = groupId === null ? null : await ctx.db.get(groupId);
+  const mayRunAfterGroupDeletion =
+    job.stage === "completedEnqueue" || job.stage === "recipientCleanup";
+  if (
+    (group === null && !mayRunAfterGroupDeletion) ||
+    (group !== null && group.status !== "deleting")
+  ) {
+    throw new ConvexError("deleting状態のグループに対する削除ジョブだけを再開できます");
+  }
+
+  const activeJobs = await ctx.db
+    .query("groupDeletionJobs")
+    .withIndex("by_target_group_id_snapshot_and_is_active", (q) =>
+      q.eq("targetGroupIdSnapshot", job.targetGroupIdSnapshot).eq("isActive", true),
+    )
+    .take(1);
+  if (activeJobs.length > 0) {
+    throw new ConvexError("このグループの削除処理はすでに開始されています");
+  }
+
+  await ctx.db.patch(job._id, {
+    status: "requested",
+    isActive: true,
+    attemptCount: 0,
+    nextRetryAt: undefined,
+    lastErrorCategory: undefined,
+    completedAt: undefined,
+    updatedAt: Date.now(),
+  });
+  await scheduleBatch(ctx, job._id);
+  return null;
+}
+
 export const resumeGroupDeletion = internalMutation({
   args: { jobId: v.id("groupDeletionJobs") },
   returns: v.null(),
-  handler: async (ctx, args) => {
-    const job = await ctx.db.get(args.jobId);
-    if (job === null || job.status !== "failed") {
-      throw new ConvexError("failed状態の削除ジョブだけを再開できます");
-    }
-
-    const groupId = ctx.db.normalizeId("groups", job.targetGroupIdSnapshot);
-    const group = groupId === null ? null : await ctx.db.get(groupId);
-    if (group === null || group.status !== "deleting") {
-      throw new ConvexError("deleting状態のグループに対する削除ジョブだけを再開できます");
-    }
-
-    const activeJobs = await ctx.db
-      .query("groupDeletionJobs")
-      .withIndex("by_target_group_id_snapshot_and_is_active", (q) =>
-        q.eq("targetGroupIdSnapshot", job.targetGroupIdSnapshot).eq("isActive", true),
-      )
-      .take(1);
-    if (activeJobs.length > 0) {
-      throw new ConvexError("このグループの削除処理はすでに開始されています");
-    }
-
-    await ctx.db.patch(job._id, {
-      status: "requested",
-      isActive: true,
-      attemptCount: 0,
-      nextRetryAt: undefined,
-      lastErrorCategory: undefined,
-      completedAt: undefined,
-      updatedAt: Date.now(),
-    });
-    await scheduleBatch(ctx, job._id);
-    return null;
-  },
+  handler: resumeGroupDeletionHandler,
 });
 
 export const processGroupDeletionBatch = internalMutation({
@@ -528,6 +623,68 @@ export const processGroupDeletionBatch = internalMutation({
         updatedAt: Date.now(),
       });
 
+      if (job.stage === "recipientSnapshot") {
+        const page = await ctx.db
+          .query("groupMembers")
+          .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
+          .paginate({ cursor: job.snapshotCursor ?? null, numItems: BATCH_SIZE });
+        const now = Date.now();
+        for (const member of page.page) {
+          const existing = await ctx.db
+            .query("groupDeletionNotificationRecipients")
+            .withIndex("by_job_id_and_recipient_user_id", (q) =>
+              q.eq("jobId", job._id).eq("recipientUserId", member.userId),
+            )
+            .unique();
+          if (existing === null) {
+            await ctx.db.insert("groupDeletionNotificationRecipients", {
+              jobId: job._id,
+              recipientUserId: member.userId,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+        }
+        await ctx.db.patch(job._id, {
+          stage: page.isDone ? "startedEnqueue" : "recipientSnapshot",
+          snapshotCursor: page.isDone ? undefined : page.continueCursor,
+          updatedAt: now,
+        });
+        await scheduleBatch(ctx, job._id);
+        return null;
+      }
+
+      if (job.stage === "startedEnqueue") {
+        await processRecipientNotificationBatch(ctx, job, "started");
+        return null;
+      }
+
+      if (job.stage === "completedEnqueue") {
+        await processRecipientNotificationBatch(ctx, job, "completed");
+        return null;
+      }
+
+      if (job.stage === "recipientCleanup") {
+        const recipients = await ctx.db
+          .query("groupDeletionNotificationRecipients")
+          .withIndex("by_job_id", (q) => q.eq("jobId", job._id))
+          .take(BATCH_SIZE);
+        if (recipients.length > 0) {
+          for (const recipient of recipients) await ctx.db.delete(recipient._id);
+          await scheduleBatch(ctx, job._id);
+          return null;
+        }
+        const now = Date.now();
+        await ctx.db.patch(job._id, {
+          status: "completed",
+          isActive: false,
+          nextRetryAt: undefined,
+          updatedAt: now,
+          completedAt: now,
+        });
+        return null;
+      }
+
       if (job.stage === "finalSweep") {
         const remainingStage = await findRemainingStage(ctx, groupId);
         if (remainingStage !== null) {
@@ -547,14 +704,18 @@ export const processGroupDeletionBatch = internalMutation({
           groupDeleted = true;
         }
         const now = Date.now();
+        const usesRecipientNotifications =
+          job.source === "owner" && job.actorUserIdSnapshot !== undefined;
         await ctx.db.patch(job._id, {
-          status: "completed",
-          isActive: false,
+          status: usesRecipientNotifications ? "running" : "completed",
+          stage: usesRecipientNotifications ? "completedEnqueue" : "finalSweep",
+          isActive: usesRecipientNotifications,
           nextRetryAt: undefined,
           deletedCounts,
           updatedAt: now,
-          completedAt: now,
+          completedAt: usesRecipientNotifications ? undefined : now,
         });
+        if (usesRecipientNotifications) await scheduleBatch(ctx, job._id);
         return null;
       }
 
@@ -573,10 +734,11 @@ export const processGroupDeletionBatch = internalMutation({
       await scheduleBatch(ctx, job._id);
     } catch {
       if (job.stage !== "finalSweep" && (progress.deleted > 0 || progress.storageFiles > 0)) {
+        const failedStage = job.stage as PurgeStage;
         await ctx.db.patch(job._id, {
           deletedCounts: {
             ...job.deletedCounts,
-            [job.stage]: job.deletedCounts[job.stage] + progress.deleted,
+            [failedStage]: job.deletedCounts[failedStage] + progress.deleted,
             storageFiles: job.deletedCounts.storageFiles + progress.storageFiles,
           },
           updatedAt: Date.now(),

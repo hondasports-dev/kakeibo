@@ -4,6 +4,7 @@ import { invitationEmailsMatchAny } from "../../../../convex/groups/lib/groupEma
 import { readQueryDoc } from "../../../../convex/groups/lib/groupQueryHelpers";
 import { revokeGroupInvitationsForEmailInGroup } from "./staleCleanup";
 import { assertAccountDeletionNotInProgress } from "../../../../convex/accountDeletion";
+import { GROUP_ADMIN_ERRORS } from "../../../../convex/groups/adminGuards";
 
 export async function acceptGroupInvitationForVerifiedEmailsHandler(
   ctx: MutationCtx,
@@ -15,6 +16,16 @@ export async function acceptGroupInvitationForVerifiedEmailsHandler(
 
   if (invite === null || invite.status !== "pending") {
     throw new ConvexError("招待が見つかりません");
+  }
+
+  const group = await ctx.db.get(invite.groupId);
+  if (
+    group === null ||
+    group.status === "deleting" ||
+    group.status === "deleted" ||
+    group.status === "archived"
+  ) {
+    throw new ConvexError(GROUP_ADMIN_ERRORS.GROUP_DELETING);
   }
 
   if (!invitationEmailsMatchAny(args.acceptedEmails, invite.email)) {

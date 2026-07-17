@@ -88,4 +88,95 @@ describe("owner group deletion public API", () => {
     });
     expect(state.user?.activeGroupId).toBeUndefined();
   });
+
+  it("statusとresumeはmembership削除後もoriginal requester snapshotだけを認可する", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const jobId = await t.run(async (ctx) => {
+      return await ctx.db.insert("groupDeletionJobs", {
+        targetGroupIdSnapshot: "00000000000000000000010000groups",
+        targetGroupNameSnapshot: "削除途中家計",
+        source: "owner",
+        actorUserIdSnapshot: OWNER_USER_ID,
+        status: "failed",
+        stage: "completedEnqueue",
+        isActive: false,
+        attemptCount: 6,
+        maxAttempts: 6,
+        lastErrorCategory: "batch_processing_failed",
+        deletedCounts: {
+          receiptAnalysisImageJobs: 0,
+          aiExpenseDraftItems: 0,
+          aiExpenseDrafts: 0,
+          receiptAnalysisBatches: 0,
+          expenseEntries: 0,
+          receipts: 0,
+          sourceDocuments: 0,
+          storageFiles: 0,
+          weekSessions: 0,
+          categories: 0,
+          groupInvitations: 0,
+          managementAuditLogs: 0,
+          groupMembers: 1,
+          groups: 1,
+        },
+        createdAt: 1,
+        updatedAt: 2,
+      });
+    });
+
+    const status = await asOwner(t).query(api.groups.deletion.getGroupDeletionStatus, { jobId });
+    const strangerStatus = await t
+      .withIdentity({ tokenIdentifier: "issuer|stranger" })
+      .query(api.groups.deletion.getGroupDeletionStatus, { jobId });
+    expect(status).toMatchObject({
+      jobId,
+      groupName: "削除途中家計",
+      status: "failed",
+    });
+    expect(strangerStatus).toBeNull();
+
+    await asOwner(t).mutation(api.groups.deletion.resumeGroupDeletion, { jobId });
+    const resumed = await t.run(async (ctx) => await ctx.db.get(jobId));
+    expect(resumed).toMatchObject({
+      status: "requested",
+      stage: "completedEnqueue",
+      isActive: true,
+    });
+  });
+
+  it("deletingへ遷移したグループの招待は受け入れない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await t.run(async (ctx) => {
+      const groupId = await ctx.db.insert("groups", {
+        name: "削除中家計",
+        status: "deleting",
+        createdAt: 1,
+        updatedAt: 2,
+      });
+      await ctx.db.insert("groupInvitations", {
+        groupId,
+        email: "invitee@example.test",
+        token: "deleting-group-token",
+        status: "pending",
+        invitedByUserId: OWNER_USER_ID,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("users", {
+        userId: "issuer|invitee",
+        displayName: "招待ユーザー",
+        email: "invitee@example.test",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    await expect(
+      t
+        .withIdentity({ tokenIdentifier: "issuer|invitee", email: "invitee@example.test" })
+        .mutation(api.groups.invitations.acceptGroupInvitation, {
+          token: "deleting-group-token",
+        }),
+    ).rejects.toThrow("このグループは削除処理中です");
+  });
 });

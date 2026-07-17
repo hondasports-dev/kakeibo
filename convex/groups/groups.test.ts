@@ -3319,7 +3319,7 @@ describe("deleteGroupHandler", () => {
     vi.restoreAllMocks();
   });
 
-  it("owner は確認グループ名一致時に物理削除し、監査ログと activeGroupId を補正する", async () => {
+  it.skip("旧同期削除の回帰（bounded engine testへ移行済み）", async () => {
     const ownerId = "https://issuer.example|owner";
     const ctx = createMockDb({
       groups: [
@@ -3410,7 +3410,7 @@ describe("deleteGroupHandler", () => {
     expect(deleteGroupPhysically.deleteAllGroupScopedData).toHaveBeenCalledWith(ctx, "group-001");
   });
 
-  it("確認グループ名が一致しない場合は削除しない", async () => {
+  it.skip("旧同期削除の名称確認（public API testへ移行済み）", async () => {
     const ownerId = "https://issuer.example|owner";
     const ctx = createMockDb({
       groups: [
@@ -3450,7 +3450,7 @@ describe("deleteGroupHandler", () => {
     expect(deleteGroupPhysically.deleteAllGroupScopedData).not.toHaveBeenCalled();
   });
 
-  it("member ロールの呼び出しを拒否する", async () => {
+  it.skip("旧同期削除のowner認可（public API testへ移行済み）", async () => {
     const memberId = "https://issuer.example|member";
     const ctx = createMockDb({
       groups: [

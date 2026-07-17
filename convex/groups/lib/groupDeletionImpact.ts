@@ -1,6 +1,5 @@
 import type { Id } from "../../_generated/dataModel";
 import type { QueryCtx } from "../../_generated/server";
-import type { OrderedQuery } from "convex/server";
 
 const PREVIEW_LIMIT = 100;
 
@@ -24,7 +23,7 @@ export type GroupDeletionImpactCounts = {
   weekSessions: GroupDeletionPreviewCount;
 };
 
-async function boundedCount<Query extends OrderedQuery>(query: Query) {
+async function boundedCount<Document>(query: { take(limit: number): Promise<Document[]> }) {
   const documents = await query.take(PREVIEW_LIMIT + 1);
   return {
     documents: documents.slice(0, PREVIEW_LIMIT),
