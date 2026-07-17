@@ -5,8 +5,11 @@ import { GROUP_DELETION_PURGE_TABLES } from "./groupDeletionRegistry";
 function getSchemaGroupScopedTables() {
   return Object.entries(schema.tables)
     .filter(([, table]) => {
-      const groupId =
-        table.validator.kind === "object" ? table.validator.fields.groupId : undefined;
+      const validator = table.validator as {
+        kind: string;
+        fields?: Record<string, { kind?: string; tableName?: string }>;
+      };
+      const groupId = validator.kind === "object" ? validator.fields?.groupId : undefined;
       return groupId?.kind === "id" && groupId.tableName === "groups";
     })
     .map(([tableName]) => tableName)
