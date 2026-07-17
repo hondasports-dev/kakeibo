@@ -47,12 +47,7 @@ export const groupDeletionCountsValidator = v.object({
   groups: v.number(),
 });
 
-export type GroupDeletionStatus =
-  | "requested"
-  | "running"
-  | "retry_wait"
-  | "failed"
-  | "completed";
+export type GroupDeletionStatus = "requested" | "running" | "retry_wait" | "failed" | "completed";
 
 export type GroupDeletionStage =
   | "receiptAnalysisImageJobs"
@@ -68,4 +63,3 @@ export type GroupDeletionStage =
   | "managementAuditLogs"
   | "groupMembers"
   | "finalSweep";
-

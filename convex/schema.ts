@@ -109,6 +109,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_token", ["token"])
+    .index("by_group_id", ["groupId"])
     .index("by_group_id_and_email", ["groupId", "email"])
     .index("by_group_id_and_status", ["groupId", "status"]),
 
@@ -141,10 +142,7 @@ export default defineSchema({
     updatedAt: v.number(),
     completedAt: v.optional(v.number()),
   })
-    .index("by_target_group_id_snapshot_and_is_active", [
-      "targetGroupIdSnapshot",
-      "isActive",
-    ])
+    .index("by_target_group_id_snapshot_and_is_active", ["targetGroupIdSnapshot", "isActive"])
     .index("by_status_and_updated_at", ["status", "updatedAt"])
     .index("by_source_and_updated_at", ["source", "updatedAt"]),
 

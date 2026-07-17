@@ -8,9 +8,7 @@ export type GroupWithLifecycleStatus = {
 };
 
 export function isGroupDeleted(group: GroupWithLifecycleStatus): boolean {
-  return (
-    group.status === "deleting" || group.status === "deleted" || group.status === "archived"
-  );
+  return group.status === "deleting" || group.status === "deleted" || group.status === "archived";
 }
 
 export function assertGroupNotDeleted(group: GroupWithLifecycleStatus): void {
