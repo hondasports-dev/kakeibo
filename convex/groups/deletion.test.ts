@@ -8,6 +8,7 @@ import schema from "../schema";
 import { convexTestModules } from "../test.setup";
 
 const OWNER_USER_ID = "https://clerk.example.test|owner";
+const MEMBER_USER_ID = "https://clerk.example.test|member";
 
 async function seedOwnedGroup(t: ReturnType<typeof convexTest>, name = "佐藤家") {
   return await t.run(async (ctx) => {
@@ -41,6 +42,63 @@ function asOwner(t: ReturnType<typeof convexTest>) {
 }
 
 describe("owner group deletion public API", () => {
+  it("確認名が一致しない場合はgroupとjobを変更しない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const groupId = await seedOwnedGroup(t);
+
+    await expect(
+      asOwner(t).mutation(api.groups.deletion.requestGroupDeletion, {
+        confirmationGroupName: "別の家計",
+      }),
+    ).rejects.toThrow("グループ名が一致しません");
+
+    const state = await t.run(async (ctx) => ({
+      group: await ctx.db.get(groupId),
+      jobs: await ctx.db.query("groupDeletionJobs").take(1),
+    }));
+    expect(state.group?.status).toBe("active");
+    expect(state.jobs).toHaveLength(0);
+  });
+
+  it("memberは削除previewの取得も削除開始もできない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const groupId = await seedOwnedGroup(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: MEMBER_USER_ID,
+        displayName: "メンバー",
+        email: "member@example.test",
+        activeGroupId: groupId,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("groupMembers", {
+        groupId,
+        userId: MEMBER_USER_ID,
+        role: "member",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+    const asMember = t.withIdentity({ tokenIdentifier: MEMBER_USER_ID, subject: "member" });
+
+    await expect(asMember.query(api.groups.deletion.getGroupDeletionPreview, {})).rejects.toThrow(
+      "グループオーナーのみ実行できます",
+    );
+    await expect(
+      asMember.mutation(api.groups.deletion.requestGroupDeletion, {
+        confirmationGroupName: "佐藤家",
+      }),
+    ).rejects.toThrow("グループオーナーのみ実行できます");
+
+    const state = await t.run(async (ctx) => ({
+      group: await ctx.db.get(groupId),
+      jobs: await ctx.db.query("groupDeletionJobs").take(1),
+    }));
+    expect(state.group?.status).toBe("active");
+    expect(state.jobs).toHaveLength(0);
+  });
+
   it("bounded previewは100件を超える件数をat_least、派生画像件数をunknownで返す", async () => {
     const t = convexTest(schema, convexTestModules);
     const groupId = await seedOwnedGroup(t);

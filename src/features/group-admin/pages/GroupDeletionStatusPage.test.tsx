@@ -98,4 +98,20 @@ describe("GroupDeletionStatusPage", () => {
       screen.getByRole("heading", { name: "グループ削除の要求が見つかりません" }),
     ).toBeInTheDocument();
   });
+
+  it("通信errorを再読み込み可能な状態として表示する", () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      useQueryMock.mockImplementation(() => {
+        throw new Error("network error");
+      });
+      renderPage();
+      expect(
+        screen.getByRole("heading", { name: "グループ削除状況を読み込めませんでした" }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 });

@@ -711,6 +711,31 @@ describe("GroupSettingsPanel", () => {
     });
   });
 
+  it("グループ削除previewの通信errorをdialog内に表示する", async () => {
+    const defaultQuery = useQueryMock.getMockImplementation();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    useQueryMock.mockImplementation((reference: string, args?: unknown) => {
+      if (reference.includes("groups.deletion.getGroupDeletionPreview") && args !== "skip") {
+        throw new Error("network error");
+      }
+      return defaultQuery?.(reference, args);
+    });
+    try {
+      const user = userEvent.setup();
+      renderWithProviders(<GroupDangerZone />);
+      await user.click(screen.getByRole("button", { name: "危険な操作" }));
+      await user.click(screen.getByTestId("delete-group-request-button"));
+      expect(
+        screen.getByText(
+          "削除対象の影響範囲を読み込めませんでした。戻ってからもう一度お試しください。",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "削除を開始する" })).toBeDisabled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("オーナー権限譲渡前に確認ダイアログを表示し、確定後に mutation を呼ぶ", async () => {
     const user = userEvent.setup();
     renderWithProviders(<GroupDangerZone />);

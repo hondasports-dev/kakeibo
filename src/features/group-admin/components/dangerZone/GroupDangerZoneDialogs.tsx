@@ -1,5 +1,8 @@
+import { Component, type ReactNode } from "react";
+import { useQuery } from "convex/react";
+import { api } from "../../../../../convex/_generated/api";
 import { ConfirmDangerousActionDialog } from "../ConfirmDangerousActionDialog";
-import { ConfirmDeleteGroupDialog, type GroupDeletionPreview } from "../ConfirmDeleteGroupDialog";
+import { ConfirmDeleteGroupDialog } from "../ConfirmDeleteGroupDialog";
 import { formatGroupRoleLabel } from "../../utils/groupRoleDisplay";
 import type { PendingMember } from "./types";
 
@@ -10,7 +13,6 @@ type GroupDangerZoneDialogsProps = {
   deleteConfirmationName: string;
   savingTarget: string | null;
   currentUserDisplayName: string | null;
-  deletionPreview: GroupDeletionPreview | undefined | null;
   onConfirmRemoveMember: () => void;
   onConfirmOwnershipTransfer: () => void;
   onConfirmDeleteGroup: () => void;
@@ -20,6 +22,49 @@ type GroupDangerZoneDialogsProps = {
   onConfirmationNameChange: (value: string) => void;
 };
 
+type DeleteDialogProps = Pick<
+  GroupDangerZoneDialogsProps,
+  | "pendingDeleteGroup"
+  | "deleteConfirmationName"
+  | "savingTarget"
+  | "onCancelDeleteGroup"
+  | "onConfirmDeleteGroup"
+  | "onConfirmationNameChange"
+>;
+
+class PreviewErrorBoundary extends Component<
+  { children: ReactNode; fallback: ReactNode },
+  { failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children;
+  }
+}
+
+function DeleteGroupDialogWithPreview(props: DeleteDialogProps) {
+  const preview = useQuery(
+    api.groups.deletion.getGroupDeletionPreview,
+    props.pendingDeleteGroup ? {} : "skip",
+  );
+  return (
+    <ConfirmDeleteGroupDialog
+      confirmationName={props.deleteConfirmationName}
+      confirming={props.pendingDeleteGroup && props.savingTarget === "delete-group"}
+      onCancel={props.onCancelDeleteGroup}
+      onConfirm={props.onConfirmDeleteGroup}
+      onConfirmationNameChange={props.onConfirmationNameChange}
+      open={props.pendingDeleteGroup}
+      preview={preview}
+    />
+  );
+}
+
 export function GroupDangerZoneDialogs({
   pendingRemoveMember,
   pendingOwnershipTransfer,
@@ -27,7 +72,6 @@ export function GroupDangerZoneDialogs({
   deleteConfirmationName,
   savingTarget,
   currentUserDisplayName,
-  deletionPreview,
   onConfirmRemoveMember,
   onConfirmOwnershipTransfer,
   onConfirmDeleteGroup,
@@ -67,15 +111,30 @@ export function GroupDangerZoneDialogs({
         open={pendingOwnershipTransfer !== null}
         title="オーナー権限を譲渡しますか？"
       />
-      <ConfirmDeleteGroupDialog
-        confirmationName={deleteConfirmationName}
-        confirming={pendingDeleteGroup && savingTarget === "delete-group"}
-        onCancel={onCancelDeleteGroup}
-        onConfirm={onConfirmDeleteGroup}
-        onConfirmationNameChange={onConfirmationNameChange}
-        open={pendingDeleteGroup}
-        preview={deletionPreview ?? null}
-      />
+      <PreviewErrorBoundary
+        key={pendingDeleteGroup ? "open" : "closed"}
+        fallback={
+          <ConfirmDeleteGroupDialog
+            confirmationName={deleteConfirmationName}
+            confirming={false}
+            onCancel={onCancelDeleteGroup}
+            onConfirm={onConfirmDeleteGroup}
+            onConfirmationNameChange={onConfirmationNameChange}
+            open={pendingDeleteGroup}
+            preview={null}
+            previewError
+          />
+        }
+      >
+        <DeleteGroupDialogWithPreview
+          deleteConfirmationName={deleteConfirmationName}
+          onCancelDeleteGroup={onCancelDeleteGroup}
+          onConfirmDeleteGroup={onConfirmDeleteGroup}
+          onConfirmationNameChange={onConfirmationNameChange}
+          pendingDeleteGroup={pendingDeleteGroup}
+          savingTarget={savingTarget}
+        />
+      </PreviewErrorBoundary>
     </>
   );
 }

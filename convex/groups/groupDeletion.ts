@@ -428,7 +428,7 @@ async function findRemainingStage(
   return null;
 }
 
-async function recordRetry(ctx: MutationCtx, job: Doc<"groupDeletionJobs">): Promise<void> {
+export async function recordRetry(ctx: MutationCtx, job: Doc<"groupDeletionJobs">): Promise<void> {
   const now = Date.now();
   const retryPlan = planGroupDeletionRetry({
     attemptCount: job.attemptCount,

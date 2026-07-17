@@ -39,6 +39,7 @@ type ConfirmDeleteGroupDialogProps = {
   preview: GroupDeletionPreview | null | undefined;
   confirmationName: string;
   confirming: boolean;
+  previewError?: boolean;
   onConfirmationNameChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
@@ -54,6 +55,7 @@ export function ConfirmDeleteGroupDialog({
   preview,
   confirmationName,
   confirming,
+  previewError = false,
   onConfirmationNameChange,
   onCancel,
   onConfirm,
@@ -73,13 +75,17 @@ export function ConfirmDeleteGroupDialog({
     >
       <DialogTitle>グループを削除しますか？</DialogTitle>
       <DialogContent>
-        <Stack spacing={2}>
+        <Stack aria-live="polite" spacing={2}>
           <Alert severity="error" variant="outlined">
             実行後すぐに利用できなくなります。家計データの完全削除はバックグラウンドで進み、
             この操作は取り消し・復元できません。
           </Alert>
 
-          {preview ? (
+          {previewError ? (
+            <Alert severity="error" variant="outlined">
+              削除対象の影響範囲を読み込めませんでした。戻ってからもう一度お試しください。
+            </Alert>
+          ) : preview ? (
             <Stack spacing={0.5}>
               <Typography data-testid="delete-group-target-name" variant="subtitle2">
                 削除対象: {preview.groupName}
@@ -131,7 +137,8 @@ export function ConfirmDeleteGroupDialog({
 
           <TextField
             autoComplete="off"
-            disabled={confirming || !preview}
+            autoFocus
+            disabled={confirming || !preview || previewError}
             fullWidth
             label="確認用グループ名"
             onChange={(event) => onConfirmationNameChange(event.target.value)}
@@ -145,7 +152,7 @@ export function ConfirmDeleteGroupDialog({
         </Button>
         <Button
           color="error"
-          disabled={confirming || !preview || !isNameMatched}
+          disabled={confirming || !preview || previewError || !isNameMatched}
           onClick={onConfirm}
           startIcon={confirming ? <CircularProgress color="inherit" size={16} /> : undefined}
           variant="contained"

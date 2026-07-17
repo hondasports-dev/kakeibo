@@ -25,4 +25,25 @@ describe("groupDeletionJobs schema", () => {
       ]),
     );
   });
+
+  it("通知先snapshotはjob・user・処理markerだけを保持する", () => {
+    const table = schema.tables.groupDeletionNotificationRecipients;
+
+    expect(table.validator.kind).toBe("object");
+    if (table.validator.kind !== "object") return;
+
+    expect(Object.keys(table.validator.fields).sort()).toEqual(
+      [
+        "completedHandledAt",
+        "createdAt",
+        "jobId",
+        "recipientUserId",
+        "startedHandledAt",
+        "updatedAt",
+      ].sort(),
+    );
+    expect("recipientEmail" in table.validator.fields).toBe(false);
+    expect("groupName" in table.validator.fields).toBe(false);
+    expect("groupId" in table.validator.fields).toBe(false);
+  });
 });
