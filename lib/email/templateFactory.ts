@@ -13,6 +13,10 @@ import { renderGroupOwnershipReceived } from "./templates/groupOwnershipReceived
 import { renderGroupOwnershipTransferred } from "./templates/groupOwnershipTransferredTemplate";
 import { renderGroupRoleChanged } from "./templates/groupRoleChangedTemplate";
 import { renderAccountDeletionCompleted } from "./templates/accountDeletionCompletedTemplate";
+import {
+  renderGroupDeletionFailed,
+  renderGroupDeletionStarted,
+} from "./templates/groupDeletionNoticeTemplate";
 
 export { validatePayloadForTemplate, getTemplateSubject } from "./templateDefinitions";
 
@@ -29,6 +33,10 @@ const renderers: Record<TransactionalEmailType, (payload: unknown) => Promise<Bu
     renderGroupOwnershipTransferred(
       payload as TransactionalEmailPayload["group_ownership_transferred"],
     ),
+  group_deletion_started: (payload) =>
+    renderGroupDeletionStarted(payload as TransactionalEmailPayload["group_deletion_started"]),
+  group_deletion_failed: (payload) =>
+    renderGroupDeletionFailed(payload as TransactionalEmailPayload["group_deletion_failed"]),
   group_deleted: (payload) =>
     renderGroupDeleted(payload as TransactionalEmailPayload["group_deleted"]),
   ai_review_required: (payload) =>

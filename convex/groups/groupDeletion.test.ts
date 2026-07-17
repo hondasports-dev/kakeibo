@@ -57,7 +57,7 @@ describe("group deletion start", () => {
       source: "owner",
       actorUserIdSnapshot: "issuer|owner",
       status: "requested",
-      stage: "receiptAnalysisImageJobs",
+      stage: "recipientSnapshot",
       isActive: true,
       attemptCount: 0,
     });
@@ -100,6 +100,134 @@ describe("group deletion start", () => {
 });
 
 describe("group deletion worker", () => {
+  it("owner削除は旧memberをbounded recipientへsnapshotしてからpurgeへ進む", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const { groupId, jobId } = await t.run(async (ctx) => {
+      const groupId = await ctx.db.insert("groups", {
+        name: "通知対象家計",
+        status: "active",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      for (const [index, userId] of ["issuer|owner", "issuer|member"].entries()) {
+        await ctx.db.insert("users", {
+          userId,
+          displayName: userId,
+          email: `${index}@example.test`,
+          activeGroupId: groupId,
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await ctx.db.insert("groupMembers", {
+          groupId,
+          userId,
+          role: index === 0 ? "owner" : "member",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      }
+      const jobId = await ctx.db.insert("groupDeletionJobs", {
+        targetGroupIdSnapshot: groupId,
+        targetGroupNameSnapshot: "通知対象家計",
+        source: "owner",
+        actorUserIdSnapshot: "issuer|owner",
+        status: "requested",
+        stage: "recipientSnapshot",
+        isActive: true,
+        attemptCount: 0,
+        maxAttempts: 6,
+        deletedCounts: zeroDeletedCounts(),
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      return { groupId, jobId };
+    });
+
+    await t.mutation(internal.groups.groupDeletion.processGroupDeletionBatch, { jobId });
+
+    const state = await t.run(async (ctx) => ({
+      job: await ctx.db.get(jobId),
+      recipients: await ctx.db
+        .query("groupDeletionNotificationRecipients")
+        .withIndex("by_job_id", (q) => q.eq("jobId", jobId))
+        .take(10),
+      members: await ctx.db
+        .query("groupMembers")
+        .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
+        .take(10),
+    }));
+    expect(state.job?.stage).toBe("startedEnqueue");
+    expect(state.recipients.map((recipient) => recipient.recipientUserId).sort()).toEqual([
+      "issuer|member",
+      "issuer|owner",
+    ]);
+    expect(state.members).toHaveLength(2);
+  });
+
+  it("開始・完了通知を旧memberごとに1回enqueueしてrecipientを片付けてから完了する", async () => {
+    vi.useFakeTimers();
+    try {
+      const t = convexTest(schema, convexTestModules);
+      const { groupId } = await t.run(async (ctx) => {
+        const groupId = await ctx.db.insert("groups", {
+          name: "通知完了家計",
+          status: "active",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        for (const [index, userId] of ["issuer|owner", "issuer|member"].entries()) {
+          await ctx.db.insert("users", {
+            userId,
+            displayName: userId,
+            email: `${index}@example.test`,
+            activeGroupId: groupId,
+            createdAt: 1,
+            updatedAt: 1,
+          });
+          await ctx.db.insert("groupMembers", {
+            groupId,
+            userId,
+            role: index === 0 ? "owner" : "member",
+            createdAt: 1,
+            updatedAt: 1,
+          });
+        }
+        return { groupId };
+      });
+      const jobId = await t.mutation(internal.groups.groupDeletion.startGroupDeletion, {
+        groupId,
+        source: "owner",
+        actorUserIdSnapshot: "issuer|owner",
+      });
+
+      for (let batch = 0; batch < 100; batch += 1) {
+        await t.mutation(internal.groups.groupDeletion.processGroupDeletionBatch, { jobId });
+        const status = await t.run(async (ctx) => (await ctx.db.get(jobId))?.status);
+        if (status === "completed") break;
+      }
+
+      const state = await t.run(async (ctx) => ({
+        job: await ctx.db.get(jobId),
+        recipients: await ctx.db
+          .query("groupDeletionNotificationRecipients")
+          .withIndex("by_job_id", (q) => q.eq("jobId", jobId))
+          .take(10),
+        emails: await ctx.db.query("transactionalEmailJobs").take(20),
+      }));
+      expect(state.job?.status).toBe("completed");
+      expect(state.recipients).toHaveLength(0);
+      expect(
+        state.emails.filter((email) => email.templateType === "group_deletion_started"),
+      ).toHaveLength(2);
+      expect(state.emails.filter((email) => email.templateType === "group_deleted")).toHaveLength(
+        2,
+      );
+      expect(new Set(state.emails.map((email) => email.businessDedupeKey)).size).toBe(4);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("複数batchで関連データとgroupを削除し完了状態を記録する", async () => {
     vi.useFakeTimers();
     try {

@@ -137,6 +137,8 @@ export default defineSchema({
     maxAttempts: v.number(),
     nextRetryAt: v.optional(v.number()),
     lastErrorCategory: v.optional(v.string()),
+    snapshotCursor: v.optional(v.string()),
+    failureNotificationHandledAt: v.optional(v.number()),
     deletedCounts: groupDeletionCountsValidator,
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -145,6 +147,19 @@ export default defineSchema({
     .index("by_target_group_id_snapshot_and_is_active", ["targetGroupIdSnapshot", "isActive"])
     .index("by_status_and_updated_at", ["status", "updatedAt"])
     .index("by_source_and_updated_at", ["source", "updatedAt"]),
+
+  groupDeletionNotificationRecipients: defineTable({
+    jobId: v.id("groupDeletionJobs"),
+    recipientUserId: v.string(),
+    startedHandledAt: v.optional(v.number()),
+    completedHandledAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_job_id", ["jobId"])
+    .index("by_job_id_and_recipient_user_id", ["jobId", "recipientUserId"])
+    .index("by_job_id_and_started_handled_at", ["jobId", "startedHandledAt"])
+    .index("by_job_id_and_completed_handled_at", ["jobId", "completedHandledAt"]),
 
   // ---------------------------------------------------------------------------
   // データテーブル（userId → groupId に変更済み）

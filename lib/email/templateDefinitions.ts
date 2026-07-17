@@ -18,6 +18,8 @@ export const GROUP_ROLE_CHANGED_TYPE: TransactionalEmailType = "group_role_chang
 export const GROUP_OWNERSHIP_RECEIVED_TYPE: TransactionalEmailType = "group_ownership_received";
 export const GROUP_OWNERSHIP_TRANSFERRED_TYPE: TransactionalEmailType =
   "group_ownership_transferred";
+export const GROUP_DELETION_STARTED_TYPE: TransactionalEmailType = "group_deletion_started";
+export const GROUP_DELETION_FAILED_TYPE: TransactionalEmailType = "group_deletion_failed";
 export const GROUP_DELETED_TYPE: TransactionalEmailType = "group_deleted";
 export const AI_REVIEW_REQUIRED_TYPE: TransactionalEmailType = "ai_review_required";
 export const ACCOUNT_DELETION_COMPLETED_TYPE: TransactionalEmailType = "account_deletion_completed";
@@ -29,6 +31,8 @@ export const groupOwnershipReceivedSubject = "「{groupName}」のオーナー�
 export const groupOwnershipTransferredSubject =
   "「{groupName}」のオーナー権限を譲渡しました | Suzumemo";
 export const groupDeletedSubject = "「{groupName}」が削除されました | Suzumemo";
+export const groupDeletionStartedSubject = "「{groupName}」の削除を開始しました | Suzumemo";
+export const groupDeletionFailedSubject = "「{groupName}」の削除を完了できませんでした | Suzumemo";
 export const aiReviewRequiredSubject = "確認が必要なレシートが{pendingCount}件あります | Suzumemo";
 export const accountDeletionCompletedSubject = "Suzumemoの退会が完了しました";
 
@@ -74,6 +78,9 @@ export const groupOwnershipTransferredPayloadSchema = v.object({
 export const groupDeletedPayloadSchema = v.object({
   groupName: v.pipe(v.string(), v.trim(), v.minLength(1, "groupName is required")),
 });
+
+export const groupDeletionStartedPayloadSchema = groupDeletedPayloadSchema;
+export const groupDeletionFailedPayloadSchema = groupDeletedPayloadSchema;
 
 export const aiReviewRequiredPayloadSchema = v.object({
   pendingCount: v.pipe(v.number(), v.integer(), v.minValue(1, "pendingCount must be at least 1")),
@@ -131,6 +138,24 @@ export const templateDefinitions: TemplateMetadata[] = [
     >,
   },
   {
+    type: GROUP_DELETION_STARTED_TYPE,
+    subject: groupDeletionStartedSubject,
+    schema: groupDeletionStartedPayloadSchema as unknown as v.BaseSchema<
+      unknown,
+      TransactionalEmailPayload[typeof GROUP_DELETION_STARTED_TYPE],
+      v.BaseIssue<unknown>
+    >,
+  },
+  {
+    type: GROUP_DELETION_FAILED_TYPE,
+    subject: groupDeletionFailedSubject,
+    schema: groupDeletionFailedPayloadSchema as unknown as v.BaseSchema<
+      unknown,
+      TransactionalEmailPayload[typeof GROUP_DELETION_FAILED_TYPE],
+      v.BaseIssue<unknown>
+    >,
+  },
+  {
     type: GROUP_DELETED_TYPE,
     subject: groupDeletedSubject,
     schema: groupDeletedPayloadSchema as unknown as v.BaseSchema<
@@ -168,6 +193,8 @@ export const subjectRenderers: Record<
   [GROUP_ROLE_CHANGED_TYPE]: makeSubjectTemplate(groupRoleChangedSubject),
   [GROUP_OWNERSHIP_RECEIVED_TYPE]: makeSubjectTemplate(groupOwnershipReceivedSubject),
   [GROUP_OWNERSHIP_TRANSFERRED_TYPE]: makeSubjectTemplate(groupOwnershipTransferredSubject),
+  [GROUP_DELETION_STARTED_TYPE]: makeSubjectTemplate(groupDeletionStartedSubject),
+  [GROUP_DELETION_FAILED_TYPE]: makeSubjectTemplate(groupDeletionFailedSubject),
   [GROUP_DELETED_TYPE]: makeSubjectTemplate(groupDeletedSubject),
   [AI_REVIEW_REQUIRED_TYPE]: makeSubjectTemplate(aiReviewRequiredSubject),
   [ACCOUNT_DELETION_COMPLETED_TYPE]: makeSubjectTemplate(accountDeletionCompletedSubject),
