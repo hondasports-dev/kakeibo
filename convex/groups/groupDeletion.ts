@@ -46,6 +46,61 @@ async function scheduleBatch(ctx: MutationCtx, jobId: Id<"groupDeletionJobs">, d
   });
 }
 
+export async function startGroupDeletionHandler(
+  ctx: MutationCtx,
+  args: {
+    groupId: Id<"groups">;
+    source: "owner" | "account_deletion" | "e2e_cleanup";
+    actorUserIdSnapshot?: string;
+  },
+) {
+  const targetGroupIdSnapshot = args.groupId.toString();
+  const activeJobs = await ctx.db
+    .query("groupDeletionJobs")
+    .withIndex("by_target_group_id_snapshot_and_is_active", (q) =>
+      q.eq("targetGroupIdSnapshot", targetGroupIdSnapshot).eq("isActive", true),
+    )
+    .take(1);
+
+  if (activeJobs.length > 0) {
+    throw new ConvexError("このグループの削除処理はすでに開始されています");
+  }
+
+  const group = await ctx.db.get(args.groupId);
+  if (group === null) {
+    throw new ConvexError("削除対象のグループが見つかりません");
+  }
+  if (group.status === "deleting" || group.status === "deleted") {
+    throw new ConvexError("このグループの削除処理はすでに開始されています");
+  }
+  if (group.status === "archived") {
+    throw new ConvexError("アーカイブ済みグループは削除できません");
+  }
+
+  const now = Date.now();
+  const jobId = await ctx.db.insert("groupDeletionJobs", {
+    targetGroupIdSnapshot,
+    targetGroupNameSnapshot: group.name,
+    source: args.source,
+    actorUserIdSnapshot: args.actorUserIdSnapshot,
+    status: "requested",
+    stage: GROUP_DELETION_PURGE_TABLES[0],
+    isActive: true,
+    attemptCount: 0,
+    maxAttempts: MAX_ATTEMPTS,
+    deletedCounts: emptyDeletedCounts(),
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  await ctx.db.patch(args.groupId, {
+    status: "deleting",
+    updatedAt: now,
+  });
+  await scheduleBatch(ctx, jobId);
+  return jobId;
+}
+
 type SimplePurgeTable = Exclude<
   (typeof GROUP_DELETION_PURGE_TABLES)[number],
   "sourceDocuments" | "groupMembers"
@@ -345,56 +400,7 @@ export const startGroupDeletion = internalMutation({
     actorUserIdSnapshot: v.optional(v.string()),
   },
   returns: v.id("groupDeletionJobs"),
-  handler: async (ctx, args) => {
-    const targetGroupIdSnapshot = args.groupId.toString();
-    const activeJobs = await ctx.db
-      .query("groupDeletionJobs")
-      .withIndex("by_target_group_id_snapshot_and_is_active", (q) =>
-        q.eq("targetGroupIdSnapshot", targetGroupIdSnapshot).eq("isActive", true),
-      )
-      .take(1);
-
-    if (activeJobs.length > 0) {
-      throw new ConvexError("このグループの削除処理はすでに開始されています");
-    }
-
-    const group = await ctx.db.get(args.groupId);
-    if (group === null) {
-      throw new ConvexError("削除対象のグループが見つかりません");
-    }
-    if (group.status === "deleting" || group.status === "deleted") {
-      throw new ConvexError("このグループの削除処理はすでに開始されています");
-    }
-    if (group.status === "archived") {
-      throw new ConvexError("アーカイブ済みグループは削除できません");
-    }
-
-    const now = Date.now();
-    const jobId = await ctx.db.insert("groupDeletionJobs", {
-      targetGroupIdSnapshot,
-      targetGroupNameSnapshot: group.name,
-      source: args.source,
-      actorUserIdSnapshot: args.actorUserIdSnapshot,
-      status: "requested",
-      stage: GROUP_DELETION_PURGE_TABLES[0],
-      isActive: true,
-      attemptCount: 0,
-      maxAttempts: MAX_ATTEMPTS,
-      deletedCounts: emptyDeletedCounts(),
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await ctx.db.patch(args.groupId, {
-      status: "deleting",
-      updatedAt: now,
-    });
-    await ctx.scheduler.runAfter(0, internal.groups.groupDeletion.processGroupDeletionBatch, {
-      jobId,
-    });
-
-    return jobId;
-  },
+  handler: startGroupDeletionHandler,
 });
 
 export const getGroupDeletionStatus = internalQuery({

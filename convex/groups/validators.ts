@@ -16,18 +16,23 @@ export const groupPendingInvitationListItemValidator = v.object({
   createdAt: v.number(),
 });
 
+export const groupDeletionPreviewCountValidator = v.object({
+  count: v.number(),
+  accuracy: v.union(v.literal("exact"), v.literal("at_least"), v.literal("unknown")),
+});
+
 export const groupDeletionPreviewValidator = v.object({
   groupName: v.string(),
-  members: v.number(),
-  invitations: v.number(),
-  sourceDocuments: v.number(),
-  expenseEntries: v.number(),
-  receipts: v.number(),
-  receiptImages: v.number(),
-  categories: v.number(),
-  aiDrafts: v.number(),
-  aiDraftItems: v.number(),
-  analysisBatches: v.number(),
-  analysisJobs: v.number(),
-  weekSessions: v.number(),
+  members: groupDeletionPreviewCountValidator,
+  invitations: groupDeletionPreviewCountValidator,
+  sourceDocuments: groupDeletionPreviewCountValidator,
+  expenseEntries: groupDeletionPreviewCountValidator,
+  receipts: groupDeletionPreviewCountValidator,
+  receiptImages: groupDeletionPreviewCountValidator,
+  categories: groupDeletionPreviewCountValidator,
+  aiDrafts: groupDeletionPreviewCountValidator,
+  aiDraftItems: groupDeletionPreviewCountValidator,
+  analysisBatches: groupDeletionPreviewCountValidator,
+  analysisJobs: groupDeletionPreviewCountValidator,
+  weekSessions: groupDeletionPreviewCountValidator,
 });
