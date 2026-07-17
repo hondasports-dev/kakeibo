@@ -1,11 +1,38 @@
-import { useState } from "react";
+import { Component, type ReactNode, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useMutation, useQuery } from "convex/react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
-export function GroupDeletionStatusPage() {
+class StatusErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <Box className="app-main">
+        <Paper className="settings-ledger" elevation={0}>
+          <Stack spacing={2.5}>
+            <Typography component="h1" variant="h5">
+              グループ削除状況を読み込めませんでした
+            </Typography>
+            <Alert severity="error">通信状態を確認して、もう一度お試しください。</Alert>
+            <Button onClick={() => window.location.reload()} variant="outlined">
+              再読み込み
+            </Button>
+          </Stack>
+        </Paper>
+      </Box>
+    );
+  }
+}
+
+function GroupDeletionStatusContent() {
   const { jobId: jobIdParam } = useParams();
   const jobId = jobIdParam as Id<"groupDeletionJobs"> | undefined;
   const status = useQuery(api.groups.deletion.getGroupDeletionStatus, jobId ? { jobId } : "skip");
@@ -106,5 +133,13 @@ export function GroupDeletionStatusPage() {
         </Stack>
       </Paper>
     </Box>
+  );
+}
+
+export function GroupDeletionStatusPage() {
+  return (
+    <StatusErrorBoundary>
+      <GroupDeletionStatusContent />
+    </StatusErrorBoundary>
   );
 }
