@@ -51,109 +51,113 @@ type SimplePurgeTable = Exclude<
   "sourceDocuments" | "groupMembers"
 >;
 
+type StageProgress = { deleted: number; storageFiles: number };
+
 async function deleteSimpleDocuments<TableName extends SimplePurgeTable>(
   ctx: MutationCtx,
   documents: Array<{ _id: Id<TableName> }>,
-): Promise<number> {
+  progress: StageProgress,
+): Promise<void> {
   for (const document of documents) {
     await ctx.db.delete(document._id);
+    progress.deleted += 1;
   }
-  return documents.length;
 }
 
 async function deleteStageBatch(
   ctx: MutationCtx,
   groupId: Id<"groups">,
   stage: Exclude<GroupDeletionStage, "finalSweep">,
-): Promise<{ deleted: number; storageFiles: number }> {
+  progress: StageProgress,
+): Promise<void> {
   switch (stage) {
     case "receiptAnalysisImageJobs": {
       const documents = await ctx.db
         .query("receiptAnalysisImageJobs")
         .withIndex("by_group_id_and_status", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "aiExpenseDraftItems": {
       const documents = await ctx.db
         .query("aiExpenseDraftItems")
         .withIndex("by_group_id_and_draft_id", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "aiExpenseDrafts": {
       const documents = await ctx.db
         .query("aiExpenseDrafts")
         .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "receiptAnalysisBatches": {
       const documents = await ctx.db
         .query("receiptAnalysisBatches")
         .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "expenseEntries": {
       const documents = await ctx.db
         .query("expenseEntries")
         .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "receipts": {
       const documents = await ctx.db
         .query("receipts")
         .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "sourceDocuments": {
       const documents = await ctx.db
         .query("sourceDocuments")
         .withIndex("by_group_id_and_date", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      let storageFiles = 0;
       for (const document of documents) {
         if (document.imageStorageId !== undefined) {
           const metadata = await ctx.db.system.get("_storage", document.imageStorageId);
           if (metadata !== null) {
             await ctx.storage.delete(document.imageStorageId);
-            storageFiles += 1;
+            progress.storageFiles += 1;
           }
         }
         await ctx.db.delete(document._id);
+        progress.deleted += 1;
       }
-      return { deleted: documents.length, storageFiles };
+      return;
     }
     case "weekSessions": {
       const documents = await ctx.db
         .query("weekSessions")
         .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "categories": {
       const documents = await ctx.db
         .query("categories")
         .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "groupInvitations": {
       const documents = await ctx.db
         .query("groupInvitations")
         .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "managementAuditLogs": {
       const documents = await ctx.db
         .query("managementAuditLogs")
         .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", groupId))
         .take(BATCH_SIZE);
-      return { deleted: await deleteSimpleDocuments(ctx, documents), storageFiles: 0 };
+      return await deleteSimpleDocuments(ctx, documents, progress);
     }
     case "groupMembers": {
       const documents = await ctx.db
@@ -169,8 +173,9 @@ async function deleteStageBatch(
           await ctx.db.patch(user._id, { activeGroupId: undefined, updatedAt: Date.now() });
         }
         await ctx.db.delete(member._id);
+        progress.deleted += 1;
       }
-      return { deleted: documents.length, storageFiles: 0 };
+      return;
     }
   }
 }
@@ -488,7 +493,14 @@ export const processGroupDeletionBatch = internalMutation({
     if (job === null || job.status === "completed" || job.status === "failed") {
       return null;
     }
+    const now = Date.now();
+    if (job.status === "retry_wait" && job.nextRetryAt !== undefined && job.nextRetryAt > now) {
+      await scheduleBatch(ctx, job._id, job.nextRetryAt - now);
+      return null;
+    }
 
+    const progress: StageProgress = { deleted: 0, storageFiles: 0 };
+    let groupDeleted = false;
     try {
       const groupId = ctx.db.normalizeId("groups", job.targetGroupIdSnapshot);
       if (groupId === null) {
@@ -526,6 +538,7 @@ export const processGroupDeletionBatch = internalMutation({
         if (group !== null) {
           await ctx.db.delete(groupId);
           deletedCounts.groups += 1;
+          groupDeleted = true;
         }
         const now = Date.now();
         await ctx.db.patch(job._id, {
@@ -539,13 +552,13 @@ export const processGroupDeletionBatch = internalMutation({
         return null;
       }
 
-      const result = await deleteStageBatch(ctx, groupId, job.stage);
+      await deleteStageBatch(ctx, groupId, job.stage, progress);
       const deletedCounts = {
         ...job.deletedCounts,
-        [job.stage]: job.deletedCounts[job.stage] + result.deleted,
-        storageFiles: job.deletedCounts.storageFiles + result.storageFiles,
+        [job.stage]: job.deletedCounts[job.stage] + progress.deleted,
+        storageFiles: job.deletedCounts.storageFiles + progress.storageFiles,
       };
-      const stage = result.deleted === 0 ? nextStage(job.stage) : job.stage;
+      const stage = progress.deleted === 0 ? nextStage(job.stage) : job.stage;
       await ctx.db.patch(job._id, {
         stage,
         deletedCounts,
@@ -553,7 +566,26 @@ export const processGroupDeletionBatch = internalMutation({
       });
       await scheduleBatch(ctx, job._id);
     } catch {
-      await recordRetry(ctx, job);
+      if (job.stage !== "finalSweep" && (progress.deleted > 0 || progress.storageFiles > 0)) {
+        await ctx.db.patch(job._id, {
+          deletedCounts: {
+            ...job.deletedCounts,
+            [job.stage]: job.deletedCounts[job.stage] + progress.deleted,
+            storageFiles: job.deletedCounts.storageFiles + progress.storageFiles,
+          },
+          updatedAt: Date.now(),
+        });
+      } else if (groupDeleted) {
+        await ctx.db.patch(job._id, {
+          deletedCounts: {
+            ...job.deletedCounts,
+            groups: job.deletedCounts.groups + 1,
+          },
+          updatedAt: Date.now(),
+        });
+      }
+      const latestJob = (await ctx.db.get(job._id)) ?? job;
+      await recordRetry(ctx, latestJob);
     }
 
     return null;

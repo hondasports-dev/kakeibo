@@ -287,6 +287,80 @@ describe("group deletion worker", () => {
 });
 
 describe("group deletion operations", () => {
+  it("archived groupの削除jobは開始しない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const groupId = await t.run(async (ctx) =>
+      ctx.db.insert("groups", {
+        name: "アーカイブ済み家計",
+        status: "archived",
+        archivedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    );
+
+    await expect(
+      t.mutation(internal.groups.groupDeletion.startGroupDeletion, {
+        groupId,
+        source: "owner",
+      }),
+    ).rejects.toThrow("アーカイブ済みグループは削除できません");
+    const state = await t.run(async (ctx) => ({
+      jobs: await ctx.db.query("groupDeletionJobs").collect(),
+      scheduled: await ctx.db.system.query("_scheduled_functions").take(10),
+    }));
+    expect(state.jobs).toHaveLength(0);
+    expect(state.scheduled).toHaveLength(0);
+  });
+
+  it("retry_waitの期限前実行は削除せず残り時間で再予約する", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    try {
+      const t = convexTest(schema, convexTestModules);
+      const { groupId, jobId } = await t.run(async (ctx) => {
+        const groupId = await ctx.db.insert("groups", {
+          name: "待機中家計",
+          status: "deleting",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        const jobId = await ctx.db.insert("groupDeletionJobs", {
+          targetGroupIdSnapshot: groupId,
+          targetGroupNameSnapshot: "待機中家計",
+          source: "owner",
+          status: "retry_wait",
+          stage: "categories",
+          isActive: true,
+          attemptCount: 1,
+          maxAttempts: 6,
+          nextRetryAt: 61_000,
+          lastErrorCategory: "batch_processing_failed",
+          deletedCounts: zeroDeletedCounts(),
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        return { groupId, jobId };
+      });
+
+      await t.mutation(internal.groups.groupDeletion.processGroupDeletionBatch, { jobId });
+      const state = await t.run(async (ctx) => ({
+        group: await ctx.db.get(groupId),
+        job: await ctx.db.get(jobId),
+        scheduled: await ctx.db.system.query("_scheduled_functions").take(10),
+      }));
+      expect(state.group).not.toBeNull();
+      expect(state.job).toMatchObject({
+        status: "retry_wait",
+        stage: "categories",
+        nextRetryAt: 61_000,
+      });
+      expect(state.scheduled).toHaveLength(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("内部status queryで進捗snapshotを取得できる", async () => {
     const t = convexTest(schema, convexTestModules);
     const groupId = await t.run(async (ctx) =>
