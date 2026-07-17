@@ -59,9 +59,6 @@ export async function requestGroupDeletionHandler(
   return jobId;
 }
 
-/** @deprecated owner UIはrequestGroupDeletionを使用する。旧handler testの移行期間だけ残す。 */
-export const deleteGroupHandler = requestGroupDeletionHandler;
-
 export const getGroupDeletionPreview = query({
   args: {},
   returns: groupDeletionPreviewValidator,

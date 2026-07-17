@@ -121,7 +121,7 @@ export function GroupDangerZoneContent() {
       const jobId = await requestGroupDeletion({ confirmationGroupName: deleteConfirmationName });
       setPendingDeleteGroup(false);
       setDeleteConfirmationName("");
-      navigate(`/group/delete/status/${jobId}`);
+      navigate(`/group/delete/status/${jobId}`, { flushSync: true, replace: true });
     } catch (caughtError) {
       setError(getConvexErrorMessage(caughtError, "グループを削除できませんでした。"));
     } finally {
