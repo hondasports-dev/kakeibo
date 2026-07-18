@@ -24,6 +24,7 @@ const systemAdminAuditActionValidator = v.union(
   v.literal("system_admin_active_group_set"),
   v.literal("system_admin_active_group_cleared"),
   v.literal("system_admin_group_deletion_resumed"),
+  v.literal("system_admin_ownerless_group_recovered"),
 );
 const systemAdminContextValidator = v.union(
   v.object({ status: v.literal("active"), environment: v.string(), userId: v.id("users") }),
@@ -69,6 +70,8 @@ const systemAdminAuditItemValidator = v.object({
   ),
   beforeActiveGroupId: v.optional(v.id("groups")),
   afterActiveGroupId: v.optional(v.id("groups")),
+  beforeOwnerCount: v.optional(v.number()),
+  afterOwnerCount: v.optional(v.number()),
   createdAt: v.number(),
 });
 
@@ -383,6 +386,8 @@ export const listSystemAdminAuditLogs = query({
         afterMembershipStatus: log.afterMembershipStatus,
         beforeActiveGroupId: log.beforeActiveGroupId,
         afterActiveGroupId: log.afterActiveGroupId,
+        beforeOwnerCount: log.beforeOwnerCount,
+        afterOwnerCount: log.afterOwnerCount,
         createdAt: log.createdAt,
       })),
     };
