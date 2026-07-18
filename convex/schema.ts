@@ -127,6 +127,57 @@ export default defineSchema({
     .index("by_group_id_and_created_at", ["groupId", "createdAt"])
     .index("by_action_and_created_at", ["action", "createdAt"]),
 
+  systemAdmins: defineTable({
+    userId: v.id("users"),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    grantedAt: v.number(),
+    grantedByUserId: v.optional(v.id("users")),
+    grantReason: v.string(),
+    revokedAt: v.optional(v.number()),
+    revokedByUserId: v.optional(v.id("users")),
+    revokeReason: v.optional(v.string()),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_status", ["status"]),
+
+  systemAdminAuditLogs: defineTable({
+    action: v.union(
+      v.literal("system_admin_bootstrapped"),
+      v.literal("system_admin_granted"),
+      v.literal("system_admin_revoked"),
+      v.literal("system_admin_recovered"),
+    ),
+    actorType: v.union(v.literal("system"), v.literal("system_admin")),
+    actorUserId: v.optional(v.id("users")),
+    targetKind: v.literal("system_admin"),
+    targetUserId: v.id("users"),
+    targetDisplayNameSnapshot: v.string(),
+    reason: v.string(),
+    previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
+    newStatus: v.union(v.literal("active"), v.literal("revoked")),
+    createdAt: v.number(),
+  })
+    .index("by_created_at", ["createdAt"])
+    .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"]),
+
+  systemAdminNotifications: defineTable({
+    action: v.union(
+      v.literal("system_admin_granted"),
+      v.literal("system_admin_revoked"),
+      v.literal("system_admin_recovered"),
+      v.literal("system_admin_bootstrapped"),
+    ),
+    recipientUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    dedupeKey: v.string(),
+    payloadJson: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_dedupe_key", ["dedupeKey"])
+    .index("by_recipient_and_created_at", ["recipientUserId", "createdAt"]),
+
   groupDeletionAuditMigrationRecords: defineTable({
     recordKind: v.literal("legacy_audit"),
     legacyAuditId: v.string(),
