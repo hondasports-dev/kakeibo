@@ -409,6 +409,8 @@ export default defineSchema({
     recipientEmailSnapshot: v.optional(v.string()),
     status: v.union(
       v.literal("requested"),
+      v.literal("preparing_groups"),
+      v.literal("purging_groups"),
       v.literal("deleting_identity"),
       v.literal("retry_wait"),
       v.literal("identity_deleted"),
@@ -427,8 +429,31 @@ export default defineSchema({
     updatedAt: v.number(),
     identityDeletedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    preparationCursor: v.optional(v.string()),
+    preparationCompletedAt: v.optional(v.number()),
   })
     .index("by_user_id", ["userId"])
     .index("by_status_and_updated_at", ["status", "updatedAt"])
     .index("by_next_retry_at", ["nextRetryAt"]),
+
+  accountDeletionGroupPurges: defineTable({
+    requestId: v.id("accountDeletionRequests"),
+    groupDeletionJobId: v.id("groupDeletionJobs"),
+    targetGroupIdSnapshot: v.string(),
+    targetGroupNameSnapshot: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("running"),
+      v.literal("failed"),
+      v.literal("completed"),
+    ),
+    lastErrorCode: v.optional(v.string()),
+    lastErrorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_request_id", ["requestId"])
+    .index("by_request_id_and_status", ["requestId", "status"])
+    .index("by_group_deletion_job_id", ["groupDeletionJobId"]),
 });

@@ -40,6 +40,13 @@ export const processAccountDeletion = internalAction({
       }
       return;
     }
+    if (request.status === "preparing_groups" || request.status === "purging_groups") {
+      const purgeState = await ctx.runMutation(
+        internal.accountDeletion.advanceAccountDeletionPurge,
+        args,
+      );
+      if (purgeState !== "ready") return;
+    }
     await ctx.runMutation(internal.accountDeletion.markDeletingIdentity, args);
     try {
       if (process.env.APP_ENV === "production") {
