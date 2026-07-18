@@ -96,7 +96,23 @@ function normalizeTimestamp(timestamp: string): string {
   return new Date(timestamp).toISOString().replace(/\.\d{3}Z$/, "Z");
 }
 
-async function fetchSourceMergeTime(sourceSha: string, token: string): Promise<string | undefined> {
+type SourcePullRequest = {
+  mergedAt: string;
+  searchBase: string;
+};
+
+function resolveSearchBase(headRef: string, fallbackBase: string): string {
+  if (headRef === "preview" || headRef.startsWith("release/")) {
+    return headRef;
+  }
+  return fallbackBase;
+}
+
+async function fetchSourcePullRequest(
+  sourceSha: string,
+  fallbackBase: string,
+  token: string,
+): Promise<SourcePullRequest | undefined> {
   const { owner, repo } = parseRepoSlug();
 
   const pullsResponse = await fetch(
@@ -112,13 +128,20 @@ async function fetchSourceMergeTime(sourceSha: string, token: string): Promise<s
   );
 
   if (pullsResponse.ok) {
-    const pulls = (await pullsResponse.json()) as Array<{ merged_at: string | null }>;
-    const mergedAts = pulls
-      .map((p) => p.merged_at)
-      .filter((t): t is string => t !== null)
-      .sort((a, b) => b.localeCompare(a));
-    if (mergedAts.length > 0) {
-      return normalizeTimestamp(mergedAts[0]);
+    const pulls = (await pullsResponse.json()) as Array<{
+      merged_at: string | null;
+      base: { ref: string };
+      head: { ref: string };
+    }>;
+    const mergedPulls = pulls
+      .filter((p): p is typeof p & { merged_at: string } => p.merged_at !== null)
+      .sort((a, b) => b.merged_at.localeCompare(a.merged_at));
+    if (mergedPulls.length > 0) {
+      const latest = mergedPulls[0];
+      return {
+        mergedAt: normalizeTimestamp(latest.merged_at),
+        searchBase: resolveSearchBase(latest.head.ref, fallbackBase),
+      };
     }
   }
 
@@ -127,7 +150,10 @@ async function fetchSourceMergeTime(sourceSha: string, token: string): Promise<s
       `https://api.github.com/repos/${owner}/${repo}/commits/${sourceSha}`,
       token,
     );
-    return normalizeTimestamp(commit.commit.committer.date);
+    return {
+      mergedAt: normalizeTimestamp(commit.commit.committer.date),
+      searchBase: fallbackBase,
+    };
   } catch {
     return undefined;
   }
@@ -141,13 +167,30 @@ type GitHubRelease = {
   assets: Array<{ id: number; name: string }>;
 };
 
+async function fetchCommitTime(commitSha: string, token: string): Promise<string | undefined> {
+  const { owner, repo } = parseRepoSlug();
+  try {
+    const commit = await fetchJson<{ commit: { committer: { date: string } } }>(
+      `https://api.github.com/repos/${owner}/${repo}/commits/${commitSha}`,
+      token,
+    );
+    return normalizeTimestamp(commit.commit.committer.date);
+  } catch {
+    return undefined;
+  }
+}
+
 async function loadPastUpdates({
   appVersion,
   token,
 }: {
   appVersion: string;
   token: string;
-}): Promise<{ pastUpdates: ProductUpdate[]; latestRelease?: GitHubRelease }> {
+}): Promise<{
+  pastUpdates: ProductUpdate[];
+  latestRelease?: GitHubRelease;
+  latestReleaseSourceAt?: string;
+}> {
   const { owner, repo } = parseRepoSlug();
   const releases = await fetchJson<GitHubRelease[]>(
     `https://api.github.com/repos/${owner}/${repo}/releases?per_page=100`,
@@ -214,7 +257,11 @@ async function loadPastUpdates({
     }
   }
 
-  return { pastUpdates, latestRelease };
+  const latestReleaseSourceAt = latestRelease
+    ? await fetchCommitTime(`tags/${latestRelease.tag_name}`, token)
+    : undefined;
+
+  return { pastUpdates, latestRelease, latestReleaseSourceAt };
 }
 
 function writeJsonFile(path: string, data: unknown): void {
@@ -235,17 +282,24 @@ async function main(): Promise<void> {
     throw new ProductUpdateValidationError(`Invalid PUBLISHED_AT: ${publishedAt}`);
   }
 
-  const { pastUpdates, latestRelease } = await loadPastUpdates({ appVersion, token });
+  const { pastUpdates, latestRelease, latestReleaseSourceAt } = await loadPastUpdates({
+    appVersion,
+    token,
+  });
   const { owner, repo } = parseRepoSlug();
 
   const sourceSha = resolveSourceRef();
-  const before = sourceSha ? await fetchSourceMergeTime(sourceSha, token) : undefined;
+  const sourcePullRequest = sourceSha
+    ? await fetchSourcePullRequest(sourceSha, base, token)
+    : undefined;
+  const searchBase = sourcePullRequest?.searchBase ?? base;
+  const before = sourcePullRequest?.mergedAt;
 
   const pulls = await fetchMergedPullRequests({
     owner,
     repo,
-    base,
-    since: latestRelease?.published_at,
+    base: searchBase,
+    since: latestReleaseSourceAt ?? latestRelease?.published_at,
     before,
     token,
   });
