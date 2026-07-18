@@ -23,18 +23,24 @@ const activeStatuses = [
 const retryDelaysMs = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 6 * 60 * 60_000] as const;
 const GROUP_MEMBERSHIP_INVARIANT = "Group membership invariant violation";
 const GROUP_BATCH_SIZE = 25;
-const PREVIEW_LIMIT = 101;
 
-async function takeBounded<T>(query: { take?: (count: number) => Promise<T[]> }) {
+type BoundedQuery<T> = { take?: (count: number) => Promise<T[]> };
+
+async function takeBounded<T>(query: BoundedQuery<T>, limit = GROUP_BATCH_SIZE) {
   if (typeof query.take !== "function") throw new Error("bounded query is unavailable");
-  return await query.take(PREVIEW_LIMIT);
+  return await query.take(limit);
+}
+
+async function readClassificationRows<T>(query: BoundedQuery<T>) {
+  // 分類は削除開始前の読み取り専用スナップショット。100件超を拒否せず、
+  // 1トランザクションの上限内で bounded read として扱う。
+  return await takeBounded(query, 10_000);
 }
 
 async function loadGroupMembershipStats(ctx: Pick<QueryCtx, "db">, groupId: Id<"groups">) {
-  const members = await takeBounded(
+  const members = await readClassificationRows(
     ctx.db.query("groupMembers").withIndex("by_group_id", (q) => q.eq("groupId", groupId)),
   );
-  if (members.length >= PREVIEW_LIMIT) throw new ConvexError(GROUP_MEMBERSHIP_INVARIANT);
   return {
     memberCount: members.length,
     ownerCount: members.filter((row) => row.role === "owner").length,
@@ -42,10 +48,9 @@ async function loadGroupMembershipStats(ctx: Pick<QueryCtx, "db">, groupId: Id<"
 }
 
 export async function loadAccountDeletionClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
-  const memberships = await takeBounded(
+  const memberships = await readClassificationRows(
     ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", userId)),
   );
-  if (memberships.length >= PREVIEW_LIMIT) throw new ConvexError(GROUP_MEMBERSHIP_INVARIANT);
   const values = [];
   const orphanMemberships = [];
   for (const membership of memberships) {
@@ -218,10 +223,26 @@ export const retryAccountDeletion = mutation({
       lastErrorMessage: undefined,
       updatedAt: Date.now(),
     });
+    await ctx.scheduler.runAfter(
+      0,
+      request.identityDeletedAt
+        ? internal.accountDeletionActions.processAccountDeletion
+        : request.preparationCompletedAt
+          ? internal.accountDeletion.resetFailedAccountDeletionPurges
+          : internal.accountDeletion.prepareAccountDeletionBatch,
+      { requestId: request._id },
+    );
+    return null;
+  },
+});
+
+export const resetFailedAccountDeletionPurges = internalMutation({
+  args: { requestId: v.id("accountDeletionRequests") },
+  handler: async (ctx, args) => {
     const failedPurges = await ctx.db
       .query("accountDeletionGroupPurges")
       .withIndex("by_request_id_and_status", (q) =>
-        q.eq("requestId", request._id).eq("status", "failed"),
+        q.eq("requestId", args.requestId).eq("status", "failed"),
       )
       .take(GROUP_BATCH_SIZE);
     for (const purge of failedPurges) {
@@ -235,14 +256,21 @@ export const retryAccountDeletion = mutation({
         jobId: purge.groupDeletionJobId,
       });
     }
-    await ctx.scheduler.runAfter(
-      0,
-      request.identityDeletedAt || request.preparationCompletedAt
-        ? internal.accountDeletionActions.processAccountDeletion
-        : internal.accountDeletion.prepareAccountDeletionBatch,
-      { requestId: request._id },
-    );
-    return null;
+    const remaining = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", args.requestId).eq("status", "failed"),
+      )
+      .take(1);
+    if (remaining.length > 0) {
+      await ctx.scheduler.runAfter(
+        0,
+        internal.accountDeletion.resetFailedAccountDeletionPurges,
+        args,
+      );
+    } else {
+      await ctx.scheduler.runAfter(0, internal.accountDeletionActions.processAccountDeletion, args);
+    }
   },
 });
 
@@ -303,13 +331,21 @@ export const prepareAccountDeletionBatch = internalMutation({
         )
         .take(1);
       const activeJob = activeJobs[0];
-      const jobId =
-        activeJob?.source === "account_deletion"
-          ? activeJob._id
-          : await startGroupDeletionHandler(ctx, {
-              groupId: membership.groupId,
-              source: "account_deletion",
-            });
+      if (activeJob && activeJob.source !== "account_deletion") {
+        await ctx.db.patch(args.requestId, {
+          status: "failed",
+          lastErrorCode: "group_deletion_conflict",
+          lastErrorMessage: "グループの別の削除処理と競合したため退会処理を停止しました。",
+          updatedAt: Date.now(),
+        });
+        return;
+      }
+      const jobId = activeJob
+        ? activeJob._id
+        : await startGroupDeletionHandler(ctx, {
+            groupId: membership.groupId,
+            source: "account_deletion",
+          });
       const existingRelation = await ctx.db
         .query("accountDeletionGroupPurges")
         .withIndex("by_group_deletion_job_id", (q) => q.eq("groupDeletionJobId", jobId))
@@ -358,10 +394,19 @@ export const advanceAccountDeletionPurge = internalMutation({
       await ctx.scheduler.runAfter(0, internal.accountDeletion.prepareAccountDeletionBatch, args);
       return "waiting";
     }
-    const relations = await ctx.db
+    const pendingRelations = await ctx.db
       .query("accountDeletionGroupPurges")
-      .withIndex("by_request_id", (q) => q.eq("requestId", args.requestId))
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", args.requestId).eq("status", "pending"),
+      )
       .take(GROUP_BATCH_SIZE);
+    const runningRelations = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", args.requestId).eq("status", "running"),
+      )
+      .take(GROUP_BATCH_SIZE);
+    const relations = [...pendingRelations, ...runningRelations].slice(0, GROUP_BATCH_SIZE);
     for (const relation of relations) {
       const job = await ctx.db.get(relation.groupDeletionJobId);
       if (!job) {

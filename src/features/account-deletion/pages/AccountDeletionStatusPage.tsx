@@ -35,12 +35,13 @@ export function AccountDeletionStatusPage() {
       </Box>
     );
   const failed = status.status === "failed";
+  const isRetryWait = status.status === "retry_wait" || status.status === "finalization_retry_wait";
   const statusLabel =
     status.status === "preparing_groups"
       ? "グループの削除準備をしています"
       : status.status === "purging_groups"
         ? "グループデータを削除しています"
-        : status.status === "retry_wait" || status.status === "finalization_retry_wait"
+        : isRetryWait
           ? "再試行を待っています"
           : status.status === "identity_deleted"
             ? "ログイン情報の削除が完了しました"
@@ -82,7 +83,7 @@ export function AccountDeletionStatusPage() {
           ) : (
             <>
               <Typography color="text.secondary">
-                {status.status === "retry_wait" || status.status === "finalization_retry_wait"
+                {isRetryWait
                   ? "一時的な問題があったため、再試行を待っています。"
                   : "退会手続きを進めています。処理が完了すると、登録されているメールアドレスへお知らせします。"}
               </Typography>

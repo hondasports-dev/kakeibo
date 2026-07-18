@@ -28,7 +28,7 @@ describe("loadAccountDeletionClassification", () => {
       role: "member" as const,
     };
     const take = vi.fn(async (count: number) => {
-      expect(count).toBeLessThanOrEqual(101);
+      expect(count).toBeLessThanOrEqual(10_000);
       return [orphanMembership, activeMembership];
     });
     const withIndex = vi.fn((indexName: string) => {
