@@ -43,6 +43,7 @@ const actionOptions: Array<{ value: SystemAdminAuditAction | ""; label: string }
   { value: "system_admin_ownerless_group_recovered", label: "owner不在復旧" },
   { value: "system_admin_group_role_changed", label: "role変更" },
   { value: "system_admin_group_owner_transferred", label: "owner付替え" },
+  { value: "system_admin_group_invitation_revoked", label: "pending招待取消" },
 ];
 
 export function SystemAdminAuditLogPage() {

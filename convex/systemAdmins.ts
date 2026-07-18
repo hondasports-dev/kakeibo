@@ -27,6 +27,7 @@ const systemAdminAuditActionValidator = v.union(
   v.literal("system_admin_ownerless_group_recovered"),
   v.literal("system_admin_group_role_changed"),
   v.literal("system_admin_group_owner_transferred"),
+  v.literal("system_admin_group_invitation_revoked"),
 );
 const systemAdminContextValidator = v.union(
   v.object({ status: v.literal("active"), environment: v.string(), userId: v.id("users") }),

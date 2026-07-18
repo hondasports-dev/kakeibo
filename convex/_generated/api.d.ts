@@ -79,6 +79,8 @@ import type * as receipts_summaries from "../receipts/summaries.js";
 import type * as systemAdminGroupDeletion from "../systemAdminGroupDeletion.js";
 import type * as systemAdminMembership from "../systemAdminMembership.js";
 import type * as systemAdminOwnerlessGroupRecovery from "../systemAdminOwnerlessGroupRecovery.js";
+import type * as systemAdminPendingInvitation from "../systemAdminPendingInvitation.js";
+import type * as systemAdminPendingInvitationAction from "../systemAdminPendingInvitationAction.js";
 import type * as systemAdminRoleOperations from "../systemAdminRoleOperations.js";
 import type * as systemAdminSearch from "../systemAdminSearch.js";
 import type * as systemAdmins from "../systemAdmins.js";
@@ -168,6 +170,8 @@ declare const fullApi: ApiFromModules<{
   systemAdminGroupDeletion: typeof systemAdminGroupDeletion;
   systemAdminMembership: typeof systemAdminMembership;
   systemAdminOwnerlessGroupRecovery: typeof systemAdminOwnerlessGroupRecovery;
+  systemAdminPendingInvitation: typeof systemAdminPendingInvitation;
+  systemAdminPendingInvitationAction: typeof systemAdminPendingInvitationAction;
   systemAdminRoleOperations: typeof systemAdminRoleOperations;
   systemAdminSearch: typeof systemAdminSearch;
   systemAdmins: typeof systemAdmins;
