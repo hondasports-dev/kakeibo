@@ -40,7 +40,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).toBeVisible();
 
-    for (const label of ["入力", "履歴", "設定"]) {
+    for (const label of ["入力", "履歴", "使い方", "設定"]) {
       const item = bottomNav.getByRole("link", { name: label, exact: true });
       await expect(item).toBeVisible();
       await expect(item.locator("svg")).toBeVisible();
@@ -302,6 +302,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+
+    await page.goto("/guide");
+    await expect(page.getByRole("heading", { name: "使い方", level: 1 })).toBeVisible();
 
     const weekStartDate = getCurrentWeekStartDate();
     await page.goto(`/weeks/${weekStartDate}`);
