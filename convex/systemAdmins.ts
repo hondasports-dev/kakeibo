@@ -18,6 +18,11 @@ const systemAdminAuditActionValidator = v.union(
   v.literal("system_admin_group_searched"),
   v.literal("system_admin_user_viewed"),
   v.literal("system_admin_group_viewed"),
+  v.literal("system_admin_membership_added"),
+  v.literal("system_admin_membership_removed"),
+  v.literal("system_admin_membership_transferred"),
+  v.literal("system_admin_active_group_set"),
+  v.literal("system_admin_active_group_cleared"),
 );
 const systemAdminContextValidator = v.union(
   v.object({ status: v.literal("active"), environment: v.string(), userId: v.id("users") }),
@@ -48,9 +53,21 @@ const systemAdminAuditItemValidator = v.object({
   reason: v.optional(v.string()),
   queryHash: v.optional(v.string()),
   resultCount: v.optional(v.number()),
-  result: v.literal("success"),
+  result: v.union(v.literal("success"), v.literal("denied")),
   previousStatus: v.optional(systemAdminStatusValidator),
   newStatus: v.optional(systemAdminStatusValidator),
+  sourceGroupId: v.optional(v.id("groups")),
+  sourceGroupNameSnapshot: v.optional(v.string()),
+  targetGroupId: v.optional(v.id("groups")),
+  targetGroupNameSnapshot: v.optional(v.string()),
+  beforeMembershipStatus: v.optional(
+    v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+  ),
+  afterMembershipStatus: v.optional(
+    v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+  ),
+  beforeActiveGroupId: v.optional(v.id("groups")),
+  afterActiveGroupId: v.optional(v.id("groups")),
   createdAt: v.number(),
 });
 
@@ -354,9 +371,17 @@ export const listSystemAdminAuditLogs = query({
         reason: log.reason,
         queryHash: log.queryHash,
         resultCount: log.resultCount,
-        result: "success" as const,
+        result: log.result ?? "success",
         previousStatus: log.previousStatus,
         newStatus: log.newStatus,
+        sourceGroupId: log.sourceGroupId,
+        sourceGroupNameSnapshot: log.sourceGroupNameSnapshot,
+        targetGroupId: log.targetGroupId,
+        targetGroupNameSnapshot: log.targetGroupNameSnapshot,
+        beforeMembershipStatus: log.beforeMembershipStatus,
+        afterMembershipStatus: log.afterMembershipStatus,
+        beforeActiveGroupId: log.beforeActiveGroupId,
+        afterActiveGroupId: log.afterActiveGroupId,
         createdAt: log.createdAt,
       })),
     };

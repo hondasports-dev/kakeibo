@@ -7,5 +7,6 @@ export { SystemAdminGroupSearchPage } from "./pages/SystemAdminGroupSearchPage";
 export { SystemAdminGroupDetailPage } from "./pages/SystemAdminGroupDetailPage";
 export { SystemAdminPlaceholderPage } from "./pages/SystemAdminPlaceholderPage";
 export { SystemAdminActionDialog } from "./components/SystemAdminActionDialog";
+export { SystemAdminMembershipChangeDialog } from "./components/SystemAdminMembershipChangeDialog";
 export { SystemAdminAuditLogPage } from "./pages/SystemAdminAuditLogPage";
 export { SystemAdminManagementPage } from "./pages/SystemAdminManagementPage";
