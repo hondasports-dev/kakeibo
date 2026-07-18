@@ -58,7 +58,8 @@ export type SystemAdminAuditAction =
   | "system_admin_membership_transferred"
   | "system_admin_active_group_set"
   | "system_admin_active_group_cleared"
-  | "system_admin_group_deletion_resumed";
+  | "system_admin_group_deletion_resumed"
+  | "system_admin_ownerless_group_recovered";
 
 export type SystemAdminAuditItem = {
   id: string;
@@ -83,5 +84,7 @@ export type SystemAdminAuditItem = {
   afterMembershipStatus?: "none" | "member" | "owner";
   beforeActiveGroupId?: string;
   afterActiveGroupId?: string;
+  beforeOwnerCount?: number;
+  afterOwnerCount?: number;
   createdAt: number;
 };

@@ -40,6 +40,7 @@ const actionOptions: Array<{ value: SystemAdminAuditAction | ""; label: string }
   { value: "system_admin_active_group_set", label: "active設定" },
   { value: "system_admin_active_group_cleared", label: "active解除" },
   { value: "system_admin_group_deletion_resumed", label: "削除ジョブ再開" },
+  { value: "system_admin_ownerless_group_recovered", label: "owner不在復旧" },
 ];
 
 export function SystemAdminAuditLogPage() {
@@ -253,6 +254,11 @@ function SystemAdminAuditLogPageContent() {
                 <Typography>
                   membership: {selected.beforeMembershipStatus ?? "未所属"} →{" "}
                   {selected.afterMembershipStatus ?? "未所属"}
+                </Typography>
+              ) : null}
+              {selected.beforeOwnerCount !== undefined || selected.afterOwnerCount !== undefined ? (
+                <Typography>
+                  owner数: {selected.beforeOwnerCount ?? "-"} → {selected.afterOwnerCount ?? "-"}
                 </Typography>
               ) : null}
               <Typography color="text.secondary" variant="caption">

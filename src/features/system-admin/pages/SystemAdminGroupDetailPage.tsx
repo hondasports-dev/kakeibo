@@ -5,10 +5,15 @@ import {
   Alert,
   Button,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   List,
   ListItem,
   Paper,
   Stack,
+  TextField,
   Typography,
 } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -42,12 +47,17 @@ export function SystemAdminGroupDetailPage() {
   const { groupId } = useParams();
   const getGroupDetail = useAction(api.systemAdminSearch.getGroupDetail);
   const operate = useMutation(api.systemAdminMembership.systemAdminMembershipOperation);
+  const recoverOwnerless = useMutation(api.systemAdminOwnerlessGroupRecovery.recoverOwnerlessGroup);
   const [detail, setDetail] = useState<GroupDetail | null | undefined>(undefined);
   const [error, setError] = useState(false);
   const [dialogMember, setDialogMember] = useState<GroupDetail["members"][number] | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [operationError, setOperationError] = useState<string>();
   const [success, setSuccess] = useState("");
+  const [recoveryTarget, setRecoveryTarget] = useState<GroupDetail["members"][number] | null>(null);
+  const [recoveryReason, setRecoveryReason] = useState("");
+  const [recovering, setRecovering] = useState(false);
+  const [recoveryError, setRecoveryError] = useState("");
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -107,6 +117,11 @@ export function SystemAdminGroupDetailPage() {
     );
 
   const stale = detail.status !== "active";
+  const ownerless =
+    !stale &&
+    !detail.membersTruncated &&
+    detail.members.length > 0 &&
+    !detail.members.some((member) => member.role === "owner");
   const target = dialogMember
     ? {
         id: dialogMember.userDocumentId ?? "",
@@ -126,6 +141,29 @@ export function SystemAdminGroupDetailPage() {
       {stale ? (
         <Alert severity="warning">
           このグループは状態が「{detail.status}」のため変更できません。
+        </Alert>
+      ) : null}
+      {ownerless ? (
+        <Alert severity="error">
+          ownerが0人です。通常のrole変更と分離した緊急復旧を実行してください。
+          <Stack direction="row" spacing={1} sx={{ mt: 1, flexWrap: "wrap" }}>
+            {detail.members
+              .filter((member) => member.role === "member" && member.userDocumentId)
+              .map((member) => (
+                <Button
+                  key={member.userId}
+                  onClick={() => {
+                    setRecoveryTarget(member);
+                    setRecoveryReason("");
+                    setRecoveryError("");
+                  }}
+                  size="small"
+                  variant="contained"
+                >
+                  {member.displayName ?? "ユーザー"}をownerへ
+                </Button>
+              ))}
+          </Stack>
         </Alert>
       ) : null}
       <Paper sx={{ p: 3 }} variant="outlined">
@@ -233,6 +271,83 @@ export function SystemAdminGroupDetailPage() {
         sourceGroup={{ id: detail.id, name: detail.name }}
         target={target}
       />
+      <Dialog
+        fullWidth
+        maxWidth="sm"
+        onClose={() => {
+          if (!recovering) setRecoveryTarget(null);
+        }}
+        open={recoveryTarget !== null}
+      >
+        <DialogTitle>owner不在を復旧</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1} sx={{ pt: 1 }}>
+            <Typography>
+              グループ: {detail.name}（{detail.id}）
+            </Typography>
+            <Typography>
+              対象: {recoveryTarget?.displayName ?? "ユーザー"}（
+              {recoveryTarget?.email ?? "email未登録"}）
+            </Typography>
+            <Typography color="error">
+              owner 0人を確認し、このmemberをownerへ昇格します。
+            </Typography>
+            <TextField
+              error={
+                recoveryReason.trim().length > 500 ||
+                (recoveryReason.length > 0 && recoveryReason.trim().length === 0)
+              }
+              helperText={`${recoveryReason.trim().length}/500文字（必須）`}
+              label="復旧理由"
+              multiline
+              minRows={3}
+              name="ownerless-recovery-reason"
+              value={recoveryReason}
+              onChange={(event) => setRecoveryReason(event.target.value)}
+            />
+            {recoveryError ? (
+              <Alert aria-live="polite" severity="error">
+                {recoveryError}
+              </Alert>
+            ) : null}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button disabled={recovering} onClick={() => setRecoveryTarget(null)}>
+            キャンセル
+          </Button>
+          <Button
+            disabled={
+              recovering ||
+              recoveryReason.trim().length < 1 ||
+              recoveryReason.trim().length > 500 ||
+              !recoveryTarget?.userDocumentId
+            }
+            onClick={async () => {
+              if (!groupId || !recoveryTarget?.userDocumentId) return;
+              setRecovering(true);
+              setRecoveryError("");
+              try {
+                await recoverOwnerless({
+                  groupId: groupId as Id<"groups">,
+                  targetUserId: recoveryTarget.userDocumentId as Id<"users">,
+                  reason: recoveryReason.trim(),
+                });
+                setRecoveryTarget(null);
+                setSuccess("owner不在グループを復旧しました。監査ログと通知outboxに記録しました。");
+                await load();
+              } catch (cause) {
+                setRecoveryError(cause instanceof Error ? cause.message : "復旧に失敗しました");
+              } finally {
+                setRecovering(false);
+              }
+            }}
+            variant="contained"
+          >
+            {recovering ? "復旧中…" : "復旧する"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </SystemAdminPageFrame>
   );
 }
