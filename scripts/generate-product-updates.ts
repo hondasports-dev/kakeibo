@@ -167,13 +167,30 @@ type GitHubRelease = {
   assets: Array<{ id: number; name: string }>;
 };
 
+async function fetchCommitTime(commitSha: string, token: string): Promise<string | undefined> {
+  const { owner, repo } = parseRepoSlug();
+  try {
+    const commit = await fetchJson<{ commit: { committer: { date: string } } }>(
+      `https://api.github.com/repos/${owner}/${repo}/commits/${commitSha}`,
+      token,
+    );
+    return normalizeTimestamp(commit.commit.committer.date);
+  } catch {
+    return undefined;
+  }
+}
+
 async function loadPastUpdates({
   appVersion,
   token,
 }: {
   appVersion: string;
   token: string;
-}): Promise<{ pastUpdates: ProductUpdate[]; latestRelease?: GitHubRelease }> {
+}): Promise<{
+  pastUpdates: ProductUpdate[];
+  latestRelease?: GitHubRelease;
+  latestReleaseSourceAt?: string;
+}> {
   const { owner, repo } = parseRepoSlug();
   const releases = await fetchJson<GitHubRelease[]>(
     `https://api.github.com/repos/${owner}/${repo}/releases?per_page=100`,
@@ -240,7 +257,11 @@ async function loadPastUpdates({
     }
   }
 
-  return { pastUpdates, latestRelease };
+  const latestReleaseSourceAt = latestRelease
+    ? await fetchCommitTime(latestRelease.target_commitish, token)
+    : undefined;
+
+  return { pastUpdates, latestRelease, latestReleaseSourceAt };
 }
 
 function writeJsonFile(path: string, data: unknown): void {
@@ -261,7 +282,10 @@ async function main(): Promise<void> {
     throw new ProductUpdateValidationError(`Invalid PUBLISHED_AT: ${publishedAt}`);
   }
 
-  const { pastUpdates, latestRelease } = await loadPastUpdates({ appVersion, token });
+  const { pastUpdates, latestRelease, latestReleaseSourceAt } = await loadPastUpdates({
+    appVersion,
+    token,
+  });
   const { owner, repo } = parseRepoSlug();
 
   const sourceSha = resolveSourceRef();
@@ -275,7 +299,7 @@ async function main(): Promise<void> {
     owner,
     repo,
     base: searchBase,
-    since: latestRelease?.published_at,
+    since: latestReleaseSourceAt ?? latestRelease?.published_at,
     before,
     token,
   });
