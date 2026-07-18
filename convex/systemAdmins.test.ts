@@ -157,6 +157,116 @@ describe("system admin authorization lifecycle", () => {
     expect(state.notifications.length).toBeGreaterThanOrEqual(4);
   });
 
+  it("管理者一覧はactiveを初期表示し、対象ユーザーの表示情報を返す", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const users = await seedUsers(t, ["owner", "target", "other", "revoked"]);
+    await addAdmin(t, users.owner);
+    await addAdmin(t, users.other);
+    await addAdmin(t, users.revoked, "revoked");
+    const owner = t.withIdentity(identity("owner"));
+
+    const defaultPage = await owner.query(api.systemAdmins.listSystemAdmins, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    expect(defaultPage.page).toHaveLength(2);
+    expect(defaultPage.hasAnotherActiveAdmin).toBe(true);
+    expect(defaultPage.page.find((item) => item.targetUserId === users.owner)).toMatchObject({
+      status: "active",
+      targetUserId: users.owner,
+      email: "owner@example.test",
+      isSelf: true,
+    });
+    expect(defaultPage.page.find((item) => item.targetUserId === users.other)).toMatchObject({
+      status: "active",
+      isSelf: false,
+    });
+
+    const revokedPage = await owner.query(api.systemAdmins.listSystemAdmins, {
+      paginationOpts: { numItems: 10, cursor: null },
+      status: "revoked",
+    });
+    expect(revokedPage.page).toHaveLength(1);
+    expect(revokedPage.page[0]).toMatchObject({ status: "revoked", targetUserId: users.revoked });
+  });
+
+  it("監査ログは期間・action・actor・targetをserver-sideで絞り込む", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const users = await seedUsers(t, ["owner", "target", "other"]);
+    await addAdmin(t, users.owner);
+    await addAdmin(t, users.other);
+    const owner = t.withIdentity(identity("owner"));
+    const other = t.withIdentity(identity("other"));
+
+    await owner.mutation(api.systemAdmins.grantSystemAdmin, {
+      targetUserId: users.target,
+      reason: "委任",
+    });
+    await other.mutation(api.systemAdmins.revokeSystemAdmin, {
+      targetUserId: users.target,
+      reason: "停止",
+    });
+
+    const all = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+    const grant = all.page.find((log) => log.action === "system_admin_granted");
+    const revoke = all.page.find((log) => log.action === "system_admin_revoked");
+    expect(grant).toBeDefined();
+    expect(revoke).toBeDefined();
+    expect(grant).toMatchObject({
+      result: "success",
+      actorUserId: users.owner,
+      targetUserId: users.target,
+    });
+
+    await expect(
+      owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+        paginationOpts: { numItems: 10, cursor: null },
+        action: "system_admin_granted",
+        actorUserId: users.owner,
+        targetUserId: users.target,
+        from: grant?.createdAt,
+        to: grant?.createdAt,
+      }),
+    ).resolves.toMatchObject({
+      page: [expect.objectContaining({ action: "system_admin_granted" })],
+    });
+    const actionOnly = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+      action: "system_admin_granted",
+    });
+    expect(actionOnly.page.every((log) => log.action === "system_admin_granted")).toBe(true);
+    const actorOnly = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+      actorUserId: users.owner,
+    });
+    expect(actorOnly.page.every((log) => log.actorUserId === users.owner)).toBe(true);
+    const targetOnly = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+      targetUserId: users.target,
+    });
+    expect(targetOnly.page.every((log) => log.targetUserId === users.target)).toBe(true);
+    const actionActor = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+      action: "system_admin_granted",
+      actorUserId: users.owner,
+    });
+    expect(actionActor.page).toHaveLength(1);
+    const actionTarget = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+      action: "system_admin_granted",
+      targetUserId: users.target,
+    });
+    expect(actionTarget.page).toHaveLength(1);
+    const actorTarget = await owner.query(api.systemAdmins.listSystemAdminAuditLogs, {
+      paginationOpts: { numItems: 10, cursor: null },
+      actorUserId: users.other,
+      targetUserId: users.target,
+    });
+    expect(actorTarget.page).toHaveLength(1);
+    expect(actorTarget.page[0]).toMatchObject({ action: "system_admin_revoked" });
+  });
+
   it("自己操作・最後のadmin剥奪・理由不備・存在しない対象を拒否する", async () => {
     const t = convexTest(schema, convexTestModules);
     const users = await seedUsers(t, ["owner", "other"]);

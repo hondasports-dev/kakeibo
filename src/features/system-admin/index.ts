@@ -6,3 +6,6 @@ export { SystemAdminUserDetailPage } from "./pages/SystemAdminUserDetailPage";
 export { SystemAdminGroupSearchPage } from "./pages/SystemAdminGroupSearchPage";
 export { SystemAdminGroupDetailPage } from "./pages/SystemAdminGroupDetailPage";
 export { SystemAdminPlaceholderPage } from "./pages/SystemAdminPlaceholderPage";
+export { SystemAdminActionDialog } from "./components/SystemAdminActionDialog";
+export { SystemAdminAuditLogPage } from "./pages/SystemAdminAuditLogPage";
+export { SystemAdminManagementPage } from "./pages/SystemAdminManagementPage";

@@ -24,3 +24,50 @@ export type PageResult<T> = {
   isDone: boolean;
   continueCursor: string;
 };
+
+export type SystemAdminStatus = "active" | "revoked";
+
+export type SystemAdminListItem = {
+  id: string;
+  targetUserId: string;
+  displayName: string;
+  email: string | null;
+  status: SystemAdminStatus;
+  createdAt: number;
+  updatedAt: number;
+  grantedAt: number;
+  revokedAt?: number;
+  isSelf: boolean;
+};
+
+export type SystemAdminListResult = PageResult<SystemAdminListItem> & {
+  hasAnotherActiveAdmin: boolean;
+};
+
+export type SystemAdminAuditAction =
+  | "system_admin_bootstrapped"
+  | "system_admin_granted"
+  | "system_admin_revoked"
+  | "system_admin_recovered"
+  | "system_admin_user_searched"
+  | "system_admin_group_searched"
+  | "system_admin_user_viewed"
+  | "system_admin_group_viewed";
+
+export type SystemAdminAuditItem = {
+  id: string;
+  action: SystemAdminAuditAction;
+  actorType: "system" | "system_admin";
+  actorUserId?: string;
+  actorDisplayName: string | null;
+  targetUserId?: string;
+  targetId?: string;
+  targetDisplayName?: string;
+  result: "success";
+  queryHash?: string;
+  resultCount?: number;
+  reason?: string;
+  previousStatus?: SystemAdminStatus;
+  newStatus?: SystemAdminStatus;
+  createdAt: number;
+};

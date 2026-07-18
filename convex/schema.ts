@@ -171,7 +171,22 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_created_at", ["createdAt"])
+    .index("by_action_and_created_at", ["action", "createdAt"])
+    .index("by_actor_user_id_and_created_at", ["actorUserId", "createdAt"])
     .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"])
+    .index("by_action_and_actor_user_id_and_created_at", ["action", "actorUserId", "createdAt"])
+    .index("by_action_and_target_user_id_and_created_at", ["action", "targetUserId", "createdAt"])
+    .index("by_actor_user_id_and_target_user_id_and_created_at", [
+      "actorUserId",
+      "targetUserId",
+      "createdAt",
+    ])
+    .index("by_action_and_actor_user_id_and_target_user_id_and_created_at", [
+      "action",
+      "actorUserId",
+      "targetUserId",
+      "createdAt",
+    ])
     .index("by_target_kind_and_target_id_and_created_at", ["targetKind", "targetId", "createdAt"]),
 
   systemAdminNotifications: defineTable({

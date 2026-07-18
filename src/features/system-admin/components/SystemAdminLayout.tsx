@@ -29,8 +29,8 @@ const navItems = [
   { label: "管理トップ", path: "/admin", icon: <DashboardIcon /> },
   { label: "ユーザー", path: "/admin/users", icon: <ManageAccountsIcon /> },
   { label: "グループ", path: "/admin/groups", icon: <GroupIcon /> },
-  { label: "監査ログ（準備中）", path: "/admin/audit-logs", icon: <HistoryIcon /> },
-  { label: "管理者（準備中）", path: "/admin/system-admins", icon: <AdminPanelSettingsIcon /> },
+  { label: "監査ログ", path: "/admin/audit-logs", icon: <HistoryIcon /> },
+  { label: "管理者", path: "/admin/system-admins", icon: <AdminPanelSettingsIcon /> },
 ];
 
 const environmentLabel: Record<AppEnvironment, string> = {
