@@ -61,7 +61,8 @@ export type SystemAdminAuditAction =
   | "system_admin_group_deletion_resumed"
   | "system_admin_ownerless_group_recovered"
   | "system_admin_group_role_changed"
-  | "system_admin_group_owner_transferred";
+  | "system_admin_group_owner_transferred"
+  | "system_admin_group_invitation_revoked";
 
 export type SystemAdminAuditItem = {
   id: string;

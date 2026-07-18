@@ -25,6 +25,7 @@ import {
   SystemAdminPageFrame,
 } from "./SystemAdminPageFrame";
 import { SystemAdminMembershipChangeDialog } from "../components/SystemAdminMembershipChangeDialog";
+import { SystemAdminInvitationRevokeDialog } from "../components/SystemAdminInvitationRevokeDialog";
 
 type GroupDetail = {
   name: string;
@@ -38,7 +39,7 @@ type GroupDetail = {
     email: string | null;
     role: "owner" | "member";
   }[];
-  invitations: { email: string; status: string }[];
+  invitations: { id: string; email: string; status: string; createdAt: number }[];
   membersTruncated?: boolean;
   invitationsTruncated?: boolean;
 };
@@ -46,6 +47,9 @@ type GroupDetail = {
 export function SystemAdminGroupDetailPage() {
   const { groupId } = useParams();
   const getGroupDetail = useAction(api.systemAdminSearch.getGroupDetail);
+  const revokeInvitation = useAction(
+    api.systemAdminPendingInvitationAction.systemAdminPendingInvitationRevoke,
+  );
   const operate = useMutation(api.systemAdminMembership.systemAdminMembershipOperation);
   const roleOperate = useMutation(api.systemAdminRoleOperations.systemAdminRoleOperation);
   const recoverOwnerless = useMutation(api.systemAdminOwnerlessGroupRecovery.recoverOwnerlessGroup);
@@ -65,6 +69,11 @@ export function SystemAdminGroupDetailPage() {
   const [roleSource, setRoleSource] = useState<GroupDetail["members"][number] | null>(null);
   const [roleError, setRoleError] = useState("");
   const [roleSaving, setRoleSaving] = useState(false);
+  const [invitationTarget, setInvitationTarget] = useState<
+    GroupDetail["invitations"][number] | null
+  >(null);
+  const [invitationSaving, setInvitationSaving] = useState(false);
+  const [invitationError, setInvitationError] = useState("");
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -313,8 +322,31 @@ export function SystemAdminGroupDetailPage() {
         {detail.invitations.length ? (
           <List>
             {detail.invitations.map((invitation) => (
-              <ListItem key={invitation.email}>
-                {invitation.email} / {invitation.status}
+              <ListItem key={invitation.id} sx={{ display: "block" }}>
+                <Stack
+                  direction={{ xs: "column", sm: "row" }}
+                  spacing={1}
+                  sx={{ alignItems: { xs: "flex-start", sm: "center" } }}
+                >
+                  <Typography sx={{ flex: 1 }}>
+                    {invitation.email} / {invitation.status} /{" "}
+                    {new Date(invitation.createdAt).toLocaleString("ja-JP")}
+                  </Typography>
+                  {invitation.status === "pending" ? (
+                    <Button
+                      color="error"
+                      disabled={stale}
+                      onClick={() => {
+                        setInvitationTarget(invitation);
+                        setInvitationError("");
+                      }}
+                      size="small"
+                      variant="outlined"
+                    >
+                      pending招待を取り消す
+                    </Button>
+                  ) : null}
+                </Stack>
               </ListItem>
             ))}
           </List>
@@ -328,8 +360,39 @@ export function SystemAdminGroupDetailPage() {
         ) : null}
       </Paper>
       <Alert severity="info" variant="outlined">
-        この画面の変更は所属だけです。家計データ、招待トークン、Clerkアカウントは変更しません。
+        この画面では所属またはpending招待だけを変更します。家計データ、招待トークン、Clerkユーザーは変更しません。
       </Alert>
+      <SystemAdminInvitationRevokeDialog
+        confirming={invitationSaving}
+        error={invitationError}
+        group={{ id: detail.id, name: detail.name }}
+        invitation={invitationTarget}
+        onCancel={() => {
+          if (!invitationSaving) setInvitationTarget(null);
+        }}
+        onConfirm={async (reason) => {
+          if (!groupId || !invitationTarget) return;
+          setInvitationSaving(true);
+          setInvitationError("");
+          try {
+            await revokeInvitation({
+              groupId: groupId as Id<"groups">,
+              invitationId: invitationTarget.id as Id<"groupInvitations">,
+              reason,
+            });
+            setInvitationTarget(null);
+            setSuccess("pending招待を取り消しました。ユーザーや家計データは変更していません。");
+            await load();
+          } catch (cause) {
+            setInvitationError(
+              cause instanceof Error ? cause.message : "pending招待の取消に失敗しました",
+            );
+          } finally {
+            setInvitationSaving(false);
+          }
+        }}
+        open={invitationTarget !== null}
+      />
       <SystemAdminMembershipChangeDialog
         confirming={confirming}
         environment={detail.environment}
