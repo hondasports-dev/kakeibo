@@ -20,6 +20,12 @@ import {
   managementAuditTargetKindValidator,
 } from "./groups/lib/managementAuditLogModel";
 import {
+  groupDeletionCountsValidator,
+  groupDeletionSourceValidator,
+  groupDeletionStageValidator,
+  groupDeletionStatusValidator,
+} from "./groups/lib/groupDeletionJobModel";
+import {
   emailSuppressionReasonValidator,
   emailWebhookEventTypeValidator,
   transactionalEmailJobStatusValidator,
@@ -49,7 +55,9 @@ export default defineSchema({
     // Issue #8 要件: users には by_token_identifier index を定義する。
     // 旧 by_user_id インデックスはこのインデックスに一本化した。
     .index("by_token_identifier", ["userId"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .searchIndex("search_display_name", { searchField: "displayName" })
+    .searchIndex("search_email", { searchField: "email" }),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）
@@ -58,12 +66,19 @@ export default defineSchema({
   groups: defineTable({
     name: v.string(),
     clerkOrganizationId: v.optional(v.string()),
-    status: v.optional(v.union(v.literal("active"), v.literal("deleted"), v.literal("archived"))),
+    status: v.optional(
+      v.union(
+        v.literal("active"),
+        v.literal("deleting"),
+        v.literal("deleted"),
+        v.literal("archived"),
+      ),
+    ),
     deletedAt: v.optional(v.number()),
     archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }),
+  }).searchIndex("search_name", { searchField: "name" }),
 
   groupMembers: defineTable({
     groupId: v.id("groups"),
@@ -75,6 +90,7 @@ export default defineSchema({
   })
     .index("by_user_id", ["userId"])
     .index("by_group_id", ["groupId"])
+    .index("by_group_id_and_role", ["groupId", "role"])
     .index("by_group_id_and_user_id", ["groupId", "userId"]),
 
   groupInvitations: defineTable({
@@ -95,6 +111,8 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_token", ["token"])
+    .index("by_group_id", ["groupId"])
+    .index("by_email", ["email"])
     .index("by_group_id_and_email", ["groupId", "email"])
     .index("by_group_id_and_status", ["groupId", "status"]),
 
@@ -108,7 +126,191 @@ export default defineSchema({
     beforeValue: v.optional(v.string()),
     afterValue: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_group_id_and_created_at", ["groupId", "createdAt"]),
+  })
+    .index("by_group_id_and_created_at", ["groupId", "createdAt"])
+    .index("by_action_and_created_at", ["action", "createdAt"]),
+
+  systemAdmins: defineTable({
+    userId: v.id("users"),
+    status: v.union(v.literal("active"), v.literal("revoked")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    grantedAt: v.number(),
+    grantedByUserId: v.optional(v.id("users")),
+    grantReason: v.string(),
+    revokedAt: v.optional(v.number()),
+    revokedByUserId: v.optional(v.id("users")),
+    revokeReason: v.optional(v.string()),
+  })
+    .index("by_user_id", ["userId"])
+    .index("by_status", ["status"]),
+
+  systemAdminAuditLogs: defineTable({
+    action: v.union(
+      v.literal("system_admin_bootstrapped"),
+      v.literal("system_admin_granted"),
+      v.literal("system_admin_revoked"),
+      v.literal("system_admin_recovered"),
+      v.literal("system_admin_user_searched"),
+      v.literal("system_admin_group_searched"),
+      v.literal("system_admin_user_viewed"),
+      v.literal("system_admin_group_viewed"),
+      v.literal("system_admin_membership_added"),
+      v.literal("system_admin_membership_removed"),
+      v.literal("system_admin_membership_transferred"),
+      v.literal("system_admin_active_group_set"),
+      v.literal("system_admin_active_group_cleared"),
+      v.literal("system_admin_group_deletion_resumed"),
+      v.literal("system_admin_ownerless_group_recovered"),
+      v.literal("system_admin_group_role_changed"),
+      v.literal("system_admin_group_owner_transferred"),
+      v.literal("system_admin_group_invitation_revoked"),
+    ),
+    actorType: v.union(v.literal("system"), v.literal("system_admin")),
+    actorUserId: v.optional(v.id("users")),
+    targetKind: v.union(
+      v.literal("system_admin"),
+      v.literal("user"),
+      v.literal("group"),
+      v.literal("invitation"),
+    ),
+    targetUserId: v.optional(v.id("users")),
+    targetDisplayNameSnapshot: v.optional(v.string()),
+    sourceUserId: v.optional(v.id("users")),
+    sourceUserDisplayNameSnapshot: v.optional(v.string()),
+    targetId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    queryType: v.optional(v.string()),
+    queryHash: v.optional(v.string()),
+    resultCount: v.optional(v.number()),
+    previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
+    newStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
+    sourceGroupId: v.optional(v.id("groups")),
+    sourceGroupNameSnapshot: v.optional(v.string()),
+    targetGroupId: v.optional(v.id("groups")),
+    targetGroupNameSnapshot: v.optional(v.string()),
+    beforeMembershipStatus: v.optional(
+      v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+    ),
+    afterMembershipStatus: v.optional(
+      v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+    ),
+    beforeActiveGroupId: v.optional(v.id("groups")),
+    afterActiveGroupId: v.optional(v.id("groups")),
+    beforeOwnerCount: v.optional(v.number()),
+    afterOwnerCount: v.optional(v.number()),
+    result: v.optional(v.union(v.literal("success"), v.literal("denied"))),
+    createdAt: v.number(),
+  })
+    .index("by_created_at", ["createdAt"])
+    .index("by_action_and_created_at", ["action", "createdAt"])
+    .index("by_actor_user_id_and_created_at", ["actorUserId", "createdAt"])
+    .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"])
+    .index("by_action_and_actor_user_id_and_created_at", ["action", "actorUserId", "createdAt"])
+    .index("by_action_and_target_user_id_and_created_at", ["action", "targetUserId", "createdAt"])
+    .index("by_actor_user_id_and_target_user_id_and_created_at", [
+      "actorUserId",
+      "targetUserId",
+      "createdAt",
+    ])
+    .index("by_action_and_actor_user_id_and_target_user_id_and_created_at", [
+      "action",
+      "actorUserId",
+      "targetUserId",
+      "createdAt",
+    ])
+    .index("by_target_kind_and_target_id_and_created_at", ["targetKind", "targetId", "createdAt"]),
+
+  systemAdminNotifications: defineTable({
+    action: v.union(
+      v.literal("system_admin_granted"),
+      v.literal("system_admin_revoked"),
+      v.literal("system_admin_recovered"),
+      v.literal("system_admin_bootstrapped"),
+      v.literal("system_admin_membership_changed"),
+      v.literal("system_admin_ownerless_group_recovered"),
+      v.literal("system_admin_group_invitation_revoked"),
+    ),
+    recipientUserId: v.optional(v.id("users")),
+    recipientEmail: v.optional(v.string()),
+    targetUserId: v.optional(v.id("users")),
+    targetEmailSnapshot: v.optional(v.string()),
+    dedupeKey: v.string(),
+    payloadJson: v.string(),
+    createdAt: v.number(),
+  })
+    .index("by_dedupe_key", ["dedupeKey"])
+    .index("by_recipient_and_created_at", ["recipientUserId", "createdAt"])
+    .index("by_recipient_and_target_user_id_and_created_at", [
+      "recipientUserId",
+      "targetUserId",
+      "createdAt",
+    ]),
+
+  e2eSystemAdminMembershipFixtures: defineTable({
+    prefix: v.string(),
+    actorUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    groupA: v.id("groups"),
+    groupB: v.id("groups"),
+    createdAt: v.number(),
+  }).index("by_prefix", ["prefix"]),
+
+  groupDeletionAuditMigrationRecords: defineTable({
+    recordKind: v.literal("legacy_audit"),
+    legacyAuditId: v.string(),
+    actorUserIdSnapshot: v.string(),
+    targetGroupIdSnapshot: v.string(),
+    targetGroupNameSnapshot: v.optional(v.string()),
+    deletedCounts: groupDeletionCountsValidator,
+    sourceCreatedAt: v.number(),
+    status: v.union(v.literal("migrated"), v.literal("skipped"), v.literal("failed")),
+    skipReason: v.optional(v.string()),
+    lastErrorCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    verifiedAt: v.optional(v.number()),
+  })
+    .index("by_legacy_audit_id", ["legacyAuditId"])
+    .index("by_status_and_updated_at", ["status", "updatedAt"]),
+
+  groupDeletionJobs: defineTable({
+    targetGroupIdSnapshot: v.string(),
+    targetGroupNameSnapshot: v.string(),
+    source: groupDeletionSourceValidator,
+    actorUserIdSnapshot: v.optional(v.string()),
+    status: groupDeletionStatusValidator,
+    stage: groupDeletionStageValidator,
+    isActive: v.boolean(),
+    attemptCount: v.number(),
+    maxAttempts: v.number(),
+    nextRetryAt: v.optional(v.number()),
+    lastErrorCategory: v.optional(v.string()),
+    snapshotCursor: v.optional(v.string()),
+    failureNotificationHandledAt: v.optional(v.number()),
+    failureNotificationAttemptCount: v.optional(v.number()),
+    deletedCounts: groupDeletionCountsValidator,
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_target_group_id_snapshot_and_is_active", ["targetGroupIdSnapshot", "isActive"])
+    .index("by_status_and_updated_at", ["status", "updatedAt"])
+    .index("by_updated_at", ["updatedAt"])
+    .index("by_source_and_updated_at", ["source", "updatedAt"]),
+
+  groupDeletionNotificationRecipients: defineTable({
+    jobId: v.id("groupDeletionJobs"),
+    recipientUserId: v.string(),
+    startedHandledAt: v.optional(v.number()),
+    completedHandledAt: v.optional(v.number()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_job_id", ["jobId"])
+    .index("by_job_id_and_recipient_user_id", ["jobId", "recipientUserId"])
+    .index("by_job_id_and_started_handled_at", ["jobId", "startedHandledAt"])
+    .index("by_job_id_and_completed_handled_at", ["jobId", "completedHandledAt"]),
 
   // ---------------------------------------------------------------------------
   // データテーブル（userId → groupId に変更済み）
@@ -357,6 +559,8 @@ export default defineSchema({
     recipientEmailSnapshot: v.optional(v.string()),
     status: v.union(
       v.literal("requested"),
+      v.literal("preparing_groups"),
+      v.literal("purging_groups"),
       v.literal("deleting_identity"),
       v.literal("retry_wait"),
       v.literal("identity_deleted"),
@@ -375,8 +579,31 @@ export default defineSchema({
     updatedAt: v.number(),
     identityDeletedAt: v.optional(v.number()),
     completedAt: v.optional(v.number()),
+    preparationCursor: v.optional(v.string()),
+    preparationCompletedAt: v.optional(v.number()),
   })
     .index("by_user_id", ["userId"])
     .index("by_status_and_updated_at", ["status", "updatedAt"])
     .index("by_next_retry_at", ["nextRetryAt"]),
+
+  accountDeletionGroupPurges: defineTable({
+    requestId: v.id("accountDeletionRequests"),
+    groupDeletionJobId: v.id("groupDeletionJobs"),
+    targetGroupIdSnapshot: v.string(),
+    targetGroupNameSnapshot: v.string(),
+    status: v.union(
+      v.literal("pending"),
+      v.literal("running"),
+      v.literal("failed"),
+      v.literal("completed"),
+    ),
+    lastErrorCode: v.optional(v.string()),
+    lastErrorMessage: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_request_id", ["requestId"])
+    .index("by_request_id_and_status", ["requestId", "status"])
+    .index("by_group_deletion_job_id", ["groupDeletionJobId"]),
 });

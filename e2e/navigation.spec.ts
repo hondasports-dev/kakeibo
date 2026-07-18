@@ -7,7 +7,7 @@ import { gotoAuthenticated } from "./helpers/auth";
  * Issue #49「UIの機能整理」の受け入れ確認。
  *
  * カバーするシナリオ:
- *   - シナリオ N-1: SP幅でBottomNavigation 4タブが表示され、タップで各画面に遷移できる (P0 / smoke)
+ *   - シナリオ N-1: SP幅でBottomNavigation 5タブが表示され、タップで各画面に遷移できる (P0 / smoke)
  *   - シナリオ N-2: PC幅でBottomNavigationが非表示になり、Drawerが表示される (P0 / smoke)
  *   - シナリオ N-3: DrawerのすべてのリンクからURL遷移できる (P0 / smoke)
  *   - シナリオ N-4: ダッシュボードにカテゴリ別内訳・前週比カードが表示されない (P1 / validation)
@@ -40,7 +40,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).toBeVisible();
 
-    for (const label of ["入力", "履歴", "設定"]) {
+    for (const label of ["入力", "履歴", "使い方", "設定"]) {
       const item = bottomNav.getByRole("link", { name: label, exact: true });
       await expect(item).toBeVisible();
       await expect(item.locator("svg")).toBeVisible();
@@ -67,7 +67,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     expect(selectedBackground).not.toBe("rgba(0, 0, 0, 0)");
   });
 
-  test("@smoke @navigation シナリオN-1: SP幅でBottomNavigation 4タブが表示され、タップで各画面に遷移できる", async ({
+  test("@smoke @navigation シナリオN-1: SP幅でBottomNavigation 5タブが表示され、タップで各画面に遷移できる", async ({
     page,
   }) => {
     await gotoAuthenticated(page);
@@ -77,10 +77,11 @@ test.describe("ナビゲーション（Issue #49）", () => {
     const bottomNav = page.getByRole("navigation", { name: "ボトムナビゲーション" });
     await expect(bottomNav).toBeVisible();
 
-    // 4つのタブが表示されることを確認（BottomNav 内に限定）
+    // 5つのタブが表示されることを確認（BottomNav 内に限定）
     await expect(bottomNav.getByRole("link", { name: "ホーム" })).toBeVisible();
     await expect(bottomNav.getByRole("link", { name: "入力", exact: true })).toBeVisible();
     await expect(bottomNav.getByRole("link", { name: "履歴" })).toBeVisible();
+    await expect(bottomNav.getByRole("link", { name: "使い方", exact: true })).toBeVisible();
     await expect(bottomNav.getByRole("link", { name: "設定", exact: true })).toBeVisible();
 
     // 各タブをタップして遷移を確認
@@ -89,6 +90,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     await bottomNav.getByRole("link", { name: "入力", exact: true }).click();
     await expect(page).toHaveURL("/weeks/current/input");
+
+    await bottomNav.getByRole("link", { name: "使い方", exact: true }).click();
+    await expect(page).toHaveURL("/guide");
 
     await bottomNav.getByRole("link", { name: "設定", exact: true }).click();
     await expect(page).toHaveURL("/settings");
@@ -122,6 +126,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     await drawer.getByRole("link", { name: "設定", exact: true }).click();
     await expect(page).toHaveURL("/settings");
+
+    await drawer.getByRole("link", { name: "使い方", exact: true }).click();
+    await expect(page).toHaveURL("/guide");
 
     await drawer.getByRole("link", { name: "ホーム", exact: true }).click();
     await expect(page).toHaveURL("/");
@@ -266,6 +273,41 @@ test.describe("ナビゲーション（Issue #49）", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
+  test("@smoke @navigation [Issue #136] 週別支出推移がPC/SP幅に収まる", async ({ page }) => {
+    const weekStartDate = getCurrentWeekStartDate();
+    await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
+
+    for (const viewport of [
+      { width: 390, height: 844, expectedChartHeight: "180" },
+      { width: 1280, height: 800, expectedChartHeight: "200" },
+    ]) {
+      await page.setViewportSize(viewport);
+
+      const chartOrEmpty = page
+        .getByTestId("weekly-expense-trend-chart")
+        .or(page.getByTestId("weekly-expense-trend-empty"))
+        .first();
+      await expect(chartOrEmpty).toBeVisible({ timeout: 15_000 });
+
+      const chart = page.getByTestId("weekly-expense-trend-chart");
+      if (await chart.isVisible()) {
+        await expect(page.getByRole("img", { name: "週別支出推移グラフ" })).toHaveAttribute(
+          "data-chart-height",
+          viewport.expectedChartHeight,
+        );
+      } else {
+        await expect(page.getByTestId("weekly-expense-trend-empty")).toContainText(
+          "週別の支出データがあると表示されます",
+        );
+      }
+
+      const noHorizontalOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      );
+      expect(noHorizontalOverflow).toBe(true);
+    }
+  });
+
   test("@smoke @navigation シナリオN-9: SPで入力フローを一通り完走できる", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
@@ -295,6 +337,9 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     await page.goto("/settings");
     await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+
+    await page.goto("/guide");
+    await expect(page.getByRole("heading", { name: "使い方", level: 1 })).toBeVisible();
 
     const weekStartDate = getCurrentWeekStartDate();
     await page.goto(`/weeks/${weekStartDate}`);

@@ -2,6 +2,7 @@ import CategoryIcon from "@mui/icons-material/Category";
 import HomeIcon from "@mui/icons-material/Home";
 import EditIcon from "@mui/icons-material/Edit";
 import HistoryIcon from "@mui/icons-material/History";
+import HelpOutlinedIcon from "@mui/icons-material/HelpOutlined";
 import { getCurrentWeekStartDate } from "../../week";
 
 export const DRAWER_WIDTH = 220;
@@ -20,6 +21,7 @@ export function createNavItems(): NavItem[] {
     { label: "ホーム", path: "/", icon: <HomeIcon /> },
     { label: "入力", path: "/weeks/current/input", icon: <EditIcon /> },
     { label: "履歴", path: `/weeks/${currentWeekStartDate}`, icon: <HistoryIcon /> },
+    { label: "使い方", path: "/guide", icon: <HelpOutlinedIcon /> },
     { label: "設定", path: "/settings", icon: <CategoryIcon /> },
   ];
 }

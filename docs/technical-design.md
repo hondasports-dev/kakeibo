@@ -360,8 +360,10 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 - `acceptGroupInvitation` は、招待メールとログイン中ユーザーのメールが一致する場合だけ所属を追加する。
 - `setActiveGroup` は、ログイン中ユーザーが所属しているグループだけを active にできる。
 - `removeMember` はユーザー本人の `users` レコードや Clerk アカウントは削除しない。
-- `deleteGroup` はグループと紐づく家計データを物理削除する。Clerk アカウントや `users` レコードは削除しない（#224）。
-- `transferGroupOwnership` と `deleteGroup` は owner のみが UI と mutation から実行できる。
+- `requestGroupDeletion` はjob作成、`groups.status = deleting`、依頼者の`activeGroupId`解除を同一transactionで行い、bounded workerへ委譲する。Clerk アカウントや`users`レコードは削除しない（#224）。
+- owner削除のworkerは`recipientSnapshot → startedEnqueue → purge registry → finalSweep → completedEnqueue → recipientCleanup`の順で進める。通知はbusiness keyでdedupeし、全recipientのenqueue/skipとcleanup完了後だけjobを`completed`にする。
+- deleting groupは通常のmembership解決と招待受諾から除外し、background処理も結果保存transactionでgroup lifecycleを再確認する。
+- `transferGroupOwnership` と `requestGroupDeletion` は owner のみが UI と mutation から実行できる。
 - グループ未所属または activeGroupId 未選択のユーザーは、設定や家計データへ進めない。
 
 ### 6.4 システム管理者の認可
@@ -386,6 +388,7 @@ active record が確認できない場合は fail closed にする。
 | `/group/setup`                 | グループ作成       | グループ未所属ユーザーが家族グループを作成する |
 | `/group/select`                | グループ選択       | 複数所属ユーザーが表示対象グループを選ぶ     |
 | `/group/invitations/accept`    | 招待受け入れ       | Clerk招待後にアプリ側の所属追加を完了する   |
+| `/group/delete/status/:jobId`  | グループ削除状況   | original requesterが非同期削除の状態確認・再開を行う |
 | `/privacy`                     | プライバシーポリシー | 認証不要で閲覧する                         |
 | `/terms`                       | 利用規約           | 認証不要で閲覧する                         |
 | `/maintenance`                 | メンテナンス       | 認証不要でメンテナンス表示する             |

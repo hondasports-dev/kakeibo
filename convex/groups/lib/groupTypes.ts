@@ -11,7 +11,7 @@ export type GroupDoc = {
   _id: Id<"groups">;
   name: string;
   clerkOrganizationId?: string;
-  status?: "active" | "deleted" | "archived";
+  status?: "active" | "deleting" | "deleted" | "archived";
   deletedAt?: number;
   createdAt: number;
   updatedAt: number;

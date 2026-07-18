@@ -12,6 +12,7 @@ export const GROUP_ADMIN_ERRORS = {
   LAST_OWNER_PROTECTED: "最後のオーナーは変更できません",
   TRANSFER_TARGET_MUST_BE_MEMBER: "譲渡先はメンバーロールのユーザーに限定されます",
   GROUP_DELETED: "削除済みのグループにはアクセスできません",
+  GROUP_DELETING: "このグループは削除処理中です",
   GROUP_ALREADY_DELETED: "このグループはすでに削除されています",
   GROUP_NAME_MISMATCH: "入力されたグループ名が一致しません",
 } as const;
@@ -43,25 +44,17 @@ export function assertRemovableGroupMemberRole(role: GroupAdminRole): void {
   }
 }
 
-export async function countGroupOwners(
+export async function assertAnotherGroupOwnerRemains(
   ctx: Pick<QueryCtx, "db">,
   groupId: Id<"groups">,
-): Promise<number> {
-  const members = await ctx.db
-    .query("groupMembers")
-    .withIndex("by_group_id", (q) => q.eq("groupId", groupId))
-    .collect();
-
-  return members.filter((member) => member.role === "owner").length;
-}
-
-export async function assertGroupHasMinimumOwners(
-  ctx: Pick<QueryCtx, "db">,
-  groupId: Id<"groups">,
-  minimum: number,
+  demotedMembershipId: Id<"groupMembers">,
 ): Promise<void> {
-  const ownerCount = await countGroupOwners(ctx, groupId);
-  if (ownerCount < minimum) {
+  const owners = await ctx.db
+    .query("groupMembers")
+    .withIndex("by_group_id_and_role", (q) => q.eq("groupId", groupId).eq("role", "owner"))
+    .take(2);
+
+  if (!owners.some((owner) => owner._id !== demotedMembershipId)) {
     throw new ConvexError(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
   }
 }

@@ -68,6 +68,7 @@ export async function enqueueGroupDeletedEmail(
   ctx: MutationCtx,
   groupName: string,
   recipientEmail: string | undefined,
+  businessDedupeKey?: string,
 ): Promise<void> {
   if (!recipientEmail) {
     return;
@@ -76,5 +77,37 @@ export async function enqueueGroupDeletedEmail(
     templateType: "group_deleted",
     payloadJson: JSON.stringify({ groupName }),
     recipientEmail,
+    businessDedupeKey,
+  });
+}
+
+export async function enqueueGroupDeletionStartedEmail(
+  ctx: MutationCtx,
+  groupName: string,
+  recipientEmail: string | undefined,
+  businessDedupeKey: string,
+): Promise<void> {
+  if (!recipientEmail) return;
+  await enqueueTransactionalEmailJobHandler(ctx, {
+    templateType: "group_deletion_started",
+    payloadJson: JSON.stringify({ groupName }),
+    recipientEmail,
+    businessDedupeKey,
+  });
+}
+
+export async function enqueueGroupDeletionFailedEmail(
+  ctx: MutationCtx,
+  groupName: string,
+  jobId: string,
+  recipientEmail: string | undefined,
+  businessDedupeKey: string,
+): Promise<void> {
+  if (!recipientEmail) return;
+  await enqueueTransactionalEmailJobHandler(ctx, {
+    templateType: "group_deletion_failed",
+    payloadJson: JSON.stringify({ groupName, jobId }),
+    recipientEmail,
+    businessDedupeKey,
   });
 }

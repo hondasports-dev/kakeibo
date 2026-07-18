@@ -1,7 +1,8 @@
 # システム管理者の認可・付与・剥奪設計
 
-> **重要: 本ドキュメントは将来設計の正本です。現行コードベースには `systemAdmins` テーブル、
-> `requireSystemAdmin`、管理 UI（`/admin`）は未実装です。**
+> **重要: 本ドキュメントは認可モデルの正本です。Issue #474で`systemAdmins`、
+> `requireSystemAdmin`、専用監査・通知キューのConvex基盤を実装済みです。管理 UI（`/admin`）と
+> 検索・詳細APIは後続Issueで実装します。**
 
 このドキュメントは、Suzumemo 全体を運用するシステム管理者の認可モデル、初期登録、
 付与・剥奪、監査、家計データとの境界を定義する正本である。
@@ -20,8 +21,9 @@
 - 誤昇格、自己操作、最後の管理者喪失、環境間の権限混在を防ぐ
 - 付与・剥奪を追跡可能な監査証跡として残す
 
-本 Issue は設計のみを対象とする。schema、Convex function、管理 UI、E2E の実装は
-#289〜#292 で行う。
+schema、Convex function、管理 UI、E2Eの責務はIssueごとに分割する。#474ではschema、共通認可、
+付与・剥奪・bootstrap/recover、専用監査と通知キューを実装し、管理UI・検索・詳細・E2Eは
+#289〜#292で行う。
 
 ## 2. 用語と権限モデル
 
@@ -82,22 +84,32 @@ systemAdminAuditLogs: defineTable({
     v.literal("system_admin_granted"),
     v.literal("system_admin_revoked"),
     v.literal("system_admin_recovered"),
+    v.literal("system_admin_user_searched"),
+    v.literal("system_admin_group_searched"),
+    v.literal("system_admin_user_viewed"),
+    v.literal("system_admin_group_viewed"),
   ),
   actorType: v.union(v.literal("system"), v.literal("system_admin")),
   actorUserId: v.optional(v.id("users")),
-  targetKind: v.literal("system_admin"),
-  targetUserId: v.id("users"),
-  reason: v.string(),
+  targetKind: v.union(v.literal("system_admin"), v.literal("user"), v.literal("group")),
+  targetUserId: v.optional(v.id("users")),
+  targetDisplayNameSnapshot: v.optional(v.string()),
+  targetId: v.optional(v.string()),
+  reason: v.optional(v.string()),
+  queryType: v.optional(v.string()),
+  queryHash: v.optional(v.string()),
+  resultCount: v.optional(v.number()),
   previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
-  newStatus: v.union(v.literal("active"), v.literal("revoked")),
+  newStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
   createdAt: v.number(),
 })
   .index("by_created_at", ["createdAt"])
   .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"])
+  .index("by_target_kind_and_target_id_and_created_at", ["targetKind", "targetId", "createdAt"])
 ```
 
-後続の検索・閲覧・管理操作の action と対象種別は #289〜#291 で追加する。監査ログには JWT、
-秘密情報、検索語の平文、金額、店名、メモ、レシート画像、AI解析結果などを保存しない。
+検索・閲覧のactionと最小metadata（検索種別、検索語hash、結果件数）は#289で追加済み。
+監査ログにはJWT、秘密情報、検索語の平文、金額、店名、メモ、レシート画像、AI解析結果などを保存しない。
 
 ## 4. 共通認可関数
 
@@ -264,6 +276,7 @@ Convex のトランザクション競合時の再試行後にも不変条件を�
 
 | Issue | 実装範囲 | 本ドキュメントの主な参照先 |
 | --- | --- | --- |
+| #474 | schema、共通認可、付与・剥奪・bootstrap/recover、専用監査・通知キュー | 3〜9, 11 |
 | #289 | schema、共通認可、管理情報検索API、監査基盤 | 3, 4, 8, 9, 11 |
 | #290 | `/admin` ルーティング、UIシェル、状態表示 | 8, 10, 11 |
 | #291 | 所属・owner・activeGroupId等の管理操作 | 4, 8, 9, 11 |

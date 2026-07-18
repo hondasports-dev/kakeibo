@@ -5,12 +5,40 @@ import type { QueryCtx } from "../_generated/server";
 import {
   GROUP_ADMIN_ERRORS,
   assertActiveGroupScope,
-  assertGroupHasMinimumOwners,
+  assertAnotherGroupOwnerRemains,
   assertGroupOwnerRole,
   assertNotSelfOperator,
   assertRemovableGroupMemberRole,
-  countGroupOwners,
 } from "./adminGuards";
+
+function createOwnerThresholdContext(ownerMembershipIds: Array<Id<"groupMembers">>) {
+  const eq = vi.fn();
+  const queryBuilder = { eq };
+  eq.mockReturnValue(queryBuilder);
+
+  const collect = vi.fn(() => {
+    throw new Error("collect must not be called");
+  });
+  const take = vi.fn(async (count: number) =>
+    ownerMembershipIds.slice(0, count).map((_id) => ({ _id, role: "owner" as const })),
+  );
+  const withIndex = vi.fn(
+    (_indexName: string, buildIndex: (builder: typeof queryBuilder) => unknown) => {
+      buildIndex(queryBuilder);
+      return { collect, take };
+    },
+  );
+  const query = vi.fn().mockReturnValue({ withIndex });
+
+  return {
+    ctx: { db: { query } } as unknown as Pick<QueryCtx, "db">,
+    collect,
+    eq,
+    query,
+    take,
+    withIndex,
+  };
+}
 
 describe("groupAdminGuards", () => {
   it("assertGroupOwnerRole は member を拒否する", () => {
@@ -36,41 +64,50 @@ describe("groupAdminGuards", () => {
     );
   });
 
-  it("countGroupOwners は owner ロールの件数を返す", async () => {
-    const ctx = {
-      db: {
-        query: vi.fn().mockReturnValue({
-          withIndex: vi.fn().mockReturnValue({
-            collect: vi
-              .fn()
-              .mockResolvedValue([{ role: "owner" }, { role: "member" }, { role: "owner" }]),
-          }),
-        }),
-      },
-    };
+  it("assertAnotherGroupOwnerRemains は groupId と owner role を index で絞り take(2) する", async () => {
+    const targetMembershipId = "member-target" as Id<"groupMembers">;
+    const otherOwnerMembershipId = "member-other-owner" as Id<"groupMembers">;
+    const { ctx, collect, eq, query, take, withIndex } = createOwnerThresholdContext([
+      targetMembershipId,
+      otherOwnerMembershipId,
+      "member-third-owner" as Id<"groupMembers">,
+    ]);
 
     await expect(
-      countGroupOwners(ctx as unknown as Pick<QueryCtx, "db">, "group-001" as Id<"groups">),
-    ).resolves.toBe(2);
+      assertAnotherGroupOwnerRemains(ctx, "group-001" as Id<"groups">, targetMembershipId),
+    ).resolves.toBeUndefined();
+
+    expect(query).toHaveBeenCalledWith("groupMembers");
+    expect(withIndex).toHaveBeenCalledWith("by_group_id_and_role", expect.any(Function));
+    expect(eq).toHaveBeenNthCalledWith(1, "groupId", "group-001");
+    expect(eq).toHaveBeenNthCalledWith(2, "role", "owner");
+    expect(take).toHaveBeenCalledWith(2);
+    expect(collect).not.toHaveBeenCalled();
   });
 
-  it("assertGroupHasMinimumOwners は owner 不足を拒否する", async () => {
-    const ctx = {
-      db: {
-        query: vi.fn().mockReturnValue({
-          withIndex: vi.fn().mockReturnValue({
-            collect: vi.fn().mockResolvedValue([{ role: "owner" }]),
-          }),
-        }),
-      },
-    };
+  it.each([
+    { label: "owner が0人", ownerMembershipIds: [] },
+    { label: "降格対象だけがowner", ownerMembershipIds: ["member-target"] },
+  ])("assertAnotherGroupOwnerRemains は $label なら拒否する", async ({ ownerMembershipIds }) => {
+    const targetMembershipId = "member-target" as Id<"groupMembers">;
+    const { ctx } = createOwnerThresholdContext(
+      ownerMembershipIds.map((id) => id as Id<"groupMembers">),
+    );
 
     await expect(
-      assertGroupHasMinimumOwners(
-        ctx as unknown as Pick<QueryCtx, "db">,
-        "group-001" as Id<"groups">,
-        2,
-      ),
+      assertAnotherGroupOwnerRemains(ctx, "group-001" as Id<"groups">, targetMembershipId),
     ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
+  });
+
+  it.each([
+    ["owner が2人", ["member-target", "member-other-owner"]],
+    ["owner が3人以上", ["member-target", "member-other-owner", "member-third-owner"]],
+  ])("assertAnotherGroupOwnerRemains は %s なら許可する", async (_label, ids) => {
+    const targetMembershipId = "member-target" as Id<"groupMembers">;
+    const { ctx } = createOwnerThresholdContext(ids.map((id) => id as Id<"groupMembers">));
+
+    await expect(
+      assertAnotherGroupOwnerRemains(ctx, "group-001" as Id<"groups">, targetMembershipId),
+    ).resolves.toBeUndefined();
   });
 });

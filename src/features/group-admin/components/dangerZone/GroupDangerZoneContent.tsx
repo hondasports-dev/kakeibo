@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "convex/react";
 import { useAuth, useUser } from "@clerk/react";
 import {
   Accordion,
@@ -14,7 +13,6 @@ import {
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import WarningAmberIcon from "@mui/icons-material/WarningAmber";
-import { api } from "../../../../../convex/_generated/api";
 import { getClerkUserFriendlyDisplayName, getConvexErrorMessage } from "../../../auth";
 import { getMemberPrimaryLabel, isCurrentUserMember } from "../../utils/groupMemberDisplay";
 import { useGroupSettings } from "../GroupSettingsProvider";
@@ -28,7 +26,7 @@ export function GroupDangerZoneContent() {
   const navigate = useNavigate();
   const { userId } = useAuth();
   const { user } = useUser();
-  const { deleteGroup, group, groups, members, removeMember, transferGroupOwnership } =
+  const { requestGroupDeletion, group, groups, members, removeMember, transferGroupOwnership } =
     useGroupSettings();
   const [expanded, setExpanded] = useState(false);
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
@@ -41,11 +39,6 @@ export function GroupDangerZoneContent() {
   const [transferTargetUserId, setTransferTargetUserId] = useState("");
   const [pendingDeleteGroup, setPendingDeleteGroup] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState("");
-
-  const deletionPreview = useQuery(
-    api.groups.deletion.getGroupDeletionPreview,
-    group?.role === "owner" && pendingDeleteGroup ? {} : "skip",
-  );
 
   if (group === undefined || groups === undefined || members === undefined) {
     return null;
@@ -118,13 +111,11 @@ export function GroupDangerZoneContent() {
     setSavingTarget("delete-group");
     setError("");
     try {
-      await deleteGroup({ confirmationGroupName: deleteConfirmationName });
+      const jobId = await requestGroupDeletion({ confirmationGroupName: deleteConfirmationName });
       setPendingDeleteGroup(false);
       setDeleteConfirmationName("");
-      setSnackbar("グループを削除しました");
-      navigate(groups.length > 1 ? "/group/select" : "/group/setup");
+      navigate(`/group/delete/status/${jobId}`, { flushSync: true, replace: true });
     } catch (caughtError) {
-      setPendingDeleteGroup(false);
       setError(getConvexErrorMessage(caughtError, "グループを削除できませんでした。"));
     } finally {
       setSavingTarget(null);
@@ -195,7 +186,6 @@ export function GroupDangerZoneContent() {
       <GroupDangerZoneDialogs
         currentUserDisplayName={currentUserDisplayName}
         deleteConfirmationName={deleteConfirmationName}
-        deletionPreview={deletionPreview}
         pendingDeleteGroup={pendingDeleteGroup}
         pendingOwnershipTransfer={pendingOwnershipTransfer}
         pendingRemoveMember={pendingRemoveMember}

@@ -4,6 +4,8 @@ export const TRANSACTIONAL_EMAIL_TYPES = [
   "group_role_changed",
   "group_ownership_received",
   "group_ownership_transferred",
+  "group_deletion_started",
+  "group_deletion_failed",
   "group_deleted",
   "ai_review_required",
   "account_deletion_completed",
@@ -39,6 +41,9 @@ export type GroupDeletedPayload = {
   groupName: string;
 };
 
+export type GroupDeletionStartedPayload = GroupDeletedPayload;
+export type GroupDeletionFailedPayload = GroupDeletedPayload & { jobId: string };
+
 export type AiReviewRequiredPayload = {
   pendingCount: number;
 };
@@ -54,6 +59,8 @@ export type TransactionalEmailPayload = {
   group_role_changed: GroupRoleChangedPayload;
   group_ownership_received: GroupOwnershipReceivedPayload;
   group_ownership_transferred: GroupOwnershipTransferredPayload;
+  group_deletion_started: GroupDeletionStartedPayload;
+  group_deletion_failed: GroupDeletionFailedPayload;
   group_deleted: GroupDeletedPayload;
   ai_review_required: AiReviewRequiredPayload;
   account_deletion_completed: AccountDeletionCompletedPayload;

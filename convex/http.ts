@@ -3,6 +3,10 @@ import { resendWebhookHandler } from "./email/webhooks/resendWebhook";
 import { e2eCleanupHandler } from "./e2eHttp/e2eCleanup";
 import { e2eCleanupAuthCheckHandler } from "./e2eHttp/e2eAuth";
 import {
+  cleanupSystemAdminMembershipHandler,
+  seedSystemAdminMembershipHandler,
+} from "./e2eHttp/e2eSystemAdminMembership";
+import {
   e2eSeedAiExpenseDraftHandler,
   e2eSeedPendingGroupInvitationHandler,
   e2eSeedTaxReviewDraftHandler,
@@ -20,6 +24,16 @@ http.route({
   path: "/e2e/cleanup",
   method: "POST",
   handler: e2eCleanupHandler,
+});
+http.route({
+  path: "/e2e/seed-system-admin-membership",
+  method: "POST",
+  handler: seedSystemAdminMembershipHandler,
+});
+http.route({
+  path: "/e2e/cleanup-system-admin-membership",
+  method: "POST",
+  handler: cleanupSystemAdminMembershipHandler,
 });
 http.route({
   path: "/e2e/seed-ai-expense-draft",

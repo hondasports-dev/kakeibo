@@ -9,22 +9,30 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+
+export type GroupDeletionPreviewCount = {
+  count: number;
+  accuracy: "exact" | "at_least" | "unknown";
+};
 
 export type GroupDeletionPreview = {
   groupName: string;
-  members: number;
-  invitations: number;
-  sourceDocuments: number;
-  expenseEntries: number;
-  receipts: number;
-  receiptImages: number;
-  categories: number;
-  aiDrafts: number;
-  aiDraftItems: number;
-  analysisBatches: number;
-  analysisJobs: number;
-  weekSessions: number;
+  members: GroupDeletionPreviewCount;
+  invitations: GroupDeletionPreviewCount;
+  sourceDocuments: GroupDeletionPreviewCount;
+  expenseEntries: GroupDeletionPreviewCount;
+  receipts: GroupDeletionPreviewCount;
+  receiptImages: GroupDeletionPreviewCount;
+  categories: GroupDeletionPreviewCount;
+  aiDrafts: GroupDeletionPreviewCount;
+  aiDraftItems: GroupDeletionPreviewCount;
+  analysisBatches: GroupDeletionPreviewCount;
+  analysisJobs: GroupDeletionPreviewCount;
+  weekSessions: GroupDeletionPreviewCount;
+  managementAuditLogs: GroupDeletionPreviewCount;
 };
 
 type ConfirmDeleteGroupDialogProps = {
@@ -32,13 +40,15 @@ type ConfirmDeleteGroupDialogProps = {
   preview: GroupDeletionPreview | null | undefined;
   confirmationName: string;
   confirming: boolean;
+  previewError?: boolean;
   onConfirmationNameChange: (value: string) => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
-function formatImpactLine(label: string, count: number) {
-  return `${label}: ${count}件`;
+function formatImpactLine(label: string, impact: GroupDeletionPreviewCount) {
+  if (impact.accuracy === "unknown") return `${label}: 件数は削除処理中に確定します`;
+  return `${label}: ${impact.count}件${impact.accuracy === "at_least" ? "以上" : ""}`;
 }
 
 export function ConfirmDeleteGroupDialog({
@@ -46,23 +56,37 @@ export function ConfirmDeleteGroupDialog({
   preview,
   confirmationName,
   confirming,
+  previewError = false,
   onConfirmationNameChange,
   onCancel,
   onConfirm,
 }: ConfirmDeleteGroupDialogProps) {
+  const theme = useTheme();
+  const fullScreen = useMediaQuery(theme.breakpoints.down("sm"));
   const groupName = preview?.groupName ?? "";
   const isNameMatched = confirmationName.trim() === groupName.trim() && groupName.trim().length > 0;
 
   return (
-    <Dialog fullWidth maxWidth="sm" onClose={confirming ? undefined : onCancel} open={open}>
+    <Dialog
+      fullScreen={fullScreen}
+      fullWidth
+      maxWidth="sm"
+      onClose={confirming ? undefined : onCancel}
+      open={open}
+    >
       <DialogTitle>グループを削除しますか？</DialogTitle>
       <DialogContent>
-        <Stack spacing={2}>
+        <Stack aria-live="polite" spacing={2}>
           <Alert severity="error" variant="outlined">
-            この操作により、グループと関連する家計データが削除されます。削除後は復元できません。
+            実行後すぐに利用できなくなります。家計データの完全削除はバックグラウンドで進み、
+            この操作は取り消し・復元できません。
           </Alert>
 
-          {preview ? (
+          {previewError ? (
+            <Alert severity="error" variant="outlined">
+              削除対象の影響範囲を読み込めませんでした。戻ってからもう一度お試しください。
+            </Alert>
+          ) : preview ? (
             <Stack spacing={0.5}>
               <Typography data-testid="delete-group-target-name" variant="subtitle2">
                 削除対象: {preview.groupName}
@@ -97,6 +121,9 @@ export function ConfirmDeleteGroupDialog({
               <Typography color="text.secondary" variant="body2">
                 {formatImpactLine("週次セッション", preview.weekSessions)}
               </Typography>
+              <Typography color="text.secondary" variant="body2">
+                {formatImpactLine("管理操作の監査ログ", preview.managementAuditLogs)}
+              </Typography>
             </Stack>
           ) : (
             <Typography color="text.secondary" variant="body2">
@@ -105,7 +132,7 @@ export function ConfirmDeleteGroupDialog({
           )}
 
           <Typography color="text.secondary" variant="body2">
-            users と Clerk アカウントは削除されません。
+            users と Clerk アカウントは削除されません。ほかのグループにも影響しません。
           </Typography>
 
           <Typography variant="body2">
@@ -114,7 +141,8 @@ export function ConfirmDeleteGroupDialog({
 
           <TextField
             autoComplete="off"
-            disabled={confirming || !preview}
+            autoFocus
+            disabled={confirming || !preview || previewError}
             fullWidth
             label="確認用グループ名"
             onChange={(event) => onConfirmationNameChange(event.target.value)}
@@ -128,12 +156,12 @@ export function ConfirmDeleteGroupDialog({
         </Button>
         <Button
           color="error"
-          disabled={confirming || !preview || !isNameMatched}
+          disabled={confirming || !preview || previewError || !isNameMatched}
           onClick={onConfirm}
           startIcon={confirming ? <CircularProgress color="inherit" size={16} /> : undefined}
           variant="contained"
         >
-          グループを削除する
+          削除を開始する
         </Button>
       </DialogActions>
     </Dialog>

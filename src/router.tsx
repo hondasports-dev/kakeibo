@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import {
   AppLayout,
+  GuidePage,
   MaintenancePage,
   NotFoundPage,
   PrivacyPolicyPage,
@@ -11,6 +12,7 @@ import { DashboardPage } from "./features/dashboard";
 import { InputPage } from "./features/expense-entry";
 import {
   GroupInvitationAcceptPage,
+  GroupDeletionStatusPage,
   GroupSelectPage,
   GroupSetupPage,
   useGroupMembership,
@@ -21,6 +23,17 @@ import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
+import {
+  SystemAdminGroupDetailPage,
+  SystemAdminGroupDeletionPage,
+  SystemAdminGroupSearchPage,
+  SystemAdminHomePage,
+  SystemAdminAuditLogPage,
+  SystemAdminManagementPage,
+  SystemAdminRouteGuard,
+  SystemAdminUserDetailPage,
+  SystemAdminUserSearchPage,
+} from "./features/system-admin";
 
 function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
@@ -87,6 +100,10 @@ const appRoutes: RouteObject[] = [
     element: <SettingsPage />,
   },
   {
+    path: "/guide",
+    element: <GuidePage />,
+  },
+  {
     path: "/settings/account/delete",
     element: <AccountDeletionPage />,
   },
@@ -132,6 +149,24 @@ export const router = createBrowserRouter([
   {
     path: "/settings/account/delete/status",
     element: <AccountDeletionStatusPage />,
+  },
+  {
+    path: "/group/delete/status/:jobId",
+    element: <GroupDeletionStatusPage />,
+  },
+  {
+    path: "/admin",
+    element: <SystemAdminRouteGuard />,
+    children: [
+      { index: true, element: <SystemAdminHomePage /> },
+      { path: "users", element: <SystemAdminUserSearchPage /> },
+      { path: "users/:userId", element: <SystemAdminUserDetailPage /> },
+      { path: "groups", element: <SystemAdminGroupSearchPage /> },
+      { path: "groups/:groupId", element: <SystemAdminGroupDetailPage /> },
+      { path: "audit-logs", element: <SystemAdminAuditLogPage /> },
+      { path: "system-admins", element: <SystemAdminManagementPage /> },
+      { path: "group-deletion", element: <SystemAdminGroupDeletionPage /> },
+    ],
   },
   {
     element: <GroupRouteGuard />,

@@ -43,7 +43,7 @@ function useGroupSettingsValue() {
     removeMember: useMutation(api.groups.members.removeMember),
     changeMemberRole: useMutation(api.groups.members.changeMemberRole),
     transferGroupOwnership: useMutation(api.groups.members.transferGroupOwnership),
-    deleteGroup: useMutation(api.groups.deletion.deleteGroup),
+    requestGroupDeletion: useMutation(api.groups.deletion.requestGroupDeletion),
     updateGroupName: useMutation(api.groups.mutations.updateGroupName),
     inviteMember: useAction(api.groups.clerkInvitations.inviteMember),
     cancelPendingGroupInvitation: useAction(

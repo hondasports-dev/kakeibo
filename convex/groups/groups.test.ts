@@ -1,11 +1,10 @@
 import type { UserIdentity } from "convex/server";
 import { ConvexError } from "convex/values";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import * as groupAdminGuards from "./adminGuards";
 import { GROUP_ADMIN_ERRORS } from "./adminGuards";
-import * as deleteGroupPhysically from "./lib/deleteGroupPhysically";
 import {
   acceptGroupInvitationForVerifiedEmailsHandler,
   acceptGroupInvitationHandler,
@@ -18,7 +17,6 @@ import {
   invitationEmailsMatchAny,
   cancelPendingGroupInvitationHandler,
 } from "./invitations";
-import { deleteGroupHandler } from "./deletion";
 import { deleteGroupMembershipsByUserHandler, seedGroupMemberForE2eHandler } from "./e2e";
 import { sortGroupMembersForDisplay } from "./memberDisplay";
 import { getGroupMembership } from "./membership";
@@ -182,6 +180,7 @@ function createMockDb(state: {
           return (
             indexName === "by_user_id" ||
             indexName === "by_group_id" ||
+            indexName === "by_group_id_and_role" ||
             indexName === "by_group_id_and_user_id"
           );
         }
@@ -222,6 +221,9 @@ function createMockDb(state: {
               return false;
             }
             if ("userId" in filters && "userId" in doc && doc.userId !== filters.userId) {
+              return false;
+            }
+            if ("role" in filters && "role" in doc && doc.role !== filters.role) {
               return false;
             }
             if ("email" in filters && "email" in doc && doc.email !== filters.email) {
@@ -2337,6 +2339,9 @@ describe("groups", () => {
         newRole: "owner",
       }),
     ).rejects.toThrow("グループオーナーのみ実行できます");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it("changeMemberRoleHandler は自分自身のロール変更を拒否する", async () => {
@@ -2368,6 +2373,9 @@ describe("groups", () => {
     await expect(
       changeMemberRoleHandler(ctx, { targetUserId: ownerId, newRole: "member" }),
     ).rejects.toThrow("自分自身に対してこの操作はできません");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it("changeMemberRoleHandler は共同オーナーを member に降格できる", async () => {
@@ -2422,7 +2430,50 @@ describe("groups", () => {
     );
   });
 
-  it("changeMemberRoleHandler は最後の owner の降格を拒否する", async () => {
+  it("changeMemberRoleHandler は他グループの対象を拒否して副作用を残さない", async () => {
+    const ownerId = "https://issuer.example|owner";
+    const targetUserId = "https://issuer.example|other-group-member";
+    const ctx = createMockDb({
+      users: [
+        {
+          _id: "user-owner" as Id<"users">,
+          userId: ownerId,
+          displayName: "オーナー",
+          activeGroupId: "group-001" as Id<"groups">,
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+      groupMembers: [
+        {
+          _id: "member-owner" as Id<"groupMembers">,
+          groupId: "group-001" as Id<"groups">,
+          userId: ownerId,
+          role: "owner",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+        {
+          _id: "member-other-group" as Id<"groupMembers">,
+          groupId: "group-002" as Id<"groups">,
+          userId: targetUserId,
+          role: "member",
+          createdAt: 1000,
+          updatedAt: 1000,
+        },
+      ],
+    });
+    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
+
+    await expect(changeMemberRoleHandler(ctx, { targetUserId, newRole: "owner" })).rejects.toThrow(
+      "指定されたメンバーが見つかりません",
+    );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+
+  it("changeMemberRoleHandler は owner invariant 違反時に副作用を残さない", async () => {
     const ownerId = "https://issuer.example|owner";
     const otherOwnerId = "https://issuer.example|other-owner";
     const ctx = createMockDb({
@@ -2466,14 +2517,16 @@ describe("groups", () => {
     ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
 
     const guardSpy = vi
-      .spyOn(groupAdminGuards, "assertGroupHasMinimumOwners")
+      .spyOn(groupAdminGuards, "assertAnotherGroupOwnerRemains")
       .mockRejectedValue(new ConvexError(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED));
 
     await expect(
       changeMemberRoleHandler(ctx, { targetUserId: otherOwnerId, newRole: "member" }),
     ).rejects.toThrow(GROUP_ADMIN_ERRORS.LAST_OWNER_PROTECTED);
-    expect(guardSpy).toHaveBeenCalledWith(ctx, "group-001", 2);
+    expect(guardSpy).toHaveBeenCalledWith(ctx, "group-001", "member-other-owner");
     expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
 
     guardSpy.mockRestore();
   });
@@ -2516,6 +2569,9 @@ describe("groups", () => {
     await expect(changeMemberRoleHandler(ctx, { targetUserId, newRole: "member" })).rejects.toThrow(
       "すでに同じロールです",
     );
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it("transferGroupOwnershipHandler は owner 権限を member に譲渡し監査ログを残す", async () => {
@@ -3252,186 +3308,7 @@ describe("seedGroupMemberForE2eHandler", () => {
   });
 });
 
-describe("deleteGroupHandler", () => {
-  beforeEach(() => {
-    vi.spyOn(deleteGroupPhysically, "deleteAllGroupScopedData").mockResolvedValue(undefined);
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("owner は確認グループ名一致時に物理削除し、監査ログと activeGroupId を補正する", async () => {
-    const ownerId = "https://issuer.example|owner";
-    const ctx = createMockDb({
-      groups: [
-        {
-          _id: "group-001" as Id<"groups">,
-          name: "佐藤家",
-          status: "active",
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      users: [
-        {
-          _id: "user-owner" as Id<"users">,
-          userId: ownerId,
-          displayName: "オーナー",
-          activeGroupId: "group-001" as Id<"groups">,
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      groupMembers: [
-        {
-          _id: "member-owner" as Id<"groupMembers">,
-          groupId: "group-001" as Id<"groups">,
-          userId: ownerId,
-          role: "owner",
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      groupInvitations: [
-        {
-          _id: "invite-001" as Id<"groupInvitations">,
-          groupId: "group-001" as Id<"groups">,
-          email: "pending@example.com",
-          token: "token-001",
-          status: "pending",
-          invitedByUserId: ownerId,
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-    });
-    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
-
-    await expect(
-      deleteGroupHandler(ctx, { confirmationGroupName: "佐藤家" }),
-    ).resolves.toBeUndefined();
-
-    expect(ctx.db.patch).toHaveBeenCalledWith(
-      "user-owner",
-      expect.objectContaining({ activeGroupId: undefined }),
-    );
-    expect(ctx.db.insert).toHaveBeenCalledWith(
-      "managementAuditLogs",
-      expect.objectContaining({
-        groupId: "group-001",
-        actorUserId: ownerId,
-        action: "group_deleted",
-        targetKind: "group",
-        targetLabel: "佐藤家",
-      }),
-    );
-    const auditLogCall = vi
-      .mocked(ctx.db.insert)
-      .mock.calls.find(([tableName]) => tableName === "managementAuditLogs");
-    expect(auditLogCall).toBeDefined();
-    const auditLog = auditLogCall?.[1] as { afterValue?: string };
-    expect(JSON.parse(auditLog.afterValue ?? "{}")).toEqual(
-      expect.objectContaining({
-        deletionMode: "immediate",
-        affectedCounts: expect.objectContaining({
-          members: 1,
-          invitations: expect.any(Number),
-          sourceDocuments: expect.any(Number),
-          expenseEntries: expect.any(Number),
-          receipts: expect.any(Number),
-          categories: expect.any(Number),
-          aiDrafts: expect.any(Number),
-          aiDraftItems: expect.any(Number),
-          analysisBatches: expect.any(Number),
-          analysisJobs: expect.any(Number),
-          weekSessions: expect.any(Number),
-        }),
-      }),
-    );
-    expect(deleteGroupPhysically.deleteAllGroupScopedData).toHaveBeenCalledWith(ctx, "group-001");
-  });
-
-  it("確認グループ名が一致しない場合は削除しない", async () => {
-    const ownerId = "https://issuer.example|owner";
-    const ctx = createMockDb({
-      groups: [
-        {
-          _id: "group-001" as Id<"groups">,
-          name: "佐藤家",
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      users: [
-        {
-          _id: "user-owner" as Id<"users">,
-          userId: ownerId,
-          displayName: "オーナー",
-          activeGroupId: "group-001" as Id<"groups">,
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      groupMembers: [
-        {
-          _id: "member-owner" as Id<"groupMembers">,
-          groupId: "group-001" as Id<"groups">,
-          userId: ownerId,
-          role: "owner",
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-    });
-    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(ownerId));
-
-    await expect(deleteGroupHandler(ctx, { confirmationGroupName: "鈴木家" })).rejects.toThrow(
-      GROUP_ADMIN_ERRORS.GROUP_NAME_MISMATCH,
-    );
-    expect(deleteGroupPhysically.deleteAllGroupScopedData).not.toHaveBeenCalled();
-  });
-
-  it("member ロールの呼び出しを拒否する", async () => {
-    const memberId = "https://issuer.example|member";
-    const ctx = createMockDb({
-      groups: [
-        {
-          _id: "group-001" as Id<"groups">,
-          name: "佐藤家",
-          status: "active",
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      users: [
-        {
-          _id: "user-member" as Id<"users">,
-          userId: memberId,
-          displayName: "メンバー",
-          activeGroupId: "group-001" as Id<"groups">,
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-      groupMembers: [
-        {
-          _id: "member-target" as Id<"groupMembers">,
-          groupId: "group-001" as Id<"groups">,
-          userId: memberId,
-          role: "member",
-          createdAt: 1000,
-          updatedAt: 1000,
-        },
-      ],
-    });
-    ctx.auth.getUserIdentity = vi.fn().mockResolvedValue(createIdentity(memberId));
-
-    await expect(deleteGroupHandler(ctx, { confirmationGroupName: "佐藤家" })).rejects.toThrow(
-      GROUP_ADMIN_ERRORS.OWNER_ONLY,
-    );
-  });
-
+describe("group lifecycle visibility", () => {
   it("listMyGroupsHandler は deleted / archived グループを一覧から除外する", async () => {
     const ownerId = "https://issuer.example|owner";
     const ctx = createMockDb({
