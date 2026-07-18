@@ -160,6 +160,7 @@ export default defineSchema({
       v.literal("system_admin_membership_transferred"),
       v.literal("system_admin_active_group_set"),
       v.literal("system_admin_active_group_cleared"),
+      v.literal("system_admin_group_deletion_resumed"),
     ),
     actorType: v.union(v.literal("system"), v.literal("system_admin")),
     actorUserId: v.optional(v.id("users")),
@@ -278,6 +279,7 @@ export default defineSchema({
   })
     .index("by_target_group_id_snapshot_and_is_active", ["targetGroupIdSnapshot", "isActive"])
     .index("by_status_and_updated_at", ["status", "updatedAt"])
+    .index("by_updated_at", ["updatedAt"])
     .index("by_source_and_updated_at", ["source", "updatedAt"]),
 
   groupDeletionNotificationRecipients: defineTable({

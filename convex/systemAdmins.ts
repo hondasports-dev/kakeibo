@@ -23,6 +23,7 @@ const systemAdminAuditActionValidator = v.union(
   v.literal("system_admin_membership_transferred"),
   v.literal("system_admin_active_group_set"),
   v.literal("system_admin_active_group_cleared"),
+  v.literal("system_admin_group_deletion_resumed"),
 );
 const systemAdminContextValidator = v.union(
   v.object({ status: v.literal("active"), environment: v.string(), userId: v.id("users") }),

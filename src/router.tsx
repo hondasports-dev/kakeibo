@@ -24,6 +24,7 @@ import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
 import {
   SystemAdminGroupDetailPage,
+  SystemAdminGroupDeletionPage,
   SystemAdminGroupSearchPage,
   SystemAdminHomePage,
   SystemAdminAuditLogPage,
@@ -159,6 +160,7 @@ export const router = createBrowserRouter([
       { path: "groups/:groupId", element: <SystemAdminGroupDetailPage /> },
       { path: "audit-logs", element: <SystemAdminAuditLogPage /> },
       { path: "system-admins", element: <SystemAdminManagementPage /> },
+      { path: "group-deletion", element: <SystemAdminGroupDeletionPage /> },
     ],
   },
   {

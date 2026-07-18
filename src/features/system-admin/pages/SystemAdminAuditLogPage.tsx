@@ -39,6 +39,7 @@ const actionOptions: Array<{ value: SystemAdminAuditAction | ""; label: string }
   { value: "system_admin_membership_transferred", label: "所属移動" },
   { value: "system_admin_active_group_set", label: "active設定" },
   { value: "system_admin_active_group_cleared", label: "active解除" },
+  { value: "system_admin_group_deletion_resumed", label: "削除ジョブ再開" },
 ];
 
 export function SystemAdminAuditLogPage() {

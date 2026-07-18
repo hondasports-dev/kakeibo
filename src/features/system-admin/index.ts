@@ -10,3 +10,4 @@ export { SystemAdminActionDialog } from "./components/SystemAdminActionDialog";
 export { SystemAdminMembershipChangeDialog } from "./components/SystemAdminMembershipChangeDialog";
 export { SystemAdminAuditLogPage } from "./pages/SystemAdminAuditLogPage";
 export { SystemAdminManagementPage } from "./pages/SystemAdminManagementPage";
+export { SystemAdminGroupDeletionPage } from "./pages/SystemAdminGroupDeletionPage";
