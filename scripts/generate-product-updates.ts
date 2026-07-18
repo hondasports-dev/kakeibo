@@ -258,7 +258,7 @@ async function loadPastUpdates({
   }
 
   const latestReleaseSourceAt = latestRelease
-    ? await fetchCommitTime(latestRelease.target_commitish, token)
+    ? await fetchCommitTime(`tags/${latestRelease.tag_name}`, token)
     : undefined;
 
   return { pastUpdates, latestRelease, latestReleaseSourceAt };
