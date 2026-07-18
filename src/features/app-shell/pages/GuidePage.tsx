@@ -36,7 +36,7 @@ export function GuidePage() {
     <Container maxWidth="md" sx={{ py: { xs: 3, sm: 5 }, pb: { xs: 12, md: 5 } }}>
       <Stack spacing={3}>
         <Box>
-          <Stack alignItems="center" direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <HelpOutlinedIcon color="primary" />
             <Typography component="h1" variant="h4">
               使い方
