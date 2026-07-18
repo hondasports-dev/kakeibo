@@ -79,6 +79,7 @@ import type * as receipts_summaries from "../receipts/summaries.js";
 import type * as systemAdminGroupDeletion from "../systemAdminGroupDeletion.js";
 import type * as systemAdminMembership from "../systemAdminMembership.js";
 import type * as systemAdminOwnerlessGroupRecovery from "../systemAdminOwnerlessGroupRecovery.js";
+import type * as systemAdminRoleOperations from "../systemAdminRoleOperations.js";
 import type * as systemAdminSearch from "../systemAdminSearch.js";
 import type * as systemAdmins from "../systemAdmins.js";
 import type * as users_auth from "../users/auth.js";
@@ -167,6 +168,7 @@ declare const fullApi: ApiFromModules<{
   systemAdminGroupDeletion: typeof systemAdminGroupDeletion;
   systemAdminMembership: typeof systemAdminMembership;
   systemAdminOwnerlessGroupRecovery: typeof systemAdminOwnerlessGroupRecovery;
+  systemAdminRoleOperations: typeof systemAdminRoleOperations;
   systemAdminSearch: typeof systemAdminSearch;
   systemAdmins: typeof systemAdmins;
   "users/auth": typeof users_auth;

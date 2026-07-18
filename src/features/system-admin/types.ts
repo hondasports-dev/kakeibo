@@ -59,7 +59,9 @@ export type SystemAdminAuditAction =
   | "system_admin_active_group_set"
   | "system_admin_active_group_cleared"
   | "system_admin_group_deletion_resumed"
-  | "system_admin_ownerless_group_recovered";
+  | "system_admin_ownerless_group_recovered"
+  | "system_admin_group_role_changed"
+  | "system_admin_group_owner_transferred";
 
 export type SystemAdminAuditItem = {
   id: string;
@@ -70,6 +72,8 @@ export type SystemAdminAuditItem = {
   targetUserId?: string;
   targetId?: string;
   targetDisplayName?: string;
+  sourceUserId?: string;
+  sourceUserDisplayName?: string;
   result: "success" | "denied";
   queryHash?: string;
   resultCount?: number;

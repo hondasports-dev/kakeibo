@@ -25,6 +25,8 @@ const systemAdminAuditActionValidator = v.union(
   v.literal("system_admin_active_group_cleared"),
   v.literal("system_admin_group_deletion_resumed"),
   v.literal("system_admin_ownerless_group_recovered"),
+  v.literal("system_admin_group_role_changed"),
+  v.literal("system_admin_group_owner_transferred"),
 );
 const systemAdminContextValidator = v.union(
   v.object({ status: v.literal("active"), environment: v.string(), userId: v.id("users") }),
@@ -52,6 +54,8 @@ const systemAdminAuditItemValidator = v.object({
   targetUserId: v.optional(v.id("users")),
   targetId: v.optional(v.string()),
   targetDisplayName: v.optional(v.string()),
+  sourceUserId: v.optional(v.id("users")),
+  sourceUserDisplayName: v.optional(v.string()),
   reason: v.optional(v.string()),
   queryHash: v.optional(v.string()),
   resultCount: v.optional(v.number()),
@@ -372,6 +376,8 @@ export const listSystemAdminAuditLogs = query({
         targetUserId: log.targetUserId,
         targetId: log.targetId,
         targetDisplayName: log.targetDisplayNameSnapshot,
+        sourceUserId: log.sourceUserId,
+        sourceUserDisplayName: log.sourceUserDisplayNameSnapshot,
         reason: log.reason,
         queryHash: log.queryHash,
         resultCount: log.resultCount,
