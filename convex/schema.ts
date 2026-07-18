@@ -55,7 +55,9 @@ export default defineSchema({
     // Issue #8 要件: users には by_token_identifier index を定義する。
     // 旧 by_user_id インデックスはこのインデックスに一本化した。
     .index("by_token_identifier", ["userId"])
-    .index("by_email", ["email"]),
+    .index("by_email", ["email"])
+    .searchIndex("search_display_name", { searchField: "displayName" })
+    .searchIndex("search_email", { searchField: "email" }),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）
@@ -76,7 +78,7 @@ export default defineSchema({
     archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }),
+  }).searchIndex("search_name", { searchField: "name" }),
 
   groupMembers: defineTable({
     groupId: v.id("groups"),
@@ -110,6 +112,7 @@ export default defineSchema({
   })
     .index("by_token", ["token"])
     .index("by_group_id", ["groupId"])
+    .index("by_email", ["email"])
     .index("by_group_id_and_email", ["groupId", "email"])
     .index("by_group_id_and_status", ["groupId", "status"]),
 
@@ -148,19 +151,28 @@ export default defineSchema({
       v.literal("system_admin_granted"),
       v.literal("system_admin_revoked"),
       v.literal("system_admin_recovered"),
+      v.literal("system_admin_user_searched"),
+      v.literal("system_admin_group_searched"),
+      v.literal("system_admin_user_viewed"),
+      v.literal("system_admin_group_viewed"),
     ),
     actorType: v.union(v.literal("system"), v.literal("system_admin")),
     actorUserId: v.optional(v.id("users")),
-    targetKind: v.literal("system_admin"),
-    targetUserId: v.id("users"),
-    targetDisplayNameSnapshot: v.string(),
-    reason: v.string(),
+    targetKind: v.union(v.literal("system_admin"), v.literal("user"), v.literal("group")),
+    targetUserId: v.optional(v.id("users")),
+    targetDisplayNameSnapshot: v.optional(v.string()),
+    targetId: v.optional(v.string()),
+    reason: v.optional(v.string()),
+    queryType: v.optional(v.string()),
+    queryHash: v.optional(v.string()),
+    resultCount: v.optional(v.number()),
     previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
-    newStatus: v.union(v.literal("active"), v.literal("revoked")),
+    newStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
     createdAt: v.number(),
   })
     .index("by_created_at", ["createdAt"])
-    .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"]),
+    .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"])
+    .index("by_target_kind_and_target_id_and_created_at", ["targetKind", "targetId", "createdAt"]),
 
   systemAdminNotifications: defineTable({
     action: v.union(
