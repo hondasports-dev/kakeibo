@@ -1,5 +1,5 @@
 import { ConvexError, v } from "convex/values";
-import { paginationOptsValidator } from "convex/server";
+import { paginationOptsValidator, paginationResultValidator } from "convex/server";
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
@@ -7,6 +7,52 @@ import type { Doc, Id } from "./_generated/dataModel";
 const REASON_MAX_LENGTH = 500;
 const ENVIRONMENTS = ["development", "preview", "production"] as const;
 type AppEnvironment = (typeof ENVIRONMENTS)[number];
+
+const systemAdminStatusValidator = v.union(v.literal("active"), v.literal("revoked"));
+const systemAdminAuditActionValidator = v.union(
+  v.literal("system_admin_bootstrapped"),
+  v.literal("system_admin_granted"),
+  v.literal("system_admin_revoked"),
+  v.literal("system_admin_recovered"),
+  v.literal("system_admin_user_searched"),
+  v.literal("system_admin_group_searched"),
+  v.literal("system_admin_user_viewed"),
+  v.literal("system_admin_group_viewed"),
+);
+const systemAdminContextValidator = v.union(
+  v.object({ status: v.literal("active"), environment: v.string(), userId: v.id("users") }),
+  v.object({ status: v.literal("revoked"), environment: v.string() }),
+  v.object({ status: v.literal("none"), environment: v.string() }),
+);
+const systemAdminListItemValidator = v.object({
+  id: v.id("systemAdmins"),
+  targetUserId: v.id("users"),
+  status: systemAdminStatusValidator,
+  displayName: v.string(),
+  email: v.union(v.string(), v.null()),
+  createdAt: v.number(),
+  updatedAt: v.number(),
+  grantedAt: v.number(),
+  revokedAt: v.optional(v.number()),
+  isSelf: v.boolean(),
+});
+const systemAdminAuditItemValidator = v.object({
+  id: v.id("systemAdminAuditLogs"),
+  action: systemAdminAuditActionValidator,
+  actorType: v.union(v.literal("system"), v.literal("system_admin")),
+  actorUserId: v.optional(v.id("users")),
+  actorDisplayName: v.union(v.string(), v.null()),
+  targetUserId: v.optional(v.id("users")),
+  targetId: v.optional(v.string()),
+  targetDisplayName: v.optional(v.string()),
+  reason: v.optional(v.string()),
+  queryHash: v.optional(v.string()),
+  resultCount: v.optional(v.number()),
+  result: v.literal("success"),
+  previousStatus: v.optional(systemAdminStatusValidator),
+  newStatus: v.optional(systemAdminStatusValidator),
+  createdAt: v.number(),
+});
 
 type DbCtx = Pick<QueryCtx, "db" | "auth"> | Pick<MutationCtx, "db" | "auth">;
 
@@ -118,6 +164,7 @@ async function createAudit(
 
 export const getMySystemAdminContext = query({
   args: {},
+  returns: systemAdminContextValidator,
   handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     const environment = getAppEnvironment();
@@ -133,7 +180,13 @@ export const getMySystemAdminContext = query({
     } catch {
       return { status: "none" as const, environment };
     }
-    return { status: admin?.status ?? "none", environment };
+    if (admin?.status === "active") {
+      return { status: "active" as const, environment, userId: user._id };
+    }
+    if (admin?.status === "revoked") {
+      return { status: "revoked" as const, environment };
+    }
+    return { status: "none" as const, environment };
   },
 });
 
@@ -142,53 +195,166 @@ export const listSystemAdmins = query({
     paginationOpts: paginationOptsValidator,
     status: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
   },
+  returns: v.object({
+    ...paginationResultValidator(systemAdminListItemValidator).fields,
+    hasAnotherActiveAdmin: v.boolean(),
+  }),
   handler: async (ctx, args) => {
-    await requireSystemAdmin(ctx);
-    const page = args.status
-      ? await ctx.db
+    const actor = await requireSystemAdmin(ctx);
+    const status = args.status ?? "active";
+    const page = await ctx.db
+      .query("systemAdmins")
+      .withIndex("by_status", (q) => q.eq("status", status))
+      .order("desc")
+      .paginate(args.paginationOpts);
+    const hasAnotherActiveAdmin =
+      (
+        await ctx.db
           .query("systemAdmins")
-          .withIndex("by_status", (q) => q.eq("status", args.status!))
-          .order("desc")
-          .paginate(args.paginationOpts)
-      : await ctx.db.query("systemAdmins").order("desc").paginate(args.paginationOpts);
+          .withIndex("by_status", (q) => q.eq("status", "active"))
+          .take(2)
+      ).length >= 2;
     const users = await Promise.all(page.page.map((admin) => ctx.db.get(admin.userId)));
     return {
       ...page,
+      hasAnotherActiveAdmin,
       page: page.page.map((admin, index) => ({
         id: admin._id,
-        userId: admin.userId,
+        targetUserId: admin.userId,
         status: admin.status,
         displayName: users[index]?.displayName ?? "ユーザー",
+        email: users[index]?.email ?? null,
         createdAt: admin.createdAt,
         updatedAt: admin.updatedAt,
         grantedAt: admin.grantedAt,
         revokedAt: admin.revokedAt,
+        isSelf: admin.userId === actor.user._id,
       })),
     };
   },
 });
 
 export const listSystemAdminAuditLogs = query({
-  args: { paginationOpts: paginationOptsValidator },
+  args: {
+    paginationOpts: paginationOptsValidator,
+    from: v.optional(v.number()),
+    to: v.optional(v.number()),
+    action: v.optional(systemAdminAuditActionValidator),
+    actorUserId: v.optional(v.id("users")),
+    targetUserId: v.optional(v.id("users")),
+  },
+  returns: v.object({
+    ...paginationResultValidator(systemAdminAuditItemValidator).fields,
+  }),
   handler: async (ctx, args) => {
     await requireSystemAdmin(ctx);
-    const page = await ctx.db
-      .query("systemAdminAuditLogs")
-      .withIndex("by_created_at")
-      .order("desc")
-      .paginate(args.paginationOpts);
+    const from = args.from ?? 0;
+    const to = args.to ?? Number.MAX_SAFE_INTEGER;
+    const page =
+      args.action && args.actorUserId && args.targetUserId
+        ? await ctx.db
+            .query("systemAdminAuditLogs")
+            .withIndex("by_action_and_actor_user_id_and_target_user_id_and_created_at", (q) =>
+              q
+                .eq("action", args.action!)
+                .eq("actorUserId", args.actorUserId!)
+                .eq("targetUserId", args.targetUserId!)
+                .gte("createdAt", from)
+                .lte("createdAt", to),
+            )
+            .order("desc")
+            .paginate(args.paginationOpts)
+        : args.action && args.actorUserId
+          ? await ctx.db
+              .query("systemAdminAuditLogs")
+              .withIndex("by_action_and_actor_user_id_and_created_at", (q) =>
+                q
+                  .eq("action", args.action!)
+                  .eq("actorUserId", args.actorUserId!)
+                  .gte("createdAt", from)
+                  .lte("createdAt", to),
+              )
+              .order("desc")
+              .paginate(args.paginationOpts)
+          : args.action && args.targetUserId
+            ? await ctx.db
+                .query("systemAdminAuditLogs")
+                .withIndex("by_action_and_target_user_id_and_created_at", (q) =>
+                  q
+                    .eq("action", args.action!)
+                    .eq("targetUserId", args.targetUserId!)
+                    .gte("createdAt", from)
+                    .lte("createdAt", to),
+                )
+                .order("desc")
+                .paginate(args.paginationOpts)
+            : args.actorUserId && args.targetUserId
+              ? await ctx.db
+                  .query("systemAdminAuditLogs")
+                  .withIndex("by_actor_user_id_and_target_user_id_and_created_at", (q) =>
+                    q
+                      .eq("actorUserId", args.actorUserId!)
+                      .eq("targetUserId", args.targetUserId!)
+                      .gte("createdAt", from)
+                      .lte("createdAt", to),
+                  )
+                  .order("desc")
+                  .paginate(args.paginationOpts)
+              : args.action
+                ? await ctx.db
+                    .query("systemAdminAuditLogs")
+                    .withIndex("by_action_and_created_at", (q) =>
+                      q.eq("action", args.action!).gte("createdAt", from).lte("createdAt", to),
+                    )
+                    .order("desc")
+                    .paginate(args.paginationOpts)
+                : args.actorUserId
+                  ? await ctx.db
+                      .query("systemAdminAuditLogs")
+                      .withIndex("by_actor_user_id_and_created_at", (q) =>
+                        q
+                          .eq("actorUserId", args.actorUserId!)
+                          .gte("createdAt", from)
+                          .lte("createdAt", to),
+                      )
+                      .order("desc")
+                      .paginate(args.paginationOpts)
+                  : args.targetUserId
+                    ? await ctx.db
+                        .query("systemAdminAuditLogs")
+                        .withIndex("by_target_user_id_and_created_at", (q) =>
+                          q
+                            .eq("targetUserId", args.targetUserId!)
+                            .gte("createdAt", from)
+                            .lte("createdAt", to),
+                        )
+                        .order("desc")
+                        .paginate(args.paginationOpts)
+                    : await ctx.db
+                        .query("systemAdminAuditLogs")
+                        .withIndex("by_created_at", (q) =>
+                          q.gte("createdAt", from).lte("createdAt", to),
+                        )
+                        .order("desc")
+                        .paginate(args.paginationOpts);
+    const actors = await Promise.all(
+      page.page.map((log) => (log.actorUserId ? ctx.db.get(log.actorUserId) : null)),
+    );
     return {
       ...page,
-      page: page.page.map((log) => ({
+      page: page.page.map((log, index) => ({
         id: log._id,
         action: log.action,
         actorType: log.actorType,
+        actorUserId: log.actorUserId,
+        actorDisplayName: actors[index]?.displayName ?? null,
         targetUserId: log.targetUserId,
         targetId: log.targetId,
         targetDisplayName: log.targetDisplayNameSnapshot,
         reason: log.reason,
         queryHash: log.queryHash,
         resultCount: log.resultCount,
+        result: "success" as const,
         previousStatus: log.previousStatus,
         newStatus: log.newStatus,
         createdAt: log.createdAt,
