@@ -123,7 +123,27 @@ export default defineSchema({
     beforeValue: v.optional(v.string()),
     afterValue: v.optional(v.string()),
     createdAt: v.number(),
-  }).index("by_group_id_and_created_at", ["groupId", "createdAt"]),
+  })
+    .index("by_group_id_and_created_at", ["groupId", "createdAt"])
+    .index("by_action_and_created_at", ["action", "createdAt"]),
+
+  groupDeletionAuditMigrationRecords: defineTable({
+    recordKind: v.literal("legacy_audit"),
+    legacyAuditId: v.string(),
+    actorUserIdSnapshot: v.string(),
+    targetGroupIdSnapshot: v.string(),
+    targetGroupNameSnapshot: v.optional(v.string()),
+    deletedCounts: groupDeletionCountsValidator,
+    sourceCreatedAt: v.number(),
+    status: v.union(v.literal("migrated"), v.literal("skipped"), v.literal("failed")),
+    skipReason: v.optional(v.string()),
+    lastErrorCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    verifiedAt: v.optional(v.number()),
+  })
+    .index("by_legacy_audit_id", ["legacyAuditId"])
+    .index("by_status_and_updated_at", ["status", "updatedAt"]),
 
   groupDeletionJobs: defineTable({
     targetGroupIdSnapshot: v.string(),
