@@ -170,6 +170,8 @@ export default defineSchema({
     targetKind: v.union(v.literal("system_admin"), v.literal("user"), v.literal("group")),
     targetUserId: v.optional(v.id("users")),
     targetDisplayNameSnapshot: v.optional(v.string()),
+    sourceUserId: v.optional(v.id("users")),
+    sourceUserDisplayNameSnapshot: v.optional(v.string()),
     targetId: v.optional(v.string()),
     reason: v.optional(v.string()),
     queryType: v.optional(v.string()),

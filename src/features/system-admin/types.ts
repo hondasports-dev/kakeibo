@@ -72,6 +72,8 @@ export type SystemAdminAuditItem = {
   targetUserId?: string;
   targetId?: string;
   targetDisplayName?: string;
+  sourceUserId?: string;
+  sourceUserDisplayName?: string;
   result: "success" | "denied";
   queryHash?: string;
   resultCount?: number;

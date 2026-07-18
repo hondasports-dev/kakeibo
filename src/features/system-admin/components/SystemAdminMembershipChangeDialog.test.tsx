@@ -17,6 +17,7 @@ describe("SystemAdminMembershipChangeDialog", () => {
     render(
       <SystemAdminMembershipChangeDialog
         confirming={false}
+        currentRole="member"
         environment="preview"
         onCancel={vi.fn()}
         onConfirm={onConfirm}
@@ -43,17 +44,21 @@ describe("SystemAdminMembershipChangeDialog", () => {
     const { rerender } = render(
       <SystemAdminMembershipChangeDialog
         confirming={false}
+        currentRole="member"
         environment="preview"
         newRole="owner"
         onCancel={vi.fn()}
         onConfirm={vi.fn()}
         open
         operation="role_change"
+        sourceGroup={{ id: "group-a", name: "A" }}
         target={target}
       />,
     );
     expect(screen.getByRole("heading", { name: "ownerへ昇格を確認" })).toBeInTheDocument();
-    expect(screen.getByText(/role: 現在のrole → owner/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/対象グループ: A（group-a） \/ role: member → owner/),
+    ).toBeInTheDocument();
 
     rerender(
       <SystemAdminMembershipChangeDialog

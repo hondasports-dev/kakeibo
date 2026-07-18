@@ -92,6 +92,7 @@ export const systemAdminRoleOperation = mutation({
       .take(101);
     if (owners.length > 100) throw new ConvexError("owner数が上限を超えています");
     let action: "system_admin_group_role_changed" | "system_admin_group_owner_transferred";
+    let sourceUser: typeof target | undefined;
     let beforeRole = targetMembership.role;
     let afterRole = targetMembership.role;
     if (args.operation === "change_role") {
@@ -109,6 +110,7 @@ export const systemAdminRoleOperation = mutation({
         throw new ConvexError("owner付替えの指定が不正です");
       const source = await ctx.db.get(args.sourceOwnerUserId);
       if (!source) throw new ConvexError("付替え元ユーザーが存在しません");
+      sourceUser = source;
       await assertAccountDeletionNotInProgress(ctx, source.userId);
       const sourceMembership = await ctx.db
         .query("groupMembers")
@@ -134,7 +136,9 @@ export const systemAdminRoleOperation = mutation({
       targetKind: "group",
       targetUserId: target._id,
       targetId: args.groupId,
-      targetDisplayNameSnapshot: group.name,
+      targetDisplayNameSnapshot: target.displayName,
+      sourceUserId: sourceUser?._id,
+      sourceUserDisplayNameSnapshot: sourceUser?.displayName,
       reason,
       beforeMembershipStatus: beforeRole,
       afterMembershipStatus: afterRole,

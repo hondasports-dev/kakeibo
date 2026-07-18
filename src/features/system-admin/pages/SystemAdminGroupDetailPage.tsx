@@ -130,7 +130,6 @@ export function SystemAdminGroupDetailPage() {
     detail.members.length > 0 &&
     !detail.members.some((member) => member.role === "owner");
   const ownerCount = detail.members.filter((member) => member.role === "owner").length;
-  const firstOwner = detail.members.find((member) => member.role === "owner") ?? null;
   const target = dialogMember
     ? {
         id: dialogMember.userDocumentId ?? "",
@@ -254,20 +253,33 @@ export function SystemAdminGroupDetailPage() {
                       memberへ変更
                     </Button>
                   ) : null}
-                  {member.role === "member" && member.userDocumentId && firstOwner && !ownerless ? (
+                  {member.role === "member" && member.userDocumentId && !ownerless ? (
                     <Button
                       disabled={stale}
                       onClick={() => {
                         setRoleTarget(member);
                         setRoleOperation("owner_transfer");
                         setRoleNewRole(undefined);
-                        setRoleSource(firstOwner);
+                        setRoleSource(null);
                         setRoleError("");
                       }}
                       size="small"
                       variant="outlined"
                     >
                       owner付替え先にする
+                    </Button>
+                  ) : null}
+                  {member.role === "owner" &&
+                  roleTarget !== null &&
+                  roleOperation === "owner_transfer" &&
+                  member.userDocumentId ? (
+                    <Button
+                      disabled={stale}
+                      onClick={() => setRoleSource(member)}
+                      size="small"
+                      variant="outlined"
+                    >
+                      このownerを付替え元に選択
                     </Button>
                   ) : null}
                 </Stack>
@@ -286,6 +298,12 @@ export function SystemAdminGroupDetailPage() {
         )}
         {detail.membersTruncated ? (
           <Alert severity="warning">メンバーは上限件数まで表示しています。</Alert>
+        ) : null}
+        {roleOperation === "owner_transfer" && roleTarget && !roleSource ? (
+          <Alert severity="info" sx={{ mt: 1 }}>
+            owner付替え先に「{roleTarget.displayName ?? "ユーザー"}
+            」を選択しました。付替え元にするownerを選択してください。
+          </Alert>
         ) : null}
       </Paper>
       <Paper sx={{ p: 2 }} variant="outlined">
@@ -332,6 +350,7 @@ export function SystemAdminGroupDetailPage() {
         confirming={roleSaving}
         environment={detail.environment}
         error={roleError}
+        currentRole={roleTarget?.role}
         newRole={roleNewRole}
         onCancel={() => {
           if (!roleSaving) setRoleTarget(null);
@@ -358,7 +377,11 @@ export function SystemAdminGroupDetailPage() {
             setRoleSaving(false);
           }
         }}
-        open={roleTarget !== null && roleOperation !== null}
+        open={
+          roleTarget !== null &&
+          roleOperation !== null &&
+          (roleOperation !== "owner_transfer" || roleSource !== null)
+        }
         operation={roleOperation ?? "role_change"}
         sourceGroup={{ id: detail.id, name: detail.name }}
         sourceUser={

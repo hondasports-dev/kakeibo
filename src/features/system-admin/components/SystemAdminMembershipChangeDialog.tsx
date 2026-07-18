@@ -41,6 +41,7 @@ type Props = {
   error?: string;
   onCancel: () => void;
   onConfirm: (reason: string) => void;
+  currentRole?: "owner" | "member";
   newRole?: "owner" | "member";
   sourceUser?: { id: string; displayName: string; email: string | null };
 };
@@ -66,6 +67,7 @@ export function SystemAdminMembershipChangeDialog({
   error,
   onCancel,
   onConfirm,
+  currentRole,
   newRole,
   sourceUser,
 }: Props) {
@@ -127,7 +129,7 @@ export function SystemAdminMembershipChangeDialog({
               ? `対象: ${targetGroup.name}（${targetGroup.id}）`
               : null}
             {operation === "role_change"
-              ? `role: ${target?.id ? "現在のrole" : "-"} → ${newRole ?? "-"}`
+              ? `対象グループ: ${sourceGroup?.name ?? "-"}（${sourceGroup?.id ?? "-"}） / role: ${currentRole ?? "-"} → ${newRole ?? "-"}`
               : null}
             {operation === "owner_transfer" && sourceUser
               ? `付替え元: ${sourceUser.displayName}（${sourceUser.id}） → 付替え先: ${subject}`

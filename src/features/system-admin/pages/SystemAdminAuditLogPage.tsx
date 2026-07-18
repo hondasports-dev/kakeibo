@@ -233,6 +233,11 @@ function SystemAdminAuditLogPageContent() {
                 target:{" "}
                 {selected.targetDisplayName ?? selected.targetUserId ?? selected.targetId ?? "-"}
               </Typography>
+              {selected.sourceUserId ? (
+                <Typography sx={{ overflowWrap: "anywhere" }}>
+                  source user: {selected.sourceUserDisplayName ?? selected.sourceUserId}
+                </Typography>
+              ) : null}
               {selected.previousStatus || selected.newStatus ? (
                 <Typography>
                   status: {selected.previousStatus ?? "-"} → {selected.newStatus ?? "-"}
