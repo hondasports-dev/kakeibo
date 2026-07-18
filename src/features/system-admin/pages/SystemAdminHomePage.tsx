@@ -18,6 +18,13 @@ export function SystemAdminHomePage() {
         </Grid>
         <Grid size={{ xs: 12, md: 6 }}>
           <AdminLinkCard
+            description="家計内容を見ずに、失敗したグループ削除ジョブを監視・再開します。"
+            label="グループ削除ジョブ"
+            to="/admin/group-deletion"
+          />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }}>
+          <AdminLinkCard
             description="グループ名またはgroupIdから対象グループを探します。"
             label="グループを検索"
             to="/admin/groups"

@@ -16,6 +16,7 @@ describe("system admin route tree", () => {
       "groups/:groupId",
       "audit-logs",
       "system-admins",
+      "group-deletion",
     ]);
     expect(groupGuardRoute?.children?.some((route) => route.path === "/admin")).toBe(false);
   });

@@ -20,6 +20,7 @@ import DashboardIcon from "@mui/icons-material/Dashboard";
 import GroupIcon from "@mui/icons-material/Group";
 import ManageAccountsIcon from "@mui/icons-material/ManageAccounts";
 import HistoryIcon from "@mui/icons-material/History";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import { useTheme } from "@mui/material/styles";
 
 type AppEnvironment = "development" | "preview" | "production";
@@ -31,6 +32,7 @@ const navItems = [
   { label: "グループ", path: "/admin/groups", icon: <GroupIcon /> },
   { label: "監査ログ", path: "/admin/audit-logs", icon: <HistoryIcon /> },
   { label: "管理者", path: "/admin/system-admins", icon: <AdminPanelSettingsIcon /> },
+  { label: "削除ジョブ", path: "/admin/group-deletion", icon: <DeleteSweepIcon /> },
 ];
 
 const environmentLabel: Record<AppEnvironment, string> = {

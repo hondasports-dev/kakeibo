@@ -57,7 +57,8 @@ export type SystemAdminAuditAction =
   | "system_admin_membership_removed"
   | "system_admin_membership_transferred"
   | "system_admin_active_group_set"
-  | "system_admin_active_group_cleared";
+  | "system_admin_active_group_cleared"
+  | "system_admin_group_deletion_resumed";
 
 export type SystemAdminAuditItem = {
   id: string;
