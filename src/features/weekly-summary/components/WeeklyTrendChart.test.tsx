@@ -66,6 +66,15 @@ describe("WeeklyTrendChart", () => {
     expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toBeInTheDocument();
   });
 
+  it("デスクトップではチャートの高さを200pxに抑える", () => {
+    renderWithProviders(<WeeklyTrendChart chartData={chartData} />);
+
+    expect(screen.getByRole("img", { name: "週別支出推移グラフ" })).toHaveAttribute(
+      "data-chart-height",
+      "200",
+    );
+  });
+
   it("Y軸の金額を直感的な円・万円表記で表示する", () => {
     renderWithProviders(<WeeklyTrendChart chartData={chartData} />);
 

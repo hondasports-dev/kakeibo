@@ -273,6 +273,41 @@ test.describe("ナビゲーション（Issue #49）", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
+  test("@smoke @navigation [Issue #136] 週別支出推移がPC/SP幅に収まる", async ({ page }) => {
+    const weekStartDate = getCurrentWeekStartDate();
+    await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
+
+    for (const viewport of [
+      { width: 390, height: 844, expectedChartHeight: "180" },
+      { width: 1280, height: 800, expectedChartHeight: "200" },
+    ]) {
+      await page.setViewportSize(viewport);
+
+      const chartOrEmpty = page
+        .getByTestId("weekly-expense-trend-chart")
+        .or(page.getByTestId("weekly-expense-trend-empty"))
+        .first();
+      await expect(chartOrEmpty).toBeVisible({ timeout: 15_000 });
+
+      const chart = page.getByTestId("weekly-expense-trend-chart");
+      if (await chart.isVisible()) {
+        await expect(page.getByRole("img", { name: "週別支出推移グラフ" })).toHaveAttribute(
+          "data-chart-height",
+          viewport.expectedChartHeight,
+        );
+      } else {
+        await expect(page.getByTestId("weekly-expense-trend-empty")).toContainText(
+          "週別の支出データがあると表示されます",
+        );
+      }
+
+      const noHorizontalOverflow = await page.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      );
+      expect(noHorizontalOverflow).toBe(true);
+    }
+  });
+
   test("@smoke @navigation シナリオN-9: SPで入力フローを一通り完走できる", async ({ page }) => {
     await gotoAuthenticated(page);
     await page.setViewportSize({ width: 390, height: 844 });
