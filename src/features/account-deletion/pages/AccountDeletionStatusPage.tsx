@@ -35,12 +35,22 @@ export function AccountDeletionStatusPage() {
       </Box>
     );
   const failed = status.status === "failed";
+  const statusLabel =
+    status.status === "preparing_groups"
+      ? "グループの削除準備をしています"
+      : status.status === "purging_groups"
+        ? "グループデータを削除しています"
+        : status.status === "retry_wait" || status.status === "finalization_retry_wait"
+          ? "再試行を待っています"
+          : status.status === "identity_deleted"
+            ? "ログイン情報の削除が完了しました"
+            : "アカウントを削除しています";
   return (
     <Box className="app-main">
       <Paper className="settings-ledger" elevation={0}>
         <Stack spacing={2.5}>
           <Typography component="h1" variant="h5">
-            {failed ? "アカウントを削除できませんでした" : "アカウントを削除しています"}
+            {failed ? "アカウントを削除できませんでした" : statusLabel}
           </Typography>
           {failed ? (
             <>
@@ -72,7 +82,9 @@ export function AccountDeletionStatusPage() {
           ) : (
             <>
               <Typography color="text.secondary">
-                退会手続きを進めています。処理が完了すると、登録されているメールアドレスへお知らせします。
+                {status.status === "retry_wait" || status.status === "finalization_retry_wait"
+                  ? "一時的な問題があったため、再試行を待っています。"
+                  : "退会手続きを進めています。処理が完了すると、登録されているメールアドレスへお知らせします。"}
               </Typography>
               <Typography color="text.secondary">この処理は取り消せません。</Typography>
             </>

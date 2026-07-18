@@ -1,6 +1,13 @@
+// @vitest-environment edge-runtime
+/// <reference types="vite/client" />
+
+import { convexTest } from "convex-test";
 import { describe, expect, it, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
+import { api, internal } from "./_generated/api";
+import schema from "./schema";
+import { convexTestModules } from "./test.setup";
 import {
   deleteOrphanedGroupMemberships,
   loadAccountDeletionClassification,
@@ -20,12 +27,16 @@ describe("loadAccountDeletionClassification", () => {
       userId: "user-001",
       role: "member" as const,
     };
+    const take = vi.fn(async (count: number) => {
+      expect(count).toBeLessThanOrEqual(101);
+      return [orphanMembership, activeMembership];
+    });
     const withIndex = vi.fn((indexName: string) => {
       if (indexName === "by_user_id") {
-        return { collect: vi.fn().mockResolvedValue([orphanMembership, activeMembership]) };
+        return { take };
       }
       return {
-        collect: vi.fn().mockResolvedValue([
+        take: vi.fn().mockResolvedValue([
           { ...activeMembership, role: "member" },
           { ...activeMembership, _id: "membership-owner", userId: "owner-001", role: "owner" },
         ]),
@@ -63,5 +74,191 @@ describe("deleteOrphanedGroupMemberships", () => {
 
     expect(deleteMock).toHaveBeenCalledOnce();
     expect(deleteMock).toHaveBeenCalledWith("membership-orphan");
+  });
+});
+
+describe("account deletion group purge orchestration", () => {
+  it("25件を超えるsole-ownerグループをbounded child jobへ分割する", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const userId = "https://clerk.example.test|account-delete-batch";
+    await t.run(async (ctx) => {
+      const user = await ctx.db.insert("users", {
+        userId,
+        displayName: "退会テスト",
+        email: "account-delete@example.test",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      for (let index = 0; index < 26; index += 1) {
+        const groupId = await ctx.db.insert("groups", {
+          name: `退会対象${index}`,
+          status: "active",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await ctx.db.insert("groupMembers", {
+          groupId,
+          userId,
+          role: "owner",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        if (index === 0) await ctx.db.patch(user, { activeGroupId: groupId });
+      }
+    });
+
+    const requestId = await t
+      .withIdentity({ tokenIdentifier: userId, subject: "clerk-account-delete-batch" })
+      .mutation(api.accountDeletion.requestAccountDeletion, { confirmationText: "削除" });
+    await t.mutation(internal.accountDeletion.prepareAccountDeletionBatch, { requestId });
+    await t.mutation(internal.accountDeletion.prepareAccountDeletionBatch, { requestId });
+
+    const state = await t.run(async (ctx) => ({
+      request: await ctx.db.get(requestId),
+      purges: await ctx.db
+        .query("accountDeletionGroupPurges")
+        .withIndex("by_request_id", (q) => q.eq("requestId", requestId))
+        .take(30),
+      groups: await ctx.db.query("groups").take(30),
+    }));
+    expect(state.request?.status).toBe("purging_groups");
+    expect(state.purges).toHaveLength(26);
+    expect(state.groups.filter((group) => group.status === "deleting")).toHaveLength(26);
+  });
+
+  it("子ジョブ失敗時はidentity/userを保持したまま退会要求をfailedにする", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const userId = "https://clerk.example.test|account-delete-failure";
+    const { requestId, jobId, userDbId } = await t.run(async (ctx) => {
+      const userDbId = await ctx.db.insert("users", {
+        userId,
+        displayName: "失敗テスト",
+        email: "failure@example.test",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const groupId = await ctx.db.insert("groups", {
+        name: "失敗対象",
+        status: "active",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("groupMembers", {
+        groupId,
+        userId,
+        role: "owner",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const jobId = await ctx.db.insert("groupDeletionJobs", {
+        targetGroupIdSnapshot: groupId,
+        targetGroupNameSnapshot: "失敗対象",
+        source: "account_deletion",
+        status: "failed",
+        stage: "finalSweep",
+        isActive: false,
+        attemptCount: 6,
+        maxAttempts: 6,
+        lastErrorCategory: "purge_failed",
+        deletedCounts: {
+          receiptAnalysisImageJobs: 0,
+          aiExpenseDraftItems: 0,
+          aiExpenseDrafts: 0,
+          receiptAnalysisBatches: 0,
+          expenseEntries: 0,
+          receipts: 0,
+          sourceDocuments: 0,
+          storageFiles: 0,
+          weekSessions: 0,
+          categories: 0,
+          groupInvitations: 0,
+          managementAuditLogs: 0,
+          groupMembers: 0,
+          groups: 0,
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const requestId = await ctx.db.insert("accountDeletionRequests", {
+        userId,
+        clerkUserId: "clerk-account-delete-failure",
+        status: "purging_groups",
+        leftGroupCount: 0,
+        deletedGroupCount: 1,
+        attemptCount: 0,
+        maxAttempts: 6,
+        createdAt: 1,
+        updatedAt: 1,
+        preparationCompletedAt: 1,
+      });
+      await ctx.db.insert("accountDeletionGroupPurges", {
+        requestId,
+        groupDeletionJobId: jobId,
+        targetGroupIdSnapshot: groupId,
+        targetGroupNameSnapshot: "失敗対象",
+        status: "running",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      return { requestId, jobId, userDbId };
+    });
+
+    await t.mutation(internal.accountDeletion.advanceAccountDeletionPurge, { requestId });
+    const state = await t.run(async (ctx) => ({
+      request: await ctx.db.get(requestId),
+      user: await ctx.db.get(userDbId),
+    }));
+    expect(state.request?.status).toBe("failed");
+    expect(state.request?.lastErrorCode).toBe("purge_failed");
+    expect(state.user).not.toBeNull();
+    expect(jobId).toBeDefined();
+  });
+
+  it("25件を超える共有membershipもページングで取りこぼさず離脱する", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const userId = "https://clerk.example.test|account-delete-shared-batch";
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId,
+        displayName: "共有退会テスト",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      for (let index = 0; index < 26; index += 1) {
+        const groupId = await ctx.db.insert("groups", {
+          name: `共有退会対象${index}`,
+          status: "active",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await ctx.db.insert("groupMembers", {
+          groupId,
+          userId: `owner-${index}`,
+          role: "owner",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+        await ctx.db.insert("groupMembers", {
+          groupId,
+          userId,
+          role: "member",
+          createdAt: 1,
+          updatedAt: 1,
+        });
+      }
+    });
+    const requestId = await t
+      .withIdentity({ tokenIdentifier: userId, subject: "clerk-account-delete-shared-batch" })
+      .mutation(api.accountDeletion.requestAccountDeletion, { confirmationText: "削除" });
+    await t.mutation(internal.accountDeletion.prepareAccountDeletionBatch, { requestId });
+    await t.mutation(internal.accountDeletion.prepareAccountDeletionBatch, { requestId });
+    const remaining = await t.run(
+      async (ctx) =>
+        await ctx.db
+          .query("groupMembers")
+          .withIndex("by_user_id", (q) => q.eq("userId", userId))
+          .take(30),
+    );
+    expect(remaining).toHaveLength(0);
   });
 });

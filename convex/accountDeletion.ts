@@ -3,8 +3,8 @@ import { internalMutation, internalQuery, mutation, query } from "./_generated/s
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireAuthenticatedUserId } from "./users/auth";
-import { readQueryDoc, readQueryDocs } from "./groups/lib/groupQueryHelpers";
-import { deleteAllGroupScopedData } from "./groups/lib/deleteGroupPhysically";
+import { readQueryDoc } from "./groups/lib/groupQueryHelpers";
+import { startGroupDeletionHandler } from "./groups/groupDeletion";
 import { revokeGroupInvitationsForEmailInGroup } from "./groups/invitations";
 import { enqueueTransactionalEmailJobHandler } from "./email/jobs";
 import { classifyAccountDeletionGroups } from "../lib/convex/accountDeletion/groupClassification";
@@ -12,6 +12,8 @@ import type { Id } from "./_generated/dataModel";
 
 const activeStatuses = [
   "requested",
+  "preparing_groups",
+  "purging_groups",
   "deleting_identity",
   "retry_wait",
   "identity_deleted",
@@ -20,11 +22,30 @@ const activeStatuses = [
 ] as const;
 const retryDelaysMs = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 6 * 60 * 60_000] as const;
 const GROUP_MEMBERSHIP_INVARIANT = "Group membership invariant violation";
+const GROUP_BATCH_SIZE = 25;
+const PREVIEW_LIMIT = 101;
+
+async function takeBounded<T>(query: { take?: (count: number) => Promise<T[]> }) {
+  if (typeof query.take !== "function") throw new Error("bounded query is unavailable");
+  return await query.take(PREVIEW_LIMIT);
+}
+
+async function loadGroupMembershipStats(ctx: Pick<QueryCtx, "db">, groupId: Id<"groups">) {
+  const members = await takeBounded(
+    ctx.db.query("groupMembers").withIndex("by_group_id", (q) => q.eq("groupId", groupId)),
+  );
+  if (members.length >= PREVIEW_LIMIT) throw new ConvexError(GROUP_MEMBERSHIP_INVARIANT);
+  return {
+    memberCount: members.length,
+    ownerCount: members.filter((row) => row.role === "owner").length,
+  };
+}
 
 export async function loadAccountDeletionClassification(ctx: Pick<QueryCtx, "db">, userId: string) {
-  const memberships = await readQueryDocs(
+  const memberships = await takeBounded(
     ctx.db.query("groupMembers").withIndex("by_user_id", (q) => q.eq("userId", userId)),
   );
+  if (memberships.length >= PREVIEW_LIMIT) throw new ConvexError(GROUP_MEMBERSHIP_INVARIANT);
   const values = [];
   const orphanMemberships = [];
   for (const membership of memberships) {
@@ -35,17 +56,13 @@ export async function loadAccountDeletionClassification(ctx: Pick<QueryCtx, "db"
       orphanMemberships.push(membership);
       continue;
     }
-    const members = await readQueryDocs(
-      ctx.db
-        .query("groupMembers")
-        .withIndex("by_group_id", (q) => q.eq("groupId", membership.groupId)),
-    );
+    const { memberCount, ownerCount } = await loadGroupMembershipStats(ctx, membership.groupId);
     values.push({
       groupId: membership.groupId,
       groupName: group.name,
       role: membership.role,
-      memberCount: members.length,
-      ownerCount: members.filter((row) => row.role === "owner").length,
+      memberCount,
+      ownerCount,
     });
   }
   return {
@@ -69,7 +86,7 @@ export async function assertAccountDeletionNotInProgress(
   ctx: Pick<QueryCtx, "db">,
   userId: string,
 ) {
-  const requests = await readQueryDocs(
+  const requests = await takeBounded(
     ctx.db.query("accountDeletionRequests").withIndex("by_user_id", (q) => q.eq("userId", userId)),
   );
   if (
@@ -111,7 +128,7 @@ export const getMyAccountDeletionStatus = query({
   args: {},
   handler: async (ctx) => {
     const userId = await requireAuthenticatedUserId(ctx);
-    const requests = await readQueryDocs(
+    const requests = await takeBounded(
       ctx.db
         .query("accountDeletionRequests")
         .withIndex("by_user_id", (q) => q.eq("userId", userId)),
@@ -129,6 +146,7 @@ export const getMyAccountDeletionStatus = query({
 
 export const requestAccountDeletion = mutation({
   args: { confirmationText: v.string() },
+  returns: v.id("accountDeletionRequests"),
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("Not authenticated");
@@ -158,7 +176,7 @@ export const requestAccountDeletion = mutation({
       userId: identity.tokenIdentifier,
       clerkUserId: identity.subject,
       ...(user.email ? { recipientEmailSnapshot: user.email } : {}),
-      status: "requested",
+      status: "preparing_groups",
       leftGroupCount: classification.groupsToLeave.length,
       deletedGroupCount: classification.groupsToDelete.length,
       attemptCount: 0,
@@ -167,24 +185,8 @@ export const requestAccountDeletion = mutation({
       updatedAt: now,
     });
     await deleteOrphanedGroupMemberships(ctx, orphanMemberships);
-    for (const group of classification.groupsToLeave) {
-      const membership = await readQueryDoc(
-        ctx.db
-          .query("groupMembers")
-          .withIndex("by_group_id_and_user_id", (q) =>
-            q.eq("groupId", group.groupId as Id<"groups">).eq("userId", identity.tokenIdentifier),
-          ),
-      );
-      if (!membership) throw new ConvexError(GROUP_MEMBERSHIP_INVARIANT);
-      await ctx.db.delete(membership._id);
-      if (user.email) {
-        await revokeGroupInvitationsForEmailInGroup(ctx, group.groupId as Id<"groups">, user.email);
-      }
-    }
-    for (const group of classification.groupsToDelete)
-      await deleteAllGroupScopedData(ctx, group.groupId as Id<"groups">);
     await ctx.db.patch(user._id, { activeGroupId: undefined, updatedAt: now });
-    await ctx.scheduler.runAfter(0, internal.accountDeletionActions.processAccountDeletion, {
+    await ctx.scheduler.runAfter(0, internal.accountDeletion.prepareAccountDeletionBatch, {
       requestId,
     });
     return requestId;
@@ -193,16 +195,21 @@ export const requestAccountDeletion = mutation({
 
 export const retryAccountDeletion = mutation({
   args: {},
+  returns: v.null(),
   handler: async (ctx) => {
     const userId = await requireAuthenticatedUserId(ctx);
-    const requests = await readQueryDocs(
+    const requests = await takeBounded(
       ctx.db
         .query("accountDeletionRequests")
         .withIndex("by_user_id", (q) => q.eq("userId", userId)),
     );
     const request = requests.find((item) => item.status === "failed");
     if (!request) throw new ConvexError("再試行できる退会処理がありません");
-    const status = request.identityDeletedAt ? "identity_deleted" : "requested";
+    const status = request.identityDeletedAt
+      ? "identity_deleted"
+      : request.preparationCompletedAt
+        ? "purging_groups"
+        : "preparing_groups";
     await ctx.db.patch(request._id, {
       status,
       attemptCount: 0,
@@ -211,9 +218,229 @@ export const retryAccountDeletion = mutation({
       lastErrorMessage: undefined,
       updatedAt: Date.now(),
     });
-    await ctx.scheduler.runAfter(0, internal.accountDeletionActions.processAccountDeletion, {
-      requestId: request._id,
-    });
+    const failedPurges = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", request._id).eq("status", "failed"),
+      )
+      .take(GROUP_BATCH_SIZE);
+    for (const purge of failedPurges) {
+      await ctx.db.patch(purge._id, {
+        status: "pending",
+        lastErrorCode: undefined,
+        lastErrorMessage: undefined,
+        updatedAt: Date.now(),
+      });
+      await ctx.scheduler.runAfter(0, internal.groups.groupDeletion.resumeGroupDeletion, {
+        jobId: purge.groupDeletionJobId,
+      });
+    }
+    await ctx.scheduler.runAfter(
+      0,
+      request.identityDeletedAt || request.preparationCompletedAt
+        ? internal.accountDeletionActions.processAccountDeletion
+        : internal.accountDeletion.prepareAccountDeletionBatch,
+      { requestId: request._id },
+    );
+    return null;
+  },
+});
+
+/**
+ * ユーザーの membership を 25 件ずつ評価し、共有グループの離脱と
+ * sole-owner グループの bounded purge job 作成を行う。
+ */
+export const prepareAccountDeletionBatch = internalMutation({
+  args: { requestId: v.id("accountDeletionRequests") },
+  handler: async (ctx, args) => {
+    const request = await ctx.db.get(args.requestId);
+    if (
+      !request ||
+      request.status === "completed" ||
+      request.status === "failed" ||
+      request.status === "deleting_identity" ||
+      request.status === "identity_deleted" ||
+      request.status === "finalization_retry_wait"
+    ) {
+      return;
+    }
+    const page = await ctx.db
+      .query("groupMembers")
+      .withIndex("by_user_id", (q) => q.eq("userId", request.userId))
+      .paginate({ cursor: request.preparationCursor ?? null, numItems: GROUP_BATCH_SIZE });
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_token_identifier", (q) => q.eq("userId", request.userId))
+      .unique();
+    for (const membership of page.page) {
+      const group = await ctx.db.get(membership.groupId);
+      if (!group) {
+        await ctx.db.delete(membership._id);
+        continue;
+      }
+      const { memberCount, ownerCount } = await loadGroupMembershipStats(ctx, membership.groupId);
+      if (membership.role === "member" || ownerCount >= 2) {
+        await ctx.db.delete(membership._id);
+        if (user?.email) {
+          await revokeGroupInvitationsForEmailInGroup(ctx, membership.groupId, user.email);
+        }
+        continue;
+      }
+      if (memberCount !== 1) {
+        await ctx.db.patch(args.requestId, {
+          status: "failed",
+          lastErrorCode: "account_deletion_blocked_by_membership_change",
+          lastErrorMessage: "グループの所有者状態が変わったため退会処理を停止しました。",
+          updatedAt: Date.now(),
+        });
+        return;
+      }
+      const targetGroupIdSnapshot = membership.groupId.toString();
+      const activeJobs = await ctx.db
+        .query("groupDeletionJobs")
+        .withIndex("by_target_group_id_snapshot_and_is_active", (q) =>
+          q.eq("targetGroupIdSnapshot", targetGroupIdSnapshot).eq("isActive", true),
+        )
+        .take(1);
+      const activeJob = activeJobs[0];
+      const jobId =
+        activeJob?.source === "account_deletion"
+          ? activeJob._id
+          : await startGroupDeletionHandler(ctx, {
+              groupId: membership.groupId,
+              source: "account_deletion",
+            });
+      const existingRelation = await ctx.db
+        .query("accountDeletionGroupPurges")
+        .withIndex("by_group_deletion_job_id", (q) => q.eq("groupDeletionJobId", jobId))
+        .unique();
+      if (!existingRelation) {
+        const now = Date.now();
+        await ctx.db.insert("accountDeletionGroupPurges", {
+          requestId: args.requestId,
+          groupDeletionJobId: jobId,
+          targetGroupIdSnapshot,
+          targetGroupNameSnapshot: group.name,
+          status: "pending",
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+    }
+    const now = Date.now();
+    if (page.isDone) {
+      await ctx.db.patch(args.requestId, {
+        status: "purging_groups",
+        preparationCursor: undefined,
+        preparationCompletedAt: now,
+        updatedAt: now,
+      });
+      await ctx.scheduler.runAfter(0, internal.accountDeletionActions.processAccountDeletion, args);
+    } else {
+      await ctx.db.patch(args.requestId, {
+        status: "preparing_groups",
+        preparationCursor: page.continueCursor,
+        updatedAt: now,
+      });
+      await ctx.scheduler.runAfter(0, internal.accountDeletion.prepareAccountDeletionBatch, args);
+    }
+  },
+});
+
+export const advanceAccountDeletionPurge = internalMutation({
+  args: { requestId: v.id("accountDeletionRequests") },
+  returns: v.union(v.literal("waiting"), v.literal("ready"), v.literal("failed")),
+  handler: async (ctx, args) => {
+    const request = await ctx.db.get(args.requestId);
+    if (!request || request.status === "completed") return "ready";
+    if (request.status === "failed") return "failed";
+    if (request.status === "preparing_groups" && !request.preparationCompletedAt) {
+      await ctx.scheduler.runAfter(0, internal.accountDeletion.prepareAccountDeletionBatch, args);
+      return "waiting";
+    }
+    const relations = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id", (q) => q.eq("requestId", args.requestId))
+      .take(GROUP_BATCH_SIZE);
+    for (const relation of relations) {
+      const job = await ctx.db.get(relation.groupDeletionJobId);
+      if (!job) {
+        await ctx.db.patch(relation._id, {
+          status: "failed",
+          lastErrorCode: "group_purge_job_missing",
+          lastErrorMessage: "グループ削除ジョブが見つかりません。",
+          updatedAt: Date.now(),
+        });
+        await ctx.db.patch(args.requestId, {
+          status: "failed",
+          lastErrorCode: "group_purge_job_missing",
+          lastErrorMessage: "グループ削除ジョブが見つかりません。",
+          updatedAt: Date.now(),
+        });
+        return "failed";
+      }
+      if (job.status === "failed") {
+        await ctx.db.patch(relation._id, {
+          status: "failed",
+          lastErrorCode: job.lastErrorCategory ?? "group_purge_failed",
+          lastErrorMessage: "グループデータの削除に失敗しました。",
+          updatedAt: Date.now(),
+        });
+        await ctx.db.patch(args.requestId, {
+          status: "failed",
+          lastErrorCode: job.lastErrorCategory ?? "group_purge_failed",
+          lastErrorMessage: "グループデータの削除に失敗しました。",
+          updatedAt: Date.now(),
+        });
+        return "failed";
+      }
+      if (job.status === "completed") {
+        await ctx.db.patch(relation._id, {
+          status: "completed",
+          completedAt: job.completedAt ?? Date.now(),
+          updatedAt: Date.now(),
+        });
+      } else if (relation.status === "pending") {
+        await ctx.db.patch(relation._id, { status: "running", updatedAt: Date.now() });
+      }
+    }
+    const pending = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", args.requestId).eq("status", "pending"),
+      )
+      .take(1);
+    const failed = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", args.requestId).eq("status", "failed"),
+      )
+      .take(1);
+    if (failed.length > 0) {
+      await ctx.db.patch(args.requestId, {
+        status: "failed",
+        lastErrorCode: failed[0].lastErrorCode ?? "group_purge_failed",
+        lastErrorMessage: failed[0].lastErrorMessage ?? "グループデータの削除に失敗しました。",
+        updatedAt: Date.now(),
+      });
+      return "failed";
+    }
+    const running = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id_and_status", (q) =>
+        q.eq("requestId", args.requestId).eq("status", "running"),
+      )
+      .take(1);
+    if (pending.length > 0 || running.length > 0) {
+      await ctx.scheduler.runAfter(
+        60_000,
+        internal.accountDeletionActions.processAccountDeletion,
+        args,
+      );
+      return "waiting";
+    }
+    await ctx.db.patch(args.requestId, { status: "requested", updatedAt: Date.now() });
+    return "ready";
   },
 });
 
@@ -289,6 +516,15 @@ export const finalizeAccountDeletion = internalMutation({
     if (!request || request.status === "completed") return;
     if (request.status !== "identity_deleted" && request.status !== "finalization_retry_wait")
       throw new ConvexError("Account deletion is not ready to finalize");
+    const purgeRelations = await ctx.db
+      .query("accountDeletionGroupPurges")
+      .withIndex("by_request_id", (q) => q.eq("requestId", args.requestId))
+      .take(GROUP_BATCH_SIZE);
+    if (purgeRelations.length > 0) {
+      for (const relation of purgeRelations) await ctx.db.delete(relation._id);
+      await ctx.scheduler.runAfter(0, internal.accountDeletion.finalizeAccountDeletion, args);
+      return;
+    }
     if (request.recipientEmailSnapshot)
       await enqueueTransactionalEmailJobHandler(ctx, {
         templateType: "account_deletion_completed",
