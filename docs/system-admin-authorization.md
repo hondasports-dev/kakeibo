@@ -1,7 +1,8 @@
 # システム管理者の認可・付与・剥奪設計
 
-> **重要: 本ドキュメントは将来設計の正本です。現行コードベースには `systemAdmins` テーブル、
-> `requireSystemAdmin`、管理 UI（`/admin`）は未実装です。**
+> **重要: 本ドキュメントは認可モデルの正本です。Issue #474で`systemAdmins`、
+> `requireSystemAdmin`、専用監査・通知キューのConvex基盤を実装済みです。管理 UI（`/admin`）と
+> 検索・詳細APIは後続Issueで実装します。**
 
 このドキュメントは、Suzumemo 全体を運用するシステム管理者の認可モデル、初期登録、
 付与・剥奪、監査、家計データとの境界を定義する正本である。
@@ -20,8 +21,9 @@
 - 誤昇格、自己操作、最後の管理者喪失、環境間の権限混在を防ぐ
 - 付与・剥奪を追跡可能な監査証跡として残す
 
-本 Issue は設計のみを対象とする。schema、Convex function、管理 UI、E2E の実装は
-#289〜#292 で行う。
+schema、Convex function、管理 UI、E2Eの責務はIssueごとに分割する。#474ではschema、共通認可、
+付与・剥奪・bootstrap/recover、専用監査と通知キューを実装し、管理UI・検索・詳細・E2Eは
+#289〜#292で行う。
 
 ## 2. 用語と権限モデル
 
@@ -87,6 +89,7 @@ systemAdminAuditLogs: defineTable({
   actorUserId: v.optional(v.id("users")),
   targetKind: v.literal("system_admin"),
   targetUserId: v.id("users"),
+  targetDisplayNameSnapshot: v.string(),
   reason: v.string(),
   previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
   newStatus: v.union(v.literal("active"), v.literal("revoked")),
@@ -264,6 +267,7 @@ Convex のトランザクション競合時の再試行後にも不変条件を�
 
 | Issue | 実装範囲 | 本ドキュメントの主な参照先 |
 | --- | --- | --- |
+| #474 | schema、共通認可、付与・剥奪・bootstrap/recover、専用監査・通知キュー | 3〜9, 11 |
 | #289 | schema、共通認可、管理情報検索API、監査基盤 | 3, 4, 8, 9, 11 |
 | #290 | `/admin` ルーティング、UIシェル、状態表示 | 8, 10, 11 |
 | #291 | 所属・owner・activeGroupId等の管理操作 | 4, 8, 9, 11 |
