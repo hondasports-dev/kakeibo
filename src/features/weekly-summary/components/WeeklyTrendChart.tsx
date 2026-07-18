@@ -40,6 +40,7 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
     ? { bottom: 28, left: 56, right: 8, top: 16 }
     : { bottom: 28, left: 52, right: 12, top: 16 };
   const yAxisWidth = isCompact ? 60 : 52;
+  const chartHeight = isCompact ? 180 : 200;
 
   if (isLoading) {
     return (
@@ -48,7 +49,7 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
           <Typography component="h2" sx={{ mb: 1.5 }} variant="h6">
             週別支出推移
           </Typography>
-          <Skeleton height={220} variant="rectangular" />
+          <Skeleton height={chartHeight} variant="rectangular" />
         </Box>
       </Paper>
     );
@@ -106,7 +107,12 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
           ))}
         </Box>
 
-        <Box aria-label="週別支出推移グラフ" role="img" sx={{ minWidth: 0, width: "100%" }}>
+        <Box
+          aria-label="週別支出推移グラフ"
+          data-chart-height={chartHeight}
+          role="img"
+          sx={{ minWidth: 0, width: "100%" }}
+        >
           <BarChart
             axisHighlight={{ x: "band" }}
             borderRadius={6}
@@ -114,7 +120,7 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
               series.length > 0 ? series.map((entry) => entry.color) : [theme.palette.primary.main]
             }
             dataset={dataset}
-            height={220}
+            height={chartHeight}
             hideLegend
             margin={chartMargin}
             series={chartSeries}
