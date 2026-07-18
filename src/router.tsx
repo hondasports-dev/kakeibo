@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate, type RouteObject } from "react-router-dom";
 import {
   AppLayout,
+  GuidePage,
   MaintenancePage,
   NotFoundPage,
   PrivacyPolicyPage,
@@ -97,6 +98,10 @@ const appRoutes: RouteObject[] = [
   {
     path: "/settings",
     element: <SettingsPage />,
+  },
+  {
+    path: "/guide",
+    element: <GuidePage />,
   },
   {
     path: "/settings/account/delete",
