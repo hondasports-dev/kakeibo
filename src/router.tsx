@@ -22,6 +22,15 @@ import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
 import { useConvexAuth, useQuery } from "convex/react";
 import { api } from "../convex/_generated/api";
+import {
+  SystemAdminGroupDetailPage,
+  SystemAdminGroupSearchPage,
+  SystemAdminHomePage,
+  SystemAdminPlaceholderPage,
+  SystemAdminRouteGuard,
+  SystemAdminUserDetailPage,
+  SystemAdminUserSearchPage,
+} from "./features/system-admin";
 
 function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
@@ -137,6 +146,19 @@ export const router = createBrowserRouter([
   {
     path: "/group/delete/status/:jobId",
     element: <GroupDeletionStatusPage />,
+  },
+  {
+    path: "/admin",
+    element: <SystemAdminRouteGuard />,
+    children: [
+      { index: true, element: <SystemAdminHomePage /> },
+      { path: "users", element: <SystemAdminUserSearchPage /> },
+      { path: "users/:userId", element: <SystemAdminUserDetailPage /> },
+      { path: "groups", element: <SystemAdminGroupSearchPage /> },
+      { path: "groups/:groupId", element: <SystemAdminGroupDetailPage /> },
+      { path: "audit-logs", element: <SystemAdminPlaceholderPage title="監査ログ" /> },
+      { path: "system-admins", element: <SystemAdminPlaceholderPage title="システム管理者" /> },
+    ],
   },
   {
     element: <GroupRouteGuard />,
