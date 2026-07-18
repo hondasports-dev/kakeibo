@@ -155,6 +155,11 @@ export default defineSchema({
       v.literal("system_admin_group_searched"),
       v.literal("system_admin_user_viewed"),
       v.literal("system_admin_group_viewed"),
+      v.literal("system_admin_membership_added"),
+      v.literal("system_admin_membership_removed"),
+      v.literal("system_admin_membership_transferred"),
+      v.literal("system_admin_active_group_set"),
+      v.literal("system_admin_active_group_cleared"),
     ),
     actorType: v.union(v.literal("system"), v.literal("system_admin")),
     actorUserId: v.optional(v.id("users")),
@@ -168,6 +173,19 @@ export default defineSchema({
     resultCount: v.optional(v.number()),
     previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
     newStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
+    sourceGroupId: v.optional(v.id("groups")),
+    sourceGroupNameSnapshot: v.optional(v.string()),
+    targetGroupId: v.optional(v.id("groups")),
+    targetGroupNameSnapshot: v.optional(v.string()),
+    beforeMembershipStatus: v.optional(
+      v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+    ),
+    afterMembershipStatus: v.optional(
+      v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+    ),
+    beforeActiveGroupId: v.optional(v.id("groups")),
+    afterActiveGroupId: v.optional(v.id("groups")),
+    result: v.optional(v.union(v.literal("success"), v.literal("denied"))),
     createdAt: v.number(),
   })
     .index("by_created_at", ["createdAt"])
@@ -195,6 +213,7 @@ export default defineSchema({
       v.literal("system_admin_revoked"),
       v.literal("system_admin_recovered"),
       v.literal("system_admin_bootstrapped"),
+      v.literal("system_admin_membership_changed"),
     ),
     recipientUserId: v.id("users"),
     targetUserId: v.id("users"),
@@ -203,7 +222,21 @@ export default defineSchema({
     createdAt: v.number(),
   })
     .index("by_dedupe_key", ["dedupeKey"])
-    .index("by_recipient_and_created_at", ["recipientUserId", "createdAt"]),
+    .index("by_recipient_and_created_at", ["recipientUserId", "createdAt"])
+    .index("by_recipient_and_target_user_id_and_created_at", [
+      "recipientUserId",
+      "targetUserId",
+      "createdAt",
+    ]),
+
+  e2eSystemAdminMembershipFixtures: defineTable({
+    prefix: v.string(),
+    actorUserId: v.id("users"),
+    targetUserId: v.id("users"),
+    groupA: v.id("groups"),
+    groupB: v.id("groups"),
+    createdAt: v.number(),
+  }).index("by_prefix", ["prefix"]),
 
   groupDeletionAuditMigrationRecords: defineTable({
     recordKind: v.literal("legacy_audit"),

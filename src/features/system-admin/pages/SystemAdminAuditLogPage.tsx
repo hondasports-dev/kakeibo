@@ -34,6 +34,11 @@ const actionOptions: Array<{ value: SystemAdminAuditAction | ""; label: string }
   { value: "system_admin_group_searched", label: "グループ検索" },
   { value: "system_admin_user_viewed", label: "ユーザー詳細" },
   { value: "system_admin_group_viewed", label: "グループ詳細" },
+  { value: "system_admin_membership_added", label: "所属追加" },
+  { value: "system_admin_membership_removed", label: "所属解除" },
+  { value: "system_admin_membership_transferred", label: "所属移動" },
+  { value: "system_admin_active_group_set", label: "active設定" },
+  { value: "system_admin_active_group_cleared", label: "active解除" },
 ];
 
 export function SystemAdminAuditLogPage() {
@@ -195,7 +200,11 @@ function SystemAdminAuditLogPageContent() {
                       target: {item.targetDisplayName ?? item.targetUserId ?? item.targetId ?? "-"}
                     </Typography>
                   </Stack>
-                  <Chip color="success" label={item.result} size="small" />
+                  <Chip
+                    color={item.result === "success" ? "success" : "error"}
+                    label={item.result}
+                    size="small"
+                  />
                 </Stack>
               </Paper>
             );
@@ -223,6 +232,26 @@ function SystemAdminAuditLogPageContent() {
               {selected.previousStatus || selected.newStatus ? (
                 <Typography>
                   status: {selected.previousStatus ?? "-"} → {selected.newStatus ?? "-"}
+                </Typography>
+              ) : null}
+              {selected.sourceGroupId || selected.targetGroupId ? (
+                <Typography sx={{ overflowWrap: "anywhere" }}>
+                  group: {selected.sourceGroupNameSnapshot ?? selected.sourceGroupId ?? "-"} →{" "}
+                  {selected.targetGroupNameSnapshot ?? selected.targetGroupId ?? "-"}
+                </Typography>
+              ) : null}
+              {selected.beforeActiveGroupId !== undefined ||
+              selected.afterActiveGroupId !== undefined ? (
+                <Typography sx={{ overflowWrap: "anywhere" }}>
+                  activeGroupId: {selected.beforeActiveGroupId ?? "未選択"} →{" "}
+                  {selected.afterActiveGroupId ?? "未選択"}
+                </Typography>
+              ) : null}
+              {selected.beforeMembershipStatus !== undefined ||
+              selected.afterMembershipStatus !== undefined ? (
+                <Typography>
+                  membership: {selected.beforeMembershipStatus ?? "未所属"} →{" "}
+                  {selected.afterMembershipStatus ?? "未所属"}
                 </Typography>
               ) : null}
               <Typography color="text.secondary" variant="caption">

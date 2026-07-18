@@ -226,6 +226,41 @@ export async function setE2eGroupMemberRole(
   });
 }
 
+export type SystemAdminMembershipFixture = {
+  targetUserId: string;
+  groupA: string;
+  groupB: string;
+  actorUserId: string;
+  prefix: string;
+};
+
+export async function seedSystemAdminMembershipFixture(
+  page: Page,
+  prefix: string,
+): Promise<SystemAdminMembershipFixture> {
+  const actorUserId = await getCurrentClerkTokenIdentifier(page);
+  const result = await callFixtureEndpoint("seed-system-admin-membership", {
+    actorUserId,
+    prefix,
+  });
+  if (!result.targetUserId || !result.groupA || !result.groupB) {
+    throw new Error("E2E membership fixture response is incomplete");
+  }
+  return {
+    targetUserId: result.targetUserId,
+    groupA: result.groupA,
+    groupB: result.groupB,
+    actorUserId,
+    prefix,
+  };
+}
+
+export async function cleanupSystemAdminMembershipFixture(
+  fixture: Pick<SystemAdminMembershipFixture, "actorUserId" | "prefix">,
+): Promise<void> {
+  await callFixtureEndpoint("cleanup-system-admin-membership", fixture);
+}
+
 async function callCleanupEndpoint(body: {
   userId?: string;
   email?: string;
@@ -313,6 +348,36 @@ async function callCleanupEndpoint(body: {
   if (data.groupInvitations && data.groupInvitations.deletedCount > 0) {
     console.log(`[cleanup] ${data.groupInvitations.deletedCount} 件のグループ招待を削除しました。`);
   }
+}
+
+async function callFixtureEndpoint(
+  path: "seed-system-admin-membership" | "cleanup-system-admin-membership",
+  body: { actorUserId: string; prefix: string },
+): Promise<{ targetUserId?: string; groupA?: string; groupB?: string }> {
+  const siteUrl = process.env.VITE_CONVEX_SITE_URL;
+  const secret = process.env.E2E_CLEANUP_SECRET;
+  if (!siteUrl || !secret) {
+    throw new Error("E2E fixtureに必要なVITE_CONVEX_SITE_URL/E2E_CLEANUP_SECRETが未設定です。");
+  }
+  const response = await fetch(`${siteUrl}/e2e/${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-E2E-Cleanup-Secret": secret },
+    body: JSON.stringify(body),
+  });
+  const payload = (await response.json()) as {
+    targetUserId?: string;
+    groupA?: string;
+    groupB?: string;
+    error?: string;
+  };
+  if (
+    !response.ok ||
+    (path === "seed-system-admin-membership" &&
+      (!payload.targetUserId || !payload.groupA || !payload.groupB))
+  ) {
+    throw new Error(payload.error ?? `E2E fixture request failed: ${response.status}`);
+  }
+  return payload;
 }
 
 async function fetchCleanupWithRetry(

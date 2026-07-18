@@ -1,7 +1,17 @@
-import { useEffect, useState } from "react";
-import { useAction } from "convex/react";
-import { useParams } from "react-router-dom";
-import { Alert, CircularProgress, List, ListItem, Paper, Stack, Typography } from "@mui/material";
+import { useCallback, useEffect, useState } from "react";
+import { useAction, useMutation } from "convex/react";
+import { Link, useParams } from "react-router-dom";
+import {
+  Alert,
+  Button,
+  CircularProgress,
+  List,
+  ListItem,
+  Paper,
+  Stack,
+  Typography,
+} from "@mui/material";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 import {
   SystemAdminBackLink,
@@ -9,29 +19,72 @@ import {
   SystemAdminErrorState,
   SystemAdminPageFrame,
 } from "./SystemAdminPageFrame";
+import { SystemAdminMembershipChangeDialog } from "../components/SystemAdminMembershipChangeDialog";
 
 type GroupDetail = {
   name: string;
   id: string;
   status: string;
-  members: { userId: string; displayName: string | null; email: string | null; role: string }[];
+  environment: string;
+  members: {
+    userDocumentId: string | null;
+    userId: string;
+    displayName: string | null;
+    email: string | null;
+    role: "owner" | "member";
+  }[];
   invitations: { email: string; status: string }[];
+  membersTruncated?: boolean;
+  invitationsTruncated?: boolean;
 };
 
 export function SystemAdminGroupDetailPage() {
   const { groupId } = useParams();
   const getGroupDetail = useAction(api.systemAdminSearch.getGroupDetail);
+  const operate = useMutation(api.systemAdminMembership.systemAdminMembershipOperation);
   const [detail, setDetail] = useState<GroupDetail | null | undefined>(undefined);
   const [error, setError] = useState(false);
+  const [dialogMember, setDialogMember] = useState<GroupDetail["members"][number] | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [operationError, setOperationError] = useState<string>();
+  const [success, setSuccess] = useState("");
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!groupId) return;
     setDetail(undefined);
     setError(false);
-    getGroupDetail({ groupId: groupId as never })
-      .then((response) => setDetail(response as GroupDetail | null))
-      .catch(() => setError(true));
+    try {
+      const response = await getGroupDetail({ groupId: groupId as Id<"groups"> });
+      setDetail(response as GroupDetail | null);
+    } catch {
+      setError(true);
+    }
   }, [getGroupDetail, groupId]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const removeMember = async (reason: string) => {
+    if (!detail || !dialogMember || !dialogMember.userDocumentId || !groupId) return;
+    setConfirming(true);
+    setOperationError(undefined);
+    try {
+      await operate({
+        targetUserId: dialogMember.userDocumentId as Id<"users">,
+        operation: "remove",
+        sourceGroupId: groupId as Id<"groups">,
+        reason,
+      });
+      setDialogMember(null);
+      setSuccess("所属を解除しました。家計データは変更していません。");
+      await load();
+    } catch (cause) {
+      setOperationError(cause instanceof Error ? cause.message : "操作に失敗しました");
+    } finally {
+      setConfirming(false);
+    }
+  };
 
   if (error)
     return (
@@ -53,13 +106,26 @@ export function SystemAdminGroupDetailPage() {
       </SystemAdminPageFrame>
     );
 
-  const stale = detail.status === "deleting" || detail.status === "deleted";
+  const stale = detail.status !== "active";
+  const target = dialogMember
+    ? {
+        id: dialogMember.userDocumentId ?? "",
+        displayName: dialogMember.displayName ?? "ユーザー",
+        email: dialogMember.email,
+        activeGroupId: null,
+      }
+    : null;
   return (
     <SystemAdminPageFrame title="グループ詳細">
       <SystemAdminBackLink to="/admin/groups">グループ検索へ戻る</SystemAdminBackLink>
+      {success ? (
+        <Alert onClose={() => setSuccess("")} severity="success">
+          {success}
+        </Alert>
+      ) : null}
       {stale ? (
         <Alert severity="warning">
-          このグループは状態が「{detail.status}」です。表示は最新状態と異なる場合があります。
+          このグループは状態が「{detail.status}」のため変更できません。
         </Alert>
       ) : null}
       <Paper sx={{ p: 3 }} variant="outlined">
@@ -76,9 +142,45 @@ export function SystemAdminGroupDetailPage() {
         {detail.members.length ? (
           <List>
             {detail.members.map((member) => (
-              <ListItem key={member.userId}>
-                {member.displayName ?? "ユーザー"}（{member.email ?? "email未登録"}） /{" "}
-                {member.role} / userId: {member.userId}
+              <ListItem key={member.userId} sx={{ display: "block" }}>
+                <Stack
+                  sx={{
+                    alignItems: "flex-start",
+                    display: "flex",
+                    flexDirection: "row",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
+                >
+                  <Typography sx={{ flex: 1, minWidth: 220 }}>
+                    {member.displayName ?? "ユーザー"}（{member.email ?? "email未登録"}） /{" "}
+                    {member.role}
+                  </Typography>
+                  {member.userDocumentId ? (
+                    <Button
+                      component={Link}
+                      size="small"
+                      to={`/admin/users/${member.userDocumentId}`}
+                      variant="text"
+                    >
+                      ユーザー詳細
+                    </Button>
+                  ) : null}
+                  <Button
+                    disabled={stale || member.role === "owner" || !member.userDocumentId}
+                    onClick={() => setDialogMember(member)}
+                    size="small"
+                    title={member.role === "owner" ? "ownerの解除は#477で行います" : undefined}
+                    variant="outlined"
+                  >
+                    グループから外す
+                  </Button>
+                </Stack>
+                {member.role === "owner" ? (
+                  <Typography color="text.secondary" variant="caption">
+                    ownerの解除・付替えは#477で行います。
+                  </Typography>
+                ) : null}
               </ListItem>
             ))}
           </List>
@@ -87,6 +189,9 @@ export function SystemAdminGroupDetailPage() {
             所属メンバーはいません。
           </Typography>
         )}
+        {detail.membersTruncated ? (
+          <Alert severity="warning">メンバーは上限件数まで表示しています。</Alert>
+        ) : null}
       </Paper>
       <Paper sx={{ p: 2 }} variant="outlined">
         <Typography component="h3" variant="h6">
@@ -105,10 +210,29 @@ export function SystemAdminGroupDetailPage() {
             招待情報はありません。
           </Typography>
         )}
+        {detail.invitationsTruncated ? (
+          <Alert severity="warning">招待情報は上限件数まで表示しています。</Alert>
+        ) : null}
       </Paper>
       <Alert severity="info" variant="outlined">
-        この画面では所属・招待の状態を確認するだけで、変更操作は行いません。
+        この画面の変更は所属だけです。家計データ、招待トークン、Clerkアカウントは変更しません。
       </Alert>
+      <SystemAdminMembershipChangeDialog
+        confirming={confirming}
+        environment={detail.environment}
+        error={operationError}
+        onCancel={() => {
+          if (!confirming) {
+            setDialogMember(null);
+            setOperationError(undefined);
+          }
+        }}
+        onConfirm={removeMember}
+        open={dialogMember !== null}
+        operation="remove"
+        sourceGroup={{ id: detail.id, name: detail.name }}
+        target={target}
+      />
     </SystemAdminPageFrame>
   );
 }

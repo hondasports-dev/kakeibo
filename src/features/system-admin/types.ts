@@ -52,7 +52,12 @@ export type SystemAdminAuditAction =
   | "system_admin_user_searched"
   | "system_admin_group_searched"
   | "system_admin_user_viewed"
-  | "system_admin_group_viewed";
+  | "system_admin_group_viewed"
+  | "system_admin_membership_added"
+  | "system_admin_membership_removed"
+  | "system_admin_membership_transferred"
+  | "system_admin_active_group_set"
+  | "system_admin_active_group_cleared";
 
 export type SystemAdminAuditItem = {
   id: string;
@@ -63,11 +68,19 @@ export type SystemAdminAuditItem = {
   targetUserId?: string;
   targetId?: string;
   targetDisplayName?: string;
-  result: "success";
+  result: "success" | "denied";
   queryHash?: string;
   resultCount?: number;
   reason?: string;
   previousStatus?: SystemAdminStatus;
   newStatus?: SystemAdminStatus;
+  sourceGroupId?: string;
+  sourceGroupNameSnapshot?: string;
+  targetGroupId?: string;
+  targetGroupNameSnapshot?: string;
+  beforeMembershipStatus?: "none" | "member" | "owner";
+  afterMembershipStatus?: "none" | "member" | "owner";
+  beforeActiveGroupId?: string;
+  afterActiveGroupId?: string;
   createdAt: number;
 };
