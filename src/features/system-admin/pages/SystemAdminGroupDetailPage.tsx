@@ -47,6 +47,7 @@ export function SystemAdminGroupDetailPage() {
   const { groupId } = useParams();
   const getGroupDetail = useAction(api.systemAdminSearch.getGroupDetail);
   const operate = useMutation(api.systemAdminMembership.systemAdminMembershipOperation);
+  const roleOperate = useMutation(api.systemAdminRoleOperations.systemAdminRoleOperation);
   const recoverOwnerless = useMutation(api.systemAdminOwnerlessGroupRecovery.recoverOwnerlessGroup);
   const [detail, setDetail] = useState<GroupDetail | null | undefined>(undefined);
   const [error, setError] = useState(false);
@@ -58,6 +59,12 @@ export function SystemAdminGroupDetailPage() {
   const [recoveryReason, setRecoveryReason] = useState("");
   const [recovering, setRecovering] = useState(false);
   const [recoveryError, setRecoveryError] = useState("");
+  const [roleTarget, setRoleTarget] = useState<GroupDetail["members"][number] | null>(null);
+  const [roleOperation, setRoleOperation] = useState<"role_change" | "owner_transfer" | null>(null);
+  const [roleNewRole, setRoleNewRole] = useState<"owner" | "member">();
+  const [roleSource, setRoleSource] = useState<GroupDetail["members"][number] | null>(null);
+  const [roleError, setRoleError] = useState("");
+  const [roleSaving, setRoleSaving] = useState(false);
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -122,6 +129,8 @@ export function SystemAdminGroupDetailPage() {
     !detail.membersTruncated &&
     detail.members.length > 0 &&
     !detail.members.some((member) => member.role === "owner");
+  const ownerCount = detail.members.filter((member) => member.role === "owner").length;
+  const firstOwner = detail.members.find((member) => member.role === "owner") ?? null;
   const target = dialogMember
     ? {
         id: dialogMember.userDocumentId ?? "",
@@ -213,6 +222,54 @@ export function SystemAdminGroupDetailPage() {
                   >
                     グループから外す
                   </Button>
+                  {member.role === "member" && member.userDocumentId && !ownerless ? (
+                    <Button
+                      disabled={stale}
+                      onClick={() => {
+                        setRoleTarget(member);
+                        setRoleOperation("role_change");
+                        setRoleNewRole("owner");
+                        setRoleSource(null);
+                        setRoleError("");
+                      }}
+                      size="small"
+                      variant="outlined"
+                    >
+                      ownerへ昇格
+                    </Button>
+                  ) : null}
+                  {member.role === "owner" && ownerCount > 1 && member.userDocumentId ? (
+                    <Button
+                      disabled={stale}
+                      onClick={() => {
+                        setRoleTarget(member);
+                        setRoleOperation("role_change");
+                        setRoleNewRole("member");
+                        setRoleSource(null);
+                        setRoleError("");
+                      }}
+                      size="small"
+                      variant="outlined"
+                    >
+                      memberへ変更
+                    </Button>
+                  ) : null}
+                  {member.role === "member" && member.userDocumentId && firstOwner && !ownerless ? (
+                    <Button
+                      disabled={stale}
+                      onClick={() => {
+                        setRoleTarget(member);
+                        setRoleOperation("owner_transfer");
+                        setRoleNewRole(undefined);
+                        setRoleSource(firstOwner);
+                        setRoleError("");
+                      }}
+                      size="small"
+                      variant="outlined"
+                    >
+                      owner付替え先にする
+                    </Button>
+                  ) : null}
                 </Stack>
                 {member.role === "owner" ? (
                   <Typography color="text.secondary" variant="caption">
@@ -270,6 +327,59 @@ export function SystemAdminGroupDetailPage() {
         operation="remove"
         sourceGroup={{ id: detail.id, name: detail.name }}
         target={target}
+      />
+      <SystemAdminMembershipChangeDialog
+        confirming={roleSaving}
+        environment={detail.environment}
+        error={roleError}
+        newRole={roleNewRole}
+        onCancel={() => {
+          if (!roleSaving) setRoleTarget(null);
+        }}
+        onConfirm={async (reason) => {
+          if (!groupId || !roleTarget?.userDocumentId || !roleOperation) return;
+          setRoleSaving(true);
+          setRoleError("");
+          try {
+            await roleOperate({
+              operation: roleOperation === "role_change" ? "change_role" : "transfer_owner",
+              groupId: groupId as Id<"groups">,
+              targetUserId: roleTarget.userDocumentId as Id<"users">,
+              sourceOwnerUserId: roleSource?.userDocumentId as Id<"users"> | undefined,
+              newRole: roleNewRole,
+              reason,
+            });
+            setRoleTarget(null);
+            setSuccess("role変更を完了しました。監査ログと通知outboxに記録しました。");
+            await load();
+          } catch (cause) {
+            setRoleError(cause instanceof Error ? cause.message : "role変更に失敗しました");
+          } finally {
+            setRoleSaving(false);
+          }
+        }}
+        open={roleTarget !== null && roleOperation !== null}
+        operation={roleOperation ?? "role_change"}
+        sourceGroup={{ id: detail.id, name: detail.name }}
+        sourceUser={
+          roleSource
+            ? {
+                id: roleSource.userDocumentId ?? "",
+                displayName: roleSource.displayName ?? "ユーザー",
+                email: roleSource.email,
+              }
+            : undefined
+        }
+        target={
+          roleTarget
+            ? {
+                id: roleTarget.userDocumentId ?? "",
+                displayName: roleTarget.displayName ?? "ユーザー",
+                email: roleTarget.email,
+                activeGroupId: null,
+              }
+            : null
+        }
       />
       <Dialog
         fullWidth

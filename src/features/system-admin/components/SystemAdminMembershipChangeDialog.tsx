@@ -18,11 +18,16 @@ export type SystemAdminMembershipOperation =
   | "set_active"
   | "clear_active";
 
+export type SystemAdminRoleOperation =
+  | SystemAdminMembershipOperation
+  | "role_change"
+  | "owner_transfer";
+
 export type MembershipDialogGroup = { id: string; name: string; status?: string };
 
 type Props = {
   open: boolean;
-  operation: SystemAdminMembershipOperation;
+  operation: SystemAdminRoleOperation;
   target: {
     id: string;
     displayName: string;
@@ -36,14 +41,18 @@ type Props = {
   error?: string;
   onCancel: () => void;
   onConfirm: (reason: string) => void;
+  newRole?: "owner" | "member";
+  sourceUser?: { id: string; displayName: string; email: string | null };
 };
 
-const labels: Record<SystemAdminMembershipOperation, string> = {
+const labels: Record<SystemAdminRoleOperation, string> = {
   add: "グループに追加",
   remove: "グループから外す",
   transfer: "別グループへ移動",
   set_active: "activeグループに設定",
   clear_active: "activeグループを解除",
+  role_change: "権限変更",
+  owner_transfer: "owner付替え",
 };
 
 export function SystemAdminMembershipChangeDialog({
@@ -57,6 +66,8 @@ export function SystemAdminMembershipChangeDialog({
   error,
   onCancel,
   onConfirm,
+  newRole,
+  sourceUser,
 }: Props) {
   const [reason, setReason] = useState("");
   useEffect(() => {
@@ -74,6 +85,12 @@ export function SystemAdminMembershipChangeDialog({
   const titleId = "system-admin-membership-dialog-title";
   const descriptionId = "system-admin-membership-dialog-description";
   const helperId = "system-admin-membership-reason-helper";
+  const actionLabel =
+    operation === "role_change"
+      ? newRole === "owner"
+        ? "ownerへ昇格"
+        : "memberへ変更"
+      : labels[operation];
   const subject = target
     ? `${target.displayName}（${target.email ?? "email未登録"}）`
     : "対象ユーザー";
@@ -87,11 +104,11 @@ export function SystemAdminMembershipChangeDialog({
       onClose={confirming ? undefined : onCancel}
       open={open}
     >
-      <DialogTitle id={titleId}>{labels[operation]}を確認</DialogTitle>
+      <DialogTitle id={titleId}>{actionLabel}を確認</DialogTitle>
       <DialogContent>
         <Stack spacing={2}>
           <Typography id={descriptionId} variant="body2">
-            {subject}（user document: {target?.id ?? "不明"}）に対して「{labels[operation]}
+            {subject}（user document: {target?.id ?? "不明"}）に対して「{actionLabel}
             」を実行します。
             <br />
             {operation === "remove" && sourceGroup
@@ -108,6 +125,12 @@ export function SystemAdminMembershipChangeDialog({
               : null}
             {operation === "set_active" && targetGroup
               ? `対象: ${targetGroup.name}（${targetGroup.id}）`
+              : null}
+            {operation === "role_change"
+              ? `role: ${target?.id ? "現在のrole" : "-"} → ${newRole ?? "-"}`
+              : null}
+            {operation === "owner_transfer" && sourceUser
+              ? `付替え元: ${sourceUser.displayName}（${sourceUser.id}） → 付替え先: ${subject}`
               : null}
             <br />
             環境: {environment}。所属だけを変更し、家計データは移動しません。
