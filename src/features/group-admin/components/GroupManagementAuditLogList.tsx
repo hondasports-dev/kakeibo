@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
-import { formatDateTimeForDisplay } from "../lib/datetimeFormat";
+import { formatDateTimeForDisplay } from "../../../utils/date";
 import {
   getManagementAuditLogDetailLabel,
   type GroupManagementAuditLogListItem,

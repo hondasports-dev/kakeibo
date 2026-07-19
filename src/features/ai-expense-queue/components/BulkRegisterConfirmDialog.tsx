@@ -6,8 +6,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
-
-const amountFormatter = new Intl.NumberFormat("ja-JP");
+import { formatYen } from "../../../utils/currency";
 
 export function BulkRegisterConfirmDialog({
   confirmDisabled = false,
@@ -28,7 +27,7 @@ export function BulkRegisterConfirmDialog({
     <Dialog fullWidth maxWidth="xs" onClose={onCancel} open={open}>
       <DialogTitle>{count}件の下書きを登録しますか？</DialogTitle>
       <DialogContent>
-        <Typography variant="body1">合計 {amountFormatter.format(totalAmountYen)}円</Typography>
+        <Typography variant="body1">合計 {formatYen(totalAmountYen)}</Typography>
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} type="button">

@@ -95,11 +95,19 @@ jobs:
               // 逆引きできる前に届くことがある。
               // その場合でも、同一リポジトリの branch tip が deployment の SHA と
               // 一致していれば、同一ブランチ由来の Preview とみなして E2E を走らせる。
-              const prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                owner,
-                repo,
-                commit_sha: commitSha,
-              })
+              let prs = { data: [] }
+              try {
+                prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
+                  owner,
+                  repo,
+                  commit_sha: commitSha,
+                })
+              } catch (error) {
+                const status = error?.status ?? 'unknown'
+                core.warning(
+                  `Could not resolve pull requests for commit ${commitSha} (HTTP ${status}); falling back to branch-tip verification.`,
+                )
+              }
               const sameRepoPr = prs.data.find((pr) => pr.head.repo?.full_name === sameRepo)
               const forkPr = prs.data.find((pr) => pr.head.repo?.full_name !== sameRepo)
 

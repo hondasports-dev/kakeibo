@@ -2,7 +2,7 @@
 /// <reference types="vite/client" />
 
 import { convexTest } from "convex-test";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "./_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
@@ -78,6 +78,10 @@ describe("deleteOrphanedGroupMemberships", () => {
 });
 
 describe("account deletion group purge orchestration", () => {
+  // requestAccountDeletion が登録する Node 専用 action を edge-runtime の teardown 後に実行しない。
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
   it("25件を超えるsole-ownerグループをbounded child jobへ分割する", async () => {
     const t = convexTest(schema, convexTestModules);
     const userId = "https://clerk.example.test|account-delete-batch";

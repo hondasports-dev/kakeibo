@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "convex/react";
 import {
   Button,
@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { SystemAdminErrorBoundary } from "../components/SystemAdminErrorBoundary";
 import {
   SystemAdminEmptyState,
   SystemAdminErrorState,
@@ -48,9 +49,16 @@ const actionOptions: Array<{ value: SystemAdminAuditAction | ""; label: string }
 
 export function SystemAdminAuditLogPage() {
   return (
-    <SystemAdminAuditErrorBoundary>
+    <SystemAdminErrorBoundary
+      label="SystemAdminAuditLogPage"
+      renderError={(retry) => (
+        <SystemAdminPageFrame title="監査ログ">
+          <SystemAdminErrorState onRetry={retry} />
+        </SystemAdminPageFrame>
+      )}
+    >
       <SystemAdminAuditLogPageContent />
-    </SystemAdminAuditErrorBoundary>
+    </SystemAdminErrorBoundary>
   );
 }
 
@@ -289,30 +297,4 @@ function parseDateBoundary(value: string, endOfDay: boolean) {
   const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00"}`);
   const timestamp = date.getTime();
   return Number.isFinite(timestamp) ? timestamp : undefined;
-}
-
-class SystemAdminAuditErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {
-    if (import.meta.env.DEV) console.error("[SystemAdminAuditLogPage] query failed", _error);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <SystemAdminPageFrame title="監査ログ">
-          <SystemAdminErrorState onRetry={() => this.setState({ hasError: false })} />
-        </SystemAdminPageFrame>
-      );
-    }
-    return this.props.children;
-  }
 }

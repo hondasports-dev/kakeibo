@@ -373,7 +373,7 @@ Convex関数を実装する時点で、未認証の場合に拒否されるこ�
 active record が確認できない場合は fail closed にする。
 
 システム管理者は管理情報だけを扱い、家計データのグループ認可を迂回できない。
-**現行コードでは `systemAdmins` テーブル、関連 API、`/admin` UI は未実装**である。
+現行コードでは `systemAdmins` テーブル、関連 API、`/admin` UI は実装済みである。
 設計の正本は `docs/system-admin-authorization.md` を参照する。
 
 ## 7. 画面とルーティング
@@ -396,6 +396,11 @@ active record が確認できない場合は fail closed にする。
 | `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
 | `/__e2e__/input-workbench`     | E2E専用画面        | 開発時のみ入力ワークベンチのレイアウトを検証する |
 | `/__e2e__/ai-expense-queue-expense-entries` | E2E専用画面 | 開発時のみ expenseEntries 登録を検証する |
+| `/guide` | 使い方 | アプリ内ガイドを表示する |
+| `/updates` | 更新履歴 | ユーザー向け更新履歴を表示する |
+| `/settings/account/delete` | アカウント削除 | アカウント削除をリクエストする |
+| `/settings/account/delete/status` | アカウント削除状況 | 非同期アカウント削除の状況を確認する |
+| `/admin` | システム管理者画面 | ユーザー・グループ検索、詳細、監査ログ、権限管理、削除失敗復旧など（`SystemAdminRouteGuard`） |
 
 現行コードには `/sign-in`、`/weeks/:weekStartDate/review`、`/export` の個別ルートはない。
 サインイン画面は `App.tsx` の未認証表示で扱う。振り返りメモとセッション完了UIは表示せず、
@@ -989,8 +994,8 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - CSVエクスポート画面とCSV生成処理
 - 週の開始・終了曜日設定の週計算への反映
 - 月収入設定UI
-- 収入入力 UI（バックエンド互換のみ残存）
-- システム管理者（`systemAdmins`、`/admin` UI）
+
+収入入力 UI は `ExpenseEntryForm` の `entryType` 切り替えで実装済み。
 
 旧タスクリスト上の `Unit testとComponent test` 以降は、変更内容に応じて継続的に追加・更新する。
 

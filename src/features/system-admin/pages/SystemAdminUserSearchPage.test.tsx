@@ -52,4 +52,23 @@ describe("SystemAdminUserSearchPage", () => {
       paginationOpts: { numItems: 20, cursor: null },
     });
   });
+
+  it("検索条件が未入力でも条件なし検索を実行する", async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter>
+        <SystemAdminUserSearchPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("button", { name: "検索" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "検索" }));
+
+    expect(await screen.findByText("対象ユーザー")).toBeInTheDocument();
+    expect(actionMock).toHaveBeenCalledWith({
+      queryType: "displayName",
+      query: "",
+      paginationOpts: { numItems: 20, cursor: null },
+    });
+  });
 });

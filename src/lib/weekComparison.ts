@@ -1,4 +1,4 @@
-const yenFormatter = new Intl.NumberFormat("ja-JP");
+import { currencyFormatter } from "../utils/currency";
 
 export function calcPrevWeekDiff(
   currentTotalAmountYen: number,
@@ -42,7 +42,7 @@ export function formatPrevWeekDiff(diff: number | null): string {
     return "±0円";
   }
   const sign = diff > 0 ? "+" : "";
-  return `${sign}${yenFormatter.format(diff)}円`;
+  return `${sign}${currencyFormatter.format(diff)}円`;
 }
 
 export function formatPrevWeekRate(rate: number | null): string {

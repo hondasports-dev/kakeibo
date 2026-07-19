@@ -2,6 +2,7 @@ import type { AiExpenseDraft, ReviewItemValues } from "../types/types";
 import { buildTaxContextFromReviewItem } from "./receiptItemTaxViewModel";
 import { formatYenLabel } from "./receiptTaxLabels";
 import { getTaxModeLabel } from "./receiptItemTaxViewModel";
+import { formatYenAbs } from "../../../utils/currency";
 
 export type ReceiptTotalsStatus = "matched" | "mismatch" | "subtotalUnavailable";
 
@@ -109,12 +110,12 @@ function resolveReceiptSubtotal(taxSummaries: AiExpenseDraft["taxSummaries"]): {
 }
 
 function formatGapNote(gap: number, referenceLabel: string): string {
-  const abs = Math.abs(gap).toLocaleString("ja-JP");
+  const abs = formatYenAbs(gap);
   if (gap > 0) {
-    return `${referenceLabel}より${abs}円多い`;
+    return `${referenceLabel}より${abs}多い`;
   }
   if (gap < 0) {
-    return `${referenceLabel}より${abs}円少ない`;
+    return `${referenceLabel}より${abs}少ない`;
   }
   return "";
 }
@@ -146,19 +147,17 @@ function buildGuidanceLines(args: {
 
   const otherLines: string[] = [];
   if (args.gapPaidVsItems !== undefined && args.gapPaidVsItems !== 0) {
-    const abs = Math.abs(args.gapPaidVsItems).toLocaleString("ja-JP");
+    const abs = formatYenAbs(args.gapPaidVsItems);
     if (args.gapPaidVsItems > 0) {
-      otherLines.push(`お支払いより${abs}円不足しています`);
+      otherLines.push(`お支払いより${abs}不足しています`);
     } else {
-      otherLines.push(`お支払いより${abs}円超過しています`);
+      otherLines.push(`お支払いより${abs}超過しています`);
     }
   }
 
   if (args.hasSubtotal && args.gapItemsVsSubtotal !== undefined && args.gapItemsVsSubtotal !== 0) {
-    const abs = Math.abs(args.gapItemsVsSubtotal).toLocaleString("ja-JP");
-    otherLines.push(
-      `印字合計とレシート小計が${abs}円ずれています。金額が怪しい行を確認してください`,
-    );
+    const abs = formatYenAbs(args.gapItemsVsSubtotal);
+    otherLines.push(`印字合計とレシート小計が${abs}ずれています。金額が怪しい行を確認してください`);
   }
 
   const maxOtherLines = unresolvedLine ? 1 : 2;
