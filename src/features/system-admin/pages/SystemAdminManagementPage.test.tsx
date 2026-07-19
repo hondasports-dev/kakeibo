@@ -76,6 +76,21 @@ describe("SystemAdminManagementPage", () => {
     expect(grantMock).toHaveBeenCalledWith({ targetUserId: "target-doc", reason: "運用委任" });
   });
 
+  it("検索条件が未入力でも付与候補を検索する", async () => {
+    const user = userEvent.setup();
+    render(<SystemAdminManagementPage />);
+
+    expect(screen.getByRole("button", { name: "候補を検索" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "候補を検索" }));
+
+    expect(await screen.findByText("対象ユーザー")).toBeInTheDocument();
+    expect(actionMock).toHaveBeenCalledWith({
+      queryType: "displayName",
+      query: "",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+  });
+
   it("自分自身の剥奪を常時無効化する", () => {
     render(<SystemAdminManagementPage />);
     expect(screen.getByRole("button", { name: "剥奪" })).toBeDisabled();

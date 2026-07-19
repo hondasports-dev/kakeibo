@@ -78,6 +78,86 @@ async function seed(t: ReturnType<typeof convexTest>) {
 }
 
 describe("system admin search and detail API", () => {
+  it("空白だけのユーザー検索を条件なし一覧として実行する", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("users", {
+        userId: "newest-user",
+        displayName: "最新ユーザー",
+        email: "newest@example.test",
+        createdAt: 5,
+        updatedAt: 5,
+      });
+    });
+    const admin = t.withIdentity(identity("admin"));
+
+    const users = await admin.action(api.systemAdminSearch.searchUsers, {
+      queryType: "email",
+      query: "   ",
+      paginationOpts: { numItems: 1, cursor: null },
+    });
+
+    expect(users.page).toHaveLength(1);
+    expect(users.page[0]).toMatchObject({ userId: "newest-user" });
+    expect(users.isDone).toBe(false);
+    const audits = await t.run(async (ctx) =>
+      ctx.db.query("systemAdminAuditLogs").withIndex("by_created_at").order("desc").take(1),
+    );
+    expect(audits[0]).toMatchObject({
+      action: "system_admin_user_searched",
+      queryType: "user_email",
+      resultCount: 1,
+    });
+    expect(audits[0]?.queryHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("空のグループ検索は全状態を新しい順にページングする", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await seed(t);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("groups", {
+        name: "削除中グループ",
+        status: "deleting",
+        createdAt: 4,
+        updatedAt: 4,
+      });
+      await ctx.db.insert("groups", {
+        name: "削除済みグループ",
+        status: "deleted",
+        createdAt: 5,
+        updatedAt: 5,
+      });
+      await ctx.db.insert("groups", {
+        name: "アーカイブ済みグループ",
+        status: "archived",
+        createdAt: 6,
+        updatedAt: 6,
+      });
+    });
+    const admin = t.withIdentity(identity("admin"));
+
+    const firstPage = await admin.action(api.systemAdminSearch.searchGroups, {
+      queryType: "groupId",
+      query: "",
+      paginationOpts: { numItems: 1, cursor: null },
+    });
+    const secondPage = await admin.action(api.systemAdminSearch.searchGroups, {
+      queryType: "groupId",
+      query: "",
+      paginationOpts: { numItems: 10, cursor: firstPage.continueCursor },
+    });
+
+    expect(firstPage.page[0]).toMatchObject({ name: "アーカイブ済みグループ", status: "archived" });
+    expect(secondPage.page).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: "削除済みグループ", status: "deleted" }),
+        expect.objectContaining({ name: "削除中グループ", status: "deleting" }),
+        expect.objectContaining({ name: "対象グループ", status: "active" }),
+      ]),
+    );
+  });
+
   it("ユーザー・グループ検索をページングし、管理情報だけを返す", async () => {
     const t = convexTest(schema, convexTestModules);
     await seed(t);
@@ -218,14 +298,14 @@ describe("system admin search and detail API", () => {
     expect(viewedAudit).toMatchObject({ targetId: ids.groupId, resultCount: 1 });
   });
 
-  it("検索語・ページ件数の境界値を拒否する", async () => {
+  it("長すぎる検索語・ページ件数の境界値を拒否する", async () => {
     const t = convexTest(schema, convexTestModules);
     await seed(t);
     const admin = t.withIdentity(identity("admin"));
     await expect(
       admin.action(api.systemAdminSearch.searchUsers, {
         queryType: "displayName",
-        query: " ",
+        query: "a".repeat(201),
         paginationOpts: { numItems: 10, cursor: null },
       }),
     ).rejects.toThrow();

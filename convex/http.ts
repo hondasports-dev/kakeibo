@@ -7,6 +7,10 @@ import {
   seedSystemAdminMembershipHandler,
 } from "./e2eHttp/e2eSystemAdminMembership";
 import {
+  cleanupSystemAdminSearchHandler,
+  seedSystemAdminSearchHandler,
+} from "./e2eHttp/e2eSystemAdminSearch";
+import {
   e2eSeedAiExpenseDraftHandler,
   e2eSeedPendingGroupInvitationHandler,
   e2eSeedTaxReviewDraftHandler,
@@ -34,6 +38,16 @@ http.route({
   path: "/e2e/cleanup-system-admin-membership",
   method: "POST",
   handler: cleanupSystemAdminMembershipHandler,
+});
+http.route({
+  path: "/e2e/seed-system-admin-search",
+  method: "POST",
+  handler: seedSystemAdminSearchHandler,
+});
+http.route({
+  path: "/e2e/cleanup-system-admin-search",
+  method: "POST",
+  handler: cleanupSystemAdminSearchHandler,
 });
 http.route({
   path: "/e2e/seed-ai-expense-draft",
