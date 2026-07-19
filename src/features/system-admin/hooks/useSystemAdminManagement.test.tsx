@@ -91,4 +91,18 @@ describe("useSystemAdminManagement", () => {
       expect(result.current.candidates[0].displayName).toBe("対象ユーザー");
     });
   });
+
+  it("検索条件が未入力でも空文字を API に送信する", async () => {
+    const { result } = renderHook(() => useSystemAdminManagement());
+
+    await act(async () => {
+      await result.current.runSearch();
+    });
+
+    expect(actionMock).toHaveBeenLastCalledWith({
+      queryType: "displayName",
+      query: "",
+      paginationOpts: { numItems: 10, cursor: null },
+    });
+  });
 });

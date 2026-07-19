@@ -35,7 +35,6 @@ export function SystemAdminUserSearchPage() {
 
   const runSearch = async (nextCursor: string | null) => {
     const normalizedQuery = query.trim();
-    if (!normalizedQuery) return;
     setIsLoading(true);
     setError(false);
     try {
@@ -88,16 +87,13 @@ export function SystemAdminUserSearchPage() {
           <TextField
             autoComplete="off"
             fullWidth
+            helperText="未入力で検索すると新しい順に一覧表示します"
             label="ユーザー検索"
             name="user-search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
           />
-          <Button
-            disabled={isLoading || query.trim().length === 0}
-            type="submit"
-            variant="contained"
-          >
+          <Button disabled={isLoading} type="submit" variant="contained">
             {isLoading ? <CircularProgress aria-label="検索中" size={20} /> : "検索"}
           </Button>
         </Stack>

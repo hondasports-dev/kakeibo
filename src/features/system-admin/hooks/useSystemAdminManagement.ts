@@ -47,7 +47,6 @@ export function useSystemAdminManagement() {
 
   const runSearch = async () => {
     const query = searchQuery.trim();
-    if (!query) return;
     setSearching(true);
     setSearchError(false);
     setCandidates([]);

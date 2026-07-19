@@ -133,8 +133,8 @@ function validatePagination(numItems: number) {
 
 function normalizeSearchQuery(query: string) {
   const normalized = query.trim();
-  if (normalized.length === 0 || normalized.length > MAX_SEARCH_QUERY_LENGTH) {
-    throw new ConvexError("検索語は1〜200文字で入力してください");
+  if (normalized.length > MAX_SEARCH_QUERY_LENGTH) {
+    throw new ConvexError("検索語は200文字以内で入力してください");
   }
   return normalized;
 }
@@ -186,6 +186,27 @@ export const searchUsersData = internalMutation({
     const { user } = await requireSystemAdmin(ctx);
     validatePagination(args.paginationOpts.numItems);
     const searchQuery = normalizeSearchQuery(args.query);
+    if (searchQuery.length === 0) {
+      const result = await ctx.db
+        .query("users")
+        .withIndex("by_created_at")
+        .order("desc")
+        .paginate(args.paginationOpts);
+      const response = {
+        environment: getSystemAdminEnvironment(),
+        ...result,
+        page: result.page.map(mapUser),
+      };
+      await insertSearchAudit(ctx, {
+        action: "system_admin_user_searched",
+        actorUserId: user._id,
+        targetKind: "user",
+        queryType: userAuditQueryType(args.queryType),
+        queryHash: await hashSearchQuery(args.query),
+        resultCount: response.page.length,
+      });
+      return response;
+    }
     const result =
       args.queryType === "displayName"
         ? await ctx.db
@@ -229,6 +250,27 @@ export const searchGroupsData = internalMutation({
     const { user } = await requireSystemAdmin(ctx);
     validatePagination(args.paginationOpts.numItems);
     const searchQuery = normalizeSearchQuery(args.query);
+    if (searchQuery.length === 0) {
+      const result = await ctx.db
+        .query("groups")
+        .withIndex("by_created_at")
+        .order("desc")
+        .paginate(args.paginationOpts);
+      const response = {
+        environment: getSystemAdminEnvironment(),
+        ...result,
+        page: result.page.map(mapGroup),
+      };
+      await insertSearchAudit(ctx, {
+        action: "system_admin_group_searched",
+        actorUserId: user._id,
+        targetKind: "group",
+        queryType: groupAuditQueryType(args.queryType),
+        queryHash: await hashSearchQuery(args.query),
+        resultCount: response.page.length,
+      });
+      return response;
+    }
     if (args.queryType === "groupId") {
       const groupId = ctx.db.normalizeId("groups", searchQuery);
       const group = groupId === null ? null : await ctx.db.get(groupId);

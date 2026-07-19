@@ -119,12 +119,15 @@ function SystemAdminManagementPageContent() {
             </Select>
           </FormControl>
           <TextField
+            autoComplete="off"
             fullWidth
+            helperText="未入力で検索すると新しい順の候補を表示します（最大10件）"
             label="付与対象を検索"
+            name="system-admin-user-search"
             value={searchQuery}
             onChange={(event) => setSearchQuery(event.target.value)}
           />
-          <Button disabled={searching || !searchQuery.trim()} type="submit" variant="contained">
+          <Button disabled={searching} type="submit" variant="contained">
             {searching ? <CircularProgress aria-label="検索中" size={20} /> : "候補を検索"}
           </Button>
         </Stack>

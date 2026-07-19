@@ -25,6 +25,7 @@ import type * as e2eHttp_e2eAuth from "../e2eHttp/e2eAuth.js";
 import type * as e2eHttp_e2eCleanup from "../e2eHttp/e2eCleanup.js";
 import type * as e2eHttp_e2eSeedDraft from "../e2eHttp/e2eSeedDraft.js";
 import type * as e2eHttp_e2eSystemAdminMembership from "../e2eHttp/e2eSystemAdminMembership.js";
+import type * as e2eHttp_e2eSystemAdminSearch from "../e2eHttp/e2eSystemAdminSearch.js";
 import type * as email_actions from "../email/actions.js";
 import type * as email_cleanup from "../email/cleanup.js";
 import type * as email_internal from "../email/internal.js";
@@ -116,6 +117,7 @@ declare const fullApi: ApiFromModules<{
   "e2eHttp/e2eCleanup": typeof e2eHttp_e2eCleanup;
   "e2eHttp/e2eSeedDraft": typeof e2eHttp_e2eSeedDraft;
   "e2eHttp/e2eSystemAdminMembership": typeof e2eHttp_e2eSystemAdminMembership;
+  "e2eHttp/e2eSystemAdminSearch": typeof e2eHttp_e2eSystemAdminSearch;
   "email/actions": typeof email_actions;
   "email/cleanup": typeof email_cleanup;
   "email/internal": typeof email_internal;
