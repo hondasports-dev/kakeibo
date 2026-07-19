@@ -1,11 +1,10 @@
 import { Box, Paper, Skeleton, Typography } from "@mui/material";
-
-const currencyFormatter = new Intl.NumberFormat("ja-JP");
+import { formatYen, formatYenAbs } from "../../../utils/currency";
 
 function formatSignedAmount(value: number | null): string {
   if (value === null) return "比較データなし";
   const sign = value > 0 ? "+" : value < 0 ? "−" : "";
-  return `${sign}${currencyFormatter.format(Math.abs(value))}円`;
+  return `${sign}${formatYenAbs(value)}`;
 }
 
 function formatSignedRate(value: number | null): string {
@@ -65,12 +64,8 @@ export function SummaryMetricsPanel({
       ) : (
         <Box className="weekly-summary-metrics-grid">
           <Box className="weekly-summary-metric-stack">
-            <Metric label="合計支出" value={`${currencyFormatter.format(totalAmountYen)}円`} />
-            <Metric
-              label="合計収入"
-              value={`${currencyFormatter.format(totalIncomeYen)}円`}
-              tone="default"
-            />
+            <Metric label="合計支出" value={`${formatYen(totalAmountYen)}`} />
+            <Metric label="合計収入" value={`${formatYen(totalIncomeYen)}`} tone="default" />
           </Box>
           <Metric
             label="前週差"

@@ -1,7 +1,6 @@
 import { Box, Paper, Skeleton, Typography } from "@mui/material";
 import type { CategorySummary } from "../types/types";
-
-const currencyFormatter = new Intl.NumberFormat("ja-JP");
+import { formatYen } from "../../../utils/currency";
 
 export function WeeklyCategoryBreakdown({
   byCategory,
@@ -63,7 +62,7 @@ export function WeeklyCategoryBreakdown({
                   <Typography variant="body2">{category.categoryName}</Typography>
                 </Box>
                 <Typography role="cell" variant="body2">
-                  {currencyFormatter.format(category.totalAmountYen)}円
+                  {formatYen(category.totalAmountYen)}
                 </Typography>
                 <Typography role="cell" variant="body2">
                   {percentage}%
@@ -79,7 +78,7 @@ export function WeeklyCategoryBreakdown({
               合計
             </Typography>
             <Typography role="cell" sx={{ fontWeight: 700 }} variant="body2">
-              {currencyFormatter.format(totalAmountYen)}円
+              {formatYen(totalAmountYen)}
             </Typography>
             <Typography role="cell" sx={{ fontWeight: 700 }} variant="body2">
               100%

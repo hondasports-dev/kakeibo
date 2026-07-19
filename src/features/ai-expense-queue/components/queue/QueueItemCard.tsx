@@ -3,7 +3,8 @@ import { documentTypeLabels, getSectionKey } from "../labels";
 import { ReviewReasonChips } from "../ReviewReasonChips";
 import { StatusChip } from "../StatusChip";
 import type { AiExpenseQueueItem } from "../../types/types";
-import { formatQueueDate, queueAmountFormatter } from "./queueDisplayFormatters";
+import { formatYen } from "../../../../utils/currency";
+import { formatQueueDate } from "./queueDisplayFormatters";
 import { QueueItemActions } from "./QueueItemActions";
 
 export function QueueItemCard({
@@ -32,7 +33,7 @@ export function QueueItemCard({
   const secondaryLabel = item.fileName ?? "AI支出下書き";
   const metadata = [
     item.date ? formatQueueDate(item.date) : undefined,
-    item.amountYen !== undefined ? `${queueAmountFormatter.format(item.amountYen)}円` : undefined,
+    item.amountYen !== undefined ? `${formatYen(item.amountYen)}` : undefined,
   ]
     .filter(Boolean)
     .join(" ・ ");
