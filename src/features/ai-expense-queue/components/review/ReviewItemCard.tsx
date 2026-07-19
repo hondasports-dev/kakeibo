@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import { formatYen } from "../../../../utils/currency";
 import type { AiExpenseQueueCategory, AiExpenseDraft, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { isLowConfidenceItem } from "../../utils/reviewDialogUtils";
@@ -156,7 +157,7 @@ export function ReviewItemCard({
 
         {showRegistrationAmount && item.normalizedAmountYen != null && (
           <Typography color="text.secondary" variant="body2">
-            登録額: {item.normalizedAmountYen.toLocaleString("ja-JP")}円（税込）
+            登録額: {formatYen(item.normalizedAmountYen)}（税込）
           </Typography>
         )}
 

@@ -1,5 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode, useState } from "react";
-import { useAction, useMutation, useQuery } from "convex/react";
+import type { ReactNode } from "react";
 import {
   Alert,
   Button,
@@ -15,116 +14,77 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../../../convex/_generated/api";
-import {
-  SystemAdminActionDialog,
-  type SystemAdminAction,
-} from "../components/SystemAdminActionDialog";
+import { SystemAdminActionDialog } from "../components/SystemAdminActionDialog";
+import { SystemAdminErrorBoundary } from "../components/SystemAdminErrorBoundary";
 import {
   SystemAdminEmptyState,
   SystemAdminErrorState,
   SystemAdminPageFrame,
 } from "./SystemAdminPageFrame";
-import type { SystemAdminListItem, UserSearchItem } from "../types";
+import type { SystemAdminListItem } from "../types";
+import {
+  type StatusFilter,
+  type SearchType,
+  useSystemAdminManagement,
+} from "../hooks/useSystemAdminManagement";
 
-type StatusFilter = "active" | "revoked";
-type SearchType = "displayName" | "email" | "userId";
+type ManagementErrorBoundaryProps = {
+  children: ReactNode;
+};
+
+function ManagementErrorBoundary({ children }: ManagementErrorBoundaryProps) {
+  return (
+    <SystemAdminErrorBoundary
+      label="SystemAdminManagementPage"
+      renderError={(retry) => (
+        <SystemAdminPageFrame title="システム管理者">
+          <SystemAdminErrorState onRetry={retry} />
+        </SystemAdminPageFrame>
+      )}
+    >
+      {children}
+    </SystemAdminErrorBoundary>
+  );
+}
 
 const statusLabel: Record<StatusFilter, string> = { active: "active", revoked: "revoked" };
 
 export function SystemAdminManagementPage() {
   return (
-    <SystemAdminPageErrorBoundary>
+    <ManagementErrorBoundary>
       <SystemAdminManagementPageContent />
-    </SystemAdminPageErrorBoundary>
+    </ManagementErrorBoundary>
   );
 }
 
 function SystemAdminManagementPageContent() {
-  const context = useQuery(api.systemAdmins.getMySystemAdminContext, {});
-  const status = useState<StatusFilter>("active");
-  const [statusFilter, setStatusFilter] = status;
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [searchType, setSearchType] = useState<SearchType>("displayName");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [candidates, setCandidates] = useState<UserSearchItem[]>([]);
-  const [hasSearched, setHasSearched] = useState(false);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState(false);
-  const [selectedTarget, setSelectedTarget] = useState<SystemAdminListItem | UserSearchItem | null>(
-    null,
-  );
-  const [pendingAction, setPendingAction] = useState<SystemAdminAction | null>(null);
-  const [mutationError, setMutationError] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [snackbar, setSnackbar] = useState("");
-  const environment = context?.environment ?? "development";
-  const list = useQuery(api.systemAdmins.listSystemAdmins, {
-    paginationOpts: { numItems: 20, cursor },
-    status: statusFilter,
-  });
-  const searchUsers = useAction(api.systemAdminSearch.searchUsers);
-  const grant = useMutation(api.systemAdmins.grantSystemAdmin);
-  const revoke = useMutation(api.systemAdmins.revokeSystemAdmin);
-
-  const runSearch = async () => {
-    const query = searchQuery.trim();
-    setSearching(true);
-    setSearchError(false);
-    setCandidates([]);
-    setHasSearched(true);
-    try {
-      const result = await searchUsers({
-        queryType: searchType,
-        query,
-        paginationOpts: { numItems: 10, cursor: null },
-      });
-      setCandidates(result.page as UserSearchItem[]);
-    } catch {
-      setSearchError(true);
-      setCandidates([]);
-    } finally {
-      setSearching(false);
-    }
-  };
-
-  const openAction = (target: SystemAdminListItem | UserSearchItem, action: SystemAdminAction) => {
-    setMutationError("");
-    setSelectedTarget(target);
-    setPendingAction(action);
-  };
-
-  const executeAction = async (reason: string) => {
-    if (!selectedTarget || !pendingAction) return;
-    setSaving(true);
-    setMutationError("");
-    try {
-      const targetUserId =
-        "targetUserId" in selectedTarget ? selectedTarget.targetUserId : selectedTarget.id;
-      if (pendingAction === "revoke") {
-        await revoke({ targetUserId: targetUserId as never, reason });
-      } else {
-        await grant({ targetUserId: targetUserId as never, reason });
-      }
-      setPendingAction(null);
-      setSelectedTarget(null);
-      setSnackbar(
-        `${selectedTarget.displayName} を${pendingAction === "revoke" ? "剥奪" : pendingAction === "regrant" ? "再付与" : "付与"}しました`,
-      );
-      setCandidates([]);
-    } catch (error) {
-      setMutationError(error instanceof Error ? error.message : "操作に失敗しました");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const isSelf = (target: SystemAdminListItem | UserSearchItem): boolean =>
-    ("isSelf" in target && Boolean(target.isSelf)) ||
-    Boolean(
-      context?.status === "active" &&
-      context.userId === ("targetUserId" in target ? target.targetUserId : target.id),
-    );
+  const {
+    statusFilter,
+    setStatusFilter,
+    searchType,
+    setSearchType,
+    searchQuery,
+    setSearchQuery,
+    candidates,
+    hasSearched,
+    searching,
+    searchError,
+    runSearch,
+    selectedTarget,
+    pendingAction,
+    mutationError,
+    saving,
+    snackbar,
+    openAction,
+    executeAction,
+    isSelf,
+    environment,
+    list,
+    setCursor,
+    setPendingAction,
+    setSelectedTarget,
+    setSnackbar,
+  } = useSystemAdminManagement();
 
   return (
     <SystemAdminPageFrame
@@ -220,10 +180,7 @@ function SystemAdminManagementPageContent() {
             label="状態"
             labelId="system-admin-status-label"
             value={statusFilter}
-            onChange={(event) => {
-              setStatusFilter(event.target.value as StatusFilter);
-              setCursor(null);
-            }}
+            onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
           >
             <MenuItem value="active">active</MenuItem>
             <MenuItem value="revoked">revoked</MenuItem>
@@ -348,30 +305,4 @@ function BoxText({ item }: { item: SystemAdminListItem }) {
       ) : null}
     </Stack>
   );
-}
-
-class SystemAdminPageErrorBoundary extends Component<
-  { children: ReactNode },
-  { hasError: boolean }
-> {
-  state = { hasError: false };
-
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-
-  componentDidCatch(_error: Error, _errorInfo: ErrorInfo) {
-    if (import.meta.env.DEV) console.error("[SystemAdminManagementPage] query failed", _error);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return (
-        <SystemAdminPageFrame title="システム管理者">
-          <SystemAdminErrorState onRetry={() => this.setState({ hasError: false })} />
-        </SystemAdminPageFrame>
-      );
-    }
-    return this.props.children;
-  }
 }

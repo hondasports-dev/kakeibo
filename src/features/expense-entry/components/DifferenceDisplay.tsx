@@ -1,4 +1,5 @@
 import { Chip, Stack, Typography } from "@mui/material";
+import { currencyFormatter, formatYen, formatYenAbs } from "../../../utils/currency";
 
 export function DifferenceDisplay({
   difference,
@@ -15,8 +16,8 @@ export function DifferenceDisplay({
   const label = isZero
     ? "配分完了"
     : isNegative
-      ? `超過: ${Math.abs(difference).toLocaleString("ja-JP")}円`
-      : `未配分: ${difference.toLocaleString("ja-JP")}円`;
+      ? `超過: ${formatYenAbs(difference)}`
+      : `未配分: ${formatYen(difference)}`;
 
   return (
     <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
@@ -27,8 +28,8 @@ export function DifferenceDisplay({
         {isZero
           ? "0"
           : isNegative
-            ? `-${Math.abs(difference).toLocaleString("ja-JP")}`
-            : `+${difference.toLocaleString("ja-JP")}`}
+            ? `-${currencyFormatter.format(Math.abs(difference))}`
+            : `+${currencyFormatter.format(difference)}`}
       </Typography>
       <Chip
         label={label}

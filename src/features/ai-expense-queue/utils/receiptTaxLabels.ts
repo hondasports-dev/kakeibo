@@ -4,6 +4,7 @@ import type {
   TaxSummaryConsistencyReason,
   TaxSummaryConsistencyStatus,
 } from "../../../../lib/receiptTax/types";
+import { formatYen } from "../../../utils/currency";
 
 export const TAX_RESOLUTION_SOURCE_LABELS = {
   item_explicit: "レシート明細に税率表記があります",
@@ -79,5 +80,5 @@ export function formatYenLabel(amountYen: number | undefined): string {
   if (amountYen === undefined) {
     return "—";
   }
-  return `${amountYen.toLocaleString("ja-JP")}円`;
+  return formatYen(amountYen);
 }
