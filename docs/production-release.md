@@ -143,14 +143,18 @@ Vercel Production Environment には Clerk Production instance と Convex Produc
 
 `scripts/generate-product-updates.ts` は、Production リリース時に次の順で Product Update 草案を生成する。
 
-1. 過去の `app-v*` GitHub Release から `product-updates.json` asset を取得し、既に公開済みの更新を得る。
-2. 直近の `app-v*` Release 以降かつ `SOURCE_REF` までに `main`（または `BASE_REF`）へマージされた PR を GitHub API 検索で取得する。
-3. 取得した PR リストを `OPENAI_API_KEY`（オプション）でリリース単位で判定し、ユーザーに見える価値がある場合だけ `ProductUpdateDraft` にする。ユーザーに見えない PR（内部リファクタリング、テスト、CI/CD、依存関係更新、ドキュメントのみなど）は掲載しない。関連する PR は 1 つの `ProductUpdateDraft` にまとめる。
-4. `id` はコード側で決定する。単一 PR の場合は `pr-{number}`、複数 PR の場合は `prs-{number}-{number}-...`（番号は昇順）となる。AI には `id` を生成させない。
-5. `OPENAI_API_KEY` が未設定、OpenAI API エラー、JSON 解析失敗、または生成結果の validation に失敗した場合は、自動生成は 0 件として扱い、リリースを中断しない。`src/content/product-updates.ts` の手動ドラフトがあればそれを使う。
-6. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
-7. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
-8. 生成結果の統計と判定明細を Actions Summary に出力する。
+1. 過去の `app-v*` GitHub Release から `product-updates.json` asset を取得し、既に公開済みの更新を得る。asset は有効な JSON で、リリース tag の `app-v{version}` と `version` が一致し、過去の更新間で `id` が重複しないことを検証する。
+2. `SOURCE_REF` を `git rev-parse` でコミット SHA に解決する。解決できない場合は `SOURCE_REF` 値をそのまま使う。
+3. コミットに紐づくマージ済み PR を GitHub API で取得し、最も新しいマージ済み PR を `sourcePullRequest` として選ぶ。取得できない場合は `BASE_REF`（未指定時 `main`）とリリース時刻を使う。
+4. PR 検索の `base` は、source PR の `head.ref` が `preview` または `release/*` で始まる場合はその ref を使い、それ以外は `BASE_REF`（未指定時 `main`）を使う。これにより `preview -> main` マージをリリース対象にした場合でも、`preview` ブランチへマージされたユーザー向け PR を取りこぼさない。
+5. PR 検索の `since` は、直近 `app-v*` Release の tag が指すコミット時刻を使う。tag コミット時刻の取得に失敗した場合はその Release の `published_at` に fallback する。`before` は source PR の `merged_at` を使う。
+6. 上記の `base` / `since` / `before` を使い、GitHub API search でマージ済み PR を取得する。
+7. 取得した PR リストを `OPENAI_API_KEY`（オプション）でリリース単位で判定し、ユーザーに見える価値がある場合だけ `ProductUpdateDraft` にする。ユーザーに見えない PR（内部リファクタリング、テスト、CI/CD、依存関係更新、ドキュメントのみなど）は掲載しない。関連する PR は 1 つの `ProductUpdateDraft` にまとめる。
+8. `id` はコード側で決定する。単一 PR の場合は `pr-{number}`、複数 PR の場合は `prs-{number}-{number}-...`（番号は昇順）となる。AI には `id` を生成させない。
+9. `OPENAI_API_KEY` が未設定、OpenAI API エラー、JSON 解析失敗、または生成結果の validation に失敗した場合は、自動生成は 0 件として扱い、リリースを中断しない。`src/content/product-updates.ts` の手動ドラフトがあればそれを使う。
+10. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
+11. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
+12. 生成結果の統計と判定明細を Actions Summary に出力する。
 
 手動で内容を調整したい場合は `src/content/product-updates.ts` に `id` を `pr-{number}`（例: `pr-459`）または `prs-{number}-{number}`（例: `prs-459-460`）で指定するか、新規の `id` を追加する。
 

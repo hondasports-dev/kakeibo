@@ -84,8 +84,9 @@ export const listExpenseEntries = query({
 `requireSystemAdmin(ctx)` を入口で実行する。`systemAdmins` の active record だけを許可し、
 クライアント引数、Clerk metadata、メールアドレスを権限根拠にしない。
 
-**現行コードでは `systemAdmins` テーブルと関連関数は未実装**である。設計の正本は
-`docs/system-admin-authorization.md` を参照する。
+**現行コードでは `systemAdmins` テーブルと関連関数は実装済み**である。`/admin` UI と
+管理 API（ユーザー・グループ検索、権限付与・剥奪、監査ログ、グループ復旧・削除など）も
+実装済み。設計の正本は `docs/system-admin-authorization.md` を参照する。
 
 この認可は家計データのグループ認可を置き換えない。
 
@@ -151,3 +152,5 @@ users テーブルにレコードを作成・更新します。
 | `src/router.tsx`                               | ルーティングと `GroupRouteGuard`                                   |
 | `src/features/app-shell/lib/publicPaths.ts`    | 公開パス定義と `shouldUseRouterBeforeAuth`                         |
 | `src/features/auth/hooks/useInitializeUser.ts` | ログイン後の users upsert フック                                   |
+| `convex/systemAdmins.ts`                         | システム管理者の認可と管理 API                                     |
+| `src/features/system-admin`                      | `/admin` UI と `SystemAdminRouteGuard`                             |

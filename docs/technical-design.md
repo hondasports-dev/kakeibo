@@ -994,7 +994,8 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 - CSVエクスポート画面とCSV生成処理
 - 週の開始・終了曜日設定の週計算への反映
 - 月収入設定UI
-- 収入入力 UI（バックエンド互換のみ残存）
+
+収入入力 UI は `ExpenseEntryForm` の `entryType` 切り替えで実装済み。
 
 旧タスクリスト上の `Unit testとComponent test` 以降は、変更内容に応じて継続的に追加・更新する。
 
