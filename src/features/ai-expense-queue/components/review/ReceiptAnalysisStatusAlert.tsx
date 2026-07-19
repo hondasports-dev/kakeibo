@@ -1,5 +1,6 @@
 import { Alert, Stack, Typography } from "@mui/material";
 import type { ReceiptAnalysisViewModel } from "../../utils/receiptItemTaxViewModel";
+import { formatYenAbs } from "../../../../utils/currency";
 
 export function ReceiptAnalysisStatusAlert({ analysis }: { analysis: ReceiptAnalysisViewModel }) {
   if (analysis.status === "resolved") {
@@ -29,7 +30,7 @@ export function ReceiptAnalysisStatusAlert({ analysis }: { analysis: ReceiptAnal
           <Typography variant="body2">
             登録用明細合計 {analysis.normalizedItemsTotalLabel}（
             {analysis.differenceYen > 0 ? "支払合計が" : "明細合計が"}
-            {Math.abs(analysis.differenceYen).toLocaleString("ja-JP")}円多い）
+            {formatYenAbs(analysis.differenceYen)}多い）
           </Typography>
         )}
       </Stack>

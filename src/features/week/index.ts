@@ -10,4 +10,4 @@ export {
   isFutureWeek,
   normalizeWeekStartDate,
 } from "./lib/weekNavigation";
-export { formatDateForDisplay } from "./lib/dateFormat";
+export { formatDateForDisplay } from "../../utils/date";

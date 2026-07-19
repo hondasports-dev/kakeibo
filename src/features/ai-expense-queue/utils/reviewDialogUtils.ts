@@ -1,4 +1,5 @@
 import type { AiExpenseQueueCategory, ReviewFormValues, ReviewItemValues } from "../types/types";
+import { formatYen } from "../../../utils/currency";
 
 const LOW_CONFIDENCE_THRESHOLD = 0.8;
 
@@ -83,7 +84,7 @@ export function formatReviewDraftHeader({
 }: Pick<ReviewFormValues, "date" | "amountYen">): string {
   const formattedDate = date ? date.replaceAll("-", "/") : "";
   const amount = Number(amountYen) || 0;
-  const formattedAmount = `${amount.toLocaleString("ja-JP")}円`;
+  const formattedAmount = formatYen(amount);
 
   if (formattedDate && amount > 0) {
     return `${formattedDate} ・ ${formattedAmount}`;
