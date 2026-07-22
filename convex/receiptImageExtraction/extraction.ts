@@ -10,6 +10,7 @@ import { callOpenAIReceiptExtractor } from "../../lib/convex/receiptImageExtract
 import type {
   ExtractReceiptFieldsArgs,
   ExtractReceiptFieldsResult,
+  ReceiptCategoryHint,
 } from "../../lib/convex/receiptImageExtraction/types";
 import { validateImageDataUrl } from "../../lib/convex/receiptImageExtraction/validators";
 
@@ -66,6 +67,7 @@ export async function extractReceiptFieldsHandler(
     imageDataUrl,
     apiKey,
     categoryNames: args.categoryNames ?? [],
+    categories: args.categories,
   });
 }
 
@@ -80,7 +82,10 @@ export const extractReceiptFields = action({
     );
     return extractReceiptFieldsHandler(ctx, {
       ...args,
-      categoryNames: categories.map((category) => category.name),
+      categories: categories.map<ReceiptCategoryHint>((category) => ({
+        name: category.name,
+        description: category.description,
+      })),
     });
   },
 });

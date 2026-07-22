@@ -2,16 +2,19 @@ import { Box, Button, Chip, Collapse, Stack, TextField, Typography } from "@mui/
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { designTokens } from "../../../designTokens";
 import type { Category } from "../hooks/useCategorySettings";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/categoryDescription";
 
 type CategorySettingsRowProps = {
   category: Category;
   editColor: string;
+  editDescription: string;
   editName: string;
   isEditing: boolean;
   onBeginEdit: (category: Category) => void;
   onCancelEdit: () => void;
   onDeactivate: (categoryId: Category["_id"]) => void;
   onEditColorChange: (color: string) => void;
+  onEditDescriptionChange: (description: string) => void;
   onEditNameChange: (name: string) => void;
   onUpdate: () => void;
   savingTarget: string | null;
@@ -20,12 +23,14 @@ type CategorySettingsRowProps = {
 export function CategorySettingsRow({
   category,
   editColor,
+  editDescription,
   editName,
   isEditing,
   onBeginEdit,
   onCancelEdit,
   onDeactivate,
   onEditColorChange,
+  onEditDescriptionChange,
   onEditNameChange,
   onUpdate,
   savingTarget,
@@ -91,8 +96,20 @@ export function CategorySettingsRow({
               value={editColor}
               sx={{ width: { xs: "100%", md: 160 } }}
             />
+            <TextField
+              disabled={editSaving}
+              fullWidth
+              helperText={`${editDescription.length}/${MAX_CATEGORY_DESCRIPTION_LENGTH}`}
+              label="カテゴリのAI分類ヒント"
+              name="editCategoryDescription"
+              multiline
+              minRows={4}
+              onChange={(event) => onEditDescriptionChange(event.target.value)}
+              slotProps={{ htmlInput: { maxLength: MAX_CATEGORY_DESCRIPTION_LENGTH } }}
+              value={editDescription}
+            />
             <Button disabled={editSaving} onClick={onUpdate} variant="contained">
-              {editSaving ? "保存中..." : "変更を保存"}
+              {editSaving ? "保存中…" : "変更を保存"}
             </Button>
             <Button disabled={editSaving} onClick={onCancelEdit}>
               キャンセル
@@ -107,7 +124,7 @@ export function CategorySettingsRow({
               size="small"
               variant="outlined"
             >
-              {deactivateSaving ? "無効化中..." : "無効化"}
+              {deactivateSaving ? "無効化中…" : "無効化"}
             </Button>
           </Box>
         </Stack>

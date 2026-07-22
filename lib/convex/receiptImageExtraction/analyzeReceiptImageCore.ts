@@ -40,7 +40,10 @@ export async function analyzeReceiptImageToDraftCore(
     categories = await ctx.runQuery(api.categories.queries.listActive, {});
     extracted = await extractReceiptFieldsHandler(ctx, {
       imageDataUrl: args.imageDataUrl,
-      categoryNames: categories.map((category) => category.name),
+      categories: categories.map((category) => ({
+        name: category.name,
+        description: category.description,
+      })),
     });
   } catch (err) {
     return await ctx.runMutation(

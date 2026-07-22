@@ -13,11 +13,13 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import { useCategorySettings } from "../hooks/useCategorySettings";
 import { CategorySettingsList } from "./CategorySettingsList";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/categoryDescription";
 
 export function CategorySettingsPanel() {
   const {
     beginEdit,
     categories,
+    editDescription,
     editColor,
     editName,
     editingId,
@@ -27,13 +29,16 @@ export function CategorySettingsPanel() {
     handleUpdate,
     isCreateOpen,
     newColor,
+    newDescription,
     newName,
     savingTarget,
     setEditColor,
+    setEditDescription,
     setEditName,
     setEditingId,
     setIsCreateOpen,
     setNewColor,
+    setNewDescription,
     setNewName,
     setSnackbar,
     snackbar,
@@ -46,7 +51,7 @@ export function CategorySettingsPanel() {
           カテゴリ
         </Typography>
         <Typography color="text.secondary" variant="body2">
-          支出入力に使うカテゴリと利用状態を確認します。
+          支出入力に使うカテゴリと利用状態を確認します。分類ヒントは、レシート明細をカテゴリー分類するときのAI判断に使用します。
         </Typography>
       </Box>
 
@@ -77,12 +82,14 @@ export function CategorySettingsPanel() {
         <CategorySettingsList
           categories={categories}
           editColor={editColor}
+          editDescription={editDescription}
           editName={editName}
           editingId={editingId}
           onBeginEdit={beginEdit}
           onCancelEdit={() => setEditingId(null)}
           onDeactivate={(categoryId) => void handleDeactivate(categoryId)}
           onEditColorChange={setEditColor}
+          onEditDescriptionChange={setEditDescription}
           onEditNameChange={setEditName}
           onUpdate={() => void handleUpdate()}
           savingTarget={savingTarget}
@@ -109,6 +116,18 @@ export function CategorySettingsPanel() {
                 name="newCategoryName"
                 onChange={(event) => setNewName(event.target.value)}
                 value={newName}
+              />
+              <TextField
+                disabled={savingTarget === "create"}
+                fullWidth
+                helperText={`${newDescription.length}/${MAX_CATEGORY_DESCRIPTION_LENGTH}`}
+                label="新しいカテゴリのAI分類ヒント"
+                name="newCategoryDescription"
+                multiline
+                minRows={4}
+                onChange={(event) => setNewDescription(event.target.value)}
+                slotProps={{ htmlInput: { maxLength: MAX_CATEGORY_DESCRIPTION_LENGTH } }}
+                value={newDescription}
               />
               <TextField
                 disabled={savingTarget === "create"}
@@ -139,7 +158,12 @@ export function CategorySettingsPanel() {
         onClose={() => setSnackbar("")}
         open={snackbar !== ""}
       >
-        <Alert onClose={() => setSnackbar("")} severity="success" variant="filled">
+        <Alert
+          aria-live="polite"
+          onClose={() => setSnackbar("")}
+          severity="success"
+          variant="filled"
+        >
           {snackbar}
         </Alert>
       </Snackbar>

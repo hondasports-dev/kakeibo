@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -8,6 +8,7 @@ import { CategorySettingsPanel } from "./CategorySettingsPanel";
 type Category = {
   _id: Id<"categories">;
   name: string;
+  description?: string;
   color: string;
   isActive: boolean;
   sortOrder: number;
@@ -111,6 +112,7 @@ describe("CategorySettingsPanel", () => {
       expect(createCategoryMock).toHaveBeenCalledWith({
         name: "交通",
         color: "#8B5E3C",
+        description: "",
       });
     });
     expect(screen.getByLabelText("新しいカテゴリ名")).toHaveValue("");
@@ -158,9 +160,43 @@ describe("CategorySettingsPanel", () => {
         categoryId: "cat-food",
         name: "スーパー",
         color: "#AAB7C4",
+        description: "",
       });
     });
     expect(screen.getByText("カテゴリを更新しました")).toBeInTheDocument();
+  });
+
+  it("カテゴリ作成時に複数行の分類ヒントを保存できる", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<CategorySettingsPanel />);
+
+    await user.click(screen.getByRole("button", { name: "カテゴリを追加" }));
+    await user.type(screen.getByLabelText("新しいカテゴリ名"), "ペット用品");
+    await user.type(
+      screen.getByLabelText("新しいカテゴリのAI分類ヒント"),
+      "ペットフード\n衛生用品",
+    );
+    await user.click(screen.getByRole("button", { name: "追加する" }));
+
+    await waitFor(() => {
+      expect(createCategoryMock).toHaveBeenCalledWith({
+        name: "ペット用品",
+        color: "#8B5E3C",
+        description: "ペットフード\n衛生用品",
+      });
+    });
+  });
+
+  it("分類ヒントは200文字まで入力できる", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<CategorySettingsPanel />);
+
+    await user.click(screen.getByRole("button", { name: "カテゴリを追加" }));
+    const description = screen.getByLabelText("新しいカテゴリのAI分類ヒント");
+    fireEvent.change(description, { target: { value: "あ".repeat(200) } });
+
+    expect(description).toHaveValue("あ".repeat(200));
+    expect(screen.getByText("200/200")).toBeInTheDocument();
   });
 
   it("有効カテゴリを無効化し、無効カテゴリのボタンは押せない", async () => {
