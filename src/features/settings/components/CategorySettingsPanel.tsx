@@ -108,7 +108,7 @@ export function CategorySettingsPanel() {
         </Button>
         <Collapse id="category-create-form" in={isCreateOpen} unmountOnExit>
           <Box component="form" onSubmit={handleCreate} sx={{ mt: 1.5 }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <Box className="category-settings-create-fields">
               <TextField
                 disabled={savingTarget === "create"}
                 fullWidth
@@ -137,7 +137,7 @@ export function CategorySettingsPanel() {
                 slotProps={{ inputLabel: { shrink: true } }}
                 type="color"
                 value={newColor}
-                sx={{ width: { xs: "100%", sm: 160 } }}
+                sx={{ width: "100%" }}
               />
               <Button
                 disabled={savingTarget === "create"}
@@ -147,7 +147,7 @@ export function CategorySettingsPanel() {
               >
                 追加する
               </Button>
-            </Stack>
+            </Box>
           </Box>
         </Collapse>
       </Box>
