@@ -79,6 +79,7 @@ export function CategorySettingsRow({
         <Stack className="category-settings-editor" spacing={1.5}>
           <Box className="category-settings-editor-fields">
             <TextField
+              className="category-settings-field-name"
               disabled={editSaving}
               fullWidth
               label="カテゴリ名を編集"
@@ -87,6 +88,7 @@ export function CategorySettingsRow({
               value={editName}
             />
             <TextField
+              className="category-settings-field-color"
               disabled={editSaving}
               label="カテゴリ色"
               name="editCategoryColor"
@@ -100,6 +102,7 @@ export function CategorySettingsRow({
               sx={{ width: "100%" }}
             />
             <TextField
+              className="category-settings-field-description"
               disabled={editSaving}
               fullWidth
               helperText={`${editDescription.length}/${MAX_CATEGORY_DESCRIPTION_LENGTH}`}
@@ -115,7 +118,8 @@ export function CategorySettingsRow({
               <Button
                 disabled={editSaving}
                 onClick={onUpdate}
-                sx={{ fontSize: "0.875rem", lineHeight: 1.4, whiteSpace: "nowrap" }}
+                size="small"
+                sx={{ fontSize: "0.8125rem", lineHeight: 1.4, whiteSpace: "nowrap" }}
                 variant="contained"
               >
                 {editSaving ? "保存中…" : "変更を保存"}
@@ -123,7 +127,8 @@ export function CategorySettingsRow({
               <Button
                 disabled={editSaving}
                 onClick={onCancelEdit}
-                sx={{ fontSize: "0.875rem", lineHeight: 1.4, whiteSpace: "nowrap" }}
+                size="small"
+                sx={{ fontSize: "0.8125rem", lineHeight: 1.4, whiteSpace: "nowrap" }}
               >
                 キャンセル
               </Button>

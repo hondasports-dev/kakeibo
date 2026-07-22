@@ -110,6 +110,7 @@ export function CategorySettingsPanel() {
           <Box component="form" onSubmit={handleCreate} sx={{ mt: 1.5 }}>
             <Box className="category-settings-create-fields">
               <TextField
+                className="category-settings-field-name"
                 disabled={savingTarget === "create"}
                 fullWidth
                 label="新しいカテゴリ名"
@@ -118,6 +119,7 @@ export function CategorySettingsPanel() {
                 value={newName}
               />
               <TextField
+                className="category-settings-field-description"
                 disabled={savingTarget === "create"}
                 fullWidth
                 helperText={`${newDescription.length}/${MAX_CATEGORY_DESCRIPTION_LENGTH}`}
@@ -130,6 +132,7 @@ export function CategorySettingsPanel() {
                 value={newDescription}
               />
               <TextField
+                className="category-settings-field-color"
                 disabled={savingTarget === "create"}
                 label="新しいカテゴリ色"
                 name="newCategoryColor"
@@ -140,6 +143,7 @@ export function CategorySettingsPanel() {
                 sx={{ width: "100%" }}
               />
               <Button
+                className="category-settings-create-action"
                 disabled={savingTarget === "create"}
                 startIcon={savingTarget === "create" ? <CircularProgress size={16} /> : undefined}
                 type="submit"
