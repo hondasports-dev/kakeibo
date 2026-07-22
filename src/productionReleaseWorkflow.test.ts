@@ -124,8 +124,10 @@ describe("production-release workflow", () => {
 
     expect(generator).toContain("Product update generation warning");
     expect(generator).toContain("automatic product updates were not added");
-    expect(generator).toContain("sourceRef");
-    expect(generator).toContain("sourceMergedAt");
+    expect(generator).toContain(
+      "...(sourceRef && processedSourceAt ? { sourceRef, sourceMergedAt: processedSourceAt } : {}),",
+    );
+    expect(generator).not.toContain("...(sourceRef ? { sourceRef } : {}),");
     expect(yaml).toContain("Generate product updates");
     expect(yaml).toContain("Deploy Vercel Production");
   });

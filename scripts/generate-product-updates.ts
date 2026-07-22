@@ -286,7 +286,8 @@ async function loadPastUpdates({
     latestReleasePayload?.sourceRef && latestReleasePayload.sourceMergedAt
       ? undefined
       : latestReleaseHasUpdates
-        ? await fetchCommitTime(`tags/${latestReleaseHasUpdates.tag_name}`, token)
+        ? ((await fetchCommitTime(`tags/${latestReleaseHasUpdates.tag_name}`, token)) ??
+          latestReleaseHasUpdates.published_at)
         : undefined;
   const latestReleaseSourceAt = resolveProductUpdateSourceAt(latestReleasePayload, legacySourceAt);
 
@@ -360,8 +361,7 @@ async function main(): Promise<void> {
   writeJsonFile(currentReleasePath, {
     version: appVersion,
     publishedAt,
-    ...(sourceRef ? { sourceRef } : {}),
-    ...(sourceRef && processedSourceAt ? { sourceMergedAt: processedSourceAt } : {}),
+    ...(sourceRef && processedSourceAt ? { sourceRef, sourceMergedAt: processedSourceAt } : {}),
     updates: currentUpdates,
   });
 
