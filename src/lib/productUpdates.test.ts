@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 import {
   mergeGeneratedAndManualDrafts,
   mergeProductUpdates,
+  resolveProductUpdateSourceAt,
   ProductUpdateValidationError,
   sortProductUpdates,
   validateAppVersion,
@@ -220,6 +221,22 @@ describe("mergeProductUpdates", () => {
     expect(allUpdates.map((u) => u.id)).toEqual(["a", "b"]);
   });
 
+  test("preserves past updates when the current release has no drafts", () => {
+    const pastUpdates = [
+      { id: "a", title: "A", summary: "A", version: "2026.07.11-458", publishedAt: "2026-07-11" },
+    ];
+
+    const { allUpdates, currentUpdates } = mergeProductUpdates({
+      pastUpdates,
+      drafts: [],
+      appVersion: "2026.07.19-36",
+      publishedAt: "2026-07-19",
+    });
+
+    expect(currentUpdates).toEqual([]);
+    expect(allUpdates).toEqual(pastUpdates);
+  });
+
   test("rejects a draft whose id is already published with a different version", () => {
     const pastUpdates = [
       { id: "a", title: "A", summary: "A", version: "2026.07.10-100", publishedAt: "2026-07-10" },
@@ -375,6 +392,47 @@ describe("validateProductionProductUpdates", () => {
     };
 
     expect(() => validateProductionProductUpdates(payload)).not.toThrow();
+  });
+
+  test("accepts source cursor metadata for new release payloads", () => {
+    const payload = {
+      version: "2026.07.19-36",
+      publishedAt: "2026-07-19",
+      sourceRef: "4b697aee71314a1274f8007ae1678fac0dda57ee",
+      sourceMergedAt: "2026-07-19T09:26:28Z",
+      updates: [],
+    };
+
+    expect(() => validateProductionProductUpdates(payload)).not.toThrow();
+  });
+
+  test("rejects incomplete source cursor metadata", () => {
+    const payload = {
+      version: "2026.07.19-36",
+      publishedAt: "2026-07-19",
+      sourceRef: "4b697aee71314a1274f8007ae1678fac0dda57ee",
+      updates: [],
+    };
+
+    expect(() => validateProductionProductUpdates(payload)).toThrow(ProductUpdateValidationError);
+  });
+
+  test("prefers the source cursor from the latest release", () => {
+    expect(
+      resolveProductUpdateSourceAt(
+        {
+          sourceRef: "current-ref",
+          sourceMergedAt: "2026-07-19T09:26:28Z",
+        },
+        "2026-07-11T12:36:56Z",
+      ),
+    ).toBe("2026-07-19T09:26:28Z");
+  });
+
+  test("falls back to the latest release with updates for legacy assets", () => {
+    expect(resolveProductUpdateSourceAt(undefined, "2026-07-11T12:36:56Z")).toBe(
+      "2026-07-11T12:36:56Z",
+    );
   });
 
   test("rejects a payload whose update version does not match payload version", () => {

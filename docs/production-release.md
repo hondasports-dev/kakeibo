@@ -147,14 +147,16 @@ Vercel Production Environment には Clerk Production instance と Convex Produc
 2. `SOURCE_REF` を `git rev-parse` でコミット SHA に解決する。解決できない場合は `SOURCE_REF` 値をそのまま使う。
 3. コミットに紐づくマージ済み PR を GitHub API で取得し、最も新しいマージ済み PR を `sourcePullRequest` として選ぶ。取得できない場合は `BASE_REF`（未指定時 `main`）とリリース時刻を使う。
 4. PR 検索の `base` は、source PR の `head.ref` が `preview` または `release/*` で始まる場合はその ref を使い、それ以外は `BASE_REF`（未指定時 `main`）を使う。これにより `preview -> main` マージをリリース対象にした場合でも、`preview` ブランチへマージされたユーザー向け PR を取りこぼさない。
-5. PR 検索の `since` は、直近 `app-v*` Release の tag が指すコミット時刻を使う。tag コミット時刻の取得に失敗した場合はその Release の `published_at` に fallback する。`before` は source PR の `merged_at` を使う。
-6. 上記の `base` / `since` / `before` を使い、GitHub API search でマージ済み PR を取得する。
-7. 取得した PR リストを `OPENAI_API_KEY`（オプション）でリリース単位で判定し、ユーザーに見える価値がある場合だけ `ProductUpdateDraft` にする。ユーザーに見えない PR（内部リファクタリング、テスト、CI/CD、依存関係更新、ドキュメントのみなど）は掲載しない。関連する PR は 1 つの `ProductUpdateDraft` にまとめる。
-8. `id` はコード側で決定する。単一 PR の場合は `pr-{number}`、複数 PR の場合は `prs-{number}-{number}-...`（番号は昇順）となる。AI には `id` を生成させない。
-9. `OPENAI_API_KEY` が未設定、OpenAI API エラー、JSON 解析失敗、または生成結果の validation に失敗した場合は、自動生成は 0 件として扱い、リリースを中断しない。`src/content/product-updates.ts` の手動ドラフトがあればそれを使う。
+5. PR 検索の `since` は、新形式assetに保存された `sourceMergedAt` を優先する。旧形式assetで境界情報がない場合は、最後に更新履歴が存在するReleaseのtagが指すコミット時刻を使い、取得に失敗した場合はそのReleaseの `published_at` にfallbackする。空の更新履歴Releaseを境界にしないことで、2026.07.11以降の欠落分を再処理できる。`before` はsource PRの `merged_at` を使う。
+6. 上記の `base` / `since` / `before` を使い、GitHub API searchでマージ済みPRを取得する。
+7. 取得したPRリストを `OPENAI_API_KEY`（オプション）でリリース単位で判定し、ユーザーに見える価値がある場合だけ `ProductUpdateDraft` にする。ユーザーに見えないPR（内部リファクタリング、テスト、CI/CD、依存関係更新、ドキュメントのみなど）は掲載しない。関連するPRは1つの `ProductUpdateDraft` にまとめる。
+8. `id` はコード側で決定する。単一PRの場合は `pr-{number}`、複数PRの場合は `prs-{number}-{number}-...`（番号は昇順）となる。AIには `id` を生成させない。
+9. `OPENAI_API_KEY` が未設定、OpenAI APIエラー、JSON解析失敗、または生成結果のvalidationに失敗した場合は、自動生成は0件として扱い、リリースを中断しない。既存の更新履歴と `src/content/product-updates.ts` の手動ドラフトは保持する。失敗種別と「今回の自動更新は追加されなかった」ことをActions Summaryに警告として出力する。
 10. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
-11. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
-12. 生成結果の統計と判定明細を Actions Summary に出力する。
+11. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。Release assetには `SOURCE_REF` と処理済み境界の `sourceMergedAt` も保存する。
+12. 生成結果の統計と判定明細をActions Summaryに出力する。
+
+新しい Release asset に保存された `sourceRef` / `sourceMergedAt` が次回生成の処理開始境界になる。旧形式の asset に境界情報がない場合は、最後に更新履歴が存在する Release を基準にして再処理するため、空の更新履歴リリースが続いても変更が恒久的に欠落しない。
 
 手動で内容を調整したい場合は `src/content/product-updates.ts` に `id` を `pr-{number}`（例: `pr-459`）または `prs-{number}-{number}`（例: `prs-459-460`）で指定するか、新規の `id` を追加する。
 

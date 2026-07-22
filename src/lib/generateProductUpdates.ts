@@ -37,7 +37,16 @@ export type ProductUpdateGenerationDecision = {
 
 export type ProductUpdateGenerationResult = {
   decisions: ProductUpdateGenerationDecision[];
+  status: ProductUpdateGenerationStatus;
 };
+
+export type ProductUpdateGenerationStatus =
+  | "success"
+  | "skipped_no_api_key"
+  | "skipped_no_prs"
+  | "failed_api"
+  | "failed_json"
+  | "failed_validation";
 
 export type GenerateProductUpdateCandidatesOptions = {
   apiKey?: string;
@@ -120,11 +129,11 @@ export async function generateProductUpdateCandidates(
 ): Promise<ProductUpdateGenerationResult> {
   const apiKey = options.apiKey?.trim();
   if (!apiKey) {
-    return { decisions: [] };
+    return { decisions: [], status: "skipped_no_api_key" };
   }
 
   if (pulls.length === 0) {
-    return { decisions: [] };
+    return { decisions: [], status: "skipped_no_prs" };
   }
 
   const prompt = buildProductUpdateCandidatesPrompt(pulls);
@@ -150,45 +159,50 @@ export async function generateProductUpdateCandidates(
     });
 
     if (!response.ok) {
-      return { decisions: [] };
+      return { decisions: [], status: "failed_api" };
     }
 
-    const data = (await response.json()) as {
+    let data: {
       choices?: { message?: { content?: string } }[];
     };
+    try {
+      data = (await response.json()) as typeof data;
+    } catch {
+      return { decisions: [], status: "failed_json" };
+    }
 
     const content = data.choices?.[0]?.message?.content;
     if (typeof content !== "string") {
-      return { decisions: [] };
+      return { decisions: [], status: "failed_json" };
     }
 
     responseText = content;
   } catch {
-    return { decisions: [] };
+    return { decisions: [], status: "failed_api" };
   }
 
   let parsed: unknown;
   try {
     parsed = JSON.parse(responseText);
   } catch {
-    return { decisions: [] };
+    return { decisions: [], status: "failed_json" };
   }
 
   if (!parsed || typeof parsed !== "object" || !("decisions" in parsed)) {
-    return { decisions: [] };
+    return { decisions: [], status: "failed_json" };
   }
 
   const { decisions } = parsed as { decisions?: unknown };
   if (!Array.isArray(decisions)) {
-    return { decisions: [] };
+    return { decisions: [], status: "failed_json" };
   }
 
   const validatedDecisions = validateDecisions(pulls, decisions);
   if (validatedDecisions === null) {
-    return { decisions: [] };
+    return { decisions: [], status: "failed_validation" };
   }
 
-  return { decisions: validatedDecisions };
+  return { decisions: validatedDecisions, status: "success" };
 }
 
 function buildSystemPrompt(): string {
