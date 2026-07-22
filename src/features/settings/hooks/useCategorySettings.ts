@@ -8,6 +8,7 @@ import { getConvexErrorMessage } from "../../auth";
 export type Category = {
   _id: Id<"categories">;
   name: string;
+  description?: string;
   color: string;
   isActive: boolean;
   sortOrder: number;
@@ -27,9 +28,11 @@ export function useCategorySettings() {
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newName, setNewName] = useState("");
+  const [newDescription, setNewDescription] = useState("");
   const [newColor, setNewColor] = useState<string>(DEFAULT_NEW_COLOR);
   const [editingId, setEditingId] = useState<Id<"categories"> | null>(null);
   const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
   const [editColor, setEditColor] = useState<string>(DEFAULT_NEW_COLOR);
   const [savingTarget, setSavingTarget] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -38,6 +41,7 @@ export function useCategorySettings() {
   const beginEdit = (category: Category) => {
     setEditingId(category._id);
     setEditName(category.name);
+    setEditDescription(category.description ?? "");
     setEditColor(category.color);
     setError("");
   };
@@ -47,8 +51,9 @@ export function useCategorySettings() {
     setSavingTarget("create");
     setError("");
     try {
-      await createCategory({ name: newName, color: newColor });
+      await createCategory({ name: newName, color: newColor, description: newDescription });
       setNewName("");
+      setNewDescription("");
       setNewColor(DEFAULT_NEW_COLOR);
       setIsCreateOpen(false);
       setSnackbar("カテゴリを追加しました");
@@ -64,7 +69,12 @@ export function useCategorySettings() {
     setSavingTarget(`edit-${editingId}`);
     setError("");
     try {
-      await updateCategory({ categoryId: editingId, name: editName, color: editColor });
+      await updateCategory({
+        categoryId: editingId,
+        name: editName,
+        color: editColor,
+        description: editDescription,
+      });
       setEditingId(null);
       setSnackbar("カテゴリを更新しました");
     } catch (caughtError) {
@@ -90,6 +100,7 @@ export function useCategorySettings() {
   return {
     beginEdit,
     categories,
+    editDescription,
     editColor,
     editName,
     editingId,
@@ -99,13 +110,16 @@ export function useCategorySettings() {
     handleUpdate,
     isCreateOpen,
     newColor,
+    newDescription,
     newName,
     savingTarget,
     setEditColor,
+    setEditDescription,
     setEditName,
     setEditingId,
     setIsCreateOpen,
     setNewColor,
+    setNewDescription,
     setNewName,
     setSnackbar,
     snackbar,

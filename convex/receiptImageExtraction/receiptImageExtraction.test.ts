@@ -850,7 +850,11 @@ describe("extractReceiptFieldsHandler", () => {
           const ctx = createActionCtx(createIdentity());
           const result = await extractReceiptFieldsHandler(ctx, {
             imageDataUrl: VALID_IMAGE_DATA_URL,
-            categoryNames: ["食費", "医療費", "日用品"],
+            categories: [
+              { name: "食費", description: "スーパーや小売店で購入する食品、飲料、菓子など" },
+              { name: "医療費", description: "医薬品、診察、治療費など" },
+              { name: "日用品", description: "洗剤、化粧品、歯科用品、衛生用品、レジ袋など" },
+            ],
           });
 
           expect(result.items).toEqual([
@@ -932,6 +936,12 @@ describe("extractReceiptFieldsHandler", () => {
           expect(
             requestBody.text.format.schema.properties.items.items.properties.categoryName.enum,
           ).toEqual(["", "食費", "医療費", "日用品"]);
+          const requestWithPrompt = JSON.parse(String(fetchSpy.mock.calls.at(-1)?.[1]?.body)) as {
+            input?: Array<{ content?: Array<{ text?: string }> }>;
+          };
+          expect(requestWithPrompt.input?.[0]?.content?.[1]?.text).toContain(
+            '"description":"スーパーや小売店で購入する食品、飲料、菓子など"',
+          );
         },
       );
     });

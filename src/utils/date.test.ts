@@ -26,7 +26,7 @@ describe("formatDateForDisplay", () => {
 
 describe("formatDateTimeForDisplay", () => {
   it("Unix タイムスタンプを日本語の日時表記に変換する", () => {
-    const timestamp = Date.UTC(2026, 0, 15, 3, 30);
+    const timestamp = new Date(2026, 0, 15, 3, 30).getTime();
     const formatted = formatDateTimeForDisplay(timestamp);
     expect(formatted).toMatch(/2026/);
     expect(formatted).toMatch(/15/);

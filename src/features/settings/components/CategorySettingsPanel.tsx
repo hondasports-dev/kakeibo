@@ -13,11 +13,13 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import { useCategorySettings } from "../hooks/useCategorySettings";
 import { CategorySettingsList } from "./CategorySettingsList";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/categoryDescription";
 
 export function CategorySettingsPanel() {
   const {
     beginEdit,
     categories,
+    editDescription,
     editColor,
     editName,
     editingId,
@@ -27,13 +29,16 @@ export function CategorySettingsPanel() {
     handleUpdate,
     isCreateOpen,
     newColor,
+    newDescription,
     newName,
     savingTarget,
     setEditColor,
+    setEditDescription,
     setEditName,
     setEditingId,
     setIsCreateOpen,
     setNewColor,
+    setNewDescription,
     setNewName,
     setSnackbar,
     snackbar,
@@ -46,7 +51,7 @@ export function CategorySettingsPanel() {
           カテゴリ
         </Typography>
         <Typography color="text.secondary" variant="body2">
-          支出入力に使うカテゴリと利用状態を確認します。
+          支出入力に使うカテゴリと利用状態を確認します。分類ヒントは、レシート明細をカテゴリー分類するときのAI判断に使用します。
         </Typography>
       </Box>
 
@@ -77,12 +82,14 @@ export function CategorySettingsPanel() {
         <CategorySettingsList
           categories={categories}
           editColor={editColor}
+          editDescription={editDescription}
           editName={editName}
           editingId={editingId}
           onBeginEdit={beginEdit}
           onCancelEdit={() => setEditingId(null)}
           onDeactivate={(categoryId) => void handleDeactivate(categoryId)}
           onEditColorChange={setEditColor}
+          onEditDescriptionChange={setEditDescription}
           onEditNameChange={setEditName}
           onUpdate={() => void handleUpdate()}
           savingTarget={savingTarget}
@@ -101,8 +108,9 @@ export function CategorySettingsPanel() {
         </Button>
         <Collapse id="category-create-form" in={isCreateOpen} unmountOnExit>
           <Box component="form" onSubmit={handleCreate} sx={{ mt: 1.5 }}>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <Box className="category-settings-create-fields">
               <TextField
+                className="category-settings-field-name"
                 disabled={savingTarget === "create"}
                 fullWidth
                 label="新しいカテゴリ名"
@@ -111,6 +119,20 @@ export function CategorySettingsPanel() {
                 value={newName}
               />
               <TextField
+                className="category-settings-field-description"
+                disabled={savingTarget === "create"}
+                fullWidth
+                helperText={`${newDescription.length}/${MAX_CATEGORY_DESCRIPTION_LENGTH}`}
+                label="新しいカテゴリのAI分類ヒント"
+                name="newCategoryDescription"
+                multiline
+                minRows={4}
+                onChange={(event) => setNewDescription(event.target.value)}
+                slotProps={{ htmlInput: { maxLength: MAX_CATEGORY_DESCRIPTION_LENGTH } }}
+                value={newDescription}
+              />
+              <TextField
+                className="category-settings-field-color"
                 disabled={savingTarget === "create"}
                 label="新しいカテゴリ色"
                 name="newCategoryColor"
@@ -118,9 +140,10 @@ export function CategorySettingsPanel() {
                 slotProps={{ inputLabel: { shrink: true } }}
                 type="color"
                 value={newColor}
-                sx={{ width: { xs: "100%", sm: 160 } }}
+                sx={{ width: "100%" }}
               />
               <Button
+                className="category-settings-create-action"
                 disabled={savingTarget === "create"}
                 startIcon={savingTarget === "create" ? <CircularProgress size={16} /> : undefined}
                 type="submit"
@@ -128,7 +151,7 @@ export function CategorySettingsPanel() {
               >
                 追加する
               </Button>
-            </Stack>
+            </Box>
           </Box>
         </Collapse>
       </Box>
@@ -139,7 +162,12 @@ export function CategorySettingsPanel() {
         onClose={() => setSnackbar("")}
         open={snackbar !== ""}
       >
-        <Alert onClose={() => setSnackbar("")} severity="success" variant="filled">
+        <Alert
+          aria-live="polite"
+          onClose={() => setSnackbar("")}
+          severity="success"
+          variant="filled"
+        >
           {snackbar}
         </Alert>
       </Snackbar>

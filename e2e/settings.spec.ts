@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
+import { cleanupTestCategories } from "./helpers/cleanup";
 
 test.describe("設定台帳（Issue #375）", () => {
   test.beforeEach(async ({ page }) => {
@@ -47,5 +48,35 @@ test.describe("設定台帳（Issue #375）", () => {
     await expect(page).toHaveURL("/categories");
     await expect(page.getByTestId("settings-ledger")).toBeVisible();
     await expect(page.getByRole("heading", { name: "カテゴリ", level: 2 })).toBeVisible();
+  });
+});
+
+test.describe("設定台帳（Issue #510 カテゴリ分類ヒント）", () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoAuthenticated(page, "/settings");
+    await expect(page.getByRole("heading", { name: "設定", level: 1 })).toBeVisible();
+  });
+
+  test.afterEach(async () => {
+    await cleanupTestCategories();
+  });
+
+  test("P1 分類ヒントを保存して再読み込み後も保持する", async ({ page }) => {
+    const categoryName = `E2Eカテゴリ-分類ヒント-${Date.now()}`;
+    const description = "食品以外のペット用品\n衛生用品や消耗品を分類する";
+
+    await page.getByRole("button", { name: "カテゴリを追加" }).click();
+    await page.getByRole("textbox", { name: "新しいカテゴリ名" }).fill(categoryName);
+    await page.getByRole("textbox", { name: "新しいカテゴリのAI分類ヒント" }).fill(description);
+    await page.getByRole("button", { name: "追加する" }).click();
+    await expect(page.getByText("カテゴリを追加しました")).toBeVisible();
+
+    await page.reload();
+    const categoryRow = page.getByRole("listitem", { name: `カテゴリ ${categoryName}` });
+    await expect(categoryRow).toBeVisible();
+    await categoryRow.getByRole("button", { name: `${categoryName}を編集` }).click();
+    await expect(categoryRow.getByRole("textbox", { name: "カテゴリのAI分類ヒント" })).toHaveValue(
+      description,
+    );
   });
 });
