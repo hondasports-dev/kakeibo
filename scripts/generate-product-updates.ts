@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -85,11 +85,16 @@ async function downloadAssetText(assetId: number, token: string): Promise<string
   return response.text();
 }
 
+const SAFE_REF_PATTERN = /^[A-Za-z0-9._/:-]+$/;
+
 function resolveSourceRef(): string | undefined {
   const sourceRef = process.env.SOURCE_REF;
   if (!sourceRef) return undefined;
+  if (sourceRef.startsWith("-") || !SAFE_REF_PATTERN.test(sourceRef)) {
+    throw new ProductUpdateValidationError(`Invalid SOURCE_REF: ${sourceRef}`);
+  }
   try {
-    return execSync(`git rev-parse "${sourceRef}"`, { encoding: "utf8" }).trim();
+    return execFileSync("git", ["rev-parse", "--", sourceRef], { encoding: "utf8" }).trim();
   } catch {
     return sourceRef;
   }

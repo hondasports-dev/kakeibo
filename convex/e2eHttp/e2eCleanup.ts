@@ -1,5 +1,6 @@
 import { httpAction } from "../_generated/server";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { invalidJsonResponse, requireE2eSecret } from "./e2eAuth";
 
 // ---------------------------------------------------------------------------
@@ -76,11 +77,17 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
     : null;
   const resolvedUserId = userIdByEmail ?? body.userId ?? null;
-  const resolvedGroupId =
-    body.groupId ??
-    (resolvedUserId
-      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
-      : null);
+
+  let resolvedGroupId: Id<"groups"> | null = null;
+  if (body.groupId) {
+    resolvedGroupId = await ctx.runQuery(internal.groups.e2e.normalizeGroupId, {
+      groupId: body.groupId,
+    });
+  } else if (resolvedUserId) {
+    resolvedGroupId = await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, {
+      userId: resolvedUserId,
+    });
+  }
 
   const requestedUserScopedCleanup = Boolean(
     body.clearMonthlyIncome ||
@@ -106,7 +113,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   let receipts: { deletedCount: number } | null = null;
   if (resolvedGroupId) {
     receipts = await ctx.runMutation(internal.receipts.crud.deleteReceiptsByUser, {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
     });
   }
 
@@ -128,7 +135,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
         deletedItemCount: number;
         hasMore: boolean;
       } = await ctx.runMutation(internal.aiExpenseDrafts.internal.deleteDraftsByUserBatch, {
-        groupId: resolvedGroupId as never,
+        groupId: resolvedGroupId,
       });
       deletedDraftCount += draftResult.deletedDraftCount;
       deletedItemCount += draftResult.deletedItemCount;
@@ -142,7 +149,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
         await ctx.runMutation(
           internal.receiptAnalysisJobs.internal.deleteReceiptAnalysisDataByUserBatch,
           {
-            groupId: resolvedGroupId as never,
+            groupId: resolvedGroupId,
           },
         );
       deletedBatchCount += jobResult.deletedBatchCount;
@@ -170,7 +177,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     }
 
     weekSession = await ctx.runMutation(internal.weekSessions.internal.resetWeekSessionForUser, {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
       weekStartDate: body.weekStartDate,
     });
   }
@@ -178,7 +185,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   let categories: { deletedCount: number } | null = null;
   if (resolvedGroupId && body.deleteE2eCategories) {
     categories = await ctx.runMutation(internal.categories.internal.deleteE2eCategoriesByUser, {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
     });
   }
 
@@ -194,7 +201,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     expenseEntries = await ctx.runMutation(
       internal.expenseEntries.internal.deleteE2eExpenseEntriesByUser,
       {
-        groupId: resolvedGroupId as never,
+        groupId: resolvedGroupId,
       },
     );
   }
@@ -219,7 +226,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   let groupInvitations: { deletedCount: number } | null = null;
   if (resolvedGroupId && body.clearGroupInvitations) {
     groupInvitations = await ctx.runMutation(internal.groups.e2e.clearGroupInvitationsForE2e, {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
     });
   }
 
@@ -242,7 +249,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     }
 
     seededGroupMember = await ctx.runMutation(internal.groups.e2e.seedGroupMemberForE2e, {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
       displayName,
       email: memberEmail,
     });

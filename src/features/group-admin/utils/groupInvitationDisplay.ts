@@ -1,4 +1,4 @@
-import { formatDateTimeForDisplay } from "../lib/datetimeFormat";
+import { formatDateTimeForDisplay } from "../../../utils/date";
 
 export type GroupPendingInvitationListItem = {
   _id: string;

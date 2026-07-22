@@ -1,6 +1,33 @@
 import { httpAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
+import type { Id } from "../_generated/dataModel";
 import { invalidJsonResponse, requireE2eSecret } from "./e2eAuth";
+
+async function resolveUserId(
+  ctx: ActionCtx,
+  body: { userId?: string; email?: string },
+): Promise<string | null> {
+  if (body.email) {
+    const userId = await ctx.runQuery(internal.users.internal.getUserIdByEmail, {
+      email: body.email,
+    });
+    if (userId) return userId;
+  }
+  return body.userId ?? null;
+}
+
+async function resolveGroupId(
+  ctx: ActionCtx,
+  body: { userId?: string; email?: string; groupId?: string },
+): Promise<Id<"groups"> | null> {
+  if (body.groupId) {
+    return await ctx.runQuery(internal.groups.e2e.normalizeGroupId, { groupId: body.groupId });
+  }
+  const resolvedUserId = await resolveUserId(ctx, body);
+  if (!resolvedUserId) return null;
+  return await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId });
+}
 
 export const e2eSeedAiExpenseDraftHandler = httpAction(async (ctx, req) => {
   const authError = requireE2eSecret(req, "E2E seeding is not enabled in this environment.");
@@ -14,16 +41,8 @@ export const e2eSeedAiExpenseDraftHandler = httpAction(async (ctx, req) => {
   } catch {
     return invalidJsonResponse();
   }
-  const userIdByEmail = body.email
-    ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
-    : null;
-  const resolvedUserId = userIdByEmail ?? body.userId ?? null;
-  const resolvedGroupId =
-    body.groupId ??
-    (resolvedUserId
-      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
-      : null);
 
+  const resolvedGroupId = await resolveGroupId(ctx, body);
   if (!resolvedGroupId) {
     return new Response(JSON.stringify({ error: "groupId is required." }), {
       status: 400,
@@ -32,14 +51,14 @@ export const e2eSeedAiExpenseDraftHandler = httpAction(async (ctx, req) => {
   }
 
   const categoryId = await ctx.runMutation(internal.categories.internal.ensureE2eCategoryByUser, {
-    groupId: resolvedGroupId as never,
+    groupId: resolvedGroupId,
     name: "E2Eカテゴリ-食費-Issue322",
     color: "#AAB7C4",
   });
   const secondaryCategoryId = await ctx.runMutation(
     internal.categories.internal.ensureE2eCategoryByUser,
     {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
       name: "E2Eカテゴリ-日用品-Issue322",
       color: "#A6B28B",
     },
@@ -47,7 +66,7 @@ export const e2eSeedAiExpenseDraftHandler = httpAction(async (ctx, req) => {
   const draftId = await ctx.runMutation(
     internal.aiExpenseDrafts.internal.createE2eReadyDraftForUser,
     {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
       categoryId,
       secondaryCategoryId,
     },
@@ -71,16 +90,8 @@ export const e2eSeedTaxReviewDraftHandler = httpAction(async (ctx, req) => {
   } catch {
     return invalidJsonResponse();
   }
-  const userIdByEmail = body.email
-    ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
-    : null;
-  const resolvedUserId = userIdByEmail ?? body.userId ?? null;
-  const resolvedGroupId =
-    body.groupId ??
-    (resolvedUserId
-      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
-      : null);
 
+  const resolvedGroupId = await resolveGroupId(ctx, body);
   if (!resolvedGroupId) {
     return new Response(JSON.stringify({ error: "groupId is required." }), {
       status: 400,
@@ -89,14 +100,14 @@ export const e2eSeedTaxReviewDraftHandler = httpAction(async (ctx, req) => {
   }
 
   const categoryId = await ctx.runMutation(internal.categories.internal.ensureE2eCategoryByUser, {
-    groupId: resolvedGroupId as never,
+    groupId: resolvedGroupId,
     name: "E2Eカテゴリ-食費-税レビュー",
     color: "#AAB7C4",
   });
   const draftId = await ctx.runMutation(
     internal.aiExpenseDrafts.internal.createE2eTaxReviewDraftForUser,
     {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
       categoryId,
     },
   );
@@ -119,16 +130,8 @@ export const e2eSeedTaxSummaryConflictDraftHandler = httpAction(async (ctx, req)
   } catch {
     return invalidJsonResponse();
   }
-  const userIdByEmail = body.email
-    ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
-    : null;
-  const resolvedUserId = userIdByEmail ?? body.userId ?? null;
-  const resolvedGroupId =
-    body.groupId ??
-    (resolvedUserId
-      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
-      : null);
 
+  const resolvedGroupId = await resolveGroupId(ctx, body);
   if (!resolvedGroupId) {
     return new Response(JSON.stringify({ error: "groupId is required." }), {
       status: 400,
@@ -137,14 +140,14 @@ export const e2eSeedTaxSummaryConflictDraftHandler = httpAction(async (ctx, req)
   }
 
   const categoryId = await ctx.runMutation(internal.categories.internal.ensureE2eCategoryByUser, {
-    groupId: resolvedGroupId as never,
+    groupId: resolvedGroupId,
     name: "E2Eカテゴリ-食費-税summary",
     color: "#AAB7C4",
   });
   const draftId = await ctx.runMutation(
     internal.aiExpenseDrafts.internal.createE2eTaxSummaryConflictDraftForUser,
     {
-      groupId: resolvedGroupId as never,
+      groupId: resolvedGroupId,
       categoryId,
     },
   );
@@ -173,15 +176,10 @@ export const e2eSeedPendingGroupInvitationHandler = httpAction(async (ctx, req) 
     return invalidJsonResponse();
   }
 
-  const userIdByEmail = body.email
-    ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
-    : null;
-  const resolvedUserId = userIdByEmail ?? body.userId ?? null;
-  const resolvedGroupId =
-    body.groupId ??
-    (resolvedUserId
-      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId: resolvedUserId })
-      : null);
+  const [resolvedUserId, resolvedGroupId] = await Promise.all([
+    resolveUserId(ctx, body),
+    resolveGroupId(ctx, body),
+  ]);
 
   if (!resolvedGroupId || !resolvedUserId) {
     return new Response(JSON.stringify({ error: "groupId and userId are required." }), {
@@ -199,7 +197,7 @@ export const e2eSeedPendingGroupInvitationHandler = httpAction(async (ctx, req) 
   }
 
   const invitationId = await ctx.runMutation(internal.groups.e2e.seedPendingGroupInvitationForE2e, {
-    groupId: resolvedGroupId as never,
+    groupId: resolvedGroupId,
     email: invitationEmail,
     invitedByUserId: resolvedUserId,
   });

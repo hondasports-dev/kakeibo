@@ -258,6 +258,12 @@ export const getGroupIdByUserId = internalQuery({
   handler: getGroupIdByUserIdHandler,
 });
 
+export const normalizeGroupId = internalQuery({
+  args: { groupId: v.string() },
+  returns: v.union(v.id("groups"), v.null()),
+  handler: async (ctx, args) => ctx.db.normalizeId("groups", args.groupId),
+});
+
 export const deleteGroupForE2e = internalMutation({
   args: { groupId: v.id("groups") },
   handler: deleteGroupForE2eHandler,

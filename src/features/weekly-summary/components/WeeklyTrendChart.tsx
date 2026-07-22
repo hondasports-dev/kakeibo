@@ -5,30 +5,13 @@ import {
   formatWeeklyExpenseTooltip,
   type WeeklyExpenseChartData,
 } from "../utils/weeklyExpenseChartData";
+import { formatYen, formatYenCompact } from "../../../utils/currency";
+import { formatDateForDisplay } from "../../../utils/date";
 
 type WeeklyTrendChartProps = {
   chartData?: WeeklyExpenseChartData;
   isLoading?: boolean;
 };
-
-const currencyFormatter = new Intl.NumberFormat("ja-JP");
-
-function formatAmount(amount: number): string {
-  return `${currencyFormatter.format(amount)}円`;
-}
-
-function formatAxisAmount(amount: number): string {
-  if (Math.abs(amount) >= 10_000) {
-    const amountInTenThousands = Number((amount / 10_000).toFixed(1));
-    return `${amountInTenThousands}万円`;
-  }
-  return formatAmount(amount);
-}
-
-function formatMonthDay(date: string): string {
-  const [, month, day] = date.split("-").map(Number);
-  return `${month}/${day}`;
-}
 
 export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendChartProps) {
   const theme = useTheme();
@@ -102,7 +85,7 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
         <Box className="weekly-chart-totals" aria-label="週ごとの支出合計">
           {items.map((item) => (
             <Typography key={item.weekStartDate} sx={{ fontWeight: 700 }} variant="caption">
-              {formatAmount(item.amount)}
+              {formatYen(item.amount)}
             </Typography>
           ))}
         </Box>
@@ -128,7 +111,7 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
             xAxis={[{ dataKey: "label", scaleType: "band" }]}
             yAxis={[
               {
-                valueFormatter: formatAxisAmount,
+                valueFormatter: formatYenCompact,
                 width: yAxisWidth,
               },
             ]}
@@ -137,7 +120,7 @@ export function WeeklyTrendChart({ chartData, isLoading = false }: WeeklyTrendCh
         <Box className="weekly-chart-ranges" aria-label="週ごとの期間">
           {items.map((item) => (
             <Typography key={item.weekStartDate} color="text.secondary" variant="caption">
-              {formatMonthDay(item.weekStartDate)}〜{formatMonthDay(item.weekEndDate)}
+              {formatDateForDisplay(item.weekStartDate)}〜{formatDateForDisplay(item.weekEndDate)}
             </Typography>
           ))}
         </Box>

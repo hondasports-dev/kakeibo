@@ -2,9 +2,8 @@ import { useState } from "react";
 import { Button, Stack, Typography } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import type { AiExpenseQueueItem } from "../../types/types";
+import { formatYen } from "../../../../utils/currency";
 import { BulkRegisterConfirmDialog } from "../BulkRegisterConfirmDialog";
-
-const amountFormatter = new Intl.NumberFormat("ja-JP");
 
 type QueueReadyRegisterPanelProps = {
   readyItems: AiExpenseQueueItem[];
@@ -48,7 +47,7 @@ export function QueueReadyRegisterPanel({
       <Typography variant="body2">
         登録できる下書きが{readyItems.length}件あります
         {selectedReadyIds.length > 0 &&
-          `（選択中 ${selectedReadyIds.length}件 / 合計 ${amountFormatter.format(selectedTotalAmountYen)}円）`}
+          `（選択中 ${selectedReadyIds.length}件 / 合計 ${formatYen(selectedTotalAmountYen)}）`}
       </Typography>
       <Button
         color="primary"
