@@ -1,6 +1,7 @@
 import {
   Button,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -8,6 +9,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import { useState } from "react";
 
 export function ReceiptImageConsentDialog({
   open,
@@ -20,6 +22,8 @@ export function ReceiptImageConsentDialog({
   onAccept: () => void;
   onDecline: () => void;
 }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   return (
     <Dialog
       aria-labelledby="receipt-image-consent-dialog-title"
@@ -30,17 +34,26 @@ export function ReceiptImageConsentDialog({
       }}
       open={open}
     >
-      <DialogTitle id="receipt-image-consent-dialog-title">
-        画像の外部API送信に同意しますか
-      </DialogTitle>
+      <DialogTitle id="receipt-image-consent-dialog-title">画像を読み取る</DialogTitle>
       <DialogContent>
         <Stack spacing={1.5}>
           <Typography variant="body2">
-            レシート画像を解析するため、外部APIへ送信します。画像は長期保存しません。
+            画像を解析して下書きを作成します。登録前に内容を確認できます。
           </Typography>
-          <Typography variant="body2">
-            読み取った内容は下書きとして表示され、自動では家計簿に登録されません。不同意の場合は手入力できます。
-          </Typography>
+          <Button
+            onClick={() => setDetailsOpen((current) => !current)}
+            size="small"
+            type="button"
+            variant="text"
+            sx={{ alignSelf: "flex-start" }}
+          >
+            外部APIへの送信について
+          </Button>
+          <Collapse in={detailsOpen}>
+            <Typography color="text.secondary" variant="body2">
+              解析のため画像を外部APIへ送信します。画像は長期保存しません。読み取った内容は下書きとして表示され、自動では登録されません。
+            </Typography>
+          </Collapse>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -54,7 +67,7 @@ export function ReceiptImageConsentDialog({
           type="button"
           variant="contained"
         >
-          {saving ? "保存中..." : "同意して読み取る"}
+          {saving ? "読み取り中…" : "画像を読み取る"}
         </Button>
       </DialogActions>
     </Dialog>

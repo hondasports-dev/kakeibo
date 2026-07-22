@@ -1,4 +1,5 @@
-import { Alert, Box } from "@mui/material";
+import { Alert, Box, Snackbar } from "@mui/material";
+import { designTokens } from "../../../designTokens";
 import { useAiExpenseQueuePanelContext } from "../context/AiExpenseQueuePanelContext";
 import type { AiExpenseQueueCategory } from "../types/types";
 import { QueueActiveContent, QueueRegisteredContent } from "./QueueContent";
@@ -117,6 +118,11 @@ export function QueuePanelRegistered({ className }: { className?: string }) {
 
 export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQueueCategory[] }) {
   const queue = useAiExpenseQueuePanelContext();
+  const reviewSaveFeedback = queue.reviewSaveFeedback;
+  const feedbackBackgroundColor =
+    reviewSaveFeedback?.severity === "error"
+      ? designTokens.color.error.main
+      : designTokens.color.success.main;
 
   return (
     <>
@@ -127,7 +133,6 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         isReviewDraftNotFound={queue.isReviewDraftNotFound}
         selectedReviewDraft={queue.selectedReviewDraft}
         reviewError={queue.reviewError}
-        reviewSaveNotice={queue.reviewSaveNotice}
         reviewForm={queue.reviewForm}
         reviewItems={queue.reviewItems}
         isCategorySplit={queue.isCategorySplit}
@@ -155,6 +160,37 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onAccept={() => void queue.handleAcceptConsent()}
         onDecline={queue.handleDeclineConsent}
       />
+
+      <Snackbar
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        autoHideDuration={4000}
+        onClose={queue.clearReviewSaveFeedback}
+        open={reviewSaveFeedback !== null}
+        sx={{
+          left: "50%",
+          right: "auto",
+          top: "calc(8px + env(safe-area-inset-top))",
+          transform: "translateX(-50%)",
+          width: { xs: "calc(100% - 24px)", sm: "min(560px, calc(100% - 48px))" },
+        }}
+      >
+        <Alert
+          aria-live="polite"
+          icon={false}
+          onClose={queue.clearReviewSaveFeedback}
+          severity={reviewSaveFeedback?.severity ?? "success"}
+          sx={{
+            backgroundColor: feedbackBackgroundColor,
+            color: designTokens.color.primary.contrastText,
+            width: "100%",
+            whiteSpace: "pre-line",
+            "& .MuiAlert-action": { color: "inherit" },
+          }}
+          variant="filled"
+        >
+          {reviewSaveFeedback?.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 }

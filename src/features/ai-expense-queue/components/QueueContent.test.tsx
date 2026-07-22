@@ -197,7 +197,7 @@ describe("QueueContent の一覧制御", () => {
 
     render(<QueueActiveContent {...props} />);
 
-    await user.click(screen.getByRole("button", { name: "編集する" }));
+    await user.click(screen.getByRole("button", { name: "修正する" }));
     expect(onOpenReview).toHaveBeenCalledWith("ready-draft");
   });
 });

@@ -17,6 +17,6 @@ describe("ReceiptImageConsentDialog", () => {
 
     expect(onDecline).not.toHaveBeenCalled();
     expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "保存中..." })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "読み取り中…" })).toBeDisabled();
   });
 });

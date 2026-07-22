@@ -47,20 +47,20 @@ function renderControl(options: RenderOptions) {
 describe("ReviewItemCategoryControl", () => {
   it("非カテゴリ分岐時はレシート全体カテゴリメッセージを表示する", () => {
     renderControl({ item: { usesReceiptCategory: true } });
-    expect(screen.getByText("レシート全体のカテゴリを使用")).toBeInTheDocument();
+    expect(screen.getByText("カテゴリ：レシート全体（食費）")).toBeInTheDocument();
   });
 
   it("非カテゴリ分岐時は個別カテゴリ名を表示する", () => {
     renderControl({ item: { usesReceiptCategory: false, categoryId: "cat-1" } });
-    expect(screen.getByText("個別カテゴリ: 食費")).toBeInTheDocument();
+    expect(screen.getByText("カテゴリ：食費")).toBeInTheDocument();
   });
 
   it("非カテゴリ分岐時はカテゴリ名が不明な場合は未分類と表示する", () => {
     renderControl({ categoryName: undefined });
-    expect(screen.getByText("個別カテゴリ: 未分類")).toBeInTheDocument();
+    expect(screen.getByText("カテゴリ：未分類")).toBeInTheDocument();
   });
 
-  it("カテゴリ分岐時はカテゴリ選択セレクトを表示する", () => {
+  it("カテゴリ分岐時は検索できるカテゴリ欄を表示する", () => {
     renderControl({ isCategorySplit: true });
     expect(screen.getByLabelText("明細カテゴリ")).toBeInTheDocument();
   });
@@ -94,14 +94,14 @@ describe("ReviewItemCategoryControl", () => {
 
   it("割引対象未選択の場合はヘルパーテキストを表示する", () => {
     renderControl({ item: { itemName: "クーポン割引", categoryId: "" } });
-    expect(screen.getByText("割引対象の商品を選択してください")).toBeInTheDocument();
+    expect(screen.getByText("対象商品を選択してください")).toBeInTheDocument();
   });
 
-  it("割引対象を選択済みの場合はカテゴリ選択済みメッセージを表示する", () => {
+  it("割引対象を選択済みの場合は補足を表示しない", () => {
     renderControl({
       item: { itemName: "クーポン割引", categoryId: "cat-1", discountTargetItemId: "item-1" },
     });
-    expect(screen.getByText("対象商品のカテゴリから減額します")).toBeInTheDocument();
+    expect(screen.queryByText("対象商品のカテゴリから減額します")).not.toBeInTheDocument();
   });
 
   it("割引対象商品が空でもセレクトをレンダリングする", () => {

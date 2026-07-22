@@ -14,7 +14,7 @@ export function QueueEmptyState({
         まだ下書きはありません
       </Typography>
       <Typography color="text.secondary" variant="body2">
-        レシートを追加すると、AIが支出下書きを作ります。
+        画像を解析して下書きを作成します。登録前に内容を確認できます。
       </Typography>
       {onAddReceipt && (
         <Button
@@ -24,13 +24,10 @@ export function QueueEmptyState({
           variant="contained"
           sx={{ alignSelf: "flex-start" }}
         >
-          レシートを追加
+          画像を読み取る
         </Button>
       )}
       <CollapsibleHelp summary="詳しい説明">
-        <Typography color="text.secondary" variant="body2">
-          追加したレシートは状態別に表示されます。撮影または画像選択で追加できます。
-        </Typography>
         <Typography color="text.secondary" variant="body2">
           読み取り時は画像を外部APIへ送信します（初回は同意が必要です）。
         </Typography>

@@ -24,9 +24,11 @@ export function ReceiptBulkTaxApply({
 
   return (
     <Stack spacing={1} sx={{ pt: 0.5 }}>
-      <Typography variant="body2">{vm.bulkTaxLabel}</Typography>
+      <Typography color="text.secondary" variant="body2">
+        {vm.bulkTaxLabel}
+      </Typography>
       <Button disabled={isApplying} onClick={onApply} size="small" type="button" variant="outlined">
-        {isApplying ? "適用中…" : "この設定ですべての商品に適用"}
+        {isApplying ? "適用中…" : "税率を一括適用"}
       </Button>
     </Stack>
   );

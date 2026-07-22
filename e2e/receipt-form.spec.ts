@@ -1045,7 +1045,7 @@ test.describe("入力画面リニューアル（Issue #77 受け入れ確認）"
     await expect(page.getByLabel("金額")).toBeVisible();
     await expect(page.getByLabel("収入の内容・メモ")).toBeVisible();
     await expect(page.getByLabel("店舗名 / 支払先")).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "レシートを追加" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "画像を読み取る" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "カテゴリ別の内訳を追加" })).toHaveCount(0);
     await expect(page.getByRole("listbox", { name: "カテゴリ候補" })).toHaveCount(0);
   });
