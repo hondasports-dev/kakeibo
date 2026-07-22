@@ -6,18 +6,13 @@ import {
   formatPrevWeekDiff,
   formatPrevWeekRate,
 } from "../../../lib/weekComparison";
+import { formatYen } from "../../../utils/currency";
 
 type WeekComparisonChartProps = {
   currentTotalAmountYen: number;
   prevWeekTotalAmountYen: number | null;
   isLoading?: boolean;
 };
-
-const currencyFormatter = new Intl.NumberFormat("ja-JP");
-
-function formatAmount(amount: number): string {
-  return `${currencyFormatter.format(amount)}円`;
-}
 
 function formatDiffSummary(diff: number | null, rate: number | null): string {
   if (diff === null) {
@@ -83,7 +78,7 @@ function ComparisonBars({
                 />
               </Box>
               <Typography className="dashboard-comparison-bar-amount" variant="body2">
-                {formatAmount(bar.amount)}
+                {formatYen(bar.amount)}
               </Typography>
             </Box>
           );
@@ -101,7 +96,7 @@ function ComparisonBars({
             className="dashboard-comparison-bar-amount"
             variant="body2"
           >
-            {formatAmount(bar.amount)}
+            {formatYen(bar.amount)}
           </Typography>
         ))}
       </Box>

@@ -1,10 +1,6 @@
 import { Box, Stack, Typography } from "@mui/material";
 import type { ProductUpdate } from "../../../lib/productUpdates";
-
-function formatPublishedDate(publishedAt: string): string {
-  const [year, month, day] = publishedAt.split("-").map(Number);
-  return `${year}年${month}月${day}日`;
-}
+import { formatJapaneseDate } from "../../../utils/date";
 
 export type ProductUpdateItemProps = {
   update: ProductUpdate;
@@ -14,7 +10,7 @@ export function ProductUpdateItem({ update }: ProductUpdateItemProps) {
   return (
     <Stack spacing={1}>
       <Typography color="text.secondary" variant="body2">
-        {formatPublishedDate(update.publishedAt)}
+        {formatJapaneseDate(update.publishedAt)}
       </Typography>
       <Typography component="h2" variant="h6">
         {update.title}

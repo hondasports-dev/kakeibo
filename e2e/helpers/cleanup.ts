@@ -261,6 +261,34 @@ export async function cleanupSystemAdminMembershipFixture(
   await callFixtureEndpoint("cleanup-system-admin-membership", fixture);
 }
 
+export type SystemAdminSearchFixture = {
+  actorUserId: string;
+  prefix: string;
+  userCount: number;
+  groupCount: number;
+};
+
+export async function seedSystemAdminSearchFixture(
+  page: Page,
+  prefix: string,
+): Promise<SystemAdminSearchFixture> {
+  const actorUserId = await getCurrentClerkTokenIdentifier(page);
+  const result = await callFixtureEndpoint("seed-system-admin-search", {
+    actorUserId,
+    prefix,
+  });
+  if (!result.userCount || !result.groupCount) {
+    throw new Error("E2E search fixture response is incomplete");
+  }
+  return { actorUserId, prefix, userCount: result.userCount, groupCount: result.groupCount };
+}
+
+export async function cleanupSystemAdminSearchFixture(
+  fixture: Pick<SystemAdminSearchFixture, "actorUserId" | "prefix">,
+): Promise<void> {
+  await callFixtureEndpoint("cleanup-system-admin-search", fixture);
+}
+
 async function callCleanupEndpoint(body: {
   userId?: string;
   email?: string;
@@ -351,9 +379,19 @@ async function callCleanupEndpoint(body: {
 }
 
 async function callFixtureEndpoint(
-  path: "seed-system-admin-membership" | "cleanup-system-admin-membership",
+  path:
+    | "seed-system-admin-membership"
+    | "cleanup-system-admin-membership"
+    | "seed-system-admin-search"
+    | "cleanup-system-admin-search",
   body: { actorUserId: string; prefix: string },
-): Promise<{ targetUserId?: string; groupA?: string; groupB?: string }> {
+): Promise<{
+  targetUserId?: string;
+  groupA?: string;
+  groupB?: string;
+  userCount?: number;
+  groupCount?: number;
+}> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
   const secret = process.env.E2E_CLEANUP_SECRET;
   if (!siteUrl || !secret) {
@@ -368,6 +406,8 @@ async function callFixtureEndpoint(
     targetUserId?: string;
     groupA?: string;
     groupB?: string;
+    userCount?: number;
+    groupCount?: number;
     error?: string;
   };
   if (

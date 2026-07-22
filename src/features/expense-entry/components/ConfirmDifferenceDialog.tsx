@@ -6,6 +6,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
+import { formatYen } from "../../../utils/currency";
 
 export function ConfirmDifferenceDialog({
   open,
@@ -25,7 +26,7 @@ export function ConfirmDifferenceDialog({
         <Typography variant="body2">
           入力元合計との差額が{" "}
           <Typography component="span" color="warning.main" sx={{ fontWeight: 700 }}>
-            {pendingDifference.toLocaleString("ja-JP")}円
+            {formatYen(pendingDifference)}
           </Typography>{" "}
           未配分のまま保存しますか？
         </Typography>

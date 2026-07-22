@@ -1,5 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import type { ReviewItemValues } from "../../types/types";
+import { formatYen } from "../../../../utils/currency";
 
 const amountBasisLabels = {
   tax_included: "税込",
@@ -31,7 +32,7 @@ export function ReviewItemTaxDetails({ item }: { item: ReviewItemValues }) {
     >
       {showPrintedAmount && item.printedAmountYen !== undefined && (
         <Typography color="text.secondary" variant="body2">
-          印字額 {item.printedAmountYen.toLocaleString("ja-JP")}円
+          印字額 {formatYen(item.printedAmountYen)}
         </Typography>
       )}
       {showAmountBasis && item.amountBasis !== undefined && (
@@ -46,12 +47,12 @@ export function ReviewItemTaxDetails({ item }: { item: ReviewItemValues }) {
       )}
       {showAllocatedTax && item.allocatedTaxYen !== undefined && (
         <Typography color="text.secondary" variant="body2">
-          按分税 {item.allocatedTaxYen.toLocaleString("ja-JP")}円
+          按分税 {formatYen(item.allocatedTaxYen)}
         </Typography>
       )}
       {showQuantity && item.quantity !== undefined && item.unitPriceYen !== undefined && (
         <Typography color="text.secondary" variant="body2">
-          {item.quantity}点 × {item.unitPriceYen.toLocaleString("ja-JP")}円
+          {item.quantity}点 × {formatYen(item.unitPriceYen)}
         </Typography>
       )}
     </Stack>

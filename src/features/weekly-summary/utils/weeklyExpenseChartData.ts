@@ -1,3 +1,6 @@
+import { formatYen } from "../../../utils/currency";
+import { formatDateForDisplay } from "../../../utils/date";
+
 export type WeeklyCategoryBreakdown = {
   categoryId: string;
   categoryName: string;
@@ -38,17 +41,10 @@ export const OTHER_CATEGORY_ID = "__other__";
 export const MAX_STACKED_CATEGORIES = 5;
 const OTHER_CATEGORY_COLOR = "#AAB7C4";
 
-const currencyFormatter = new Intl.NumberFormat("ja-JP");
-
 function addDays(date: string, days: number): string {
   const value = new Date(`${date}T00:00:00Z`);
   value.setUTCDate(value.getUTCDate() + days);
   return value.toISOString().slice(0, 10);
-}
-
-function formatMonthDay(date: string): string {
-  const [, month, day] = date.split("-").map(Number);
-  return `${month}/${day}`;
 }
 
 export function toSeriesDataKey(categoryId: string): string {
@@ -162,7 +158,7 @@ export function buildWeeklyExpenseChartData({
         : null;
     const distanceFromTarget = displayedWeeks.length - 1 - displayIndex;
 
-    let label = `${formatMonthDay(week.weekStartDate)}週`;
+    let label = `${formatDateForDisplay(week.weekStartDate)}週`;
     if (isCurrentWeek) {
       label =
         distanceFromTarget === 0
@@ -199,16 +195,13 @@ export function buildWeeklyExpenseChartData({
 
 export function formatWeeklyExpenseTooltip(item: WeeklyExpenseChartItem): string {
   const lines = [
-    `${formatMonthDay(item.weekStartDate)}〜${formatMonthDay(item.weekEndDate)}`,
-    `支出合計 ${currencyFormatter.format(item.amount)}円`,
+    `${formatDateForDisplay(item.weekStartDate)}〜${formatDateForDisplay(item.weekEndDate)}`,
+    `支出合計 ${formatYen(item.amount)}`,
   ];
 
   if (item.byCategory.length > 0) {
     const breakdown = item.byCategory
-      .map(
-        (category) =>
-          `${category.categoryName} ${currencyFormatter.format(category.totalAmountYen)}円`,
-      )
+      .map((category) => `${category.categoryName} ${formatYen(category.totalAmountYen)}`)
       .join(" / ");
     lines.push(breakdown);
   }

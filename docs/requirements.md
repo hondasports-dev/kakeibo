@@ -389,8 +389,10 @@ schema（`sourceDocuments`、`expenseEntries`、`receiptAnalysisBatches`、`rece
 システム管理者権限は `groupMembers.role` と分離し、Convex の `systemAdmins` を正本とする設計である。
 MVP は active な `admin` のみを扱い、家計データへの横断アクセス権は付与しない。
 
-**現行コードでは `systemAdmins` テーブル、関連 API、`/admin` UI は未実装**である。
-設計の正本は `docs/system-admin-authorization.md` を参照する。
+**現行コードでは `systemAdmins` テーブル、関連 API、`/admin` UI は実装済み**である。
+ユーザー・グループ検索、詳細表示、監査ログ閲覧、権限付与・剥奪、ownerless グループ復旧、
+招待取消、グループ削除失敗復旧などが `/admin` から行える。設計の正本は
+`docs/system-admin-authorization.md` を参照する。
 
 ## 11. ユーザーストーリー
 

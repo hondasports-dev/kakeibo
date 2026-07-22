@@ -56,6 +56,7 @@ export default defineSchema({
     // 旧 by_user_id インデックスはこのインデックスに一本化した。
     .index("by_token_identifier", ["userId"])
     .index("by_email", ["email"])
+    .index("by_created_at", ["createdAt"])
     .searchIndex("search_display_name", { searchField: "displayName" })
     .searchIndex("search_email", { searchField: "email" }),
 
@@ -78,7 +79,9 @@ export default defineSchema({
     archivedAt: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
-  }).searchIndex("search_name", { searchField: "name" }),
+  })
+    .index("by_created_at", ["createdAt"])
+    .searchIndex("search_name", { searchField: "name" }),
 
   groupMembers: defineTable({
     groupId: v.id("groups"),
@@ -253,6 +256,15 @@ export default defineSchema({
     targetUserId: v.id("users"),
     groupA: v.id("groups"),
     groupB: v.id("groups"),
+    createdAt: v.number(),
+  }).index("by_prefix", ["prefix"]),
+
+  e2eSystemAdminSearchFixtures: defineTable({
+    prefix: v.string(),
+    actorUserId: v.id("users"),
+    userIds: v.array(v.id("users")),
+    groupIds: v.array(v.id("groups")),
+    createdAdmin: v.boolean(),
     createdAt: v.number(),
   }).index("by_prefix", ["prefix"]),
 
