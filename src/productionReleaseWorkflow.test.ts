@@ -118,6 +118,18 @@ describe("production-release workflow", () => {
     expect(yaml).not.toContain("OPENAI_API_KEY: ${{ secrets.RELEASE_NOTE }}");
   });
 
+  test("records product update generation warnings without blocking deployment", () => {
+    const yaml = workflow();
+    const generator = readFileSync("scripts/generate-product-updates.ts", "utf8");
+
+    expect(generator).toContain("Product update generation warning");
+    expect(generator).toContain("automatic product updates were not added");
+    expect(generator).toContain("sourceRef");
+    expect(generator).toContain("sourceMergedAt");
+    expect(yaml).toContain("Generate product updates");
+    expect(yaml).toContain("Deploy Vercel Production");
+  });
+
   test("preserves release_note workflow input and RELEASE_NOTE for GitHub releases", () => {
     const yaml = workflow();
 

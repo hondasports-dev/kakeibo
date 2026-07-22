@@ -147,10 +147,12 @@ Vercel Production Environment には Clerk Production instance と Convex Produc
 2. 直近の `app-v*` Release 以降かつ `SOURCE_REF` までに `main`（または `BASE_REF`）へマージされた PR を GitHub API 検索で取得する。
 3. 取得した PR リストを `OPENAI_API_KEY`（オプション）でリリース単位で判定し、ユーザーに見える価値がある場合だけ `ProductUpdateDraft` にする。ユーザーに見えない PR（内部リファクタリング、テスト、CI/CD、依存関係更新、ドキュメントのみなど）は掲載しない。関連する PR は 1 つの `ProductUpdateDraft` にまとめる。
 4. `id` はコード側で決定する。単一 PR の場合は `pr-{number}`、複数 PR の場合は `prs-{number}-{number}-...`（番号は昇順）となる。AI には `id` を生成させない。
-5. `OPENAI_API_KEY` が未設定、OpenAI API エラー、JSON 解析失敗、または生成結果の validation に失敗した場合は、自動生成は 0 件として扱い、リリースを中断しない。`src/content/product-updates.ts` の手動ドラフトがあればそれを使う。
+5. `OPENAI_API_KEY` が未設定、OpenAI API エラー、JSON 解析失敗、または生成結果の validation に失敗した場合は、自動生成は 0 件として扱い、リリースを中断しない。`src/content/product-updates.ts` の手動ドラフトがあればそれを使う。失敗種別は Actions Summary に警告として出力する。
 6. `src/content/product-updates.ts` に書かれた手動ドラフトとマージする。`id` が同じ場合は手動ドラフトが生成ドラフトを上書きする。
-7. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。
+7. 過去の更新と重複しないことを確認し、`src/generated/product-updates.json` と `.tmp/product-updates.current-release.json` を出力する。Release asset には `SOURCE_REF` と処理済み境界の `sourceMergedAt` も保存する。
 8. 生成結果の統計と判定明細を Actions Summary に出力する。
+
+新しい Release asset に保存された `sourceRef` / `sourceMergedAt` が次回生成の処理開始境界になる。旧形式の asset に境界情報がない場合は、最後に更新履歴が存在する Release を基準にして再処理するため、空の更新履歴リリースが続いても変更が恒久的に欠落しない。
 
 手動で内容を調整したい場合は `src/content/product-updates.ts` に `id` を `pr-{number}`（例: `pr-459`）または `prs-{number}-{number}`（例: `prs-459-460`）で指定するか、新規の `id` を追加する。
 
