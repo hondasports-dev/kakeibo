@@ -38,7 +38,7 @@ export function QueueHeader({
         sx={{ maxWidth: "100%", minWidth: 0, width: "100%" }}
       >
         <ImageInputButton
-          buttonLabel="レシートを追加"
+          buttonLabel="画像を読み取る"
           disabled={disabled}
           inputLabel="読み取り用画像を追加"
           inputRef={inputRef}
@@ -46,7 +46,7 @@ export function QueueHeader({
           variant="contained"
         />
         <ImageInputButton
-          buttonLabel="撮影する"
+          buttonLabel="カメラで撮影"
           disabled={disabled}
           inputLabel="読み取り用カメラ画像を追加"
           inputRef={cameraInputRef}

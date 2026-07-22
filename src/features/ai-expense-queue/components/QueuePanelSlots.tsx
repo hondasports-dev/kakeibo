@@ -1,4 +1,4 @@
-import { Alert, Box } from "@mui/material";
+import { Alert, Box, Snackbar } from "@mui/material";
 import { useAiExpenseQueuePanelContext } from "../context/AiExpenseQueuePanelContext";
 import type { AiExpenseQueueCategory } from "../types/types";
 import { QueueActiveContent, QueueRegisteredContent } from "./QueueContent";
@@ -127,7 +127,6 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         isReviewDraftNotFound={queue.isReviewDraftNotFound}
         selectedReviewDraft={queue.selectedReviewDraft}
         reviewError={queue.reviewError}
-        reviewSaveNotice={queue.reviewSaveNotice}
         reviewForm={queue.reviewForm}
         reviewItems={queue.reviewItems}
         isCategorySplit={queue.isCategorySplit}
@@ -155,6 +154,23 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onAccept={() => void queue.handleAcceptConsent()}
         onDecline={queue.handleDeclineConsent}
       />
+
+      <Snackbar
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        autoHideDuration={4000}
+        onClose={queue.clearReviewSaveFeedback}
+        open={queue.reviewSaveFeedback !== null}
+      >
+        <Alert
+          aria-live="polite"
+          onClose={queue.clearReviewSaveFeedback}
+          severity={queue.reviewSaveFeedback?.severity ?? "success"}
+          sx={{ width: "100%", whiteSpace: "pre-line" }}
+          variant="filled"
+        >
+          {queue.reviewSaveFeedback?.message}
+        </Alert>
+      </Snackbar>
     </>
   );
 }

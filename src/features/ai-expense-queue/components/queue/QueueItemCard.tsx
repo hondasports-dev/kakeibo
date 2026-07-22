@@ -4,6 +4,7 @@ import { ReviewReasonChips } from "../ReviewReasonChips";
 import { StatusChip } from "../StatusChip";
 import type { AiExpenseQueueItem } from "../../types/types";
 import { formatYen } from "../../../../utils/currency";
+import { getPrimaryReviewReason } from "../../utils/reviewFeedback";
 import { formatQueueDate } from "./queueDisplayFormatters";
 import { QueueItemActions } from "./QueueItemActions";
 
@@ -44,6 +45,7 @@ export function QueueItemCard({
       ...(item.hasLowConfidenceItems ? ["low_confidence"] : []),
     ]),
   );
+  const primaryReviewReason = getPrimaryReviewReason(reviewReasons);
 
   return (
     <Box className={`ai-expense-queue-item ai-expense-queue-item-${getSectionKey(item.status)}`}>
@@ -95,7 +97,13 @@ export function QueueItemCard({
 
         <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "wrap" }}>
           <StatusChip status={item.status} />
-          <ReviewReasonChips reasons={reviewReasons} status={item.status} />
+          <ReviewReasonChips
+            reasons={primaryReviewReason ? [primaryReviewReason] : []}
+            status={item.status}
+          />
+          {reviewReasons.length > 1 && (
+            <Chip label={`他${reviewReasons.length - 1}件`} size="small" variant="outlined" />
+          )}
         </Stack>
 
         {(item.status === "analyzing" || item.status === "registering") && (

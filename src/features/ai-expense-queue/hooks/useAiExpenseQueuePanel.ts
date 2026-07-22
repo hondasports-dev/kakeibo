@@ -26,6 +26,7 @@ export function useAiExpenseQueuePanel({
     readyItemIds: queueData.readyItemIds,
   });
   const reviewDialog = useReviewDialog({
+    categories,
     initialReviewDrafts,
     initialReviewDraftItems: initialReviewDraftItems ?? {},
     onReviewSubmit,
@@ -91,7 +92,7 @@ export function useAiExpenseQueuePanel({
     retryError: imageUpload.uploadError || retry.retryError,
     retryInputRef: retry.retryInputRef,
     reviewError: reviewDialog.reviewError,
-    reviewSaveNotice: reviewDialog.reviewSaveNotice,
+    reviewSaveFeedback: reviewDialog.reviewSaveFeedback,
     reviewForm: reviewDialog.reviewForm,
     reviewItems: reviewDialog.reviewItems,
     isCategorySplit: reviewDialog.isCategorySplit,
@@ -108,6 +109,7 @@ export function useAiExpenseQueuePanel({
     handleAcceptConsent: imageUpload.handleAcceptConsent,
     handleAddReviewItem: reviewDialog.handleAddReviewItem,
     handleCloseReview: reviewDialog.handleCloseReview,
+    clearReviewSaveFeedback: reviewDialog.clearReviewSaveFeedback,
     handleFilesSelected: imageUpload.handleFilesSelected,
     handleDeclineConsent: imageUpload.handleDeclineConsent,
     handleOpenReview: reviewDialog.handleOpenReview,

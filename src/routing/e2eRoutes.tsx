@@ -50,6 +50,10 @@ function E2eAiExpenseQueuePage() {
               : item,
           ),
         );
+        return {
+          status: registerAfterUpdate ? "registered" : "ready",
+          reviewReasons: [],
+        };
       }}
     />
   );

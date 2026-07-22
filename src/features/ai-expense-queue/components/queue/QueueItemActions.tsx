@@ -71,7 +71,7 @@ export function QueueItemActions({
           type="button"
           variant="outlined"
         >
-          編集する
+          修正する
         </Button>
         <Button
           disabled={isRegistering}
