@@ -274,6 +274,7 @@ describe("generateProductUpdateCandidates", () => {
     const result = await generateProductUpdateCandidates([featurePull], {});
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("skipped_no_api_key");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -290,6 +291,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("skipped_no_api_key");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
 
@@ -310,9 +312,10 @@ describe("generateProductUpdateCandidates", () => {
       ],
     });
 
-    await generateProductUpdateCandidates([featurePull], { apiKey: "sk-test" });
+    const result = await generateProductUpdateCandidates([featurePull], { apiKey: "sk-test" });
 
     expect(fetchMock).toHaveBeenCalledOnce();
+    expect(result.status).toBe("success");
 
     void fetchMock;
     vi.unstubAllGlobals();
@@ -526,6 +529,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_api");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
     expect(fetchMock).toHaveBeenCalledOnce();
 
@@ -547,7 +551,26 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_json");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
+
+    void fetchMock;
+    vi.unstubAllGlobals();
+  });
+
+  test("returns failed_json when the OpenAI response envelope is not valid JSON", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockRejectedValue(new SyntaxError("invalid response JSON")),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await generateProductUpdateCandidates([featurePull], {
+      apiKey: "sk-test",
+    });
+
+    expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_json");
 
     void fetchMock;
     vi.unstubAllGlobals();
@@ -561,6 +584,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_api");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -585,6 +609,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_validation");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -614,6 +639,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_validation");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -638,6 +664,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_validation");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -661,6 +688,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_validation");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -684,6 +712,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_validation");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -698,6 +727,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_json");
     expect(toProductUpdateDrafts(result.decisions)).toEqual([]);
 
     void fetchMock;
@@ -716,6 +746,7 @@ describe("generateProductUpdateCandidates", () => {
     });
 
     expect(result.decisions).toEqual([]);
+    expect(result.status).toBe("failed_json");
 
     void fetchMock;
     vi.unstubAllGlobals();

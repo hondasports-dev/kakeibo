@@ -42,6 +42,11 @@ export type AiExpenseQueueCategory = {
   color: string;
 };
 
+export type AiExpenseReviewSubmitResult = {
+  status: AiExpenseDraftStatus;
+  reviewReasons: string[];
+};
+
 export type AiExpenseQueuePanelProps = {
   initialItems?: AiExpenseQueueItem[];
   categories?: AiExpenseQueueCategory[];
@@ -62,7 +67,7 @@ export type AiExpenseQueuePanelProps = {
       }>;
     },
     registerAfterUpdate: boolean,
-  ) => Promise<void> | void;
+  ) => Promise<AiExpenseReviewSubmitResult> | AiExpenseReviewSubmitResult;
 };
 
 export type AiExpenseDraftStatus = "ready" | "needs_review" | "failed" | "registered";

@@ -93,12 +93,21 @@ export type ExtractedFields = ExtractReceiptFieldsResult;
 
 export type ExtractReceiptFieldsArgs = {
   imageDataUrl: string;
+  categories?: ReceiptCategoryHint[];
+  /** @deprecated Use categories so descriptions reach the extractor. */
   categoryNames?: string[];
+};
+
+export type ReceiptCategoryHint = {
+  name: string;
+  description?: string;
 };
 
 export type OpenAIReceiptExtractorArgs = {
   imageDataUrl: string;
   apiKey: string;
+  categories?: ReceiptCategoryHint[];
+  /** @deprecated Use categories so descriptions reach the extractor. */
   categoryNames?: string[];
 };
 

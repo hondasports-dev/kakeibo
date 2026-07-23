@@ -20,16 +20,9 @@ import {
 } from "./e2eFixtures";
 
 export function shouldEnableE2eRoutes() {
-  if (import.meta.env.DEV) {
-    return true;
-  }
-
-  const { hostname, pathname } = window.location;
-  const isLocalPreview = hostname === "localhost" || hostname === "127.0.0.1";
-  const isVercelPreview = hostname.endsWith(".vercel.app");
-  const isE2ePath = pathname.startsWith("/__e2e__/");
-
-  return isE2ePath && (isLocalPreview || isVercelPreview);
+  // E2E 専用ルートは Vite 開発サーバー上でのみ有効。
+  // Preview / Production ではホスト名・パスに関わらず無効化する。
+  return import.meta.env.DEV;
 }
 
 function E2eAiExpenseQueuePage() {
@@ -57,6 +50,10 @@ function E2eAiExpenseQueuePage() {
               : item,
           ),
         );
+        return {
+          status: registerAfterUpdate ? "registered" : "ready",
+          reviewReasons: [],
+        };
       }}
     />
   );

@@ -29,6 +29,7 @@ type CategoryDoc = {
   _creationTime: number;
   groupId: string;
   name: string;
+  description?: string;
   color: string;
   isActive: boolean;
   sortOrder: number;
@@ -279,6 +280,72 @@ describe("seedDefaultCategories", () => {
     );
   });
 
+  it("初期カテゴリにはAI分類用の説明を設定する", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-with-hints",
+    });
+    const ctx = createMutationCtx(identity, []);
+
+    await seedDefaultCategoriesHandler(ctx);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "categories",
+      expect.objectContaining({
+        name: "医療",
+        description: "医薬品、診察、治療費など。歯科用品は日用品に分類する",
+      }),
+    );
+  });
+
+  it("既存標準カテゴリのdescription未設定時だけ初期ヒントを補完する", async () => {
+    const identity = createIdentity({
+      tokenIdentifier: "https://issuer.example|user-backfill-hints",
+    });
+    const existingDocs: CategoryDoc[] = [
+      {
+        _id: "existing-food",
+        _creationTime: 1000,
+        groupId: "group-001",
+        name: "食費",
+        color: "#8B5E3C",
+        isActive: true,
+        sortOrder: 1,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "existing-daily",
+        _creationTime: 1000,
+        groupId: "group-001",
+        name: "日用品",
+        color: "#A6B28B",
+        description: "ユーザー独自の分類基準",
+        isActive: true,
+        sortOrder: 2,
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+    ];
+    const ctx = createMutationCtx(identity, existingDocs);
+
+    await seedDefaultCategoriesHandler(ctx);
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "existing-food",
+      expect.objectContaining({
+        description: "スーパーや小売店で購入する食品、飲料、菓子など",
+      }),
+    );
+    expect(dbPatch).not.toHaveBeenCalledWith(
+      "existing-daily",
+      expect.objectContaining({ description: expect.any(String) }),
+    );
+  });
+
   it("2 回目以降は重複しない（created: 0, skipped: 8）", async () => {
     const identity = createIdentity({
       tokenIdentifier: "https://issuer.example|user-second-login",
@@ -411,10 +478,14 @@ describe("seedDefaultCategories", () => {
     expect(result).toEqual({ created: 7, skipped: 1 });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenCalledWith("id-legacy-food", {
-      color: "#8B5E3C",
-      updatedAt: expect.any(Number),
-    });
+    expect(dbPatch).toHaveBeenCalledWith(
+      "id-legacy-food",
+      expect.objectContaining({
+        color: "#8B5E3C",
+        description: "スーパーや小売店で購入する食品、飲料、菓子など",
+        updatedAt: expect.any(Number),
+      }),
+    );
   });
 
   it("ユーザーが変更したカテゴリ色は上書きしない", async () => {
@@ -441,7 +512,12 @@ describe("seedDefaultCategories", () => {
     expect(result).toEqual({ created: 7, skipped: 1 });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).not.toHaveBeenCalled();
+    expect(dbPatch).toHaveBeenCalledWith(
+      "id-custom-food",
+      expect.objectContaining({
+        description: "スーパーや小売店で購入する食品、飲料、菓子など",
+      }),
+    );
   });
 
   it("groupId が異なるグループのカテゴリは分離される", async () => {
@@ -816,6 +892,35 @@ describe("category management", () => {
     );
   });
 
+  it("createCategory は分類ヒントを200文字以内で保存する", async () => {
+    const ctx = createMutationCtx(identityOwner, [activeCategory], groupMemberOwner);
+
+    await createCategoryHandler(ctx, {
+      name: "ペット用品",
+      color: "#AAB7C4",
+      description: "ペットフードとペット用品を分類する基準",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "categories",
+      expect.objectContaining({ description: "ペットフードとペット用品を分類する基準" }),
+    );
+  });
+
+  it("createCategory は分類ヒントが201文字以上なら拒否する", async () => {
+    const ctx = createMutationCtx(identityOwner, [activeCategory], groupMemberOwner);
+
+    await expect(
+      createCategoryHandler(ctx, {
+        name: "上限超過ヒント",
+        color: "#AAB7C4",
+        description: "あ".repeat(201),
+      }),
+    ).rejects.toMatchObject({ data: "Category description must be 200 characters or fewer" });
+  });
+
   it("createCategory はカテゴリが100件以上ある場合は拒否する", async () => {
     const existingDocs: CategoryDoc[] = Array.from({ length: 100 }, (_, index) => ({
       ...activeCategory,
@@ -858,6 +963,25 @@ describe("category management", () => {
         color: "#8B5E3C",
         updatedAt: expect.any(Number),
       }),
+    );
+  });
+
+  it("updateCategory は空の分類ヒントを明示的なクリアとして保存する", async () => {
+    const ctx = createMutationCtx(identityOwner, [activeCategory], groupMemberOwner);
+
+    await updateCategoryHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-active" as any,
+      name: "食費",
+      color: "#8B5E3C",
+      description: "",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "cat-active",
+      expect.objectContaining({ description: "" }),
     );
   });
 

@@ -7,14 +7,15 @@ import type {
   AiExpenseQueueStatus,
   QueueSectionKey,
 } from "../types/types";
+export { getReviewReasonLabel } from "../utils/reviewFeedback";
 
 export const statusLabels: Record<AiExpenseQueueStatus, string> = {
   adding: "追加中",
   queued: "解析待ち",
   analyzing: "解析中",
-  ready: "登録準備OK",
-  needs_review: "確認が必要",
-  failed: "未取込",
+  ready: "登録できます",
+  needs_review: "確認待ち",
+  failed: "読み取り失敗",
   registering: "登録中",
   registered: "登録済み",
 };
@@ -22,10 +23,10 @@ export const statusLabels: Record<AiExpenseQueueStatus, string> = {
 export type DisplayQueueStatus = "needs_review" | "ready" | "processing" | "failed" | "registered";
 
 export const displayStatusLabels: Record<DisplayQueueStatus, string> = {
-  needs_review: "確認が必要",
-  ready: "登録準備OK",
-  processing: "解析中",
-  failed: "未取込",
+  needs_review: "確認待ち",
+  ready: "登録できます",
+  processing: "読み取り中",
+  failed: "読み取り失敗",
   registered: "登録済み",
 };
 
@@ -55,21 +56,6 @@ export const reviewDocumentTypeOptions = Object.entries(documentTypeLabels).filt
   ([value]) => value !== "unknown",
 );
 
-const reviewReasonLabels: Record<string, string> = {
-  low_confidence: "低信頼度",
-  missing_required_field: "必須項目不足",
-  ambiguous_document_type: "書類種別要確認",
-  ambiguous_category: "未分類あり",
-  multiple_categories: "複数カテゴリの確認",
-  user_confirmation_required: "内容確認が必要",
-  amount_mismatch: "金額不一致",
-  parse_failed: "解析失敗",
-};
-
-export function getReviewReasonLabel(reason: string) {
-  return reviewReasonLabels[reason] ?? reason;
-}
-
 export function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
   if (status === "ready" || status === "registering") {
     return "ready";
@@ -88,16 +74,14 @@ export function getSectionKey(status: AiExpenseQueueStatus): QueueSectionKey {
 
 export const queueSectionLabels: Record<QueueSectionKey, string> = {
   processing: "読み取り中",
-  ready: "登録準備OK",
-  needs_review: "確認が必要",
-  failed: "未取込",
+  ready: "登録できます",
+  needs_review: "確認待ち",
+  failed: "読み取り失敗",
   registered: "登録済み",
 };
 
 export const queueSectionDescriptions: Partial<Record<QueueSectionKey, string>> = {
-  processing: "読み取り中です。少し待つと下書きが作成されます。",
-  failed:
-    "読み取れませんでした。画像が暗いか、文字が小さい可能性があります。もう一度撮り直すと改善することがあります。",
+  processing: "",
 };
 
 export function getStatusIcon(status: AiExpenseQueueStatus) {

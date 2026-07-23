@@ -14,6 +14,8 @@ export type ProductionProductUpdates = {
   version: string;
   publishedAt: string;
   updates: ProductUpdate[];
+  sourceRef?: string;
+  sourceMergedAt?: string;
 };
 
 export class ProductUpdateValidationError extends Error {
@@ -175,6 +177,30 @@ export function validateProductionProductUpdates(
     throw new ProductUpdateValidationError("updates must be an array");
   }
 
+  const hasSourceRef = p.sourceRef !== undefined;
+  const hasSourceMergedAt = p.sourceMergedAt !== undefined;
+  if (hasSourceRef !== hasSourceMergedAt) {
+    throw new ProductUpdateValidationError(
+      "sourceRef and sourceMergedAt must be provided together",
+    );
+  }
+
+  if (hasSourceRef && (typeof p.sourceRef !== "string" || p.sourceRef.trim() === "")) {
+    throw new ProductUpdateValidationError("sourceRef must be a non-empty string when provided");
+  }
+
+  if (hasSourceMergedAt && typeof p.sourceMergedAt !== "string") {
+    throw new ProductUpdateValidationError(
+      "sourceMergedAt must be a non-empty string when provided",
+    );
+  }
+
+  if (typeof p.sourceMergedAt === "string" && p.sourceMergedAt.trim() === "") {
+    throw new ProductUpdateValidationError(
+      "sourceMergedAt must be a non-empty string when provided",
+    );
+  }
+
   const seenIds = new Set<string>();
   for (const update of p.updates) {
     validateProductUpdateDraft(update, seenIds);
@@ -193,6 +219,17 @@ export function validateProductionProductUpdates(
       );
     }
   }
+}
+
+export function resolveProductUpdateSourceAt(
+  latestReleasePayload: Pick<ProductionProductUpdates, "sourceRef" | "sourceMergedAt"> | undefined,
+  legacySourceAt: string | undefined,
+): string | undefined {
+  if (latestReleasePayload?.sourceRef && latestReleasePayload.sourceMergedAt) {
+    return latestReleasePayload.sourceMergedAt;
+  }
+
+  return legacySourceAt;
 }
 
 export function mergeProductUpdates({

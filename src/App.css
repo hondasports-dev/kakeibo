@@ -347,6 +347,79 @@
   padding: var(--space-sm) 0 var(--space-md);
 }
 
+.category-settings-editor-fields,
+.category-settings-create-fields {
+  display: grid;
+  gap: var(--space-md);
+  align-items: start;
+  min-width: 0;
+}
+
+.category-settings-editor-fields {
+  grid-template-areas: "name color description actions";
+  grid-template-columns: minmax(136px, 0.9fr) 96px minmax(144px, 1.2fr) auto;
+}
+
+.category-settings-create-fields {
+  grid-template-areas: "name description color action";
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.3fr) 96px auto;
+}
+
+.category-settings-field-name {
+  grid-area: name;
+}
+
+.category-settings-field-color {
+  grid-area: color;
+}
+
+.category-settings-field-description {
+  grid-area: description;
+}
+
+.category-settings-create-action {
+  grid-area: action;
+}
+
+.category-settings-editor-fields > .MuiFormControl-root,
+.category-settings-create-fields > .MuiFormControl-root {
+  min-width: 0;
+  width: 100%;
+}
+
+.category-settings-editor-actions {
+  grid-area: actions;
+  align-items: stretch;
+  flex-wrap: nowrap;
+  min-width: 188px;
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .category-settings-editor-fields {
+    grid-template-areas:
+      "name color actions"
+      "description description description";
+    grid-template-columns: minmax(0, 1fr) 96px auto;
+  }
+
+  .category-settings-create-fields {
+    grid-template-areas:
+      "name color action"
+      "description description description";
+    grid-template-columns: minmax(0, 1fr) 96px auto;
+  }
+}
+
+.category-settings-editor-actions .MuiButton-root,
+.category-settings-create-fields > .MuiButton-root {
+  min-width: 108px;
+  white-space: nowrap;
+}
+
+.category-settings-editor-actions .MuiButton-root:last-child {
+  min-width: 72px;
+}
+
 .category-settings-deactivate {
   padding-top: var(--space-sm);
   border-top: 1px solid var(--color-border-subtle);
@@ -800,6 +873,23 @@
   .settings-row,
   .category-settings-summary {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .category-settings-editor-fields,
+  .category-settings-create-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .category-settings-editor-fields {
+    grid-template-areas: "name" "color" "description" "actions";
+  }
+
+  .category-settings-create-fields {
+    grid-template-areas: "name" "description" "color" "action";
+  }
+
+  .category-settings-editor-actions {
+    justify-content: flex-end;
   }
 
   .settings-danger-row {

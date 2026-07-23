@@ -44,18 +44,18 @@ async function waitForReceiptInputQueue(page: Page) {
 
 /** ヘッダーの ImageInputButton（空状態 CTA と区別する） */
 function getHeaderAddReceiptButton(queue: Locator) {
-  return queue.getByRole("button", { name: "レシートを追加", exact: true }).first();
+  return queue.getByRole("button", { name: "画像を読み取る", exact: true }).first();
 }
 
 async function acceptReceiptImageConsentIfNeeded(page: Page, firstFileName: string) {
   const consentDialog = page.getByRole("dialog", {
-    name: "画像の外部API送信に同意しますか",
+    name: "画像を読み取る",
   });
   const firstQueueItem = page.locator(".input-workbench--expense").getByText(firstFileName).first();
 
   await expect(consentDialog.or(firstQueueItem).first()).toBeVisible({ timeout: 30_000 });
   if (await consentDialog.isVisible()) {
-    await consentDialog.getByRole("button", { name: "同意して読み取る" }).click();
+    await consentDialog.getByRole("button", { name: "画像を読み取る" }).click();
   }
 }
 
@@ -89,7 +89,7 @@ test.describe("Issue #144 読み取りUI", () => {
     await expect
       .poll(
         async () => {
-          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
+          const statusLabels = ["読み取り中", "登録できます", "確認待ち", "読み取り失敗"];
           let total = 0;
           for (const label of statusLabels) {
             total += await queue.getByText(label).count();
@@ -120,7 +120,7 @@ test.describe("Issue #144 読み取りUI", () => {
 
     const queue = await waitForReceiptInputQueue(page);
     await expectLocatorInsideViewport(queue);
-    const cameraButton = queue.getByRole("button", { name: "撮影する" });
+    const cameraButton = queue.getByRole("button", { name: "カメラで撮影" });
     const imageButton = getHeaderAddReceiptButton(queue);
     await expect(cameraButton).toBeEnabled();
     await expectLocatorInsideViewport(cameraButton);
@@ -171,7 +171,7 @@ test.describe("Issue #144 読み取りUI", () => {
     await expect
       .poll(
         async () => {
-          const statusLabels = ["解析待ち", "解析中", "登録準備OK", "確認が必要", "失敗"];
+          const statusLabels = ["読み取り中", "登録できます", "確認待ち", "読み取り失敗"];
           let total = 0;
           for (const label of statusLabels) {
             total += await queue.getByText(label).count();
@@ -193,17 +193,17 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
 
     const queue = page.getByRole("region", { name: "レシート入力" });
     await expect(queue).toBeVisible();
-    await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
-    await expect(queue.getByText("確認が必要 1件")).toBeVisible();
-    await expect(queue.getByText("未取込 1件")).toBeVisible();
+    await expect(queue.getByText("登録できます 1件")).toBeVisible();
+    await expect(queue.getByText("確認待ち 1件")).toBeVisible();
+    await expect(queue.getByText("読み取り失敗 1件")).toBeVisible();
 
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
-    await expect(reviewSection.getByText("低信頼度")).toBeVisible();
+    await expect(reviewSection.getByText("必須項目不足")).toBeVisible();
     await expect(reviewSection.getByText("必須項目不足")).toBeVisible();
     await expect(reviewSection.getByRole("button", { name: "確認する" })).toBeEnabled();
 
-    const failedSection = queue.getByRole("region", { name: "未取込" });
+    const failedSection = queue.getByRole("region", { name: "読み取り失敗" });
     await expect(failedSection.getByText("failed-receipt.png")).toBeVisible();
     await expect(failedSection.getByText("解析失敗")).toBeVisible();
   });
@@ -214,7 +214,7 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
     const queue = page.getByRole("region", { name: "レシート入力" });
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
     await reviewSection.getByRole("button", { name: "確認する" }).click();
@@ -223,12 +223,12 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("9160");
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(queue.getByText("確認が必要 0件")).toBeVisible();
-    await expect(queue.getByText("登録準備OK 2件")).toBeVisible();
-    const readySection = queue.getByRole("region", { name: "登録準備OK" });
+    await expect(queue.getByText("確認待ち 0件")).toHaveCount(0);
+    await expect(queue.getByText("登録できます 2件")).toBeVisible();
+    const readySection = queue.getByRole("region", { name: "登録できます" });
     await expect(readySection.getByText("大阪市水道局")).toBeVisible();
     await expect(readySection.getByText("9,160円")).toBeVisible();
   });
@@ -237,14 +237,14 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
     const queue = page.getByRole("region", { name: "レシート入力" });
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
     await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByText("低信頼度")).toBeVisible();
+    await expect(dialog.getByText("読み取り内容の信頼度が低い")).toBeVisible();
     await expect(dialog.getByText("必須項目不足")).toBeVisible();
     await expect(dialog.getByLabel("支出日（レシート記載日）")).toHaveValue("2026-06-01");
     await expect(dialog.getByLabel("合計金額")).toHaveValue("9120");
@@ -252,11 +252,11 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
 
     await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("9160");
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(queue.getByText("確認が必要 0件")).toBeVisible();
-    const readySection = queue.getByRole("region", { name: "登録準備OK" });
+    await expect(queue.getByText("確認待ち 0件")).toHaveCount(0);
+    const readySection = queue.getByRole("region", { name: "登録できます" });
     await expect(readySection.getByText("大阪市水道局")).toBeVisible();
     await expect(readySection.getByText("2026/06/01 ・ 9,160円")).toBeVisible();
   });
@@ -267,7 +267,7 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
 
     const queue = page.getByRole("region", { name: "レシート入力" });
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
 
     await reviewSection.getByRole("button", { name: "確認する" }).click();
@@ -279,11 +279,11 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await expect(dialog.getByText("未分類の明細があります")).toHaveCount(0);
     await expect(dialog.getByText("低信頼度の明細があります")).toHaveCount(0);
 
-    await dialog.getByRole("button", { name: "内容を変更" }).click();
+    await dialog.getByRole("button", { name: "修正する" }).click();
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
     await expect(dialog.getByLabel("金額の照合")).toBeVisible();
     await expect(dialog.getByText("お支払い（レシート合計）")).toBeVisible();
-    await expect(dialog.getByText("低信頼度").first()).toBeVisible();
+    await expect(dialog.getByText("読み取り内容の信頼度が低い").first()).toBeVisible();
     await expect(dialog.getByLabel("明細カテゴリ")).toHaveCount(2);
     await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toContainText("食費");
     await expect(dialog.getByLabel("明細カテゴリ").nth(1)).toContainText("水道光熱費");
@@ -307,17 +307,11 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
 
     await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("920");
-    await dialog.getByRole("button", { name: "変更内容を確認" }).click();
-
-    await expect(dialog.getByRole("heading", { name: "登録候補" })).toHaveCount(0);
-    await dialog.getByRole("button", { name: "明細を見る" }).click();
-    await expect(dialog.getByText("大阪市水道局 水道料金")).toBeVisible();
-    await expect(dialog.getByText("牛乳")).toBeVisible();
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
 
     await expect(dialog).toBeHidden();
-    await expect(queue.getByText("確認が必要 0件")).toBeVisible();
-    await expect(queue.getByText("登録準備OK 2件")).toBeVisible();
+    await expect(queue.getByText("確認待ち 0件")).toHaveCount(0);
+    await expect(queue.getByText("登録できます 2件")).toBeVisible();
   });
 });
 
@@ -327,12 +321,13 @@ test.describe("Issue #431 レシート税判定UI", () => {
 
     const queue = page.getByRole("region", { name: "レシート入力" });
     await queue
-      .getByRole("region", { name: "確認が必要" })
+      .getByRole("region", { name: "確認待ち" })
       .getByRole("button", { name: "確認する" })
       .click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog.getByLabel("金額の照合")).toBeVisible();
+    await dialog.getByRole("button", { name: "内訳を表示" }).click();
     await expect(dialog.getByText("お支払い（レシート合計）")).toBeVisible();
     await expect(dialog.getByText("登録合計（税込）")).toBeVisible();
 
@@ -358,13 +353,13 @@ test.describe("下書き確認の税状態保存", () => {
     await gotoAuthenticated(page, INPUT_PATH);
 
     const queue = await waitForReceiptInputQueue(page);
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("E2E税レビュー店")).toBeVisible({ timeout: 15_000 });
     await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
-    await dialog.getByRole("button", { name: "内容を変更" }).click();
-    await dialog.getByRole("button", { name: "この設定ですべての商品に適用" }).click();
+    await dialog.getByRole("button", { name: "修正する" }).click();
+    await dialog.getByRole("button", { name: "税率を一括適用" }).click();
     await expect(dialog.getByText(/税率 8%/).first()).toBeVisible({ timeout: 15_000 });
     await expect(dialog.getByText("登録合計（税込）")).toBeVisible();
     await expect(dialog.getByText("登録額: 108円（税込）")).toBeVisible();
@@ -372,17 +367,11 @@ test.describe("下書き確認の税状態保存", () => {
 
     await dialog.getByLabel("レシートの金額", { exact: true }).fill("99");
     await expect(dialog.getByText(/登録額: \d+円（税込）/)).toBeVisible();
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
-
-    await expect(dialog).toBeVisible();
-    await expect(dialog.getByText(/保存しました。税率の確定/)).toBeVisible();
-    await expect(dialog.getByText(/税率 8%/).first()).toBeVisible();
-
-    await dialog.getByRole("button", { name: "キャンセル" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
     await expect(dialog).toBeHidden();
 
     await reviewSection.getByRole("button", { name: "確認する" }).click();
-    await dialog.getByRole("button", { name: "内容を変更" }).click();
+    await dialog.getByRole("button", { name: "修正する" }).click();
     await expect(dialog.getByText(/税率 8%/).first()).toBeVisible({ timeout: 10_000 });
     await expect(dialog.getByLabel("レシートの金額", { exact: true })).not.toHaveValue("100", {
       timeout: 10_000,
@@ -447,20 +436,20 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     const queue = page.getByRole("region", { name: "レシート入力" });
     const statusSummary = page.locator(".ai-expense-queue-status-summary");
     await expect(statusSummary).toBeVisible();
-    await expect(queue.getByText("登録準備OK 1件")).toBeVisible();
-    await expect(queue.getByText("確認が必要 1件")).toBeVisible();
-    await expect(queue.getByText("未取込 1件")).toBeVisible();
-    await expect(queue.getByRole("button", { name: "レシートを追加" })).toBeVisible();
+    await expect(queue.getByText("登録できます 1件")).toBeVisible();
+    await expect(queue.getByText("確認待ち 1件")).toBeVisible();
+    await expect(queue.getByText("読み取り失敗 1件")).toBeVisible();
+    await expect(queue.getByRole("button", { name: "画像を読み取る" })).toBeVisible();
     await expect(queue.getByText("撮影して、あとでまとめて確認できます。")).toHaveCount(0);
 
     await expect(
-      queue.getByRole("region", { name: "確認が必要" }).getByRole("button", { name: "確認する" }),
+      queue.getByRole("region", { name: "確認待ち" }).getByRole("button", { name: "確認する" }),
     ).toBeVisible();
     await expect(
-      queue.getByRole("region", { name: "登録準備OK" }).getByRole("button", { name: "登録する" }),
+      queue.getByRole("region", { name: "登録できます" }).getByRole("button", { name: "登録する" }),
     ).toBeVisible();
     await expect(
-      queue.getByRole("region", { name: "未取込" }).getByRole("button", { name: "再試行" }),
+      queue.getByRole("region", { name: "読み取り失敗" }).getByRole("button", { name: "再試行" }),
     ).toBeVisible();
 
     await page.waitForTimeout(400);
@@ -474,7 +463,7 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
 
     const queue = page.getByRole("region", { name: "レシート入力" });
     await queue
-      .getByRole("region", { name: "確認が必要" })
+      .getByRole("region", { name: "確認待ち" })
       .getByRole("button", { name: "確認する" })
       .click();
 
@@ -483,8 +472,8 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
     await dialog.getByRole("button", { name: "明細を見る" }).click();
     await expect(dialog.getByText("パン")).toBeVisible();
     await expect(dialog.getByText("胃薬")).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "内容を変更" })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "確認して準備OK" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "修正する" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "保存して閉じる" })).toBeVisible();
   });
 });
 
@@ -493,31 +482,31 @@ test.describe("Issue #397 登録準備OK状態で再編集できる", () => {
     await gotoAuthenticated(page, "/__e2e__/ai-expense-queue");
 
     const queue = page.getByRole("region", { name: "レシート入力" });
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await dialog.getByLabel("店名・内容").fill("大阪市水道局 水道料金");
     await dialog.getByLabel("合計金額").fill("9160");
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
     await expect(dialog).toBeHidden();
 
-    const readySection = queue.getByRole("region", { name: "登録準備OK" });
+    const readySection = queue.getByRole("region", { name: "登録できます" });
     const editedReadyItem = readySection
       .locator(".ai-expense-queue-item")
       .filter({ hasText: "大阪市水道局" });
     await expect(editedReadyItem).toBeVisible();
 
-    await editedReadyItem.getByRole("button", { name: "編集する" }).click();
+    await editedReadyItem.getByRole("button", { name: "修正する" }).click();
     await expect(dialog).toBeVisible();
     await dialog.getByLabel("店名・内容").fill("大阪市水道局 6月分");
     await dialog.getByLabel("合計金額").fill("9200");
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
 
     await expect(dialog).toBeHidden();
     await expect(editedReadyItem.getByText("大阪市水道局 6月分")).toBeVisible();
     await expect(editedReadyItem.getByText("9,200円")).toBeVisible();
-    await expect(editedReadyItem.getByRole("button", { name: "編集する" })).toBeVisible();
+    await expect(editedReadyItem.getByRole("button", { name: "修正する" })).toBeVisible();
     await expect(editedReadyItem.getByRole("button", { name: "登録する" })).toBeVisible();
   });
 });
@@ -539,12 +528,13 @@ test.describe("Issue #435 税率別集計の conflict 修正", () => {
     await page.goto(INPUT_PATH);
 
     const queue = await waitForReceiptInputQueue(page);
-    const reviewSection = queue.getByRole("region", { name: "確認が必要" });
+    const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("E2E税率別集計店")).toBeVisible({ timeout: 15_000 });
     await reviewSection.getByRole("button", { name: "確認する" }).click();
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "税情報を確認" }).click();
 
     const summarySection = dialog.getByLabel("税率別集計", { exact: true });
     await expect(summarySection).toBeVisible();
@@ -577,11 +567,11 @@ test.describe("Issue #435 税率別集計の conflict 修正", () => {
     await expect(dialog.getByText("税額 96円")).toBeVisible();
     await expect(dialog.getByText("税込合計 1,060円")).toBeVisible();
 
-    await dialog.getByRole("button", { name: "確認して準備OK" }).click();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
     await expect(dialog).toBeHidden();
 
-    const readySection = queue.getByRole("region", { name: "登録準備OK" });
-    await readySection.getByRole("button", { name: "編集する" }).click();
+    const readySection = queue.getByRole("region", { name: "登録できます" });
+    await readySection.getByRole("button", { name: "修正する" }).click();
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("対象額 1,060円（税込）")).toBeVisible({ timeout: 10_000 });
   });

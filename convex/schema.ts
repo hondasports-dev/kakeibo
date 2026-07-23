@@ -406,6 +406,7 @@ export default defineSchema({
   categories: defineTable({
     groupId: v.id("groups"),
     name: v.string(),
+    description: v.optional(v.string()),
     color: v.string(),
     isActive: v.boolean(),
     sortOrder: v.number(),

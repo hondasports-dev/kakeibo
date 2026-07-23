@@ -3,16 +3,59 @@ import type { MutationCtx } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../lib/categoryDescription";
+
+export { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../lib/categoryDescription";
 
 export const DEFAULT_CATEGORIES = [
-  { name: "食費", color: "#8B5E3C", sortOrder: 1 },
-  { name: "日用品", color: "#A6B28B", sortOrder: 2 },
-  { name: "外食", color: "#F4A27A", sortOrder: 3 },
-  { name: "交通", color: "#AAB7C4", sortOrder: 4 },
-  { name: "医療", color: "#C9734B", sortOrder: 5 },
-  { name: "娯楽", color: "#6F7F55", sortOrder: 6 },
-  { name: "衣服", color: "#D8B28F", sortOrder: 7 },
-  { name: "その他", color: "#765F4F", sortOrder: 8 },
+  {
+    name: "食費",
+    description: "スーパーや小売店で購入する食品、飲料、菓子など",
+    color: "#8B5E3C",
+    sortOrder: 1,
+  },
+  {
+    name: "日用品",
+    description: "洗剤、化粧品、歯科用品、衛生用品、レジ袋など",
+    color: "#A6B28B",
+    sortOrder: 2,
+  },
+  {
+    name: "外食",
+    description: "飲食店、テイクアウト、デリバリーなどの飲食費",
+    color: "#F4A27A",
+    sortOrder: 3,
+  },
+  {
+    name: "交通",
+    description: "電車、バス、タクシー、ガソリン、高速道路、駐車場など",
+    color: "#AAB7C4",
+    sortOrder: 4,
+  },
+  {
+    name: "医療",
+    description: "医薬品、診察、治療費など。歯科用品は日用品に分類する",
+    color: "#C9734B",
+    sortOrder: 5,
+  },
+  {
+    name: "娯楽",
+    description: "ゲーム、映画、レジャー、書籍、趣味など",
+    color: "#6F7F55",
+    sortOrder: 6,
+  },
+  {
+    name: "衣服",
+    description: "衣類、靴、バッグ、服飾品など",
+    color: "#D8B28F",
+    sortOrder: 7,
+  },
+  {
+    name: "その他",
+    description: "税金、公共料金、たばこ、他カテゴリーに該当しないもの",
+    color: "#765F4F",
+    sortOrder: 8,
+  },
 ] as const;
 
 const LEGACY_DEFAULT_CATEGORY_COLORS_BY_SORT_ORDER = new Map<number, string>([
@@ -60,6 +103,16 @@ export function normalizeCategoryColor(color: string) {
   return trimmed.toUpperCase();
 }
 
+export function normalizeCategoryDescription(description?: string) {
+  if (description === undefined) return undefined;
+  if (description.length > MAX_CATEGORY_DESCRIPTION_LENGTH) {
+    throw new ConvexError(
+      `Category description must be ${MAX_CATEGORY_DESCRIPTION_LENGTH} characters or fewer`,
+    );
+  }
+  return description;
+}
+
 async function getOwnedCategory(
   ctx: Pick<MutationCtx, "auth" | "db">,
   categoryId: Id<"categories">,
@@ -95,10 +148,18 @@ export async function seedDefaultCategoriesHandler(ctx: MutationCtx) {
       .unique();
 
     if (existing !== null) {
+      const patch: { color?: string; description?: string; updatedAt: number } = {
+        updatedAt: now,
+      };
       if (shouldRefreshLegacyDefaultCategoryColor(existing, category)) {
+        patch.color = category.color;
+      }
+      if (existing.name === category.name && existing.description === undefined) {
+        patch.description = category.description;
+      }
+      if (Object.keys(patch).length > 1) {
         await ctx.db.patch(existing._id, {
-          color: category.color,
-          updatedAt: now,
+          ...patch,
         });
       }
       skipped++;
@@ -108,6 +169,7 @@ export async function seedDefaultCategoriesHandler(ctx: MutationCtx) {
     await ctx.db.insert("categories", {
       groupId,
       name: category.name,
+      description: category.description,
       color: category.color,
       isActive: true,
       sortOrder: category.sortOrder,
@@ -123,6 +185,7 @@ export async function seedDefaultCategoriesHandler(ctx: MutationCtx) {
 type CreateCategoryArgs = {
   name: string;
   color: string;
+  description?: string;
 };
 
 /** createCategory mutation の handler ロジック（テスト用に export） */
@@ -130,6 +193,7 @@ export async function createCategoryHandler(ctx: MutationCtx, args: CreateCatego
   const { groupId } = await requireGroupMembership(ctx);
   const name = normalizeCategoryName(args.name);
   const color = normalizeCategoryColor(args.color);
+  const description = normalizeCategoryDescription(args.description);
   const existing = await ctx.db
     .query("categories")
     .withIndex("by_group_id_and_sort_order", (q) => q.eq("groupId", groupId))
@@ -145,6 +209,7 @@ export async function createCategoryHandler(ctx: MutationCtx, args: CreateCatego
   const categoryId = await ctx.db.insert("categories", {
     groupId,
     name,
+    ...(description === undefined ? {} : { description }),
     color,
     isActive: true,
     sortOrder,
@@ -159,6 +224,7 @@ type UpdateCategoryArgs = {
   categoryId: Id<"categories">;
   name: string;
   color: string;
+  description?: string;
 };
 
 /** updateCategory mutation の handler ロジック（テスト用に export） */
@@ -166,10 +232,12 @@ export async function updateCategoryHandler(ctx: MutationCtx, args: UpdateCatego
   await getOwnedCategory(ctx, args.categoryId);
   const name = normalizeCategoryName(args.name);
   const color = normalizeCategoryColor(args.color);
+  const description = normalizeCategoryDescription(args.description);
 
   await ctx.db.patch(args.categoryId, {
     name,
     color,
+    ...(description === undefined ? {} : { description }),
     updatedAt: Date.now(),
   });
 
@@ -206,6 +274,7 @@ export const createCategory = mutation({
   args: {
     name: v.string(),
     color: v.string(),
+    description: v.optional(v.string()),
   },
   handler: createCategoryHandler,
 });
@@ -215,6 +284,7 @@ export const updateCategory = mutation({
     categoryId: v.id("categories"),
     name: v.string(),
     color: v.string(),
+    description: v.optional(v.string()),
   },
   handler: updateCategoryHandler,
 });

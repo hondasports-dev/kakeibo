@@ -8,6 +8,15 @@ export function invalidJsonResponse() {
 }
 
 export function requireE2eSecret(req: Request, notEnabledMessage: string): Response | null {
+  // Production では E2E HTTP エンドポイントを完全に無効化
+  const appEnv = process.env.APP_ENV ?? "development";
+  if (appEnv === "production") {
+    return new Response(JSON.stringify({ error: "E2E endpoints are disabled in production." }), {
+      status: 503,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
   const secret = process.env.E2E_CLEANUP_SECRET;
   if (!secret) {
     return new Response(JSON.stringify({ error: notEnabledMessage }), {

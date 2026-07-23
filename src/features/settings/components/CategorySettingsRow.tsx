@@ -2,16 +2,19 @@ import { Box, Button, Chip, Collapse, Stack, TextField, Typography } from "@mui/
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { designTokens } from "../../../designTokens";
 import type { Category } from "../hooks/useCategorySettings";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/categoryDescription";
 
 type CategorySettingsRowProps = {
   category: Category;
   editColor: string;
+  editDescription: string;
   editName: string;
   isEditing: boolean;
   onBeginEdit: (category: Category) => void;
   onCancelEdit: () => void;
   onDeactivate: (categoryId: Category["_id"]) => void;
   onEditColorChange: (color: string) => void;
+  onEditDescriptionChange: (description: string) => void;
   onEditNameChange: (name: string) => void;
   onUpdate: () => void;
   savingTarget: string | null;
@@ -20,12 +23,14 @@ type CategorySettingsRowProps = {
 export function CategorySettingsRow({
   category,
   editColor,
+  editDescription,
   editName,
   isEditing,
   onBeginEdit,
   onCancelEdit,
   onDeactivate,
   onEditColorChange,
+  onEditDescriptionChange,
   onEditNameChange,
   onUpdate,
   savingTarget,
@@ -72,8 +77,9 @@ export function CategorySettingsRow({
 
       <Collapse id={`category-editor-${category._id}`} in={isEditing} unmountOnExit>
         <Stack className="category-settings-editor" spacing={1.5}>
-          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5}>
+          <Box className="category-settings-editor-fields">
             <TextField
+              className="category-settings-field-name"
               disabled={editSaving}
               fullWidth
               label="カテゴリ名を編集"
@@ -82,22 +88,52 @@ export function CategorySettingsRow({
               value={editName}
             />
             <TextField
+              className="category-settings-field-color"
               disabled={editSaving}
-              label="カテゴリ色を編集"
+              label="カテゴリ色"
               name="editCategoryColor"
               onChange={(event) => onEditColorChange(event.target.value)}
-              slotProps={{ inputLabel: { shrink: true } }}
+              slotProps={{
+                htmlInput: { "aria-label": "カテゴリ色を編集" },
+                inputLabel: { shrink: true },
+              }}
               type="color"
               value={editColor}
-              sx={{ width: { xs: "100%", md: 160 } }}
+              sx={{ width: "100%" }}
             />
-            <Button disabled={editSaving} onClick={onUpdate} variant="contained">
-              {editSaving ? "保存中..." : "変更を保存"}
-            </Button>
-            <Button disabled={editSaving} onClick={onCancelEdit}>
-              キャンセル
-            </Button>
-          </Stack>
+            <TextField
+              className="category-settings-field-description"
+              disabled={editSaving}
+              fullWidth
+              helperText={`${editDescription.length}/${MAX_CATEGORY_DESCRIPTION_LENGTH}`}
+              label="カテゴリのAI分類ヒント"
+              name="editCategoryDescription"
+              multiline
+              minRows={4}
+              onChange={(event) => onEditDescriptionChange(event.target.value)}
+              slotProps={{ htmlInput: { maxLength: MAX_CATEGORY_DESCRIPTION_LENGTH } }}
+              value={editDescription}
+            />
+            <Stack className="category-settings-editor-actions" direction="row" spacing={1}>
+              <Button
+                disabled={editSaving}
+                onClick={onUpdate}
+                size="small"
+                sx={{ fontSize: "0.8125rem", lineHeight: 1.4, whiteSpace: "nowrap" }}
+                variant="contained"
+              >
+                {editSaving ? "保存中…" : "変更を保存"}
+              </Button>
+              <Button
+                disabled={editSaving}
+                onClick={onCancelEdit}
+                size="small"
+                sx={{ fontSize: "0.8125rem", lineHeight: 1.4, whiteSpace: "nowrap" }}
+              >
+                キャンセル
+              </Button>
+            </Stack>
+          </Box>
           <Box className="category-settings-deactivate">
             <Button
               aria-label={`${category.name}を無効化`}
@@ -107,7 +143,7 @@ export function CategorySettingsRow({
               size="small"
               variant="outlined"
             >
-              {deactivateSaving ? "無効化中..." : "無効化"}
+              {deactivateSaving ? "無効化中…" : "無効化"}
             </Button>
           </Box>
         </Stack>

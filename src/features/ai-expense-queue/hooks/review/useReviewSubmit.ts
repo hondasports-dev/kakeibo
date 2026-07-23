@@ -1,72 +1,47 @@
 import { useState } from "react";
-import { useConvex, useMutation } from "convex/react";
+import { useMutation } from "convex/react";
 import type { Id } from "../../../../../convex/_generated/dataModel";
 import { api } from "../../../../../convex/_generated/api";
-import {
-  mapConvexDraftToAiExpenseDraft,
-  mapDraftItemsToReviewItems,
-  isDraftWithItems,
-} from "../../utils/mappers";
 import { getReviewSubmitError } from "../../utils/reviewValidation";
 import { toUserFacingReviewError } from "../../utils/userFacingErrors";
 import type {
-  AiExpenseDraft,
   AiExpenseQueuePanelProps,
   ReviewFormValues,
   ReviewItemValues,
 } from "../../types/types";
 import { prepareReviewItemsForSubmit } from "../../utils/reviewItemCategories";
-
-export const REVIEW_SAVED_NEEDS_REVIEW_NOTICE =
-  "保存しました。税率の確定または金額の調整が必要です。下の一括適用を試すか、明細を確認してください。";
+import { formatReviewSaveMessage } from "../../utils/reviewFeedback";
 
 export function useReviewSubmit({
   selectedReviewDraftId,
   reviewForm,
   reviewItems,
+  categoryName,
   onReviewSubmit,
   onRegister,
   clearSelection,
   resetForm,
-  setReviewDraftOverride,
-  setReviewItems,
-  setInitializedReviewDraftId,
 }: {
   selectedReviewDraftId: string | null;
   reviewForm: ReviewFormValues;
   reviewItems: ReviewItemValues[];
+  categoryName?: string;
   onReviewSubmit?: AiExpenseQueuePanelProps["onReviewSubmit"];
   onRegister?: (draftId: string) => void;
   clearSelection: () => void;
   resetForm: () => void;
-  setReviewDraftOverride?: (draft: AiExpenseDraft) => void;
-  setReviewItems?: (items: ReviewItemValues[]) => void;
-  setInitializedReviewDraftId?: (draftId: string | null) => void;
 }) {
-  const convex = useConvex();
   const [reviewError, setReviewError] = useState("");
-  const [reviewSaveNotice, setReviewSaveNotice] = useState("");
+  const [reviewSaveFeedback, setReviewSaveFeedback] = useState<{
+    message: string;
+    severity: "success" | "error";
+  } | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const updateForReview = useMutation(api.aiExpenseDrafts.mutations.updateForReview);
   const registerReadyDraftsAsExpenseEntries = useMutation(
     api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
   );
-
-  const refreshSavedDraft = async (draftId: string) => {
-    if (!setReviewDraftOverride || !setReviewItems || !setInitializedReviewDraftId) {
-      return;
-    }
-    const details = await convex.query(api.aiExpenseDrafts.queries.getWithItems, {
-      draftId: draftId as Id<"aiExpenseDrafts">,
-    });
-    if (!isDraftWithItems(details)) {
-      return;
-    }
-    setReviewDraftOverride(mapConvexDraftToAiExpenseDraft(details.draft));
-    setReviewItems(mapDraftItemsToReviewItems(details.items));
-    setInitializedReviewDraftId(null);
-  };
 
   const handleSubmitReview = async (registerAfterUpdate: boolean) => {
     if (!selectedReviewDraftId) {
@@ -82,10 +57,9 @@ export function useReviewSubmit({
 
     setReviewSubmitting(true);
     setReviewError("");
-    setReviewSaveNotice("");
     try {
       if (onReviewSubmit) {
-        await onReviewSubmit(
+        const updated = await onReviewSubmit(
           selectedReviewDraftId,
           {
             documentType: reviewForm.documentType,
@@ -101,6 +75,16 @@ export function useReviewSubmit({
           },
           registerAfterUpdate,
         );
+        setReviewSaveFeedback({
+          message: formatReviewSaveMessage({
+            amountYen,
+            categoryName,
+            reviewReasons: updated.reviewReasons,
+            shopName: reviewForm.shopName,
+            status: updated.status === "needs_review" ? "needs_review" : "ready",
+          }),
+          severity: "success",
+        });
         clearSelection();
         resetForm();
       } else {
@@ -135,17 +119,24 @@ export function useReviewSubmit({
           });
         }
 
-        if (updated.status === "needs_review") {
-          setReviewSaveNotice(REVIEW_SAVED_NEEDS_REVIEW_NOTICE);
-          await refreshSavedDraft(selectedReviewDraftId);
-          return;
-        }
+        setReviewSaveFeedback({
+          message: formatReviewSaveMessage({
+            amountYen,
+            categoryName,
+            reviewReasons: updated.reviewReasons ?? [],
+            shopName: reviewForm.shopName,
+            status: updated.status === "needs_review" ? "needs_review" : "ready",
+          }),
+          severity: "success",
+        });
 
         clearSelection();
         resetForm();
       }
     } catch (error) {
-      setReviewError(toUserFacingReviewError(error));
+      const message = toUserFacingReviewError(error);
+      setReviewError(message);
+      setReviewSaveFeedback({ message, severity: "error" });
     } finally {
       setReviewSubmitting(false);
     }
@@ -155,18 +146,18 @@ export function useReviewSubmit({
     setReviewError("");
   };
 
-  const clearReviewSaveNotice = () => {
-    setReviewSaveNotice("");
+  const clearReviewSaveFeedback = () => {
+    setReviewSaveFeedback(null);
   };
 
   return {
     reviewError,
-    reviewSaveNotice,
+    reviewSaveFeedback,
     reviewSubmitting,
     setReviewError,
     setReviewSubmitting,
     handleSubmitReview,
     clearReviewError,
-    clearReviewSaveNotice,
+    clearReviewSaveFeedback,
   };
 }

@@ -67,8 +67,8 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await expect(page.getByRole("tab", { name: "収入" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "レシート入力" })).toBeVisible();
     const queueSection = page.locator("section.ai-expense-queue");
-    const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
-    const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
+    const addReceiptButton = queueSection.getByRole("button", { name: "画像を読み取る" }).first();
+    const cameraButton = queueSection.getByRole("button", { name: "カメラで撮影" });
     await expect(addReceiptButton).toBeVisible();
     await expect(cameraButton).toBeVisible();
 
@@ -109,17 +109,17 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
 
     const queueSection = page.locator("section.ai-expense-queue");
     const statusSummary = page.locator(".ai-expense-queue-status-summary");
-    const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
-    const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
-    const failedChip = queueSection.getByText("未取込 1件");
+    const addReceiptButton = queueSection.getByRole("button", { name: "画像を読み取る" }).first();
+    const cameraButton = queueSection.getByRole("button", { name: "カメラで撮影" });
+    const failedChip = queueSection.getByText("読み取り失敗 1件");
 
     await expect(queueSection).toBeVisible();
     await expect(statusSummary).toBeVisible();
     await expect(addReceiptButton).toBeVisible();
     await expect(cameraButton).toBeVisible();
     await expect(failedChip).toBeVisible();
-    await expect(queueSection.getByText("登録準備OK 1件")).toBeVisible();
-    await expect(queueSection.getByText("確認が必要 1件")).toBeVisible();
+    await expect(queueSection.getByText("登録できます 1件")).toBeVisible();
+    await expect(queueSection.getByText("確認待ち 1件")).toBeVisible();
 
     await page.waitForTimeout(400);
 
@@ -141,8 +141,8 @@ test.describe("レスポンシブ表示（Issue #20）", () => {
     await page.goto("/__e2e__/input-workbench");
 
     const queueSection = page.locator("section.ai-expense-queue");
-    const addReceiptButton = queueSection.getByRole("button", { name: "レシートを追加" }).first();
-    const cameraButton = queueSection.getByRole("button", { name: "撮影する" });
+    const addReceiptButton = queueSection.getByRole("button", { name: "画像を読み取る" }).first();
+    const cameraButton = queueSection.getByRole("button", { name: "カメラで撮影" });
     const shopNameInput = page.getByLabel("店舗名 / 支払先");
     const registeredRegion = page.getByRole("region", { name: "登録済み" });
 

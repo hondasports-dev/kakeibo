@@ -1,4 +1,4 @@
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import {
   fetchMergedPullRequests,
   generateProductUpdateCandidates,
   toProductUpdateDrafts,
+  type ProductUpdateGenerationStatus,
 } from "../src/lib/generateProductUpdates.ts";
 import {
   compareVersionStrings,
@@ -14,8 +15,10 @@ import {
   mergeProductUpdates,
   ProductUpdate,
   ProductUpdateValidationError,
+  resolveProductUpdateSourceAt,
   validateAppVersion,
   validateProductionProductUpdates,
+  type ProductionProductUpdates,
 } from "../src/lib/productUpdates.ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -82,11 +85,16 @@ async function downloadAssetText(assetId: number, token: string): Promise<string
   return response.text();
 }
 
+const SAFE_REF_PATTERN = /^[A-Za-z0-9._/:-]+$/;
+
 function resolveSourceRef(): string | undefined {
   const sourceRef = process.env.SOURCE_REF;
   if (!sourceRef) return undefined;
+  if (sourceRef.startsWith("-") || !SAFE_REF_PATTERN.test(sourceRef)) {
+    throw new ProductUpdateValidationError(`Invalid SOURCE_REF: ${sourceRef}`);
+  }
   try {
-    return execSync(`git rev-parse "${sourceRef}"`, { encoding: "utf8" }).trim();
+    return execFileSync("git", ["rev-parse", "--", sourceRef], { encoding: "utf8" }).trim();
   } catch {
     return sourceRef;
   }
@@ -200,6 +208,8 @@ async function loadPastUpdates({
   const pastUpdates: ProductUpdate[] = [];
   const seenIds = new Map<string, string>();
   let latestRelease: GitHubRelease | undefined;
+  let latestReleasePayload: ProductionProductUpdates | undefined;
+  let latestReleaseHasUpdates: GitHubRelease | undefined;
 
   for (const release of releases) {
     if (!release.tag_name.startsWith("app-v")) {
@@ -239,6 +249,21 @@ async function loadPastUpdates({
 
     validateProductionProductUpdates(payload);
 
+    if (latestRelease?.tag_name === release.tag_name) {
+      latestReleasePayload = payload;
+    }
+
+    if (
+      payload.updates.length > 0 &&
+      (!latestReleaseHasUpdates ||
+        compareVersionStrings(
+          releaseVersion,
+          latestReleaseHasUpdates.tag_name.slice("app-v".length),
+        ) < 0)
+    ) {
+      latestReleaseHasUpdates = release;
+    }
+
     if (payload.version !== releaseVersion) {
       throw new ProductUpdateValidationError(
         `Release ${release.tag_name} version does not match asset version ${payload.version}`,
@@ -257,9 +282,14 @@ async function loadPastUpdates({
     }
   }
 
-  const latestReleaseSourceAt = latestRelease
-    ? await fetchCommitTime(`tags/${latestRelease.tag_name}`, token)
-    : undefined;
+  const legacySourceAt =
+    latestReleasePayload?.sourceRef && latestReleasePayload.sourceMergedAt
+      ? undefined
+      : latestReleaseHasUpdates
+        ? ((await fetchCommitTime(`tags/${latestReleaseHasUpdates.tag_name}`, token)) ??
+          latestReleaseHasUpdates.published_at)
+        : undefined;
+  const latestReleaseSourceAt = resolveProductUpdateSourceAt(latestReleasePayload, legacySourceAt);
 
   return { pastUpdates, latestRelease, latestReleaseSourceAt };
 }
@@ -294,6 +324,9 @@ async function main(): Promise<void> {
     : undefined;
   const searchBase = sourcePullRequest?.searchBase ?? base;
   const before = sourcePullRequest?.mergedAt;
+  const processedSourceAt =
+    before ?? (sourceSha ? await fetchCommitTime(sourceSha, token) : undefined);
+  const sourceRef = process.env.SOURCE_REF;
 
   const pulls = await fetchMergedPullRequests({
     owner,
@@ -328,6 +361,7 @@ async function main(): Promise<void> {
   writeJsonFile(currentReleasePath, {
     version: appVersion,
     publishedAt,
+    ...(sourceRef && processedSourceAt ? { sourceRef, sourceMergedAt: processedSourceAt } : {}),
     updates: currentUpdates,
   });
 
@@ -336,7 +370,7 @@ async function main(): Promise<void> {
     decisions: generationResult.decisions,
     candidates: generatedCandidates,
     manualCount: productUpdateDrafts.length,
-    hasApiKey: !!openaiApiKey,
+    status: generationResult.status,
   });
 
   console.log(`Generated ${generatedPath}`);
@@ -355,7 +389,7 @@ type SummaryInput = {
   }>;
   candidates: Array<{ id: string }>;
   manualCount: number;
-  hasApiKey: boolean;
+  status: ProductUpdateGenerationStatus;
 };
 
 function printGenerationSummary({
@@ -363,27 +397,33 @@ function printGenerationSummary({
   decisions,
   candidates,
   manualCount,
-  hasApiKey,
+  status,
 }: SummaryInput): void {
   const publishedCount = candidates.length;
   const skippedCount = decisions.length - publishedCount;
-  const status = hasApiKey
-    ? pulls.length === 0
-      ? "skipped (no PRs)"
-      : decisions.length > 0
-        ? "success"
-        : "failed"
-    : "skipped (no API key)";
+  const statusLabel = {
+    success: "success",
+    skipped_no_api_key: "skipped (no API key)",
+    skipped_no_prs: "skipped (no PRs)",
+    failed_api: "failed (OpenAI API)",
+    failed_json: "failed (response format)",
+    failed_validation: "failed (validation)",
+  } satisfies Record<ProductUpdateGenerationStatus, string>;
 
   const details: string[] = [];
-  if (pulls.length === 0) {
+  if (status === "skipped_no_prs") {
     details.push("No merged pull requests found.");
-  } else if (decisions.length === 0) {
-    if (hasApiKey) {
-      details.push("OpenAI generation failed; using manual drafts only.");
-    } else {
-      details.push("OPENAI_API_KEY is not set; using manual drafts only.");
-    }
+  } else if (status === "skipped_no_api_key") {
+    details.push("Product update generation warning: skipped (no API key).");
+    details.push(
+      "automatic product updates were not added; existing and manual updates were retained.",
+    );
+    details.push("OPENAI_API_KEY is not set; using manual drafts only.");
+  } else if (status !== "success") {
+    details.push(`Product update generation warning: ${statusLabel[status]}.`);
+    details.push(
+      "automatic product updates were not added; existing and manual updates were retained.",
+    );
   } else {
     let candidateIndex = 0;
     for (const decision of decisions) {
@@ -407,7 +447,7 @@ function printGenerationSummary({
     `| Published product updates | ${publishedCount} |`,
     `| Skipped PRs | ${skippedCount} |`,
     `| Manual drafts | ${manualCount} |`,
-    `| OpenAI generation status | ${status} |`,
+    `| OpenAI generation status | ${statusLabel[status]} |`,
     "",
     ...details,
   ];

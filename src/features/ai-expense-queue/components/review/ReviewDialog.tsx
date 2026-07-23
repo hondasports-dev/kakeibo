@@ -31,7 +31,6 @@ export function ReviewDialog({
   isReviewDraftNotFound,
   selectedReviewDraft,
   reviewError,
-  reviewSaveNotice,
   reviewForm,
   reviewItems,
   isCategorySplit,
@@ -58,7 +57,6 @@ export function ReviewDialog({
   isReviewDraftNotFound: boolean;
   selectedReviewDraft: AiExpenseDraft | null;
   reviewError: string;
-  reviewSaveNotice?: string;
   reviewForm: ReviewFormValues;
   reviewItems: ReviewItemValues[];
   isCategorySplit: boolean;
@@ -86,8 +84,6 @@ export function ReviewDialog({
   const [isEditMode, setIsEditMode] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
   const hasLineItems = reviewItems.length > 0;
-  const hasMultipleCategories =
-    new Set(reviewItems.map((item) => item.categoryId).filter(Boolean)).size > 1;
   const showSummaryView = hasLineItems && !isEditMode;
   const receiptAmount = Number(reviewForm.amountYen) || 0;
   const isSubmitDisabled =
@@ -138,12 +134,6 @@ export function ReviewDialog({
 
           {!isReviewDraftLoading && !isReviewDraftNotFound && (
             <>
-              {reviewSaveNotice && (
-                <Alert severity="info" variant="outlined">
-                  {reviewSaveNotice}
-                </Alert>
-              )}
-
               {reviewError && (
                 <Alert severity="error" variant="outlined">
                   {reviewError}
@@ -221,8 +211,6 @@ export function ReviewDialog({
         </Stack>
       </DialogContent>
       <ReviewDialogActions
-        hasLineItems={hasLineItems}
-        hasMultipleCategories={hasMultipleCategories}
         isSubmitDisabled={isSubmitDisabled}
         onClose={onClose}
         onEnterEditMode={() => setIsEditMode(true)}

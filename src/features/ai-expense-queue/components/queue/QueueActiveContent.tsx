@@ -10,7 +10,6 @@ export function QueueActiveContent({
   clearableCount,
   deletingIds,
   groupedItems,
-  itemCount,
   readyItems,
   registeringIds,
   registrationError,
@@ -39,7 +38,6 @@ export function QueueActiveContent({
       <QueueStatusHeader
         firstReviewItem={firstReviewItem}
         groupedItems={groupedItems}
-        itemCount={itemCount}
         onOpenReview={onOpenReview}
       />
 

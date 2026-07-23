@@ -1,4 +1,4 @@
-import { MenuItem, TextField, Typography } from "@mui/material";
+import { Autocomplete, MenuItem, TextField, Typography } from "@mui/material";
 import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
 import { isDiscountItemName } from "../../utils/discountItems";
 
@@ -27,13 +27,7 @@ export function ReviewItemCategoryControl({
     return (
       <TextField
         fullWidth
-        helperText={
-          item.discountTargetItemId
-            ? "対象商品のカテゴリから減額します"
-            : item.categoryId
-              ? `AI推定カテゴリ: ${categoryName ?? "設定済み"}`
-              : "割引対象の商品を選択してください"
-        }
+        helperText={item.discountTargetItemId ? undefined : "対象商品を選択してください"}
         label="割引対象の商品"
         onChange={(event) => onDiscountTargetChange(item.id, event.target.value)}
         select
@@ -51,27 +45,23 @@ export function ReviewItemCategoryControl({
 
   if (isCategorySplit) {
     return (
-      <TextField
+      <Autocomplete
         fullWidth
-        label="明細カテゴリ"
-        onChange={(event) => onAssignCategoryToItems([item.id], event.target.value)}
-        select
-        value={item.categoryId}
-      >
-        {categories.map((category) => (
-          <MenuItem key={category._id} value={category._id}>
-            {category.name}
-          </MenuItem>
-        ))}
-      </TextField>
+        getOptionLabel={(category) => category.name}
+        isOptionEqualToValue={(option, value) => option._id === value._id}
+        onChange={(_, category) => onAssignCategoryToItems([item.id], category?._id ?? "")}
+        options={categories}
+        renderInput={(params) => <TextField {...params} label="明細カテゴリ" />}
+        value={categories.find((category) => category._id === item.categoryId) ?? null}
+      />
     );
   }
 
   return (
     <Typography color="text.secondary" variant="body2">
       {item.usesReceiptCategory
-        ? "レシート全体のカテゴリを使用"
-        : `個別カテゴリ: ${categoryName ?? "未分類"}`}
+        ? `カテゴリ：レシート全体（${categoryName ?? "未分類"}）`
+        : `カテゴリ：${categoryName ?? "未分類"}`}
     </Typography>
   );
 }

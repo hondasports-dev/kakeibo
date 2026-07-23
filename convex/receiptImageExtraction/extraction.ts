@@ -1,5 +1,4 @@
 import type { ActionCtx } from "../_generated/server";
-import type { Doc } from "../_generated/dataModel";
 import { action } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { requireAuthenticatedUserId } from "../users/auth";
@@ -10,6 +9,7 @@ import { callOpenAIReceiptExtractor } from "../../lib/convex/receiptImageExtract
 import type {
   ExtractReceiptFieldsArgs,
   ExtractReceiptFieldsResult,
+  ReceiptCategoryHint,
 } from "../../lib/convex/receiptImageExtraction/types";
 import { validateImageDataUrl } from "../../lib/convex/receiptImageExtraction/validators";
 
@@ -31,7 +31,7 @@ export async function extractReceiptFieldsHandler(
   ctx: ActionCtx,
   args: ExtractReceiptFieldsArgs,
 ): Promise<ExtractReceiptFieldsResult> {
-  // 解析処理自体は認証のみ確認する。公開 action 側で所属グループの有効カテゴリを解決する。
+  // 解析処理自体は認証のみ確認する。公開 action 側で所属グループの有効カテゴリと同意を解決する。
   await requireAuthenticatedUserId(ctx);
 
   const { imageDataUrl } = args;
@@ -66,6 +66,7 @@ export async function extractReceiptFieldsHandler(
     imageDataUrl,
     apiKey,
     categoryNames: args.categoryNames ?? [],
+    categories: args.categories,
   });
 }
 
@@ -74,13 +75,24 @@ export const extractReceiptFields = action({
     imageDataUrl: v.string(),
   },
   handler: async (ctx, args): Promise<ExtractReceiptFieldsResult> => {
-    const categories: Doc<"categories">[] = await ctx.runQuery(
-      api.categories.queries.listActive,
-      {},
-    );
+    // 公開 action 側でグループ所属と外部 API 同意を確認する。
+    const group = await ctx.runQuery(api.groups.queries.getMyGroup, {});
+    if (group === null) {
+      throw new ConvexError("グループを選択してください");
+    }
+    const [consent, categories] = await Promise.all([
+      ctx.runQuery(api.users.queries.getReceiptImageConsent, {}),
+      ctx.runQuery(api.categories.queries.listActive, {}),
+    ]);
+    if (!consent.hasAcceptedExternalApiConsent) {
+      throw new ConvexError("Receipt image external API consent is required");
+    }
     return extractReceiptFieldsHandler(ctx, {
       ...args,
-      categoryNames: categories.map((category) => category.name),
+      categories: categories.map<ReceiptCategoryHint>((category) => ({
+        name: category.name,
+        description: category.description,
+      })),
     });
   },
 });
