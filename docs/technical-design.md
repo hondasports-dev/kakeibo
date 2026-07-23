@@ -393,9 +393,9 @@ active record が確認できない場合は fail closed にする。
 | `/terms`                       | 利用規約           | 認証不要で閲覧する                         |
 | `/maintenance`                 | メンテナンス       | 認証不要でメンテナンス表示する             |
 | `/sso-callback`                | 認証コールバック   | Clerk SSO後のコールバックを処理する         |
-| `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時のみAI支出下書きキューを検証する     |
-| `/__e2e__/input-workbench`     | E2E専用画面        | 開発時のみ入力ワークベンチのレイアウトを検証する |
-| `/__e2e__/ai-expense-queue-expense-entries` | E2E専用画面 | 開発時のみ expenseEntries 登録を検証する |
+| `/__e2e__/ai-expense-queue`    | E2E専用画面        | 開発時または release candidate E2E build のみAI支出下書きキューを検証する     |
+| `/__e2e__/input-workbench`     | E2E専用画面        | 開発時または release candidate E2E build のみ入力ワークベンチのレイアウトを検証する |
+| `/__e2e__/ai-expense-queue-expense-entries` | E2E専用画面 | 開発時または release candidate E2E build のみ expenseEntries 登録を検証する |
 | `/guide` | 使い方 | アプリ内ガイドを表示する |
 | `/updates` | 更新履歴 | ユーザー向け更新履歴を表示する |
 | `/settings/account/delete` | アカウント削除 | アカウント削除をリクエストする |
