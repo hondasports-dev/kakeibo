@@ -20,9 +20,10 @@ import {
 } from "./e2eFixtures";
 
 export function shouldEnableE2eRoutes() {
-  // E2E 専用ルートは Vite 開発サーバー上でのみ有効。
-  // Preview / Production ではホスト名・パスに関わらず無効化する。
-  return import.meta.env.DEV;
+  // Vercel release candidate E2E は Clerk サインインのため最初に `/` を開き、
+  // その後 `/__e2e__/...` へ遷移する。ルート登録はモジュール読み込み時に
+  // 一度だけ行われるため、初期 pathname では登録可否を判定できない。
+  return import.meta.env.DEV || import.meta.env.VITE_ENABLE_E2E_ROUTES === "1";
 }
 
 function E2eAiExpenseQueuePage() {
