@@ -327,6 +327,7 @@ test.describe("Issue #431 レシート税判定UI", () => {
 
     const dialog = page.getByRole("dialog", { name: "下書き確認" });
     await expect(dialog.getByLabel("金額の照合")).toBeVisible();
+    await dialog.getByRole("button", { name: "内訳を表示" }).click();
     await expect(dialog.getByText("お支払い（レシート合計）")).toBeVisible();
     await expect(dialog.getByText("登録合計（税込）")).toBeVisible();
 
