@@ -182,6 +182,7 @@ jobs:
 
       - name: Build Convex staging and Vercel release candidate
         run: |
+          export VITE_ENABLE_E2E_ROUTES=1
           pnpm exec convex deploy \
             --cmd-url-env-var-name VITE_CONVEX_URL \
             --message "release candidate ${GITHUB_SHA}" \
