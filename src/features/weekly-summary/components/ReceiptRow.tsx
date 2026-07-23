@@ -10,24 +10,31 @@ export function ReceiptRow({
   onDelete,
   onEdit,
   showCategory = true,
+  isDetail = false,
 }: {
   receipt: ReceiptItem;
   onDelete?: (receipt: ReceiptItem) => void;
   onEdit?: (receipt: ReceiptItem) => void;
   showCategory?: boolean;
+  isDetail?: boolean;
 }) {
   const displayName =
     receipt.type === "income" ? (receipt.bankName ?? "不明") : (receipt.shopName ?? "不明");
   const actionLabelSuffix = `${displayName}（${formatDateForDisplay(receipt.date)}）`;
 
   return (
-    <Box className="receipt-row" data-testid="receipt-row" key={receipt._id} role="row">
+    <Box
+      className={`receipt-row${isDetail ? " receipt-row--detail" : ""}`}
+      data-testid="receipt-row"
+      key={receipt._id}
+      role="row"
+    >
       <Typography className="receipt-row-date" color="text.secondary" role="cell" variant="body2">
-        {formatDateForDisplay(receipt.date)}
+        {isDetail ? "" : formatDateForDisplay(receipt.date)}
       </Typography>
       <Box className="receipt-row-name" role="cell">
         <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-          {receipt.type && (
+          {!isDetail && receipt.type && (
             <Chip
               label={receipt.type === "income" ? "収入" : "支出"}
               size="small"
@@ -36,35 +43,33 @@ export function ReceiptRow({
             />
           )}
           <Typography sx={{ fontWeight: 700 }} noWrap>
-            {receipt.type === "income"
-              ? (receipt.bankName ?? "不明")
-              : (receipt.shopName ?? "不明")}
+            {isDetail ? (receipt.itemName ?? "内訳情報なし") : displayName}
           </Typography>
         </Stack>
+        {showCategory && receipt.type !== "income" && (
+          <Stack
+            className="receipt-row-category"
+            direction="row"
+            role="group"
+            spacing={0.75}
+            sx={{ alignItems: "center", mt: 0.5 }}
+          >
+            <Box
+              aria-hidden
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: receipt.categoryColor,
+                flexShrink: 0,
+              }}
+            />
+            <Typography color="text.secondary" variant="body2">
+              {receipt.categoryName}
+            </Typography>
+          </Stack>
+        )}
       </Box>
-      {showCategory && (
-        <Stack
-          className="receipt-row-category"
-          direction="row"
-          role="cell"
-          spacing={0.75}
-          sx={{ alignItems: "center" }}
-        >
-          <Box
-            aria-hidden
-            sx={{
-              width: 8,
-              height: 8,
-              borderRadius: "50%",
-              backgroundColor: receipt.categoryColor,
-              flexShrink: 0,
-            }}
-          />
-          <Typography color="text.secondary" variant="body2">
-            {receipt.categoryName}
-          </Typography>
-        </Stack>
-      )}
       <Typography className="receipt-row-amount" role="cell" sx={{ fontWeight: 700 }}>
         {receipt.amountYen.toLocaleString()}円
       </Typography>

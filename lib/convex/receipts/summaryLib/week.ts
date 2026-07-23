@@ -59,6 +59,10 @@ export type WeekSummaryWithCategories = {
     categoryColor: string;
     memo?: string;
     recordType: "expenseEntry" | "receipt";
+    itemName?: string;
+    receiptGroupId?: string;
+    receiptShopName?: string;
+    receiptTotalAmountYen?: number;
   }>;
   incomes: Array<{
     _id: string;
@@ -108,6 +112,10 @@ export async function getWeekSummaryWithCategoriesHandler(
       categoryColor: color,
       memo: receipt.memo,
       recordType: receipt.recordType,
+      itemName: receipt.itemName,
+      receiptGroupId: receipt.receiptGroupId,
+      receiptShopName: receipt.receiptShopName,
+      receiptTotalAmountYen: receipt.receiptTotalAmountYen,
     });
   }
 

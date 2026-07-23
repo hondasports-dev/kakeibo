@@ -20,6 +20,8 @@ type ExpenseEntryItemArg = {
 
 type CreateExpenseEntriesArgs = {
   date: string;
+  shopName?: string;
+  sourceAmountYen?: number;
   sourceDocumentId?: Id<"sourceDocuments">;
   items: ExpenseEntryItemArg[];
 };
@@ -71,16 +73,33 @@ export async function createExpenseEntriesHandler(
   const { groupId } = await requireGroupMembership(ctx);
 
   const now = Date.now();
-
   for (const item of args.items) {
     if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
       throw new ConvexError("Amount must be a positive integer");
     }
     await assertExpenseCategoryBelongsToGroup(ctx, item.categoryId, groupId);
+  }
 
+  let sourceDocumentId = args.sourceDocumentId;
+
+  if (sourceDocumentId === undefined && args.shopName?.trim()) {
+    const itemsTotalAmountYen = args.items.reduce((sum, item) => sum + item.amountYen, 0);
+    sourceDocumentId = await ctx.db.insert("sourceDocuments", {
+      groupId,
+      sourceType: "manual",
+      status: "finalized",
+      date: args.date,
+      totalAmount: args.sourceAmountYen ?? itemsTotalAmountYen,
+      shopName: args.shopName.trim(),
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
+
+  for (const item of args.items) {
     await ctx.db.insert("expenseEntries", {
       groupId,
-      sourceDocumentId: args.sourceDocumentId,
+      sourceDocumentId,
       date: args.date,
       amount: item.amountYen,
       categoryId: item.categoryId,
@@ -97,6 +116,8 @@ export async function createExpenseEntriesHandler(
 export const createExpenseEntries = mutation({
   args: {
     date: v.string(),
+    shopName: v.optional(v.string()),
+    sourceAmountYen: v.optional(v.number()),
     sourceDocumentId: v.optional(v.id("sourceDocuments")),
     items: v.array(
       v.object({

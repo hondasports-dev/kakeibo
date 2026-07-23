@@ -780,9 +780,10 @@ test.describe("週次サマリーパネル（Issue #15 受け入れ確認）", (
     expect(Math.abs((chartBounds?.y ?? 0) - (categoryBounds?.y ?? 0))).toBeLessThan(2);
     expect(chartBounds?.x ?? 0).toBeLessThan(categoryBounds?.x ?? 0);
 
-    for (const label of ["日付", "店名・内容", "カテゴリ", "金額（円）", "メモ", "操作"]) {
+    for (const label of ["日付", "店名・内訳", "金額（円）", "メモ", "操作"]) {
       await expect(page.locator(".receipt-list-header").getByText(label)).toBeVisible();
     }
+    await expect(page.locator(".receipt-list-header").getByText("カテゴリ")).toHaveCount(0);
 
     await page.setViewportSize({ width: 390, height: 844 });
     await expect(page.locator(".receipt-list-header")).toBeHidden();
@@ -1289,12 +1290,21 @@ test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受
     });
 
     // 支出一覧に複数項目が個別エントリとして反映される
-    const receiptRows = page.getByTestId("receipt-row");
+    const receiptGroup = page.getByTestId("receipt-group").filter({ hasText: "テストスーパー" });
+    await expect(receiptGroup).toHaveCount(1, { timeout: 15_000 });
+    await expect(receiptGroup.getByText("内訳 2件")).toBeVisible();
+    const receiptRows = receiptGroup.getByTestId("receipt-row");
     await expect(receiptRows.filter({ hasText: "食料品" }).first()).toBeVisible({
       timeout: 15_000,
     });
     await expect(receiptRows.filter({ hasText: "日用品" }).first()).toBeVisible({
       timeout: 15_000,
     });
+    await expect(
+      receiptRows.filter({ hasText: "食料品" }).first().locator(".receipt-row-category"),
+    ).toBeVisible();
+    await expect(
+      receiptRows.filter({ hasText: "日用品" }).first().locator(".receipt-row-category"),
+    ).toBeVisible();
   });
 });

@@ -53,12 +53,31 @@ function makeReceipt(
   } as unknown as Doc<"receipts">;
 }
 
+function makeSourceDocument(
+  overrides: Partial<Doc<"sourceDocuments">> & { _id: Id<"sourceDocuments"> },
+): Doc<"sourceDocuments"> {
+  return {
+    _creationTime: 0,
+    groupId: groupId,
+    sourceType: "manual",
+    status: "finalized",
+    date: "2024-01-10",
+    totalAmount: 3000,
+    shopName: "スーパー北浜",
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  } as unknown as Doc<"sourceDocuments">;
+}
+
 function createQueryCtx({
   expenseEntries = [],
   receipts = [],
+  sourceDocuments = [],
 }: {
   expenseEntries?: Doc<"expenseEntries">[];
   receipts?: Doc<"receipts">[];
+  sourceDocuments?: Doc<"sourceDocuments">[];
 } = {}): QueryCtx {
   const makeQueryBuilder = (docs: unknown[]) => {
     const q: {
@@ -102,6 +121,9 @@ function createQueryCtx({
   return {
     db: {
       query,
+      get: vi.fn().mockImplementation(async (id: string) => {
+        return sourceDocuments.find((document) => document._id === id) ?? null;
+      }),
     },
   } as unknown as QueryCtx;
 }
@@ -354,6 +376,42 @@ describe("getWeekSpendingEntries", () => {
     const result = await getWeekSpendingEntries(ctx, groupId, "2024-01-08");
     expect(result).toHaveLength(1);
     expect(result[0]._id).toBe("r1");
+  });
+
+  it("sourceDocument が同じ支出をレシートグループとして返す", async () => {
+    const sourceDocumentId = "source-1" as Id<"sourceDocuments">;
+    const result = await getWeekSpendingEntries(
+      createQueryCtx({
+        expenseEntries: [
+          makeExpenseEntry({
+            _id: "e-food" as Id<"expenseEntries">,
+            sourceDocumentId,
+            title: "食料品",
+            amount: 2000,
+          }),
+          makeExpenseEntry({
+            _id: "e-daily" as Id<"expenseEntries">,
+            sourceDocumentId,
+            title: "洗剤",
+            amount: 1000,
+          }),
+        ],
+        sourceDocuments: [makeSourceDocument({ _id: sourceDocumentId })],
+      }),
+      groupId,
+      "2024-01-08",
+    );
+
+    expect(result).toHaveLength(2);
+    expect(result.map((entry) => entry.receiptGroupId)).toEqual([
+      "sourceDocument:source-1",
+      "sourceDocument:source-1",
+    ]);
+    expect(result.map((entry) => entry.itemName)).toEqual(["食料品", "洗剤"]);
+    expect(result[0]).toMatchObject({
+      receiptShopName: "スーパー北浜",
+      receiptTotalAmountYen: 3000,
+    });
   });
 });
 

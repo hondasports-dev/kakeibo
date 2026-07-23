@@ -26,10 +26,10 @@ describe("DashboardInputPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("件数0の場合は今週の入力を開始を表示する", () => {
+  it("件数0の場合は支出・収入を入力するを表示する", () => {
     renderPanel({ count: 0, status: "draft", weekStartDate: "2026-06-15" });
 
-    expect(screen.getByRole("link", { name: "今週の入力を開始" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "支出・収入を入力する" })).toBeInTheDocument();
   });
 
   it("完了済みの場合は今週のサマリーを見るを表示する", () => {
@@ -44,7 +44,7 @@ describe("DashboardInputPanel", () => {
   it("読み込み中は件数とボタンの代わりにスケルトンを表示する", () => {
     renderPanel({ count: 0, isLoading: true, status: "draft", weekStartDate: "2026-06-15" });
 
-    expect(screen.queryByRole("link", { name: "今週の入力を開始" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "支出・収入を入力する" })).not.toBeInTheDocument();
     expect(screen.queryByText("0 件入力済み")).not.toBeInTheDocument();
   });
 });

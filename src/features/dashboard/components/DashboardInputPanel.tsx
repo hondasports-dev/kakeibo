@@ -24,7 +24,7 @@ export function DashboardInputPanel({
   const primaryLabel = isCompleted
     ? "今週のサマリーを見る"
     : count === 0
-      ? "今週の入力を開始"
+      ? "支出・収入を入力する"
       : "入力を再開";
   const primaryHref = isCompleted ? `/weeks/${weekStartDate}` : "/weeks/current/input";
 
