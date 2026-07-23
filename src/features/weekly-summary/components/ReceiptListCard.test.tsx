@@ -40,9 +40,44 @@ describe("ReceiptListCard", () => {
       <ReceiptListCard count={1} isLoading={false} receipts={receipts.slice(0, 1)} />,
     );
 
-    for (const label of ["日付", "店名・内容", "カテゴリ", "金額（円）", "メモ", "操作"]) {
+    for (const label of ["日付", "店名・内訳", "金額（円）", "メモ", "操作"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
+    expect(screen.queryByText("カテゴリ")).not.toBeInTheDocument();
+  });
+
+  it("同じレシートの明細を店舗ごとにまとめ、明細のカテゴリーを表示する", () => {
+    const groupedReceipts: ReceiptItem[] = [
+      {
+        ...receipts[0],
+        _id: "item-food",
+        itemName: "食料品",
+        receiptGroupId: "sourceDocument-1",
+        receiptShopName: "スーパー北浜",
+        receiptTotalAmountYen: 3000,
+        categoryName: "食費",
+      },
+      {
+        ...receipts[0],
+        _id: "item-daily",
+        itemName: "洗剤",
+        receiptGroupId: "sourceDocument-1",
+        receiptShopName: "スーパー北浜",
+        receiptTotalAmountYen: 3000,
+        categoryName: "日用品",
+      },
+    ];
+
+    renderWithProviders(<ReceiptListCard count={2} isLoading={false} receipts={groupedReceipts} />);
+
+    expect(screen.getByText("支出一覧（1件）")).toBeInTheDocument();
+    expect(screen.getByText("スーパー北浜")).toBeInTheDocument();
+    expect(screen.getByText("食料品")).toBeInTheDocument();
+    expect(screen.getByText("洗剤")).toBeInTheDocument();
+    expect(screen.getByText("食費")).toBeInTheDocument();
+    expect(screen.getByText("日用品")).toBeInTheDocument();
+    expect(screen.getByText("3,000円")).toBeInTheDocument();
+    expect(screen.getByTestId("receipt-group")).toBeInTheDocument();
   });
 
   it("同じ日付では後から取得した支出を先に表示する", () => {

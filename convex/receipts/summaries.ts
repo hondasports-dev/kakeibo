@@ -60,6 +60,10 @@ const receiptWithCategoryValidator = v.object({
   categoryColor: v.string(),
   memo: v.optional(v.string()),
   recordType: v.union(v.literal("expenseEntry"), v.literal("receipt")),
+  itemName: v.optional(v.string()),
+  receiptGroupId: v.optional(v.string()),
+  receiptShopName: v.optional(v.string()),
+  receiptTotalAmountYen: v.optional(v.number()),
 });
 
 const categorySummaryValidator = v.object({

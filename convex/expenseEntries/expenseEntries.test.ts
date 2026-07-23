@@ -197,7 +197,10 @@ const activeDailyCategory: CategoryDoc = {
 describe("createExpenseEntriesHandler", () => {
   it("単一支出項目を expenseEntries に保存できる", async () => {
     const ctx = createMutationCtx(createIdentity(), {
-      getDocById: { "cat-food": activeFoodCategory },
+      getDocById: {
+        "cat-food": activeFoodCategory,
+        "cat-daily": activeDailyCategory,
+      },
     });
 
     await createExpenseEntriesHandler(ctx, {
@@ -347,6 +350,39 @@ describe("createExpenseEntriesHandler", () => {
     expect(ctx.db.insert).toHaveBeenCalledWith(
       "expenseEntries",
       expect.objectContaining({ sourceDocumentId: "source-doc-1" }),
+    );
+  });
+
+  it("店舗名が指定された場合、手入力をsourceDocumentにまとめて保存する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "cat-food": activeFoodCategory,
+        "cat-daily": activeDailyCategory,
+      },
+    });
+
+    await createExpenseEntriesHandler(ctx, {
+      date: "2026-06-07",
+      shopName: "スーパー北浜",
+      sourceAmountYen: 5000,
+      items: [
+        { categoryId: catFoodId, amountYen: 3000, title: "食料品" },
+        { categoryId: catDailyId, amountYen: 2000, title: "洗剤" },
+      ],
+    });
+
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "sourceDocuments",
+      expect.objectContaining({
+        sourceType: "manual",
+        status: "finalized",
+        shopName: "スーパー北浜",
+        totalAmount: 5000,
+      }),
+    );
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "expenseEntries",
+      expect.objectContaining({ sourceDocumentId: "new-entry-id" }),
     );
   });
 });

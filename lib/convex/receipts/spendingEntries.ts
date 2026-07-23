@@ -12,6 +12,10 @@ export type SpendingEntry = {
   categoryId: string;
   memo?: string;
   recordType: "expenseEntry" | "receipt";
+  itemName?: string;
+  receiptGroupId?: string;
+  receiptShopName?: string;
+  receiptTotalAmountYen?: number;
 };
 
 export type IncomeListEntry = {
@@ -46,7 +50,15 @@ export function mapReceiptToSpendingEntry(
 export function mapExpenseEntryToSpendingEntry(
   expenseEntry: Pick<
     Doc<"expenseEntries">,
-    "_id" | "date" | "amount" | "categoryId" | "title" | "memo" | "entryType"
+    | "_id"
+    | "date"
+    | "amount"
+    | "categoryId"
+    | "title"
+    | "memo"
+    | "entryType"
+    | "sourceDocumentId"
+    | "aiExpenseDraftId"
   >,
 ): SpendingEntry {
   if (!expenseEntry.categoryId) {
@@ -63,6 +75,79 @@ export function mapExpenseEntryToSpendingEntry(
     memo: expenseEntry.memo,
     recordType: "expenseEntry",
   };
+}
+
+async function enrichSpendingEntriesWithReceiptGroups(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  entries: SpendingEntry[],
+  sourceDocumentIds: Array<Id<"sourceDocuments"> | undefined>,
+  aiExpenseDraftIds: Array<Id<"aiExpenseDrafts"> | undefined>,
+): Promise<SpendingEntry[]> {
+  const uniqueSourceDocumentIds = Array.from(
+    new Set(sourceDocumentIds.filter((id): id is Id<"sourceDocuments"> => id !== undefined)),
+  );
+  const uniqueAiExpenseDraftIds = Array.from(
+    new Set(aiExpenseDraftIds.filter((id): id is Id<"aiExpenseDrafts"> => id !== undefined)),
+  );
+  const [sourceDocuments, aiExpenseDrafts] = await Promise.all([
+    Promise.all(uniqueSourceDocumentIds.map((id) => ctx.db.get(id))),
+    Promise.all(uniqueAiExpenseDraftIds.map((id) => ctx.db.get(id))),
+  ]);
+  const sourceDocumentMap = new Map(
+    sourceDocuments
+      .filter((document) => document !== null && document.groupId === groupId)
+      .map((document) => [document!._id as string, document!]),
+  );
+  const aiExpenseDraftMap = new Map(
+    aiExpenseDrafts
+      .filter((draft) => draft !== null && draft.groupId === groupId)
+      .map((draft) => [draft!._id as string, draft!]),
+  );
+
+  return entries.map((entry, index) => {
+    const sourceDocumentId = sourceDocumentIds[index];
+    const aiExpenseDraftId = aiExpenseDraftIds[index];
+    const sourceDocument = sourceDocumentId ? sourceDocumentMap.get(sourceDocumentId) : undefined;
+    const aiExpenseDraft = aiExpenseDraftId ? aiExpenseDraftMap.get(aiExpenseDraftId) : undefined;
+
+    if (sourceDocument !== undefined) {
+      return {
+        ...entry,
+        receiptGroupId: `sourceDocument:${sourceDocument._id}`,
+        receiptShopName: sourceDocument.shopName ?? entry.shopName,
+        receiptTotalAmountYen: sourceDocument.totalAmount ?? entry.amountYen,
+        itemName: entry.shopName,
+      };
+    }
+
+    if (aiExpenseDraft !== undefined) {
+      return {
+        ...entry,
+        receiptGroupId: `aiExpenseDraft:${aiExpenseDraft._id}`,
+        receiptShopName:
+          aiExpenseDraft.shopName ?? aiExpenseDraft.payeeName ?? entry.shopName ?? "不明",
+        receiptTotalAmountYen: aiExpenseDraft.amountYen ?? entry.amountYen,
+        itemName: entry.shopName,
+      };
+    }
+
+    return {
+      ...entry,
+      receiptGroupId: `expenseEntry:${entry._id}`,
+      receiptShopName: entry.shopName,
+      receiptTotalAmountYen: entry.amountYen,
+    };
+  });
+}
+
+function addLegacyReceiptGroups(entries: SpendingEntry[]): SpendingEntry[] {
+  return entries.map((entry) => ({
+    ...entry,
+    receiptGroupId: `receipt:${entry._id}`,
+    receiptShopName: entry.shopName,
+    receiptTotalAmountYen: entry.amountYen,
+  }));
 }
 
 export function mapIncomeExpenseEntryToListEntry(
@@ -185,13 +270,24 @@ export async function getWeekSpendingEntries(
   );
   const expenseEntriesForWeek = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (expenseEntriesForWeek.length > 0) {
-    return expenseEntriesForWeek.map((entry) => mapExpenseEntryToSpendingEntry(entry));
+    const mappedEntries = expenseEntriesForWeek.map((entry) =>
+      mapExpenseEntryToSpendingEntry(entry),
+    );
+    return enrichSpendingEntriesWithReceiptGroups(
+      ctx,
+      groupId,
+      mappedEntries,
+      expenseEntriesForWeek.map((entry) => entry.sourceDocumentId),
+      expenseEntriesForWeek.map((entry) => entry.aiExpenseDraftId),
+    );
   }
 
   const receipts = await fetchReceiptsByWeek(ctx, groupId, weekStartDate);
-  return receipts
-    .filter((receipt) => receipt.type !== "income")
-    .map((receipt) => mapReceiptToSpendingEntry(receipt));
+  return addLegacyReceiptGroups(
+    receipts
+      .filter((receipt) => receipt.type !== "income")
+      .map((receipt) => mapReceiptToSpendingEntry(receipt)),
+  );
 }
 
 export async function getDateSpendingEntries(
@@ -202,13 +298,24 @@ export async function getDateSpendingEntries(
   const expenseEntries = await fetchExpenseEntriesByDateRange(ctx, groupId, date, date);
   const expenseEntriesForDate = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (expenseEntriesForDate.length > 0) {
-    return expenseEntriesForDate.map((entry) => mapExpenseEntryToSpendingEntry(entry));
+    const mappedEntries = expenseEntriesForDate.map((entry) =>
+      mapExpenseEntryToSpendingEntry(entry),
+    );
+    return enrichSpendingEntriesWithReceiptGroups(
+      ctx,
+      groupId,
+      mappedEntries,
+      expenseEntriesForDate.map((entry) => entry.sourceDocumentId),
+      expenseEntriesForDate.map((entry) => entry.aiExpenseDraftId),
+    );
   }
 
   const receipts = await fetchReceiptsByDateRange(ctx, groupId, date, date);
-  return receipts
-    .filter((receipt) => receipt.type !== "income")
-    .map((receipt) => mapReceiptToSpendingEntry(receipt));
+  return addLegacyReceiptGroups(
+    receipts
+      .filter((receipt) => receipt.type !== "income")
+      .map((receipt) => mapReceiptToSpendingEntry(receipt)),
+  );
 }
 
 export async function getMonthSpendingEntries(
@@ -225,11 +332,20 @@ export async function getMonthSpendingEntries(
   );
   const monthExpenseEntries = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (monthExpenseEntries.length > 0) {
-    return monthExpenseEntries.map((entry) => mapExpenseEntryToSpendingEntry(entry));
+    const mappedEntries = monthExpenseEntries.map((entry) => mapExpenseEntryToSpendingEntry(entry));
+    return enrichSpendingEntriesWithReceiptGroups(
+      ctx,
+      groupId,
+      mappedEntries,
+      monthExpenseEntries.map((entry) => entry.sourceDocumentId),
+      monthExpenseEntries.map((entry) => entry.aiExpenseDraftId),
+    );
   }
 
   const receipts = await fetchReceiptsByDateRange(ctx, groupId, monthStartDate, monthEndDate);
-  return receipts
-    .filter((receipt) => receipt.type !== "income")
-    .map((receipt) => mapReceiptToSpendingEntry(receipt));
+  return addLegacyReceiptGroups(
+    receipts
+      .filter((receipt) => receipt.type !== "income")
+      .map((receipt) => mapReceiptToSpendingEntry(receipt)),
+  );
 }

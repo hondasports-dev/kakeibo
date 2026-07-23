@@ -50,7 +50,11 @@ export function ExpenseEntryEditDialog({
     setDate(receipt.date);
     setAmountYen(String(receipt.amountYen));
     setCategoryId(receipt.categoryId);
-    setTitle(receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? ""));
+    setTitle(
+      receipt.type === "income"
+        ? (receipt.bankName ?? "")
+        : (receipt.itemName ?? receipt.shopName ?? ""),
+    );
     setMemo(receipt.memo ?? "");
     setError("");
   }, [receipt]);
