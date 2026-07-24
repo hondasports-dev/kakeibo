@@ -97,7 +97,7 @@ export function useExpenseEntrySubmit({
       await createExpenseEntries({
         date,
         shopName: shopName.trim(),
-        sourceAmountYen: isMultiMode && sourceAmountNum > 0 ? sourceAmountNum : singleAmountNum,
+        sourceAmountYen: sourceAmountNum > 0 ? sourceAmountNum : undefined,
         items: validation.data.items.map((item) => ({
           categoryId: item.categoryId,
           amountYen: item.amountYen,

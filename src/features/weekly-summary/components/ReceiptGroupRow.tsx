@@ -12,6 +12,14 @@ export function ReceiptGroupRow({
   onDelete?: (receipt: ReceiptItem) => void;
   onEdit?: (receipt: ReceiptItem) => void;
 }) {
+  const singleItem = group.items[0];
+  const hasBreakdown =
+    group.items.length > 1 || group.items.some((item) => item.itemName !== undefined);
+
+  if (singleItem && !hasBreakdown) {
+    return <ReceiptRow receipt={singleItem} onDelete={onDelete} onEdit={onEdit} />;
+  }
+
   return (
     <Box
       aria-label={`${group.shopName}の支出`}

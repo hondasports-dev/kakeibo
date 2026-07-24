@@ -385,6 +385,25 @@ describe("createExpenseEntriesHandler", () => {
       expect.objectContaining({ sourceDocumentId: "new-entry-id" }),
     );
   });
+
+  it.each([-1, 1.5, Number.NaN])(
+    "sourceAmountYen が正の整数でない場合は保存しない（%s）",
+    async (sourceAmountYen) => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: { "cat-food": activeFoodCategory },
+      });
+
+      await expect(
+        createExpenseEntriesHandler(ctx, {
+          date: "2026-06-07",
+          shopName: "スーパー北浜",
+          sourceAmountYen,
+          items: [{ categoryId: catFoodId, amountYen: 1000, title: "食料品" }],
+        }),
+      ).rejects.toThrow("Source amount must be a positive integer");
+      expect(ctx.db.insert).not.toHaveBeenCalled();
+    },
+  );
 });
 
 describe("createIncomeEntryHandler", () => {
