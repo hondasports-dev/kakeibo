@@ -1,72 +1,28 @@
-import { useState } from "react";
-import { useMutation, useQuery } from "convex/react";
-import {
-  Alert,
-  Button,
-  Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { api } from "../../../../convex/_generated/api";
-import { SystemAdminEmptyState, SystemAdminPageFrame } from "./SystemAdminPageFrame";
-import type { AppEnvironment } from "../types";
-
-type StatusFilter = "" | "running" | "retry_wait" | "failed" | "completed";
-
-const statusLabels: Record<StatusFilter, string> = {
-  "": "すべて",
-  running: "running",
-  retry_wait: "retry_wait",
-  failed: "failed",
-  completed: "completed",
-};
+import { Alert, FormControl, InputLabel, MenuItem, Select, Typography } from "@mui/material";
+import { SystemAdminPageFrame } from "./SystemAdminPageFrame";
+import { GroupDeletionJobList } from "../components/GroupDeletionJobList";
+import { GroupDeletionResumeDialog } from "../components/GroupDeletionResumeDialog";
+import { useSystemAdminGroupDeletion } from "../hooks/useSystemAdminGroupDeletion";
 
 export function SystemAdminGroupDeletionPage() {
-  const [status, setStatus] = useState<StatusFilter>("failed");
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const list = useQuery(api.systemAdminGroupDeletion.listGroupDeletionJobs, {
-    paginationOpts: { numItems: 20, cursor },
-    status: status || undefined,
-  });
-  const resume = useMutation(api.systemAdminGroupDeletion.resumeGroupDeletion);
-
-  const selected = list?.page.find((job) => job.jobId === selectedJobId);
-  const environment = (list?.environment ?? "development") as AppEnvironment;
-
-  const closeDialog = () => {
-    setSelectedJobId(null);
-    setReason("");
-    setError("");
-  };
-
-  const submit = async () => {
-    if (!selected || reason.trim().length < 1 || reason.trim().length > 500) return;
-    setSaving(true);
-    setError("");
-    try {
-      await resume({ jobId: selected.jobId, reason: reason.trim() });
-      closeDialog();
-      setSuccess("削除ジョブの再開を受け付けました。監査ログに記録しました。");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "再開に失敗しました");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const {
+    status,
+    statusLabels,
+    handleStatusChange,
+    list,
+    selected,
+    environment,
+    reason,
+    setReason,
+    saving,
+    error,
+    success,
+    setSuccess,
+    submit,
+    setSelectedJobId,
+    setCursor,
+    closeDialog,
+  } = useSystemAdminGroupDeletion();
 
   return (
     <SystemAdminPageFrame
@@ -89,10 +45,7 @@ export function SystemAdminGroupDeletionPage() {
           label="状態"
           labelId="group-deletion-status-label"
           value={status}
-          onChange={(event) => {
-            setStatus(event.target.value as StatusFilter);
-            setCursor(null);
-          }}
+          onChange={(event) => handleStatusChange(event.target.value as typeof status)}
         >
           {Object.entries(statusLabels).map(([value, label]) => (
             <MenuItem key={value} value={value}>
@@ -104,114 +57,23 @@ export function SystemAdminGroupDeletionPage() {
       {list === undefined ? (
         <Typography role="status">削除ジョブを読み込んでいます…</Typography>
       ) : null}
-      {list && list.page.length === 0 ? (
-        <SystemAdminEmptyState message="該当する削除ジョブはありません。" />
+      {list ? (
+        <GroupDeletionJobList
+          list={list}
+          onLoadMore={() => setCursor(list.continueCursor)}
+          onSelectJob={setSelectedJobId}
+        />
       ) : null}
-      {list && list.page.length > 0 ? (
-        <Stack spacing={1} sx={{ mt: 2 }}>
-          {list.page.map((job) => (
-            <Stack
-              key={job.jobId}
-              spacing={1}
-              sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2 }}
-            >
-              <Stack
-                direction={{ xs: "column", sm: "row" }}
-                spacing={1}
-                sx={{ justifyContent: "space-between" }}
-              >
-                <Stack>
-                  <Typography component="h2" variant="h6">
-                    {job.targetGroupNameSnapshot}
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    groupId: {job.targetGroupIdSnapshot}
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    source: {job.source} / stage: {job.stage}
-                  </Typography>
-                  <Typography color="text.secondary" variant="body2">
-                    attempt: {job.attemptCount}/{job.maxAttempts} / 更新:{" "}
-                    {new Intl.DateTimeFormat("ja-JP").format(job.updatedAt)}
-                  </Typography>
-                  {job.lastErrorCategory ? (
-                    <Typography color="error" variant="body2">
-                      error: {job.lastErrorCategory}
-                    </Typography>
-                  ) : null}
-                </Stack>
-                <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-                  <Chip
-                    color={
-                      job.status === "failed"
-                        ? "error"
-                        : job.status === "completed"
-                          ? "default"
-                          : "warning"
-                    }
-                    label={job.status}
-                    size="small"
-                  />
-                  {job.status === "failed" ? (
-                    <Button onClick={() => setSelectedJobId(job.jobId)} variant="outlined">
-                      再開
-                    </Button>
-                  ) : null}
-                </Stack>
-              </Stack>
-            </Stack>
-          ))}
-          <Button disabled={list.isDone} onClick={() => setCursor(list.continueCursor)}>
-            次のページ
-          </Button>
-        </Stack>
-      ) : null}
-      <Dialog
-        fullWidth
-        maxWidth="sm"
-        onClose={closeDialog}
+      <GroupDeletionResumeDialog
+        error={error}
         open={selected !== undefined && selected !== null}
-      >
-        <DialogTitle>削除処理を再開</DialogTitle>
-        <DialogContent>
-          <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography>対象: {selected?.targetGroupNameSnapshot ?? "-"}</Typography>
-            <Typography color="text.secondary" variant="body2">
-              失敗したstageから再開します。削除開始・取消・復元は行いません。
-            </Typography>
-            <TextField
-              autoFocus
-              error={
-                reason.trim().length > 500 || (reason.length > 0 && reason.trim().length === 0)
-              }
-              helperText={`${reason.trim().length}/500文字（必須）`}
-              label="再開理由"
-              multiline
-              minRows={3}
-              name="group-deletion-resume-reason"
-              value={reason}
-              onChange={(event) => setReason(event.target.value)}
-            />
-            {error ? (
-              <Alert aria-live="polite" severity="error">
-                {error}
-              </Alert>
-            ) : null}
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button disabled={saving} onClick={closeDialog}>
-            キャンセル
-          </Button>
-          <Button
-            disabled={saving || reason.trim().length < 1 || reason.trim().length > 500}
-            onClick={() => void submit()}
-            variant="contained"
-          >
-            再開する
-          </Button>
-        </DialogActions>
-      </Dialog>
+        reason={reason}
+        saving={saving}
+        targetGroupNameSnapshot={selected?.targetGroupNameSnapshot}
+        onClose={closeDialog}
+        onConfirm={submit}
+        onReasonChange={setReason}
+      />
     </SystemAdminPageFrame>
   );
 }
