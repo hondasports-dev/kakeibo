@@ -17,8 +17,8 @@ const baseReceipt: ReceiptItem = {
 describe("getEditableReceiptTitle", () => {
   it("expenseEntry は内訳の項目名を編集タイトルにする", () => {
     expect(
-      getEditableReceiptTitle({ ...baseReceipt, itemName: "食料品", shopName: "食料品" }),
-    ).toBe("食料品");
+      getEditableReceiptTitle({ ...baseReceipt, itemName: "牛乳", shopName: "スーパー北浜" }),
+    ).toBe("牛乳");
   });
 
   it("legacy receipt は itemName ではなくレシートの店名を編集タイトルにする", () => {
@@ -26,7 +26,7 @@ describe("getEditableReceiptTitle", () => {
       getEditableReceiptTitle({
         ...baseReceipt,
         itemName: "食料品",
-        shopName: "スーパー北浜",
+        shopName: "旧店名",
         receiptShopName: "スーパー北浜",
         recordType: "receipt",
       }),
