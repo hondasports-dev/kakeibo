@@ -1241,39 +1241,44 @@ describe("AiExpenseQueuePanel", () => {
   it("保存に失敗した場合はダイアログと入力値を保持する", async () => {
     const user = userEvent.setup();
     updateForReviewMock.mockRejectedValueOnce(new Error("保存に失敗しました"));
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
 
-    renderWithProviders(
-      <AiExpenseQueuePanel
-        initialItems={[queueItems[1]]}
-        categories={categories}
-        initialReviewDrafts={{
-          "draft-review": {
-            _id: "draft-review",
-            status: "needs_review",
-            documentType: "receipt",
-            shopName: "スーパー青葉",
-            date: "2026-06-01",
-            amountYen: 1680,
-            categoryId: "cat-food",
-            reviewReasons: ["amount_mismatch"],
-          },
-        }}
-      />,
-    );
+    try {
+      renderWithProviders(
+        <AiExpenseQueuePanel
+          initialItems={[queueItems[1]]}
+          categories={categories}
+          initialReviewDrafts={{
+            "draft-review": {
+              _id: "draft-review",
+              status: "needs_review",
+              documentType: "receipt",
+              shopName: "スーパー青葉",
+              date: "2026-06-01",
+              amountYen: 1680,
+              categoryId: "cat-food",
+              reviewReasons: ["amount_mismatch"],
+            },
+          }}
+        />,
+      );
 
-    await user.click(screen.getByRole("button", { name: "確認する" }));
-    const nameInput = screen.getByLabelText("店名・内容");
-    await user.clear(nameInput);
-    await user.type(nameInput, "保存前の入力");
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+      await user.click(screen.getByRole("button", { name: "確認する" }));
+      const nameInput = screen.getByLabelText("店名・内容");
+      await user.clear(nameInput);
+      await user.type(nameInput, "保存前の入力");
+      await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
 
-    expect(screen.getByRole("dialog")).toBeInTheDocument();
-    expect(nameInput).toHaveValue("保存前の入力");
-    expect(
-      screen
-        .getAllByRole("alert")
-        .some((alert) => alert.textContent?.includes("保存に失敗しました")),
-    ).toBe(true);
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(nameInput).toHaveValue("保存前の入力");
+      expect(
+        screen
+          .getAllByRole("alert")
+          .some((alert) => alert.textContent?.includes("保存に失敗しました")),
+      ).toBe(true);
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("保存結果がneeds_reviewでもダイアログを閉じて確認待ちを通知する", async () => {
