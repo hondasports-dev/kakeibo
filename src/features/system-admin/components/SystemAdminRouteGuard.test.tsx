@@ -75,9 +75,14 @@ describe("SystemAdminRouteGuard", () => {
       throw new Error("forbidden");
     });
 
-    renderGuard();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      renderGuard();
 
-    expect(screen.getByRole("heading", { name: "管理画面を利用できません" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "管理画面を利用できません" })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "再読み込み" })).toBeInTheDocument();
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 });
