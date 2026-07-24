@@ -88,9 +88,9 @@ export function AuditLogList({
           </Paper>
         );
       })}
-      {!logs.isDone ? (
-        <Button onClick={() => onLoadMore(logs.continueCursor)}>次のページ</Button>
-      ) : null}
+      <Button disabled={logs.isDone} onClick={() => onLoadMore(logs.continueCursor)}>
+        次のページ
+      </Button>
     </Stack>
   );
 }
