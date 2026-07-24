@@ -80,6 +80,17 @@ describe("ReceiptListCard", () => {
     expect(screen.getByTestId("receipt-group")).toBeInTheDocument();
   });
 
+  it("内訳のない単一支出は従来どおりカテゴリー付きで1行表示する", () => {
+    renderWithProviders(
+      <ReceiptListCard count={1} isLoading={false} receipts={receipts.slice(0, 1)} />,
+    );
+
+    expect(screen.getAllByTestId("receipt-row")).toHaveLength(1);
+    expect(screen.queryByTestId("receipt-group")).not.toBeInTheDocument();
+    expect(screen.getByText("食費")).toBeInTheDocument();
+    expect(screen.getByText("店舗1")).toBeInTheDocument();
+  });
+
   it("同じ日付では後から取得した支出を先に表示する", () => {
     const sameDayReceipts = receipts.map((receipt) => ({ ...receipt, date: "2026-06-21" }));
     renderWithProviders(<ReceiptListCard count={7} isLoading={false} receipts={sameDayReceipts} />);

@@ -36,7 +36,7 @@ test.describe("ホーム画面拡充（Issue #370）", () => {
     await expect(inputPanel).toBeVisible();
     await expect(
       inputPanel.getByRole("link", {
-        name: /支出・収入を入力する|今週の入力を開始|入力を再開|今週のサマリーを見る/,
+        name: /支出・収入を入力する|入力を再開|今週のサマリーを見る/,
       }),
     ).toBeVisible();
     await expect(categoryHeading).toBeVisible();

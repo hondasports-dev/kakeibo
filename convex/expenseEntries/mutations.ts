@@ -84,12 +84,16 @@ export async function createExpenseEntriesHandler(
 
   if (sourceDocumentId === undefined && args.shopName?.trim()) {
     const itemsTotalAmountYen = args.items.reduce((sum, item) => sum + item.amountYen, 0);
+    const totalAmount = args.sourceAmountYen ?? itemsTotalAmountYen;
+    if (!Number.isInteger(totalAmount) || totalAmount <= 0) {
+      throw new ConvexError("Source amount must be a positive integer");
+    }
     sourceDocumentId = await ctx.db.insert("sourceDocuments", {
       groupId,
       sourceType: "manual",
       status: "finalized",
       date: args.date,
-      totalAmount: args.sourceAmountYen ?? itemsTotalAmountYen,
+      totalAmount,
       shopName: args.shopName.trim(),
       createdAt: now,
       updatedAt: now,

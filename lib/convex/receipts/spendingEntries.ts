@@ -77,18 +77,30 @@ export function mapExpenseEntryToSpendingEntry(
   };
 }
 
+type ReceiptLinkage = {
+  entry: SpendingEntry;
+  sourceDocumentId?: Id<"sourceDocuments">;
+  aiExpenseDraftId?: Id<"aiExpenseDrafts">;
+};
+
 async function enrichSpendingEntriesWithReceiptGroups(
   ctx: QueryCtx,
   groupId: Id<"groups">,
-  entries: SpendingEntry[],
-  sourceDocumentIds: Array<Id<"sourceDocuments"> | undefined>,
-  aiExpenseDraftIds: Array<Id<"aiExpenseDrafts"> | undefined>,
+  linkages: ReceiptLinkage[],
 ): Promise<SpendingEntry[]> {
   const uniqueSourceDocumentIds = Array.from(
-    new Set(sourceDocumentIds.filter((id): id is Id<"sourceDocuments"> => id !== undefined)),
+    new Set(
+      linkages
+        .map(({ sourceDocumentId }) => sourceDocumentId)
+        .filter((id): id is Id<"sourceDocuments"> => id !== undefined),
+    ),
   );
   const uniqueAiExpenseDraftIds = Array.from(
-    new Set(aiExpenseDraftIds.filter((id): id is Id<"aiExpenseDrafts"> => id !== undefined)),
+    new Set(
+      linkages
+        .map(({ aiExpenseDraftId }) => aiExpenseDraftId)
+        .filter((id): id is Id<"aiExpenseDrafts"> => id !== undefined),
+    ),
   );
   const [sourceDocuments, aiExpenseDrafts] = await Promise.all([
     Promise.all(uniqueSourceDocumentIds.map((id) => ctx.db.get(id))),
@@ -105,9 +117,7 @@ async function enrichSpendingEntriesWithReceiptGroups(
       .map((draft) => [draft!._id as string, draft!]),
   );
 
-  return entries.map((entry, index) => {
-    const sourceDocumentId = sourceDocumentIds[index];
-    const aiExpenseDraftId = aiExpenseDraftIds[index];
+  return linkages.map(({ entry, sourceDocumentId, aiExpenseDraftId }) => {
     const sourceDocument = sourceDocumentId ? sourceDocumentMap.get(sourceDocumentId) : undefined;
     const aiExpenseDraft = aiExpenseDraftId ? aiExpenseDraftMap.get(aiExpenseDraftId) : undefined;
 
@@ -139,6 +149,14 @@ async function enrichSpendingEntriesWithReceiptGroups(
       receiptTotalAmountYen: entry.amountYen,
     };
   });
+}
+
+function mapExpenseEntriesToReceiptLinkages(entries: Doc<"expenseEntries">[]): ReceiptLinkage[] {
+  return entries.map((entry) => ({
+    entry: mapExpenseEntryToSpendingEntry(entry),
+    sourceDocumentId: entry.sourceDocumentId,
+    aiExpenseDraftId: entry.aiExpenseDraftId,
+  }));
 }
 
 function addLegacyReceiptGroups(entries: SpendingEntry[]): SpendingEntry[] {
@@ -270,15 +288,10 @@ export async function getWeekSpendingEntries(
   );
   const expenseEntriesForWeek = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (expenseEntriesForWeek.length > 0) {
-    const mappedEntries = expenseEntriesForWeek.map((entry) =>
-      mapExpenseEntryToSpendingEntry(entry),
-    );
     return enrichSpendingEntriesWithReceiptGroups(
       ctx,
       groupId,
-      mappedEntries,
-      expenseEntriesForWeek.map((entry) => entry.sourceDocumentId),
-      expenseEntriesForWeek.map((entry) => entry.aiExpenseDraftId),
+      mapExpenseEntriesToReceiptLinkages(expenseEntriesForWeek),
     );
   }
 
@@ -298,15 +311,10 @@ export async function getDateSpendingEntries(
   const expenseEntries = await fetchExpenseEntriesByDateRange(ctx, groupId, date, date);
   const expenseEntriesForDate = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (expenseEntriesForDate.length > 0) {
-    const mappedEntries = expenseEntriesForDate.map((entry) =>
-      mapExpenseEntryToSpendingEntry(entry),
-    );
     return enrichSpendingEntriesWithReceiptGroups(
       ctx,
       groupId,
-      mappedEntries,
-      expenseEntriesForDate.map((entry) => entry.sourceDocumentId),
-      expenseEntriesForDate.map((entry) => entry.aiExpenseDraftId),
+      mapExpenseEntriesToReceiptLinkages(expenseEntriesForDate),
     );
   }
 
@@ -332,13 +340,10 @@ export async function getMonthSpendingEntries(
   );
   const monthExpenseEntries = expenseEntries.filter((entry) => entry.entryType !== "income");
   if (monthExpenseEntries.length > 0) {
-    const mappedEntries = monthExpenseEntries.map((entry) => mapExpenseEntryToSpendingEntry(entry));
     return enrichSpendingEntriesWithReceiptGroups(
       ctx,
       groupId,
-      mappedEntries,
-      monthExpenseEntries.map((entry) => entry.sourceDocumentId),
-      monthExpenseEntries.map((entry) => entry.aiExpenseDraftId),
+      mapExpenseEntriesToReceiptLinkages(monthExpenseEntries),
     );
   }
 
