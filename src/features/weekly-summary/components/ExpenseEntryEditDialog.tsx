@@ -20,6 +20,16 @@ type CategoryOption = {
   name: string;
 };
 
+export function getEditableReceiptTitle(receipt: ReceiptItem): string {
+  if (receipt.type === "income") {
+    return receipt.bankName ?? "";
+  }
+  if (receipt.recordType === "expenseEntry") {
+    return receipt.itemName ?? receipt.shopName ?? "";
+  }
+  return receipt.receiptShopName ?? receipt.shopName ?? "";
+}
+
 export function ExpenseEntryEditDialog({
   categories,
   open,
@@ -50,7 +60,7 @@ export function ExpenseEntryEditDialog({
     setDate(receipt.date);
     setAmountYen(String(receipt.amountYen));
     setCategoryId(receipt.categoryId);
-    setTitle(receipt.type === "income" ? (receipt.bankName ?? "") : (receipt.shopName ?? ""));
+    setTitle(getEditableReceiptTitle(receipt));
     setMemo(receipt.memo ?? "");
     setError("");
   }, [receipt]);
