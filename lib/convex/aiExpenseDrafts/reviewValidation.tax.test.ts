@@ -23,7 +23,26 @@ describe("aggregateDraftItemsByCategory tax amounts", () => {
       draftItem({ itemName: "商品A", amountYen: 1000, normalizedAmountYen: 1080 }),
       draftItem({ itemName: "商品B", amountYen: 559, normalizedAmountYen: 603 }),
     ]);
-    expect(result).toEqual([{ itemName: "TRIAL", amountYen: 1683, categoryId }]);
+    expect(result).toEqual([{ itemName: "商品A、商品B", amountYen: 1683, categoryId }]);
+  });
+
+  it("カテゴリ別に集計しても商品明細名を保持する", () => {
+    const otherCategoryId = "cat-daily" as Id<"categories">;
+    const result = aggregateDraftItemsByCategory(
+      { ...draft, amountYen: 3000 } as Doc<"aiExpenseDrafts">,
+      [
+        draftItem({ itemName: "たっぷりホイップあんぱん", amountYen: 1200 }),
+        {
+          ...draftItem({ itemName: "洗剤", amountYen: 1800 }),
+          categoryId: otherCategoryId,
+        },
+      ],
+    );
+
+    expect(result).toEqual([
+      { itemName: "たっぷりホイップあんぱん", amountYen: 1200, categoryId },
+      { itemName: "洗剤", amountYen: 1800, categoryId: otherCategoryId },
+    ]);
   });
 
   it("旧形式ではamountYenへfallbackする", () => {
