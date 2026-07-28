@@ -15,6 +15,9 @@ export function ReceiptGroupRow({
   const singleItem = group.items[0];
   const hasBreakdown =
     group.items.length > 1 || group.items.some((item) => item.itemName !== undefined);
+  const itemNames = group.items
+    .map((item) => item.itemName?.trim())
+    .filter((itemName): itemName is string => Boolean(itemName));
 
   if (singleItem && !hasBreakdown) {
     return <ReceiptRow receipt={singleItem} onDelete={onDelete} onEdit={onEdit} />;
@@ -38,10 +41,13 @@ export function ReceiptGroupRow({
               {group.shopName}
             </Typography>
           </Stack>
-          <Typography color="text.secondary" variant="caption">
-            {group.items.some((item) => item.itemName !== undefined)
-              ? `内訳 ${group.items.length}件`
-              : "内訳情報なし"}
+          <Typography
+            color="text.secondary"
+            noWrap
+            title={itemNames.length > 0 ? `内訳: ${itemNames.join("、")}` : "内訳情報なし"}
+            variant="caption"
+          >
+            {itemNames.length > 0 ? `内訳: ${itemNames.join("、")}` : "内訳情報なし"}
           </Typography>
         </Box>
         <Typography className="receipt-row-amount" role="cell" sx={{ fontWeight: 700 }}>

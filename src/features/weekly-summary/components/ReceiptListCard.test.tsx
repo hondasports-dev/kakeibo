@@ -72,6 +72,7 @@ describe("ReceiptListCard", () => {
 
     expect(screen.getByText("支出一覧（1件）")).toBeInTheDocument();
     expect(screen.getByText("スーパー北浜")).toBeInTheDocument();
+    expect(screen.getByText("内訳: 食料品、洗剤")).toBeInTheDocument();
     expect(screen.getByText("食料品")).toBeInTheDocument();
     expect(screen.getByText("洗剤")).toBeInTheDocument();
     expect(screen.getByText("食費")).toBeInTheDocument();
