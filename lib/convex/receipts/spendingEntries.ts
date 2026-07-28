@@ -106,6 +106,18 @@ async function enrichSpendingEntriesWithReceiptGroups(
     Promise.all(uniqueSourceDocumentIds.map((id) => ctx.db.get(id))),
     Promise.all(uniqueAiExpenseDraftIds.map((id) => ctx.db.get(id))),
   ]);
+  const aiExpenseDraftItems = await Promise.all(
+    uniqueAiExpenseDraftIds.map(async (draftId) => {
+      const items = await ctx.db
+        .query("aiExpenseDraftItems")
+        .withIndex("by_group_id_and_draft_id", (q) =>
+          q.eq("groupId", groupId).eq("draftId", draftId),
+        )
+        .order("asc")
+        .take(100);
+      return [draftId, items] as const;
+    }),
+  );
   const sourceDocumentMap = new Map(
     sourceDocuments
       .filter((document) => document !== null && document.groupId === groupId)
@@ -116,6 +128,7 @@ async function enrichSpendingEntriesWithReceiptGroups(
       .filter((draft) => draft !== null && draft.groupId === groupId)
       .map((draft) => [draft!._id as string, draft!]),
   );
+  const aiExpenseDraftItemsMap = new Map(aiExpenseDraftItems);
 
   return linkages.map(({ entry, sourceDocumentId, aiExpenseDraftId }) => {
     const sourceDocument = sourceDocumentId ? sourceDocumentMap.get(sourceDocumentId) : undefined;
@@ -132,13 +145,19 @@ async function enrichSpendingEntriesWithReceiptGroups(
     }
 
     if (aiExpenseDraft !== undefined) {
+      const itemNames = aiExpenseDraftItemsMap
+        .get(aiExpenseDraft._id)
+        ?.filter((item) => item.categoryId === entry.categoryId)
+        .map((item) => item.itemName.trim())
+        .filter(Boolean);
+
       return {
         ...entry,
         receiptGroupId: `aiExpenseDraft:${aiExpenseDraft._id}`,
         receiptShopName:
           aiExpenseDraft.shopName ?? aiExpenseDraft.payeeName ?? entry.shopName ?? "不明",
         receiptTotalAmountYen: aiExpenseDraft.amountYen ?? entry.amountYen,
-        itemName: entry.shopName,
+        itemName: itemNames && itemNames.length > 0 ? itemNames.join("、") : entry.shopName,
       };
     }
 
