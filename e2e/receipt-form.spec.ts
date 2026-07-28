@@ -1292,7 +1292,7 @@ test.describe("複数カテゴリ別支出項目入力フロー（Issue #102 受
     // 支出一覧に複数項目が個別エントリとして反映される
     const receiptGroup = page.getByTestId("receipt-group").filter({ hasText: "テストスーパー" });
     await expect(receiptGroup).toHaveCount(1, { timeout: 15_000 });
-    await expect(receiptGroup.getByText("内訳 2件")).toBeVisible();
+    await expect(receiptGroup.getByText("内訳: 食料品、日用品")).toBeVisible();
     const receiptRows = receiptGroup.getByTestId("receipt-row");
     await expect(receiptRows.filter({ hasText: "食料品" }).first()).toBeVisible({
       timeout: 15_000,
