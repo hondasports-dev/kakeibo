@@ -225,9 +225,19 @@ export function aggregateDraftItemsByCategory(
     throw new ConvexError("Draft category total must be greater than zero");
   }
 
-  const title = resolveReceiptShopNameFromDraft(draft);
+  const itemNamesByCategory = new Map<Id<"categories">, string[]>();
+  for (const item of items) {
+    if (item.categoryId === undefined) {
+      continue;
+    }
+    const itemNames = itemNamesByCategory.get(item.categoryId) ?? [];
+    itemNames.push(item.itemName.trim());
+    itemNamesByCategory.set(item.categoryId, itemNames);
+  }
+
   return Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
-    itemName: title,
+    itemName:
+      itemNamesByCategory.get(categoryId)?.join("、") ?? resolveReceiptShopNameFromDraft(draft),
     amountYen,
     categoryId,
   }));

@@ -70,14 +70,56 @@ function makeSourceDocument(
   } as unknown as Doc<"sourceDocuments">;
 }
 
+function makeAiExpenseDraft(
+  overrides: Partial<Doc<"aiExpenseDrafts">> & { _id: Id<"aiExpenseDrafts"> },
+): Doc<"aiExpenseDrafts"> {
+  return {
+    _creationTime: 0,
+    groupId,
+    sourceType: "image_upload",
+    status: "registered",
+    documentType: "receipt",
+    shopName: "スーパー北浜",
+    amountYen: 3000,
+    confidence: {},
+    warnings: [],
+    reviewReasons: [],
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  } as unknown as Doc<"aiExpenseDrafts">;
+}
+
+function makeAiExpenseDraftItem(
+  overrides: Partial<Doc<"aiExpenseDraftItems">> & { _id: Id<"aiExpenseDraftItems"> },
+): Doc<"aiExpenseDraftItems"> {
+  return {
+    _creationTime: 0,
+    groupId,
+    draftId: "draft-1" as Id<"aiExpenseDrafts">,
+    itemName: "たっぷりホイップあんぱん",
+    amountYen: 1200,
+    categoryId: "cat-1" as Id<"categories">,
+    confidence: {},
+    sortOrder: 0,
+    createdAt: 0,
+    updatedAt: 0,
+    ...overrides,
+  } as unknown as Doc<"aiExpenseDraftItems">;
+}
+
 function createQueryCtx({
   expenseEntries = [],
   receipts = [],
   sourceDocuments = [],
+  aiExpenseDrafts = [],
+  aiExpenseDraftItems = [],
 }: {
   expenseEntries?: Doc<"expenseEntries">[];
   receipts?: Doc<"receipts">[];
   sourceDocuments?: Doc<"sourceDocuments">[];
+  aiExpenseDrafts?: Doc<"aiExpenseDrafts">[];
+  aiExpenseDraftItems?: Doc<"aiExpenseDraftItems">[];
 } = {}): QueryCtx {
   const makeQueryBuilder = (docs: unknown[]) => {
     const q: {
@@ -96,11 +138,13 @@ function createQueryCtx({
     const chain: {
       [Symbol.asyncIterator](): AsyncIterator<unknown>;
       order: (direction: "asc" | "desc") => typeof chain;
+      take: (limit: number) => Promise<unknown[]>;
     } = {
       [Symbol.asyncIterator]: async function* () {
         yield* docs;
       },
       order: () => chain,
+      take: async (limit) => docs.slice(0, limit),
     };
 
     return { q, chain };
@@ -108,7 +152,11 @@ function createQueryCtx({
 
   const query = vi.fn().mockImplementation((tableName: string) => {
     const docs =
-      tableName === "expenseEntries" ? (expenseEntries as unknown[]) : (receipts as unknown[]);
+      tableName === "expenseEntries"
+        ? (expenseEntries as unknown[])
+        : tableName === "receipts"
+          ? (receipts as unknown[])
+          : (aiExpenseDraftItems as unknown[]);
     return {
       withIndex: (_indexName: string, builder: (q: unknown) => unknown) => {
         const { q, chain } = makeQueryBuilder(docs);
@@ -122,7 +170,11 @@ function createQueryCtx({
     db: {
       query,
       get: vi.fn().mockImplementation(async (id: string) => {
-        return sourceDocuments.find((document) => document._id === id) ?? null;
+        return (
+          sourceDocuments.find((document) => document._id === id) ??
+          aiExpenseDrafts.find((draft) => draft._id === id) ??
+          null
+        );
       }),
     },
   } as unknown as QueryCtx;
@@ -411,6 +463,36 @@ describe("getWeekSpendingEntries", () => {
     expect(result[0]).toMatchObject({
       receiptShopName: "スーパー北浜",
       receiptTotalAmountYen: 3000,
+    });
+  });
+
+  it("AI下書きの明細名を履歴用の商品名として返す", async () => {
+    const draftId = "draft-1" as Id<"aiExpenseDrafts">;
+    const result = await getWeekSpendingEntries(
+      createQueryCtx({
+        expenseEntries: [
+          makeExpenseEntry({
+            _id: "e-bread" as Id<"expenseEntries">,
+            aiExpenseDraftId: draftId,
+            title: "ジャパン 明石稲美店",
+            amount: 1200,
+          }),
+        ],
+        aiExpenseDrafts: [makeAiExpenseDraft({ _id: draftId })],
+        aiExpenseDraftItems: [
+          makeAiExpenseDraftItem({
+            _id: "draft-item-1" as Id<"aiExpenseDraftItems">,
+            draftId,
+          }),
+        ],
+      }),
+      groupId,
+      "2024-01-08",
+    );
+
+    expect(result[0]).toMatchObject({
+      itemName: "たっぷりホイップあんぱん",
+      receiptShopName: "スーパー北浜",
     });
   });
 });
