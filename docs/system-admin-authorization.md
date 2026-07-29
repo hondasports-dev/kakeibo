@@ -88,12 +88,29 @@ systemAdminAuditLogs: defineTable({
     v.literal("system_admin_group_searched"),
     v.literal("system_admin_user_viewed"),
     v.literal("system_admin_group_viewed"),
+    v.literal("system_admin_membership_added"),
+    v.literal("system_admin_membership_removed"),
+    v.literal("system_admin_membership_transferred"),
+    v.literal("system_admin_active_group_set"),
+    v.literal("system_admin_active_group_cleared"),
+    v.literal("system_admin_group_deletion_resumed"),
+    v.literal("system_admin_ownerless_group_recovered"),
+    v.literal("system_admin_group_role_changed"),
+    v.literal("system_admin_group_owner_transferred"),
+    v.literal("system_admin_group_invitation_revoked"),
   ),
   actorType: v.union(v.literal("system"), v.literal("system_admin")),
   actorUserId: v.optional(v.id("users")),
-  targetKind: v.union(v.literal("system_admin"), v.literal("user"), v.literal("group")),
+  targetKind: v.union(
+    v.literal("system_admin"),
+    v.literal("user"),
+    v.literal("group"),
+    v.literal("invitation"),
+  ),
   targetUserId: v.optional(v.id("users")),
   targetDisplayNameSnapshot: v.optional(v.string()),
+  sourceUserId: v.optional(v.id("users")),
+  sourceUserDisplayNameSnapshot: v.optional(v.string()),
   targetId: v.optional(v.string()),
   reason: v.optional(v.string()),
   queryType: v.optional(v.string()),
@@ -101,15 +118,77 @@ systemAdminAuditLogs: defineTable({
   resultCount: v.optional(v.number()),
   previousStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
   newStatus: v.optional(v.union(v.literal("active"), v.literal("revoked"))),
+  sourceGroupId: v.optional(v.id("groups")),
+  sourceGroupNameSnapshot: v.optional(v.string()),
+  targetGroupId: v.optional(v.id("groups")),
+  targetGroupNameSnapshot: v.optional(v.string()),
+  beforeMembershipStatus: v.optional(
+    v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+  ),
+  afterMembershipStatus: v.optional(
+    v.union(v.literal("none"), v.literal("member"), v.literal("owner")),
+  ),
+  beforeActiveGroupId: v.optional(v.id("groups")),
+  afterActiveGroupId: v.optional(v.id("groups")),
+  beforeOwnerCount: v.optional(v.number()),
+  afterOwnerCount: v.optional(v.number()),
+  result: v.optional(v.union(v.literal("success"), v.literal("denied"))),
   createdAt: v.number(),
 })
   .index("by_created_at", ["createdAt"])
+  .index("by_action_and_created_at", ["action", "createdAt"])
+  .index("by_actor_user_id_and_created_at", ["actorUserId", "createdAt"])
   .index("by_target_user_id_and_created_at", ["targetUserId", "createdAt"])
+  .index("by_action_and_actor_user_id_and_created_at", ["action", "actorUserId", "createdAt"])
+  .index("by_action_and_target_user_id_and_created_at", ["action", "targetUserId", "createdAt"])
+  .index("by_actor_user_id_and_target_user_id_and_created_at", [
+    "actorUserId",
+    "targetUserId",
+    "createdAt",
+  ])
+  .index("by_action_and_actor_user_id_and_target_user_id_and_created_at", [
+    "action",
+    "actorUserId",
+    "targetUserId",
+    "createdAt",
+  ])
   .index("by_target_kind_and_target_id_and_created_at", ["targetKind", "targetId", "createdAt"])
 ```
 
 検索・閲覧のactionと最小metadata（検索種別、検索語hash、結果件数）は#289で追加済み。
 監査ログにはJWT、秘密情報、検索語の平文、金額、店名、メモ、レシート画像、AI解析結果などを保存しない。
+
+### 3.3 `systemAdminNotifications`
+
+システム管理者向けの操作通知を管理する。`convex/email` 経由でトランザクションメールをenqueueする。
+
+```ts
+systemAdminNotifications: defineTable({
+  action: v.union(
+    v.literal("system_admin_granted"),
+    v.literal("system_admin_revoked"),
+    v.literal("system_admin_recovered"),
+    v.literal("system_admin_bootstrapped"),
+    v.literal("system_admin_membership_changed"),
+    v.literal("system_admin_ownerless_group_recovered"),
+    v.literal("system_admin_group_invitation_revoked"),
+  ),
+  recipientUserId: v.optional(v.id("users")),
+  recipientEmail: v.optional(v.string()),
+  targetUserId: v.optional(v.id("users")),
+  targetEmailSnapshot: v.optional(v.string()),
+  dedupeKey: v.string(),
+  payloadJson: v.string(),
+  createdAt: v.number(),
+})
+  .index("by_dedupe_key", ["dedupeKey"])
+  .index("by_recipient_and_created_at", ["recipientUserId", "createdAt"])
+  .index("by_recipient_and_target_user_id_and_created_at", [
+    "recipientUserId",
+    "targetUserId",
+    "createdAt",
+  ])
+```
 
 ## 4. 共通認可関数
 

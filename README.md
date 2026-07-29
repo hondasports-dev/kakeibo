@@ -59,6 +59,8 @@ pnpm run format:check
 pnpm run build
 pnpm run e2e:smoke -- --project=chromium
 pnpm run e2e -- --project=chromium
+pnpm run e2e:public -- --project=chromium
+pnpm run test:email-integration
 ```
 
 E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同期が必要です（[`docs/development-process.md`](docs/development-process.md) 参照）。
