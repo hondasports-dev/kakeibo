@@ -2,6 +2,7 @@ import { mutation } from "../_generated/server";
 import type { MutationCtx } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getIdentityDisplayName, requireAuthenticatedUserId } from "./auth";
+import { getWeekEndDay } from "../lib/weekDates";
 
 /** upsertUser mutation の handler ロジック（テスト用に export） */
 export async function upsertUserHandler(ctx: MutationCtx) {
@@ -139,7 +140,7 @@ export async function updateWeeklyDaysHandler(
   const now = Date.now();
   await ctx.db.patch(user._id, {
     weeklyStartDay: args.weeklyStartDay,
-    weeklyEndDay: args.weeklyEndDay,
+    weeklyEndDay: getWeekEndDay(args.weeklyStartDay),
     updatedAt: now,
   });
 }

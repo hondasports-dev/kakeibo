@@ -3,6 +3,7 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { calculateWeekStartDate } from "../../../convex/lib/weekDates";
+import { getWeeklyStartDayForUser } from "../../../convex/users/weeklySettings";
 
 export type CreateReceiptArgs =
   | {
@@ -26,6 +27,7 @@ export async function insertReceiptForGroup(
   ctx: Pick<MutationCtx, "db">,
   groupId: Id<"groups">,
   args: CreateReceiptArgs,
+  weekStartDay = 1,
 ) {
   if (args.type !== "income" && !args.shopName) {
     throw new ConvexError("shopName is required for expense receipts");
@@ -46,7 +48,7 @@ export async function insertReceiptForGroup(
   }
 
   const now = Date.now();
-  const weekStartDate = calculateWeekStartDate(args.date);
+  const weekStartDate = calculateWeekStartDate(args.date, weekStartDay);
 
   return await ctx.db.insert("receipts", {
     groupId,
@@ -65,8 +67,9 @@ export async function insertReceiptForGroup(
 
 /** createReceipt mutation の handler ロジック（テスト用に export） */
 export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
-  const receiptId = await insertReceiptForGroup(ctx, groupId, args);
+  const { groupId, userId } = await requireGroupMembership(ctx);
+  const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
+  const receiptId = await insertReceiptForGroup(ctx, groupId, args, weekStartDay);
 
   const receipt = await ctx.db.get(receiptId);
   if (receipt === null) {

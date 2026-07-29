@@ -1,6 +1,7 @@
 import { query } from "../_generated/server";
 import type { QueryCtx } from "../_generated/server";
 import { requireAuthenticatedUserId } from "./auth";
+import { getWeekEndDay, normalizeWeekStartDay } from "../lib/weekDates";
 
 /** getUserProfile query の handler ロジック（テスト用に export） */
 export async function getUserProfileHandler(ctx: QueryCtx) {
@@ -15,10 +16,12 @@ export async function getUserProfileHandler(ctx: QueryCtx) {
     return undefined;
   }
 
+  const weeklyStartDay = normalizeWeekStartDay(user.weeklyStartDay);
+
   return {
     monthlyIncome: user.monthlyIncome ?? null,
-    weeklyStartDay: user.weeklyStartDay ?? 1,
-    weeklyEndDay: user.weeklyEndDay ?? 0,
+    weeklyStartDay,
+    weeklyEndDay: getWeekEndDay(weeklyStartDay),
   };
 }
 

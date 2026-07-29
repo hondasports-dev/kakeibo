@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@mui/material";
 import { api } from "../../../../convex/_generated/api";
+import { getWeekEndDay } from "../../week";
 
 const DAY_OPTIONS = [
   { value: 0, label: "日曜日" },
@@ -31,7 +32,6 @@ export function WeekDaySettingsPanel() {
   const userProfile = useQuery(api.users.queries.getUserProfile);
   const updateWeeklyDays = useMutation(api.users.mutations.updateWeeklyDays);
   const [startDay, setStartDay] = useState(1);
-  const [endDay, setEndDay] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
     message: string;
@@ -41,7 +41,6 @@ export function WeekDaySettingsPanel() {
   useEffect(() => {
     if (userProfile) {
       setStartDay(userProfile.weeklyStartDay ?? 1);
-      setEndDay(userProfile.weeklyEndDay ?? 0);
     }
   }, [userProfile]);
 
@@ -55,14 +54,11 @@ export function WeekDaySettingsPanel() {
   }
 
   const startLabel = DAY_OPTIONS.find((day) => day.value === startDay)?.label ?? "月曜日";
+  const endDay = getWeekEndDay(startDay);
   const endLabel = DAY_OPTIONS.find((day) => day.value === endDay)?.label ?? "日曜日";
 
   const handleStartDayChange = (event: SelectChangeEvent<number>) => {
     setStartDay(Number(event.target.value));
-  };
-
-  const handleEndDayChange = (event: SelectChangeEvent<number>) => {
-    setEndDay(Number(event.target.value));
   };
 
   const handleSave = async () => {
@@ -84,7 +80,7 @@ export function WeekDaySettingsPanel() {
           週の設定
         </Typography>
         <Typography color="text.secondary" variant="body2">
-          保存値を確認・変更します。週計算は月曜日始まり・日曜日終わりのままです。
+          週の始まりから7日間を集計します。週の終わりは自動で決まります。
         </Typography>
       </Box>
 
@@ -117,30 +113,31 @@ export function WeekDaySettingsPanel() {
               ))}
             </Select>
           </FormControl>
-          <FormControl fullWidth size="small">
-            <InputLabel id="week-end-day-label">週の終わり</InputLabel>
-            <Select
-              disabled={isSaving}
-              id="week-end-day"
-              label="週の終わり"
-              labelId="week-end-day-label"
-              onChange={handleEndDayChange}
-              value={endDay}
-            >
-              {DAY_OPTIONS.map((day) => (
-                <MenuItem key={day.value} value={day.value}>
-                  {day.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <Box
+            aria-label="週の終わり"
+            aria-live="polite"
+            sx={{
+              alignItems: "center",
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+              display: "flex",
+              minHeight: 40,
+              px: 1.5,
+            }}
+            role="status"
+          >
+            <Typography color="text.secondary" variant="body2">
+              週の終わり: {endLabel}
+            </Typography>
+          </Box>
           <Button
             disabled={isSaving}
             onClick={handleSave}
             startIcon={isSaving ? <CircularProgress size={16} /> : undefined}
             variant="contained"
           >
-            {isSaving ? "保存中..." : "変更を保存"}
+            {isSaving ? "保存中…" : "変更を保存"}
           </Button>
         </Stack>
       </Box>

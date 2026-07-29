@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
 import { addWeeks, getCurrentWeekStartDate, getWeekEndDate, isFutureWeek } from "../../week";
 
@@ -15,11 +15,16 @@ export type InputPageWeekSession = {
  * 前週・次週ナビゲーションもサポートする。
  */
 export function useInputPageWeek() {
+  const userProfile = useQuery(api.users.queries.getUserProfile);
   const getOrCreateSession = useMutation(api.weekSessions.mutations.getOrCreateWeekSession);
 
-  // マウント時点の今週開始日を固定する（毎レンダーで再計算しないよう useMemo を使う）
-  const currentWeekStartDate = useMemo(() => getCurrentWeekStartDate(), []);
-  const [weekStartDate, setWeekStartDate] = useState(currentWeekStartDate);
+  const weeklyStartDay = userProfile?.weeklyStartDay ?? 1;
+  const currentWeekStartDate = useMemo(
+    () => getCurrentWeekStartDate(weeklyStartDay),
+    [weeklyStartDay],
+  );
+  const [weekStartDate, setWeekStartDate] = useState(() => getCurrentWeekStartDate());
+  const [settingsApplied, setSettingsApplied] = useState(false);
   const weekEndDate = getWeekEndDate(weekStartDate);
 
   const [weekSession, setWeekSession] = useState<InputPageWeekSession | null>(null);
@@ -46,8 +51,18 @@ export function useInputPageWeek() {
   );
 
   useEffect(() => {
+    if (userProfile !== undefined && !settingsApplied) {
+      setWeekStartDate(currentWeekStartDate);
+      setSettingsApplied(true);
+    }
+  }, [currentWeekStartDate, settingsApplied, userProfile]);
+
+  useEffect(() => {
+    if (userProfile === undefined || !settingsApplied) {
+      return;
+    }
     loadSession(weekStartDate);
-  }, [weekStartDate, loadSession]);
+  }, [loadSession, settingsApplied, userProfile, weekStartDate]);
 
   const goToPreviousWeek = () => {
     setWeekStartDate((prev) => addWeeks(prev, -1));
@@ -68,7 +83,7 @@ export function useInputPageWeek() {
     weekSession,
     setWeekSession,
     sessionError,
-    isLoading,
+    isLoading: isLoading || userProfile === undefined,
     isCurrentWeek,
     goToPreviousWeek,
     goToNextWeek,

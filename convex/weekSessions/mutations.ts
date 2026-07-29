@@ -4,15 +4,18 @@ import { v } from "convex/values";
 import { ConvexError } from "convex/values";
 import { requireGroupMembership } from "../groups/membership";
 import { calculateWeekStartDate, calculateWeekEndDate } from "../lib/weekDates";
+import { getWeeklyStartDayForUser } from "../users/weeklySettings";
 
 /** getOrCreateCurrentWeekSession mutation の handler ロジック（テスト用に export） */
 export async function getOrCreateCurrentWeekSessionHandler(ctx: MutationCtx) {
+  const { userId } = await requireGroupMembership(ctx);
   const today = new Date(Date.now());
   const y = today.getFullYear();
   const m = String(today.getMonth() + 1).padStart(2, "0");
   const d = String(today.getDate()).padStart(2, "0");
   const todayStr = `${y}-${m}-${d}`;
-  const weekStartDate = calculateWeekStartDate(todayStr);
+  const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
+  const weekStartDate = calculateWeekStartDate(todayStr, weekStartDay);
 
   return getOrCreateWeekSessionHandler(ctx, { weekStartDate });
 }
