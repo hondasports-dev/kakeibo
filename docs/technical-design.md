@@ -160,6 +160,15 @@ src/
       types/
       utils/
       index.ts
+    account-deletion/          # アカウント削除リクエスト・status UI
+      pages/
+      index.ts
+    system-admin/                # `/admin` システム管理者 UI
+      components/
+      hooks/
+      pages/
+      types/
+      index.ts
 
 convex/
   auth.config.ts
@@ -220,6 +229,27 @@ convex/
     internal.ts
   receiptImageExtraction/
     extraction.ts              # public action の薄いラッパー
+  accountDeletion.ts          # セルフサービス退会リクエスト・ジョブ制御
+  accountDeletionActions.ts   # 退会処理の Clerk 連携 action
+  email/                      # トランザクションメール送信・抑制・webhook 処理
+    actions.ts
+    cleanup.ts
+    internal.ts
+    jobs.ts
+    suppressions.ts
+    model.ts
+    lib/providers.ts
+    webhooks/processResendEvent.ts
+  crons.ts                    # 定期 cleanup ジョブ
+  systemAdmins.ts             # システム管理者認可・管理 API
+  systemAdminSearch.ts
+  systemAdminMembership.ts
+  systemAdminRoleOperations.ts
+  systemAdminPendingInvitation.ts
+  systemAdminPendingInvitationAction.ts
+  systemAdminOwnerlessGroupRecovery.ts
+  systemAdminGroupDeletion.ts
+  legacyGroupDeletionAuditMigration.ts
 
 lib/                           # Convex 外の純粋ヘルパー（api.d.ts 肥大化回避）
   convex/
@@ -407,6 +437,10 @@ active record が確認できない場合は fail closed にする。
 既存データ互換のためバックエンドのフィールドとmutationだけを維持する。
 
 ## 8. データ設計
+
+家計簿の中心データは `expenseEntries` に寄せ、入力元原本は `sourceDocuments` を正本とする。
+`receipts` は既存データ互換のため当面残す。これらの詳細な schema と互換方針は
+21 節も参照。
 
 ### 8.1 users
 

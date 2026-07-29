@@ -146,11 +146,12 @@ group admin から他ユーザーの Clerk アカウントを削除する機能�
 | ルール | 内容 |
 | --- | --- |
 | 実行権限 | `owner` のみ（`requireGroupOwner`） |
-| 削除方式 | 次を物理削除: `groups`, `groupMembers`, `groupInvitations`, `expenseEntries`, `receipts`, `categories`, `sourceDocuments`（添付画像ストレージ含む）, `weekSessions`, `aiExpenseDrafts`, `aiExpenseDraftItems`, `receiptAnalysisBatches`, `receiptAnalysisImageJobs` |
+| 削除方式 | 削除リクエストを受け付けると `groupDeletionJobs` を作成し、バックグラウンド worker が順次物理削除する。対象テーブル: `groups`, `groupMembers`, `groupInvitations`, `expenseEntries`, `receipts`, `categories`, `sourceDocuments`（添付画像ストレージ含む）, `weekSessions`, `aiExpenseDrafts`, `aiExpenseDraftItems`, `receiptAnalysisBatches`, `receiptAnalysisImageJobs` |
 | 削除しない | `users`, Clerk アカウント, `managementAuditLogs`（監査証跡として保持） |
 | activeGroupId | 削除対象を active にしていた全メンバーへ、別の所属グループまたは `null` を設定 |
 | 監査ログ | 削除実行前に `group_deleted` を記録（`afterValue` に削除件数サマリ `affectedCounts` を含む） |
 | 通知 | 削除前に `groupMembers` 全員へ `group_deleted` のメール通知を送信する |
+|| ジョブ管理 | `groupDeletionJobs` が削除進行状況を、`groupDeletionNotificationRecipients` がメンバーへの通知状態を管理する |
 | 確認 UI | 対象グループ名、削除対象データの影響範囲（件数付き）、完全削除・復旧不可の警告、Clerk/ユーザー非削除の注記、確認用グループ名入力 |
 | 成功後遷移 | 他に所属グループがあれば `/group/select`、なければ `/group/setup` |
 

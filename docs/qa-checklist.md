@@ -54,6 +54,8 @@ Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合�
 - レシート画像抽出（`e2e/receipt-image-extraction.spec.ts`）: 画像解析フローの疎通
 - ダッシュボード（`e2e/dashboard-home.spec.ts`）: ホーム画面の集計・導線
 - レシートフォーム（`e2e/receipt-form.spec.ts`）: 手入力フォームの保存
+- アカウント削除（`e2e/account-deletion.spec.ts`）: `/settings/account/delete` からの非同期削除リクエストと status 確認
+- システム管理者（`e2e/system-admin-route.spec.ts`、`e2e/system-admin-search.spec.ts`、`e2e/system-admin-membership.spec.ts`）: `/admin` ルート制御、ユーザー・グループ検索、メンバー・権限操作
 - `e2e/monthly-income.spec.ts` は空のプレースホルダー（#79 で月収入 UI 削除済み）。削除候補
 
 ## Clerk Restricted mode + Invitation 手動 QA
