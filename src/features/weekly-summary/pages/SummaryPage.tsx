@@ -30,12 +30,16 @@ export function SummaryPage() {
 
   const deleteExpenseEntry = useMutation(api.expenseEntries.mutations.deleteExpenseEntry);
   const deleteReceipt = useMutation(api.receipts.crud.deleteReceipt);
+  const userProfile = useQuery(api.users.queries.getUserProfile);
   const categoriesQuery = useQuery(api.categories.queries.listActive);
   const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
 
-  const currentWeekStartDate = getCurrentWeekStartDate();
+  const weeklyStartDay = userProfile?.weeklyStartDay ?? 1;
+  const currentWeekStartDate = getCurrentWeekStartDate(weeklyStartDay);
 
-  const normalized = rawWeekStartDate ? normalizeWeekStartDate(rawWeekStartDate) : null;
+  const normalized = rawWeekStartDate
+    ? normalizeWeekStartDate(rawWeekStartDate, weeklyStartDay)
+    : null;
   const weekStartDate =
     normalized !== null && !isFutureWeek(normalized, currentWeekStartDate)
       ? normalized
@@ -45,15 +49,19 @@ export function SummaryPage() {
   const isCurrentWeek = weekStartDate === currentWeekStartDate;
 
   useEffect(() => {
-    if (rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
+    if (userProfile !== undefined && rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
       navigate(`/weeks/${weekStartDate}`, { replace: true });
     }
-  }, [rawWeekStartDate, weekStartDate, navigate]);
+  }, [rawWeekStartDate, userProfile, weekStartDate, navigate]);
 
-  const weeklySummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
-    weekStartDate,
-  });
-  const fourWeeksSummary = useQuery(api.receipts.summaries.getFourWeeksSummary, { weekStartDate });
+  const weeklySummary = useQuery(
+    api.receipts.summaries.getWeekSummaryWithCategories,
+    userProfile === undefined ? "skip" : { weekStartDate },
+  );
+  const fourWeeksSummary = useQuery(
+    api.receipts.summaries.getFourWeeksSummary,
+    userProfile === undefined ? "skip" : { weekStartDate },
+  );
   const weeklyExpenseTrend =
     fourWeeksSummary !== undefined && Array.isArray(fourWeeksSummary.weeks)
       ? buildWeeklyExpenseChartData({
@@ -64,7 +72,7 @@ export function SummaryPage() {
       : undefined;
 
   const navigateToWeek = (newWeekStartDate: string) => {
-    const norm = normalizeWeekStartDate(newWeekStartDate) ?? currentWeekStartDate;
+    const norm = normalizeWeekStartDate(newWeekStartDate, weeklyStartDay) ?? currentWeekStartDate;
     const target = isFutureWeek(norm, currentWeekStartDate) ? currentWeekStartDate : norm;
     navigate(`/weeks/${target}`);
   };
@@ -94,7 +102,7 @@ export function SummaryPage() {
     }
   };
 
-  if (weeklySummary === undefined) {
+  if (userProfile === undefined || weeklySummary === undefined) {
     return (
       <SuzumemoLoadingState
         label="データを読み込み中"

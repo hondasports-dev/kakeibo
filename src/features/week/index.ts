@@ -6,8 +6,10 @@ export {
   formatWeekPeriod,
   generateWeekDays,
   getCurrentWeekStartDate,
+  getWeekEndDay,
   getWeekEndDate,
   isFutureWeek,
+  normalizeWeekStartDay,
   normalizeWeekStartDate,
 } from "./lib/weekNavigation";
 export { formatDateForDisplay } from "../../utils/date";

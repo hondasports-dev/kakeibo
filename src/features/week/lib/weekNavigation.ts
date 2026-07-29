@@ -1,4 +1,18 @@
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+export const DEFAULT_WEEK_START_DAY = 1;
+
+export function normalizeWeekStartDay(weekStartDay?: number): number {
+  return weekStartDay !== undefined &&
+    Number.isInteger(weekStartDay) &&
+    weekStartDay >= 0 &&
+    weekStartDay <= 6
+    ? weekStartDay
+    : DEFAULT_WEEK_START_DAY;
+}
+
+export function getWeekEndDay(weekStartDay: number): number {
+  return (normalizeWeekStartDay(weekStartDay) + 6) % 7;
+}
 
 function toIsoDate(date: Date): string {
   const y = date.getUTCFullYear();
@@ -20,15 +34,18 @@ function parseIsoDate(dateStr: string): Date | null {
   return date;
 }
 
-export function normalizeWeekStartDate(dateStr: string): string | null {
+export function normalizeWeekStartDate(
+  dateStr: string,
+  weekStartDay: number = DEFAULT_WEEK_START_DAY,
+): string | null {
   const date = parseIsoDate(dateStr);
   if (date === null) {
     return null;
   }
 
   const day = date.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  date.setUTCDate(date.getUTCDate() + diff);
+  const diff = (day - normalizeWeekStartDay(weekStartDay) + 7) % 7;
+  date.setUTCDate(date.getUTCDate() - diff);
   return toIsoDate(date);
 }
 
@@ -67,12 +84,12 @@ export function isFutureWeek(weekStartDate: string, currentWeekStartDate: string
 }
 
 /**
- * 現在日付（ローカルタイム）から月曜始まりの週開始日を計算する。
+ * 現在日付（ローカルタイム）から指定曜日始まりの週開始日を計算する。
  */
-export function getCurrentWeekStartDate(): string {
+export function getCurrentWeekStartDate(weekStartDay: number = DEFAULT_WEEK_START_DAY): string {
   const now = new Date();
   const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  return normalizeWeekStartDate(iso) ?? iso;
+  return normalizeWeekStartDate(iso, weekStartDay) ?? iso;
 }
 
 /**

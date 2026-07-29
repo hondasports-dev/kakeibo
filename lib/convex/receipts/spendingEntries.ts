@@ -249,23 +249,6 @@ async function fetchReceiptsByDateRange(
   return receipts;
 }
 
-async function fetchReceiptsByWeek(
-  ctx: QueryCtx,
-  groupId: Id<"groups">,
-  weekStartDate: string,
-): Promise<Doc<"receipts">[]> {
-  const receipts: Doc<"receipts">[] = [];
-  for await (const receipt of ctx.db
-    .query("receipts")
-    .withIndex("by_group_id_and_week_start_date", (q) =>
-      q.eq("groupId", groupId).eq("weekStartDate", weekStartDate),
-    )
-    .order("desc")) {
-    receipts.push(receipt);
-  }
-  return receipts;
-}
-
 export async function getWeekIncomeEntries(
   ctx: QueryCtx,
   groupId: Id<"groups">,
@@ -287,7 +270,7 @@ export async function getWeekIncomeEntries(
     return [];
   }
 
-  const receipts = await fetchReceiptsByWeek(ctx, groupId, weekStartDate);
+  const receipts = await fetchReceiptsByDateRange(ctx, groupId, weekStartDate, weekEndDate);
   return receipts
     .filter((receipt) => receipt.type === "income")
     .map((receipt) => mapReceiptToIncomeListEntry(receipt));
@@ -314,7 +297,7 @@ export async function getWeekSpendingEntries(
     );
   }
 
-  const receipts = await fetchReceiptsByWeek(ctx, groupId, weekStartDate);
+  const receipts = await fetchReceiptsByDateRange(ctx, groupId, weekStartDate, weekEndDate);
   return addLegacyReceiptGroups(
     receipts
       .filter((receipt) => receipt.type !== "income")

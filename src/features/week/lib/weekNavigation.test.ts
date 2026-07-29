@@ -3,6 +3,7 @@ import {
   addWeeks,
   generateWeekDays,
   getCurrentWeekStartDate,
+  getWeekEndDay,
   getWeekEndDate,
   formatWeekPeriod,
   isFutureWeek,
@@ -14,6 +15,16 @@ describe("weekNavigation", () => {
     expect(normalizeWeekStartDate("2026-05-20")).toBe("2026-05-18");
     expect(normalizeWeekStartDate("2026-05-18")).toBe("2026-05-18");
     expect(normalizeWeekStartDate("2026-05-24")).toBe("2026-05-18");
+  });
+
+  it("指定した曜日を週の始まりとして正規化する", () => {
+    expect(normalizeWeekStartDate("2026-05-20", 3)).toBe("2026-05-20");
+    expect(normalizeWeekStartDate("2026-05-24", 3)).toBe("2026-05-20");
+  });
+
+  it("週の終わりは開始日の6日後の曜日になる", () => {
+    expect(getWeekEndDay(1)).toBe(0);
+    expect(getWeekEndDay(3)).toBe(2);
   });
 
   it("不正な日付文字列は null にする", () => {
@@ -96,5 +107,11 @@ describe("getCurrentWeekStartDate", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-05-24T12:00:00"));
     expect(getCurrentWeekStartDate()).toBe("2026-05-18");
+  });
+
+  it("週開始曜日を変更すると現在週も追従する", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-20T12:00:00"));
+    expect(getCurrentWeekStartDate(3)).toBe("2026-05-20");
   });
 });

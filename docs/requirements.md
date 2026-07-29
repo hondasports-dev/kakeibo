@@ -315,12 +315,12 @@ MVPでは、ユーザーが好きなタイミングで軽く支出や収入を�
 | email                                     | string   |   no | メールアドレス                               |
 | monthlyIncome                             | number   |   no | 月収入。現行UIからの設定導線は削除済み       |
 | weeklyStartDay                            | number   |   no | 週の開始曜日（0=日曜、1=月曜）。未設定は月曜 |
-| weeklyEndDay                              | number   |   no | 週の終了曜日（0=日曜、1=月曜）。未設定は日曜 |
+| weeklyEndDay                              | number   |   no | 週の終了曜日（0=日曜、1=月曜）。週開始日の6日後を保存。未設定は日曜 |
 | receiptImageExternalApiConsentAcceptedAt  | number   |   no | レシート画像を外部APIへ送信する同意時刻      |
 | createdAt                                 | datetime |  yes | 作成日時                                     |
 | updatedAt                                 | datetime |  yes | 更新日時                                     |
 
-週の開始・終了曜日はユーザー設定として保存される。ただし現行の週計算ロジックは月曜始まり・日曜終わり固定であり、設定値の週計算反映は今後の実装課題である。
+週の開始曜日はユーザー設定として保存され、週計算・週セッション・履歴の集計範囲に反映される。週の終了曜日は開始日の6日後として自動算出し、常に7日間の週になるよう整合性を保つ。
 
 ### 10.5 Group / GroupMember
 

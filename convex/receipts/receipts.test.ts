@@ -168,6 +168,9 @@ function createMutationCtx(
       if (_indexName === "by_user_id") {
         return { unique: vi.fn().mockResolvedValue(groupMember) };
       }
+      if (_indexName === "by_token_identifier") {
+        return { unique: vi.fn().mockResolvedValue(null) };
+      }
       return queryChain;
     });
   const queryMock = vi.fn().mockReturnValue({ withIndex: withIndexMock });
@@ -1164,6 +1167,30 @@ describe("getWeekSummary", () => {
     expect(result.totalAmountYen).toBe(501);
   });
 
+  it("開始曜日を変更した週でもレシートの実日付で集計する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-custom-week",
+      date: "2024-01-14",
+      amountYen: 3200,
+      // 旧設定（月曜始まり）で保存された値でも、水曜始まりの週に含める。
+      weekStartDate: "2024-01-08",
+    };
+    const ctx = createQueryCtx(identity, [receipt]);
+
+    const result = await getWeekSummaryHandler(ctx, {
+      weekStartDate: "2024-01-10",
+    });
+
+    expect(result).toEqual({
+      count: 1,
+      totalAmountYen: 3200,
+      prevWeekReceiptCount: 0,
+      prevWeekTotalAmountYen: null,
+    });
+  });
+
   it("前週レシートがあるとき: 前週件数と合計金額を返す", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const currentReceipt: ReceiptDoc = {
@@ -1175,6 +1202,7 @@ describe("getWeekSummary", () => {
     const prevReceipt: ReceiptDoc = {
       ...sampleReceipt,
       _id: "receipt-prev",
+      date: "2024-01-03",
       amountYen: 5000,
       weekStartDate: "2024-01-01",
     };
@@ -1203,6 +1231,7 @@ describe("getWeekSummary", () => {
     const prevReceipts: ReceiptDoc[] = Array.from({ length: 201 }, (_, index) => ({
       ...sampleReceipt,
       _id: `receipt-prev-${index}`,
+      date: "2024-01-03",
       amountYen: 100,
       weekStartDate: "2024-01-01",
     }));
@@ -1647,6 +1676,7 @@ describe("getWeekSummaryWithCategories", () => {
     const prevReceipt: ReceiptDoc = {
       ...sampleReceipt,
       _id: "receipt-prev",
+      date: "2024-01-03",
       amountYen: 5000,
       categoryId: "cat-001",
       weekStartDate: "2024-01-01",

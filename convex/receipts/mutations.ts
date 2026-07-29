@@ -4,6 +4,7 @@ import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
 import { calculateWeekStartDate } from "../lib/weekDates";
+import { getWeeklyStartDayForUser } from "../users/weeklySettings";
 import { v } from "convex/values";
 import { createReceiptHandler } from "../../lib/convex/receipts/insert";
 
@@ -19,7 +20,7 @@ type UpdateReceiptArgs = {
 
 /** updateReceipt mutation の handler ロジック（テスト用に export） */
 export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceiptArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
 
   // receipt の所有権チェック
   const receipt = await ctx.db.get(args.receiptId);
@@ -58,7 +59,8 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
 
   if (args.date !== undefined) {
     patch.date = args.date;
-    patch.weekStartDate = calculateWeekStartDate(args.date);
+    const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
+    patch.weekStartDate = calculateWeekStartDate(args.date, weekStartDay);
   }
   if (args.shopName !== undefined) {
     patch.shopName = args.shopName;

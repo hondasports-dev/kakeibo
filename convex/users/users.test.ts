@@ -668,7 +668,7 @@ describe("updateWeeklyDays", () => {
     const identity = createIdentity({ tokenIdentifier: "https://issuer.example|user-001" });
     const ctx = createMutationCtxForUpdate(identity, BASE_DOC);
 
-    await updateWeeklyDaysHandler(ctx, { weeklyStartDay: 2, weeklyEndDay: 1 });
+    await updateWeeklyDaysHandler(ctx, { weeklyStartDay: 2, weeklyEndDay: 0 });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const patchCalls = (ctx.db as any).patch.mock.calls;
