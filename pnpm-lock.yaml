@@ -98,8 +98,8 @@ importers:
         specifier: ^6.0.3
         version: 6.0.3(vite@8.1.4(@types/node@26.1.1)(esbuild@0.28.0)(jiti@2.4.2)(tsx@4.23.0)(yaml@2.9.0))
       chrome-devtools-mcp:
-        specifier: ^1.5.0
-        version: 1.5.0
+        specifier: ^1.6.0
+        version: 1.6.0
       clerk:
         specifier: ^2.2.0
         version: 2.2.0
@@ -2209,13 +2209,16 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chrome-devtools-mcp@1.5.0:
-    resolution: {integrity: sha512-Yfpeg6cKnWaFrq/CpTY19bVO0kr84CpHNgTSQXTQshovKcRIf1efh1vAI+IOuCXrQvrul2hE0XoKPn94LRxC1A==}
+  chrome-devtools-mcp@1.6.0:
+    resolution: {integrity: sha512-VZX6f/OjQSYhy2BGGRs+y3LsrsAQAz/HwZCWKBLVyST/4r/3zjVEjjVW7gMCVbRDuspnVdcp5hQDPrQ5UFrdZw==}
     engines: {node: ^20.19.0 || ^22.12.0 || >=23}
     hasBin: true
     peerDependencies:
+      '@blackwell-systems/gcf': ^2.2.2
       '@toon-format/toon': ^2.2.0
     peerDependenciesMeta:
+      '@blackwell-systems/gcf':
+        optional: true
       '@toon-format/toon':
         optional: true
 
@@ -5838,7 +5841,7 @@ snapshots:
 
   chownr@3.0.0: {}
 
-  chrome-devtools-mcp@1.5.0: {}
+  chrome-devtools-mcp@1.6.0: {}
 
   citty@0.2.2: {}
 
