@@ -37,6 +37,21 @@ describe("addDays", () => {
     expect(addDays("2024-01-08", 6)).toBe("2024-01-14");
   });
 
+  it("西半球のタイムゾーンでも週末日を正しく返す", () => {
+    const previousTimeZone = process.env.TZ;
+    process.env.TZ = "America/Los_Angeles";
+
+    try {
+      expect(addDays("2024-01-08", 6)).toBe("2024-01-14");
+    } finally {
+      if (previousTimeZone === undefined) {
+        delete process.env.TZ;
+      } else {
+        process.env.TZ = previousTimeZone;
+      }
+    }
+  });
+
   it("不正な日付は NaN 形式を返す（防御的ではないことの確認）", () => {
     expect(addDays("not-a-date", 1)).toMatch(/NaN-NaN-NaN/);
   });

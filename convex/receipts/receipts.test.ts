@@ -101,6 +101,7 @@ function createMutationCtx(
     updatedDoc?: ReceiptDoc;
     queryDocs?: ReceiptDoc[];
     groupId?: string;
+    weeklyStartDay?: number;
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-receipt-id");
@@ -169,7 +170,13 @@ function createMutationCtx(
         return { unique: vi.fn().mockResolvedValue(groupMember) };
       }
       if (_indexName === "by_token_identifier") {
-        return { unique: vi.fn().mockResolvedValue(null) };
+        return {
+          unique: vi
+            .fn()
+            .mockResolvedValue(
+              opts.weeklyStartDay === undefined ? null : { weeklyStartDay: opts.weeklyStartDay },
+            ),
+        };
       }
       return queryChain;
     });
@@ -560,6 +567,36 @@ describe("createReceipt", () => {
     );
   });
 
+  it("水曜日始まりの設定で作成時の週開始日を計算する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const createdReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "new-receipt-id",
+      date: "2024-01-14",
+      weekStartDate: "2024-01-10",
+    };
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+      insertedDoc: createdReceipt,
+      weeklyStartDay: 3,
+    });
+
+    await createReceiptHandler(ctx, {
+      date: "2024-01-14",
+      shopName: "スーパー",
+      amountYen: 1500,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-001" as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "receipts",
+      expect.objectContaining({ date: "2024-01-14", weekStartDate: "2024-01-10" }),
+    );
+  });
+
   it("未認証時: ConvexError が throw される", async () => {
     const ctx = createMutationCtx(null);
 
@@ -821,6 +858,39 @@ describe("updateReceipt", () => {
         amountYen: 2000,
         updatedAt: expect.any(Number),
       }),
+    );
+  });
+
+  it("水曜日始まりの設定で日付更新時の週開始日を再計算する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const existingReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      date: "2024-01-10",
+      weekStartDate: "2024-01-10",
+    };
+    const updatedReceipt: ReceiptDoc = {
+      ...existingReceipt,
+      date: "2024-01-14",
+      weekStartDate: "2024-01-10",
+      updatedAt: 9999,
+    };
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": existingReceipt },
+      updatedDoc: updatedReceipt,
+      weeklyStartDay: 3,
+    });
+
+    await updateReceiptHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      receiptId: "receipt-001" as any,
+      date: "2024-01-14",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "receipt-001",
+      expect.objectContaining({ date: "2024-01-14", weekStartDate: "2024-01-10" }),
     );
   });
 
