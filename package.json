@@ -33,11 +33,11 @@
     "@mui/x-charts": "^9.9.0",
     "convex": "^1.42.2",
     "framer-motion": "^12.42.2",
-    "react": "^19.2.7",
-    "react-dom": "^19.2.7",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "react-email": "6.0.1",
     "react-router-dom": "^7.18.1",
-    "resend": "6.17.1",
+    "resend": "6.18.1",
     "valibot": "^1.4.2"
   },
   "devDependencies": {
@@ -51,7 +51,7 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
-    "chrome-devtools-mcp": "^1.5.0",
+    "chrome-devtools-mcp": "^1.6.0",
     "clerk": "^2.2.0",
     "convex-test": "0.0.54",
     "dotenv": "^17.4.2",
@@ -59,12 +59,12 @@
     "jsdom": "^29.1.1",
     "lint-staged": "^17.0.8",
     "oxfmt": "^0.59.0",
-    "oxlint": "^1.73.0",
+    "oxlint": "^1.76.0",
     "tailwindcss": "^4.3.2",
     "tsx": "4.23.0",
     "typescript": "~7.0.2",
     "vercel": "^56.2.0",
-    "vite": "^8.1.4",
+    "vite": "^8.1.5",
     "vitest": "^4.1.10"
   },
   "lint-staged": {
