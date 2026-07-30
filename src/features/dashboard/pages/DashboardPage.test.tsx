@@ -24,6 +24,10 @@ vi.mock("../components/WeekComparisonChart", () => ({
   WeekComparisonChart: () => <div data-testid="week-comparison-chart" />,
 }));
 
+vi.mock("../components/SpendingPulseCard", () => ({
+  SpendingPulseCard: () => <div data-testid="spending-pulse-card" />,
+}));
+
 import { useWeekSession } from "../hooks/useWeekSession";
 
 const useWeekSessionMock = vi.mocked(useWeekSession);
@@ -92,6 +96,7 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("heading", { name: "支出カテゴリ" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "今週の入力" })).toBeInTheDocument();
     expect(screen.getByTestId("week-comparison-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("spending-pulse-card")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "入力を再開" })).toBeInTheDocument();
   });
 });

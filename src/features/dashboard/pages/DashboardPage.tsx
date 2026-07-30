@@ -9,7 +9,14 @@ import { DashboardPeriodRow } from "../components/DashboardPeriodRow";
 import { DashboardSummaryLink } from "../components/DashboardSummaryLink";
 import { DashboardSummaryRow } from "../components/DashboardSummaryRow";
 import { WeekComparisonChart } from "../components/WeekComparisonChart";
+import { SpendingPulseCard } from "../components/SpendingPulseCard";
 import { useWeekSession } from "../hooks/useWeekSession";
+import { buildDailySpendingPulse } from "../utils/dailySpendingPulse";
+
+function getTodayIsoDate(): string {
+  const today = new Date();
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+}
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
@@ -48,6 +55,13 @@ export function DashboardPage() {
   const totalIncomeYen = summary?.totalIncomeYen ?? 0;
   const prevWeekTotalAmountYen = summary?.prevWeekTotalAmountYen ?? null;
   const byCategory = summary?.byCategory ?? [];
+  const spendingPulse = summary
+    ? buildDailySpendingPulse({
+        receipts: summary.receipts ?? [],
+        todayDate: getTodayIsoDate(),
+        weekStartDate,
+      })
+    : undefined;
 
   const categorySection = (
     <CategoryBreakdownCard
@@ -109,6 +123,8 @@ export function DashboardPage() {
           isLoading={isLoading}
           prevWeekTotalAmountYen={prevWeekTotalAmountYen}
         />
+
+        <SpendingPulseCard isLoading={isLoading} pulse={spendingPulse} />
 
         {isCompact ? (
           <>

@@ -241,6 +241,64 @@
   white-space: nowrap;
 }
 
+.dashboard-spending-pulse-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-sm);
+  align-items: end;
+  height: 132px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dashboard-spending-pulse-day {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--space-xs);
+  min-width: 0;
+  height: 100%;
+  text-align: center;
+}
+
+.dashboard-spending-pulse-track {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  min-height: 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-sunken);
+}
+
+.dashboard-spending-pulse-bar {
+  width: min(28px, 72%);
+  min-height: 0;
+  border-radius: var(--radius-pill) var(--radius-pill) 4px 4px;
+  background: var(--color-brand-sparrow);
+}
+
+.dashboard-spending-pulse-day--today .dashboard-spending-pulse-bar {
+  background: var(--color-primary-main);
+}
+
+.dashboard-spending-pulse-day--future {
+  opacity: 0.55;
+}
+
+.dashboard-spending-pulse-day--future .dashboard-spending-pulse-track {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--color-surface-sunken),
+    var(--color-surface-sunken) 4px,
+    var(--color-border-subtle) 4px,
+    var(--color-border-subtle) 5px
+  );
+}
+
+.dashboard-spending-pulse-day-label {
+  font-weight: 700;
+}
+
 .dashboard-comparison-bar-row .dashboard-comparison-bar-amount,
 .dashboard-comparison-sp-grid .dashboard-comparison-bar-amount {
   font-variant-numeric: tabular-nums;
