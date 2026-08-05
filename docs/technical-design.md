@@ -413,7 +413,7 @@ active record が確認できない場合は fail closed にする。
 | `/`                            | ダッシュボード     | 今週の支出、カテゴリ別支出、入力状態を確認する |
 | `/weeks/current/input`         | 今週のレシート入力 | レシートを連続入力する                     |
 | `/weeks/:weekStartDate`        | 週次サマリー       | 指定週の集計、支出一覧を確認する           |
-| `/settings`                    | 設定               | グループ、カテゴリ、週の開始・終了曜日を設定する |
+| `/settings`                    | 設定               | グループ、カテゴリ、週の開始曜日を設定する（終了曜日は自動） |
 | `/categories`                  | 設定               | `/settings` と同じ設定画面への互換ルート   |
 | `/group/setup`                 | グループ作成       | グループ未所属ユーザーが家族グループを作成する |
 | `/group/select`                | グループ選択       | 複数所属ユーザーが表示対象グループを選ぶ     |
@@ -451,7 +451,7 @@ active record が確認できない場合は fail closed にする。
 | email                                     | string (optional) | メールアドレス                                 |
 | monthlyIncome                             | number (optional) | 月収入。現行UIからの設定導線は削除済み         |
 | weeklyStartDay                            | number (optional) | 週の開始曜日（0=日曜、1=月曜）。未設定は月曜   |
-| weeklyEndDay                              | number (optional) | 週の終了曜日（0=日曜、1=月曜）。未設定は日曜   |
+| weeklyEndDay                              | number (optional) | 週の終了曜日（0=日曜、1=月曜）。weeklyStartDay の6日後として自動算出・保存。未設定は weeklyStartDay 未設定時の日曜 |
 | receiptImageExternalApiConsentAcceptedAt  | number (optional) | レシート画像を外部APIへ送信することへの承認時刻 |
 | createdAt                                 | number            | 作成日時                                       |
 | updatedAt                                 | number            | 更新日時                                       |
@@ -678,8 +678,9 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `users.mutations.updateWeeklyDays(weeklyStartDay, weeklyEndDay)`
 - `users.internal.clearUserMonthlyIncome(userId)`（internal）
 
-週の開始・終了曜日は `users` に保存する。ただし現行の週計算は月曜始まり・日曜終わり固定であり、
-保存値はまだ `getWeekStartDate` / `getWeekEndDate` に反映していない。
+週の開始・終了曜日は `users` に保存する。`weeklyEndDay` は `weeklyStartDay` から
+`getWeekEndDay()` で自動算出し、7日間の週が維持されるよう整合性を保つ。
+週計算・週セッション作成・週次サマリーの集計範囲には `weeklyStartDay` が反映される。
 
 ### 10.6 export
 
@@ -774,14 +775,14 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 ### 12.1 週計算
 
-- 週開始日は月曜日
-- `getWeekStartDate(date)` で対象日の週開始日を求める
-- `getWeekEndDate(weekStartDate)` で週終了日を求める
+- 週の開始曜日は `users.weeklyStartDay` から決まり、未設定は月曜日
+- `convex/lib/weekDates.calculateWeekStartDate(date, weekStartDay)` で対象日の週開始日を求める
+- `calculateWeekEndDate(weekStartDate)` / `getWeekEndDay(weekStartDay)` で週終了日・終了曜日を求める
 - 日付は `YYYY-MM-DD` 文字列として扱う
 
-ユーザー設定として `weeklyStartDay` と `weeklyEndDay` は保存できるが、現行コードの週計算には
-まだ反映していない。週次セッション、receipt保存時の `weekStartDate`、週次サマリーは月曜始まり・
-日曜終わりで計算する。
+`users.weeklyStartDay` は週セッション作成、receipt / expenseEntries 保存時の `weekStartDate`、
+週次サマリーの集計範囲に反映される。`weeklyEndDay` は `weeklyStartDay` から7日間になるよう
+自動算出して保存する。
 
 ### 12.2 集計
 
@@ -1026,7 +1027,6 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 現行コードで未実装または未反映の項目:
 
 - CSVエクスポート画面とCSV生成処理
-- 週の開始・終了曜日設定の週計算への反映
 - 月収入設定UI
 
 収入入力 UI は `ExpenseEntryForm` の `entryType` 切り替えで実装済み。
