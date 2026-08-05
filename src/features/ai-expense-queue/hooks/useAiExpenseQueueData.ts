@@ -3,16 +3,18 @@ import { useQuery } from "convex/react";
 import type { Doc } from "../../../../convex/_generated/dataModel";
 import { api } from "../../../../convex/_generated/api";
 import { getSectionKey } from "../components/labels";
-import { mapDraftToQueueItem } from "../utils/mappers";
+import { FAILED_IMAGE_CAPTURE_HINT, mapDraftToQueueItem } from "../utils/mappers";
 import type { AiExpenseDraft, AiExpenseQueueCategory, AiExpenseQueueItem } from "../types/types";
 
 export function useAiExpenseQueueData({
   categories,
   hiddenItemIds,
+  pendingImageDataUrls,
   initialItems,
 }: {
   categories: AiExpenseQueueCategory[];
   hiddenItemIds: string[];
+  pendingImageDataUrls: Map<string, string>;
   initialItems?: AiExpenseQueueItem[];
 }) {
   const readyDrafts = useQuery(api.aiExpenseDrafts.queries.listByStatus, { status: "ready" }) as
@@ -30,6 +32,15 @@ export function useAiExpenseQueueData({
   const jobs = useQuery(api.receiptAnalysisJobs.queries.listJobs) as
     | Doc<"receiptAnalysisImageJobs">[]
     | undefined;
+  const jobByDraftId = useMemo(() => {
+    const result = new Map<string, Doc<"receiptAnalysisImageJobs">>();
+    for (const job of jobs ?? []) {
+      if (job.draftId) {
+        result.set(job.draftId, job);
+      }
+    }
+    return result;
+  }, [jobs]);
 
   const processingItems = useMemo(() => {
     return (jobs ?? [])
@@ -38,30 +49,83 @@ export function useAiExpenseQueueData({
         (job): AiExpenseQueueItem => ({
           id: job._id,
           fileName: job.fileName,
+          previewImageDataUrl: pendingImageDataUrls.get(job._id),
           status: job.status === "queued" ? "queued" : "analyzing",
           documentType: "unknown",
         }),
       );
-  }, [jobs]);
+  }, [jobs, pendingImageDataUrls]);
+
+  const initialItemsWithSessionData = useMemo(
+    () =>
+      initialItems?.map((item) => {
+        const job = jobByDraftId.get(item.id);
+        return {
+          ...item,
+          previewImageDataUrl:
+            item.previewImageDataUrl ?? (job ? pendingImageDataUrls.get(job._id) : undefined),
+          failureHint:
+            item.failureHint ?? (item.status === "failed" ? FAILED_IMAGE_CAPTURE_HINT : undefined),
+        };
+      }),
+    [initialItems, jobByDraftId, pendingImageDataUrls],
+  );
 
   const liveItems = useMemo(() => {
     return [
       ...processingItems,
-      ...(readyDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
-      ...(needsReviewDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
-      ...(failedDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
-      ...(registeredDrafts ?? []).map((draft) => mapDraftToQueueItem(draft, {}, categories)),
+      ...(readyDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(
+          draft,
+          {},
+          categories,
+          pendingImageDataUrls.get(jobByDraftId.get(draft._id)?._id ?? ""),
+        ),
+      ),
+      ...(needsReviewDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(
+          draft,
+          {},
+          categories,
+          pendingImageDataUrls.get(jobByDraftId.get(draft._id)?._id ?? ""),
+        ),
+      ),
+      ...(failedDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(
+          draft,
+          {},
+          categories,
+          pendingImageDataUrls.get(jobByDraftId.get(draft._id)?._id ?? ""),
+        ),
+      ),
+      ...(registeredDrafts ?? []).map((draft) =>
+        mapDraftToQueueItem(
+          draft,
+          {},
+          categories,
+          pendingImageDataUrls.get(jobByDraftId.get(draft._id)?._id ?? ""),
+        ),
+      ),
     ];
-  }, [processingItems, failedDrafts, needsReviewDrafts, readyDrafts, registeredDrafts, categories]);
+  }, [
+    processingItems,
+    failedDrafts,
+    needsReviewDrafts,
+    readyDrafts,
+    registeredDrafts,
+    categories,
+    jobByDraftId,
+    pendingImageDataUrls,
+  ]);
 
   const items = useMemo(() => {
-    if (initialItems && initialItems.length > 0) {
-      return [...initialItems, ...processingItems].filter(
+    if (initialItemsWithSessionData && initialItemsWithSessionData.length > 0) {
+      return [...initialItemsWithSessionData, ...processingItems].filter(
         (item) => !hiddenItemIds.includes(item.id),
       );
     }
     return liveItems.filter((item) => !hiddenItemIds.includes(item.id));
-  }, [hiddenItemIds, initialItems, processingItems, liveItems]);
+  }, [hiddenItemIds, initialItemsWithSessionData, processingItems, liveItems]);
   const readySectionItems = useMemo(
     () => items.filter((item) => getSectionKey(item.status) === "ready"),
     [items],

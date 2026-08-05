@@ -21,6 +21,7 @@ export function useAiExpenseQueuePanel({
     categories,
     hiddenItemIds: queueDelete.hiddenItemIds,
     initialItems,
+    pendingImageDataUrls: imageUpload.pendingImageDataUrls,
   });
   const bulkRegister = useBulkRegister({
     readyItemIds: queueData.readyItemIds,
@@ -73,6 +74,10 @@ export function useAiExpenseQueuePanel({
     await retry.handleRetry(draftId, queueData.jobs);
   };
 
+  const wrappedHandleReanalyze = async (draftId: string) => {
+    await retry.handleReanalyze(draftId, queueData.jobs);
+  };
+
   return {
     cameraInputRef: imageUpload.cameraInputRef,
     clearableItems: queueData.clearableItems,
@@ -91,6 +96,7 @@ export function useAiExpenseQueuePanel({
     registrationError: bulkRegister.registrationError,
     retryError: imageUpload.uploadError || retry.retryError,
     retryInputRef: retry.retryInputRef,
+    retryingItemId: retry.retryingItemId,
     reviewError: reviewDialog.reviewError,
     reviewSaveFeedback: reviewDialog.reviewSaveFeedback,
     reviewForm: reviewDialog.reviewForm,
@@ -115,6 +121,7 @@ export function useAiExpenseQueuePanel({
     handleOpenReview: reviewDialog.handleOpenReview,
     handleRegisterReady: bulkRegister.handleRegisterReady,
     handleRetry: wrappedHandleRetry,
+    handleReanalyze: wrappedHandleReanalyze,
     handleRetryFileSelected: retry.handleRetryFileSelected,
     handleReviewFieldChange: reviewDialog.handleReviewFieldChange,
     handleReviewItemChange: reviewDialog.handleReviewItemChange,

@@ -16,6 +16,8 @@ export type AiExpenseQueueDocumentType = "receipt" | "convenience_payment" | "un
 export type AiExpenseQueueItem = {
   id: string;
   fileName?: string;
+  previewImageDataUrl?: string;
+  failureHint?: string;
   status: AiExpenseQueueStatus;
   documentType: AiExpenseQueueDocumentType;
   title?: string;

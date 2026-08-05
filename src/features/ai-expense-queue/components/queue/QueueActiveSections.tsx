@@ -17,6 +17,8 @@ type QueueActiveSectionsProps = {
   onRegisterReady: (itemIds?: string[]) => Promise<void>;
   onDeleteQueueItem: (item: AiExpenseQueueItem) => Promise<void>;
   onRetry: (draftId: string) => Promise<void>;
+  onReanalyze: (draftId: string) => Promise<void>;
+  retryingItemId: string | null;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
 };
 
@@ -30,6 +32,8 @@ export function QueueActiveSections({
   onRegisterReady,
   onDeleteQueueItem,
   onRetry,
+  onReanalyze,
+  retryingItemId,
   onToggleReadySelection,
 }: QueueActiveSectionsProps) {
   return (
@@ -78,6 +82,8 @@ export function QueueActiveSections({
         onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onDelete={(item) => void onDeleteQueueItem(item)}
         onRetry={onRetry}
+        onReanalyze={onReanalyze}
+        retryingItemId={retryingItemId}
         onReturnToManualInput={(item) => void onDeleteQueueItem(item)}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}

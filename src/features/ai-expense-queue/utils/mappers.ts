@@ -9,6 +9,9 @@ import type {
   ReviewItemValues,
 } from "../types/types";
 
+export const FAILED_IMAGE_CAPTURE_HINT =
+  "明るい場所で、影や反射を避け、レシート全体を正面から撮影してください。";
+
 export const emptyReviewForm: ReviewFormValues = {
   documentType: "receipt",
   shopName: "",
@@ -34,6 +37,7 @@ export function mapDraftToQueueItem(
   draft: AiExpenseDraft,
   statusOverrides: Partial<Record<string, AiExpenseQueueStatus>>,
   categories?: Array<{ _id: Id<"categories"> | string; name: string }>,
+  previewImageDataUrl?: string,
 ): AiExpenseQueueItem {
   const categoryName = categories?.find((c) => c._id === draft.categoryId)?.name;
   const categoryAggregates = draft.itemSummary?.categoryAggregates.map((aggregate) => ({
@@ -43,6 +47,8 @@ export function mapDraftToQueueItem(
   return {
     id: draft._id,
     fileName: draft.imageFileName ?? "AI支出下書き",
+    previewImageDataUrl,
+    failureHint: draft.status === "failed" ? FAILED_IMAGE_CAPTURE_HINT : undefined,
     status: statusOverrides[draft._id] ?? draft.status,
     documentType: draft.documentType,
     title: resolveDraftTitle(draft),
