@@ -97,6 +97,7 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 | `$issue-gate-0`         | Plan 契約フェーズ0。実装前仕様ゲート                                           |
 | `$tdd-implement`        | Plan 契約フェーズ1。TDD 実装（RED/GREEN）                                      |
 | `$e2e-author`           | Plan 契約フェーズ2。E2E 追加・更新・省略判断                                   |
+| `$e2e-smoke-run`        | Smoke E2E 実行手順。依存更新 PR などで golden-path ユーザー導線が壊れていないか確認する |
 | `$verify-pre-push`      | Plan 契約フェーズ3。push 前検証                                                |
 | `$code-review`          | Plan 契約フェーズ4。preview 差分のセルフレビュー                               |
 | `$babysit-pr`           | PR を merge-ready にする                                                       |

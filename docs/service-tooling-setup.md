@@ -202,6 +202,7 @@ pnpm run dev -- --host 127.0.0.1
 - `babysit-pr` — PR merge-ready 化
 - `code-review` — PR前セルフレビュー（Plan 契約フェーズ4）
 - `e2e-author` — E2E 追加・更新・省略判断と spec 作成
+- `e2e-smoke-run` — Smoke E2E 実行手順
 - `issue-gate-0` — 実装前仕様ゲート（Plan 契約フェーズ0）
 - `prompt-injection-guard` — プロンプトインジェクション対策
 - `service-ops-safety` — 外部サービス操作安全確認
