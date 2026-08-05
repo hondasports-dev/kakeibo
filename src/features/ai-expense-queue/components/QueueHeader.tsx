@@ -57,7 +57,8 @@ export function QueueHeader({
       </Stack>
       <input
         accept="image/*"
-        aria-label="再試行する画像を選択"
+        aria-label="再撮影する画像を選択"
+        capture="environment"
         className="visually-hidden-file-input"
         onChange={onRetryFileSelected}
         ref={retryInputRef}

@@ -15,6 +15,8 @@ export type QueueContentProps = {
   onOpenReview: (itemId: string) => void;
   onRegisterReady: (itemIds?: string[]) => Promise<void>;
   onRetry: (draftId: string) => Promise<void>;
+  onReanalyze?: (draftId: string) => Promise<void>;
+  retryingItemId?: string | null;
   onToggleReadySelection: (itemId: string, checked: boolean) => void;
 };
 

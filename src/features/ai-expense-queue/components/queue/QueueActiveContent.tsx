@@ -6,6 +6,8 @@ import { QueueStatusHeader } from "./QueueStatusHeader";
 import { QueueReadyRegisterPanel } from "./QueueReadyRegisterPanel";
 import { QueueActiveSections } from "./QueueActiveSections";
 
+const noopAsync = async () => {};
+
 export function QueueActiveContent({
   clearableCount,
   deletingIds,
@@ -19,6 +21,8 @@ export function QueueActiveContent({
   onOpenReview,
   onRegisterReady,
   onRetry,
+  onReanalyze = noopAsync,
+  retryingItemId = null,
   onToggleReadySelection,
 }: QueueContentProps) {
   const { firstReviewItem, prioritizedReviewItems } = getQueueContentSummary({
@@ -71,6 +75,8 @@ export function QueueActiveContent({
         onOpenReview={onOpenReview}
         onRegisterReady={onRegisterReady}
         onRetry={onRetry}
+        onReanalyze={onReanalyze}
+        retryingItemId={retryingItemId}
         onToggleReadySelection={onToggleReadySelection}
         prioritizedReviewItems={prioritizedReviewItems}
         registeringIds={registeringIds}

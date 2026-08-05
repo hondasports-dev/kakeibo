@@ -1,4 +1,19 @@
-import { Box, Checkbox, Chip, LinearProgress, Stack, Typography } from "@mui/material";
+import { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  Checkbox,
+  Chip,
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  LinearProgress,
+  Stack,
+  Typography,
+} from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
+import ImageOutlinedIcon from "@mui/icons-material/ImageOutlined";
 import { documentTypeLabels, getSectionKey } from "../labels";
 import { ReviewReasonChips } from "../ReviewReasonChips";
 import { StatusChip } from "../StatusChip";
@@ -15,10 +30,12 @@ export function QueueItemCard({
   onOpenReview,
   onRegisterItem,
   onRetry,
+  onReanalyze,
   onDelete,
   onReturnToManualInput,
   isDeleting,
   isRegistering,
+  isRetrying,
 }: {
   item: AiExpenseQueueItem;
   isSelected: boolean;
@@ -26,12 +43,21 @@ export function QueueItemCard({
   onOpenReview: (itemId: string) => void;
   onRegisterItem: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
+  onReanalyze?: (itemId: string) => void;
   onDelete?: (item: AiExpenseQueueItem) => void;
   onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
   isDeleting: boolean;
   isRegistering: boolean;
+  isRetrying: boolean;
 }) {
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
   const secondaryLabel = item.fileName ?? "AI支出下書き";
+  const canPreview = Boolean(item.previewImageDataUrl) && !imageLoadFailed;
+  useEffect(() => {
+    setImageLoadFailed(false);
+    setPreviewOpen(false);
+  }, [item.previewImageDataUrl]);
   const metadata = [
     item.date ? formatQueueDate(item.date) : undefined,
     item.amountYen !== undefined ? `${formatYen(item.amountYen)}` : undefined,
@@ -62,6 +88,56 @@ export function QueueItemCard({
               sx={{ mt: -0.5 }}
             />
           )}
+          {canPreview ? (
+            <Button
+              aria-label={`${secondaryLabel}の画像をプレビュー`}
+              onClick={() => setPreviewOpen(true)}
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 1,
+                flex: "0 0 auto",
+                minWidth: 64,
+                p: 0.5,
+              }}
+              type="button"
+            >
+              <Box
+                alt={`${secondaryLabel}のレシート画像`}
+                component="img"
+                onError={() => setImageLoadFailed(true)}
+                src={item.previewImageDataUrl}
+                sx={{
+                  borderRadius: 0.5,
+                  display: "block",
+                  height: 64,
+                  objectFit: "cover",
+                  width: 64,
+                }}
+              />
+            </Button>
+          ) : (
+            <Button
+              aria-label={`${secondaryLabel}の画像をプレビュー`}
+              disabled
+              sx={{
+                border: 1,
+                borderColor: "divider",
+                borderRadius: 1,
+                flex: "0 0 auto",
+                minWidth: 64,
+                p: 0.5,
+              }}
+              type="button"
+            >
+              <Stack spacing={0.25} sx={{ alignItems: "center", justifyContent: "center" }}>
+                <ImageOutlinedIcon color="disabled" fontSize="small" />
+                <Typography color="text.secondary" variant="caption">
+                  画像なし
+                </Typography>
+              </Stack>
+            </Button>
+          )}
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Typography
               className="ai-expense-queue-item-title"
@@ -82,6 +158,12 @@ export function QueueItemCard({
             )}
           </Box>
         </Stack>
+
+        {!canPreview && (
+          <Typography color="text.secondary" variant="caption">
+            このセッションでは画像を表示できません
+          </Typography>
+        )}
 
         {metadata && (
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap" }}>
@@ -106,6 +188,12 @@ export function QueueItemCard({
           )}
         </Stack>
 
+        {item.status === "failed" && item.failureHint && (
+          <Typography color="text.secondary" variant="body2">
+            {item.failureHint}
+          </Typography>
+        )}
+
         {(item.status === "analyzing" || item.status === "registering") && (
           <LinearProgress
             aria-label={`${secondaryLabel}の処理状況`}
@@ -121,9 +209,48 @@ export function QueueItemCard({
           onOpenReview={onOpenReview}
           onRegisterItem={onRegisterItem}
           onRetry={onRetry}
+          onReanalyze={onReanalyze}
           onReturnToManualInput={onReturnToManualInput}
+          isRetrying={isRetrying}
+          canReanalyze={canPreview}
         />
       </Stack>
+
+      <Dialog
+        fullWidth
+        maxWidth="md"
+        onClose={() => setPreviewOpen(false)}
+        open={previewOpen}
+        aria-labelledby={`${item.id}-image-preview-title`}
+      >
+        <DialogTitle id={`${item.id}-image-preview-title`} sx={{ pr: 6 }}>
+          {secondaryLabel}の画像プレビュー
+        </DialogTitle>
+        <IconButton
+          aria-label="プレビューを閉じる"
+          onClick={() => setPreviewOpen(false)}
+          sx={{ position: "absolute", right: 8, top: 8 }}
+        >
+          <CloseIcon />
+        </IconButton>
+        <DialogContent dividers sx={{ overscrollBehavior: "contain", textAlign: "center" }}>
+          {canPreview ? (
+            <Box
+              alt={`${secondaryLabel}のレシート画像`}
+              component="img"
+              onError={() => setImageLoadFailed(true)}
+              src={item.previewImageDataUrl}
+              sx={{
+                maxHeight: "70vh",
+                maxWidth: "100%",
+                objectFit: "contain",
+              }}
+            />
+          ) : (
+            <Typography color="text.secondary">このセッションでは画像を表示できません</Typography>
+          )}
+        </DialogContent>
+      </Dialog>
     </Box>
   );
 }
