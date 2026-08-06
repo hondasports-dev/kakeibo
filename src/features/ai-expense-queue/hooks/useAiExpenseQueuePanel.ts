@@ -22,6 +22,7 @@ export function useAiExpenseQueuePanel({
     hiddenItemIds: queueDelete.hiddenItemIds,
     initialItems,
     pendingImageDataUrls: imageUpload.pendingImageDataUrls,
+    sessionBatches: imageUpload.sessionBatches,
   });
   const bulkRegister = useBulkRegister({
     readyItemIds: queueData.readyItemIds,
@@ -60,8 +61,11 @@ export function useAiExpenseQueuePanel({
   }, [autoReviewJob, autoReviewJobId, handleOpenReview, selectedReviewDraftId, setAutoReviewJobId]);
 
   const wrappedDeleteQueueItem = async (item: AiExpenseQueueItem) => {
-    await queueDelete.deleteQueueItem(item);
-    bulkRegister.removeFromSelection(item.id);
+    const deleted = await queueDelete.deleteQueueItem(item);
+    if (deleted) {
+      imageUpload.removeSessionJob(item.jobId ?? item.id);
+      bulkRegister.removeFromSelection(item.id);
+    }
   };
 
   const wrappedHandleClearOpenQueue = async () => {
@@ -92,6 +96,8 @@ export function useAiExpenseQueuePanel({
     items: queueData.items,
     queueDeleteError: queueDelete.queueDeleteError,
     readyItems: queueData.readyItems,
+    sessionBatchSummaries: queueData.sessionBatchSummaries,
+    unbatchedReadyItems: queueData.unbatchedReadyItems,
     registeringIds: bulkRegister.registeringIds,
     registrationError: bulkRegister.registrationError,
     retryError: imageUpload.uploadError || retry.retryError,

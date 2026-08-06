@@ -25,6 +25,8 @@ function queueContentProps(queue: ReturnType<typeof useAiExpenseQueuePanelContex
     onRetry: queue.handleRetry,
     onReanalyze: queue.handleReanalyze,
     retryingItemId: queue.retryingItemId,
+    sessionBatchSummaries: queue.sessionBatchSummaries,
+    unbatchedReadyItems: queue.unbatchedReadyItems,
     onToggleReadySelection: queue.handleToggleReadySelection,
   };
 }

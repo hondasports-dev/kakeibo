@@ -13,6 +13,8 @@ export function QueueActiveContent({
   deletingIds,
   groupedItems,
   readyItems,
+  sessionBatchSummaries,
+  unbatchedReadyItems,
   registeringIds,
   registrationError,
   selectedReadyIds,
@@ -60,11 +62,22 @@ export function QueueActiveContent({
       )}
 
       <QueueReadyRegisterPanel
-        readyItems={readyItems}
+        batchSummary={undefined}
+        readyItems={unbatchedReadyItems}
         selectedReadyIds={selectedReadyIds}
         registeringIds={registeringIds}
         onRegisterReady={onRegisterReady}
       />
+      {sessionBatchSummaries.map((batchSummary) => (
+        <QueueReadyRegisterPanel
+          batchSummary={batchSummary}
+          key={batchSummary.batchId}
+          readyItems={batchSummary.readyItems}
+          selectedReadyIds={selectedReadyIds}
+          registeringIds={registeringIds}
+          onRegisterReady={onRegisterReady}
+        />
+      ))}
 
       <Divider />
 
