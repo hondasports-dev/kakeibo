@@ -46,7 +46,7 @@ Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合�
 - 設定: カテゴリ設定と週の開始曜日を保存できること（終了曜日は自動）
 - グループ管理（`e2e/group-access.spec.ts`）: グループ作成、招待、切り替え、メンバー削除。グループ削除はownerの名称確認、status画面、開始直後のアクセス遮断、実engine完了後の選択/setup遷移を確認する。開始・失敗・完了通知の宛先とdedupeはConvex testで確認する
 - 公開ページ（`e2e/public-pages.spec.ts`）: `/privacy`、`/terms` が認証なしで表示されること
-- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、税警告表示、`registerReadyDraftsAsExpenseEntries` によるまとめて登録、セッション内サムネイル/拡大プレビュー、失敗時の固定ヒントと再撮影導線
+- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、税警告表示、`registerReadyDraftsAsExpenseEntries` によるまとめて登録、セッション内サムネイル/拡大プレビュー、失敗時の固定ヒントと再撮影導線、複数画像を同一バッチとして扱う進捗表示、全件`ready`までの一括登録無効化、複数バッチの混在防止
 - 認証（`e2e/auth.spec.ts`）: 未認証時のリダイレクト、ログイン後のダッシュボード表示
 - ナビゲーション（`e2e/navigation.spec.ts`）: 主要画面間の遷移
 - 設定（`e2e/settings.spec.ts`）: カテゴリ・週設定の保存

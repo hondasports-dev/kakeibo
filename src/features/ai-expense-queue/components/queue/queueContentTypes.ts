@@ -1,5 +1,5 @@
 import type { useAiExpenseQueuePanel } from "../../hooks/useAiExpenseQueuePanel";
-import type { AiExpenseQueueItem } from "../../types/types";
+import type { AiExpenseQueueBatchSummary, AiExpenseQueueItem } from "../../types/types";
 
 export type QueueContentProps = {
   clearableCount: number;
@@ -7,6 +7,8 @@ export type QueueContentProps = {
   groupedItems: ReturnType<typeof useAiExpenseQueuePanel>["groupedItems"];
   itemCount: number;
   readyItems: AiExpenseQueueItem[];
+  sessionBatchSummaries: AiExpenseQueueBatchSummary[];
+  unbatchedReadyItems: AiExpenseQueueItem[];
   registeringIds: string[];
   registrationError: string;
   selectedReadyIds: string[];
