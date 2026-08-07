@@ -4,6 +4,8 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
 import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
 import { validateExpenseAmount } from "../../../lib/domain/expenseEntries/expenseEntryItem";
+import { trimOptional } from "../../../lib/domain/common/string";
+import { hasCounterparty } from "../../../lib/domain/aiExpenseDrafts/review";
 import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   type AiExpenseDraftDocumentType,
@@ -36,25 +38,6 @@ export type UpdateForReviewArgs = {
   categoryId: Id<"categories">;
   items?: UpdateForReviewItem[];
 };
-
-export function trimOptional(value: string | undefined) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-export function hasCounterparty(args: UpdateForReviewArgs) {
-  if (args.documentType === "convenience_payment") {
-    return (
-      !!trimOptional(args.shopName) ||
-      (!!trimOptional(args.payeeName) && !!trimOptional(args.paymentPurpose))
-    );
-  }
-  return (
-    !!trimOptional(args.shopName) ||
-    !!trimOptional(args.payeeName) ||
-    !!trimOptional(args.paymentPlace)
-  );
-}
 
 export function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
   if (args.documentType === "unknown") {

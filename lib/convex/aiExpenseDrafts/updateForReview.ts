@@ -7,9 +7,9 @@ import {
   assertPositiveCategoryTotals,
   assertReviewUpdateCanBecomeReady,
   replaceDraftItemsForReview,
-  trimOptional,
   type UpdateForReviewArgs,
 } from "./reviewValidation";
+import { trimOptional } from "../../../lib/domain/common/string";
 import { nonTaxReviewReasons, persistDraftTaxInterpretation } from "./persistTaxInterpretation";
 
 export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForReviewArgs) {

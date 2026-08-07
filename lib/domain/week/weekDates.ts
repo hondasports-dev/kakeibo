@@ -16,6 +16,18 @@ export function normalizeWeekStartDay(weekStartDay?: number): number {
     : DEFAULT_WEEK_START_DAY;
 }
 
+export type WeekDayError = "invalid";
+
+/** 曜日（0=日〜6=土）が有効かを検証する */
+export function validateWeekDay(
+  weekDay: number,
+): { success: true; day: number } | { success: false; error: WeekDayError } {
+  if (!Number.isInteger(weekDay) || weekDay < 0 || weekDay > 6) {
+    return { success: false, error: "invalid" };
+  }
+  return { success: true, day: weekDay };
+}
+
 /** 週開始曜日から、7日間の最後の曜日を返す。 */
 export function getWeekEndDay(weekStartDay: number): number {
   return (normalizeWeekStartDay(weekStartDay) + 6) % 7;

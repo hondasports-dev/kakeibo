@@ -3,6 +3,8 @@ import type { MutationCtx } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getIdentityDisplayName, requireAuthenticatedUserId } from "./auth";
 import { getWeekEndDay } from "../lib/weekDates";
+import { validateMonthlyIncome } from "../../lib/domain/users/monthlyIncome";
+import { validateWeekDay } from "../../lib/domain/week/weekDates";
 
 /** upsertUser mutation の handler ロジック（テスト用に export） */
 export async function upsertUserHandler(ctx: MutationCtx) {
@@ -82,7 +84,8 @@ export async function updateMonthlyIncomeHandler(
   const userId = await requireAuthenticatedUserId(ctx);
 
   if (args.monthlyIncome !== null) {
-    if (args.monthlyIncome < 0 || !Number.isInteger(args.monthlyIncome)) {
+    const result = validateMonthlyIncome(args.monthlyIncome);
+    if (!result.success) {
       throw new ConvexError("月収入は0以上の整数で入力してください");
     }
   }
@@ -117,14 +120,12 @@ export async function updateWeeklyDaysHandler(
 ) {
   const userId = await requireAuthenticatedUserId(ctx);
 
-  if (
-    args.weeklyStartDay < 0 ||
-    args.weeklyStartDay > 6 ||
-    !Number.isInteger(args.weeklyStartDay)
-  ) {
+  const startDayResult = validateWeekDay(args.weeklyStartDay);
+  if (!startDayResult.success) {
     throw new ConvexError("週の開始曜日は0〜6の整数で入力してください");
   }
-  if (args.weeklyEndDay < 0 || args.weeklyEndDay > 6 || !Number.isInteger(args.weeklyEndDay)) {
+  const endDayResult = validateWeekDay(args.weeklyEndDay);
+  if (!endDayResult.success) {
     throw new ConvexError("週の終了曜日は0〜6の整数で入力してください");
   }
 

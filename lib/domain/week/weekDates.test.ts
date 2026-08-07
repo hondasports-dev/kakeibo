@@ -7,6 +7,7 @@ import {
   getWeekEndDay,
   isValidIsoDateString,
   normalizeWeekStartDay,
+  validateWeekDay,
 } from "./weekDates";
 
 describe("DEFAULT_WEEK_START_DAY", () => {
@@ -25,6 +26,20 @@ describe("normalizeWeekStartDay", () => {
     expect(normalizeWeekStartDay(-1)).toBe(DEFAULT_WEEK_START_DAY);
     expect(normalizeWeekStartDay(7)).toBe(DEFAULT_WEEK_START_DAY);
     expect(normalizeWeekStartDay(1.5)).toBe(DEFAULT_WEEK_START_DAY);
+  });
+});
+
+describe("validateWeekDay", () => {
+  it.each([0, 1, 2, 3, 4, 5, 6])("有効な曜日 %s を受け入れる", (day) => {
+    expect(validateWeekDay(day)).toEqual({ success: true, day });
+  });
+
+  it.each([-1, 7, 1.5, Number.NaN])("無効な曜日 %s を拒否する", (day) => {
+    const result = validateWeekDay(day);
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toBe("invalid");
+    }
   });
 });
 
