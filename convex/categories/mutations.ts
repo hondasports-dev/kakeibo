@@ -3,9 +3,15 @@ import type { MutationCtx } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
-import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../lib/categoryDescription";
+import {
+  MAX_CATEGORY_DESCRIPTION_LENGTH,
+  MAX_CATEGORY_NAME_LENGTH,
+  validateCategoryColor,
+  validateCategoryDescription,
+  validateCategoryName,
+} from "../../lib/domain/categories/category";
 
-export { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../lib/categoryDescription";
+export { MAX_CATEGORY_DESCRIPTION_LENGTH, MAX_CATEGORY_NAME_LENGTH };
 
 export const DEFAULT_CATEGORIES = [
   {
@@ -85,32 +91,32 @@ function shouldRefreshLegacyDefaultCategoryColor(
 }
 
 export function normalizeCategoryName(name: string) {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    throw new ConvexError("Category name is required");
+  const result = validateCategoryName(name);
+  if (!result.success) {
+    if (result.error === "empty") {
+      throw new ConvexError("Category name is required");
+    }
+    throw new ConvexError(`Category name must be ${MAX_CATEGORY_NAME_LENGTH} characters or fewer`);
   }
-  if (trimmed.length > 40) {
-    throw new ConvexError("Category name must be 40 characters or fewer");
-  }
-  return trimmed;
+  return result.name;
 }
 
 export function normalizeCategoryColor(color: string) {
-  const trimmed = color.trim();
-  if (!/^#[0-9A-Fa-f]{6}$/.test(trimmed)) {
+  const result = validateCategoryColor(color);
+  if (!result.success) {
     throw new ConvexError("Category color must be a hex color");
   }
-  return trimmed.toUpperCase();
+  return result.color;
 }
 
 export function normalizeCategoryDescription(description?: string) {
-  if (description === undefined) return undefined;
-  if (description.length > MAX_CATEGORY_DESCRIPTION_LENGTH) {
+  const result = validateCategoryDescription(description);
+  if (!result.success) {
     throw new ConvexError(
       `Category description must be ${MAX_CATEGORY_DESCRIPTION_LENGTH} characters or fewer`,
     );
   }
-  return description;
+  return result.description;
 }
 
 async function getOwnedCategory(
