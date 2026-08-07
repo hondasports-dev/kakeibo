@@ -13,7 +13,7 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import { useCategorySettings } from "../hooks/useCategorySettings";
 import { CategorySettingsList } from "./CategorySettingsList";
-import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/categoryDescription";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/domain/categories/category";
 
 export function CategorySettingsPanel() {
   const {
