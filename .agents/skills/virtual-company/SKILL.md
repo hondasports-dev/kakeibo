@@ -8,7 +8,7 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 
 ## 目的
 
-依頼に必要な役割だけを選び、順序、責任、成果物を明確にして作業を分担する。
+依頼に必要な役割だけを選び、順序、責任、成果物を明確にして作業を分担する。Codex Plan モードでは、メインエージェントが Coordinator と Tech Lead を兼務する。
 
 ## 入力
 
@@ -21,6 +21,8 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 - `.agents/roles/` を役割指示書として扱い、必要なものだけ読む。
 - 委譲は AGENTS.md の共通規則に従い、役割名、担当範囲、成果物、検証方法を明示する。
 - branch、worktree、stage、commit、push、PR はメインエージェントが管理する。
+- `.codex/agents/*.toml` は使わず、本 Skill、`AGENTS.md`、`.agents/roles/**` を正本とする。
+- 同一差分に書き込む Implementer は原則1体とし、Reviewer は論理 read-only とする。
 
 ## 参照元ドキュメント
 
@@ -40,17 +42,18 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 ## 使い方
 
 1. GitHub Issue番号を解決・実装・続行・close・deliverする依頼では、**AGENTS.md Plan 契約**に従う。
-2. 依頼を分解する必要がある場合は、`.agents/roles/00-company-coordinator.md` から始める。
+2. Codex Plan モードでは、メインエージェントが `.agents/roles/00-company-coordinator.md` と `.agents/roles/02-tech-lead.md` を参照して依頼を分解・設計する。
 3. 現在の作業に必要な役割ファイルだけを読む。
 4. 小さく範囲が明確な実装やレビューでは、すべての役割を使わない。
 5. ユーザー、市場、MVP範囲が曖昧な場合は、Tech Leadより先にProduct Leadを使う。
 6. UI/UX変更を含む場合は、Product Lead と合わせて UX/UI Designer を使う。
-7. アーキテクチャ、データモデル、技術リスクが曖昧な場合は、Implementerより先にTech Leadを使う。
+7. アーキテクチャ、データモデル、技術リスクが曖昧な場合は、メインエージェントがTech LeadとしてImplementerより先に確定する。
 8. Tech Lead の仕様確定後、E2Eテスト設計が必要な場合はQA Agentで実装前レビューを行う。
-9. 実装後にQA AgentとReviewerを使う。必要なら並列で実行してよい。
+9. 実装後にQA AgentとReviewerを使う。Reviewerは論理read-onlyで、修正は同じImplementerへ返す。
 10. Release Managerは、リリース、デプロイ、ロールバック、本番影響がある場合だけ使う。
 11. 市場調査では、ユーザーが明示的に案を承認するまで実装へ進まない。
 12. Codexでサブエージェントを起動する場合は、直前に委譲理由と担当範囲を整理する。
+13. Implementer には `tdd-implement` の固定形式 Implementation Handoff を渡し、Issue のみを渡して実装させない。
 
 ## 停止条件
 

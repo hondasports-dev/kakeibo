@@ -4,7 +4,7 @@
 
 小規模なアプリ開発では、常設エージェントは6体で十分です。役割を増やしすぎると、成果物より調整コストが大きくなります。
 
-司令塔として `00-company-coordinator.md` を置き、実作業は以下の6体に分担します。
+Codex Plan モードでは Main が `00-company-coordinator.md` と `02-tech-lead.md` を参照して司令塔と技術判断を兼務し、実作業は必要な役割へ分担します。
 
 | エージェント    | 主な責務                                                  | 常時必要 |
 | --------------- | --------------------------------------------------------- | -------- |
@@ -19,13 +19,13 @@ UIが重要なプロダクトだけ `optional-ux-ui-designer.md` を追加で使
 
 ## 標準フロー
 
-1. Company Coordinator が依頼を分解し、必要なエージェントを選ぶ。
+1. Main が Company Coordinator として依頼を分解し、必要な役割を選ぶ。
 2. Product Lead が目的、対象ユーザー、要件、MVP範囲を決める。
-3. Tech Lead が設計、実装方針、作業分解を作る。
+3. Main が Tech Lead として設計、実装方針、Implementation Handoff を作る。
 4. QA Agent が実装前にE2Eテスト設計をレビューし、必要なら Tech Lead または Product Lead に戻す。
-5. Implementer がコード変更とテスト追加を行う。
+5. 原則1体の Implementer がコード変更とテスト追加を行う。
 6. QA Agent が受け入れ条件、画面、API、回帰を確認する。
-7. Reviewer が差分をレビューし、重大リスクを指摘する。
+7. 論理 read-only の Reviewer が差分をレビューし、重大リスクを指摘する。
 8. 問題があれば Implementer、Tech Lead、Product Lead の適切な担当に戻す。
 9. Release Manager がリリースノート、デプロイ手順、ロールバックをまとめる。
 
@@ -46,3 +46,4 @@ UIが重要なプロダクトだけ `optional-ux-ui-designer.md` を追加で使
 - 実装担当は、設計や要件に曖昧さがある場合、勝手に広げず Tech Lead または Product Lead に戻す。
 - QAとReviewerは同じ観点を重複させない。QAは仕様通り動くかとE2Eで確認すべき範囲、Reviewerは品質と保守性を見る。
 - リリース前には、未解決リスク、未実施テスト、ロールバック方法を必ず確認する。
+- `.codex/agents/*.toml` は使わず、役割と手順は `AGENTS.md`、`.agents/skills/**`、`.agents/roles/**` を正本とする。
