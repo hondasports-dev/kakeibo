@@ -106,7 +106,7 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 
 ### Issue タスク台帳
 
-Plan 契約（`AGENTS.md`）で Issue を処理する場合、Issue は人間と Codex / Devin の
+Plan 契約（`AGENTS.md`）で Issue を処理する場合、Issue は人間が後から経緯を追える判断履歴と
 共通の作業台帳として扱います。作業開始時に Issue 本文へタスクリストを追加できる場合は
 本文を更新し、本文更新ができない場合は「Issue Delivery タスク台帳」コメントを投稿します。
 ただし、一時作業メモとして `e2e-test-case.md`、`implementation-plan.md`、
@@ -125,29 +125,30 @@ PR本文、または既存docsへ集約します。
 - GitHub Actions / E2E 結果確認
 - PR マージと完了報告
 
-各フェーズの開始・完了・差し戻しは Issue コメントに残します。差し戻しが発生した場合も
-作業を止めず、タスク台帳を更新して該当フェーズへ戻ります。これにより、途中から人間が
-確認しても、エージェントが再開しても、現在位置と未完了タスクを Issue から追跡できます。
+各フェーズの開始・完了・差し戻しは Issue コメントに残します。採用設計、scope、out of scope、
+受け入れ条件、重要制約、見送った案と理由、実装中に変わった判断も、まとまった単位で記録します。
+参照する関数、読む順序、コマンド、worker の返却形式など、一時的な実行情報は Issue ではなく
+Implementation Handoff にだけ含めます。
 
-### Issue の要件確認（プロダクトリード3エージェント並列評価）
+### Issue の要件確認（Main 中心の統合）
 
-Plan 契約（`AGENTS.md`）で Issue を処理する場合、フェーズ0（`issue-gate-0`）では
-**3人のプロダクトリードサブエージェントを並列で起動**して要件を評価します。
-Codexでサブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探し、
-`multi_agent_v1.spawn_agent` が使える場合は次の固定名をプロンプトに含めて起動します。
+Plan 契約（`AGENTS.md`）では、Main が Company Coordinator と Tech Lead を兼務し、現在の
+ユーザー要求、Issue、`AGENTS.md`、関連 docs、既存コード・テストを統合します。Product Lead A/B/C、
+QA Agent、UX/UI Designer などの独立した専門評価は、必要に応じて read-only サブエージェントへ
+委譲できます。Tech Lead の設計判断は Main に残します。
 
 | エージェント | 担当観点                                 |
 | ------------ | ---------------------------------------- |
-| プロダクトリードA サブエージェント | ユーザー価値・解く課題・ペルソナ |
-| プロダクトリードB サブエージェント | 最小スコープ・スコープ肥大化検出 |
-| プロダクトリードC サブエージェント | 完了条件の検証可能性・受け入れ基準の粒度 |
+| Product Lead A の観点 | ユーザー価値・解く課題・ペルソナ |
+| Product Lead B の観点 | 最小スコープ・スコープ肥大化検出 |
+| Product Lead C の観点 | 完了条件の検証可能性・受け入れ基準の粒度 |
 
-3エージェントの評価を統合して `approved` / `needs_discussion` の最終判定を出します。
+Main が各観点を統合して `approved` / `needs_discussion` の最終判定を出します。
 詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
 
 UI/UXを変更するIssueでは、Product Leadとの要件定義フェーズで
-**UX/UIデザイナー サブエージェントも起動**し、Product Lead 3エージェントの評価と
-並行して議論させます。
+UX/UI Designer の観点も確認し、Product Lead の評価と統合します。独立して評価できる場合は
+read-only サブエージェントへ委譲してもかまいません。
 
 UI/UX変更に含める範囲:
 
@@ -190,6 +191,33 @@ Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能
 - 「なぜその実装にしたか」「代替案を何故採用しなかったか」は Issue に残す価値が高い。
 
 これにより、Issue を読むだけで要件定義から実装決定までの判断履歴を追跡できるようにします。
+
+### Issue が薄い場合と Implementation Handoff
+
+Issue に情報が足りない場合、Main は現在のユーザー要求、Issue 本文・コメント、`AGENTS.md`、
+関連する正本 docs、既存コード・既存テストの順に補完します。既存規約から一意に決められることは
+Main が決めてよい一方、ユーザー価値、破壊的変更、データ保持、認可、課金など結果を大きく変える
+曖昧さはユーザーへ確認します。
+
+実装開始前に Main は次の固定契約を作り、原則1体の Implementer へ渡します。Issue のみを渡して
+実装させません。
+
+```text
+Implementation Handoff — Issue #NN
+Goal:
+Design Decisions:
+Scope / Editable Paths:
+Out of Scope:
+Acceptance Criteria:
+Constraints / Prohibited Operations:
+References:
+Test Plan / RED-GREEN:
+Verification:
+Return Contract:
+```
+
+必須項目に実装を左右する曖昧さが残る場合は委譲しません。同じ差分へ書き込む writer は原則1体、
+Reviewer は論理 read-only とし、レビュー修正は Main が同じ Implementer へ修正契約として返します。
 
 ### Issue 対応フロー（Plan 契約の手順正本）
 

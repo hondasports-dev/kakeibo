@@ -16,14 +16,14 @@
 
 - `.agents/roles/` 配下のファイルは、役割別の指示書として扱う。
 - 実行環境がサブエージェントを利用できる場合は、ユーザーの明示的な許可があるときだけ必要な役割へ委譲する。
-- Codexでは、開始プロンプトに「必要に応じてサブエージェントを起動してよい」と明記されている場合、それを単なる許可ではなく、役割分担・並列調査・独立した実装タスクが有効な局面でサブエージェント起動を要求する指示として扱う。
-- Codexでサブエージェント機能が未ロードなら、まず `tool_search` で multi-agent / spawn 系ツールを探す。`multi_agent_v1.spawn_agent` が使える場合はそれを使い、プロンプトに「xxx サブエージェントを起動」という役割名を明記する。
+- Codex Plan モードでは Main が Company Coordinator と Tech Lead を兼務し、要件統合、設計判断、Implementation Handoff、Git操作を管理する。
+- `.codex/agents/*.toml` は使わず、`AGENTS.md`、`.agents/skills/**`、`.agents/roles/**` を正本とする。
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
-- 実行時サブエージェントが利用できない環境では、利用できない理由を明記してから、メインエージェントが必要な役割指示書を読み、同じ順序で作業する。
-- Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
-- Implementer は、担当範囲が分離できる場合だけ複数に分ける。
+- サブエージェントを使えない場合も Main が必要な役割指示書を読んで進める。
+- Product Lead の評価を Main が Tech Lead として統合する。
+- 同じ差分の writer は原則 Implementer 1体とし、Reviewer は論理 read-only とする。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のQA・E2E結果確認の2回使ってよい。
-- PR作成後の QA Agent と Reviewer は並列で実行してよい。
+- Reviewer の指摘は Main が同じ Implementer へ修正 Handoff として返す。
 
 ## 呼び出し方
 
@@ -123,7 +123,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 担当:
 
-- Tech Lead
+- Main（Coordinator兼Tech Lead）
 - UIが重要な場合のみ optional UX/UI Designer
 
 実施内容:
@@ -174,9 +174,11 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 - Implementer
 
+Main が固定形式の Implementation Handoff を確定し、原則1体の Implementer へ渡す。
+
 実施内容:
 
-- Tech Lead の設計に沿って実装する。
+- Main が確定した Implementation Handoff に沿って実装する。
 - 変更範囲を小さく保つ。
 - 必要なテストを追加する。
 - 新規E2Eが必要な場合は `e2e/` を更新し、恒久的なQA観点の更新が必要な場合だけ `docs/qa-checklist.md` を最小差分で更新する。

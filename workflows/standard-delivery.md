@@ -7,14 +7,14 @@
 ## Codex / Devin 共通の実行ルール
 
 - `.agents/roles/` 配下のファイルは、役割別の指示書として扱う。
-- Codexでは、ユーザーが「必要に応じてサブエージェントを起動してよい」と明示した場合、それを単なる許可ではなく、役割分担・並列調査・独立した実装タスクが有効な局面でサブエージェント起動を要求する指示として扱う。
-- Codexでサブエージェント機能が未ロードなら、まず `tool_search` で multi-agent / spawn 系ツールを探す。`multi_agent_v1.spawn_agent` が使える場合はそれを使い、プロンプトに「xxx サブエージェントを起動」という役割名を明記する。
+- Codex Plan モードでは、メインエージェントが Company Coordinator と Tech Lead を兼務する。要件統合、設計判断、Implementation Handoff、差分統合、Git操作、PRを別エージェントへ移さない。
+- `.codex/agents/*.toml` は使わず、`AGENTS.md`、`.agents/skills/**`、`.agents/roles/**` を正本とする。
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
-- 実行時サブエージェントが利用できない環境では、利用できない理由を明記してから、メインエージェントが必要な役割指示書を読み、同じ順序で作業する。
-- Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
-- Implementer は、担当範囲が分離できる場合だけ複数に分ける。
+- サブエージェントは、独立した調査、専門評価、実装、レビューに使う。利用できない場合もメインエージェントが必要な役割指示書を読んで進める。
+- Product Lead の評価結果をメインエージェントが Tech Lead として統合する。
+- 同じ差分に書き込む Implementer は原則1体とする。複数 writer は編集範囲を完全分離できる場合だけ使う。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
-- PR作成後の QA Agent と Reviewer は並列で実行してよい。
+- Reviewer は論理 read-only とし、修正を同じ Implementer へ返す。
 - Release Manager は、QA と Reviewer の結果がそろってから使う。
 
 ## 呼び出し方
@@ -44,7 +44,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 ### 2. 設計
 
-担当: Tech Lead
+担当: Main（Coordinator兼Tech Lead）
 
 成果物:
 
@@ -75,7 +75,9 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、実�
 
 ### 3. 実装
 
-担当: Implementer
+担当: Implementer（原則 writer 1体）
+
+入力は Main が確定した固定形式の Implementation Handoff とし、Issue のみを渡して実装させない。
 
 成果物:
 
@@ -87,13 +89,15 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、実�
 
 ### 4. コードレビュー
 
-担当: Reviewer
+担当: Reviewer（論理 read-only）
 
 成果物:
 
-- 重大度順の指摘（GitHubのPRインラインコメントとして投稿）
+- 重大度順の指摘
 - 修正提案
 - 承認可否（`approve` / `request_changes`）
+
+`request_changes` は Main が修正 Handoff に変換し、同じ Implementer へ返す。
 
 ### 5. GitHub Actions E2E（自動実行）
 

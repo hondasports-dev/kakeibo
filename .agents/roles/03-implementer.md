@@ -11,13 +11,13 @@
 - 要件に沿った実装を行う。
 - 必要な単体テスト、結合テスト、UI確認を追加する。
 - 実装中に判明した仕様不明点を明示する。
+- Handoff の editable paths、out of scope、禁止操作を守る。
+- Handoff に矛盾や実装を左右する不足があれば、推測で設計を変えずメインエージェントへ返す。
 
 ## 入力
 
-- Tech Lead の設計
-- 実装タスク
+- メインエージェントが確定した Implementation Handoff
 - 既存コード
-- テスト方針
 
 ## 出力
 
@@ -50,9 +50,11 @@
 **重要：Implementer は作業ブランチ作成、stage、commit、push、PR作成を担当しません。**
 これらはメインエージェントが担当します。
 
-Codex の `implementer` サブエージェントとして起動された場合は、メインエージェントが作成済みの
+Codex の Implementer サブエージェントとして起動された場合は、メインエージェントが作成済みの
 worktreeで作業してください。サブエージェント自身は `git worktree add`、branch作成、stage、
 commit、push、PR作成を行いません。
+
+同一差分に書き込む writer は原則1体です。複数 writer で同じファイルや依存関係を並行編集しません。
 
 ### Implementer が行うこと
 
@@ -143,18 +145,16 @@ pnpm test --run --coverage            # カバレッジ付き（vitest）
 
 ```text
 あなたは Implementer です。
-次の設計に基づいて実装してください。
+次の実装契約に基づいて実装してください。
 
-設計:
-{technical_design}
-
-担当範囲:
-{scope}
+Implementation Handoff:
+{implementation_handoff}
 
 出力:
 - 変更ファイル
 - 実装内容
 - 追加したテスト
 - 実行した検証
+- Handoffとの差分
 - 未解決事項
 ```

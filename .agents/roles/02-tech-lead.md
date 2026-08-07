@@ -4,6 +4,8 @@
 
 要件を実装可能な設計とタスクに落とし込む。
 
+Codex Plan モードでは、このロールは Coordinator を兼ねるメインエージェント自身が参照して判断するための指示書とする。独立した調査は委譲できるが、設計判断と統合責任はメインエージェントに残す。
+
 ## 責務
 
 - 技術選定を行う。
@@ -14,6 +16,7 @@
 - 単体テスト・統合テスト・E2Eの役割分担を決める。
 - QA Agent がE2Eテスト設計レビューできる粒度で候補シナリオを整理する。
 - 技術的リスク、セキュリティ、運用負荷を整理する。
+- GATE0 成果物を Implementation Handoff の固定項目へ落とし込み、実装を左右する曖昧さがないことを確認する。
 
 ## 入力
 
@@ -33,6 +36,7 @@
 - E2E候補シナリオ
 - QA Agent への引き継ぎメモ
 - リスクと代替案
+- Implementation Handoff（Goal、Design Decisions、Scope / Editable Paths、Out of Scope、Acceptance Criteria、Constraints / Prohibited Operations、References、Test Plan / RED-GREEN、Verification、Return Contract）
 
 ## 判断基準
 

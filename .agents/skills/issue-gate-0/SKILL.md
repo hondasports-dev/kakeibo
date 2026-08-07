@@ -42,8 +42,9 @@ Issue 本文だけで実装に進まない。統合判定 **Go** と **GATE0 成
 | UX/UI Designer | 画面構成、空/読込/エラー、レスポンシブ | `.agents/roles/optional-ux-ui-designer.md` | UI 時必須 | UI 時必須 |
 | QA Agent | E2E 要否、回帰、受け入れ条件の検証方法 | `.agents/roles/04-qa-agent.md` | 必須 | 必須 |
 
-`virtual-company` Skill が使える場合、full モードでは該当ロールをサブエージェントで並列起動してよい。
-起動できない場合は理由を明記し、メインエージェントが `.agents/roles/*.md` を読んで同じ判定を行う。
+Codex Plan モードではメインエージェントが Coordinator と Tech Lead を兼務し、全ロールの結果を統合して最終判断する。
+Product Lead A/B/C、QA、UX/UI など、互いに独立した専門評価は必要に応じて read-only サブエージェントへ委譲してよい。
+Tech Lead の設計判断は原則としてメインエージェント自身が `.agents/roles/02-tech-lead.md` を読んで行い、別 thread に判断責任を移さない。
 
 ### 各ロールの出力形式
 
@@ -62,6 +63,20 @@ Issue 本文だけで実装に進まない。統合判定 **Go** と **GATE0 成
 | **Go** | 対象ロールがすべて `approved` | GATE0 成果物を出力し、Plan 契約フェーズ1（`tdd-implement`）へ進む |
 | **Stop** | 1 つでも `needs_discussion` | 論点を統合してユーザー確認。実装禁止 |
 | **Revision** | 1 つでも `needs_revision` | 該当ロールを再確認して再判定 |
+
+## Issue が薄い場合の補完
+
+Issue に必要情報がないことだけを理由に停止しない。メインエージェントは次の優先順位で情報を補完する。
+
+1. 現在のユーザー要求
+2. Issue 本文・コメント
+3. `AGENTS.md` と適用中の Skill / Role
+4. 関連する正本 docs
+5. 既存コード・既存テスト
+
+既存規約から一意に決められる命名や実装パターンなどはメインエージェントが判断してよい。ユーザー価値、破壊的変更、データ保持、認可、課金など、選択肢で結果が大きく変わる曖昧さは `needs_discussion` とする。
+
+補完した内容のうち、採用設計、scope、out of scope、受け入れ条件、重要制約、見送った案と理由は Issue へまとまった判断記録として残す。参照ファイル、実行順、コマンドなどの一時的な作業情報は Issue に書かない。
 
 ## ハードストップ（Stop へ）
 
@@ -93,6 +108,8 @@ UI状態（該当時）: 空 / 読込 / エラー
   - QA Agent: ...
 次フェーズ: AGENTS.md Plan 契約フェーズ1（tdd-implement）
 ```
+
+Go の後、メインエージェントは GATE0 成果物と自身の Tech Lead 判断から固定形式の Implementation Handoff を作成する。
 
 Stop / Revision のときも同ブロックを出力し、`統合判定` と `未確定事項` を明記する。
 

@@ -6,9 +6,9 @@ Codex / Devinでは、まず `$virtual-company` を使って依頼を分解す�
 
 `.agents/roles/` 配下は役割別プロンプト集であり、それだけで実行時サブエージェントが常駐するわけではない。必要な役割だけを読み、過剰な分業を避ける。
 
-Codexで実行時サブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探す。`multi_agent_v1.spawn_agent` が使える場合はそれを使い、プロンプトに「xxx サブエージェントを起動」という役割名を明記する。
+Codex Plan モードでは Main が Coordinator と Tech Lead を兼務する。`.codex/agents/*.toml` は使わず、`AGENTS.md`、`.agents/skills/**`、`.agents/roles/**` を正本とする。
 
-通常の `$virtual-company` では、ユーザーの依頼文に「必要に応じてサブエージェントを起動してよい」とある場合に実行時サブエージェントを起動する。Plan 契約（`AGENTS.md`）で Issue を処理する場合、フェーズ0（`issue-gate-0`）が複数ロール確認を要求するため、ユーザーが追加で許可文を書いていなくても Product Lead A/B/C、Tech Lead、QA Agent などを起動してよい。Devinでは、同じ文を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
+サブエージェントは独立した調査や専門評価、Implementer、Reviewer に使う。Tech Lead の設計判断は Main に残し、同一差分の writer は原則 Implementer 1体、Reviewer は論理 read-only とする。
 
 ## Issue を1つ解決する場合（推奨）
 
@@ -17,12 +17,12 @@ Cursor では Plan モードで Issue 番号を渡す。Codex / Devin では「�
 
 内部フロー:
 
-1. **`issue-gate-0`** — プロダクトリードA/B/C、Tech Lead、QA Agent（UI変更時は UX/UIデザイナー）が要件を確認する。
+1. **`issue-gate-0`** — Main がユーザー要求、Issue、docs、既存コードを統合し、必要に応じてプロダクトリードA/B/C、QA Agent、UX/UIデザイナーの評価を得て、Tech Lead 判断を確定する。
    - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
-2. **`tdd-implement`** — RED → GREEN で進める。
+2. **`tdd-implement`** — Main が固定形式の Implementation Handoff を作り、原則1体の Implementer が RED → GREEN で進める。
 3. **`e2e-author`**（該当時） — E2E spec 追加・更新、または省略理由。
 4. **`verify-pre-push`** — push 前検証、必要ならローカル E2E。
-5. **`code-review`** — preview 差分のセルフレビューと Must-fix / Nice-to-have 対応ループ。
+5. **`code-review`** — 論理 read-only の Reviewer が preview 差分をレビューし、Main が指摘を同じ Implementer へ返す。
 6. **PR 作成・push** — `docs/development-process.md`「Issue 対応フロー」参照。
 7. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → 再検証 → `code-review` 再実行 → 再 push。
 
@@ -84,10 +84,10 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 - Product Lead A/B/C は並列で評価してよい。
 - UI/UX変更を含む場合は UX/UI Designer も Product Lead と並列で評価してよい。
-- Tech Lead は、Product Lead / UX/UI Designer の統合判定が `approved` になってから進める。
-- 実装タスクが分離できる場合だけ、Implementer を複数に分ける。
+- Main の Tech Lead 判断は、Product Lead / UX/UI Designer の評価が `approved` になってから確定する。
+- 同一差分の writer は原則 Implementer 1体。複数に分けるのは編集範囲を完全分離できる場合だけとする。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
-- PR作成後の QA Agent と Reviewer は並列で走らせてもよい。
+- Reviewer は論理 read-only とし、修正は Main 経由で同じ Implementer に戻す。
 - Release Manager は QA と Reviewer の結果がそろってから使う。
 - サブエージェントを起動できない場合は、理由を書いてからメインエージェントが該当ロール文書を読む。理由なしにメインエージェントだけで代替しない。
 

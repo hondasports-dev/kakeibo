@@ -4,8 +4,6 @@
 
 Codexで実行時サブエージェントへ渡す場合は、各プロンプトの冒頭に次を付ける。
 Devinで使う場合も、同じ文を役割別エージェントまたは内部タスクへの委譲条件として扱う。
-Codexでサブエージェント機能が未ロードなら、先に `tool_search` で multi-agent / spawn 系ツールを探し、
-`multi_agent_v1.spawn_agent` が使える場合は、プロンプトに「xxx サブエージェントを起動」という役割名を含める。
 
 ```text
 あなたはこのプロジェクトのサブエージェントとして、指定された担当範囲だけを扱ってください。
@@ -24,36 +22,41 @@ Codexでサブエージェント機能が未ロードなら、先に `tool_searc
 {request}
 ```
 
-## Tech Lead へ
+## Tech Lead
 
-```text
-あなたは Tech Lead です。
-次の要件を、設計、実装タスク、テスト方針、E2E候補シナリオ、技術リスクに分解してください。
-
-要件:
-{requirements}
-
-出力:
-- 技術方針
-- 設計案
-- 実装タスク
-- テスト方針（単体テスト・統合テスト・E2Eの役割分担）
-- E2E候補シナリオ（既存 `e2e/*.spec.ts` のテスト名、または新規追加案と優先度）
-- QA Agent への引き継ぎメモ
-- 技術リスク
-```
+Codex Plan モードでは Tech Lead を別サブエージェントへ委譲せず、Main が `.agents/roles/02-tech-lead.md` を参照して設計判断する。独立した技術調査だけを read-only で委譲してよい。
 
 ## Implementer へ
 
 ```text
 あなたは Implementer です。
-次の設計に基づいて、担当範囲だけを実装し、必要なテストを追加してください。
+次の Implementation Handoff に基づいて、担当範囲だけを実装し、必要なテストを追加してください。
 
-設計:
-{design}
-
-担当範囲:
+Implementation Handoff — Issue #{issue_number}
+Goal:
+{goal}
+Design Decisions:
+{design_decisions}
+Scope / Editable Paths:
 {scope}
+Out of Scope:
+{out_of_scope}
+Acceptance Criteria:
+{acceptance_criteria}
+Constraints / Prohibited Operations:
+{constraints}
+References:
+{references}
+Test Plan / RED-GREEN:
+{test_plan}
+Verification:
+{verification}
+Return Contract:
+- 変更ファイル
+- RED/GREEN の証拠
+- 実行した検証
+- Handoff との差分
+- 未解決事項
 ```
 
 ## QA Agent へ
@@ -99,18 +102,13 @@ Tech Leadの仕様・テスト方針:
 ```text
 あなたは Reviewer です。
 次の差分を、バグ、セキュリティ、保守性、テスト不足の観点でレビューしてください。
-Pull Request が指定されている場合は、修正対象が明確な指摘を Pull Request 内の該当コード行に
-インラインコメントとして投稿してください。チャットでの報告だけで完了扱いにしないでください。
-インラインコメントできない場合だけ、Pull Request Conversation に `ファイル:行` と
-インライン投稿できなかった理由を明記してコメントしてください。
+論理 read-only として作業し、ファイル編集、stage、commit、push は行わないでください。
 
 差分:
 {diff}
 
 出力:
 - 重大度順の指摘
-- GitHubに投稿したコメントURLまたはコメントID
-- インラインコメントできなかった場合は、その理由
 - 承認可否
 ```
 

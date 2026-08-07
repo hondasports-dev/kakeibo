@@ -12,12 +12,35 @@ GATE0 の範囲内で、失敗するテストから始めて最小変更で受�
 ## 入力
 
 - Issue 番号と GATE0 成果物
-- 受け入れ条件、影響範囲、E2E 方針
+- メインエージェントが確定した Implementation Handoff
 
 ## 前提
 
 - `issue-gate-0` で **GATE0 成果物** と統合判定 **Go** があること
 - 手順正本: `docs/development-process.md`（worktree、ブランチ分離、必要ドキュメント）
+
+## Implementation Handoff
+
+Issue は判断履歴であり、そのまま Implementer への依頼文にはしない。メインエージェントは、現在のユーザー要求、Issue、`AGENTS.md`、関連 docs、既存コード・テストを統合し、次の固定契約を作る。
+
+```text
+Implementation Handoff — Issue #NN
+Goal:
+Design Decisions:
+Scope / Editable Paths:
+Out of Scope:
+Acceptance Criteria:
+Constraints / Prohibited Operations:
+References:
+Test Plan / RED-GREEN:
+Verification:
+Return Contract:
+```
+
+- 必須項目に実装を左右する曖昧さが残る場合、Implementer へ委譲しない。
+- writer は原則 Implementer 1 体とする。複数 writer は編集可能パスを完全分離できる場合だけ使う。
+- Implementer は契約外の設計変更を独断で行わず、矛盾や不足をメインエージェントへ返す。
+- branch、worktree、stage、commit、push、PR はメインエージェントが管理する。
 
 ## 併用ガード
 
@@ -41,7 +64,7 @@ GATE0 の範囲内で、失敗するテストから始めて最小変更で受�
 1. 望ましい振る舞いを証明する最小のユニットテスト、コンポーネントテスト、または Convex テストを先に追加する
 2. 対象テストを実行し、期待した理由で **失敗** することを確認する（RED）
 3. 最小の本体コード変更を入れ、対象テストが通るまで再実行する（GREEN）
-4. RED、GREEN、レビュー修正、ドキュメント更新など、意味単位で小さくコミットする
+4. RED、GREEN、レビュー修正、ドキュメント更新を意味単位で報告する。コミットはメインエージェントが行う
 5. E2E はフェーズ2 `e2e-author` で扱う。ユニット/コンポーネント/Convex テストで足りる場合は E2E を省略できる
 
 ## 失敗は体系的に切り分ける
@@ -54,9 +77,10 @@ GATE0 の範囲内で、失敗するテストから始めて最小変更で受�
 
 ## 完了条件
 
-- RED / GREEN の証拠（テスト名・コミット）がある
+- RED / GREEN の証拠（テスト名・実行結果）がある
 - GATE0 成果物の実装範囲内で完了条件を満たしている
 - 次フェーズ: `e2e-author`（該当時）→ `verify-pre-push`
+- Return Contract に従い、変更ファイル、RED/GREEN、検証結果、契約との差分、未解決事項をメインエージェントへ返している
 
 ## 停止条件
 
