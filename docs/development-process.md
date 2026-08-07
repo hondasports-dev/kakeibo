@@ -134,8 +134,9 @@ Implementation Handoff にだけ含めます。
 
 Plan 契約（`AGENTS.md`）では、Main が Company Coordinator と Tech Lead を兼務し、現在の
 ユーザー要求、Issue、`AGENTS.md`、関連 docs、既存コード・テストを統合します。Product Lead A/B/C、
-QA Agent、UX/UI Designer などの独立した専門評価は、必要に応じて read-only サブエージェントへ
-委譲できます。Tech Lead の設計判断は Main に残します。
+QA Agent、UX/UI Designer などの独立した専門評価は、必要に応じて論理 read-only サブエージェントへ
+委譲できます。これは instruction 上の編集禁止であり、sandbox やファイル権限による強制ではありません。
+Tech Lead の設計判断は Main に残します。
 
 | エージェント | 担当観点                                 |
 | ------------ | ---------------------------------------- |
@@ -148,7 +149,7 @@ Main が各観点を統合して `approved` / `needs_discussion` の最終判定
 
 UI/UXを変更するIssueでは、Product Leadとの要件定義フェーズで
 UX/UI Designer の観点も確認し、Product Lead の評価と統合します。独立して評価できる場合は
-read-only サブエージェントへ委譲してもかまいません。
+論理 read-only サブエージェントへ委譲してもかまいません。
 
 UI/UX変更に含める範囲:
 
@@ -218,6 +219,12 @@ Return Contract:
 
 必須項目に実装を左右する曖昧さが残る場合は委譲しません。同じ差分へ書き込む writer は原則1体、
 Reviewer は論理 read-only とし、レビュー修正は Main が同じ Implementer へ修正契約として返します。
+
+Implementer の返却直後、Main は `git diff` と Return Contract を照合します。editable paths 外の変更、
+設計判断に反する変更、無関係なリファクタリングや依存追加、受け入れ条件との大きな乖離、未報告の
+Handoff 差分があれば、E2E・検証・Reviewer へ進めず同じ Implementer へ修正 Handoff を返します。
+
+推奨モデルと reasoning effort は `AGENTS.md`「モデルルーティング」を正本とします。
 
 ### Issue 対応フロー（Plan 契約の手順正本）
 

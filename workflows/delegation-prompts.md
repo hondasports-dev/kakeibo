@@ -5,6 +5,17 @@
 Codexで実行時サブエージェントへ渡す場合は、各プロンプトの冒頭に次を付ける。
 Devinで使う場合も、同じ文を役割別エージェントまたは内部タスクへの委譲条件として扱う。
 
+Codex で起動設定を指定できる場合、次を使う。
+
+| 役割 | model | reasoning_effort |
+| --- | --- | --- |
+| コード調査 | `gpt-5.6-sol` | `low` |
+| Implementer | `gpt-5.6-luna` | `high` |
+| QA Agent | `gpt-5.6-luna` | `medium` |
+| Reviewer | `gpt-5.6-sol` | `medium`。認証・認可・security-sensitiveな差分は `high` |
+
+指定できない、または利用できない場合は黙って代替せず、Main が選択して記録する。論理 read-only は prompt による編集禁止であり、sandbox の強制設定ではない。
+
 ```text
 あなたはこのプロジェクトのサブエージェントとして、指定された担当範囲だけを扱ってください。
 他のエージェントやメインエージェントが作業している可能性があるため、無関係な変更を戻さないでください。
@@ -24,9 +35,11 @@ Devinで使う場合も、同じ文を役割別エージェントまたは内部
 
 ## Tech Lead
 
-Codex Plan モードでは Tech Lead を別サブエージェントへ委譲せず、Main が `.agents/roles/02-tech-lead.md` を参照して設計判断する。独立した技術調査だけを read-only で委譲してよい。
+Codex Plan モードでは Tech Lead を別サブエージェントへ委譲せず、Main が `.agents/roles/02-tech-lead.md` を参照して設計判断する。独立した技術調査だけを `model: gpt-5.6-sol`、`reasoning_effort: low` の論理 read-only で委譲してよい。
 
 ## Implementer へ
+
+起動設定: `model: gpt-5.6-luna`、`reasoning_effort: high`
 
 ```text
 あなたは Implementer です。
@@ -63,6 +76,8 @@ Return Contract:
 
 ### 実装前E2Eテスト設計レビュー
 
+起動設定: `model: gpt-5.6-luna`、`reasoning_effort: medium`
+
 ```text
 あなたは QA Agent です。
 次の要件とTech Leadの設計について、実装前にE2Eテスト設計レビューをしてください。
@@ -86,6 +101,8 @@ Tech Leadの仕様・テスト方針:
 
 ### 実装後QA
 
+起動設定: `model: gpt-5.6-luna`、`reasoning_effort: medium`
+
 ```text
 あなたは QA Agent です。
 次の変更が要件どおりに動くか確認し、不具合があれば再現手順つきで報告してください。
@@ -98,6 +115,8 @@ Tech Leadの仕様・テスト方針:
 ```
 
 ## Reviewer へ
+
+起動設定: `model: gpt-5.6-sol`、`reasoning_effort: medium`。認証・認可・security-sensitiveな差分は `high`。
 
 ```text
 あなたは Reviewer です。

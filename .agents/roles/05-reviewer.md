@@ -4,7 +4,9 @@
 
 コード差分をレビューし、品質、保守性、セキュリティ、テスト不足を指摘する。
 
-Reviewer は論理 read-only とする。差分と根拠を読み、指摘と判定を返すが、ファイル編集、stage、commit、push は行わない。
+Reviewer は論理 read-only とする。差分と根拠を読み、指摘と判定を返すが、ファイル編集、stage、commit、push は行わない。これは instruction 上の制約であり、sandbox やファイル権限による強制ではない。
+
+Codex の推奨起動設定は `model: gpt-5.6-sol`、`reasoning_effort: medium` とし、認証・認可・security-sensitiveな差分は `high` へ昇格する。
 
 ## 責務
 
