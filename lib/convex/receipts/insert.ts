@@ -4,6 +4,12 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { calculateWeekStartDate } from "../../../convex/lib/weekDates";
 import { getWeeklyStartDayForUser } from "../../../convex/users/weeklySettings";
+import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
+import {
+  validateExpenseAmount,
+  validateExpenseMemo,
+  validateExpenseTitle,
+} from "../../../lib/domain/expenseEntries/expenseEntryItem";
 
 export type CreateReceiptArgs =
   | {
@@ -29,11 +35,39 @@ export async function insertReceiptForGroup(
   args: CreateReceiptArgs,
   weekStartDay = 1,
 ) {
-  if (args.type !== "income" && !args.shopName) {
-    throw new ConvexError("shopName is required for expense receipts");
+  if (!isValidIsoDateString(args.date)) {
+    throw new ConvexError("Date must be a valid YYYY-MM-DD value");
   }
-  if (args.type === "income" && !args.bankName) {
-    throw new ConvexError("bankName is required for income receipts");
+  if (!validateExpenseAmount(args.amountYen).success) {
+    throw new ConvexError("Amount must be a positive integer");
+  }
+  const memoResult = validateExpenseMemo(args.memo);
+  if (!memoResult.success) {
+    throw new ConvexError("Memo must be 500 characters or less");
+  }
+
+  let shopName: string | undefined;
+  if (args.type !== "income") {
+    const result = validateExpenseTitle(args.shopName ?? "");
+    if (!result.success) {
+      if (result.error === "empty") {
+        throw new ConvexError("shopName is required for expense receipts");
+      }
+      throw new ConvexError("shopName must be 100 characters or fewer");
+    }
+    shopName = result.title;
+  }
+
+  let bankName: string | undefined;
+  if (args.type === "income") {
+    const result = validateExpenseTitle(args.bankName ?? "");
+    if (!result.success) {
+      if (result.error === "empty") {
+        throw new ConvexError("bankName is required for income receipts");
+      }
+      throw new ConvexError("bankName must be 100 characters or fewer");
+    }
+    bankName = result.title;
   }
 
   const category = await ctx.db.get(args.categoryId);
@@ -54,11 +88,11 @@ export async function insertReceiptForGroup(
     groupId,
     date: args.date,
     type: args.type,
-    shopName: args.type === "income" ? undefined : args.shopName,
-    bankName: args.type === "income" ? args.bankName : undefined,
+    shopName,
+    bankName,
     amountYen: args.amountYen,
     categoryId: args.categoryId,
-    memo: args.memo,
+    memo: memoResult.memo,
     weekStartDate,
     createdAt: now,
     updatedAt: now,
