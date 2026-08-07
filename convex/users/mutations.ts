@@ -3,6 +3,7 @@ import type { MutationCtx } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
 import { getIdentityDisplayName, requireAuthenticatedUserId } from "./auth";
 import { getWeekEndDay } from "../lib/weekDates";
+import { normalizeEmail } from "../../lib/domain/users/email";
 import { validateMonthlyIncome } from "../../lib/domain/users/monthlyIncome";
 import { validateWeekDay } from "../../lib/domain/week/weekDates";
 
@@ -15,7 +16,7 @@ export async function upsertUserHandler(ctx: MutationCtx) {
   }
 
   const userId = identity.tokenIdentifier;
-  const email = identity.email?.trim().toLowerCase();
+  const email = normalizeEmail(identity.email);
   const now = Date.now();
 
   // NOTE: by_token_identifier インデックスには Convex の仕様上 unique constraint を付与できない。
