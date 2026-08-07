@@ -2,7 +2,7 @@ import { Button, CircularProgress, Stack, TextField } from "@mui/material";
 import GroupSwitchIcon from "@mui/icons-material/SyncAlt";
 import MenuItem from "@mui/material/MenuItem";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { MAX_GROUP_NAME_LENGTH } from "../../../../convex/groups/lib/groupName";
+import { MAX_GROUP_NAME_LENGTH } from "../../../../lib/domain/groups/groupName";
 
 type GroupListItem = {
   _id: Id<"groups">;
