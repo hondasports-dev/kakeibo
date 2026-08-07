@@ -10,6 +10,11 @@ import {
   createExpenseEntriesFromDraftHandler,
   type CreateExpenseEntriesFromDraftArgs,
 } from "../../lib/convex/expenseEntries/createFromDraft";
+import {
+  validateExpenseAmount,
+  validateExpenseMemo,
+  validateExpenseTitle,
+} from "../../lib/domain/expenseEntries/expenseEntryItem";
 
 type ExpenseEntryItemArg = {
   categoryId: Id<"categories">;
@@ -40,11 +45,11 @@ export async function createIncomeEntryHandler(
   if (!args.date.trim() || !isValidIsoDateString(args.date)) {
     throw new ConvexError("Date must be a valid YYYY-MM-DD value");
   }
-  if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
+  if (!validateExpenseAmount(args.amountYen).success) {
     throw new ConvexError("Amount must be a positive integer");
   }
-  const title = args.title.trim();
-  if (!title) {
+  const titleResult = validateExpenseTitle(args.title);
+  if (!titleResult.success) {
     throw new ConvexError("Income description is required");
   }
   const now = Date.now();
@@ -52,7 +57,7 @@ export async function createIncomeEntryHandler(
     groupId,
     date: args.date,
     amount: args.amountYen,
-    title,
+    title: titleResult.title,
     entryType: "income",
     source: "manual",
     createdAt: now,
@@ -73,19 +78,12 @@ export async function createExpenseEntriesHandler(
   const { groupId } = await requireGroupMembership(ctx);
 
   const now = Date.now();
-  for (const item of args.items) {
-    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
-      throw new ConvexError("Amount must be a positive integer");
-    }
-    await assertExpenseCategoryBelongsToGroup(ctx, item.categoryId, groupId);
-  }
-
   let sourceDocumentId = args.sourceDocumentId;
 
   if (sourceDocumentId === undefined && args.shopName?.trim()) {
     const itemsTotalAmountYen = args.items.reduce((sum, item) => sum + item.amountYen, 0);
     const totalAmount = args.sourceAmountYen ?? itemsTotalAmountYen;
-    if (!Number.isInteger(totalAmount) || totalAmount <= 0) {
+    if (!validateExpenseAmount(totalAmount).success) {
       throw new ConvexError("Source amount must be a positive integer");
     }
     sourceDocumentId = await ctx.db.insert("sourceDocuments", {
@@ -101,14 +99,27 @@ export async function createExpenseEntriesHandler(
   }
 
   for (const item of args.items) {
+    if (!validateExpenseAmount(item.amountYen).success) {
+      throw new ConvexError("Amount must be a positive integer");
+    }
+    const titleResult = validateExpenseTitle(item.title);
+    if (!titleResult.success) {
+      throw new ConvexError("Title is required");
+    }
+    const memoResult = validateExpenseMemo(item.memo);
+    if (!memoResult.success) {
+      throw new ConvexError("Memo must be 500 characters or less");
+    }
+    await assertExpenseCategoryBelongsToGroup(ctx, item.categoryId, groupId);
+
     await ctx.db.insert("expenseEntries", {
       groupId,
       sourceDocumentId,
       date: args.date,
       amount: item.amountYen,
       categoryId: item.categoryId,
-      title: item.title,
-      memo: item.memo,
+      title: titleResult.title,
+      memo: memoResult.memo,
       entryType: "expense",
       source: "manual",
       createdAt: now,
@@ -179,7 +190,7 @@ export async function updateExpenseEntryHandler(
   }
 
   if (args.amountYen !== undefined) {
-    if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
+    if (!validateExpenseAmount(args.amountYen).success) {
       throw new ConvexError("Amount must be a positive integer");
     }
   }
@@ -214,10 +225,18 @@ export async function updateExpenseEntryHandler(
     patch.categoryId = args.categoryId;
   }
   if (args.title !== undefined) {
-    patch.title = args.title;
+    const titleResult = validateExpenseTitle(args.title);
+    if (!titleResult.success) {
+      throw new ConvexError("Title is required");
+    }
+    patch.title = titleResult.title;
   }
   if (args.memo !== undefined) {
-    patch.memo = args.memo;
+    const memoResult = validateExpenseMemo(args.memo);
+    if (!memoResult.success) {
+      throw new ConvexError("Memo must be 500 characters or less");
+    }
+    patch.memo = memoResult.memo;
   }
 
   await ctx.db.patch(args.expenseEntryId, patch);
