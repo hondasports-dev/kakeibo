@@ -61,7 +61,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 担当: QA Agent
 
-Product Lead の完了条件と Tech Lead のテスト方針を照合し、実装前にE2Eで確認する範囲を確定する。
+Product Lead の完了条件と Main（Tech Leadロール）のテスト方針を照合し、実装前にE2Eで確認する範囲を確定する。
 詳細は `.agents/roles/04-qa-agent.md` の「E2Eテスト設計レビュー」を参照。
 
 成果物:
@@ -147,14 +147,14 @@ QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` �
 ## 戻し方
 
 - 要件漏れ: Product Lead に戻す。
-- 設計破綻: Tech Lead に戻す。
-- E2Eテスト設計の不足: QA Agent から Tech Lead に戻す。
+- 設計破綻: Main（Tech Leadロール）に戻す。
+- E2Eテスト設計の不足: QA Agent から Main（Tech Leadロール）に戻す。
 - E2E化すべきか判断できない完了条件: QA Agent から Product Lead またはユーザー確認に戻す。
-- 実装バグ: Implementer に戻す。
-- 仕様通り動かない: QA Agent から Implementer に戻す。
-- 品質やセキュリティの問題: Reviewer から Implementer または Tech Lead に戻す。
-- E2E失敗（テストコードの問題）: QA Agent が `e2e/` を修正してpush → E2E再実行。
-- E2E失敗（実装の問題）: QA Agent から Implementer に戻す。
+- 実装バグ: Mainが同じImplementerへ修正Handoffを渡す。
+- 仕様通り動かない: QA Agent が原因と再現手順をMainへ返し、Mainが同じImplementerへ修正Handoffを渡す。
+- 品質やセキュリティの問題: Reviewer から Main に返し、Mainが修正Handoffを同じImplementerへ渡す。
+- E2E失敗（テストコードの問題）: QA Agent が原因・対象spec・修正方針をMainへ返す → Mainが同じImplementerへ修正Handoff → MainがpushしてE2E再実行。
+- E2E失敗（実装の問題）: QA Agent が原因と再現手順をMainへ返し、Mainが同じImplementerへ修正Handoffを渡す。
 - E2E失敗（環境・インフラ起因）: 作業中断してユーザーに報告する。
 
 ## ループ上限
@@ -163,6 +163,6 @@ QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` �
 
 | ループ | 上限 |
 |--------|------|
-| Tech Lead ↔ QA Agent テスト設計レビュー差し戻し | 2回 |
+| Main（Tech Leadロール）↔ QA Agent テスト設計レビュー差し戻し | 2回 |
 | 実装 ↔ レビュー差し戻し | 3回 |
 | E2E失敗 → 修正の繰り返し | 2回 |

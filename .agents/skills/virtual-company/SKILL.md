@@ -22,7 +22,7 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 - 委譲は AGENTS.md の共通規則に従い、役割名、担当範囲、成果物、検証方法を明示する。
 - branch、worktree、stage、commit、push、PR はメインエージェントが管理する。
 - `.codex/agents/*.toml` は使わず、本 Skill、`AGENTS.md`、`.agents/roles/**` を正本とする。
-- 同一差分に書き込む Implementer は原則1体とし、Reviewer は論理 read-only とする。
+- 同一差分に書き込む Implementer は原則1体とし、QA AgentとReviewerは論理 read-only とする。
 - モデルルーティングは `AGENTS.md` を正本とし、Implementer は `gpt-5.6-luna` / `high`、Reviewer は `gpt-5.6-sol` / `medium` を推奨する。
 
 ## 参照元ドキュメント
@@ -50,7 +50,7 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 6. UI/UX変更を含む場合は、Product Lead と合わせて UX/UI Designer を使う。
 7. アーキテクチャ、データモデル、技術リスクが曖昧な場合は、メインエージェントがTech LeadとしてImplementerより先に確定する。
 8. Tech Lead の仕様確定後、E2Eテスト設計が必要な場合はQA Agentで実装前レビューを行う。
-9. 実装後、Main integrity check を通してからQA AgentとReviewerを使う。Reviewerは論理read-onlyで、修正は同じImplementerへ返す。
+9. 実装後、Main integrity check を通してからQA AgentとReviewerを使う。両者は論理read-onlyで、修正はMainが同じImplementerへ返す。
 10. Release Managerは、リリース、デプロイ、ロールバック、本番影響がある場合だけ使う。
 11. 市場調査では、ユーザーが明示的に案を承認するまで実装へ進まない。
 12. Codexでサブエージェントを起動する場合は、直前に委譲理由と担当範囲を整理する。

@@ -18,6 +18,8 @@ Issue の受け入れ条件を適切な Playwright E2E で検証し、不要な�
 
 - GATE0 成果物の **E2E 方針**（追加 / 更新 / 省略 + 理由）に従う
 - 手順正本: `docs/development-process.md`「ローカル E2E 実行」、`docs/qa-checklist.md`
+- E2E追加・更新はMainが判断して修正Handoffへ含め、同じImplementerが編集する。QA Agentは論理read-onlyで、必要性、原因、対象spec、修正方針だけを返す。
+- branch、worktree、stage、commit、push、PR、E2E再実行のトリガーはMainが管理する。
 
 ## E2E を追加・更新する条件
 
@@ -53,6 +55,7 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 ## 完了条件
 
 - GATE0 E2E 方針どおり spec を追加/更新した、または省略理由を PR/Issue に記録した
+- spec の追加・更新を同じImplementerが担当し、Main integrity checkを通過した
 - 次フェーズ: `verify-pre-push`
 
 ## 停止条件と出力

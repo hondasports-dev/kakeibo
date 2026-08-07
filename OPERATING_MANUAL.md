@@ -8,7 +8,7 @@ Codex / Devinでは、まず `$virtual-company` を使って依頼を分解す�
 
 Codex Plan モードでは Main が Coordinator と Tech Lead を兼務する。`.codex/agents/*.toml` は使わず、`AGENTS.md`、`.agents/skills/**`、`.agents/roles/**` を正本とする。
 
-サブエージェントは独立した調査や専門評価、Implementer、Reviewer に使う。Tech Lead の設計判断は Main に残し、同一差分の writer は原則 Implementer 1体、Reviewer は論理 read-only とする。
+サブエージェントは独立した調査や専門評価、Implementer、QA Agent、Reviewer に使う。Tech Lead の設計判断は Main に残し、同一差分の writer は原則 Implementer 1体、QA AgentとReviewerは論理 read-only とする。
 
 推奨モデルは Main / Tech Lead と Reviewer が `gpt-5.6-sol`、Implementer と QA が `gpt-5.6-luna`。effort と例外条件の正本は `AGENTS.md`「モデルルーティング」と `workflows/delegation-prompts.md` とする。
 
