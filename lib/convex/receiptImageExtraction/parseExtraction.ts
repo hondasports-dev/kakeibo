@@ -1,6 +1,10 @@
 import { ConvexError } from "convex/values";
 import { isDiscountItemName } from "../../../convex/lib/discountItems";
-import { validateExpenseAmount } from "../../../lib/domain/expenseEntries/expenseEntryItem";
+import {
+  validateExtractedIsoDate,
+  validateReceiptShopName,
+  validateReceiptTotalAmount,
+} from "../../../lib/domain/receipt/receiptExtraction";
 import type {
   AmountBasis,
   ExtractedTaxSummary,
@@ -15,7 +19,6 @@ import type {
   TaxRatePercent,
 } from "./types";
 import { MAX_EXTRACTED_LINE_ITEMS } from "./types";
-import { validateExtractedDate } from "./validators";
 
 /** OpenAI Responses API のレスポンスから抽出結果を取り出す */
 export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ExtractedFields {
@@ -40,14 +43,22 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
   if (typeof obj.shopName !== "string") {
     throw new ConvexError("OpenAI レスポンスの shopName が文字列ではありません");
   }
+  const shopNameResult = validateReceiptShopName(obj.shopName);
+  if (!shopNameResult.success) {
+    throw new ConvexError("OpenAI レスポンスの shopName が空または長すぎます");
+  }
   if (typeof obj.date !== "string") {
     throw new ConvexError("OpenAI レスポンスの date が文字列ではありません");
   }
-  validateExtractedDate(obj.date);
+  const dateResult = validateExtractedIsoDate(obj.date);
+  if (!dateResult.success) {
+    throw new ConvexError("OpenAI レスポンスの date が実在する YYYY-MM-DD 形式ではありません");
+  }
   if (typeof obj.amountYen !== "number") {
     throw new ConvexError("OpenAI レスポンスの amountYen が数値ではありません");
   }
-  if (!validateExpenseAmount(obj.amountYen).success) {
+  const amountResult = validateReceiptTotalAmount(obj.amountYen);
+  if (!amountResult.success) {
     throw new ConvexError(
       "OpenAI レスポンスの amountYen は 1 円以上 9,999,999 円以下の整数である必要があります",
     );

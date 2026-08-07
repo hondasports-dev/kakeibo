@@ -1,5 +1,5 @@
 import { ConvexError } from "convex/values";
-import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
+import { validateExtractedIsoDate } from "../../../lib/domain/receipt/receiptExtraction";
 import { MAX_IMAGE_DATA_URL_LENGTH } from "./types";
 
 const ALLOWED_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
@@ -61,10 +61,8 @@ export function validateImageDataUrl(imageDataUrl: string): void {
 }
 
 export function validateExtractedDate(date: string): void {
-  if (date === "") {
-    return;
-  }
-  if (!isValidIsoDateString(date)) {
+  const result = validateExtractedIsoDate(date);
+  if (!result.success) {
     throw new ConvexError("OpenAI レスポンスの date が実在する YYYY-MM-DD 形式ではありません");
   }
 }
