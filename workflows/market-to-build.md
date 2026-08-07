@@ -189,12 +189,14 @@ Main が固定形式の Implementation Handoff を確定し、原則1体の Impl
 - コード変更
 - テスト追加
 - 検証結果
+- Handoffとの差分
 - 未解決事項
 
 ## フェーズ6: QAとレビュー
 
-QAとレビューへ進む前に、Main が Implementation Handoff と `git diff` を照合する integrity check を行う。
-違反があれば同じ Implementer へ修正 Handoff を返す。
+QAとレビューへ進む前に、Main が Implementation Handoff と `git status --short`、`git diff HEAD`、
+untracked ファイルの内容を照合する integrity check を行う。違反があれば同じ Implementer へ修正 Handoff を返す。
+修正後、Reviewer完了後、公開直前にも再実行する。
 
 担当:
 

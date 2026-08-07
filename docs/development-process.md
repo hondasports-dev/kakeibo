@@ -220,9 +220,10 @@ Return Contract:
 必須項目に実装を左右する曖昧さが残る場合は委譲しません。同じ差分へ書き込む writer は原則1体、
 Reviewer は論理 read-only とし、レビュー修正は Main が同じ Implementer へ修正契約として返します。
 
-Implementer の返却直後、Main は `git diff` と Return Contract を照合します。editable paths 外の変更、
-設計判断に反する変更、無関係なリファクタリングや依存追加、受け入れ条件との大きな乖離、未報告の
-Handoff 差分があれば、E2E・検証・Reviewer へ進めず同じ Implementer へ修正 Handoff を返します。
+Implementer の返却直後、Main は `git status --short`、`git diff HEAD`、untracked ファイルの内容を
+Return Contract と照合します。editable paths 外の変更、設計判断に反する変更、無関係なリファクタリングや
+依存追加、受け入れ条件との大きな乖離、未報告の Handoff 差分があれば、E2E・検証・Reviewer へ進めず
+同じ Implementer へ修正 Handoff を返します。修正後、Reviewer完了後、公開直前にも再実行します。
 
 推奨モデルと reasoning effort は `AGENTS.md`「モデルルーティング」を正本とします。
 

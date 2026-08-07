@@ -73,6 +73,7 @@ git log --oneline origin/preview..HEAD
 7. **テスト** — 追加・更新・不足観点。
 8. **副作用・影響範囲** — 変更されていないが影響しうるファイル、リスク。
 9. **結果出力** — `review-template.md` の形式でまとめる。
+10. **Main の最終 integrity check** — Reviewer 完了後、Main が `git status --short`、`git diff HEAD`、untracked ファイルの内容を確認する。修正 Handoff を返した場合は Implementer の修正後にも再実行し、公開直前のtracked / untracked差分が契約内であることを確認する。
 
 ## 指摘の分類と対応ルール
 
@@ -105,6 +106,7 @@ diff 内かどうかの判断に「本筋外」などの主観語を使わない
 - 各観点（正しさ、セキュリティ、保守性、テスト、副作用）で「問題なし」または残リスクを明記
 - 専門スキル・テストケース判定レビューで追加された Must-fix / Nice-to-have も 0 件または対応済み
 - `review-template.md` を出力済み
+- Reviewer 完了後の Main integrity check が完了し、Scope外変更や未確認のuntrackedファイルがない
 
 ## 出力
 

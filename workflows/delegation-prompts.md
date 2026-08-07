@@ -130,7 +130,11 @@ Main（Tech Leadロール）の仕様・テスト方針:
 
 出力:
 - 重大度順の指摘
-- 承認可否
+- ファイル・行
+- 理由
+- 修正案
+- 残るリスク
+- 承認可否: approve / request_changes
 ```
 
 ## Release Manager へ

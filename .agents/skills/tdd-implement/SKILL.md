@@ -85,7 +85,7 @@ Return Contract:
 
 ## Main integrity check（次フェーズ前の必須ゲート）
 
-Implementer の返却後、Main は `git diff` と Return Contract を確認する。
+Implementer の返却後、Main は `git status --short`、`git diff HEAD`、untracked ファイルの内容を確認し、Return Contract と照合する。
 
 - `Scope / Editable Paths` 外の変更がない
 - `Design Decisions` に反する自己判断の設計変更がない
@@ -93,7 +93,7 @@ Implementer の返却後、Main は `git diff` と Return Contract を確認す�
 - Acceptance Criteria と実装内容が大きく乖離していない
 - Handoff との差分・未解決事項が正しく報告されている
 
-違反があれば E2E、検証、Reviewer へ進めず、同じ Implementer へ修正 Handoff を返す。
+違反があれば E2E、検証、Reviewer へ進めず、同じ Implementer へ修正 Handoff を返す。修正後は同じ完全なチェックを再実行する。
 
 ## 停止条件
 
