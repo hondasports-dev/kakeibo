@@ -6,29 +6,30 @@
 
 Codex Plan モードでは Main が `00-company-coordinator.md` と `02-tech-lead.md` を参照して司令塔と技術判断を兼務し、実作業は必要な役割へ分担します。
 
-| エージェント    | 主な責務                                                  | 常時必要 |
-| --------------- | --------------------------------------------------------- | -------- |
-| Product Lead    | 市場、ユーザー、要件、MVPの整理                           | はい     |
-| Tech Lead       | 技術選定、設計、タスク分解                                | はい     |
-| Implementer     | 実装、修正、テスト追加                                    | はい     |
-| QA Agent        | 論理read-onlyでのE2E設計・結果確認、不具合整理            | はい     |
-| Reviewer        | コードレビュー、保守性、セキュリティ確認                  | はい     |
-| Release Manager | リリース準備、変更点、ロールバック方針                    | はい     |
+| エージェント | 主な責務 | 利用条件 |
+| --- | --- | --- |
+| Product Lead | 市場、ユーザー、要件、MVPの整理 | `full` で必須、`light` で省略 |
+| Tech Lead | 技術選定、設計、タスク分解 | Mainが兼務し `full` / `light` とも必須 |
+| Implementer | 実装、修正、テスト追加 | 実装がある場合 |
+| QA Agent | 論理read-onlyでのE2E設計・結果確認、不具合整理 | `full` / `light` とも必須 |
+| Reviewer | コードレビュー、保守性、セキュリティ確認 | 実装差分のレビュー時 |
+| Release Manager | リリース準備、変更点、ロールバック方針 | release / deploy / rollback / 本番影響がある場合のみ |
 
-UIが重要なプロダクトだけ `optional-ux-ui-designer.md` を追加で使います。
+UI変更を含む作業だけ `optional-ux-ui-designer.md` を追加で使います。
 
 ## 標準フロー
 
-1. Main が Company Coordinator として依頼を分解し、必要な役割を選ぶ。
-2. Product Lead が目的、対象ユーザー、要件、MVP範囲を決める。
-3. Main が Tech Lead として設計、実装方針、Implementation Handoff を作る。
-4. QA Agent が実装前にE2Eテスト設計をレビューし、必要なら Main（Tech Leadロール）または Product Lead に戻す。
-5. 原則1体の Implementer がコード変更とテスト追加を行う。
-6. Main が Handoff と実差分の integrity check を行い、違反時は同じ Implementer へ返す。
-7. QA Agent が受け入れ条件、画面、API、回帰を確認する。
-8. 論理 read-only の Reviewer が差分をレビューし、重大リスクを指摘する。
-9. 問題があれば Implementer、Main、Product Lead の適切な担当に戻す。
-10. Release Manager がリリースノート、デプロイ手順、ロールバックをまとめる。
+1. Main が Company Coordinator として `full` / `light` を決め、必要な役割を選ぶ。
+2. `full` では Product Lead A/B/C が要件を評価する。`light` では省略する。
+3. UI変更時だけ UX/UI Designer が評価する。
+4. QA Agent がE2E方針を評価する。
+5. そのmodeで必須の対象Roleがすべて `approved` になった後、Main が Tech Lead として設計、実装方針、Implementation Handoff を作る。
+6. 原則1体の Implementer がコード変更とテスト追加を行う。
+7. Main が Handoff と実差分の integrity check を行い、違反時は同じ Implementer へ返す。
+8. QA Agent が受け入れ条件、画面、API、回帰を確認する。
+9. 論理 read-only の Reviewer が差分をレビューし、重大リスクを指摘する。
+10. 問題があれば Implementer、Main、Product Lead の適切な担当に戻す。
+11. release / deploy / rollback / 本番影響がある場合だけ Release Manager を使う。
 
 ## 使わない方がよい常設役割
 

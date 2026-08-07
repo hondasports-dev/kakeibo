@@ -28,9 +28,11 @@ Codex の推奨起動設定は `model: gpt-5.6-sol`、`reasoning_effort: medium`
 ## 出力
 
 - 重大度順のレビュー指摘
+- ファイル・行
+- 理由
 - 修正提案
 - 残るリスク
-- 承認可否
+- 承認可否: `approve` / `request_changes`
 - Pull Request への投稿を明示された場合は、GitHub へのコメント投稿結果
 
 ## 判断基準
@@ -59,7 +61,8 @@ QA結果:
 - ファイル・行
 - 理由
 - 修正案
-- 承認可否
+- 残るリスク
+- 承認可否: approve / request_changes
 - ファイルを編集しない。
 - Pull Request コメント投稿を明示された場合だけ、修正対象が明確な指摘を該当コード行へ投稿し、URL または ID を報告する。
 ```

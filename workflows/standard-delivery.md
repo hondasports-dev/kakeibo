@@ -87,17 +87,18 @@ Product Lead の完了条件と Main（Tech Leadロール）のテスト方針�
 - テスト追加
 - E2E追加が必要な場合は `e2e/` を更新し、恒久的なQA観点の更新が必要な場合だけ `docs/qa-checklist.md` を最小差分で更新
 - 実行した検証
+- Handoffとの差分
 - 未解決事項
 
 ### 4. コードレビュー
 
-コードレビューへ進む前に、Main が Implementer の実差分に対して integrity check を行う。
+コードレビューへ進む前に、Main が `git status --short`、`git diff HEAD`、untracked ファイルの内容を確認して integrity check を行う。
 
 - Handoff の editable paths、設計判断、受け入れ条件との整合
 - 無関係なリファクタリング、依存追加の不在
 - Handoff との差分と未解決事項の報告
 
-違反時は同じ Implementer へ修正 Handoff を返し、Reviewer へ進めない。
+違反時は同じ Implementer へ修正 Handoff を返し、Reviewer へ進めない。修正後、Reviewer完了後、公開直前にも再実行する。
 
 担当: Reviewer（論理 read-only）
 

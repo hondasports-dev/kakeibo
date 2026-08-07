@@ -161,7 +161,11 @@ Issue は人間が後から判断理由を追跡するための記録であり�
 
 ### Main integrity check
 
-Implementer の返却後、Main は Reviewer の詳細レビューより先に `git diff` と Return Contract を確認する。
+Implementer の返却後、Main は Reviewer の詳細レビューより先に次を実行し、Return Contract と照合する。
+
+- `git status --short` で tracked / untracked の変更対象を列挙する
+- `git diff HEAD` で tracked の staged / unstaged 変更を確認する
+- untracked ファイルはパスだけでなく内容も確認する
 
 - `Scope / Editable Paths` 外を変更していない
 - `Design Decisions` に反する自己判断の設計変更がない
@@ -169,7 +173,7 @@ Implementer の返却後、Main は Reviewer の詳細レビューより先に `
 - Acceptance Criteria と実装内容が大きく乖離していない
 - Handoff との差分と未解決事項が正しく報告されている
 
-違反があれば後続フェーズへ進めず、Main が同じ Implementer へ修正 Handoff を返す。
+違反があれば後続フェーズへ進めず、Main が同じ Implementer へ修正 Handoff を返す。Implementer の修正後、Reviewer 完了後、公開直前にも同じ完全な integrity check を再実行する。
 
 マイルストーン対応は Issue を列挙し、1 Issue の PR と全 CI 成功まで終えてから次へ進む。進捗は
 GitHub Issue タスク台帳で管理する。
@@ -187,8 +191,9 @@ GitHub Issue タスク台帳で管理する。
 
 ## ロール参照
 
-Issue Gate 0 では Product Lead A/B/C、Tech Lead、QA Agent を確認し、UI/UX 変更時は UX/UI Designer
-も確認する。必要な役割だけを読む。
+Issue Gate 0 の `full` では Product Lead A/B/C、Main（Tech Leadロール）、QA Agentを確認する。
+`light` では Main（Tech Leadロール）とQA Agentを確認し、Product Lead A/B/Cは省略する。
+UI/UX変更時だけUX/UI Designerも確認する。必要な役割だけを読む。
 
 | 用途 | 参照先 |
 | --- | --- |

@@ -19,8 +19,9 @@ Cursor では Plan モードで Issue 番号を渡す。Codex / Devin では「�
 
 内部フロー:
 
-1. **`issue-gate-0`** — Main がユーザー要求、Issue、docs、既存コードを統合し、必要に応じてプロダクトリードA/B/C、QA Agent、UX/UIデザイナーの評価を得て、Tech Lead 判断を確定する。
+1. **`issue-gate-0`** — Main がユーザー要求、Issue、docs、既存コードを統合する。`full` は Product Lead A/B/C + QA Agent、`light` は QA Agentを対象とし、UI変更時だけ UX/UI Designerを追加する。Main自身のTech Leadロールは両modeで必須。
    - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
+   - そのmodeで必須の対象ロールがすべて `approved` の場合だけ、MainがTech Lead判断を確定する。
 2. **`tdd-implement`** — Main が固定形式の Implementation Handoff を作り、原則1体の Implementer が RED → GREEN で進める。
 3. **Main integrity check** — Handoff と実差分を照合し、違反時は同じ Implementer へ返す。
 4. **`e2e-author`**（該当時） — E2E spec 追加・更新、または省略理由。
@@ -85,13 +86,13 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 ## 並列化の方針
 
-- Product Lead A/B/C は並列で評価してよい。
-- UI/UX変更を含む場合は UX/UI Designer も Product Lead と並列で評価してよい。
-- Main の Tech Lead 判断は、Product Lead / UX/UI Designer の評価が `approved` になってから確定する。
+- `full` の Product Lead A/B/C は並列で評価してよい。`light` では省略する。
+- UI/UX変更を含む場合だけ UX/UI Designer を対象ロールへ追加し、他の専門評価と並列で評価してよい。
+- Main の Tech Lead 判断は、そのmodeで必須の対象ロールがすべて `approved` になってから確定する。
 - 同一差分の writer は原則 Implementer 1体。複数に分けるのは編集範囲を完全分離できる場合だけとする。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
 - Reviewer は論理 read-only とし、修正は Main 経由で同じ Implementer に戻す。
-- Release Manager は QA と Reviewer の結果がそろってから使う。
+- Release Manager は release / deploy / rollback / 本番影響があり、QA と Reviewer の結果がそろった場合だけ使う。
 - サブエージェントを起動できない場合は、理由を書いてからメインエージェントが該当ロール文書を読む。理由なしにメインエージェントだけで代替しない。
 
 ## サブエージェントがコマンドを実行できない場合の対処

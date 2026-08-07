@@ -67,4 +67,16 @@ Codex Plan モードでは、このロールは Coordinator を兼ねるメイ�
 - E2E候補シナリオ（既存 e2e/ のテスト名、または新規追加案と優先度 P0/P1/P2）
 - QA Agent への引き継ぎメモ（E2Eで確認したい完了条件、E2Eではなく単体・統合テストで見る項目、テストデータ・cleanup要否）
 - 技術リスク
+
+Implementation Handoff — Issue #NN
+Goal:
+Design Decisions:
+Scope / Editable Paths:
+Out of Scope:
+Acceptance Criteria:
+Constraints / Prohibited Operations:
+References:
+Test Plan / RED-GREEN:
+Verification:
+Return Contract:
 ```
