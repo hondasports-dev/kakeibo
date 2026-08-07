@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
+import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
 import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   type AiExpenseDraftDocumentType,
@@ -62,14 +63,7 @@ export function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
   if (!date) {
     throw new ConvexError("Draft date is required to mark ready");
   }
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const parsedDate = match ? new Date(`${date}T00:00:00Z`) : null;
-  if (
-    !match ||
-    !parsedDate ||
-    Number.isNaN(parsedDate.getTime()) ||
-    parsedDate.toISOString().slice(0, 10) !== date
-  ) {
+  if (!isValidIsoDateString(date)) {
     throw new ConvexError("Draft date must be a valid YYYY-MM-DD date");
   }
   if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {

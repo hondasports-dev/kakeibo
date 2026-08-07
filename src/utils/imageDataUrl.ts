@@ -1,4 +1,4 @@
-const MAX_IMAGE_DATA_URL_LENGTH = 900_000;
+import { MAX_IMAGE_DATA_URL_LENGTH } from "../../lib/domain/common/imageDataUrl";
 
 const RESIZE_CANDIDATES = [
   { longSide: 1600, quality: 0.8 },

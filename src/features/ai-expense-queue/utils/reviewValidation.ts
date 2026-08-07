@@ -1,24 +1,13 @@
+import { isValidIsoDateString } from "../../../../lib/domain/week/weekDates";
 import type { ReviewFormValues, ReviewItemValues } from "../types/types";
 import { isDiscountItemName, isValidReviewItemAmount } from "./discountItems";
 import { computeCategoryAggregates } from "./reviewDialogUtils";
-
-function isValidExpenseDate(value: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) return false;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const date = new Date(Date.UTC(year, month - 1, day));
-  return (
-    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
-  );
-}
 
 export function getReviewFormError(reviewForm: ReviewFormValues): string | null {
   const amountYen = Number(reviewForm.amountYen);
   if (
     !reviewForm.shopName.trim() ||
-    !isValidExpenseDate(reviewForm.date) ||
+    !isValidIsoDateString(reviewForm.date) ||
     !Number.isInteger(amountYen) ||
     amountYen <= 0 ||
     !reviewForm.categoryId
