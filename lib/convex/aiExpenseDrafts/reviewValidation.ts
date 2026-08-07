@@ -3,6 +3,7 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
 import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
+import { validateExpenseAmount } from "../../../lib/domain/expenseEntries/expenseEntryItem";
 import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   type AiExpenseDraftDocumentType,
@@ -66,7 +67,7 @@ export function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
   if (!isValidIsoDateString(date)) {
     throw new ConvexError("Draft date must be a valid YYYY-MM-DD date");
   }
-  if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
+  if (!validateExpenseAmount(args.amountYen).success) {
     throw new ConvexError("Draft amount is required to mark ready");
   }
   if (!hasCounterparty(args)) {
