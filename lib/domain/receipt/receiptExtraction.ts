@@ -1,6 +1,9 @@
 import { validateExpenseAmount, type ExpenseAmountError } from "../expenseEntries/expenseEntryItem";
 import { isValidIsoDateString } from "../week/weekDates";
 
+export { normalizeReceiptDate } from "./receiptDate";
+export type { ReceiptDateError } from "./receiptDate";
+
 export type ReceiptShopNameError = "empty" | "too_long";
 
 export const RECEIPT_SHOP_NAME_MAX_LENGTH = 100;
