@@ -21,7 +21,7 @@
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
 - サブエージェントを使えない場合も Main が必要な役割指示書を読んで進める。
 - Product Lead の評価を Main が Tech Lead として統合する。
-- 同じ差分の writer は原則 Implementer 1体とし、Reviewer は論理 read-only とする。
+- 同じ差分の writer は原則 Implementer 1体とし、QA AgentとReviewerは論理 read-only とする。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のQA・E2E結果確認の2回使ってよい。
 - Reviewer の指摘は Main が同じ Implementer へ修正 Handoff として返す。
 
@@ -237,10 +237,10 @@ Reviewer の確認:
 戻し先:
 
 - 仕様漏れ: Product Lead
-- 設計問題: Tech Lead
-- E2Eテスト設計の不足: Tech Lead
-- 実装バグ: Implementer
-- UI問題: optional UX/UI Designer または Implementer
+- 設計問題: Main（Tech Leadロール）
+- E2Eテスト設計の不足: Main（Tech Leadロール）
+- 実装バグ: Mainが同じImplementerへ修正Handoff
+- UI問題: Mainが optional UX/UI Designer の評価を得て、必要なら同じImplementerへ修正Handoff
 
 完了条件:
 

@@ -52,6 +52,7 @@ override general Convex knowledge. Convex agent skills may be installed with
 - 委譲前に、担当範囲、編集可能パス、成果物、検証方法、禁止操作を明示する。
 - 同じ差分へ書き込む writer は原則 Implementer 1 体とする。複数 writer は編集範囲を完全分離でき、統合コストより明確な利点がある場合だけ使う。
 - Implementer へは、Issue の転載ではなく、メインエージェントが確定した Implementation Handoff を渡す。
+- QA Agent は論理 read-only とし、要件・テスト設計・Check・ログを評価して原因と修正方針をMainへ返す。ソース・テスト・docs の編集やGit操作は行わせない。
 - Reviewer は論理 read-only とし、ファイル編集、stage、commit、push を行わせない。指摘の反映はメインエージェントが同じ Implementer へ修正契約として返す。
 - 「論理 read-only」は instruction 上の編集禁止を意味し、sandbox やファイル権限による強制ではない。サブエージェントは親の sandbox / permission を継承しうるため、Main が差分を確認する。
 - secret、個人情報、本番管理画面、production 操作、外部書き込みを委譲しない。必要な人間確認はメインエージェントが先に取得する。

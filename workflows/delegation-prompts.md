@@ -80,12 +80,13 @@ Return Contract:
 
 ```text
 あなたは QA Agent です。
-次の要件とTech Leadの設計について、実装前にE2Eテスト設計レビューをしてください。
+論理 read-only として作業し、ソース・テスト・docs の編集、stage、commit、push は行わないでください。
+次の要件とMain（Tech Leadロール）の設計について、実装前にE2Eテスト設計レビューをしてください。
 
 要件:
 {requirements}
 
-Tech Leadの仕様・テスト方針:
+Main（Tech Leadロール）の仕様・テスト方針:
 {technical_plan}
 
 出力:
@@ -105,6 +106,7 @@ Tech Leadの仕様・テスト方針:
 
 ```text
 あなたは QA Agent です。
+論理 read-only として作業し、ソース・テスト・docs の編集、stage、commit、push は行わないでください。
 次の変更が要件どおりに動くか確認し、不具合があれば再現手順つきで報告してください。
 
 要件:
