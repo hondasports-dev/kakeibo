@@ -24,10 +24,11 @@ UIが重要なプロダクトだけ `optional-ux-ui-designer.md` を追加で使
 3. Main が Tech Lead として設計、実装方針、Implementation Handoff を作る。
 4. QA Agent が実装前にE2Eテスト設計をレビューし、必要なら Tech Lead または Product Lead に戻す。
 5. 原則1体の Implementer がコード変更とテスト追加を行う。
-6. QA Agent が受け入れ条件、画面、API、回帰を確認する。
-7. 論理 read-only の Reviewer が差分をレビューし、重大リスクを指摘する。
-8. 問題があれば Implementer、Tech Lead、Product Lead の適切な担当に戻す。
-9. Release Manager がリリースノート、デプロイ手順、ロールバックをまとめる。
+6. Main が Handoff と実差分の integrity check を行い、違反時は同じ Implementer へ返す。
+7. QA Agent が受け入れ条件、画面、API、回帰を確認する。
+8. 論理 read-only の Reviewer が差分をレビューし、重大リスクを指摘する。
+9. 問題があれば Implementer、Main、Product Lead の適切な担当に戻す。
+10. Release Manager がリリースノート、デプロイ手順、ロールバックをまとめる。
 
 ## 使わない方がよい常設役割
 

@@ -43,7 +43,7 @@ Issue 本文だけで実装に進まない。統合判定 **Go** と **GATE0 成
 | QA Agent | E2E 要否、回帰、受け入れ条件の検証方法 | `.agents/roles/04-qa-agent.md` | 必須 | 必須 |
 
 Codex Plan モードではメインエージェントが Coordinator と Tech Lead を兼務し、全ロールの結果を統合して最終判断する。
-Product Lead A/B/C、QA、UX/UI など、互いに独立した専門評価は必要に応じて read-only サブエージェントへ委譲してよい。
+Product Lead A/B/C、QA、UX/UI など、互いに独立した専門評価は必要に応じて論理 read-only サブエージェントへ委譲してよい。これは instruction 上の編集禁止であり、sandbox 権限による強制ではない。
 Tech Lead の設計判断は原則としてメインエージェント自身が `.agents/roles/02-tech-lead.md` を読んで行い、別 thread に判断責任を移さない。
 
 ### 各ロールの出力形式

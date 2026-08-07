@@ -41,6 +41,7 @@ Return Contract:
 - writer は原則 Implementer 1 体とする。複数 writer は編集可能パスを完全分離できる場合だけ使う。
 - Implementer は契約外の設計変更を独断で行わず、矛盾や不足をメインエージェントへ返す。
 - branch、worktree、stage、commit、push、PR はメインエージェントが管理する。
+- Implementer は `gpt-5.6-luna` / `high` を推奨する。サブエージェント起動時に利用可能なら `model` と `reasoning_effort` を明示する。
 
 ## 併用ガード
 
@@ -81,6 +82,18 @@ Return Contract:
 - GATE0 成果物の実装範囲内で完了条件を満たしている
 - 次フェーズ: `e2e-author`（該当時）→ `verify-pre-push`
 - Return Contract に従い、変更ファイル、RED/GREEN、検証結果、契約との差分、未解決事項をメインエージェントへ返している
+
+## Main integrity check（次フェーズ前の必須ゲート）
+
+Implementer の返却後、Main は `git diff` と Return Contract を確認する。
+
+- `Scope / Editable Paths` 外の変更がない
+- `Design Decisions` に反する自己判断の設計変更がない
+- 無関係なリファクタリングや依存追加がない
+- Acceptance Criteria と実装内容が大きく乖離していない
+- Handoff との差分・未解決事項が正しく報告されている
+
+違反があれば E2E、検証、Reviewer へ進めず、同じ Implementer へ修正 Handoff を返す。
 
 ## 停止条件
 

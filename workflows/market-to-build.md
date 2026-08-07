@@ -35,7 +35,7 @@ workflows/market-to-build.md を使って、
 アプリ案が決まるまでは実装サブエージェントを起動しないで。
 
 私が「この案で進める」と言ったら、
-Tech Lead、必要ならUX/UI Designer、Implementer、QA Agent、Reviewer、Release Managerを使って、
+Main が Tech Lead を兼務し、必要なら UX/UI Designer、Implementer、QA Agent、Reviewer、Release Manager を使って、
 開発からリリース準備まで進めて。
 
 Codexで作業する場合は、この依頼をサブエージェント起動の明示的な許可として扱い、
@@ -193,14 +193,17 @@ Main が固定形式の Implementation Handoff を確定し、原則1体の Impl
 
 ## フェーズ6: QAとレビュー
 
+QAとレビューへ進む前に、Main が Implementation Handoff と `git diff` を照合する integrity check を行う。
+違反があれば同じ Implementer へ修正 Handoff を返す。
+
 担当:
 
 - QA Agent
 - Reviewer
 
-並列化:
+開始条件:
 
-- 実装が完了した後、QA Agent と Reviewer は並列で実行してよい。
+- 実装完了後の Main integrity check が通っている。
 
 QA Agent の確認:
 

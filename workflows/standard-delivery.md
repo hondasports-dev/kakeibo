@@ -15,6 +15,7 @@
 - 同じ差分に書き込む Implementer は原則1体とする。複数 writer は編集範囲を完全分離できる場合だけ使う。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
 - Reviewer は論理 read-only とし、修正を同じ Implementer へ返す。
+- モデルルーティングは `AGENTS.md` と `workflows/delegation-prompts.md` を正本とする。
 - Release Manager は、QA と Reviewer の結果がそろってから使う。
 
 ## 呼び出し方
@@ -23,8 +24,9 @@
 workflows/standard-delivery.md を使って進めて。
 
 Codexで作業する場合は、この依頼をサブエージェント起動の明示的な許可として扱い、
-必要に応じて Product Lead、Tech Lead、Implementer、QA Agent、Reviewer、Release Manager の
+必要に応じて Product Lead、Implementer、QA Agent、Reviewer、Release Manager の
 サブエージェントを起動してよい。
+Tech Lead は Main が兼務する。
 Devinで作業する場合も、同じ役割分担で進めて。
 ```
 
@@ -88,6 +90,14 @@ Product Lead の完了条件と Tech Lead のテスト方針を照合し、実�
 - 未解決事項
 
 ### 4. コードレビュー
+
+コードレビューへ進む前に、Main が Implementer の実差分に対して integrity check を行う。
+
+- Handoff の editable paths、設計判断、受け入れ条件との整合
+- 無関係なリファクタリング、依存追加の不在
+- Handoff との差分と未解決事項の報告
+
+違反時は同じ Implementer へ修正 Handoff を返し、Reviewer へ進めない。
 
 担当: Reviewer（論理 read-only）
 

@@ -55,6 +55,7 @@ worktreeで作業してください。サブエージェント自身は `git wor
 commit、push、PR作成を行いません。
 
 同一差分に書き込む writer は原則1体です。複数 writer で同じファイルや依存関係を並行編集しません。
+Codex の推奨起動設定は `model: gpt-5.6-luna`、`reasoning_effort: high` です。
 
 ### Implementer が行うこと
 

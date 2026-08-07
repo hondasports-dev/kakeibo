@@ -10,6 +10,8 @@ Codex Plan モードでは Main が Coordinator と Tech Lead を兼務する。
 
 サブエージェントは独立した調査や専門評価、Implementer、Reviewer に使う。Tech Lead の設計判断は Main に残し、同一差分の writer は原則 Implementer 1体、Reviewer は論理 read-only とする。
 
+推奨モデルは Main / Tech Lead と Reviewer が `gpt-5.6-sol`、Implementer と QA が `gpt-5.6-luna`。effort と例外条件の正本は `AGENTS.md`「モデルルーティング」と `workflows/delegation-prompts.md` とする。
+
 ## Issue を1つ解決する場合（推奨）
 
 Cursor では Plan モードで Issue 番号を渡す。Codex / Devin では「実施計画を先に出力してから実行」と指示する。
@@ -20,11 +22,12 @@ Cursor では Plan モードで Issue 番号を渡す。Codex / Devin では「�
 1. **`issue-gate-0`** — Main がユーザー要求、Issue、docs、既存コードを統合し、必要に応じてプロダクトリードA/B/C、QA Agent、UX/UIデザイナーの評価を得て、Tech Lead 判断を確定する。
    - `needs_discussion` が1つでもあれば実装に進まず、論点をまとめてユーザー確認へ戻す。
 2. **`tdd-implement`** — Main が固定形式の Implementation Handoff を作り、原則1体の Implementer が RED → GREEN で進める。
-3. **`e2e-author`**（該当時） — E2E spec 追加・更新、または省略理由。
-4. **`verify-pre-push`** — push 前検証、必要ならローカル E2E。
-5. **`code-review`** — 論理 read-only の Reviewer が preview 差分をレビューし、Main が指摘を同じ Implementer へ返す。
-6. **PR 作成・push** — `docs/development-process.md`「Issue 対応フロー」参照。
-7. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → 再検証 → `code-review` 再実行 → 再 push。
+3. **Main integrity check** — Handoff と実差分を照合し、違反時は同じ Implementer へ返す。
+4. **`e2e-author`**（該当時） — E2E spec 追加・更新、または省略理由。
+5. **`verify-pre-push`** — push 前検証、必要ならローカル E2E。
+6. **`code-review`** — 論理 read-only の Reviewer が preview 差分をレビューし、Main が指摘を同じ Implementer へ返す。
+7. **PR 作成・push** — `docs/development-process.md`「Issue 対応フロー」参照。
+8. **CI** — GitHub Actions / E2E 確認。失敗時は修正 → 再検証 → `code-review` 再実行 → 再 push。
 
 ループ上限を超えた場合や環境起因のエラーは、中断してユーザーに報告する。
 
