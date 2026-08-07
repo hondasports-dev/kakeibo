@@ -1,5 +1,2 @@
-export type GroupRole = "owner" | "member";
-
-export function formatGroupRoleLabel(role: GroupRole): string {
-  return role === "owner" ? "オーナー" : "メンバー";
-}
+export type { GroupRole } from "../../../../lib/domain/groups/role";
+export { formatGroupRoleLabel } from "../../../../lib/domain/groups/role";

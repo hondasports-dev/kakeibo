@@ -301,7 +301,20 @@ lib/                           # Convex 外の純粋ヘルパー（api.d.ts 肥�
   `convex/` 配下の `.ts` は Convex が `api.d.ts` に載せるため、ヘルパーを増やしすぎると型推論が深くなりビルドが失敗しうる。
 - **HTTP** は `convex/http.ts` が router のみを担当し、E2E 用 handler は `convex/e2eHttp/` に分離する。
 
-### 5.3 スタイリング責務
+### 5.3 ドメインレイヤー（DDD）
+
+ドメイン駆動設計に基づき、フロントエンド・バックエンド双方で使える **純粋なドメインルール** は `lib/domain/<domain>/` に配置する。
+
+- `lib/domain/<domain>/` には、値オブジェクト・ドメイン型・純粋バリデーション・ドメインサービスを置く。
+- `convex/<domain>/lib/` は `lib/domain/<domain>/` を利用した **Convex アダプタ** と位置づけ、UI から直接 import しない。
+- `src/features/<feature>/` はプレゼンテーション層とし、ドメインルールが必要な場合は `lib/domain/<domain>/` を経由して利用する。
+
+例として `lib/domain/groups/groupName.ts` ではグループ名の最大長・trim・空文字/超過判定を行い、
+`convex/groups/lib/groupName.ts` はそれを `ConvexError` でラップして利用する。
+同様に `lib/domain/groups/role.ts` は `GroupRole` 型とロールラベル関数を提供し、
+フロントエンド・バックエンドの重複を解消する。
+
+### 5.4 スタイリング責務
 
 MUIとTailwind CSSは併用するが、責務を分ける。
 
