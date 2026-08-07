@@ -1,5 +1,6 @@
 import { ConvexError } from "convex/values";
 import { isDiscountItemName } from "../../../convex/lib/discountItems";
+import { validateExpenseAmount } from "../../../lib/domain/expenseEntries/expenseEntryItem";
 import type {
   AmountBasis,
   ExtractedTaxSummary,
@@ -46,8 +47,10 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): Extracted
   if (typeof obj.amountYen !== "number") {
     throw new ConvexError("OpenAI レスポンスの amountYen が数値ではありません");
   }
-  if (!Number.isInteger(obj.amountYen) || obj.amountYen < 0) {
-    throw new ConvexError("OpenAI レスポンスの amountYen は 0 以上の整数である必要があります");
+  if (!validateExpenseAmount(obj.amountYen).success) {
+    throw new ConvexError(
+      "OpenAI レスポンスの amountYen は 1 円以上 9,999,999 円以下の整数である必要があります",
+    );
   }
   const confidence = parseConfidence(obj.confidence);
 
