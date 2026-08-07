@@ -1,4 +1,7 @@
-import { EXPENSE_ENTRY_AMOUNT_MAX } from "../../../../lib/domain/expenseEntries/expenseEntryItem";
+import {
+  validateReceiptShopName,
+  validateReceiptTotalAmount,
+} from "../../../../lib/domain/receipt/receiptExtraction";
 
 export type ReceiptExtractionField = "shopName" | "date" | "amountYen";
 export type ReceiptExtractionStatus = "applied" | "needs_confirmation" | "rejected";
@@ -116,14 +119,15 @@ function normalizeShopName(
   if (typeof value !== "string") {
     return { success: false, reason: "店舗名を読み取れませんでした" };
   }
-  const trimmed = value.normalize("NFKC").trim();
-  if (trimmed === "") {
-    return { success: false, reason: "店舗名を読み取れませんでした" };
+  const normalized = value.normalize("NFKC").trim();
+  const result = validateReceiptShopName(normalized);
+  if (!result.success) {
+    return {
+      success: false,
+      reason: result.error === "too_long" ? "店舗名が長すぎます" : "店舗名を読み取れませんでした",
+    };
   }
-  if (trimmed.length > 100) {
-    return { success: false, reason: "店舗名が長すぎます" };
-  }
-  return { success: true, value: trimmed };
+  return { success: true, value: result.shopName };
 }
 
 function normalizeExtractedAmount(
@@ -160,16 +164,17 @@ function normalizeExtractedAmount(
 function validateAmount(
   value: number,
 ): { success: true; value: number } | { success: false; reason: string } {
-  if (!Number.isInteger(value)) {
-    return { success: false, reason: "金額が整数ではありません" };
+  const result = validateReceiptTotalAmount(value);
+  if (!result.success) {
+    return {
+      success: false,
+      reason:
+        result.error === "too_large"
+          ? "金額が上限を超えています"
+          : "金額は 1 円以上の整数である必要があります",
+    };
   }
-  if (value < 1) {
-    return { success: false, reason: "金額は 1 円以上である必要があります" };
-  }
-  if (value > EXPENSE_ENTRY_AMOUNT_MAX) {
-    return { success: false, reason: "金額が上限を超えています" };
-  }
-  return { success: true, value };
+  return { success: true, value: result.amount };
 }
 
 function normalizeExtractedDate(
