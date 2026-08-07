@@ -3,6 +3,10 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { assertExpenseCategoryBelongsToGroup } from "./expenseEntryValidation";
+import {
+  validateExpenseAmount,
+  validateExpenseTitle,
+} from "../../../lib/domain/expenseEntries/expenseEntryItem";
 
 type DraftItemArg = {
   itemName?: string;
@@ -39,7 +43,7 @@ export async function createExpenseEntriesFromDraftHandler(
   const createdIds: Id<"expenseEntries">[] = [];
 
   for (const item of args.items) {
-    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
+    if (!validateExpenseAmount(item.amountYen).success) {
       throw new ConvexError("Amount must be a positive integer");
     }
     const categoryId = item.categoryId ?? draft.categoryId;
@@ -49,6 +53,11 @@ export async function createExpenseEntriesFromDraftHandler(
 
     await assertExpenseCategoryBelongsToGroup(ctx, categoryId, groupId);
 
+    const titleResult = validateExpenseTitle(item.itemName ?? "不明");
+    if (!titleResult.success) {
+      throw new ConvexError("Title is required");
+    }
+
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
       sourceDocumentId: undefined,
@@ -56,7 +65,7 @@ export async function createExpenseEntriesFromDraftHandler(
       date: draft.date,
       amount: item.amountYen,
       categoryId,
-      title: item.itemName ?? "不明",
+      title: titleResult.title,
       entryType: "expense",
       source: "ai_suggested",
       createdAt: now,

@@ -1,37 +1,10 @@
-import * as v from "valibot";
 import type { Id } from "../../../../convex/_generated/dataModel";
-
-const categoryIdField = v.pipe(v.string(), v.nonEmpty("カテゴリは必須です"));
-
-const amountYenField = v.pipe(
-  v.string(),
-  v.nonEmpty("金額は必須です"),
-  v.regex(/^\d+$/, "金額は数字のみで入力してください"),
-  v.transform((s) => parseInt(s, 10)),
-  v.minValue(1, "金額は 1 円以上です"),
-  v.maxValue(9_999_999, "金額は 9,999,999 円以下です"),
-);
-
-const titleField = v.pipe(
-  v.string(),
-  v.nonEmpty("内容は必須です"),
-  v.maxLength(100, "内容は 100 文字以内です"),
-);
-
-const memoField = v.optional(
-  v.pipe(
-    v.string(),
-    v.maxLength(500, "メモは 500 文字以内です"),
-    v.transform((s) => (s === "" ? undefined : s)),
-  ),
-);
-
-const expenseItemEntrySchema = v.object({
-  categoryId: categoryIdField,
-  amountYen: amountYenField,
-  title: titleField,
-  memo: memoField,
-});
+import {
+  EXPENSE_ENTRY_AMOUNT_MAX,
+  EXPENSE_ENTRY_MEMO_MAX_LENGTH,
+  EXPENSE_ENTRY_TITLE_MAX_LENGTH,
+  validateExpenseItemInput,
+} from "../../../../lib/domain/expenseEntries/expenseEntryItem";
 
 export type ExpenseItemEntryInput = {
   categoryId: Id<"categories"> | "";
@@ -59,17 +32,50 @@ export function validateExpenseItemEntry(
 ):
   | { success: true; data: ExpenseItemEntryParsed }
   | { success: false; errors: ExpenseItemEntryErrors } {
-  const result = v.safeParse(expenseItemEntrySchema, data);
+  const result = validateExpenseItemInput({
+    categoryId: data.categoryId,
+    amountYen: data.amountYen,
+    title: data.title,
+    memo: data.memo,
+  });
+
   if (result.success) {
-    return { success: true, data: result.output as ExpenseItemEntryParsed };
+    return {
+      success: true,
+      data: {
+        categoryId: result.data.categoryId as Id<"categories">,
+        amountYen: result.data.amountYen,
+        title: result.data.title,
+        memo: result.data.memo,
+      },
+    };
   }
+
   const errors: ExpenseItemEntryErrors = {};
-  for (const issue of result.issues) {
-    const key = issue.path?.[0]?.key as keyof ExpenseItemEntryErrors | undefined;
-    if (key && !errors[key]) {
-      errors[key] = issue.message;
-    }
+  if (result.errors.categoryId) {
+    errors.categoryId = "カテゴリは必須です";
   }
+  if (result.errors.amountYen) {
+    const code = result.errors.amountYen;
+    errors.amountYen =
+      code === "required"
+        ? "金額は必須です"
+        : code === "not_number"
+          ? "金額は数字のみで入力してください"
+          : code === "too_large"
+            ? `金額は ${EXPENSE_ENTRY_AMOUNT_MAX.toLocaleString("ja-JP")} 円以下です`
+            : "金額は 1 円以上です";
+  }
+  if (result.errors.title) {
+    errors.title =
+      result.errors.title === "empty"
+        ? "内容は必須です"
+        : `内容は ${EXPENSE_ENTRY_TITLE_MAX_LENGTH} 文字以内です`;
+  }
+  if (result.errors.memo) {
+    errors.memo = `メモは ${EXPENSE_ENTRY_MEMO_MAX_LENGTH} 文字以内です`;
+  }
+
   return { success: false, errors };
 }
 
