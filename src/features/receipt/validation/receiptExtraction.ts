@@ -1,4 +1,5 @@
 import {
+  normalizeReceiptDate,
   validateReceiptShopName,
   validateReceiptTotalAmount,
 } from "../../../../lib/domain/receipt/receiptExtraction";
@@ -184,54 +185,18 @@ function normalizeExtractedDate(
     return { success: false, reason: "日付を読み取れませんでした" };
   }
 
-  const normalized = value.normalize("NFKC").trim();
-  if (normalized === "") {
-    return { success: false, reason: "日付を読み取れませんでした" };
-  }
-  if (/[~〜～]|から|まで/.test(normalized)) {
-    return { success: false, reason: "日付候補が範囲表現です" };
-  }
-
-  const candidates = findDateCandidates(normalized);
-  if (candidates.length !== 1) {
-    return { success: false, reason: "日付候補が曖昧です" };
+  const result = normalizeReceiptDate(value);
+  if (!result.success) {
+    const reasons: Record<typeof result.error, string> = {
+      no_candidate: "日付を読み取れませんでした",
+      ambiguous: "日付候補が曖昧です",
+      range_expression: "日付候補が範囲表現です",
+      invalid: "存在しない日付です",
+    };
+    return { success: false, reason: reasons[result.error] };
   }
 
-  const { year, month, day } = candidates[0];
-  if (!isValidCalendarDate(year, month, day)) {
-    return { success: false, reason: "存在しない日付です" };
-  }
-
-  return {
-    success: true,
-    value: `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`,
-  };
-}
-
-function findDateCandidates(value: string): Array<{ year: number; month: number; day: number }> {
-  const candidates: Array<{ year: number; month: number; day: number }> = [];
-  const patterns = [
-    /(?<!\d)(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?!\d)/g,
-    /(?<!\d)(\d{4})\.(\d{1,2})\.(\d{1,2})(?!\d)/g,
-    /(?<!\d)(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日(?!\d)/g,
-  ];
-
-  for (const pattern of patterns) {
-    for (const match of value.matchAll(pattern)) {
-      candidates.push({
-        year: Number(match[1]),
-        month: Number(match[2]),
-        day: Number(match[3]),
-      });
-    }
-  }
-
-  return candidates;
-}
-
-function isValidCalendarDate(year: number, month: number, day: number): boolean {
-  const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
+  return { success: true, value: result.date };
 }
 
 function parseWarnings(value: unknown): string[] {
