@@ -1,15 +1,15 @@
 import { isValidIsoDateString } from "../../../../lib/domain/week/weekDates";
+import { parseExpenseAmountString } from "../../../../lib/domain/expenseEntries/expenseEntryItem";
 import type { ReviewFormValues, ReviewItemValues } from "../types/types";
 import { isDiscountItemName, isValidReviewItemAmount } from "./discountItems";
 import { computeCategoryAggregates } from "./reviewDialogUtils";
 
 export function getReviewFormError(reviewForm: ReviewFormValues): string | null {
-  const amountYen = Number(reviewForm.amountYen);
+  const amountResult = parseExpenseAmountString(reviewForm.amountYen);
   if (
     !reviewForm.shopName.trim() ||
     !isValidIsoDateString(reviewForm.date) ||
-    !Number.isInteger(amountYen) ||
-    amountYen <= 0 ||
+    !amountResult.success ||
     !reviewForm.categoryId
   ) {
     return "店名・内容、支出日、金額、カテゴリを確認してください。";
