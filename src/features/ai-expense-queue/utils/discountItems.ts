@@ -1,20 +1,17 @@
-const DISCOUNT_ITEM_PATTERN = /(割引|値引|クーポン|割戻|割り戻|ポイント利用|ポイント充当)/;
+/**
+ * 割引明細に関する UI アダプタ。
+ * 純粋なドメインルールは lib/domain/receipt/discountItems.ts に委ねる。
+ */
+import {
+  isDiscountItemName as isDiscountItemNameDomain,
+  isValidSignedLineItemAmount,
+  sanitizeSignedYenInput as sanitizeSignedYenInputDomain,
+} from "../../../../lib/domain/receipt/discountItems";
 
-export function isDiscountItemName(itemName: string): boolean {
-  return DISCOUNT_ITEM_PATTERN.test(itemName.trim());
-}
+export { isDiscountItemNameDomain as isDiscountItemName };
+export { sanitizeSignedYenInputDomain as sanitizeSignedYenInput };
 
-export function sanitizeSignedYenInput(itemName: string, value: string): string {
-  const digits = value.replace(/[^\d]/g, "");
-  if (!digits) {
-    return value.trim() === "-" && isDiscountItemName(itemName) ? "-" : "";
-  }
-  return value.trimStart().startsWith("-") && isDiscountItemName(itemName) ? `-${digits}` : digits;
-}
-
+/** フロントエンドでの别名。 signed line item amount と同じルールを使う。 */
 export function isValidReviewItemAmount(itemName: string, amountYen: number): boolean {
-  if (!Number.isInteger(amountYen) || amountYen === 0) {
-    return false;
-  }
-  return amountYen > 0 || isDiscountItemName(itemName);
+  return isValidSignedLineItemAmount(itemName, amountYen);
 }
