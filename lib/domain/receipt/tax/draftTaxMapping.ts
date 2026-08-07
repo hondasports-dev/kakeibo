@@ -1,4 +1,4 @@
-import type { AiExpenseDraftReviewReason } from "../../convex/aiExpenseDrafts/model";
+import type { AiExpenseDraftReviewReason } from "../../../../convex/aiExpenseDrafts/model";
 import type {
   AmountBasis,
   ExtractedReceiptItem,
