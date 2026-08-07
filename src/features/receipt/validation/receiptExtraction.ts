@@ -1,3 +1,5 @@
+import { EXPENSE_ENTRY_AMOUNT_MAX } from "../../../../lib/domain/expenseEntries/expenseEntryItem";
+
 export type ReceiptExtractionField = "shopName" | "date" | "amountYen";
 export type ReceiptExtractionStatus = "applied" | "needs_confirmation" | "rejected";
 
@@ -33,7 +35,6 @@ export type NormalizedReceiptExtraction = {
 };
 
 const CONFIDENCE_THRESHOLD = 0.8;
-const MAX_RECEIPT_AMOUNT_YEN = 9_999_999;
 
 const fieldLabels: Record<ReceiptExtractionField, string> = {
   shopName: "店舗名",
@@ -165,7 +166,7 @@ function validateAmount(
   if (value < 1) {
     return { success: false, reason: "金額は 1 円以上である必要があります" };
   }
-  if (value > MAX_RECEIPT_AMOUNT_YEN) {
+  if (value > EXPENSE_ENTRY_AMOUNT_MAX) {
     return { success: false, reason: "金額が上限を超えています" };
   }
   return { success: true, value };

@@ -7,6 +7,12 @@ import { calculateWeekStartDate } from "../lib/weekDates";
 import { getWeeklyStartDayForUser } from "../users/weeklySettings";
 import { v } from "convex/values";
 import { createReceiptHandler } from "../../lib/convex/receipts/insert";
+import { isValidIsoDateString } from "../../lib/domain/week/weekDates";
+import {
+  validateExpenseAmount,
+  validateExpenseMemo,
+  validateExpenseTitle,
+} from "../../lib/domain/expenseEntries/expenseEntryItem";
 
 type UpdateReceiptArgs = {
   receiptId: Id<"receipts">;
@@ -58,24 +64,42 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
   }> = { updatedAt: now };
 
   if (args.date !== undefined) {
+    if (!isValidIsoDateString(args.date)) {
+      throw new ConvexError("Date must be a valid YYYY-MM-DD value");
+    }
     patch.date = args.date;
     const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
     patch.weekStartDate = calculateWeekStartDate(args.date, weekStartDay);
   }
   if (args.shopName !== undefined) {
-    patch.shopName = args.shopName;
+    const shopNameResult = validateExpenseTitle(args.shopName);
+    if (!shopNameResult.success) {
+      throw new ConvexError("shopName must be 100 characters or fewer");
+    }
+    patch.shopName = shopNameResult.title;
   }
   if (args.bankName !== undefined) {
-    patch.bankName = args.bankName;
+    const bankNameResult = validateExpenseTitle(args.bankName);
+    if (!bankNameResult.success) {
+      throw new ConvexError("bankName must be 100 characters or fewer");
+    }
+    patch.bankName = bankNameResult.title;
   }
   if (args.amountYen !== undefined) {
+    if (!validateExpenseAmount(args.amountYen).success) {
+      throw new ConvexError("Amount must be a positive integer");
+    }
     patch.amountYen = args.amountYen;
   }
   if (args.categoryId !== undefined) {
     patch.categoryId = args.categoryId;
   }
   if (args.memo !== undefined) {
-    patch.memo = args.memo;
+    const memoResult = validateExpenseMemo(args.memo);
+    if (!memoResult.success) {
+      throw new ConvexError("Memo must be 500 characters or less");
+    }
+    patch.memo = memoResult.memo;
   }
 
   await ctx.db.patch(args.receiptId, patch);
