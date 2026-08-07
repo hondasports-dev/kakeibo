@@ -1,32 +1,3 @@
-export { interpretReceiptTax } from "./interpretReceiptTax";
-export { calculateTaxYen } from "./calculateTax";
-export {
-  buildReceiptTaxInput,
-  deriveTaxReviewReasons,
-  draftItemToExtractedReceiptItem,
-  interpretedItemToDraftFields,
-  taxContextToDraftFields,
-} from "./draftTaxMapping";
-export { reinterpretDraftTax } from "./reinterpretDraftTax";
-export {
-  normalizeTaxSummary,
-  reconcileTaxSummary,
-  validateTaxSummaryConsistency,
-} from "./taxSummaryConsistency";
-export type { DraftItemTaxFields } from "./draftTaxMapping";
-export type { DraftTaxOverride, ReinterpretDraftTaxInput } from "./reinterpretDraftTax";
-export type {
-  AmountBasis,
-  ExtractedReceiptItem,
-  ExtractedTaxSummary,
-  InterpretedReceiptItem,
-  ReceiptMarkerDefinition,
-  ReceiptTaxInput,
-  ReceiptTaxInterpretation,
-  TaxContextResolution,
-  TaxRatePercent,
-  TaxResolutionSource,
-  TaxSummaryConsistency,
-  TaxSummaryConsistencyReason,
-  TaxSummaryConsistencyStatus,
-} from "./types";
+// `lib/receiptTax` は `lib/domain/receipt/tax` へのアダプタ兼後方互換です。
+// 新規コードは `lib/domain/receipt/tax` を直接利用してください。
+export * from "../domain/receipt/tax/index";
