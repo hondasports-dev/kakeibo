@@ -1,7 +1,9 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
+import { theme } from "../../../theme";
 import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
 import { categories, queueItems, rejectImageDecoding } from "../utils/testFixtures";
 
@@ -217,6 +219,132 @@ describe("AiExpenseQueuePanel", () => {
       imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
     });
     expect(screen.queryByRole("dialog", { name: "下書き確認" })).not.toBeInTheDocument();
+  });
+
+  it("同一バッチの全画像がreadyになるまで一括登録を有効化しない", async () => {
+    const user = userEvent.setup();
+    let jobs: Array<{
+      _id: string;
+      batchId: string;
+      fileName: string;
+      status: string;
+      draftId?: string;
+    }> = [
+      {
+        _id: "job-1",
+        batchId: "batch-1",
+        fileName: "batch-first.png",
+        status: "queued",
+      },
+      {
+        _id: "job-2",
+        batchId: "batch-1",
+        fileName: "batch-second.png",
+        status: "queued",
+      },
+    ];
+    let readyDrafts: unknown[] = [];
+    let reviewDrafts: unknown[] = [];
+    let registeredDrafts: unknown[] = [];
+    const firstDraft = {
+      _id: "draft-batch-1",
+      status: "ready",
+      documentType: "receipt",
+      imageFileName: "batch-first.png",
+      shopName: "バッチ一店",
+      amountYen: 100,
+      date: "2026-06-01",
+      categoryId: "cat-food",
+      reviewReasons: [],
+    };
+    const secondDraft = {
+      ...firstDraft,
+      _id: "draft-batch-2",
+      imageFileName: "batch-second.png",
+      shopName: "バッチ二店",
+      amountYen: 200,
+    };
+
+    useQueryMock.mockImplementation((reference: string, args: { status?: string }) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return jobs;
+      if (reference === "aiExpenseDrafts.queries.listByStatus") {
+        if (args.status === "ready") return readyDrafts;
+        if (args.status === "needs_review") return reviewDrafts;
+        if (args.status === "registered") return registeredDrafts;
+        return [];
+      }
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
+      }
+      return [];
+    });
+
+    const { rerender } = renderWithProviders(<AiExpenseQueuePanel />);
+    await user.upload(screen.getByLabelText("読み取り用画像を追加"), [
+      new File(["first"], "batch-first.png", { type: "image/png" }),
+      new File(["second"], "batch-second.png", { type: "image/png" }),
+    ]);
+
+    expect(await screen.findByText("今回の追加 0/2件が登録準備OK")).toBeInTheDocument();
+    expect(screen.getByText("解析待ち 2件")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "まとめて登録（0件）" })).toBeDisabled();
+
+    jobs = [
+      { ...jobs[0], status: "ready", draftId: "draft-batch-1" },
+      { ...jobs[1], status: "needs_review", draftId: "draft-batch-2" },
+    ];
+    readyDrafts = [firstDraft];
+    reviewDrafts = [{ ...secondDraft, status: "needs_review" }];
+    rerender(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AiExpenseQueuePanel />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("今回の追加 1/2件が登録準備OK")).toBeInTheDocument();
+      expect(screen.getAllByText("確認待ち 1件")).toHaveLength(2);
+    });
+    expect(screen.getByRole("button", { name: "まとめて登録（1件）" })).toBeDisabled();
+
+    jobs = [{ ...jobs[0] }, { ...jobs[1], status: "ready", draftId: "draft-batch-2" }];
+    readyDrafts = [firstDraft, secondDraft];
+    reviewDrafts = [];
+    rerender(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AiExpenseQueuePanel />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("今回の追加 2/2件が登録準備OK")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "まとめて登録（2件）" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "まとめて登録（2件）" }));
+    const confirmDialog = screen.getByRole("dialog");
+    await user.click(within(confirmDialog).getByRole("button", { name: "登録する" }));
+
+    expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
+      draftIds: ["draft-batch-1", "draft-batch-2"],
+    });
+
+    jobs = jobs.map((job) => ({ ...job, status: "registered" }));
+    readyDrafts = [];
+    registeredDrafts = [
+      { ...firstDraft, status: "registered" },
+      { ...secondDraft, status: "registered" },
+    ];
+    rerender(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AiExpenseQueuePanel />
+      </ThemeProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("今回の追加 2/2件が登録準備OK")).not.toBeInTheDocument();
+    });
   });
 
   it("1枚だけ追加した画像の解析完了後に確認フォームを自動表示する", async () => {

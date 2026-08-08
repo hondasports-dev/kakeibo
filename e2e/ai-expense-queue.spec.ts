@@ -99,6 +99,16 @@ test.describe("Issue #144 読み取りUI", () => {
         { timeout: 15000 },
       )
       .toBeGreaterThanOrEqual(2);
+    const batchProgress = queue.getByText(/今回の追加 \d+\/2件が登録準備OK/).first();
+    await expect(batchProgress).toBeVisible({ timeout: 15_000 });
+    const batchRegisterButton = queue.getByRole("button", { name: /まとめて登録（\d+件）/ }).last();
+    await expect(batchRegisterButton).toBeVisible();
+    const batchProgressText = (await batchProgress.textContent()) ?? "";
+    if (batchProgressText.includes("2/2")) {
+      await expect(batchRegisterButton).toBeEnabled();
+    } else {
+      await expect(batchRegisterButton).toBeDisabled();
+    }
     const processingSection = queue.getByRole("region", { name: "読み取り中" });
     await expect(processingSection).toBeVisible();
     await expect(processingSection.getByText("2件")).toBeVisible();

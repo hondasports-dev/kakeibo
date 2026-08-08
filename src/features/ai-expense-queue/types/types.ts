@@ -18,6 +18,10 @@ export type AiExpenseQueueItem = {
   fileName?: string;
   previewImageDataUrl?: string;
   failureHint?: string;
+  /** セッション中だけ使う解析ジョブとの紐付け。永続化しない。 */
+  jobId?: string;
+  /** セッション中だけ使う解析バッチとの紐付け。永続化しない。 */
+  batchId?: string;
   status: AiExpenseQueueStatus;
   documentType: AiExpenseQueueDocumentType;
   title?: string;
@@ -34,6 +38,26 @@ export type AiExpenseQueueItem = {
     categoryName?: string;
     amountYen: number;
   }>;
+};
+
+export type AiExpenseUploadBatch = {
+  batchId: string;
+  jobIds: string[];
+  fileNames: string[];
+};
+
+export type AiExpenseQueueBatchSummary = AiExpenseUploadBatch & {
+  totalCount: number;
+  readyItems: AiExpenseQueueItem[];
+  queuedCount: number;
+  analyzingCount: number;
+  processingCount: number;
+  readyCount: number;
+  needsReviewCount: number;
+  failedCount: number;
+  registeredCount: number;
+  missingCount: number;
+  isAllReady: boolean;
 };
 
 export type QueueSectionKey = "processing" | "ready" | "needs_review" | "failed" | "registered";

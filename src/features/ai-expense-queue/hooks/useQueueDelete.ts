@@ -14,9 +14,9 @@ export function useQueueDelete() {
   const cancelImageJob = useMutation(cancelImageJobApi());
   const deleteDraft = useMutation(deleteDraftApi());
 
-  const deleteQueueItem = async (item: AiExpenseQueueItem) => {
+  const deleteQueueItem = async (item: AiExpenseQueueItem): Promise<boolean> => {
     if (deletingIds.includes(item.id)) {
-      return;
+      return false;
     }
     setQueueDeleteError("");
     setDeletingIds((current) => [...current, item.id]);
@@ -27,8 +27,10 @@ export function useQueueDelete() {
         await deleteDraft({ draftId: item.id as Id<"aiExpenseDrafts"> });
       }
       setHiddenItemIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+      return true;
     } catch (error) {
       setQueueDeleteError(toUserFacingDeleteError(error));
+      return false;
     } finally {
       setDeletingIds((current) => current.filter((id) => id !== item.id));
     }
