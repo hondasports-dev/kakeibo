@@ -1,51 +1,26 @@
 import type { QueryCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { addDays, getMonthEndDate } from "../../domain/common/date";
+import {
+  addLegacyReceiptGroups,
+  mapExpenseEntryToSpendingEntry as mapExpenseEntryToSpendingEntryDomain,
+  mapIncomeExpenseEntryToListEntry,
+  mapReceiptToIncomeListEntry,
+  mapReceiptToSpendingEntry,
+  type SpendingEntry,
+  type IncomeListEntry,
+} from "../../domain/receipt/spendingEntry";
+import { ConvexError } from "convex/values";
 
-export type SpendingEntry = {
-  _id: string;
-  date: string;
-  type?: "expense" | "income";
-  shopName?: string;
-  bankName?: string;
-  amountYen: number;
-  categoryId: string;
-  memo?: string;
-  recordType: "expenseEntry" | "receipt";
-  itemName?: string;
-  receiptGroupId?: string;
-  receiptShopName?: string;
-  receiptTotalAmountYen?: number;
-};
-
-export type IncomeListEntry = {
-  _id: string;
-  date: string;
-  type: "income";
-  bankName?: string;
-  amountYen: number;
-  memo?: string;
-  recordType: "expenseEntry" | "receipt";
-};
-
-export function mapReceiptToSpendingEntry(
-  receipt: Pick<
-    Doc<"receipts">,
-    "_id" | "date" | "type" | "shopName" | "bankName" | "amountYen" | "categoryId" | "memo"
-  >,
-): SpendingEntry {
-  return {
-    _id: receipt._id,
-    date: receipt.date,
-    type: receipt.type,
-    shopName: receipt.shopName,
-    bankName: receipt.bankName,
-    amountYen: receipt.amountYen,
-    categoryId: receipt.categoryId,
-    memo: receipt.memo,
-    recordType: "receipt",
-  };
-}
+export {
+  addLegacyReceiptGroups,
+  mapIncomeExpenseEntryToListEntry,
+  mapReceiptToIncomeListEntry,
+  mapReceiptToSpendingEntry,
+  type IncomeListEntry,
+  type SpendingEntry,
+} from "../../domain/receipt/spendingEntry";
+// mapExpenseEntryToSpendingEntry は本ファイルで adapter ラッパーとして定義するため domain からは re-export しない
 
 export function mapExpenseEntryToSpendingEntry(
   expenseEntry: Pick<
@@ -61,20 +36,11 @@ export function mapExpenseEntryToSpendingEntry(
     | "aiExpenseDraftId"
   >,
 ): SpendingEntry {
-  if (!expenseEntry.categoryId) {
-    throw new Error("Expense entry category is required for spending aggregation");
+  const result = mapExpenseEntryToSpendingEntryDomain(expenseEntry);
+  if (!result.success) {
+    throw new ConvexError("Expense entry category is required for spending aggregation");
   }
-  return {
-    _id: expenseEntry._id,
-    date: expenseEntry.date,
-    type: expenseEntry.entryType,
-    shopName: expenseEntry.entryType === "expense" ? expenseEntry.title : undefined,
-    bankName: expenseEntry.entryType === "income" ? expenseEntry.title : undefined,
-    amountYen: expenseEntry.amount,
-    categoryId: expenseEntry.categoryId,
-    memo: expenseEntry.memo,
-    recordType: "expenseEntry",
-  };
+  return result.entry;
 }
 
 type ReceiptLinkage = {
@@ -118,6 +84,7 @@ async function enrichSpendingEntriesWithReceiptGroups(
       return [draftId, items] as const;
     }),
   );
+
   const sourceDocumentMap = new Map(
     sourceDocuments
       .filter((document) => document !== null && document.groupId === groupId)
@@ -176,43 +143,6 @@ function mapExpenseEntriesToReceiptLinkages(entries: Doc<"expenseEntries">[]): R
     sourceDocumentId: entry.sourceDocumentId,
     aiExpenseDraftId: entry.aiExpenseDraftId,
   }));
-}
-
-function addLegacyReceiptGroups(entries: SpendingEntry[]): SpendingEntry[] {
-  return entries.map((entry) => ({
-    ...entry,
-    receiptGroupId: `receipt:${entry._id}`,
-    receiptShopName: entry.shopName,
-    receiptTotalAmountYen: entry.amountYen,
-  }));
-}
-
-export function mapIncomeExpenseEntryToListEntry(
-  expenseEntry: Pick<Doc<"expenseEntries">, "_id" | "date" | "amount" | "title" | "memo">,
-): IncomeListEntry {
-  return {
-    _id: expenseEntry._id,
-    date: expenseEntry.date,
-    type: "income",
-    bankName: expenseEntry.title,
-    amountYen: expenseEntry.amount,
-    memo: expenseEntry.memo,
-    recordType: "expenseEntry",
-  };
-}
-
-export function mapReceiptToIncomeListEntry(
-  receipt: Pick<Doc<"receipts">, "_id" | "date" | "bankName" | "amountYen" | "memo">,
-): IncomeListEntry {
-  return {
-    _id: receipt._id,
-    date: receipt.date,
-    type: "income",
-    bankName: receipt.bankName,
-    amountYen: receipt.amountYen,
-    memo: receipt.memo,
-    recordType: "receipt",
-  };
 }
 
 async function fetchExpenseEntriesByDateRange(
