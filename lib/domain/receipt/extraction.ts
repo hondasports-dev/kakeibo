@@ -18,8 +18,8 @@ import type {
   TaxRatePercent,
 } from "../../convex/receiptImageExtraction/types";
 
+export { JAPAN_TIME_ZONE } from "../common/date";
 export const MAX_EXTRACTED_LINE_ITEMS = 100;
-export const JAPAN_TIME_ZONE = "Asia/Tokyo";
 
 export type ParseOpenAIResponseResult =
   | { success: true; extracted: ExtractedFields }

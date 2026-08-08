@@ -6,6 +6,7 @@ import {
   INVITATION_ACCEPT_PATH,
   isAllowedRedirectOrigin,
   KAKEIBO_PRODUCTION_HOSTNAME,
+  parseAllowedRedirectOrigins,
 } from "./clerkInvitations";
 
 describe("isAllowedRedirectOrigin", () => {
@@ -111,5 +112,23 @@ describe("buildClerkInvitationParams", () => {
       ignoreExisting: true,
       publicMetadata: { groupId: "g1", token: "t" },
     });
+  });
+});
+
+describe("parseAllowedRedirectOrigins", () => {
+  it("カンマ区切りの origin 文字列を正規化する", () => {
+    const origins = parseAllowedRedirectOrigins("https://app.example.com, http://localhost:5173 ,");
+    expect(origins).toEqual(["https://app.example.com", "http://localhost:5173"]);
+  });
+
+  it("空文字列は空配列を返す", () => {
+    expect(parseAllowedRedirectOrigins("")).toEqual([]);
+    expect(parseAllowedRedirectOrigins("   ")).toEqual([]);
+  });
+
+  it("不正な URL はエラー", () => {
+    expect(() => parseAllowedRedirectOrigins("not-a-url")).toThrow(
+      "INVITATION_REDIRECT_ORIGINS contains an invalid URL",
+    );
   });
 });

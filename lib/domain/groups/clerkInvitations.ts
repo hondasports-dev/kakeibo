@@ -54,6 +54,25 @@ export function buildInvitationRedirectUrl(
   return { success: true, redirectUrl: url.toString() };
 }
 
+/**
+ * カンマ区切りの origin 文字列から、正規化された origin 配列を返す。
+ * 不正な URL が含まれている場合は Error を投げる。
+ */
+export function parseAllowedRedirectOrigins(raw: string): string[] {
+  const origins = raw
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  return origins.map((origin) => {
+    try {
+      return new URL(origin).origin;
+    } catch {
+      throw new Error("INVITATION_REDIRECT_ORIGINS contains an invalid URL");
+    }
+  });
+}
+
 export function buildClerkInvitationParams(
   emailAddress: string,
   redirectUrl: string,

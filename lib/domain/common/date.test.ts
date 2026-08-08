@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, getMonthEndDate } from "./date";
+import { addDays, getMonthEndDate, getTodayDateStringInJapan } from "./date";
 
 describe("addDays", () => {
   it("通常の日加算", () => {
@@ -87,5 +87,23 @@ describe("getMonthEndDate", () => {
 
   it("不正なフォーマットは NaN を含む", () => {
     expect(getMonthEndDate("not-a-date")).toMatch(/NaN/);
+  });
+});
+
+describe("getTodayDateStringInJapan", () => {
+  it("固定時刻を日本日付に変換する", () => {
+    const result = getTodayDateStringInJapan(new Date("2026-08-08T00:00:00+09:00"));
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(result).toBe("2026-08-08");
+  });
+
+  it("number を受け入れる", () => {
+    const result = getTodayDateStringInJapan(new Date("2026-08-08T00:00:00+09:00").getTime());
+    expect(result).toBe("2026-08-08");
+  });
+
+  it("UTC 深夜でも日本日付を返す", () => {
+    const result = getTodayDateStringInJapan(new Date("2026-08-07T15:00:00Z"));
+    expect(result).toBe("2026-08-08");
   });
 });

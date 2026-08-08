@@ -1,23 +1,5 @@
-import { ConvexError } from "convex/values";
+import { getTodayDateStringInJapan } from "../../../lib/domain/common/date";
 import type { ExtractReceiptFieldsResult } from "./types";
-import { JAPAN_TIME_ZONE } from "./types";
-
-function getTodayDateStringInJapan() {
-  const parts = new Intl.DateTimeFormat("ja-JP", {
-    day: "2-digit",
-    month: "2-digit",
-    timeZone: JAPAN_TIME_ZONE,
-    year: "numeric",
-  }).formatToParts(new Date());
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-
-  if (!year || !month || !day) {
-    throw new ConvexError("mock 日付の生成に失敗しました");
-  }
-  return `${year}-${month}-${day}`;
-}
 
 /** mock モード用のダミーレスポンス */
 export function getMockResult(): ExtractReceiptFieldsResult {
