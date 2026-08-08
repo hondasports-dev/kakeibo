@@ -137,3 +137,86 @@ export function addLegacyReceiptGroups(entries: SpendingEntry[]): SpendingEntry[
     receiptTotalAmountYen: entry.amountYen,
   }));
 }
+
+export type EnrichSpendingEntrySourceDocument = {
+  _id: string;
+  shopName?: string;
+  totalAmount?: number;
+};
+
+export type EnrichSpendingEntryAiExpenseDraft = {
+  _id: string;
+  shopName?: string;
+  payeeName?: string;
+  amountYen?: number;
+};
+
+export type EnrichSpendingEntryAiExpenseDraftItem = {
+  categoryId: string;
+  itemName: string;
+};
+
+export type EnrichSpendingEntryArgs = {
+  sourceDocument?: EnrichSpendingEntrySourceDocument;
+  aiExpenseDraft?: EnrichSpendingEntryAiExpenseDraft;
+  aiExpenseDraftItems?: EnrichSpendingEntryAiExpenseDraftItem[];
+};
+
+export function enrichSpendingEntry(
+  entry: SpendingEntry,
+  { sourceDocument, aiExpenseDraft, aiExpenseDraftItems }: EnrichSpendingEntryArgs,
+): SpendingEntry {
+  if (sourceDocument) {
+    return {
+      ...entry,
+      receiptGroupId: `sourceDocument:${sourceDocument._id}`,
+      receiptShopName: sourceDocument.shopName ?? entry.shopName,
+      receiptTotalAmountYen: sourceDocument.totalAmount ?? entry.amountYen,
+      itemName: entry.shopName,
+    };
+  }
+
+  if (aiExpenseDraft) {
+    const itemNames = (aiExpenseDraftItems ?? [])
+      .filter((item) => item.categoryId === entry.categoryId)
+      .map((item) => item.itemName.trim())
+      .filter(Boolean);
+
+    return {
+      ...entry,
+      receiptGroupId: `aiExpenseDraft:${aiExpenseDraft._id}`,
+      receiptShopName:
+        aiExpenseDraft.shopName ?? aiExpenseDraft.payeeName ?? entry.shopName ?? "不明",
+      receiptTotalAmountYen: aiExpenseDraft.amountYen ?? entry.amountYen,
+      itemName: itemNames.length > 0 ? itemNames.join("、") : entry.shopName,
+    };
+  }
+
+  return {
+    ...entry,
+    receiptGroupId: `expenseEntry:${entry._id}`,
+    receiptShopName: entry.shopName,
+    receiptTotalAmountYen: entry.amountYen,
+  };
+}
+
+export function enrichSpendingEntries(
+  linkages: Array<{
+    entry: SpendingEntry;
+    sourceDocumentId?: string;
+    aiExpenseDraftId?: string;
+  }>,
+  sourceDocumentMap: Map<string, EnrichSpendingEntrySourceDocument>,
+  aiExpenseDraftMap: Map<string, EnrichSpendingEntryAiExpenseDraft>,
+  aiExpenseDraftItemsMap: Map<string, EnrichSpendingEntryAiExpenseDraftItem[]>,
+): SpendingEntry[] {
+  return linkages.map(({ entry, sourceDocumentId, aiExpenseDraftId }) =>
+    enrichSpendingEntry(entry, {
+      sourceDocument: sourceDocumentId ? sourceDocumentMap.get(sourceDocumentId) : undefined,
+      aiExpenseDraft: aiExpenseDraftId ? aiExpenseDraftMap.get(aiExpenseDraftId) : undefined,
+      aiExpenseDraftItems: aiExpenseDraftId
+        ? aiExpenseDraftItemsMap.get(aiExpenseDraftId)
+        : undefined,
+    }),
+  );
+}

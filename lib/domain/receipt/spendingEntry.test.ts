@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addLegacyReceiptGroups,
+  enrichSpendingEntry,
   mapExpenseEntryToSpendingEntry,
   mapIncomeExpenseEntryToListEntry,
   mapReceiptToIncomeListEntry,
@@ -116,6 +117,58 @@ describe("mapReceiptToIncomeListEntry", () => {
       bankName: "給与",
       amountYen: 200000,
       recordType: "receipt",
+    });
+  });
+});
+
+describe("enrichSpendingEntry", () => {
+  const baseEntry = {
+    _id: "e1",
+    date: "2024-01-10",
+    amountYen: 500,
+    categoryId: "cat-1",
+    recordType: "expenseEntry" as const,
+    shopName: "コーヒー",
+  };
+
+  it("sourceDocument がある場合は sourceDocument 情報で拡張する", () => {
+    expect(
+      enrichSpendingEntry(baseEntry, {
+        sourceDocument: { _id: "sd1", shopName: "スタバ", totalAmount: 1500 },
+      }),
+    ).toEqual({
+      ...baseEntry,
+      receiptGroupId: "sourceDocument:sd1",
+      receiptShopName: "スタバ",
+      receiptTotalAmountYen: 1500,
+      itemName: "コーヒー",
+    });
+  });
+
+  it("aiExpenseDraft がある場合は draft 情報と item 名で拡張する", () => {
+    expect(
+      enrichSpendingEntry(baseEntry, {
+        aiExpenseDraft: { _id: "d1", shopName: "ローソン", amountYen: 1000 },
+        aiExpenseDraftItems: [
+          { categoryId: "cat-1", itemName: "アイスコーヒー" },
+          { categoryId: "cat-1", itemName: "  おにぎり  " },
+        ],
+      }),
+    ).toEqual({
+      ...baseEntry,
+      receiptGroupId: "aiExpenseDraft:d1",
+      receiptShopName: "ローソン",
+      receiptTotalAmountYen: 1000,
+      itemName: "アイスコーヒー、おにぎり",
+    });
+  });
+
+  it("sourceDocument・draft どちらもない場合は expenseEntry 自身の情報を使う", () => {
+    expect(enrichSpendingEntry(baseEntry, {})).toEqual({
+      ...baseEntry,
+      receiptGroupId: "expenseEntry:e1",
+      receiptShopName: "コーヒー",
+      receiptTotalAmountYen: 500,
     });
   });
 });
