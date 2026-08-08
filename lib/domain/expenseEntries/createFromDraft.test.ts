@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildDraftExpenseEntry } from "./createFromDraft";
+import { buildDraftExpenseEntry, getDraftExpenseEntryErrorMessage } from "./createFromDraft";
 
 describe("buildDraftExpenseEntry", () => {
   it("明細の categoryId を優先する", () => {
@@ -53,5 +53,15 @@ describe("buildDraftExpenseEntry", () => {
       undefined,
     );
     expect(result).toEqual({ success: false, error: "invalid_title" });
+  });
+});
+
+describe("getDraftExpenseEntryErrorMessage", () => {
+  it.each([
+    ["invalid_amount", "Amount must be a positive integer"],
+    ["missing_category", "Category ID is required"],
+    ["invalid_title", "Title is required"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getDraftExpenseEntryErrorMessage(error)).toBe(expected);
   });
 });

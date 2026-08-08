@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getGroupAdminErrorMessage,
   validateActiveGroupScope,
   validateGroupOwnerRole,
   validateNotSelfOperator,
@@ -55,5 +56,16 @@ describe("validateRemovableGroupMemberRole", () => {
       success: false,
       error: "owner_member_not_removable",
     });
+  });
+});
+
+describe("getGroupAdminErrorMessage", () => {
+  it.each([
+    ["owner_only", "グループオーナーのみ実行できます"],
+    ["not_active_group", "現在選択中のグループでのみ実行できます"],
+    ["self_operation_forbidden", "自分自身に対してこの操作はできません"],
+    ["owner_member_not_removable", "オーナーはグループから外せません"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getGroupAdminErrorMessage(error)).toBe(expected);
   });
 });
