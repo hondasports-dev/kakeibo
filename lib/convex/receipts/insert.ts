@@ -4,30 +4,13 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { calculateWeekStartDate } from "../../../convex/lib/weekDates";
 import { getWeeklyStartDayForUser } from "../../../convex/users/weeklySettings";
-import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
 import {
-  validateExpenseAmount,
-  validateExpenseMemo,
-  validateExpenseTitle,
-} from "../../../lib/domain/expenseEntries/expenseEntryItem";
+  normalizeCreateReceiptArgs,
+  type CreateReceiptInput,
+  type NormalizedCreateReceipt,
+} from "../../../lib/domain/receipt/normalize";
 
-export type CreateReceiptArgs =
-  | {
-      type?: "expense";
-      date: string;
-      shopName: string;
-      amountYen: number;
-      categoryId: Id<"categories">;
-      memo?: string;
-    }
-  | {
-      type: "income";
-      date: string;
-      bankName: string;
-      amountYen: number;
-      categoryId: Id<"categories">;
-      memo?: string;
-    };
+export type CreateReceiptArgs = CreateReceiptInput<Id<"categories">>;
 
 export async function insertReceiptForGroup(
   ctx: Pick<MutationCtx, "db">,
@@ -35,39 +18,11 @@ export async function insertReceiptForGroup(
   args: CreateReceiptArgs,
   weekStartDay = 1,
 ) {
-  if (!isValidIsoDateString(args.date)) {
-    throw new ConvexError("Date must be a valid YYYY-MM-DD value");
-  }
-  if (!validateExpenseAmount(args.amountYen).success) {
-    throw new ConvexError("Amount must be a positive integer");
-  }
-  const memoResult = validateExpenseMemo(args.memo);
-  if (!memoResult.success) {
-    throw new ConvexError("Memo must be 500 characters or less");
-  }
-
-  let shopName: string | undefined;
-  if (args.type !== "income") {
-    const result = validateExpenseTitle(args.shopName ?? "");
-    if (!result.success) {
-      if (result.error === "empty") {
-        throw new ConvexError("shopName is required for expense receipts");
-      }
-      throw new ConvexError("shopName must be 100 characters or fewer");
-    }
-    shopName = result.title;
-  }
-
-  let bankName: string | undefined;
-  if (args.type === "income") {
-    const result = validateExpenseTitle(args.bankName ?? "");
-    if (!result.success) {
-      if (result.error === "empty") {
-        throw new ConvexError("bankName is required for income receipts");
-      }
-      throw new ConvexError("bankName must be 100 characters or fewer");
-    }
-    bankName = result.title;
+  let normalized: NormalizedCreateReceipt<Id<"categories">>;
+  try {
+    normalized = normalizeCreateReceiptArgs(args);
+  } catch (err) {
+    throw new ConvexError(err instanceof Error ? err.message : "Invalid receipt");
   }
 
   const category = await ctx.db.get(args.categoryId);
@@ -82,17 +37,17 @@ export async function insertReceiptForGroup(
   }
 
   const now = Date.now();
-  const weekStartDate = calculateWeekStartDate(args.date, weekStartDay);
+  const weekStartDate = calculateWeekStartDate(normalized.date, weekStartDay);
 
   return await ctx.db.insert("receipts", {
     groupId,
-    date: args.date,
-    type: args.type,
-    shopName,
-    bankName,
-    amountYen: args.amountYen,
+    date: normalized.date,
+    type: normalized.type,
+    shopName: normalized.shopName,
+    bankName: normalized.bankName,
+    amountYen: normalized.amountYen,
     categoryId: args.categoryId,
-    memo: memoResult.memo,
+    memo: normalized.memo,
     weekStartDate,
     createdAt: now,
     updatedAt: now,
