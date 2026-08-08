@@ -4,11 +4,15 @@ import type { MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { assertAccountDeletionNotInProgress } from "./accountDeletion";
 import { requireSystemAdmin } from "./systemAdmins";
-import { normalizeSystemAdminReason } from "../lib/domain/systemAdmin/reason";
 import {
+  getMembershipOperationShapeErrorMessage,
   validateMembershipOperationShape,
   type MembershipOperation,
 } from "../lib/domain/systemAdmin/membershipOperation";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
 
 const operationValidator = v.union(
   v.literal("add"),
@@ -27,7 +31,7 @@ type MembershipStatus = "none" | "member" | "owner";
 function normalizeReason(reason: string) {
   const result = normalizeSystemAdminReason(reason);
   if (!result.success) {
-    throw new ConvexError("理由は1〜500文字で入力してください");
+    throw new ConvexError(getNormalizeReasonErrorMessage(result.error));
   }
   return result.reason;
 }
@@ -39,11 +43,7 @@ function assertGroupArgumentShape(
 ) {
   const result = validateMembershipOperationShape(operation, sourceGroupId, targetGroupId);
   if (!result.success) {
-    throw new ConvexError(
-      result.error === "same_source_target"
-        ? "移動元と移動先は異なるグループを指定してください"
-        : "操作対象グループの指定が不正です",
-    );
+    throw new ConvexError(getMembershipOperationShapeErrorMessage(result.error));
   }
 }
 

@@ -2,6 +2,10 @@ import { ConvexError, v } from "convex/values";
 import { paginationOptsValidator, paginationResultValidator } from "convex/server";
 import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
 import { requireSystemAdmin } from "./systemAdmins";
 import {
   groupDeletionCountsValidator,
@@ -87,10 +91,11 @@ export const resumeGroupDeletion = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const actor = await requireSystemAdmin(ctx);
-    const reason = args.reason.trim();
-    if (reason.length < 1 || reason.length > 500) {
-      throw new ConvexError("理由は1〜500文字で入力してください");
+    const reasonResult = normalizeSystemAdminReason(args.reason);
+    if (!reasonResult.success) {
+      throw new ConvexError(getNormalizeReasonErrorMessage(reasonResult.error));
     }
+    const reason = reasonResult.reason;
     const job = await ctx.db.get(args.jobId);
     if (job === null) throw new ConvexError("削除ジョブが見つかりません");
     await resumeGroupDeletionHandler(ctx, { jobId: args.jobId });

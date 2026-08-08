@@ -2,6 +2,16 @@ export const MAX_REASON_LENGTH = 500;
 
 export type NormalizeReasonError = "empty" | "too_long";
 
+const normalizeReasonErrorMessages: Record<NormalizeReasonError, string> = {
+  empty: "理由は1〜500文字で入力してください",
+  too_long: "理由は1〜500文字で入力してください",
+};
+
+/** システム管理者用理由の検証エラーをユーザー向けメッセージに変換する */
+export function getNormalizeReasonErrorMessage(error: NormalizeReasonError): string {
+  return normalizeReasonErrorMessages[error];
+}
+
 export function normalizeSystemAdminReason(
   reason: string,
 ): { success: true; reason: string } | { success: false; error: NormalizeReasonError } {
