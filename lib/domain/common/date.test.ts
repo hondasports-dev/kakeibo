@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addDays, getMonthEndDate } from "./dateUtils";
+import { addDays, getMonthEndDate } from "./date";
 
 describe("addDays", () => {
   it("通常の日加算", () => {

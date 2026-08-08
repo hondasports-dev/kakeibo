@@ -1,6 +1,6 @@
 import type { QueryCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { addDays, getMonthEndDate } from "../dateUtils";
+import { addDays, getMonthEndDate } from "../../domain/common/date";
 
 export type SpendingEntry = {
   _id: string;
