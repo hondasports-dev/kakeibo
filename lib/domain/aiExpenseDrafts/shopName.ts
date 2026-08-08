@@ -1,7 +1,7 @@
 import type { AiExpenseDraftDocumentType } from "./constants";
 
 type ReceiptShopNameDraftFields = {
-  documentType: AiExpenseDraftDocumentType;
+  documentType?: AiExpenseDraftDocumentType;
   shopName?: string;
   paymentPlace?: string;
   payeeName?: string;

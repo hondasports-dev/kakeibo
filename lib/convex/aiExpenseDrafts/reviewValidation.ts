@@ -1,17 +1,16 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
+import { isValidSignedLineItemAmount } from "../../../lib/domain/receipt/discountItems";
 import { trimOptional } from "../../../lib/domain/common/string";
 import {
   type ReviewUpdateReadyError,
   validateReviewUpdateCanBecomeReady,
 } from "../../../lib/domain/aiExpenseDrafts/review";
 import { type AiExpenseDraftDocumentType } from "./validators";
-import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
 import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
 import {
-  hasLowConfidenceItem,
+  aggregateDraftItemsByCategory as aggregateDraftItemsByCategoryDomain,
   validatePositiveCategoryTotals,
 } from "../../../lib/domain/aiExpenseDrafts/reviewItems";
 
@@ -86,64 +85,45 @@ export function assertPositiveCategoryTotals(items: NonNullable<UpdateForReviewA
   }
 }
 
+type AggregationError =
+  | "invalid_item_amount"
+  | "missing_category"
+  | "low_confidence"
+  | "amount_mismatch"
+  | "non_positive_category_total";
+
+const errorMessageByAggregationError: Record<AggregationError, string> = {
+  invalid_item_amount: "Draft item amount is required to register",
+  missing_category: "Draft item category is required to register",
+  low_confidence: "Low confidence draft items must be reviewed before register",
+  amount_mismatch: "Draft item total must match draft amount",
+  non_positive_category_total: "Draft category total must be greater than zero",
+};
+
 export function aggregateDraftItemsByCategory(
   draft: Doc<"aiExpenseDrafts">,
   items: Doc<"aiExpenseDraftItems">[],
-) {
-  if (items.length === 0) {
-    return [
-      {
-        itemName: resolveReceiptShopNameFromDraft(draft),
-        amountYen: draft.amountYen!,
-        categoryId: draft.categoryId!,
-      },
-    ];
+): Array<{ itemName: string; amountYen: number; categoryId: Id<"categories"> }> {
+  const result = aggregateDraftItemsByCategoryDomain(
+    {
+      amountYen: draft.amountYen!,
+      categoryId: draft.categoryId!,
+      documentType: draft.documentType,
+      shopName: draft.shopName,
+      paymentPlace: draft.paymentPlace,
+      payeeName: draft.payeeName,
+      paymentPurpose: draft.paymentPurpose,
+    },
+    items,
+  );
+  if (!result.success) {
+    throw new ConvexError(errorMessageByAggregationError[result.error]);
   }
-
-  let itemTotal = 0;
-  const categoryAmounts = new Map<Id<"categories">, number>();
-  for (const item of items) {
-    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
-    if (!isValidSignedLineItemAmount(item.itemName, registrationAmountYen)) {
-      throw new ConvexError("Draft item amount is required to register");
-    }
-    if (item.categoryId === undefined) {
-      throw new ConvexError("Draft item category is required to register");
-    }
-    if (hasLowConfidenceItem(item)) {
-      throw new ConvexError("Low confidence draft items must be reviewed before register");
-    }
-
-    itemTotal += registrationAmountYen;
-    categoryAmounts.set(
-      item.categoryId,
-      (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
-    );
-  }
-
-  if (itemTotal !== draft.amountYen) {
-    throw new ConvexError("Draft item total must match draft amount");
-  }
-  if ([...categoryAmounts.values()].some((amountYen) => amountYen <= 0)) {
-    throw new ConvexError("Draft category total must be greater than zero");
-  }
-
-  const itemNamesByCategory = new Map<Id<"categories">, string[]>();
-  for (const item of items) {
-    if (item.categoryId === undefined) {
-      continue;
-    }
-    const itemNames = itemNamesByCategory.get(item.categoryId) ?? [];
-    itemNames.push(item.itemName.trim());
-    itemNamesByCategory.set(item.categoryId, itemNames);
-  }
-
-  return Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
-    itemName:
-      itemNamesByCategory.get(categoryId)?.join("、") ?? resolveReceiptShopNameFromDraft(draft),
-    amountYen,
-    categoryId,
-  }));
+  return result.items as Array<{
+    itemName: string;
+    amountYen: number;
+    categoryId: Id<"categories">;
+  }>;
 }
 
 export async function replaceDraftItemsForReview(
