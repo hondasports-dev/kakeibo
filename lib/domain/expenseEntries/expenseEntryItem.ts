@@ -116,6 +116,98 @@ export type ExpenseItemInput = {
 /** 支出項目のフィールドごとの検証失敗理由。 */
 export type ExpenseItemErrors = Partial<Record<ExpenseItemField, string>>;
 
+/** 支出項目のフィールドごとの検証エラーをユーザー向けメッセージに変換する */
+export function getExpenseItemFieldErrorMessage(field: ExpenseItemField, error: string): string {
+  switch (field) {
+    case "categoryId":
+      return "カテゴリは必須です";
+    case "amountYen": {
+      switch (error) {
+        case "required":
+          return "金額は必須です";
+        case "not_number":
+          return "金額は数字のみで入力してください";
+        case "too_large":
+          return `金額は ${EXPENSE_ENTRY_AMOUNT_MAX.toLocaleString("ja-JP")} 円以下です`;
+        default:
+          return "金額は 1 円以上です";
+      }
+    }
+    case "title": {
+      switch (error) {
+        case "empty":
+          return "内容は必須です";
+        case "too_long":
+          return `内容は ${EXPENSE_ENTRY_TITLE_MAX_LENGTH} 文字以内です`;
+        default:
+          return "内容を確認してください";
+      }
+    }
+    case "memo":
+      return `メモは ${EXPENSE_ENTRY_MEMO_MAX_LENGTH} 文字以内です`;
+  }
+}
+
+export type ValidateExpenseItemsSuccess = {
+  success: true;
+  data: {
+    items: ExpenseItem[];
+    /** sourceAmount 未指定時は null */
+    difference: number | null;
+  };
+};
+
+export type ValidateExpenseItemsFailure =
+  | { success: false; reason: "no_items" }
+  | { success: false; reason: "item_errors"; itemErrors: ExpenseItemErrors[] }
+  | { success: false; reason: "amount_exceeded"; difference: number };
+
+/**
+ * 複数の支出項目を一括で検証する。
+ * sourceAmount が指定されていれば、項目合計との差額を検証する。
+ */
+export function validateExpenseItems(input: {
+  sourceAmount: number | undefined;
+  items: ExpenseItemInput[];
+}): ValidateExpenseItemsSuccess | ValidateExpenseItemsFailure {
+  if (input.items.length === 0) {
+    return { success: false, reason: "no_items" };
+  }
+
+  const parsedItems: ExpenseItem[] = [];
+  const itemErrors: ExpenseItemErrors[] = [];
+  let hasErrors = false;
+
+  for (const item of input.items) {
+    const result = validateExpenseItemInput(item);
+    if (result.success) {
+      parsedItems.push(result.data);
+      itemErrors.push({});
+    } else {
+      parsedItems.push({ categoryId: "", amountYen: 0, title: "" });
+      itemErrors.push(result.errors);
+      hasErrors = true;
+    }
+  }
+
+  if (hasErrors) {
+    return { success: false, reason: "item_errors", itemErrors };
+  }
+
+  if (input.sourceAmount === undefined) {
+    return { success: true, data: { items: parsedItems, difference: null } };
+  }
+
+  const totalAmount = parsedItems.reduce((sum, item) => sum + item.amountYen, 0);
+  const difference = input.sourceAmount - totalAmount;
+
+  if (difference < 0) {
+    return { success: false, reason: "amount_exceeded", difference };
+  }
+
+  return { success: true, data: { items: parsedItems, difference } };
+}
+
 /**
  * 検証済みの支出項目データを検証する。
  * Convex 側など、既に数値に変換済みの値に対して使う。
