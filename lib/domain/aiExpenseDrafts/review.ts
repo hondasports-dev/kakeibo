@@ -1,7 +1,7 @@
 import { trimOptional } from "../common/string";
 import { validateExpenseAmount } from "../expenseEntries/expenseEntryItem";
 import { isValidIsoDateString } from "../week/weekDates";
-import type { AiExpenseDraftDocumentType } from "./constants";
+import type { AiExpenseDraftConfidence, AiExpenseDraftDocumentType } from "./constants";
 
 export type HasCounterpartyArgs = {
   documentType: AiExpenseDraftDocumentType;
@@ -63,4 +63,38 @@ export function validateReviewUpdateCanBecomeReady(
   }
 
   return { success: true };
+}
+
+export type ReviewConfidenceInput = {
+  shopName?: string;
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+};
+
+/**
+ * レビュー更新時に信頼度スコアを更新する。
+ * 確定したフィールドは 1 とし、相手方情報は入力値があれば 1 とする。
+ * payeeName / paymentPurpose が空の場合は shopName をフォールバックとして使う。
+ */
+export function buildReviewConfidence(
+  draftConfidence: AiExpenseDraftConfidence,
+  input: ReviewConfidenceInput,
+): AiExpenseDraftConfidence {
+  const hasShopName = !!trimOptional(input.shopName);
+  const hasPayeeName = !!trimOptional(input.payeeName);
+  const hasPaymentPlace = !!trimOptional(input.paymentPlace);
+  const hasPaymentPurpose = !!trimOptional(input.paymentPurpose);
+
+  return {
+    ...draftConfidence,
+    documentType: 1,
+    shopName: hasShopName ? 1 : draftConfidence.shopName,
+    paymentPlace: hasPaymentPlace ? 1 : draftConfidence.paymentPlace,
+    payeeName: hasPayeeName || hasShopName ? 1 : draftConfidence.payeeName,
+    paymentPurpose: hasPaymentPurpose || hasShopName ? 1 : draftConfidence.paymentPurpose,
+    date: 1,
+    amountYen: 1,
+    categoryId: 1,
+  };
 }
