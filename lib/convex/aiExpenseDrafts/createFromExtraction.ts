@@ -2,12 +2,12 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import {
-  AI_EXPENSE_DRAFT_REVIEW_REASONS,
   classifyAiExpenseDraft,
   type AiExpenseDraftConfidence,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
 } from "../../../convex/aiExpenseDrafts/model";
+import { mergeReviewReasons } from "../../../lib/domain/aiExpenseDrafts/reviewReasons";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { deleteDraftAndItems } from "./draftRepository";
 import type {
@@ -66,17 +66,6 @@ export type CreateFailedDraftFromImageAnalysisArgs = {
   warning: string;
   imageFileName?: string;
 };
-
-function mergeReviewReasons(
-  computedReasons: AiExpenseDraftReviewReason[],
-  explicitReasons: AiExpenseDraftReviewReason[] | undefined,
-) {
-  const reasons = new Set<AiExpenseDraftReviewReason>(computedReasons);
-  for (const reason of explicitReasons ?? []) {
-    reasons.add(reason);
-  }
-  return AI_EXPENSE_DRAFT_REVIEW_REASONS.filter((reason) => reasons.has(reason));
-}
 
 function resolveDraftClassification(args: CreateFromExtractionArgs): {
   status: "ready" | "needs_review";
