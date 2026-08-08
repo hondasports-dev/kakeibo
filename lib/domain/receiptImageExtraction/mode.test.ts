@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveExtractorMode } from "./mode";
+import { getResolveExtractorModeErrorMessage, resolveExtractorMode } from "./mode";
 
 describe("resolveExtractorMode", () => {
   it("mode が未設定の場合、production ではエラー、それ以外は mock を返す", () => {
@@ -33,5 +33,14 @@ describe("resolveExtractorMode", () => {
     expect(resolveExtractorMode({ appEnv: "production", mode: "auto" })).toEqual({
       error: "invalid",
     });
+  });
+});
+
+describe("getResolveExtractorModeErrorMessage", () => {
+  it.each([
+    ["missing_required", "RECEIPT_IMAGE_EXTRACTOR_MODE を production では必ず設定してください"],
+    ["invalid", "RECEIPT_IMAGE_EXTRACTOR_MODE は mock または real のどちらかを指定してください"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getResolveExtractorModeErrorMessage(error)).toBe(expected);
   });
 });

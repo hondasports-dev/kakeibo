@@ -3,10 +3,12 @@ import {
   EXPENSE_ENTRY_AMOUNT_MAX,
   EXPENSE_ENTRY_MEMO_MAX_LENGTH,
   EXPENSE_ENTRY_TITLE_MAX_LENGTH,
+  getExpenseItemFieldErrorMessage,
   parseExpenseAmountString,
   validateExpenseAmount,
   validateExpenseItem,
   validateExpenseItemInput,
+  validateExpenseItems,
   validateExpenseMemo,
   validateExpenseTitle,
 } from "./expenseEntryItem";
@@ -157,6 +159,98 @@ describe("validateExpenseItemInput", () => {
       expect(result.errors.amountYen).toBe("not_number");
       expect(result.errors.title).toBe("empty");
       expect(result.errors.memo).toBe("too_long");
+    }
+  });
+});
+
+describe("getExpenseItemFieldErrorMessage", () => {
+  it.each([
+    ["categoryId", "empty", "カテゴリは必須です"],
+    ["amountYen", "required", "金額は必須です"],
+    ["amountYen", "not_number", "金額は数字のみで入力してください"],
+    ["amountYen", "not_positive", "金額は 1 円以上です"],
+    [
+      "amountYen",
+      "too_large",
+      `金額は ${EXPENSE_ENTRY_AMOUNT_MAX.toLocaleString("ja-JP")} 円以下です`,
+    ],
+    ["title", "empty", "内容は必須です"],
+    ["title", "too_long", `内容は ${EXPENSE_ENTRY_TITLE_MAX_LENGTH} 文字以内です`],
+    ["memo", "too_long", `メモは ${EXPENSE_ENTRY_MEMO_MAX_LENGTH} 文字以内です`],
+  ] as const)("%s / %s -> %s", (field, error, expected) => {
+    expect(getExpenseItemFieldErrorMessage(field, error)).toBe(expected);
+  });
+});
+
+describe("validateExpenseItems", () => {
+  it("sourceAmount 未指定時は差額チェックをスキップする", () => {
+    const result = validateExpenseItems({
+      sourceAmount: undefined,
+      items: [{ categoryId: "cat-food", amountYen: "1000", title: "食費" }],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.difference).toBeNull();
+      expect(result.data.items).toEqual([
+        { categoryId: "cat-food", amountYen: 1000, title: "食費", memo: undefined },
+      ]);
+    }
+  });
+
+  it("差額が 0 の場合 success: true", () => {
+    const result = validateExpenseItems({
+      sourceAmount: 3000,
+      items: [
+        { categoryId: "cat-food", amountYen: "1000", title: "食費" },
+        { categoryId: "cat-daily", amountYen: "2000", title: "日用品" },
+      ],
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.difference).toBe(0);
+    }
+  });
+
+  it("sourceAmount が項目合計を超えると amount_exceeded", () => {
+    const result = validateExpenseItems({
+      sourceAmount: 1000,
+      items: [
+        { categoryId: "cat-food", amountYen: "1000", title: "食費" },
+        { categoryId: "cat-daily", amountYen: "500", title: "日用品" },
+      ],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.reason).toBe("amount_exceeded");
+      if (result.reason === "amount_exceeded") {
+        expect(result.difference).toBe(-500);
+      }
+    }
+  });
+
+  it("項目が空の場合 no_items", () => {
+    const result = validateExpenseItems({ sourceAmount: 1000, items: [] });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.reason).toBe("no_items");
+    }
+  });
+
+  it("項目にエラーがある場合 item_errors", () => {
+    const result = validateExpenseItems({
+      sourceAmount: 1000,
+      items: [{ categoryId: "", amountYen: "abc", title: "" }],
+    });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.reason).toBe("item_errors");
+      if (result.reason === "item_errors") {
+        expect(result.itemErrors[0]).toEqual({
+          categoryId: "empty",
+          amountYen: "not_number",
+          title: "empty",
+        });
+      }
     }
   });
 });
