@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { classifyAiExpenseDraft } from "../../../convex/aiExpenseDrafts/model";
-import { deriveTaxReviewReasons, type DraftItemTaxFields } from "../../receiptTax/draftTaxMapping";
+import { deriveTaxReviewReasons, mapDraftItemToTaxFields } from "../../receiptTax/draftTaxMapping";
 import {
   reinterpretDraftTax,
   type BulkUnresolvedTaxOverride,
@@ -15,24 +15,6 @@ import {
   nonTaxReviewReasons,
 } from "../../../lib/domain/aiExpenseDrafts/reviewReasons";
 import type { AiExpenseDraftReviewReason } from "../../../lib/domain/aiExpenseDrafts/constants";
-
-function draftItemToTaxFields(item: Doc<"aiExpenseDraftItems">): DraftItemTaxFields {
-  return {
-    itemName: item.itemName,
-    printedAmountYen: item.printedAmountYen ?? item.amountYen,
-    amountBasis: item.amountBasis,
-    taxRatePercent: item.taxRatePercent ?? null,
-    markers: item.markers,
-    taxMarker: item.taxMarker,
-    categoryName: item.categoryName,
-    quantity: item.quantity,
-    unitPriceYen: item.unitPriceYen,
-    warnings: item.warnings,
-    taxResolutionStatus: item.taxResolutionStatus,
-    taxResolutionSource: item.taxResolutionSource,
-    taxReviewReasons: item.taxReviewReasons,
-  };
-}
 
 export type PersistDraftTaxInterpretationArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -75,7 +57,7 @@ export async function persistDraftTaxInterpretation(
     amountYen: draft.amountYen,
     taxSummaries: draft.taxSummaries,
     markerDefinitions: draft.markerDefinitions,
-    items: items.map(draftItemToTaxFields),
+    items: items.map(mapDraftItemToTaxFields),
     override: args.override,
     bulkUnresolvedOverride: args.bulkUnresolvedOverride,
     summaryOverride: args.summaryOverride,
