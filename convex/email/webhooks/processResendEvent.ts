@@ -7,6 +7,7 @@ import {
   type EmailSuppressionReason,
   type EmailWebhookEventType,
 } from "../../../lib/email/model";
+import { resolveStatusAndSuppression } from "../../../lib/domain/email/webhook";
 import { emailWebhookEventTypeValidator } from "../model";
 
 export type WebhookPayloadData = {
@@ -136,49 +137,4 @@ export const processResendEvent = internalMutation({
   handler: processResendEventHandler,
 });
 
-export function resolveStatusAndSuppression(
-  eventType: EmailWebhookEventType,
-  data: {
-    bounce?: { type?: string };
-    complaint?: { type?: string };
-    suppressed?: { type?: string };
-    failed?: { reason?: string };
-  },
-):
-  | {
-      statusUpdate: "sent" | "delivered" | "bounced" | "complained" | "suppressed" | "failed";
-      suppressionReason?: EmailSuppressionReason;
-      suppressionSource?: string;
-    }
-  | undefined {
-  switch (eventType) {
-    case "email.sent":
-      return { statusUpdate: "sent" };
-    case "email.delivered":
-      return { statusUpdate: "delivered" };
-    case "email.delivery_delayed":
-      return undefined;
-    case "email.complained":
-      return {
-        statusUpdate: "complained",
-        suppressionReason: "complaint",
-        suppressionSource: data.complaint?.type,
-      };
-    case "email.bounced":
-      return {
-        statusUpdate: "bounced",
-        suppressionReason: "bounce",
-        suppressionSource: data.bounce?.type,
-      };
-    case "email.suppressed":
-      return {
-        statusUpdate: "suppressed",
-        suppressionReason: "provider_suppressed",
-        suppressionSource: data.suppressed?.type,
-      };
-    case "email.failed":
-      return { statusUpdate: "failed" };
-    default:
-      return undefined;
-  }
-}
+export { resolveStatusAndSuppression } from "../../../lib/domain/email/webhook";
