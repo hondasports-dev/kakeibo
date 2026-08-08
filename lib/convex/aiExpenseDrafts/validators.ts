@@ -1,34 +1,16 @@
 import { v } from "convex/values";
-
-export const AI_EXPENSE_DRAFT_STATUSES = [
-  "queued",
-  "analyzing",
-  "ready",
-  "needs_review",
-  "failed",
-  "registered",
-] as const;
-
-export const AI_EXPENSE_DRAFT_SOURCE_TYPES = ["image_upload"] as const;
-
-export const AI_EXPENSE_DRAFT_DOCUMENT_TYPES = [
-  "receipt",
-  "convenience_payment",
-  "unknown",
-] as const;
-
-export const AI_EXPENSE_DRAFT_REVIEW_REASONS = [
-  "low_confidence",
-  "missing_required_field",
-  "ambiguous_document_type",
-  "ambiguous_category",
-  "multiple_categories",
-  "user_confirmation_required",
-  "amount_mismatch",
-  "parse_failed",
-] as const;
-
-export const AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD = 0.8;
+export {
+  AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
+  AI_EXPENSE_DRAFT_DOCUMENT_TYPES,
+  AI_EXPENSE_DRAFT_REVIEW_REASONS,
+  AI_EXPENSE_DRAFT_SOURCE_TYPES,
+  AI_EXPENSE_DRAFT_STATUSES,
+  type AiExpenseDraftConfidence,
+  type AiExpenseDraftDocumentType,
+  type AiExpenseDraftReviewReason,
+  type AiExpenseDraftSourceType,
+  type AiExpenseDraftStatus,
+} from "../../domain/aiExpenseDrafts/constants";
 
 export const aiExpenseDraftStatusValidator = v.union(
   v.literal("queued"),
@@ -151,17 +133,3 @@ export const aiExpenseDraftItemConfidenceValidator = v.object({
   categoryName: v.optional(v.number()),
   categoryId: v.optional(v.number()),
 });
-
-export type AiExpenseDraftDocumentType = (typeof AI_EXPENSE_DRAFT_DOCUMENT_TYPES)[number];
-export type AiExpenseDraftReviewReason = (typeof AI_EXPENSE_DRAFT_REVIEW_REASONS)[number];
-
-export type AiExpenseDraftConfidence = {
-  documentType?: number;
-  shopName?: number;
-  paymentPlace?: number;
-  payeeName?: number;
-  paymentPurpose?: number;
-  date?: number;
-  amountYen?: number;
-  categoryId?: number;
-};

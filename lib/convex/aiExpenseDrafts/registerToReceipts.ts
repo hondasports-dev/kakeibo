@@ -3,7 +3,7 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { insertReceiptForGroup } from "../../../convex/receipts/crud";
 import { requireGroupMembership } from "../../../convex/groups/membership";
-import { resolveReceiptShopNameFromDraft } from "./display";
+import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
 
 type RegisterReadyDraftsArgs = {
   draftIds: Id<"aiExpenseDrafts">[];
