@@ -10,14 +10,10 @@ import {
   groupDeletionStatusValidator,
 } from "./groups/lib/groupDeletionJobModel";
 import { resumeGroupDeletionHandler } from "./groups/groupDeletion";
+import { resolveAppEnvironment, type AppEnvironment } from "../lib/domain/systemAdmin/environment";
+import { sanitizeGroupDeletionErrorCategory } from "../lib/domain/systemAdmin/groupDeletion";
 
 const statusFilterValidator = v.optional(groupDeletionStatusValidator);
-const sanitizedErrorCategories = new Set([
-  "batch_processing_failed",
-  "identity_deletion_failed",
-  "finalization_failed",
-  "unknown",
-]);
 
 const groupDeletionItemValidator = v.object({
   jobId: v.id("groupDeletionJobs"),
@@ -37,11 +33,6 @@ const groupDeletionItemValidator = v.object({
   completedAt: v.optional(v.number()),
 });
 
-function sanitizeErrorCategory(category: string | undefined) {
-  if (category === undefined) return undefined;
-  return sanitizedErrorCategories.has(category) ? category : "unknown";
-}
-
 export const listGroupDeletionJobs = query({
   args: {
     paginationOpts: paginationOptsValidator,
@@ -53,11 +44,8 @@ export const listGroupDeletionJobs = query({
   }),
   handler: async (ctx, args) => {
     await requireSystemAdmin(ctx);
-    const configuredEnvironment = process.env.APP_ENV;
-    const environment =
-      configuredEnvironment === "production" || configuredEnvironment === "preview"
-        ? configuredEnvironment
-        : "development";
+    const envResult = resolveAppEnvironment(process.env.APP_ENV);
+    const environment: AppEnvironment = envResult.success ? envResult.environment : "development";
     const jobs = args.status
       ? await ctx.db
           .query("groupDeletionJobs")
@@ -84,7 +72,7 @@ export const listGroupDeletionJobs = query({
         attemptCount: job.attemptCount,
         maxAttempts: job.maxAttempts,
         nextRetryAt: job.nextRetryAt,
-        lastErrorCategory: sanitizeErrorCategory(job.lastErrorCategory),
+        lastErrorCategory: sanitizeGroupDeletionErrorCategory(job.lastErrorCategory),
         deletedCounts: job.deletedCounts,
         createdAt: job.createdAt,
         updatedAt: job.updatedAt,
