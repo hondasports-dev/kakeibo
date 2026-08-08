@@ -3,6 +3,7 @@ import {
   buildClerkInvitationParams,
   buildInvitationFallbackUrl,
   buildInvitationRedirectUrl,
+  getInvitationRedirectErrorMessage,
   INVITATION_ACCEPT_PATH,
   isAllowedRedirectOrigin,
   KAKEIBO_PRODUCTION_HOSTNAME,
@@ -130,5 +131,16 @@ describe("parseAllowedRedirectOrigins", () => {
     expect(() => parseAllowedRedirectOrigins("not-a-url")).toThrow(
       "INVITATION_REDIRECT_ORIGINS contains an invalid URL",
     );
+  });
+});
+
+describe("getInvitationRedirectErrorMessage", () => {
+  it.each([
+    ["invalid_url", "招待リンクの戻り先URLが不正です"],
+    ["invalid_protocol", "招待リンクの戻り先URLが不正です"],
+    ["invalid_path", "招待リンクの戻り先URLが不正です"],
+    ["not_allowed", "招待リンクの戻り先URLが許可されていません"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getInvitationRedirectErrorMessage(error)).toBe(expected);
   });
 });

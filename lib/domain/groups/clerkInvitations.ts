@@ -95,3 +95,15 @@ export function buildInvitationFallbackUrl(token: string | null): string {
     ? `${INVITATION_ACCEPT_PATH}?token=${encodeURIComponent(token)}`
     : INVITATION_ACCEPT_PATH;
 }
+
+const invitationRedirectErrorMessages: Record<InvitationRedirectError, string> = {
+  invalid_url: "招待リンクの戻り先URLが不正です",
+  invalid_protocol: "招待リンクの戻り先URLが不正です",
+  invalid_path: "招待リンクの戻り先URLが不正です",
+  not_allowed: "招待リンクの戻り先URLが許可されていません",
+};
+
+/** 招待リダイレクトエラーをユーザー向けメッセージに変換する */
+export function getInvitationRedirectErrorMessage(error: InvitationRedirectError): string {
+  return invitationRedirectErrorMessages[error];
+}
