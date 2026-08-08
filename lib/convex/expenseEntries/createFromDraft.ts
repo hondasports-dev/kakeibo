@@ -4,15 +4,11 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { assertExpenseCategoryBelongsToGroup } from "./expenseEntryValidation";
 import {
-  validateExpenseAmount,
-  validateExpenseTitle,
-} from "../../../lib/domain/expenseEntries/expenseEntryItem";
+  buildDraftExpenseEntry,
+  type DraftExpenseEntryInput,
+} from "../../../lib/domain/expenseEntries/createFromDraft";
 
-type DraftItemArg = {
-  itemName?: string;
-  amountYen: number;
-  categoryId?: Id<"categories">;
-};
+type DraftItemArg = DraftExpenseEntryInput<Id<"categories">>;
 
 export type CreateExpenseEntriesFromDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -42,30 +38,28 @@ export async function createExpenseEntriesFromDraftHandler(
   const now = Date.now();
   const createdIds: Id<"expenseEntries">[] = [];
 
+  const errorMessages: Record<"invalid_amount" | "missing_category" | "invalid_title", string> = {
+    invalid_amount: "Amount must be a positive integer",
+    missing_category: "Category ID is required",
+    invalid_title: "Title is required",
+  };
+
   for (const item of args.items) {
-    if (!validateExpenseAmount(item.amountYen).success) {
-      throw new ConvexError("Amount must be a positive integer");
-    }
-    const categoryId = item.categoryId ?? draft.categoryId;
-    if (categoryId === undefined) {
-      throw new ConvexError("Category ID is required");
+    const buildResult = buildDraftExpenseEntry(item, draft.categoryId);
+    if (!buildResult.success) {
+      throw new ConvexError(errorMessages[buildResult.error]);
     }
 
-    await assertExpenseCategoryBelongsToGroup(ctx, categoryId, groupId);
-
-    const titleResult = validateExpenseTitle(item.itemName ?? "不明");
-    if (!titleResult.success) {
-      throw new ConvexError("Title is required");
-    }
+    await assertExpenseCategoryBelongsToGroup(ctx, buildResult.entry.categoryId, groupId);
 
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
       sourceDocumentId: undefined,
       aiExpenseDraftId: args.draftId,
       date: draft.date,
-      amount: item.amountYen,
-      categoryId,
-      title: titleResult.title,
+      amount: buildResult.entry.amount,
+      categoryId: buildResult.entry.categoryId,
+      title: buildResult.entry.title,
       entryType: "expense",
       source: "ai_suggested",
       createdAt: now,
