@@ -10,7 +10,8 @@ import {
   type UpdateForReviewArgs,
 } from "./reviewValidation";
 import { trimOptional } from "../../../lib/domain/common/string";
-import { nonTaxReviewReasons, persistDraftTaxInterpretation } from "./persistTaxInterpretation";
+import { persistDraftTaxInterpretation } from "./persistTaxInterpretation";
+import { nonTaxReviewReasons } from "../../domain/aiExpenseDrafts/reviewReasons";
 
 export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForReviewArgs) {
   const { groupId } = await requireGroupMembership(ctx);

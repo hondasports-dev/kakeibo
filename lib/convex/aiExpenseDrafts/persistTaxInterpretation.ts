@@ -1,11 +1,7 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import {
-  AI_EXPENSE_DRAFT_REVIEW_REASONS,
-  classifyAiExpenseDraft,
-  type AiExpenseDraftReviewReason,
-} from "../../../convex/aiExpenseDrafts/model";
+import { classifyAiExpenseDraft } from "../../../convex/aiExpenseDrafts/model";
 import {
   deriveTaxReviewReasons,
   isTaxInterpretationWarning,
@@ -17,20 +13,11 @@ import {
   type DraftSummaryOverride,
   type DraftTaxOverride,
 } from "../../receiptTax/reinterpretDraftTax";
-
-export function mergeReviewReasons(
-  computedReasons: AiExpenseDraftReviewReason[],
-  existingReasons: AiExpenseDraftReviewReason[],
-) {
-  const reasons = new Set<AiExpenseDraftReviewReason>([...computedReasons, ...existingReasons]);
-  return AI_EXPENSE_DRAFT_REVIEW_REASONS.filter((reason) => reasons.has(reason));
-}
-
-export function nonTaxReviewReasons(reviewReasons: AiExpenseDraftReviewReason[]) {
-  return reviewReasons.filter(
-    (reason) => reason !== "user_confirmation_required" && reason !== "amount_mismatch",
-  );
-}
+import {
+  mergeReviewReasons,
+  nonTaxReviewReasons,
+} from "../../../lib/domain/aiExpenseDrafts/reviewReasons";
+import type { AiExpenseDraftReviewReason } from "../../../lib/domain/aiExpenseDrafts/constants";
 
 function draftItemToTaxFields(item: Doc<"aiExpenseDraftItems">): DraftItemTaxFields {
   return {
