@@ -1,12 +1,12 @@
 import type { QueryCtx } from "../../../../convex/_generated/server";
 import { requireGroupMembership } from "../../../../convex/groups/membership";
 import { getMonthSpendingEntries } from "../../../../convex/receipts/spendingEntries";
+import {
+  summarizeMonthlyExpenses,
+  type MonthlyExpensesSummary,
+} from "../../../domain/receipt/monthlySummary";
 
-export type MonthlyExpensesSummary = {
-  totalExpensesYen: number;
-  monthlyIncome: number | null;
-  remainingBalanceYen: number | null;
-};
+export { type MonthlyExpensesSummary } from "../../../domain/receipt/monthlySummary";
 
 type GetMonthlyExpensesSummaryArgs = {
   monthStartDate: string;
@@ -21,7 +21,6 @@ export async function getMonthlyExpensesSummaryHandler(
   const { groupId, userId } = await requireGroupMembership(ctx);
 
   const monthlyReceipts = await getMonthSpendingEntries(ctx, groupId, args.monthStartDate);
-  const totalExpensesYen = monthlyReceipts.reduce((sum, r) => sum + r.amountYen, 0);
 
   // users テーブルから monthlyIncome を取得する
   const user = await ctx.db
@@ -29,12 +28,5 @@ export async function getMonthlyExpensesSummaryHandler(
     .withIndex("by_token_identifier", (q) => q.eq("userId", userId))
     .unique();
 
-  const monthlyIncome = user?.monthlyIncome ?? null;
-  const remainingBalanceYen = monthlyIncome !== null ? monthlyIncome - totalExpensesYen : null;
-
-  return {
-    totalExpensesYen,
-    monthlyIncome,
-    remainingBalanceYen,
-  };
+  return summarizeMonthlyExpenses(monthlyReceipts, user?.monthlyIncome);
 }
