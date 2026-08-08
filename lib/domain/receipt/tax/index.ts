@@ -13,6 +13,7 @@ export {
   reconcileTaxSummary,
   validateTaxSummaryConsistency,
 } from "./taxSummaryConsistency";
+export { isDialogHiddenTaxWarning } from "./warnings";
 export type { DraftItemTaxFields } from "./draftTaxMapping";
 export type { DraftTaxOverride, ReinterpretDraftTaxInput } from "./reinterpretDraftTax";
 export type {
