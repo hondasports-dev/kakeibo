@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planGroupDeletionRetry } from "./groupDeletionRetry";
+import { planGroupDeletionRetry } from "./retry";
 
 describe("planGroupDeletionRetry", () => {
   it("再試行上限までは段階的なbackoffを返す", () => {
