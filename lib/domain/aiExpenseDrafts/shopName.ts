@@ -1,4 +1,4 @@
-import type { AiExpenseDraftDocumentType } from "./validators";
+import type { AiExpenseDraftDocumentType } from "./constants";
 
 type ReceiptShopNameDraftFields = {
   documentType: AiExpenseDraftDocumentType;

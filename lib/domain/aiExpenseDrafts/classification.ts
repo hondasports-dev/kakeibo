@@ -1,11 +1,11 @@
-import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
+import { isValidSignedLineItemAmount } from "../receipt/discountItems";
 import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   AI_EXPENSE_DRAFT_REVIEW_REASONS,
   type AiExpenseDraftConfidence,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
-} from "./validators";
+} from "./constants";
 
 type AiExpenseDraftClassificationInput = {
   documentType: AiExpenseDraftDocumentType;

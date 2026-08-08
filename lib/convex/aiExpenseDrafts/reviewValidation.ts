@@ -10,7 +10,7 @@ import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   type AiExpenseDraftDocumentType,
 } from "./validators";
-import { resolveReceiptShopNameFromDraft } from "./display";
+import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
 
 export type UpdateForReviewItem = {
   itemId?: Id<"aiExpenseDraftItems">;
