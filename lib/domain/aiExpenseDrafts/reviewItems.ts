@@ -1,4 +1,9 @@
-import { AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD } from "./constants";
+import {
+  AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
+  type AiExpenseDraftDocumentType,
+} from "./constants";
+import { isValidSignedLineItemAmount } from "../receipt/discountItems";
+import { resolveReceiptShopNameFromDraft } from "./shopName";
 
 export type ItemConfidence = {
   itemName?: number;
@@ -80,4 +85,97 @@ export function validatePositiveCategoryTotals(
     totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + item.amountYen);
   }
   return [...totals.values()].every((amountYen) => amountYen > 0);
+}
+
+export type DraftForAggregation = {
+  amountYen: number;
+  categoryId: string;
+  documentType?: AiExpenseDraftDocumentType;
+  shopName?: string;
+  paymentPlace?: string;
+  payeeName?: string;
+  paymentPurpose?: string;
+};
+
+export type DraftItemForAggregation = {
+  itemName: string;
+  amountYen: number;
+  normalizedAmountYen?: number;
+  categoryId?: string;
+  confidence: ItemConfidence;
+};
+
+export type DraftItemAggregationError =
+  | "invalid_item_amount"
+  | "missing_category"
+  | "low_confidence"
+  | "amount_mismatch"
+  | "non_positive_category_total";
+
+export function aggregateDraftItemsByCategory(
+  draft: DraftForAggregation,
+  items: DraftItemForAggregation[],
+):
+  | { success: true; items: Array<{ itemName: string; amountYen: number; categoryId: string }> }
+  | { success: false; error: DraftItemAggregationError } {
+  if (items.length === 0) {
+    return {
+      success: true,
+      items: [
+        {
+          itemName: resolveReceiptShopNameFromDraft(draft),
+          amountYen: draft.amountYen,
+          categoryId: draft.categoryId,
+        },
+      ],
+    };
+  }
+
+  let itemTotal = 0;
+  const categoryAmounts = new Map<string, number>();
+  for (const item of items) {
+    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
+    if (!isValidSignedLineItemAmount(item.itemName, registrationAmountYen)) {
+      return { success: false, error: "invalid_item_amount" };
+    }
+    if (item.categoryId === undefined) {
+      return { success: false, error: "missing_category" };
+    }
+    if (hasLowConfidenceItem(item)) {
+      return { success: false, error: "low_confidence" };
+    }
+
+    itemTotal += registrationAmountYen;
+    categoryAmounts.set(
+      item.categoryId,
+      (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
+    );
+  }
+
+  if (itemTotal !== draft.amountYen) {
+    return { success: false, error: "amount_mismatch" };
+  }
+  if ([...categoryAmounts.values()].some((amountYen) => amountYen <= 0)) {
+    return { success: false, error: "non_positive_category_total" };
+  }
+
+  const itemNamesByCategory = new Map<string, string[]>();
+  for (const item of items) {
+    if (item.categoryId === undefined) {
+      continue;
+    }
+    const itemNames = itemNamesByCategory.get(item.categoryId) ?? [];
+    itemNames.push(item.itemName.trim());
+    itemNamesByCategory.set(item.categoryId, itemNames);
+  }
+
+  return {
+    success: true,
+    items: Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
+      itemName:
+        itemNamesByCategory.get(categoryId)?.join("、") ?? resolveReceiptShopNameFromDraft(draft),
+      amountYen,
+      categoryId,
+    })),
+  };
 }
