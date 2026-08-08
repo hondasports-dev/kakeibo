@@ -34,3 +34,13 @@ export function deriveBulkTaxSettings(
     amountBasis: resolvedAmountBasis,
   };
 }
+
+const bulkTaxSettingsErrorMessages: Record<DeriveBulkTaxSettingsError, string> = {
+  unknown_tax_mode: "Bulk tax settings require a definitive tax mode",
+  cannot_derive_amount_basis: "Could not derive amount basis from tax summary",
+};
+
+/** deriveBulkTaxSettings のエラー理由をユーザー向けメッセージに変換する */
+export function getBulkTaxSettingsErrorMessage(error: DeriveBulkTaxSettingsError): string {
+  return bulkTaxSettingsErrorMessages[error];
+}
