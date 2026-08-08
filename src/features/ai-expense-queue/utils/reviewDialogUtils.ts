@@ -1,7 +1,6 @@
 import type { AiExpenseQueueCategory, ReviewFormValues, ReviewItemValues } from "../types/types";
 import { formatYen } from "../../../utils/currency";
-
-const LOW_CONFIDENCE_THRESHOLD = 0.8;
+import { hasLowConfidenceItem } from "../../../../lib/domain/aiExpenseDrafts/reviewItems";
 
 export type CategoryAggregateDisplay = {
   categoryId: string;
@@ -9,24 +8,14 @@ export type CategoryAggregateDisplay = {
   amountYen: number;
 };
 
-export function isLowConfidenceItem(item: ReviewItemValues): boolean {
-  const confidence = item.confidence;
-  if (!confidence) {
-    return false;
-  }
-  return (
-    (confidence.itemName ?? 1) < LOW_CONFIDENCE_THRESHOLD ||
-    (confidence.amountYen ?? 1) < LOW_CONFIDENCE_THRESHOLD ||
-    (confidence.categoryId ?? confidence.categoryName ?? 1) < LOW_CONFIDENCE_THRESHOLD
-  );
-}
+export const isLowConfidenceItem = hasLowConfidenceItem;
 
 export function hasUncategorizedItems(reviewItems: ReviewItemValues[]): boolean {
   return reviewItems.some((item) => !item.categoryId);
 }
 
 export function hasLowConfidenceItems(reviewItems: ReviewItemValues[]): boolean {
-  return reviewItems.some(isLowConfidenceItem);
+  return reviewItems.some(hasLowConfidenceItem);
 }
 
 export function computeItemTotalYen(reviewItems: ReviewItemValues[]): number {

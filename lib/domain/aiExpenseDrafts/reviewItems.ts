@@ -19,12 +19,12 @@ export type ReviewItemLike = {
   confidence: ItemConfidence;
 };
 
-export function hasLowConfidenceItem(item: { confidence: ItemConfidence }): boolean {
+export function hasLowConfidenceItem(item: { confidence?: ItemConfidence | undefined }): boolean {
+  const confidence = item.confidence ?? {};
   return (
-    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
-      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
+    (confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
+    (confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
+    (confidence.categoryId ?? confidence.categoryName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
   );
 }
 
