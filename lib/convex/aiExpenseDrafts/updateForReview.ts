@@ -9,6 +9,7 @@ import {
   replaceDraftItemsForReview,
   type UpdateForReviewArgs,
 } from "./reviewValidation";
+import { buildReviewConfidence } from "../../../lib/domain/aiExpenseDrafts/review";
 import { trimOptional } from "../../../lib/domain/common/string";
 import { persistDraftTaxInterpretation } from "./persistTaxInterpretation";
 import { nonTaxReviewReasons } from "../../domain/aiExpenseDrafts/reviewReasons";
@@ -38,21 +39,12 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     await replaceDraftItemsForReview(ctx, args.draftId, groupId, args.items, now);
   }
 
-  const reviewConfidence = {
-    ...draft.confidence,
-    documentType: 1,
-    shopName: trimOptional(args.shopName) ? 1 : draft.confidence.shopName,
-    paymentPlace: trimOptional(args.paymentPlace) ? 1 : draft.confidence.paymentPlace,
-    payeeName:
-      trimOptional(args.payeeName) || trimOptional(args.shopName) ? 1 : draft.confidence.payeeName,
-    paymentPurpose:
-      trimOptional(args.paymentPurpose) || trimOptional(args.shopName)
-        ? 1
-        : draft.confidence.paymentPurpose,
-    date: 1,
-    amountYen: 1,
-    categoryId: 1,
-  };
+  const reviewConfidence = buildReviewConfidence(draft.confidence, {
+    shopName: args.shopName,
+    paymentPlace: args.paymentPlace,
+    payeeName: args.payeeName,
+    paymentPurpose: args.paymentPurpose,
+  });
 
   const classification = classifyAiExpenseDraft({
     documentType: args.documentType,

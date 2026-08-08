@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { hasCounterparty, validateReviewUpdateCanBecomeReady } from "./review";
+import {
+  buildReviewConfidence,
+  hasCounterparty,
+  validateReviewUpdateCanBecomeReady,
+} from "./review";
 
 describe("hasCounterparty", () => {
   it("receipt で店舗名があれば true", () => {
@@ -106,5 +110,69 @@ describe("validateReviewUpdateCanBecomeReady", () => {
         amountYen: 1000,
       }),
     ).toEqual({ success: false, error: "missing_counterparty" });
+  });
+});
+
+describe("buildReviewConfidence", () => {
+  it("確定フィールドは 1、未入力は既存スコアを維持する", () => {
+    const draftConfidence = {
+      documentType: 0.5,
+      shopName: 0.5,
+      paymentPlace: 0.5,
+      payeeName: 0.5,
+      paymentPurpose: 0.5,
+      date: 0.5,
+      amountYen: 0.5,
+      categoryId: 0.5,
+    };
+    expect(
+      buildReviewConfidence(draftConfidence, {
+        shopName: "  スーパー  ",
+        paymentPlace: "  東京都  ",
+      }),
+    ).toEqual({
+      documentType: 1,
+      shopName: 1,
+      paymentPlace: 1,
+      payeeName: 1,
+      paymentPurpose: 1,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    });
+  });
+
+  it("shopName がない場合 payeeName / paymentPurpose は shopName にフォールバックしない", () => {
+    const draftConfidence = {
+      payeeName: 0.5,
+      paymentPurpose: 0.5,
+    };
+    expect(
+      buildReviewConfidence(draftConfidence, {
+        payeeName: "電力会社",
+        paymentPurpose: "電気代",
+      }),
+    ).toEqual({
+      documentType: 1,
+      payeeName: 1,
+      paymentPurpose: 1,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    });
+  });
+
+  it("入力が空の場合は既存スコアを維持する", () => {
+    const draftConfidence = { shopName: 0.3 };
+    expect(buildReviewConfidence(draftConfidence, { shopName: "" })).toEqual({
+      documentType: 1,
+      shopName: 0.3,
+      paymentPlace: undefined,
+      payeeName: undefined,
+      paymentPurpose: undefined,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    });
   });
 });
