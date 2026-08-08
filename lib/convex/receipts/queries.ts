@@ -1,6 +1,6 @@
 import type { QueryCtx } from "../../../convex/_generated/server";
 import { requireGroupMembership } from "../../../convex/groups/membership";
-import { addDays } from "../dateUtils";
+import { addDays } from "../../domain/common/date";
 
 type GetReceiptsByWeekArgs = {
   weekStartDate: string;
