@@ -5,6 +5,7 @@ import { requireGroupMembership } from "../../../convex/groups/membership";
 import { assertExpenseCategoryBelongsToGroup } from "./expenseEntryValidation";
 import {
   buildDraftExpenseEntry,
+  getDraftExpenseEntryErrorMessage,
   type DraftExpenseEntryInput,
 } from "../../../lib/domain/expenseEntries/createFromDraft";
 
@@ -38,16 +39,10 @@ export async function createExpenseEntriesFromDraftHandler(
   const now = Date.now();
   const createdIds: Id<"expenseEntries">[] = [];
 
-  const errorMessages: Record<"invalid_amount" | "missing_category" | "invalid_title", string> = {
-    invalid_amount: "Amount must be a positive integer",
-    missing_category: "Category ID is required",
-    invalid_title: "Title is required",
-  };
-
   for (const item of args.items) {
     const buildResult = buildDraftExpenseEntry(item, draft.categoryId);
     if (!buildResult.success) {
-      throw new ConvexError(errorMessages[buildResult.error]);
+      throw new ConvexError(getDraftExpenseEntryErrorMessage(buildResult.error));
     }
 
     await assertExpenseCategoryBelongsToGroup(ctx, buildResult.entry.categoryId, groupId);

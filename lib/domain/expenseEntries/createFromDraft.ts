@@ -8,6 +8,17 @@ export type DraftExpenseEntryInput<TId = string> = {
 
 export type DraftExpenseEntryBuildError = "invalid_amount" | "missing_category" | "invalid_title";
 
+const draftExpenseEntryErrorMessages: Record<DraftExpenseEntryBuildError, string> = {
+  invalid_amount: "Amount must be a positive integer",
+  missing_category: "Category ID is required",
+  invalid_title: "Title is required",
+};
+
+/** 下書き明細から expenseEntry 構築エラーをユーザー向けメッセージに変換する */
+export function getDraftExpenseEntryErrorMessage(error: DraftExpenseEntryBuildError): string {
+  return draftExpenseEntryErrorMessages[error];
+}
+
 export type DraftExpenseEntry<TId = string> = {
   amount: number;
   categoryId: TId;

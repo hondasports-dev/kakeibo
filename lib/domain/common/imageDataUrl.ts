@@ -34,6 +34,21 @@ function isValidBase64(value: string): boolean {
  * - 実際に base64 デコード可能な文字列である必要がある
  * - MAX_IMAGE_DATA_URL_LENGTH 文字以内である必要がある
  */
+const imageDataUrlErrorMessages: Record<ImageDataUrlError, string> = {
+  invalid_format: "imageDataUrl は Data URL 形式で指定してください",
+  missing_base64_marker: "imageDataUrl は base64 エンコードされた Data URL 形式で指定してください",
+  too_large:
+    "画像サイズが大きすぎます。長辺 1400〜1800px・JPEG にリサイズしてから再試行してください",
+  empty_base64: "imageDataUrl の base64 データが空です",
+  unsupported_mime_type: "対応していない画像形式です。JPEG / PNG / WebP / GIF を使用してください",
+  invalid_base64: "imageDataUrl の base64 エンコーディングが不正です",
+};
+
+/** imageDataUrl 検証エラーをユーザー向けメッセージに変換する */
+export function getImageDataUrlErrorMessage(error: ImageDataUrlError): string {
+  return imageDataUrlErrorMessages[error];
+}
+
 export function validateImageDataUrl(
   imageDataUrl: string,
 ): { success: true } | { success: false; error: ImageDataUrlError } {

@@ -2,6 +2,7 @@ import { ConvexError } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
 import {
+  getGroupAdminErrorMessage,
   validateActiveGroupScope,
   validateGroupOwnerRole,
   validateNotSelfOperator,
@@ -24,20 +25,10 @@ export const GROUP_ADMIN_ERRORS = {
   GROUP_NAME_MISMATCH: "入力されたグループ名が一致しません",
 } as const;
 
-const errorMessages: Record<
-  "owner_only" | "not_active_group" | "self_operation_forbidden" | "owner_member_not_removable",
-  string
-> = {
-  owner_only: GROUP_ADMIN_ERRORS.OWNER_ONLY,
-  not_active_group: GROUP_ADMIN_ERRORS.NOT_ACTIVE_GROUP,
-  self_operation_forbidden: GROUP_ADMIN_ERRORS.SELF_OPERATION_FORBIDDEN,
-  owner_member_not_removable: GROUP_ADMIN_ERRORS.OWNER_MEMBER_NOT_REMOVABLE,
-};
-
 export function assertGroupOwnerRole(role: GroupAdminRole): void {
   const result = validateGroupOwnerRole(role);
   if (!result.success) {
-    throw new ConvexError(errorMessages[result.error]);
+    throw new ConvexError(getGroupAdminErrorMessage(result.error));
   }
 }
 
@@ -47,21 +38,21 @@ export function assertActiveGroupScope(
 ): void {
   const result = validateActiveGroupScope(activeGroupId, targetGroupId);
   if (!result.success) {
-    throw new ConvexError(errorMessages[result.error]);
+    throw new ConvexError(getGroupAdminErrorMessage(result.error));
   }
 }
 
 export function assertNotSelfOperator(actorUserId: string, targetUserId: string): void {
   const result = validateNotSelfOperator(actorUserId, targetUserId);
   if (!result.success) {
-    throw new ConvexError(errorMessages[result.error]);
+    throw new ConvexError(getGroupAdminErrorMessage(result.error));
   }
 }
 
 export function assertRemovableGroupMemberRole(role: GroupAdminRole): void {
   const result = validateRemovableGroupMemberRole(role);
   if (!result.success) {
-    throw new ConvexError(errorMessages[result.error]);
+    throw new ConvexError(getGroupAdminErrorMessage(result.error));
   }
 }
 
