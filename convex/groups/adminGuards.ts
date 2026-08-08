@@ -1,8 +1,15 @@
 import { ConvexError } from "convex/values";
 import type { Id } from "../_generated/dataModel";
 import type { QueryCtx } from "../_generated/server";
+import {
+  validateActiveGroupScope,
+  validateGroupOwnerRole,
+  validateNotSelfOperator,
+  validateRemovableGroupMemberRole,
+  type GroupAdminRole,
+} from "../../lib/domain/groups/admin";
 
-export type GroupAdminRole = "owner" | "member";
+export type { GroupAdminRole } from "../../lib/domain/groups/admin";
 
 export const GROUP_ADMIN_ERRORS = {
   OWNER_ONLY: "グループオーナーのみ実行できます",
@@ -17,9 +24,20 @@ export const GROUP_ADMIN_ERRORS = {
   GROUP_NAME_MISMATCH: "入力されたグループ名が一致しません",
 } as const;
 
+const errorMessages: Record<
+  "owner_only" | "not_active_group" | "self_operation_forbidden" | "owner_member_not_removable",
+  string
+> = {
+  owner_only: GROUP_ADMIN_ERRORS.OWNER_ONLY,
+  not_active_group: GROUP_ADMIN_ERRORS.NOT_ACTIVE_GROUP,
+  self_operation_forbidden: GROUP_ADMIN_ERRORS.SELF_OPERATION_FORBIDDEN,
+  owner_member_not_removable: GROUP_ADMIN_ERRORS.OWNER_MEMBER_NOT_REMOVABLE,
+};
+
 export function assertGroupOwnerRole(role: GroupAdminRole): void {
-  if (role !== "owner") {
-    throw new ConvexError(GROUP_ADMIN_ERRORS.OWNER_ONLY);
+  const result = validateGroupOwnerRole(role);
+  if (!result.success) {
+    throw new ConvexError(errorMessages[result.error]);
   }
 }
 
@@ -27,20 +45,23 @@ export function assertActiveGroupScope(
   activeGroupId: Id<"groups">,
   targetGroupId: Id<"groups">,
 ): void {
-  if (activeGroupId !== targetGroupId) {
-    throw new ConvexError(GROUP_ADMIN_ERRORS.NOT_ACTIVE_GROUP);
+  const result = validateActiveGroupScope(activeGroupId, targetGroupId);
+  if (!result.success) {
+    throw new ConvexError(errorMessages[result.error]);
   }
 }
 
 export function assertNotSelfOperator(actorUserId: string, targetUserId: string): void {
-  if (actorUserId === targetUserId) {
-    throw new ConvexError(GROUP_ADMIN_ERRORS.SELF_OPERATION_FORBIDDEN);
+  const result = validateNotSelfOperator(actorUserId, targetUserId);
+  if (!result.success) {
+    throw new ConvexError(errorMessages[result.error]);
   }
 }
 
 export function assertRemovableGroupMemberRole(role: GroupAdminRole): void {
-  if (role === "owner") {
-    throw new ConvexError(GROUP_ADMIN_ERRORS.OWNER_MEMBER_NOT_REMOVABLE);
+  const result = validateRemovableGroupMemberRole(role);
+  if (!result.success) {
+    throw new ConvexError(errorMessages[result.error]);
   }
 }
 
