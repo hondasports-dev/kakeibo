@@ -1,11 +1,7 @@
 import { internalMutation } from "../_generated/server";
 import { ConvexError, v } from "convex/values";
-import {
-  E2E_CATEGORY_NAME_PREFIX,
-  MAX_CATEGORIES_PER_GROUP,
-  normalizeCategoryColor,
-  normalizeCategoryName,
-} from "./mutations";
+import { E2E_CATEGORY_NAME_PREFIX, MAX_CATEGORIES_PER_GROUP } from "./mutations";
+import { normalizeCategoryColor, normalizeCategoryName } from "./normalize";
 
 export const deleteE2eCategoriesByUser = internalMutation({
   args: {
