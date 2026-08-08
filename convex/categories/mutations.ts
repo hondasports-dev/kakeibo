@@ -9,47 +9,16 @@ import {
   shouldRefreshLegacyDefaultCategoryColor,
 } from "../../lib/domain/categories/defaults";
 import {
-  MAX_CATEGORY_DESCRIPTION_LENGTH,
-  MAX_CATEGORY_NAME_LENGTH,
-  validateCategoryColor,
-  validateCategoryDescription,
-  validateCategoryName,
-} from "../../lib/domain/categories/category";
+  normalizeCategoryColor,
+  normalizeCategoryDescription,
+  normalizeCategoryName,
+} from "./normalize";
 
-export { MAX_CATEGORY_DESCRIPTION_LENGTH, MAX_CATEGORY_NAME_LENGTH };
+export { MAX_CATEGORY_DESCRIPTION_LENGTH, MAX_CATEGORY_NAME_LENGTH } from "./normalize";
 export { DEFAULT_CATEGORIES, MAX_CATEGORIES_PER_GROUP };
 export { shouldRefreshLegacyDefaultCategoryColor } from "../../lib/domain/categories/defaults";
 
 export const E2E_CATEGORY_NAME_PREFIX = "E2Eカテゴリ-";
-
-export function normalizeCategoryName(name: string) {
-  const result = validateCategoryName(name);
-  if (!result.success) {
-    if (result.error === "empty") {
-      throw new ConvexError("Category name is required");
-    }
-    throw new ConvexError(`Category name must be ${MAX_CATEGORY_NAME_LENGTH} characters or fewer`);
-  }
-  return result.name;
-}
-
-export function normalizeCategoryColor(color: string) {
-  const result = validateCategoryColor(color);
-  if (!result.success) {
-    throw new ConvexError("Category color must be a hex color");
-  }
-  return result.color;
-}
-
-export function normalizeCategoryDescription(description?: string) {
-  const result = validateCategoryDescription(description);
-  if (!result.success) {
-    throw new ConvexError(
-      `Category description must be ${MAX_CATEGORY_DESCRIPTION_LENGTH} characters or fewer`,
-    );
-  }
-  return result.description;
-}
 
 async function getOwnedCategory(
   ctx: Pick<MutationCtx, "auth" | "db">,
