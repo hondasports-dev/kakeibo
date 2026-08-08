@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "convex/react";
+import { getWithItemsApi } from "../../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../../convex/_generated/dataModel";
-import { api } from "../../../../../convex/_generated/api";
 import { isDraftWithItems } from "../../utils/mappers";
 import type {
   AiExpenseDraft,
@@ -26,7 +26,7 @@ export function useReviewDraftSelection({
     ? initialReviewDraftItems[selectedReviewDraftId]
     : undefined;
   const selectedReviewDraftDetails = useQuery(
-    api.aiExpenseDrafts.queries.getWithItems,
+    getWithItemsApi(),
     selectedReviewDraftId && !localReviewDraft
       ? { draftId: selectedReviewDraftId as Id<"aiExpenseDrafts"> }
       : "skip",

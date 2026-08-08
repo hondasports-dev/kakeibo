@@ -1,9 +1,16 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
+import { listActiveApi } from "../../../lib/repositories/categories";
+import { deleteExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
+import {
+  deleteReceiptApi,
+  getFourWeeksSummaryApi,
+  getWeekSummaryWithCategoriesApi,
+} from "../../../lib/repositories/receipts";
+import { getUserProfileApi } from "../../../lib/repositories/users";
 import { Alert, Box, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
 import { WeekNavigator } from "../../week";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
 import { ExpenseEntryDeleteDialog } from "../components/ExpenseEntryDeleteDialog";
@@ -28,10 +35,10 @@ export function SummaryPage() {
   const [deleteError, setDeleteError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
 
-  const deleteExpenseEntry = useMutation(api.expenseEntries.mutations.deleteExpenseEntry);
-  const deleteReceipt = useMutation(api.receipts.crud.deleteReceipt);
-  const userProfile = useQuery(api.users.queries.getUserProfile);
-  const categoriesQuery = useQuery(api.categories.queries.listActive);
+  const deleteExpenseEntry = useMutation(deleteExpenseEntryApi());
+  const deleteReceipt = useMutation(deleteReceiptApi());
+  const userProfile = useQuery(getUserProfileApi());
+  const categoriesQuery = useQuery(listActiveApi());
   const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
 
   const weeklyStartDay = userProfile?.weeklyStartDay ?? 1;
@@ -55,11 +62,11 @@ export function SummaryPage() {
   }, [rawWeekStartDate, userProfile, weekStartDate, navigate]);
 
   const weeklySummary = useQuery(
-    api.receipts.summaries.getWeekSummaryWithCategories,
+    getWeekSummaryWithCategoriesApi(),
     userProfile === undefined ? "skip" : { weekStartDate },
   );
   const fourWeeksSummary = useQuery(
-    api.receipts.summaries.getFourWeeksSummary,
+    getFourWeeksSummaryApi(),
     userProfile === undefined ? "skip" : { weekStartDate },
   );
   const weeklyExpenseTrend =

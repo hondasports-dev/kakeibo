@@ -1,7 +1,7 @@
 import { useQuery } from "convex/react";
+import { getWeekSummaryWithCategoriesApi } from "../../../lib/repositories/receipts";
 import { Alert, Box, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
-import { api } from "../../../../convex/_generated/api";
 import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryBreakdownCard";
 import { SuzumemoLoadingState } from "../../ui";
 import { DashboardInputPanel } from "../components/DashboardInputPanel";
@@ -17,7 +17,7 @@ export function DashboardPage() {
   const isCompact = useMediaQuery(theme.breakpoints.down("md"));
 
   const summary = useQuery(
-    api.receipts.summaries.getWeekSummaryWithCategories,
+    getWeekSummaryWithCategoriesApi(),
     weekSession ? { weekStartDate: weekSession.weekStartDate } : "skip",
   );
 

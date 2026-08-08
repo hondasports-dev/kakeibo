@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { seedDefaultCategoriesApi } from "../../../lib/repositories/categories";
+import { getMyGroupApi } from "../../../lib/repositories/groups";
+import { upsertUserApi } from "../../../lib/repositories/users";
 
 /**
  * Convex 認証確立後に users テーブルを upsert するフック。
@@ -17,9 +19,9 @@ import { api } from "../../../../convex/_generated/api";
  */
 export function useInitializeUser() {
   const { isAuthenticated } = useConvexAuth();
-  const upsertUser = useMutation(api.users.mutations.upsertUser);
-  const seedDefaultCategories = useMutation(api.categories.mutations.seedDefaultCategories);
-  const group = useQuery(api.groups.queries.getMyGroup, isAuthenticated ? {} : "skip");
+  const upsertUser = useMutation(upsertUserApi());
+  const seedDefaultCategories = useMutation(seedDefaultCategoriesApi());
+  const group = useQuery(getMyGroupApi(), isAuthenticated ? {} : "skip");
   const hasInitialized = useRef(false);
   const seededGroupIds = useRef(new Set<string>());
   const [isInitializing, setIsInitializing] = useState(false);

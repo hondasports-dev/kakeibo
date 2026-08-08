@@ -22,7 +22,7 @@ import { AccountDeletionPage, AccountDeletionStatusPage } from "./features/accou
 import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
 import { useConvexAuth, useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { getMyAccountDeletionStatusApi } from "./lib/repositories/accountDeletion";
 import {
   SystemAdminGroupDetailPage,
   SystemAdminGroupDeletionPage,
@@ -38,10 +38,7 @@ import {
 function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
-  const deletionStatus = useQuery(
-    api.accountDeletion.getMyAccountDeletionStatus,
-    isAuthenticated ? {} : "skip",
-  );
+  const deletionStatus = useQuery(getMyAccountDeletionStatusApi(), isAuthenticated ? {} : "skip");
 
   if (isAuthLoading || isLoading || (isAuthenticated && deletionStatus === undefined)) {
     return (
