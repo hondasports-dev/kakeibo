@@ -1,3 +1,5 @@
+import { buildInvitationFallbackUrl as buildInvitationFallbackUrlDomain } from "../../../../lib/domain/groups/clerkInvitations";
+
 export type ClerkSignUpResult = {
   error?: unknown;
   missingFields?: string[];
@@ -99,7 +101,5 @@ export function isExistingAccountInvitationError(error: unknown) {
 }
 
 export function buildInvitationFallbackUrl(token: string | null) {
-  return token
-    ? `/group/invitations/accept?token=${encodeURIComponent(token)}`
-    : "/group/invitations/accept";
+  return buildInvitationFallbackUrlDomain(token);
 }
