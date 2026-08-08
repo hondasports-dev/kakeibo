@@ -6,8 +6,9 @@ import {
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
 } from "./constants";
+import { mergeReviewReasons } from "./reviewReasons";
 
-type AiExpenseDraftClassificationInput = {
+export type AiExpenseDraftClassificationInput = {
   documentType: AiExpenseDraftDocumentType;
   shopName?: string;
   paymentPlace?: string;
@@ -181,6 +182,30 @@ export function classifyAiExpenseDraft(input: AiExpenseDraftClassificationInput)
   }
 
   const reviewReasons = AI_EXPENSE_DRAFT_REVIEW_REASONS.filter((reason) => reasons.has(reason));
+  return {
+    status: reviewReasons.length === 0 ? "ready" : "needs_review",
+    reviewReasons,
+  };
+}
+
+export type CreatedDraftClassificationInput = AiExpenseDraftClassificationInput & {
+  reviewReasons?: AiExpenseDraftReviewReason[];
+};
+
+/**
+ * 抽出直後の下書きを分類する。
+ * 技術設計に従い、画像解析直後は `user_confirmation_required` を付与して
+ * 常に `needs_review` とする（それ以外の理由があればマージする）。
+ */
+export function classifyCreatedDraft(input: CreatedDraftClassificationInput): {
+  status: "ready" | "needs_review";
+  reviewReasons: AiExpenseDraftReviewReason[];
+} {
+  const computed = classifyAiExpenseDraft(input);
+  const reviewReasons = mergeReviewReasons(computed.reviewReasons, [
+    ...(input.reviewReasons ?? []),
+    "user_confirmation_required",
+  ]);
   return {
     status: reviewReasons.length === 0 ? "ready" : "needs_review",
     reviewReasons,
