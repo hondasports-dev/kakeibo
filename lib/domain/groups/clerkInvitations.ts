@@ -70,3 +70,9 @@ export function buildClerkInvitationParams(
     },
   };
 }
+
+export function buildInvitationFallbackUrl(token: string | null): string {
+  return token
+    ? `${INVITATION_ACCEPT_PATH}?token=${encodeURIComponent(token)}`
+    : INVITATION_ACCEPT_PATH;
+}

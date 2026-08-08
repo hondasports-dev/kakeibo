@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildClerkInvitationParams,
+  buildInvitationFallbackUrl,
   buildInvitationRedirectUrl,
   INVITATION_ACCEPT_PATH,
   isAllowedRedirectOrigin,
@@ -83,6 +84,22 @@ describe("buildInvitationRedirectUrl", () => {
       [],
     );
     expect(result).toEqual({ success: false, error: "not_allowed" });
+  });
+});
+
+describe("buildInvitationFallbackUrl", () => {
+  it("token 付き URL", () => {
+    expect(buildInvitationFallbackUrl("abc-123")).toBe("/group/invitations/accept?token=abc-123");
+  });
+
+  it("token なし", () => {
+    expect(buildInvitationFallbackUrl(null)).toBe("/group/invitations/accept");
+  });
+
+  it("特殊文字をエンコード", () => {
+    expect(buildInvitationFallbackUrl("a&b= c")).toBe(
+      "/group/invitations/accept?token=a%26b%3D%20c",
+    );
   });
 });
 
