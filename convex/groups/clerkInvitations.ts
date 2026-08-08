@@ -14,7 +14,7 @@ import {
   getPrimaryVerifiedClerkEmailAddress,
   getVerifiedClerkEmailAddresses,
   type ClerkUserWithEmails,
-} from "../../lib/convex/groups/clerkInvitationLib/userHelpers";
+} from "../../lib/domain/users/clerkProfile";
 
 export {
   buildClerkInvitationParams,
@@ -26,7 +26,7 @@ export {
   getClerkUserDisplayName,
   getPrimaryVerifiedClerkEmailAddress,
   getVerifiedClerkEmailAddresses,
-} from "../../lib/convex/groups/clerkInvitationLib/userHelpers";
+} from "../../lib/domain/users/clerkProfile";
 export {
   cancelPendingGroupInvitationHandler,
   inviteMemberHandler,
