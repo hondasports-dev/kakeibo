@@ -1,22 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { Doc, Id } from "../_generated/dataModel";
+import type { CategoryLike } from "../categories/candidate";
 import {
   conveniencePaymentFixture,
   ishimoriExternalMisreadFixture,
   trialExternal8Fixture,
-} from "../../lib/convex/receiptImageExtraction/fixtures/taxFixtures";
+} from "../../convex/receiptImageExtraction/fixtures/taxFixtures";
 import { mapExtractionToDraftArgs } from "./extractionMapping";
 
-const foodCategory: Doc<"categories"> = {
-  _id: "cat-food" as Id<"categories">,
-  _creationTime: 1,
-  groupId: "group-1" as Id<"groups">,
+const foodCategory: CategoryLike<string> = {
+  _id: "cat-food",
   name: "食費",
-  color: "#000000",
-  isActive: true,
-  sortOrder: 1,
-  createdAt: 1,
-  updatedAt: 1,
 };
 
 describe("mapExtractionToDraftArgs tax normalization", () => {
