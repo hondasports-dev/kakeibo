@@ -7,14 +7,19 @@ import {
   type ReviewUpdateReadyError,
   validateReviewUpdateCanBecomeReady,
 } from "../../../lib/domain/aiExpenseDrafts/review";
-import {
-  AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
-  type AiExpenseDraftDocumentType,
-} from "./validators";
+import { type AiExpenseDraftDocumentType } from "./validators";
 import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
 import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
+import {
+  hasLowConfidenceItem,
+  validatePositiveCategoryTotals,
+} from "../../../lib/domain/aiExpenseDrafts/reviewItems";
 
 export { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
+export {
+  hasLowConfidenceItem,
+  summarizeItems,
+} from "../../../lib/domain/aiExpenseDrafts/reviewItems";
 
 export type UpdateForReviewItem = {
   itemId?: Id<"aiExpenseDraftItems">;
@@ -76,89 +81,9 @@ export async function assertActiveCategoryBelongsToGroup(
 }
 
 export function assertPositiveCategoryTotals(items: NonNullable<UpdateForReviewArgs["items"]>) {
-  const totals = new Map<Id<"categories">, number>();
-  for (const item of items) {
-    totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + item.amountYen);
-  }
-  if ([...totals.values()].some((amountYen) => amountYen <= 0)) {
+  if (!validatePositiveCategoryTotals(items)) {
     throw new ConvexError("Draft category total must be greater than zero");
   }
-}
-
-export function hasLowConfidenceDraftItem(item: Doc<"aiExpenseDraftItems">) {
-  return (
-    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
-      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
-  );
-}
-
-export function hasLowConfidenceItem(item: {
-  confidence: {
-    itemName?: number;
-    amountYen?: number;
-    categoryName?: number;
-    categoryId?: number;
-  };
-}) {
-  return (
-    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
-      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
-  );
-}
-
-export function summarizeItems(
-  draft: { amountYen?: number },
-  items: Array<{
-    amountYen: number;
-    normalizedAmountYen?: number;
-    categoryId?: Id<"categories">;
-    confidence: {
-      itemName?: number;
-      amountYen?: number;
-      categoryName?: number;
-      categoryId?: number;
-    };
-  }>,
-) {
-  if (items.length === 0) {
-    return undefined;
-  }
-
-  const categoryAmounts = new Map<Id<"categories">, number>();
-  let itemTotalYen = 0;
-  let hasUncategorizedItems = false;
-  let hasLowConfidenceItems = false;
-
-  for (const item of items) {
-    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
-    itemTotalYen += registrationAmountYen;
-    if (item.categoryId === undefined) {
-      hasUncategorizedItems = true;
-    } else {
-      categoryAmounts.set(
-        item.categoryId,
-        (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
-      );
-    }
-    if (hasLowConfidenceItem(item)) {
-      hasLowConfidenceItems = true;
-    }
-  }
-
-  return {
-    itemTotalYen,
-    itemDifferenceYen: draft.amountYen === undefined ? undefined : draft.amountYen - itemTotalYen,
-    hasUncategorizedItems,
-    hasLowConfidenceItems,
-    categoryAggregates: Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
-      categoryId,
-      amountYen,
-    })),
-  };
 }
 
 export function aggregateDraftItemsByCategory(
@@ -185,7 +110,7 @@ export function aggregateDraftItemsByCategory(
     if (item.categoryId === undefined) {
       throw new ConvexError("Draft item category is required to register");
     }
-    if (hasLowConfidenceDraftItem(item)) {
+    if (hasLowConfidenceItem(item)) {
       throw new ConvexError("Low confidence draft items must be reviewed before register");
     }
 

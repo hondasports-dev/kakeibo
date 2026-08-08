@@ -4,7 +4,7 @@ import type { QueryCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { aiExpenseDraftStatusValidator } from "./model";
 import { requireGroupMembership } from "../groups/membership";
-import { summarizeItems } from "../../lib/convex/aiExpenseDrafts/reviewValidation";
+import { summarizeItems } from "../../lib/domain/aiExpenseDrafts/reviewItems";
 
 const LIST_LIMIT = 100;
 
