@@ -2,7 +2,7 @@ import { ConvexError } from "convex/values";
 import { api, internal } from "../../../convex/_generated/api";
 import type { ActionCtx } from "../../../convex/_generated/server";
 import type { Doc } from "../../../convex/_generated/dataModel";
-import { mapExtractionToDraftArgs } from "../../../convex/aiExpenseDrafts/extractionMapping";
+import { mapExtractionToDraftArgs } from "../../../lib/domain/aiExpenseDrafts/extractionMapping";
 import { extractReceiptFieldsHandler } from "../../../convex/receiptImageExtraction/extraction";
 
 export type AnalyzeReceiptImageCoreArgs = {
