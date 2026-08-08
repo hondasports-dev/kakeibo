@@ -1,3 +1,4 @@
+import { isTaxInterpretationWarning } from "../receipt/tax/draftTaxMapping";
 import { AI_EXPENSE_DRAFT_REVIEW_REASONS, type AiExpenseDraftReviewReason } from "./constants";
 
 /** 既存 reviewReasons と新しく計算した reviewReasons を、定義済み順序でマージする */
@@ -14,4 +15,9 @@ export function nonTaxReviewReasons(reviewReasons: AiExpenseDraftReviewReason[])
   return reviewReasons.filter(
     (reason) => reason !== "user_confirmation_required" && reason !== "amount_mismatch",
   );
+}
+
+/** 税interpretation系の警告でないものを抽出する */
+export function filterNonInterpretationWarnings(warnings: string[]): string[] {
+  return warnings.filter((warning) => !isTaxInterpretationWarning(warning));
 }

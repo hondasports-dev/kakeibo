@@ -2,11 +2,7 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { classifyAiExpenseDraft } from "../../../convex/aiExpenseDrafts/model";
-import {
-  deriveTaxReviewReasons,
-  isTaxInterpretationWarning,
-  type DraftItemTaxFields,
-} from "../../receiptTax/draftTaxMapping";
+import { deriveTaxReviewReasons, type DraftItemTaxFields } from "../../receiptTax/draftTaxMapping";
 import {
   reinterpretDraftTax,
   type BulkUnresolvedTaxOverride,
@@ -14,6 +10,7 @@ import {
   type DraftTaxOverride,
 } from "../../receiptTax/reinterpretDraftTax";
 import {
+  filterNonInterpretationWarnings,
   mergeReviewReasons,
   nonTaxReviewReasons,
 } from "../../../lib/domain/aiExpenseDrafts/reviewReasons";
@@ -129,9 +126,7 @@ export async function persistDraftTaxInterpretation(
     });
   }
 
-  const nonInterpretationWarnings = (draft.warnings ?? []).filter(
-    (warning) => !isTaxInterpretationWarning(warning),
-  );
+  const nonInterpretationWarnings = filterNonInterpretationWarnings(draft.warnings ?? []);
 
   await ctx.db.patch(args.draftId, {
     status,
