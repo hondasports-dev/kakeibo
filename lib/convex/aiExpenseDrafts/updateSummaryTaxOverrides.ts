@@ -5,12 +5,8 @@ import {
   persistDraftTaxInterpretation,
   type PersistDraftTaxInterpretationResult,
 } from "./persistTaxInterpretation";
-import type {
-  AmountBasis,
-  DraftSummaryOverride,
-  TaxMode,
-  TaxRatePercent,
-} from "../../receiptTax/types";
+import type { AmountBasis, TaxMode, TaxRatePercent } from "../../receiptTax/types";
+import { buildDraftSummaryOverride } from "../../domain/receipt/tax/summaryOverrides";
 
 export type UpdateSummaryTaxOverridesArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -24,12 +20,6 @@ export type UpdateSummaryTaxOverridesArgs = {
 };
 
 export type UpdateSummaryTaxOverridesResult = PersistDraftTaxInterpretationResult;
-
-function assertNonNegativeFinite(value: number | undefined, name: string) {
-  if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
-    throw new ConvexError(`${name} must be a finite non-negative number`);
-  }
-}
 
 export async function updateSummaryTaxOverridesHandler(
   ctx: MutationCtx,
@@ -60,29 +50,24 @@ export async function updateSummaryTaxOverridesHandler(
     throw new ConvexError("Tax summary index is out of range");
   }
 
-  assertNonNegativeFinite(args.taxableAmountYen, "taxableAmountYen");
-  assertNonNegativeFinite(args.taxYen, "taxYen");
-  assertNonNegativeFinite(args.taxIncludedAmountYen, "taxIncludedAmountYen");
-
-  const summary: DraftSummaryOverride["summary"] = {};
-  if (args.taxRatePercent !== undefined) summary.taxRatePercent = args.taxRatePercent;
-  if (args.taxMode !== undefined) summary.taxMode = args.taxMode;
-  if (args.taxableAmountYen !== undefined) summary.taxableAmountYen = args.taxableAmountYen;
-  if (args.taxableAmountBasis !== undefined) summary.taxableAmountBasis = args.taxableAmountBasis;
-  if (args.taxYen !== undefined) summary.taxYen = args.taxYen;
-  if (args.taxIncludedAmountYen !== undefined)
-    summary.taxIncludedAmountYen = args.taxIncludedAmountYen;
-
-  if (Object.keys(summary).length === 0) {
-    throw new ConvexError("At least one tax override field must be provided");
+  let summaryOverride;
+  try {
+    summaryOverride = buildDraftSummaryOverride({
+      index: args.summaryIndex,
+      taxRatePercent: args.taxRatePercent,
+      taxMode: args.taxMode,
+      taxableAmountYen: args.taxableAmountYen,
+      taxableAmountBasis: args.taxableAmountBasis,
+      taxYen: args.taxYen,
+      taxIncludedAmountYen: args.taxIncludedAmountYen,
+    });
+  } catch (err) {
+    throw new ConvexError(err instanceof Error ? err.message : "Invalid tax override");
   }
 
   return await persistDraftTaxInterpretation(ctx, {
     draftId: args.draftId,
     groupId,
-    summaryOverride: {
-      index: args.summaryIndex,
-      summary,
-    },
+    summaryOverride,
   });
 }
