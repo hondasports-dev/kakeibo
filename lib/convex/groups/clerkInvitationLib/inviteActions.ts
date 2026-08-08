@@ -8,6 +8,7 @@ import { ConvexError } from "convex/values";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { assertGroupOwnerRole } from "../../../../convex/groups/adminGuards";
 import { buildClerkInvitationParams, buildInvitationRedirectUrl } from "./redirectUrls";
+import { normalizeEmail as normalizeEmailDomain } from "../../../../lib/domain/users/email";
 
 type MyGroup = {
   _id: Id<"groups">;
@@ -50,8 +51,8 @@ type CancelPendingGroupInvitationDeps = {
 };
 
 function normalizeEmail(email: string) {
-  const normalized = email.trim().toLowerCase();
-  if (!normalized) {
+  const normalized = normalizeEmailDomain(email);
+  if (normalized === undefined) {
     throw new ConvexError("メールアドレスを入力してください");
   }
   return normalized;
