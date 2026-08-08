@@ -12,6 +12,9 @@ import {
   type AiExpenseDraftDocumentType,
 } from "./validators";
 import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
+import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
+
+export { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
 
 export type UpdateForReviewItem = {
   itemId?: Id<"aiExpenseDraftItems">;
@@ -216,57 +219,6 @@ export function aggregateDraftItemsByCategory(
     amountYen,
     categoryId,
   }));
-}
-
-type ReviewReplacePreviousItem = Pick<
-  Doc<"aiExpenseDraftItems">,
-  "amountYen" | "printedAmountYen" | "normalizedAmountYen" | "taxResolutionStatus" | "amountBasis"
->;
-
-export function resolveReviewItemAmountsForReplace(
-  submittedAmountYen: number,
-  previous: ReviewReplacePreviousItem | undefined,
-): {
-  amountYen: number;
-  printedAmountYen: number;
-  normalizedAmountYen?: number;
-} {
-  if (previous?.taxResolutionStatus === "resolved" && previous.printedAmountYen !== undefined) {
-    if (previous.amountBasis === "tax_included") {
-      const previousDisplay = previous.normalizedAmountYen ?? previous.amountYen;
-      if (submittedAmountYen === previousDisplay) {
-        return {
-          amountYen: previousDisplay,
-          printedAmountYen: previous.printedAmountYen,
-          normalizedAmountYen: previous.normalizedAmountYen ?? previousDisplay,
-        };
-      }
-      return {
-        amountYen: submittedAmountYen,
-        printedAmountYen: submittedAmountYen,
-        normalizedAmountYen: submittedAmountYen,
-      };
-    }
-
-    const previousPrinted = previous.printedAmountYen;
-    if (submittedAmountYen === previousPrinted) {
-      return {
-        amountYen: previous.normalizedAmountYen ?? submittedAmountYen,
-        printedAmountYen: previousPrinted,
-        normalizedAmountYen: previous.normalizedAmountYen,
-      };
-    }
-    return {
-      amountYen: submittedAmountYen,
-      printedAmountYen: submittedAmountYen,
-      normalizedAmountYen: undefined,
-    };
-  }
-
-  return {
-    amountYen: submittedAmountYen,
-    printedAmountYen: submittedAmountYen,
-  };
 }
 
 export async function replaceDraftItemsForReview(

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveReviewItemAmountsForReplace } from "./reviewValidation";
+import { resolveReviewItemAmountsForReplace } from "./reviewItemAmounts";
 
 describe("resolveReviewItemAmountsForReplace", () => {
   it("外税確定で印字金額が変わらなければ印字額と登録用金額を維持する", () => {
