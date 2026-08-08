@@ -4,27 +4,26 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { createExpenseEntriesFromDraftHandler } from "../expenseEntries/createFromDraft";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { aggregateDraftItemsByCategory } from "./reviewValidation";
+import {
+  dedupeDraftIds,
+  isAlreadyRegistered,
+  validateReadyDraftForRegistration,
+} from "../../domain/aiExpenseDrafts/registration";
 
 type RegisterReadyDraftsArgs = {
   draftIds: Id<"aiExpenseDrafts">[];
 };
 
-function dedupeDraftIds(draftIds: Id<"aiExpenseDrafts">[]) {
-  return [...new Set(draftIds)];
-}
-
 function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
-  if (draft.status !== "ready") {
-    throw new ConvexError("Only ready drafts can be registered");
-  }
-  if (!draft.date) {
-    throw new ConvexError("Draft date is required to register");
-  }
-  if (draft.amountYen === undefined || draft.amountYen <= 0) {
-    throw new ConvexError("Draft amount is required to register");
-  }
-  if (!draft.categoryId) {
-    throw new ConvexError("Draft category is required to register");
+  const result = validateReadyDraftForRegistration(draft);
+  if (!result.success) {
+    const messages: Record<typeof result.error, string> = {
+      not_ready: "Only ready drafts can be registered",
+      missing_date: "Draft date is required to register",
+      missing_amount: "Draft amount is required to register",
+      missing_category: "Draft category is required to register",
+    };
+    throw new ConvexError(messages[result.error]);
   }
 }
 
@@ -59,7 +58,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
   const alreadyRegisteredDraftIds: Id<"aiExpenseDrafts">[] = [];
 
   for (const draft of drafts) {
-    if (draft.status === "registered") {
+    if (isAlreadyRegistered(draft)) {
       alreadyRegisteredDraftIds.push(draft._id);
       continue;
     }
