@@ -1,3 +1,6 @@
+export const ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE =
+  "Group membership invariant violation";
+
 export type AccountDeletionMembership = {
   groupId: string;
   groupName: string;
@@ -30,7 +33,7 @@ export function classifyAccountDeletionGroups(
       membership.ownerCount < 1 ||
       membership.ownerCount > membership.memberCount
     ) {
-      throw new Error("Group membership invariant violation");
+      throw new Error(ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE);
     }
     if (membership.role === "member" || membership.ownerCount >= 2) {
       result.groupsToLeave.push(membership);

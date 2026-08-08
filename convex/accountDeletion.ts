@@ -7,21 +7,18 @@ import { readQueryDoc } from "./groups/lib/groupQueryHelpers";
 import { startGroupDeletionHandler } from "./groups/groupDeletion";
 import { revokeGroupInvitationsForEmailInGroup } from "./groups/invitations";
 import { enqueueTransactionalEmailJobHandler } from "./email/jobs";
-import { classifyAccountDeletionGroups } from "../lib/convex/accountDeletion/groupClassification";
+import { classifyAccountDeletionGroups } from "../lib/domain/accountDeletion/classification";
+import { isValidAccountDeletionConfirmation } from "../lib/domain/accountDeletion/confirmation";
+import { getAccountDeletionErrorCategory } from "../lib/domain/accountDeletion/errorCategory";
+import { getAccountDeletionRetryDelay } from "../lib/domain/accountDeletion/retry";
+import { resolveAccountDeletionResumeStatus } from "../lib/domain/accountDeletion/resume";
+import { ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE } from "../lib/domain/accountDeletion/classification";
+import {
+  isAccountDeletionFinalizableStatus,
+  isActiveAccountDeletionStatus,
+} from "../lib/domain/accountDeletion/status";
 import type { Id } from "./_generated/dataModel";
 
-const activeStatuses = [
-  "requested",
-  "preparing_groups",
-  "purging_groups",
-  "deleting_identity",
-  "retry_wait",
-  "identity_deleted",
-  "finalization_retry_wait",
-  "failed",
-] as const;
-const retryDelaysMs = [60_000, 5 * 60_000, 30 * 60_000, 2 * 60 * 60_000, 6 * 60 * 60_000] as const;
-const GROUP_MEMBERSHIP_INVARIANT = "Group membership invariant violation";
 const GROUP_BATCH_SIZE = 25;
 
 type BoundedQuery<T> = { take?: (count: number) => Promise<T[]> };
@@ -94,11 +91,7 @@ export async function assertAccountDeletionNotInProgress(
   const requests = await takeBounded(
     ctx.db.query("accountDeletionRequests").withIndex("by_user_id", (q) => q.eq("userId", userId)),
   );
-  if (
-    requests.some((request) =>
-      activeStatuses.includes(request.status as (typeof activeStatuses)[number]),
-    )
-  ) {
+  if (requests.some((request) => isActiveAccountDeletionStatus(request.status))) {
     throw new ConvexError("アカウント削除処理中のため、この操作はできません");
   }
 }
@@ -115,7 +108,10 @@ export const getAccountDeletionPreview = query({
         ...classification,
       };
     } catch (error) {
-      if (!(error instanceof Error) || error.message !== GROUP_MEMBERSHIP_INVARIANT) {
+      if (
+        !(error instanceof Error) ||
+        error.message !== ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE
+      ) {
         throw error;
       }
       return {
@@ -143,8 +139,7 @@ export const getMyAccountDeletionStatus = query({
     return {
       status: request.status,
       nextRetryAt: request.nextRetryAt ?? null,
-      errorCategory:
-        request.status === "failed" ? (request.lastErrorCode ?? "identity_deletion_failed") : null,
+      errorCategory: getAccountDeletionErrorCategory(request.status, request.lastErrorCode),
     };
   },
 });
@@ -155,7 +150,8 @@ export const requestAccountDeletion = mutation({
   handler: async (ctx, args) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) throw new ConvexError("Not authenticated");
-    if (args.confirmationText !== "削除") throw new ConvexError("確認文言が一致しません");
+    if (!isValidAccountDeletionConfirmation(args.confirmationText))
+      throw new ConvexError("確認文言が一致しません");
     const user = await readQueryDoc(
       ctx.db
         .query("users")
@@ -167,7 +163,11 @@ export const requestAccountDeletion = mutation({
     try {
       loaded = await loadAccountDeletionClassification(ctx, identity.tokenIdentifier);
     } catch (error) {
-      if (!(error instanceof Error) || error.message !== GROUP_MEMBERSHIP_INVARIANT) throw error;
+      if (
+        !(error instanceof Error) ||
+        error.message !== ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE
+      )
+        throw error;
       throw new ConvexError({ code: "GROUP_MEMBERSHIP_INVARIANT" });
     }
     const { classification, orphanMemberships } = loaded;
@@ -210,11 +210,10 @@ export const retryAccountDeletion = mutation({
     );
     const request = requests.find((item) => item.status === "failed");
     if (!request) throw new ConvexError("再試行できる退会処理がありません");
-    const status = request.identityDeletedAt
-      ? "identity_deleted"
-      : request.preparationCompletedAt
-        ? "purging_groups"
-        : "preparing_groups";
+    const status = resolveAccountDeletionResumeStatus({
+      identityDeletedAt: request.identityDeletedAt,
+      preparationCompletedAt: request.preparationCompletedAt,
+    });
     await ctx.db.patch(request._id, {
       status,
       attemptCount: 0,
@@ -539,7 +538,7 @@ export const scheduleRetry = internalMutation({
       });
       return;
     }
-    const delay = retryDelaysMs[Math.min(nextAttempt - 1, retryDelaysMs.length - 1)];
+    const delay = getAccountDeletionRetryDelay(nextAttempt - 1);
     const now = Date.now();
     await ctx.db.patch(args.requestId, {
       status: args.finalization ? "finalization_retry_wait" : "retry_wait",
@@ -559,7 +558,7 @@ export const finalizeAccountDeletion = internalMutation({
   handler: async (ctx, args) => {
     const request = await ctx.db.get(args.requestId);
     if (!request || request.status === "completed") return;
-    if (request.status !== "identity_deleted" && request.status !== "finalization_retry_wait")
+    if (!isAccountDeletionFinalizableStatus(request.status))
       throw new ConvexError("Account deletion is not ready to finalize");
     const purgeRelations = await ctx.db
       .query("accountDeletionGroupPurges")
