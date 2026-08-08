@@ -10,7 +10,10 @@ import type {
   ReceiptItemTaxRatePercent,
   TaxRatePercent,
 } from "../receiptImageExtraction/types";
-import { deriveBulkTaxSettings } from "../../domain/aiExpenseDrafts/applyReceiptTaxSettings";
+import {
+  deriveBulkTaxSettings,
+  getBulkTaxSettingsErrorMessage,
+} from "../../domain/aiExpenseDrafts/applyReceiptTaxSettings";
 
 export type ApplyReceiptTaxSettingsArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -52,11 +55,7 @@ export async function applyReceiptTaxSettingsHandler(
     amountBasis: args.amountBasis,
   });
   if (!settingsResult.success) {
-    throw new ConvexError(
-      settingsResult.error === "unknown_tax_mode"
-        ? "Bulk tax settings require a definitive tax mode"
-        : "Could not derive amount basis from tax summary",
-    );
+    throw new ConvexError(getBulkTaxSettingsErrorMessage(settingsResult.error));
   }
 
   return await persistDraftTaxInterpretation(ctx, {

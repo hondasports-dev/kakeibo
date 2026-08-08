@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveBulkTaxSettings } from "./applyReceiptTaxSettings";
+import { deriveBulkTaxSettings, getBulkTaxSettingsErrorMessage } from "./applyReceiptTaxSettings";
 
 const baseSummary = {
   taxRatePercent: 10 as const,
@@ -80,5 +80,14 @@ describe("deriveBulkTaxSettings", () => {
         },
       }),
     ).toEqual({ success: true, taxRatePercent: 10, amountBasis: "tax_excluded" });
+  });
+});
+
+describe("getBulkTaxSettingsErrorMessage", () => {
+  it.each([
+    ["unknown_tax_mode", "Bulk tax settings require a definitive tax mode"],
+    ["cannot_derive_amount_basis", "Could not derive amount basis from tax summary"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getBulkTaxSettingsErrorMessage(error)).toBe(expected);
   });
 });
