@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  getDraftItemAggregationErrorMessage,
   hasLowConfidenceItem,
   summarizeItems,
   validatePositiveCategoryTotals,
@@ -78,5 +79,17 @@ describe("validatePositiveCategoryTotals", () => {
         { categoryId: "cat1", amountYen: -500 },
       ]),
     ).toBe(false);
+  });
+});
+
+describe("getDraftItemAggregationErrorMessage", () => {
+  it.each([
+    ["invalid_item_amount", "Draft item amount is required to register"],
+    ["missing_category", "Draft item category is required to register"],
+    ["low_confidence", "Low confidence draft items must be reviewed before register"],
+    ["amount_mismatch", "Draft item total must match draft amount"],
+    ["non_positive_category_total", "Draft category total must be greater than zero"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getDraftItemAggregationErrorMessage(error)).toBe(expected);
   });
 });

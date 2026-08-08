@@ -179,3 +179,16 @@ export function aggregateDraftItemsByCategory(
     })),
   };
 }
+
+const draftItemAggregationErrorMessages: Record<DraftItemAggregationError, string> = {
+  invalid_item_amount: "Draft item amount is required to register",
+  missing_category: "Draft item category is required to register",
+  low_confidence: "Low confidence draft items must be reviewed before register",
+  amount_mismatch: "Draft item total must match draft amount",
+  non_positive_category_total: "Draft category total must be greater than zero",
+};
+
+/** 明細集計エラーをユーザー向けメッセージに変換する */
+export function getDraftItemAggregationErrorMessage(error: DraftItemAggregationError): string {
+  return draftItemAggregationErrorMessages[error];
+}

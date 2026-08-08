@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildReviewConfidence,
+  getReviewUpdateReadyErrorMessage,
   hasCounterparty,
   validateReviewUpdateCanBecomeReady,
 } from "./review";
@@ -174,5 +175,26 @@ describe("buildReviewConfidence", () => {
       amountYen: 1,
       categoryId: 1,
     });
+  });
+});
+
+describe("getReviewUpdateReadyErrorMessage", () => {
+  it.each([
+    ["unknown_document_type", undefined, "Draft document type must be selected to mark ready"],
+    ["missing_date", undefined, "Draft date is required to mark ready"],
+    ["invalid_date", undefined, "Draft date must be a valid YYYY-MM-DD date"],
+    ["invalid_amount", undefined, "Draft amount is required to mark ready"],
+    [
+      "missing_counterparty",
+      "receipt",
+      "Draft shop, payment place, or payee is required to mark ready",
+    ],
+    [
+      "missing_counterparty",
+      "convenience_payment",
+      "Draft shop name or payment details are required to mark ready",
+    ],
+  ] as const)("%s (documentType=%s) -> %s", (error, documentType, expected) => {
+    expect(getReviewUpdateReadyErrorMessage(error, documentType)).toBe(expected);
   });
 });
