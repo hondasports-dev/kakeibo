@@ -4,13 +4,14 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { isValidSignedLineItemAmount } from "../../../lib/domain/receipt/discountItems";
 import { trimOptional } from "../../../lib/domain/common/string";
 import {
-  type ReviewUpdateReadyError,
+  getReviewUpdateReadyErrorMessage,
   validateReviewUpdateCanBecomeReady,
 } from "../../../lib/domain/aiExpenseDrafts/review";
 import { type AiExpenseDraftDocumentType } from "./validators";
 import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
 import {
   aggregateDraftItemsByCategory as aggregateDraftItemsByCategoryDomain,
+  getDraftItemAggregationErrorMessage,
   validatePositiveCategoryTotals,
 } from "../../../lib/domain/aiExpenseDrafts/reviewItems";
 
@@ -47,22 +48,11 @@ export type UpdateForReviewArgs = {
   items?: UpdateForReviewItem[];
 };
 
-const reviewUpdateReadyErrorMessages: Record<ReviewUpdateReadyError, string> = {
-  unknown_document_type: "Draft document type must be selected to mark ready",
-  missing_date: "Draft date is required to mark ready",
-  invalid_date: "Draft date must be a valid YYYY-MM-DD date",
-  invalid_amount: "Draft amount is required to mark ready",
-  missing_counterparty: "Draft shop, payment place, or payee is required to mark ready",
-};
-
 export function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
   const result = validateReviewUpdateCanBecomeReady(args);
   if (result.success) return;
 
-  if (result.error === "missing_counterparty" && args.documentType === "convenience_payment") {
-    throw new ConvexError("Draft shop name or payment details are required to mark ready");
-  }
-  throw new ConvexError(reviewUpdateReadyErrorMessages[result.error]);
+  throw new ConvexError(getReviewUpdateReadyErrorMessage(result.error, args.documentType));
 }
 
 export async function assertActiveCategoryBelongsToGroup(
@@ -85,21 +75,6 @@ export function assertPositiveCategoryTotals(items: NonNullable<UpdateForReviewA
   }
 }
 
-type AggregationError =
-  | "invalid_item_amount"
-  | "missing_category"
-  | "low_confidence"
-  | "amount_mismatch"
-  | "non_positive_category_total";
-
-const errorMessageByAggregationError: Record<AggregationError, string> = {
-  invalid_item_amount: "Draft item amount is required to register",
-  missing_category: "Draft item category is required to register",
-  low_confidence: "Low confidence draft items must be reviewed before register",
-  amount_mismatch: "Draft item total must match draft amount",
-  non_positive_category_total: "Draft category total must be greater than zero",
-};
-
 export function aggregateDraftItemsByCategory(
   draft: Doc<"aiExpenseDrafts">,
   items: Doc<"aiExpenseDraftItems">[],
@@ -117,7 +92,7 @@ export function aggregateDraftItemsByCategory(
     items,
   );
   if (!result.success) {
-    throw new ConvexError(errorMessageByAggregationError[result.error]);
+    throw new ConvexError(getDraftItemAggregationErrorMessage(result.error));
   }
   return result.items as Array<{
     itemName: string;

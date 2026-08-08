@@ -98,3 +98,26 @@ export function buildReviewConfidence(
     categoryId: 1,
   };
 }
+
+const reviewUpdateReadyErrorMessages: Record<
+  Exclude<ReviewUpdateReadyError, "missing_counterparty">,
+  string
+> = {
+  unknown_document_type: "Draft document type must be selected to mark ready",
+  missing_date: "Draft date is required to mark ready",
+  invalid_date: "Draft date must be a valid YYYY-MM-DD date",
+  invalid_amount: "Draft amount is required to mark ready",
+};
+
+/** レビュー更新で ready にできない理由をユーザー向けメッセージに変換する */
+export function getReviewUpdateReadyErrorMessage(
+  error: ReviewUpdateReadyError,
+  documentType?: AiExpenseDraftDocumentType,
+): string {
+  if (error === "missing_counterparty") {
+    return documentType === "convenience_payment"
+      ? "Draft shop name or payment details are required to mark ready"
+      : "Draft shop, payment place, or payee is required to mark ready";
+  }
+  return reviewUpdateReadyErrorMessages[error];
+}
