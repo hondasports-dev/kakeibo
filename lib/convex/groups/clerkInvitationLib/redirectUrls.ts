@@ -4,6 +4,7 @@ import {
   isAllowedRedirectOrigin as isAllowedRedirectOriginDomain,
   buildInvitationRedirectUrl as buildInvitationRedirectUrlDomain,
   buildClerkInvitationParams as buildClerkInvitationParamsDomain,
+  parseAllowedRedirectOrigins,
   type InvitationRedirectError,
 } from "../../../domain/groups/clerkInvitations";
 
@@ -18,17 +19,11 @@ const errorMessages: Record<InvitationRedirectError, string> = {
 
 export function getConfiguredRedirectOrigins() {
   const raw = process.env.INVITATION_REDIRECT_ORIGINS ?? "";
-  return raw
-    .split(",")
-    .map((origin) => origin.trim())
-    .filter(Boolean)
-    .map((origin) => {
-      try {
-        return new URL(origin).origin;
-      } catch {
-        throw new ConvexError("INVITATION_REDIRECT_ORIGINS contains an invalid URL");
-      }
-    });
+  try {
+    return parseAllowedRedirectOrigins(raw);
+  } catch (err) {
+    throw new ConvexError(err instanceof Error ? err.message : "Invalid redirect origins");
+  }
 }
 
 export function isAllowedRedirectOrigin(url: URL) {
