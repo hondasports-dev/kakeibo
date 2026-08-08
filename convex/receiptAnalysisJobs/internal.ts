@@ -4,12 +4,9 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
+import { isTerminalImageJobStatus } from "../../lib/domain/receiptAnalysisJobs/status";
 
-const TERMINAL_IMAGE_JOB_STATUSES = new Set(["ready", "needs_review", "failed", "cancelled"]);
-
-export function isTerminalImageJobStatus(status: string): boolean {
-  return TERMINAL_IMAGE_JOB_STATUSES.has(status);
-}
+export { isTerminalImageJobStatus } from "../../lib/domain/receiptAnalysisJobs/status";
 
 export async function getBatchByIdHandler(
   ctx: QueryCtx,
