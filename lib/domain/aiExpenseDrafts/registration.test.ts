@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   dedupeDraftIds,
+  getReadyDraftRegistrationErrorMessage,
   isAlreadyRegistered,
   isAlreadyRegisteredAsReceipt,
   validateReadyDraftForRegistration,
@@ -55,5 +56,16 @@ describe("isAlreadyRegisteredAsReceipt", () => {
     [{ status: "ready", registeredReceiptId: "r1" }, false],
   ] as const)("%o -> %s", (draft, expected) => {
     expect(isAlreadyRegisteredAsReceipt(draft as never)).toBe(expected);
+  });
+});
+
+describe("getReadyDraftRegistrationErrorMessage", () => {
+  it.each([
+    ["not_ready", "Only ready drafts can be registered"],
+    ["missing_date", "Draft date is required to register"],
+    ["missing_amount", "Draft amount is required to register"],
+    ["missing_category", "Draft category is required to register"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getReadyDraftRegistrationErrorMessage(error)).toBe(expected);
   });
 });

@@ -6,6 +6,7 @@ import { requireGroupMembership } from "../../../convex/groups/membership";
 import { aggregateDraftItemsByCategory } from "./reviewValidation";
 import {
   dedupeDraftIds,
+  getReadyDraftRegistrationErrorMessage,
   isAlreadyRegistered,
   validateReadyDraftForRegistration,
 } from "../../domain/aiExpenseDrafts/registration";
@@ -17,13 +18,7 @@ type RegisterReadyDraftsArgs = {
 function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
   const result = validateReadyDraftForRegistration(draft);
   if (!result.success) {
-    const messages: Record<typeof result.error, string> = {
-      not_ready: "Only ready drafts can be registered",
-      missing_date: "Draft date is required to register",
-      missing_amount: "Draft amount is required to register",
-      missing_category: "Draft category is required to register",
-    };
-    throw new ConvexError(messages[result.error]);
+    throw new ConvexError(getReadyDraftRegistrationErrorMessage(result.error));
   }
 }
 
