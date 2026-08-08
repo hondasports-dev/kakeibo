@@ -3,16 +3,16 @@ import { internalMutation, internalQuery } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireSystemAdmin } from "./systemAdmins";
+import { normalizeSystemAdminReason } from "../lib/domain/systemAdmin/reason";
 
-const MAX_REASON_LENGTH = 500;
 const ACTION = "system_admin_group_invitation_revoked" as const;
 
 function normalizeReason(reason: string) {
-  const normalized = reason.trim();
-  if (normalized.length < 1 || normalized.length > MAX_REASON_LENGTH) {
+  const result = normalizeSystemAdminReason(reason);
+  if (!result.success) {
     throw new ConvexError("理由は1〜500文字で入力してください");
   }
-  return normalized;
+  return result.reason;
 }
 
 async function readPendingInvitation(
