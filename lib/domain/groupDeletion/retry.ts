@@ -1,10 +1,4 @@
-const RETRY_DELAYS_MS = [
-  60_000,
-  5 * 60_000,
-  30 * 60_000,
-  2 * 60 * 60_000,
-  6 * 60 * 60_000,
-] as const;
+import { calculateRetryDelayMs } from "../common/retry";
 
 type RetryPlan =
   | {
@@ -30,7 +24,11 @@ export function planGroupDeletionRetry(args: {
     return { status: "failed", attemptCount };
   }
 
-  const delayMs = RETRY_DELAYS_MS[Math.min(attemptCount - 1, RETRY_DELAYS_MS.length - 1)];
+  const delayMs = calculateRetryDelayMs(attemptCount);
+  if (delayMs === null) {
+    return { status: "failed", attemptCount };
+  }
+
   return {
     status: "retry_wait",
     attemptCount,
