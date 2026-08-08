@@ -1,3 +1,5 @@
+import { isDialogHiddenTaxWarning } from "../../../../lib/domain/receipt/tax/warnings";
+
 const warningLabels: Record<string, string> = {
   normalized_amount_mismatch: "お支払いと読み取った商品の合計が一致しません。",
 };
@@ -32,18 +34,7 @@ export function formatTaxWarnings(warnings: string[]) {
     .join(" / ");
 }
 
-/** Dialog では 3合計パネルに統合するため非表示にする warning */
-export function isDialogHiddenTaxWarning(warning: string): boolean {
-  if (
-    warning === "normalized_amount_mismatch" ||
-    warning.startsWith("unknown_amount_basis:") ||
-    warning.startsWith("unknown_tax_rate:") ||
-    warning.startsWith("taxable_amount_mismatch:")
-  ) {
-    return true;
-  }
-  return false;
-}
+export { isDialogHiddenTaxWarning } from "../../../../lib/domain/receipt/tax/warnings";
 
 export function formatTaxWarningsForDialog(warnings: string[]) {
   return formatTaxWarnings(warnings.filter((warning) => !isDialogHiddenTaxWarning(warning)));
