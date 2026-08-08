@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { classifyAccountDeletionGroups } from "./groupClassification";
+import {
+  ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE,
+  classifyAccountDeletionGroups,
+} from "./classification";
 
 describe("classifyAccountDeletionGroups", () => {
   it("member・複数owner・唯一ownerを退会影響別に分類する", () => {
@@ -27,6 +30,6 @@ describe("classifyAccountDeletionGroups", () => {
       classifyAccountDeletionGroups([
         { groupId: "broken", groupName: "不整合", role: "member", memberCount: 1, ownerCount: 0 },
       ]),
-    ).toThrow("Group membership invariant violation");
+    ).toThrow(ACCOUNT_DELETION_GROUP_MEMBERSHIP_INVARIANT_MESSAGE);
   });
 });
