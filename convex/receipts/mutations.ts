@@ -7,12 +7,10 @@ import { calculateWeekStartDate } from "../lib/weekDates";
 import { getWeeklyStartDayForUser } from "../users/weeklySettings";
 import { v } from "convex/values";
 import { createReceiptHandler } from "../../lib/convex/receipts/insert";
-import { isValidIsoDateString } from "../../lib/domain/week/weekDates";
 import {
-  validateExpenseAmount,
-  validateExpenseMemo,
-  validateExpenseTitle,
-} from "../../lib/domain/expenseEntries/expenseEntryItem";
+  normalizeUpdateReceiptPatch,
+  type NormalizedUpdateReceiptPatch,
+} from "../../lib/domain/receipt/normalize";
 
 type UpdateReceiptArgs = {
   receiptId: Id<"receipts">;
@@ -51,6 +49,13 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
     }
   }
 
+  let normalizedPatch: NormalizedUpdateReceiptPatch;
+  try {
+    normalizedPatch = normalizeUpdateReceiptPatch(args);
+  } catch (err) {
+    throw new ConvexError(err instanceof Error ? err.message : "Invalid receipt");
+  }
+
   const now = Date.now();
   const patch: Partial<{
     date: string;
@@ -61,45 +66,14 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
     memo: string | undefined;
     weekStartDate: string;
     updatedAt: number;
-  }> = { updatedAt: now };
+  }> = { updatedAt: now, ...normalizedPatch };
 
-  if (args.date !== undefined) {
-    if (!isValidIsoDateString(args.date)) {
-      throw new ConvexError("Date must be a valid YYYY-MM-DD value");
-    }
-    patch.date = args.date;
+  if (normalizedPatch.date !== undefined) {
     const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
-    patch.weekStartDate = calculateWeekStartDate(args.date, weekStartDay);
-  }
-  if (args.shopName !== undefined) {
-    const shopNameResult = validateExpenseTitle(args.shopName);
-    if (!shopNameResult.success) {
-      throw new ConvexError("shopName must be 100 characters or fewer");
-    }
-    patch.shopName = shopNameResult.title;
-  }
-  if (args.bankName !== undefined) {
-    const bankNameResult = validateExpenseTitle(args.bankName);
-    if (!bankNameResult.success) {
-      throw new ConvexError("bankName must be 100 characters or fewer");
-    }
-    patch.bankName = bankNameResult.title;
-  }
-  if (args.amountYen !== undefined) {
-    if (!validateExpenseAmount(args.amountYen).success) {
-      throw new ConvexError("Amount must be a positive integer");
-    }
-    patch.amountYen = args.amountYen;
+    patch.weekStartDate = calculateWeekStartDate(normalizedPatch.date, weekStartDay);
   }
   if (args.categoryId !== undefined) {
     patch.categoryId = args.categoryId;
-  }
-  if (args.memo !== undefined) {
-    const memoResult = validateExpenseMemo(args.memo);
-    if (!memoResult.success) {
-      throw new ConvexError("Memo must be 500 characters or less");
-    }
-    patch.memo = memoResult.memo;
   }
 
   await ctx.db.patch(args.receiptId, patch);
