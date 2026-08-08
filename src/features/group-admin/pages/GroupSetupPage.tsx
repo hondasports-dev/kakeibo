@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation } from "convex/react";
+import { createGroupApi } from "../../../lib/repositories/groups";
 import {
   Alert,
   Box,
@@ -12,7 +13,6 @@ import {
   Typography,
 } from "@mui/material";
 import GroupAddIcon from "@mui/icons-material/GroupAdd";
-import { api } from "../../../../convex/_generated/api";
 import { MAX_GROUP_NAME_LENGTH } from "../../../../lib/domain/groups/groupName";
 
 function getErrorMessage(error: unknown, fallback: string) {
@@ -21,7 +21,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function GroupSetupPage() {
   const navigate = useNavigate();
-  const createGroup = useMutation(api.groups.mutations.createGroup);
+  const createGroup = useMutation(createGroupApi());
   const [groupName, setGroupName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");

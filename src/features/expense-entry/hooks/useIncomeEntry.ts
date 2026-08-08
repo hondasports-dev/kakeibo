@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
 import { useMutation } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { createIncomeEntryApi } from "../../../lib/repositories/expenseEntries";
 
 export function useIncomeEntry(date: string) {
-  const createIncomeEntry = useMutation(api.expenseEntries.mutations.createIncomeEntry);
+  const createIncomeEntry = useMutation(createIncomeEntryApi());
 
   const [incomeAmount, setIncomeAmount] = useState("");
   const [incomeTitle, setIncomeTitle] = useState("");

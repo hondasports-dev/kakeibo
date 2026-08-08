@@ -1,6 +1,10 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { analyzeImageJobApi, createBatchApi } from "../../../lib/repositories/receiptAnalysisJobs";
+import {
+  acceptReceiptImageExternalApiConsentApi,
+  getReceiptImageConsentApi,
+} from "../../../lib/repositories/users";
 import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../../../utils/imageDataUrl";
 
 export function useImageUpload() {
@@ -12,12 +16,12 @@ export function useImageUpload() {
   const [uploadError, setUploadError] = useState("");
   const [autoReviewJobId, setAutoReviewJobId] = useState<string | null>(null);
 
-  const createBatch = useMutation(api.receiptAnalysisJobs.mutations.createBatch);
-  const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
+  const createBatch = useMutation(createBatchApi());
+  const analyzeImageJob = useAction(analyzeImageJobApi());
   const acceptReceiptImageExternalApiConsent = useMutation(
-    api.users.mutations.acceptReceiptImageExternalApiConsent,
+    acceptReceiptImageExternalApiConsentApi(),
   );
-  const receiptImageConsent = useQuery(api.users.queries.getReceiptImageConsent);
+  const receiptImageConsent = useQuery(getReceiptImageConsentApi());
 
   const processFiles = async (files: File[]) => {
     let fileDataUrls: string[];

@@ -1,8 +1,12 @@
 import { Component, type ReactNode, useState } from "react";
 import { Alert, Box, Button, CircularProgress, Paper, Stack, Typography } from "@mui/material";
 import { useMutation, useQuery } from "convex/react";
+import {
+  getGroupDeletionStatusApi,
+  listMyGroupsApi,
+  resumeGroupDeletionApi,
+} from "../../../lib/repositories/groups";
 import { useNavigate, useParams } from "react-router-dom";
-import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 
 class StatusErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
@@ -35,12 +39,9 @@ class StatusErrorBoundary extends Component<{ children: ReactNode }, { failed: b
 function GroupDeletionStatusContent() {
   const { jobId: jobIdParam } = useParams();
   const jobId = jobIdParam as Id<"groupDeletionJobs"> | undefined;
-  const status = useQuery(api.groups.deletion.getGroupDeletionStatus, jobId ? { jobId } : "skip");
-  const groups = useQuery(
-    api.groups.queries.listMyGroups,
-    status?.status === "completed" ? {} : "skip",
-  );
-  const resume = useMutation(api.groups.deletion.resumeGroupDeletion);
+  const status = useQuery(getGroupDeletionStatusApi(), jobId ? { jobId } : "skip");
+  const groups = useQuery(listMyGroupsApi(), status?.status === "completed" ? {} : "skip");
+  const resume = useMutation(resumeGroupDeletionApi());
   const navigate = useNavigate();
   const [retrying, setRetrying] = useState(false);
   const [retryError, setRetryError] = useState("");

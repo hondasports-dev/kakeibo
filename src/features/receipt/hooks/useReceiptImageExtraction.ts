@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { extractReceiptFieldsApi } from "../../../lib/repositories/receiptImageExtraction";
+import {
+  acceptReceiptImageExternalApiConsentApi,
+  getReceiptImageConsentApi,
+} from "../../../lib/repositories/users";
 import {
   normalizeReceiptExtraction,
   type NormalizedReceiptExtraction,
@@ -26,13 +30,11 @@ export function useReceiptImageExtraction({ onExtracted }: UseReceiptImageExtrac
   const [consentDialogOpen, setConsentDialogOpen] = useState(false);
   const [consentStatus, setConsentStatus] = useState<"idle" | "saving">("idle");
 
-  const extractReceiptFields = useAction(
-    api.receiptImageExtraction.extraction.extractReceiptFields,
-  );
+  const extractReceiptFields = useAction(extractReceiptFieldsApi());
   const acceptReceiptImageExternalApiConsent = useMutation(
-    api.users.mutations.acceptReceiptImageExternalApiConsent,
+    acceptReceiptImageExternalApiConsentApi(),
   );
-  const receiptImageConsent = useQuery(api.users.queries.getReceiptImageConsent);
+  const receiptImageConsent = useQuery(getReceiptImageConsentApi());
 
   const consentIsLoading = receiptImageConsent === undefined;
   const hasAcceptedExternalApiConsent = receiptImageConsent?.hasAcceptedExternalApiConsent === true;

@@ -11,8 +11,9 @@ import {
   TextField,
 } from "@mui/material";
 import { useMutation } from "convex/react";
+import { updateExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
+import { updateReceiptApi } from "../../../lib/repositories/receipts";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
 import type { ReceiptItem } from "../types/types";
 
 type CategoryOption = {
@@ -43,8 +44,8 @@ export function ExpenseEntryEditDialog({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const updateExpenseEntry = useMutation(api.expenseEntries.mutations.updateExpenseEntry);
-  const updateReceipt = useMutation(api.receipts.crud.updateReceipt);
+  const updateExpenseEntry = useMutation(updateExpenseEntryApi());
+  const updateReceipt = useMutation(updateReceiptApi());
   const [date, setDate] = useState("");
   const [amountYen, setAmountYen] = useState("");
   const [categoryId, setCategoryId] = useState("");

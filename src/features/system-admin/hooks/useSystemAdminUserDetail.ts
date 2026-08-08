@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAction, useMutation } from "convex/react";
+import {
+  getUserDetailApi,
+  searchGroupsApi,
+  systemAdminMembershipOperationApi,
+} from "../../../lib/repositories/systemAdmin";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
 import type {
   MembershipDialogGroup,
   SystemAdminMembershipOperation,
@@ -29,9 +33,9 @@ export type DialogState = {
 } | null;
 
 export function useSystemAdminUserDetail(userId: string | undefined) {
-  const getUserDetail = useAction(api.systemAdminSearch.getUserDetail);
-  const searchGroups = useAction(api.systemAdminSearch.searchGroups);
-  const operate = useMutation(api.systemAdminMembership.systemAdminMembershipOperation);
+  const getUserDetail = useAction(getUserDetailApi());
+  const searchGroups = useAction(searchGroupsApi());
+  const operate = useMutation(systemAdminMembershipOperationApi());
 
   const [detail, setDetail] = useState<UserDetail | null | undefined>(undefined);
   const [error, setError] = useState(false);
