@@ -21,6 +21,12 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["./**/*", "../lib/convex/**/*"],
-  "exclude": ["./_generated"]
+  "include": ["./**/*", "../lib/**/*"],
+  "exclude": [
+    "./_generated",
+    "**/*.test.ts",
+    "**/*.integration.test.ts",
+    "../lib/**/*.test.ts",
+    "../lib/**/*.integration.test.ts"
+  ]
 }

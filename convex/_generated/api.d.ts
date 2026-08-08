@@ -11,7 +11,6 @@
 import type * as accountDeletion from "../accountDeletion.js";
 import type * as accountDeletionActions from "../accountDeletionActions.js";
 import type * as aiExpenseDrafts_actions from "../aiExpenseDrafts/actions.js";
-import type * as aiExpenseDrafts_extractionMapping from "../aiExpenseDrafts/extractionMapping.js";
 import type * as aiExpenseDrafts_internal from "../aiExpenseDrafts/internal.js";
 import type * as aiExpenseDrafts_model from "../aiExpenseDrafts/model.js";
 import type * as aiExpenseDrafts_mutations from "../aiExpenseDrafts/mutations.js";
@@ -19,6 +18,7 @@ import type * as aiExpenseDrafts_queries from "../aiExpenseDrafts/queries.js";
 import type * as categories_candidate from "../categories/candidate.js";
 import type * as categories_internal from "../categories/internal.js";
 import type * as categories_mutations from "../categories/mutations.js";
+import type * as categories_normalize from "../categories/normalize.js";
 import type * as categories_queries from "../categories/queries.js";
 import type * as crons from "../crons.js";
 import type * as e2eHttp_e2eAuth from "../e2eHttp/e2eAuth.js";
@@ -114,7 +114,6 @@ declare const fullApi: ApiFromModules<{
   accountDeletion: typeof accountDeletion;
   accountDeletionActions: typeof accountDeletionActions;
   "aiExpenseDrafts/actions": typeof aiExpenseDrafts_actions;
-  "aiExpenseDrafts/extractionMapping": typeof aiExpenseDrafts_extractionMapping;
   "aiExpenseDrafts/internal": typeof aiExpenseDrafts_internal;
   "aiExpenseDrafts/model": typeof aiExpenseDrafts_model;
   "aiExpenseDrafts/mutations": typeof aiExpenseDrafts_mutations;
@@ -122,6 +121,7 @@ declare const fullApi: ApiFromModules<{
   "categories/candidate": typeof categories_candidate;
   "categories/internal": typeof categories_internal;
   "categories/mutations": typeof categories_mutations;
+  "categories/normalize": typeof categories_normalize;
   "categories/queries": typeof categories_queries;
   crons: typeof crons;
   "e2eHttp/e2eAuth": typeof e2eHttp_e2eAuth;
