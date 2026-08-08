@@ -3,12 +3,16 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { addDays, getMonthEndDate } from "../../domain/common/date";
 import {
   addLegacyReceiptGroups,
+  enrichSpendingEntries,
   mapExpenseEntryToSpendingEntry as mapExpenseEntryToSpendingEntryDomain,
   mapIncomeExpenseEntryToListEntry,
   mapReceiptToIncomeListEntry,
   mapReceiptToSpendingEntry,
   type SpendingEntry,
   type IncomeListEntry,
+  type EnrichSpendingEntryAiExpenseDraft,
+  type EnrichSpendingEntryAiExpenseDraftItem,
+  type EnrichSpendingEntrySourceDocument,
 } from "../../domain/receipt/spendingEntry";
 import { ConvexError } from "convex/values";
 
@@ -49,11 +53,15 @@ type ReceiptLinkage = {
   aiExpenseDraftId?: Id<"aiExpenseDrafts">;
 };
 
-async function enrichSpendingEntriesWithReceiptGroups(
+async function fetchReceiptEnrichmentData(
   ctx: QueryCtx,
   groupId: Id<"groups">,
   linkages: ReceiptLinkage[],
-): Promise<SpendingEntry[]> {
+): Promise<{
+  sourceDocumentMap: Map<string, EnrichSpendingEntrySourceDocument>;
+  aiExpenseDraftMap: Map<string, EnrichSpendingEntryAiExpenseDraft>;
+  aiExpenseDraftItemsMap: Map<string, EnrichSpendingEntryAiExpenseDraftItem[]>;
+}> {
   const uniqueSourceDocumentIds = Array.from(
     new Set(
       linkages
@@ -85,56 +93,63 @@ async function enrichSpendingEntriesWithReceiptGroups(
     }),
   );
 
-  const sourceDocumentMap = new Map(
-    sourceDocuments
-      .filter((document) => document !== null && document.groupId === groupId)
-      .map((document) => [document!._id as string, document!]),
-  );
-  const aiExpenseDraftMap = new Map(
-    aiExpenseDrafts
-      .filter((draft) => draft !== null && draft.groupId === groupId)
-      .map((draft) => [draft!._id as string, draft!]),
-  );
-  const aiExpenseDraftItemsMap = new Map(aiExpenseDraftItems);
-
-  return linkages.map(({ entry, sourceDocumentId, aiExpenseDraftId }) => {
-    const sourceDocument = sourceDocumentId ? sourceDocumentMap.get(sourceDocumentId) : undefined;
-    const aiExpenseDraft = aiExpenseDraftId ? aiExpenseDraftMap.get(aiExpenseDraftId) : undefined;
-
-    if (sourceDocument !== undefined) {
-      return {
-        ...entry,
-        receiptGroupId: `sourceDocument:${sourceDocument._id}`,
-        receiptShopName: sourceDocument.shopName ?? entry.shopName,
-        receiptTotalAmountYen: sourceDocument.totalAmount ?? entry.amountYen,
-        itemName: entry.shopName,
-      };
+  const sourceDocumentMap = new Map<string, EnrichSpendingEntrySourceDocument>();
+  for (const document of sourceDocuments) {
+    if (document !== null && document.groupId === groupId) {
+      sourceDocumentMap.set(document._id as string, {
+        _id: document._id as string,
+        shopName: document.shopName,
+        totalAmount: document.totalAmount,
+      });
     }
+  }
 
-    if (aiExpenseDraft !== undefined) {
-      const itemNames = aiExpenseDraftItemsMap
-        .get(aiExpenseDraft._id)
-        ?.filter((item) => item.categoryId === entry.categoryId)
-        .map((item) => item.itemName.trim())
-        .filter(Boolean);
-
-      return {
-        ...entry,
-        receiptGroupId: `aiExpenseDraft:${aiExpenseDraft._id}`,
-        receiptShopName:
-          aiExpenseDraft.shopName ?? aiExpenseDraft.payeeName ?? entry.shopName ?? "不明",
-        receiptTotalAmountYen: aiExpenseDraft.amountYen ?? entry.amountYen,
-        itemName: itemNames && itemNames.length > 0 ? itemNames.join("、") : entry.shopName,
-      };
+  const aiExpenseDraftMap = new Map<string, EnrichSpendingEntryAiExpenseDraft>();
+  for (const draft of aiExpenseDrafts) {
+    if (draft !== null && draft.groupId === groupId) {
+      aiExpenseDraftMap.set(draft._id as string, {
+        _id: draft._id as string,
+        shopName: draft.shopName,
+        payeeName: draft.payeeName,
+        amountYen: draft.amountYen,
+      });
     }
+  }
 
-    return {
-      ...entry,
-      receiptGroupId: `expenseEntry:${entry._id}`,
-      receiptShopName: entry.shopName,
-      receiptTotalAmountYen: entry.amountYen,
-    };
-  });
+  const aiExpenseDraftItemsMap = new Map<string, EnrichSpendingEntryAiExpenseDraftItem[]>();
+  for (const [draftId, items] of aiExpenseDraftItems) {
+    aiExpenseDraftItemsMap.set(
+      draftId as string,
+      items
+        .filter((item) => item.categoryId !== undefined && item.itemName !== undefined)
+        .map((item) => ({
+          categoryId: item.categoryId as string,
+          itemName: item.itemName as string,
+        })),
+    );
+  }
+
+  return { sourceDocumentMap, aiExpenseDraftMap, aiExpenseDraftItemsMap };
+}
+
+async function enrichSpendingEntriesWithReceiptGroups(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  linkages: ReceiptLinkage[],
+): Promise<SpendingEntry[]> {
+  const { sourceDocumentMap, aiExpenseDraftMap, aiExpenseDraftItemsMap } =
+    await fetchReceiptEnrichmentData(ctx, groupId, linkages);
+
+  return enrichSpendingEntries(
+    linkages.map(({ entry, sourceDocumentId, aiExpenseDraftId }) => ({
+      entry,
+      sourceDocumentId: sourceDocumentId as string | undefined,
+      aiExpenseDraftId: aiExpenseDraftId as string | undefined,
+    })),
+    sourceDocumentMap,
+    aiExpenseDraftMap,
+    aiExpenseDraftItemsMap,
+  );
 }
 
 function mapExpenseEntriesToReceiptLinkages(entries: Doc<"expenseEntries">[]): ReceiptLinkage[] {
