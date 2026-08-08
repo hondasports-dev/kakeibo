@@ -5,9 +5,12 @@ import {
   persistDraftTaxInterpretation,
   type PersistDraftTaxInterpretationResult,
 } from "./persistTaxInterpretation";
-import { resolveAmountBasisFromSummary } from "../../receiptTax/reinterpretDraftTax";
-import type { AmountBasis } from "../../receiptTax/types";
-import type { ReceiptItemTaxRatePercent } from "../receiptImageExtraction/types";
+import type {
+  AmountBasis,
+  ReceiptItemTaxRatePercent,
+  TaxRatePercent,
+} from "../receiptImageExtraction/types";
+import { deriveBulkTaxSettings } from "../../domain/aiExpenseDrafts/applyReceiptTaxSettings";
 
 export type ApplyReceiptTaxSettingsArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -43,23 +46,25 @@ export async function applyReceiptTaxSettingsHandler(
   }
 
   const summary = draft.taxSummaries[0];
-  if (summary.taxMode === "unknown" || summary.taxMode === "mixed") {
-    throw new ConvexError("Bulk tax settings require a definitive tax mode");
-  }
-
-  const taxRatePercent = args.taxRatePercent ?? summary.taxRatePercent;
-  const amountBasis = args.amountBasis ?? resolveAmountBasisFromSummary(summary) ?? undefined;
-
-  if (amountBasis === undefined) {
-    throw new ConvexError("Could not derive amount basis from tax summary");
+  const settingsResult = deriveBulkTaxSettings({
+    summary,
+    taxRatePercent: args.taxRatePercent ?? undefined,
+    amountBasis: args.amountBasis,
+  });
+  if (!settingsResult.success) {
+    throw new ConvexError(
+      settingsResult.error === "unknown_tax_mode"
+        ? "Bulk tax settings require a definitive tax mode"
+        : "Could not derive amount basis from tax summary",
+    );
   }
 
   return await persistDraftTaxInterpretation(ctx, {
     draftId: args.draftId,
     groupId,
     bulkUnresolvedOverride: {
-      taxRatePercent,
-      amountBasis,
+      taxRatePercent: settingsResult.taxRatePercent as TaxRatePercent,
+      amountBasis: settingsResult.amountBasis,
     },
   });
 }
