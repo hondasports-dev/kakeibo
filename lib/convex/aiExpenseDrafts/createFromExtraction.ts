@@ -2,12 +2,14 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import {
-  classifyAiExpenseDraft,
   type AiExpenseDraftConfidence,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
-} from "../../../convex/aiExpenseDrafts/model";
-import { mergeReviewReasons } from "../../../lib/domain/aiExpenseDrafts/reviewReasons";
+} from "../../../lib/domain/aiExpenseDrafts/constants";
+import {
+  classifyCreatedDraft,
+  type CreatedDraftClassificationInput,
+} from "../../../lib/domain/aiExpenseDrafts/classification";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { deleteDraftAndItems } from "./draftRepository";
 import type {
@@ -67,21 +69,6 @@ export type CreateFailedDraftFromImageAnalysisArgs = {
   imageFileName?: string;
 };
 
-function resolveDraftClassification(args: CreateFromExtractionArgs): {
-  status: "ready" | "needs_review";
-  reviewReasons: AiExpenseDraftReviewReason[];
-} {
-  const computed = classifyAiExpenseDraft(args);
-  const reviewReasons = mergeReviewReasons(computed.reviewReasons, [
-    ...(args.reviewReasons ?? []),
-    "user_confirmation_required",
-  ]);
-  return {
-    status: reviewReasons.length === 0 ? "ready" : "needs_review",
-    reviewReasons,
-  };
-}
-
 async function assertCategoryBelongsToGroup(
   ctx: Pick<MutationCtx, "db">,
   categoryId: Id<"categories"> | undefined,
@@ -140,7 +127,7 @@ export async function createFromExtractionHandler(
   await assertCategoryBelongsToGroup(ctx, args.categoryId, groupId);
 
   const now = Date.now();
-  const classification = resolveDraftClassification(args);
+  const classification = classifyCreatedDraft(args as CreatedDraftClassificationInput);
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId,
     sourceType: "image_upload",
