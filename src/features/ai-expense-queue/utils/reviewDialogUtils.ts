@@ -1,6 +1,13 @@
 import type { AiExpenseQueueCategory, ReviewFormValues, ReviewItemValues } from "../types/types";
 import { formatYen } from "../../../utils/currency";
 import { hasLowConfidenceItem } from "../../../../lib/domain/aiExpenseDrafts/reviewItems";
+import {
+  computeReviewCategoryAggregates,
+  computeReviewItemTotalYen,
+  getReviewAttentionLabels as getReviewAttentionLabelsDomain,
+  hasReviewLowConfidenceItems,
+  hasReviewUncategorizedItems,
+} from "../../../../lib/domain/aiExpenseDrafts/reviewSummary";
 
 export type CategoryAggregateDisplay = {
   categoryId: string;
@@ -11,36 +18,22 @@ export type CategoryAggregateDisplay = {
 export const isLowConfidenceItem = hasLowConfidenceItem;
 
 export function hasUncategorizedItems(reviewItems: ReviewItemValues[]): boolean {
-  return reviewItems.some((item) => !item.categoryId);
+  return hasReviewUncategorizedItems(reviewItems);
 }
 
 export function hasLowConfidenceItems(reviewItems: ReviewItemValues[]): boolean {
-  return reviewItems.some(hasLowConfidenceItem);
+  return hasReviewLowConfidenceItems(reviewItems);
 }
 
 export function computeItemTotalYen(reviewItems: ReviewItemValues[]): number {
-  return reviewItems.reduce((sum, item) => sum + (Number(item.amountYen) || 0), 0);
+  return computeReviewItemTotalYen(reviewItems);
 }
 
 export function computeCategoryAggregates(
   reviewItems: ReviewItemValues[],
   categories: AiExpenseQueueCategory[],
 ): CategoryAggregateDisplay[] {
-  const totals = new Map<string, number>();
-
-  for (const item of reviewItems) {
-    if (!item.categoryId) {
-      continue;
-    }
-    const amountYen = Number(item.amountYen) || 0;
-    totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + amountYen);
-  }
-
-  return [...totals.entries()].map(([categoryId, amountYen]) => ({
-    categoryId,
-    categoryName: categories.find((category) => category._id === categoryId)?.name ?? "カテゴリ",
-    amountYen,
-  }));
+  return computeReviewCategoryAggregates(reviewItems, categories);
 }
 
 export function getReviewAttentionLabels({
@@ -50,21 +43,7 @@ export function getReviewAttentionLabels({
   receiptAmountYen: number;
   reviewItems: ReviewItemValues[];
 }): string[] {
-  const labels: string[] = [];
-
-  if (hasUncategorizedItems(reviewItems)) {
-    labels.push("未分類の明細があります");
-  }
-  if (hasLowConfidenceItems(reviewItems)) {
-    labels.push("低信頼度の明細があります");
-  }
-
-  const itemTotal = computeItemTotalYen(reviewItems);
-  if (reviewItems.length > 0 && receiptAmountYen - itemTotal !== 0) {
-    labels.push("明細合計と合計金額に差額があります");
-  }
-
-  return labels;
+  return getReviewAttentionLabelsDomain({ receiptAmountYen, reviewItems });
 }
 
 export function formatReviewDraftHeader({
