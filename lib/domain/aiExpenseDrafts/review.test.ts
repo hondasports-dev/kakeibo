@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { hasCounterparty } from "./review";
+import { hasCounterparty, validateReviewUpdateCanBecomeReady } from "./review";
 
 describe("hasCounterparty", () => {
   it("receipt で店舗名があれば true", () => {
@@ -42,5 +42,69 @@ describe("hasCounterparty", () => {
 
   it("空白のみは空とみなす", () => {
     expect(hasCounterparty({ documentType: "receipt", shopName: "   " })).toBe(false);
+  });
+});
+
+describe("validateReviewUpdateCanBecomeReady", () => {
+  it("全て有効なら success", () => {
+    expect(
+      validateReviewUpdateCanBecomeReady({
+        documentType: "receipt",
+        date: "2024-01-15",
+        amountYen: 1000,
+        shopName: "スーパー",
+      }),
+    ).toEqual({ success: true });
+  });
+
+  it("documentType が unknown なら失敗", () => {
+    expect(
+      validateReviewUpdateCanBecomeReady({
+        documentType: "unknown",
+        date: "2024-01-15",
+        amountYen: 1000,
+        shopName: "店",
+      }),
+    ).toEqual({ success: false, error: "unknown_document_type" });
+  });
+
+  it("date が空・無効なら失敗", () => {
+    expect(
+      validateReviewUpdateCanBecomeReady({
+        documentType: "receipt",
+        date: "",
+        amountYen: 1000,
+        shopName: "店",
+      }),
+    ).toEqual({ success: false, error: "missing_date" });
+    expect(
+      validateReviewUpdateCanBecomeReady({
+        documentType: "receipt",
+        date: "2024-02-30",
+        amountYen: 1000,
+        shopName: "店",
+      }),
+    ).toEqual({ success: false, error: "invalid_date" });
+  });
+
+  it("amountYen が無効なら失敗", () => {
+    expect(
+      validateReviewUpdateCanBecomeReady({
+        documentType: "receipt",
+        date: "2024-01-15",
+        amountYen: 0,
+        shopName: "店",
+      }),
+    ).toEqual({ success: false, error: "invalid_amount" });
+  });
+
+  it("相手方情報が不足なら失敗", () => {
+    expect(
+      validateReviewUpdateCanBecomeReady({
+        documentType: "receipt",
+        date: "2024-01-15",
+        amountYen: 1000,
+      }),
+    ).toEqual({ success: false, error: "missing_counterparty" });
   });
 });

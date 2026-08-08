@@ -2,10 +2,11 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
-import { isValidIsoDateString } from "../../../lib/domain/week/weekDates";
-import { validateExpenseAmount } from "../../../lib/domain/expenseEntries/expenseEntryItem";
 import { trimOptional } from "../../../lib/domain/common/string";
-import { hasCounterparty } from "../../../lib/domain/aiExpenseDrafts/review";
+import {
+  type ReviewUpdateReadyError,
+  validateReviewUpdateCanBecomeReady,
+} from "../../../lib/domain/aiExpenseDrafts/review";
 import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   type AiExpenseDraftDocumentType,
@@ -39,26 +40,22 @@ export type UpdateForReviewArgs = {
   items?: UpdateForReviewItem[];
 };
 
+const reviewUpdateReadyErrorMessages: Record<ReviewUpdateReadyError, string> = {
+  unknown_document_type: "Draft document type must be selected to mark ready",
+  missing_date: "Draft date is required to mark ready",
+  invalid_date: "Draft date must be a valid YYYY-MM-DD date",
+  invalid_amount: "Draft amount is required to mark ready",
+  missing_counterparty: "Draft shop, payment place, or payee is required to mark ready",
+};
+
 export function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
-  if (args.documentType === "unknown") {
-    throw new ConvexError("Draft document type must be selected to mark ready");
+  const result = validateReviewUpdateCanBecomeReady(args);
+  if (result.success) return;
+
+  if (result.error === "missing_counterparty" && args.documentType === "convenience_payment") {
+    throw new ConvexError("Draft shop name or payment details are required to mark ready");
   }
-  const date = trimOptional(args.date);
-  if (!date) {
-    throw new ConvexError("Draft date is required to mark ready");
-  }
-  if (!isValidIsoDateString(date)) {
-    throw new ConvexError("Draft date must be a valid YYYY-MM-DD date");
-  }
-  if (!validateExpenseAmount(args.amountYen).success) {
-    throw new ConvexError("Draft amount is required to mark ready");
-  }
-  if (!hasCounterparty(args)) {
-    if (args.documentType === "convenience_payment") {
-      throw new ConvexError("Draft shop name or payment details are required to mark ready");
-    }
-    throw new ConvexError("Draft shop, payment place, or payee is required to mark ready");
-  }
+  throw new ConvexError(reviewUpdateReadyErrorMessages[result.error]);
 }
 
 export async function assertActiveCategoryBelongsToGroup(
