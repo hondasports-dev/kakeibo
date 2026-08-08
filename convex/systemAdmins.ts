@@ -3,13 +3,20 @@ import { paginationOptsValidator, paginationResultValidator } from "convex/serve
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
-import { normalizeSystemAdminReason } from "../lib/domain/systemAdmin/reason";
-import { resolveAppEnvironment, type AppEnvironment } from "../lib/domain/systemAdmin/environment";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
+import {
+  getResolveAppEnvironmentErrorMessage,
+  resolveAppEnvironment,
+  type AppEnvironment,
+} from "../lib/domain/systemAdmin/environment";
 
 function normalizeReason(reason: string): string {
   const result = normalizeSystemAdminReason(reason);
   if (!result.success) {
-    throw new ConvexError("理由は1〜500文字で入力してください");
+    throw new ConvexError(getNormalizeReasonErrorMessage(result.error));
   }
   return result.reason;
 }
@@ -17,7 +24,7 @@ function normalizeReason(reason: string): string {
 function getAppEnvironment(expected?: string): AppEnvironment {
   const result = resolveAppEnvironment(process.env.APP_ENV, expected);
   if (!result.success) {
-    throw new ConvexError("対象環境が一致しません");
+    throw new ConvexError(getResolveAppEnvironmentErrorMessage(result.error));
   }
   return result.environment;
 }

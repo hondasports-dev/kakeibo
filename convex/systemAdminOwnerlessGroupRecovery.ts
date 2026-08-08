@@ -2,7 +2,10 @@ import { ConvexError, v } from "convex/values";
 import { mutation, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireSystemAdmin } from "./systemAdmins";
-import { normalizeSystemAdminReason } from "../lib/domain/systemAdmin/reason";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
 
 const MAX_OWNERS = 100;
 
@@ -49,7 +52,7 @@ export const recoverOwnerlessGroup = mutation({
     const actor = await requireSystemAdmin(ctx);
     const reasonResult = normalizeSystemAdminReason(args.reason);
     if (!reasonResult.success) {
-      throw new ConvexError("理由は1〜500文字で入力してください");
+      throw new ConvexError(getNormalizeReasonErrorMessage(reasonResult.error));
     }
     const reason = reasonResult.reason;
     const group = await ctx.db.get(args.groupId);

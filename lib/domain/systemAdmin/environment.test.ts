@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveAppEnvironment } from "./environment";
+import { getResolveAppEnvironmentErrorMessage, resolveAppEnvironment } from "./environment";
 
 describe("resolveAppEnvironment", () => {
   it.each([
@@ -25,5 +25,14 @@ describe("resolveAppEnvironment", () => {
       success: false,
       error: "mismatch",
     });
+  });
+});
+
+describe("getResolveAppEnvironmentErrorMessage", () => {
+  it.each([
+    ["mismatch", "対象環境が一致しません"],
+    ["unknown", "不明な環境です"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getResolveAppEnvironmentErrorMessage(error)).toBe(expected);
   });
 });

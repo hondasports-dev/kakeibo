@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { MAX_REASON_LENGTH, normalizeSystemAdminReason } from "./reason";
+import {
+  getNormalizeReasonErrorMessage,
+  MAX_REASON_LENGTH,
+  normalizeSystemAdminReason,
+} from "./reason";
 
 describe("normalizeSystemAdminReason", () => {
   it("trim して正規化する", () => {
@@ -21,5 +25,14 @@ describe("normalizeSystemAdminReason", () => {
       success: false,
       error: "too_long",
     });
+  });
+});
+
+describe("getNormalizeReasonErrorMessage", () => {
+  it.each([
+    ["empty", "理由は1〜500文字で入力してください"],
+    ["too_long", "理由は1〜500文字で入力してください"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getNormalizeReasonErrorMessage(error)).toBe(expected);
   });
 });

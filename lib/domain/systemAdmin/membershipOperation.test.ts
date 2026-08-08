@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { validateMembershipOperationShape } from "./membershipOperation";
+import {
+  getMembershipOperationShapeErrorMessage,
+  validateMembershipOperationShape,
+} from "./membershipOperation";
 
 describe("validateMembershipOperationShape", () => {
   it.each([
@@ -26,5 +29,14 @@ describe("validateMembershipOperationShape", () => {
       success: false,
       error: "same_source_target",
     });
+  });
+});
+
+describe("getMembershipOperationShapeErrorMessage", () => {
+  it.each([
+    ["invalid_shape", "操作対象グループの指定が不正です"],
+    ["same_source_target", "移動元と移動先は異なるグループを指定してください"],
+  ] as const)("%s -> %s", (error, expected) => {
+    expect(getMembershipOperationShapeErrorMessage(error)).toBe(expected);
   });
 });
