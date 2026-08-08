@@ -30,6 +30,45 @@ export type DraftItemTaxFields = {
   taxReviewReasons?: string[];
 };
 
+export type DraftItemTaxFieldsSource = {
+  itemName: string;
+  printedAmountYen?: number | null;
+  amountYen: number;
+  amountBasis?: AmountBasis;
+  taxRatePercent?: TaxRatePercent | null;
+  markers?: string[];
+  taxMarker?: string;
+  categoryName?: string;
+  quantity?: number | null;
+  unitPriceYen?: number | null;
+  warnings?: string[];
+  taxResolutionStatus?: "resolved" | "unresolved";
+  taxResolutionSource?: TaxResolutionSource | null;
+  taxReviewReasons?: string[];
+};
+
+/**
+ * DB ドキュメントや UI 入力から、税処理用の明細フィールドへ変換する。
+ * 未設定の数値は null や undefined を許容し、printedAmountYen の fallback も行う。
+ */
+export function mapDraftItemToTaxFields(item: DraftItemTaxFieldsSource): DraftItemTaxFields {
+  return {
+    itemName: item.itemName,
+    printedAmountYen: item.printedAmountYen ?? item.amountYen,
+    amountBasis: item.amountBasis,
+    taxRatePercent: item.taxRatePercent ?? null,
+    markers: item.markers,
+    taxMarker: item.taxMarker,
+    categoryName: item.categoryName,
+    quantity: item.quantity ?? undefined,
+    unitPriceYen: item.unitPriceYen ?? undefined,
+    warnings: item.warnings,
+    taxResolutionStatus: item.taxResolutionStatus,
+    taxResolutionSource: item.taxResolutionSource ?? undefined,
+    taxReviewReasons: item.taxReviewReasons,
+  };
+}
+
 export function taxContextToDraftFields(taxContext: TaxContextResolution): {
   taxResolutionStatus: "resolved" | "unresolved";
   taxResolutionSource?: TaxResolutionSource;
