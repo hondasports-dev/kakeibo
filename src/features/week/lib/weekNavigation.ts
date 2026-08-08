@@ -1,18 +1,12 @@
+import {
+  DEFAULT_WEEK_START_DAY,
+  getWeekEndDay,
+  normalizeWeekStartDay,
+} from "../../../../lib/domain/week/weekDates";
+
 const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-export const DEFAULT_WEEK_START_DAY = 1;
 
-export function normalizeWeekStartDay(weekStartDay?: number): number {
-  return weekStartDay !== undefined &&
-    Number.isInteger(weekStartDay) &&
-    weekStartDay >= 0 &&
-    weekStartDay <= 6
-    ? weekStartDay
-    : DEFAULT_WEEK_START_DAY;
-}
-
-export function getWeekEndDay(weekStartDay: number): number {
-  return (normalizeWeekStartDay(weekStartDay) + 6) % 7;
-}
+export { DEFAULT_WEEK_START_DAY, getWeekEndDay, normalizeWeekStartDay };
 
 function toIsoDate(date: Date): string {
   const y = date.getUTCFullYear();
