@@ -4,18 +4,11 @@ import {
   isAllowedRedirectOrigin as isAllowedRedirectOriginDomain,
   buildInvitationRedirectUrl as buildInvitationRedirectUrlDomain,
   buildClerkInvitationParams as buildClerkInvitationParamsDomain,
+  getInvitationRedirectErrorMessage,
   parseAllowedRedirectOrigins,
-  type InvitationRedirectError,
 } from "../../../domain/groups/clerkInvitations";
 
 export { INVITATION_ACCEPT_PATH } from "../../../domain/groups/clerkInvitations";
-
-const errorMessages: Record<InvitationRedirectError, string> = {
-  invalid_url: "招待リンクの戻り先URLが不正です",
-  invalid_protocol: "招待リンクの戻り先URLが不正です",
-  invalid_path: "招待リンクの戻り先URLが不正です",
-  not_allowed: "招待リンクの戻り先URLが許可されていません",
-};
 
 export function getConfiguredRedirectOrigins() {
   const raw = process.env.INVITATION_REDIRECT_ORIGINS ?? "";
@@ -37,7 +30,7 @@ export function buildInvitationRedirectUrl(rawRedirectUrl: string, token: string
     getConfiguredRedirectOrigins(),
   );
   if (!result.success) {
-    throw new ConvexError(errorMessages[result.error]);
+    throw new ConvexError(getInvitationRedirectErrorMessage(result.error));
   }
   return result.redirectUrl;
 }
