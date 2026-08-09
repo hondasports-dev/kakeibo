@@ -1,4 +1,5 @@
 import type { Doc, Id } from "../../../../convex/_generated/dataModel";
+import { getImageCaptureFailureHint } from "../../../../lib/domain/aiExpenseDrafts/failure";
 import type {
   AiExpenseDraft,
   AiExpenseDraftStatus,
@@ -8,9 +9,6 @@ import type {
   ReviewFormValues,
   ReviewItemValues,
 } from "../types/types";
-
-export const FAILED_IMAGE_CAPTURE_HINT =
-  "明るい場所で、影や反射を避け、レシート全体を正面から撮影してください。";
 
 export const emptyReviewForm: ReviewFormValues = {
   documentType: "receipt",
@@ -48,7 +46,7 @@ export function mapDraftToQueueItem(
     id: draft._id,
     fileName: draft.imageFileName ?? "AI支出下書き",
     previewImageDataUrl,
-    failureHint: draft.status === "failed" ? FAILED_IMAGE_CAPTURE_HINT : undefined,
+    failureHint: getImageCaptureFailureHint(draft.status as AiExpenseDraftStatus),
     status: statusOverrides[draft._id] ?? draft.status,
     documentType: draft.documentType,
     title: resolveDraftTitle(draft),

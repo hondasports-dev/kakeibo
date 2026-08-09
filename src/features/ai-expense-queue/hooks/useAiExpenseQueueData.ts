@@ -4,7 +4,8 @@ import { listByStatusApi } from "../../../lib/repositories/aiExpenseDrafts";
 import { listJobsApi } from "../../../lib/repositories/receiptAnalysisJobs";
 import type { Doc } from "../../../../convex/_generated/dataModel";
 import { getSectionKey } from "../components/labels";
-import { FAILED_IMAGE_CAPTURE_HINT, mapDraftToQueueItem } from "../utils/mappers";
+import { getImageCaptureFailureHint } from "../../../../lib/domain/aiExpenseDrafts/failure";
+import { mapDraftToQueueItem } from "../utils/mappers";
 import type {
   AiExpenseDraft,
   AiExpenseQueueBatchSummary,
@@ -76,7 +77,8 @@ export function useAiExpenseQueueData({
           previewImageDataUrl:
             item.previewImageDataUrl ?? (job ? pendingImageDataUrls.get(job._id) : undefined),
           failureHint:
-            item.failureHint ?? (item.status === "failed" ? FAILED_IMAGE_CAPTURE_HINT : undefined),
+            item.failureHint ??
+            (item.status === "failed" ? getImageCaptureFailureHint("failed") : undefined),
         };
       }),
     [initialItems, jobByDraftId, pendingImageDataUrls],
