@@ -1,3 +1,11 @@
+export type ReviewItemForDisplay = {
+  amountYen: number;
+  printedAmountYen?: number;
+  normalizedAmountYen?: number;
+  taxResolutionStatus?: "resolved" | "unresolved";
+  amountBasis?: "tax_included" | "tax_excluded" | "unknown";
+};
+
 export type ReviewReplacePreviousItem = {
   amountYen: number;
   printedAmountYen?: number;
@@ -50,4 +58,20 @@ export function resolveReviewItemAmountsForReplace(
     amountYen: submittedAmountYen,
     printedAmountYen: submittedAmountYen,
   };
+}
+
+/**
+ * レビュー画面に表示する編集用金額を解決する。
+ * 内税確定済みで normalizedAmountYen があれば優先し、
+ * それ以外は印字金額 → 登録用金額の順で fallback する。
+ */
+export function resolveReviewItemDisplayAmountYen(item: ReviewItemForDisplay): number {
+  if (
+    item.taxResolutionStatus === "resolved" &&
+    item.amountBasis === "tax_included" &&
+    item.normalizedAmountYen != null
+  ) {
+    return item.normalizedAmountYen;
+  }
+  return item.printedAmountYen ?? item.normalizedAmountYen ?? item.amountYen;
 }
