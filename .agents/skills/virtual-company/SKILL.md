@@ -23,7 +23,6 @@ description: このリポジトリで仮想ソフト開発会社のワークフ�
 - branch、worktree、stage、commit、push、PR はメインエージェントが管理する。
 - `.codex/agents/*.toml` は使わず、本 Skill、`AGENTS.md`、`.agents/roles/**` を正本とする。
 - 同一差分に書き込む Implementer は原則1体とし、QA AgentとReviewerは論理 read-only とする。
-- モデルルーティングは `AGENTS.md` を正本とし、Implementer は `gpt-5.6-luna` / `high`、Reviewer は `gpt-5.6-sol` / `medium` を推奨する。
 
 ## 参照元ドキュメント
 
