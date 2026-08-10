@@ -41,7 +41,6 @@ Return Contract:
 - writer は原則 Implementer 1 体とする。複数 writer は編集可能パスを完全分離できる場合だけ使う。
 - Implementer は契約外の設計変更を独断で行わず、矛盾や不足をメインエージェントへ返す。
 - branch、worktree、stage、commit、push、PR はメインエージェントが管理する。
-- Implementer は `gpt-5.6-luna` / `high` を推奨する。サブエージェント起動時に利用可能なら `model` と `reasoning_effort` を明示する。
 
 ## 併用ガード
 
