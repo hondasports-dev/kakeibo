@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "format": "oxfmt",
-    "format:check": "oxfmt --check",
+    "format:check": "oxfmt && git diff -- scripts/sync-e2e-env.mjs && git diff --exit-code",
     "preview": "vite preview",
     "test": "vitest",
     "prepare": "husky",
