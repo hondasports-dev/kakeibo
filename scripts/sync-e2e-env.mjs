@@ -85,22 +85,25 @@ function ensureCanonicalEnv(canonicalPath, worktrees) {
     );
   }
 
-  const canonicalWorktree = resolve(dirname(canonicalPath));
-  const bootstrapWorktree = worktrees.find(({ path }) => {
-    const worktreePath = resolve(path);
-    return worktreePath !== canonicalWorktree && existsSync(resolve(worktreePath, ".env.local"));
-  });
+  const mainWorktree = worktrees[0];
+  const bootstrapPath = mainWorktree ? resolve(mainWorktree.path, ".env.local") : null;
 
-  if (!bootstrapWorktree) {
+  if (!bootstrapPath || !existsSync(bootstrapPath)) {
     throw new Error(
       `preview worktree の正本 .env.local が見つかりません: ${canonicalPath}\n` +
-        "別の登録済み worktree にも .env.local がありません。元の clone に .env.local を配置するか、" +
-        "preview worktree へ手動でコピーしてから再実行してください。\n" +
+        `bootstrap 元: ${bootstrapPath ?? "特定不能"}\n` +
+        "最初の worktree の .env.local を復旧するか、preview worktree へ手動でコピーしてから再実行してください。\n" +
         "環境不足を理由に E2E を省略して push / PR へ進めないでください。",
     );
   }
 
-  const bootstrapPath = resolve(bootstrapWorktree.path, ".env.local");
+  if (resolve(dirname(canonicalPath)) === resolve(mainWorktree.path)) {
+    throw new Error(
+      `preview worktree 自体が bootstrap 元ですが .env.local がありません: ${canonicalPath}\n` +
+        "ローカル開発用 .env.local を復旧してから再実行してください。",
+    );
+  }
+
   copyFileSync(bootstrapPath, canonicalPath);
   console.log(`[e2e:env-sync] preview 正本 .env.local を bootstrap しました（元: ${bootstrapPath}）`);
 }
