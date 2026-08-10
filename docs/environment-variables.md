@@ -15,6 +15,21 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 
 ## 環境変数一覧
 
+### LINE連携基盤関連（N2 / P1）
+
+| 変数名 | 用途 | Local / DEV / Preview | PROD | Secret扱い | 設定場所 |
+| --- | --- | --- | --- | --- | --- |
+| `LINE_INTEGRATION_MODE` | LINE外部APIの切替（`mock` / `real`） | `mock` | `real`（導入時に別途承認） | ❌ | Convex環境変数 |
+| `LINE_LOGIN_CHANNEL_ID` | LINE Loginのchannel ID | 環境ごとに設定 | 環境ごとに設定 | ❌ | Convex環境変数 |
+| `LINE_LOGIN_CHANNEL_SECRET` | LINE Login OAuth token交換用secret | 未設定または環境専用値 | 環境専用値 | ✅ | Convex環境変数 |
+| `LINE_LOGIN_REDIRECT_URI` | LINE Login callback URL | 環境ごとに設定 | 環境ごとに設定 | ❌ | Convex環境変数 |
+| `LINE_MESSAGING_CHANNEL_SECRET` | Messaging API Webhook署名検証用secret | 未設定または環境専用値 | 環境専用値 | ✅ | Convex環境変数 |
+| `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` | LINE返信API用access token | 未設定または環境専用値 | 環境専用値 | ✅ | Convex環境変数 |
+
+LINE Login channelとMessaging API channelは同一環境内で同一Providerに所属させる。環境間ではProvider、channel、callback URL、Webhook URL、secretを共有しない。今回のIssue #591ではchannel作成、secret設定、rotation、Production変更を行わず、変数名・責務・設定場所だけを定義する。
+
+Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth token交換、Messaging API返信、実LINE疎通を発生させない。secret値、channel IDの実値、callbackの実URLはGitへ保存しない。
+
 ### Clerk認証関連
 
 | 変数名                       | 用途                           | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所                            |
