@@ -47,16 +47,19 @@ describe("LINE 連携の公開フィードバック", () => {
   it("mode未設定とproductionのmockを拒否する", () => {
     const originalMode = process.env.LINE_INTEGRATION_MODE;
     const originalEnv = process.env.APP_ENV;
-    delete process.env.LINE_INTEGRATION_MODE;
-    process.env.APP_ENV = "development";
-    expect(() => getLineIntegrationMode()).toThrow();
-    process.env.LINE_INTEGRATION_MODE = "mock";
-    process.env.APP_ENV = "production";
-    expect(() => getLineIntegrationMode()).toThrow();
-    if (originalMode === undefined) delete process.env.LINE_INTEGRATION_MODE;
-    else process.env.LINE_INTEGRATION_MODE = originalMode;
-    if (originalEnv === undefined) delete process.env.APP_ENV;
-    else process.env.APP_ENV = originalEnv;
+    try {
+      delete process.env.LINE_INTEGRATION_MODE;
+      process.env.APP_ENV = "development";
+      expect(() => getLineIntegrationMode()).toThrow();
+      process.env.LINE_INTEGRATION_MODE = "mock";
+      process.env.APP_ENV = "production";
+      expect(() => getLineIntegrationMode()).toThrow();
+    } finally {
+      if (originalMode === undefined) delete process.env.LINE_INTEGRATION_MODE;
+      else process.env.LINE_INTEGRATION_MODE = originalMode;
+      if (originalEnv === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = originalEnv;
+    }
   });
 });
 
@@ -269,5 +272,72 @@ describe("LINE 連携の保存・認可", () => {
     ).resolves.toEqual({
       status: "unlinked",
     });
+  });
+
+  it("active linkが重複しても最新状態を返し、解除で全件をrevokedにする", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "user-a",
+        lineUserId: "line-user-old",
+        status: "active",
+        linkedAt: 100,
+        createdAt: 100,
+        updatedAt: 100,
+      });
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "user-a",
+        lineUserId: "line-user-new",
+        status: "active",
+        linkedAt: 200,
+        createdAt: 200,
+        updatedAt: 200,
+      });
+    });
+
+    await expect(
+      t.withIdentity(identity("user-a")).query(api.lineLink.queries.getStatus, {}),
+    ).resolves.toEqual({ status: "linked", linkedAt: 200 });
+    await expect(
+      t.withIdentity(identity("user-a")).mutation(api.lineLink.mutations.unlink, {}),
+    ).resolves.toEqual({ status: "unlinked" });
+    const links = await t.run(async (ctx) => ctx.db.query("lineAccountLinks").collect());
+    expect(links.every((link) => link.status === "revoked")).toBe(true);
+  });
+
+  it("再連携時に同一ユーザーの重複active linkを全件revokedにする", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "user-a",
+        lineUserId: "line-user-old-a",
+        status: "active",
+        linkedAt: 100,
+        createdAt: 100,
+        updatedAt: 100,
+      });
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "user-a",
+        lineUserId: "line-user-old-b",
+        status: "active",
+        linkedAt: 200,
+        createdAt: 200,
+        updatedAt: 200,
+      });
+    });
+    const { claim } = await createAndClaimRequest(t, "user-a");
+    if (!claim.ok) throw new Error("claim should succeed");
+
+    await expect(
+      t.mutation(internal.lineLink.internal.finalizeRequest, {
+        requestId: claim.requestId,
+        userId: "user-a",
+        lineUserId: "line-user-new",
+        nonceHash: claim.nonceHash,
+      }),
+    ).resolves.toEqual({ ok: true });
+    const links = await t.run(async (ctx) => ctx.db.query("lineAccountLinks").collect());
+    expect(links.filter((link) => link.status === "active")).toHaveLength(1);
+    expect(links.filter((link) => link.status === "revoked")).toHaveLength(2);
   });
 });

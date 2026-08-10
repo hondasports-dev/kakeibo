@@ -59,6 +59,38 @@ describe("LINE OAuth action", () => {
     );
   });
 
+  it("callback入力の上限とmock modeの不正codeを拒否する", async () => {
+    const restore = setEnvironment({ LINE_INTEGRATION_MODE: "mock" });
+    try {
+      const oversizedContext = createActionCtx(authenticatedIdentity, vi.fn());
+      await expect(
+        completeLineLinkHandler(oversizedContext, {
+          state: "s".repeat(513),
+          code: "mock",
+        }),
+      ).resolves.toEqual({ result: "failure", code: "invalid" });
+
+      const mutations = vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          requestId: "request-id",
+          nonceHash: sha256("nonce"),
+          codeVerifier: "private-verifier",
+        })
+        .mockResolvedValueOnce(null);
+      await expect(
+        completeLineLinkHandler(createActionCtx(authenticatedIdentity, mutations), {
+          state: "s".repeat(512),
+          code: "not-mock",
+        }),
+      ).resolves.toEqual({ result: "failure", code: "invalid" });
+      expect(mutations).toHaveBeenCalledTimes(2);
+    } finally {
+      restore();
+    }
+  });
+
   it("real設定不足時はrequestを作る前に開始を拒否する", async () => {
     const restore = setEnvironment({ LINE_INTEGRATION_MODE: "real" });
     const mutations = vi.fn();
@@ -191,6 +223,7 @@ describe("LINE OAuth action", () => {
 
   it.each([
     ["token endpointのHTTPエラー", [new Response("bad", { status: 400 })]],
+    ["token responseがJSONでない", [new Response("not-json", { status: 200 })]],
     [
       "token responseにid_tokenがない",
       [new Response(JSON.stringify({ access_token: "access-token" }), { status: 200 })],
@@ -200,6 +233,13 @@ describe("LINE OAuth action", () => {
       [
         new Response(JSON.stringify({ id_token: "id-token" }), { status: 200 }),
         new Response("bad", { status: 400 }),
+      ],
+    ],
+    [
+      "verify responseがJSONでない",
+      [
+        new Response(JSON.stringify({ id_token: "id-token" }), { status: 200 }),
+        new Response("not-json", { status: 200 }),
       ],
     ],
   ])("%s場合はcallbackを拒否する", async (_label, responses) => {

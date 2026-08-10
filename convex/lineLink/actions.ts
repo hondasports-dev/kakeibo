@@ -17,6 +17,7 @@ const REQUEST_TTL_MS = 10 * 60 * 1000;
 const LINE_TOKEN_ENDPOINT = "https://api.line.me/oauth2/v2.1/token";
 const LINE_VERIFY_ENDPOINT = "https://api.line.me/oauth2/v2.1/verify";
 const LINE_ISSUER = "https://access.line.me";
+const PROVIDER_TIMEOUT_MS = 10_000;
 
 type LineIdTokenClaims = {
   sub: string;
@@ -109,6 +110,7 @@ export async function exchangeAndVerifyLineCode(
     tokenResponse = await fetchImpl(LINE_TOKEN_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       body: new URLSearchParams({
         grant_type: "authorization_code",
         code: input.code,
@@ -122,7 +124,12 @@ export async function exchangeAndVerifyLineCode(
     throw new LineProviderError("PROVIDER_UNAVAILABLE");
   }
   if (!tokenResponse.ok) throw new LineProviderError("INVALID_CALLBACK");
-  const tokenBody = (await tokenResponse.json()) as { id_token?: unknown };
+  let tokenBody: { id_token?: unknown };
+  try {
+    tokenBody = (await tokenResponse.json()) as { id_token?: unknown };
+  } catch {
+    throw new LineProviderError("INVALID_CALLBACK");
+  }
   if (typeof tokenBody.id_token !== "string") throw new LineProviderError("INVALID_CALLBACK");
 
   let verifyResponse: Response;
@@ -130,13 +137,19 @@ export async function exchangeAndVerifyLineCode(
     verifyResponse = await fetchImpl(LINE_VERIFY_ENDPOINT, {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       body: new URLSearchParams({ id_token: tokenBody.id_token, client_id: input.channelId }),
     });
   } catch {
     throw new LineProviderError("PROVIDER_UNAVAILABLE");
   }
   if (!verifyResponse.ok) throw new LineProviderError("INVALID_CALLBACK");
-  const claims = (await verifyResponse.json()) as LineIdTokenClaims;
+  let claims: LineIdTokenClaims;
+  try {
+    claims = (await verifyResponse.json()) as LineIdTokenClaims;
+  } catch {
+    throw new LineProviderError("INVALID_CALLBACK");
+  }
   return validateLineIdTokenClaims(claims, input.expectedNonceHash, input.channelId);
 }
 
@@ -212,19 +225,18 @@ export async function completeLineLinkHandler(
 
   try {
     const mode = getLineIntegrationMode();
-    const identity =
-      mode === "mock"
-        ? args.code === "mock"
-          ? { lineUserId: mockLineUserId(userId), nonceHash: claim.nonceHash }
-          : (() => {
-              throw new LineProviderError("INVALID_CALLBACK");
-            })()
-        : await provider.exchangeAndVerify({
-            code: args.code,
-            codeVerifier: claim.codeVerifier,
-            expectedNonceHash: claim.nonceHash,
-            ...requireRealConfiguration(),
-          });
+    let identity: { lineUserId: string; nonceHash: string };
+    if (mode === "mock") {
+      if (args.code !== "mock") throw new LineProviderError("INVALID_CALLBACK");
+      identity = { lineUserId: mockLineUserId(userId), nonceHash: claim.nonceHash };
+    } else {
+      identity = await provider.exchangeAndVerify({
+        code: args.code,
+        codeVerifier: claim.codeVerifier,
+        expectedNonceHash: claim.nonceHash,
+        ...requireRealConfiguration(),
+      });
+    }
     const result = await ctx.runMutation(internal.lineLink.internal.finalizeRequest, {
       requestId: claim.requestId,
       userId,

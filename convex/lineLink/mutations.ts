@@ -7,14 +7,20 @@ export const unlink = mutation({
   returns: v.object({ status: v.literal("unlinked") }),
   handler: async (ctx) => {
     const userId = await requireAuthenticatedUserId(ctx);
-    const activeLink = await ctx.db
+    const activeLinks = await ctx.db
       .query("lineAccountLinks")
       .withIndex("by_user_id_and_status", (q) => q.eq("userId", userId).eq("status", "active"))
-      .unique();
-    if (!activeLink) return { status: "unlinked" as const };
+      .collect();
+    if (activeLinks.length === 0) return { status: "unlinked" as const };
 
     const now = Date.now();
-    await ctx.db.patch(activeLink._id, { status: "revoked", revokedAt: now, updatedAt: now });
+    for (const activeLink of activeLinks) {
+      await ctx.db.patch(activeLink._id, {
+        status: "revoked",
+        revokedAt: now,
+        updatedAt: now,
+      });
+    }
     await ctx.db.insert("lineLinkAuditLogs", {
       userId,
       action: "unlinked",

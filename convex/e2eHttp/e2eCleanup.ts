@@ -202,9 +202,16 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
 
   let lineLink: { deletedCount: number } | null = null;
   if (body.clearLineLink && resolvedUserId) {
-    lineLink = await ctx.runMutation(internal.lineLink.internal.clearE2eDataForUser, {
-      userId: resolvedUserId,
-    });
+    let deletedCount = 0;
+    let hasMore = true;
+    while (hasMore) {
+      const result = await ctx.runMutation(internal.lineLink.internal.clearE2eDataForUser, {
+        userId: resolvedUserId,
+      });
+      deletedCount += result.deletedCount;
+      hasMore = result.hasMore;
+    }
+    lineLink = { deletedCount };
   }
 
   let expenseEntries: { deletedCount: number } | null = null;

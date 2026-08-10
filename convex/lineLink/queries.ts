@@ -13,7 +13,8 @@ export const getStatus = query({
     const activeLink = await ctx.db
       .query("lineAccountLinks")
       .withIndex("by_user_id_and_status", (q) => q.eq("userId", userId).eq("status", "active"))
-      .unique();
+      .order("desc")
+      .first();
 
     // LINE userIdはクライアントへ返さない。
     return activeLink

@@ -98,13 +98,13 @@ export const finalizeRequest = internalMutation({
       return { ok: false as const, reason: "INVALID_CALLBACK" };
     }
 
-    const existingLineLink = await ctx.db
+    const existingLineLinks = await ctx.db
       .query("lineAccountLinks")
       .withIndex("by_line_user_id_and_status", (q) =>
         q.eq("lineUserId", args.lineUserId).eq("status", "active"),
       )
-      .unique();
-    if (existingLineLink && existingLineLink.userId !== args.userId) {
+      .collect();
+    if (existingLineLinks.some((link) => link.userId !== args.userId)) {
       await ctx.db.patch(request._id, { status: "failed", codeVerifier: "", updatedAt: now });
       await ctx.db.insert("lineLinkAuditLogs", {
         userId: args.userId,
@@ -116,19 +116,15 @@ export const finalizeRequest = internalMutation({
       return { ok: false as const, reason: "LINE_LINK_CONFLICT" };
     }
 
-    const existingUserLink = await ctx.db
+    const existingUserLinks = await ctx.db
       .query("lineAccountLinks")
       .withIndex("by_user_id_and_status", (q) => q.eq("userId", args.userId).eq("status", "active"))
-      .unique();
-    if (existingUserLink) {
-      await ctx.db.patch(existingUserLink._id, {
-        status: "revoked",
-        revokedAt: now,
-        updatedAt: now,
-      });
-    }
-    if (existingLineLink && existingLineLink.userId === args.userId) {
-      await ctx.db.patch(existingLineLink._id, {
+      .collect();
+    const revokeTargetIds = new Set(
+      [...existingUserLinks, ...existingLineLinks].map((link) => link._id),
+    );
+    for (const linkId of revokeTargetIds) {
+      await ctx.db.patch(linkId, {
         status: "revoked",
         revokedAt: now,
         updatedAt: now,
@@ -210,7 +206,7 @@ export const expireRequest = internalMutation({
 
 export const clearE2eDataForUser = internalMutation({
   args: { userId: v.string() },
-  returns: v.object({ deletedCount: v.number() }),
+  returns: v.object({ deletedCount: v.number(), hasMore: v.boolean() }),
   handler: async (ctx, args) => {
     const [links, requests, audits] = await Promise.all([
       ctx.db
@@ -227,6 +223,9 @@ export const clearE2eDataForUser = internalMutation({
         .take(100),
     ]);
     for (const record of [...links, ...requests, ...audits]) await ctx.db.delete(record._id);
-    return { deletedCount: links.length + requests.length + audits.length };
+    return {
+      deletedCount: links.length + requests.length + audits.length,
+      hasMore: links.length === 100 || requests.length === 100 || audits.length === 100,
+    };
   },
 });
