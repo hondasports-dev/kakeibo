@@ -34,11 +34,29 @@ git worktree add ../kakeibo-worktrees/preview preview
 git -C ../kakeibo-worktrees/preview pull
 ```
 
+`preview` 用 worktree を初めて作成した直後、正本 `.env.local` がまだ無い場合は、
+最初に clone したリポジトリルート `<repo>` の `.env.local` を bootstrap 元としてコピーします。
+`<repo>/.env.local` も無い場合はローカル開発環境自体が未準備なので、ここで停止して `.env.local` を復旧します。
+E2E 未実行を理由だけ記録して先へ進みません。
+
+```bash
+# <repo> で実行
+if [ ! -f ../kakeibo-worktrees/preview/.env.local ]; then
+  if [ ! -f .env.local ]; then
+    echo ".env.local がありません。ローカル開発用 .env.local を復旧してください。" >&2
+    exit 1
+  fi
+  cp .env.local ../kakeibo-worktrees/preview/.env.local
+fi
+```
+
 その後、コード変更を含む作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
-`preview` から作業ごとのディレクトリを分けます。
+`preview` から作業ごとのディレクトリを分けます。worktree 作成直後に正本 `.env.local` をコピーし、
+Convex CLI や E2E が同じ環境設定を使える状態にします。
 
 ```bash
 git worktree add ../kakeibo-worktrees/<branch-name> -b <branch-name> origin/preview
+cp ../kakeibo-worktrees/preview/.env.local ../kakeibo-worktrees/<branch-name>/.env.local
 cd ../kakeibo-worktrees/<branch-name>
 ```
 
@@ -246,7 +264,9 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 - 別 Issue のブランチに作業を混ぜない。ブランチ名例: `codex/issue-73-weekly-chart`
 - 無関係な変更がある場合は別 worktree を作り、それらをステージングしない
 - `.env.local`、`dist/`、`test-results/`、`playwright-report/`、`node_modules/` 等は未追跡のまま
-- Issue 用 worktree 作成直後および **ローカル E2E の直前毎回**、下記「`.env.local` 同期」を実施する
+- Issue 用 worktree 作成直後に `preview` 用 worktree の正本 `.env.local` をコピーする
+- Convex 反映および **ローカル E2E の直前毎回**、下記「`.env.local` 同期」を実施する
+- 正本 `.env.local` が無ければ bootstrap 手順で復旧し、環境不足を理由に後続へ進まない
 - Windows では `cd` がブロックされる場合、`cmd /c "cd /d <path> && command"` または PowerShell `Set-Location` を使う
 
 #### PR 作成・公開（Plan 契約フェーズ5）
@@ -269,6 +289,7 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 - E2E/CI 失敗を原因理解せず再 push しようとしている
 - `.env.local` 同期を省略している
 - `src/**` / `e2e/**` 変更で push 前ローカル E2E を省略している
+- ローカル E2E / Convex 反映が失敗または実行不能のまま、理由だけ記録して先へ進もうとしている
 - push 前に `code-review` PASS なしで push しようとしている
 
 ## Pull Request 運用
@@ -444,11 +465,11 @@ Vite dev server に対して実行します。Vercel Preview への自動ブラ�
 ### ローカル E2E 実行
 
 `.env.local` は git 管理外のため、**Issue 用 worktree には自動では入りません**。
-ローカル E2E のたびに環境差分で詰まらないよう、下記「`.env.local` 同期」を毎回実施してから
-テストを実行します。秘密値の扱いは `service-ops-safety` に従い、チャット・ログ・PR へ
-出力しません。
+worktree 作成直後に正本 `.env.local` をコピーし、ローカル E2E のたびに環境差分で詰まらないよう、
+下記「`.env.local` 同期」を毎回実施してからテストを実行します。秘密値の扱いは
+`service-ops-safety` に従い、チャット・ログ・PR へ出力しません。
 
-#### `.env.local` 同期（ローカル E2E 前に毎回）
+#### `.env.local` 同期（Convex 反映 / ローカル E2E 前に毎回）
 
 **正本**: `preview` ブランチ用 worktree の `.env.local`（[ブランチ運用](#ブランチ運用) の
 `<worktrees-dir>/preview`）。`git checkout preview -- .env.local` では取得できません。
@@ -458,7 +479,7 @@ Vite dev server に対して実行します。Vercel Preview への自動ブラ�
 
 ```text
 <parent>/
-  <repo>/                         # 最初に clone したディレクトリ
+  <repo>/                         # 最初に clone したディレクトリ。初回 bootstrap 元
   kakeibo-worktrees/              # worktree 置き場（名前は任意だが手順内で統一する）
     preview/                      # .env.local の正本
     <branch-name>/                # Issue 作業用 worktree
@@ -471,7 +492,25 @@ git fetch origin preview
 git worktree add ../kakeibo-worktrees/preview preview
 ```
 
-**2. 作業ディレクトリへコピーする**（E2E の直前に毎回）
+**2. 正本 `.env.local` を bootstrap する**（初回のみ、`<repo>` で実行）
+
+`preview` 用 worktree の `.env.local` がまだ無い場合だけ、最初の worktree の `.env.local` をコピーします。
+bootstrap 元にも `.env.local` が無い場合はそこで停止し、ローカル開発環境の `.env.local` を復旧します。
+
+```bash
+if [ ! -f ../kakeibo-worktrees/preview/.env.local ]; then
+  if [ ! -f .env.local ]; then
+    echo ".env.local がありません。ローカル開発用 .env.local を復旧してください。" >&2
+    exit 1
+  fi
+  cp .env.local ../kakeibo-worktrees/preview/.env.local
+fi
+```
+
+`scripts/sync-e2e-env.mjs` も同じ方針で、正本が無ければ `git worktree list --porcelain` から
+最初の worktree を特定し、その `.env.local` を bootstrap 元として正本へコピーします。
+
+**3. 作業ディレクトリへコピーする**（worktree 作成直後、および Convex / E2E の直前毎回）
 
 Issue 用 worktree（`<worktrees-dir>/<branch-name>`）にいる場合:
 
@@ -491,11 +530,12 @@ PowerShell の例（Issue 用 worktree 内）:
 Copy-Item ../preview/.env.local .env.local -Force
 ```
 
-**3. 付随チェック**（E2E 実行前）
+**4. 付随チェック**（Convex 反映 / E2E 実行前）
 
-- **推奨（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `E2E_CLEANUP_SECRET` 反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
+- **必須（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `E2E_CLEANUP_SECRET` 反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
+- `e2e:env-sync` が失敗した場合は原因を解消して再実行する。`E2E_SKIP_ENV_SYNC` 等で同期を飛ばさない。
 - Playwright ブラウザ未導入なら一度だけ: `pnpm exec playwright install chromium`
-- `convex/**` を変更した PR では: `pnpm exec convex dev --once`
+- `convex/**` を変更した PR では、`e2e:env-sync` 成功後に: `pnpm exec convex dev --once`
 - 手動で `convex env set E2E_CLEANUP_SECRET` だけ実行しない（GitHub `DEV_E2E_CLEANUP_SECRET` と正本 `.env.local` がズレ、CI E2E が連鎖 401 になる）。どうしても手動なら正本と同じ値のみ:
 
   ```powershell
@@ -504,9 +544,9 @@ Copy-Item ../preview/.env.local .env.local -Force
   pnpm exec convex env set E2E_CLEANUP_SECRET $secret
   ```
 
-**4. Clerk 鍵が無効なとき**（global setup が `clerk_key_invalid` / `Unauthorized`）
+**5. Clerk 鍵が無効なとき**（global setup が `clerk_key_invalid` / `Unauthorized`）
 
-`preview` 用 worktree 側で Development instance から再取得し、再度手順 2 を繰り返す。
+`preview` 用 worktree 側で Development instance から再取得し、再度手順 3、4 を繰り返す。
 
 ```bash
 cd ../preview
@@ -518,7 +558,10 @@ pnpm exec clerk env pull --instance dev --file .env.local
 
 **やらないこと**
 
-- Issue 用 worktree だけで `.env.local` 未コピーのまま E2E を試行して詰まる原因調査を長引かせない
+- Issue 用 worktree だけで `.env.local` 未コピーのまま Convex / E2E を試行して詰まる原因調査を長引かせない
+- 正本 `.env.local` 不足、Convex CLI 認証不足、外部サービス障害を E2E 省略理由にしない
+- `E2E_SKIP_ENV_SYNC` 等で `.env.local` / Convex 同期を飛ばさない
+- ローカル E2E / Convex 反映の失敗・実行不能を Issue / PR に記録するだけで次フェーズ、push、PR 作成へ進まない
 - `.env.local` を git commit しない
 - production の secret をローカルへコピーしない
 
@@ -542,10 +585,12 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 pnpm run e2e -- --project=chromium
 ```
 
-E2E 用環境変数を意図的に用意しない場合のみスキップしてよく、その場合は CI の E2E 結果に委ねます。
+GATE0 で要件上 E2E 不要と判断された変更（Markdown のみ、typo、振る舞い不変の変更など）は
+E2E を省略できます。一方、**E2E が必要な変更で環境変数不足や実行不能を省略理由にはしません**。
 
-環境変数不足、Clerk/Convex/Vercel の一時的な問題などでローカル E2E が実行不能な場合は、
-先へ進まず、Issue と PR に実行不能理由、必要な設定、再実行条件を記録して判断します。
+`.env.local` 不足、Clerk/Convex/Vercel の一時的な問題などで必要なローカル E2E が実行不能な場合は、
+不足や障害を解消して同期・必要な Convex 反映・E2E を再実行します。解消できない間は納品フローを停止し、
+ユーザーへ blocker として報告しますが、review、push、PR 作成へは進みません。
 GitHub Actions についても、E2E だけでなく全チェックが完了し、すべて `success` になってから
 PR をマージします。
 
@@ -683,13 +728,16 @@ E2E の実行対象（Vercel Preview）は dev Convex deployment を向いてい
 Convex 側の関数が未デプロイだと `FunctionNotFound` エラーになる。
 
 ```bash
+# feature branch の .env.local / E2E cleanup secret を先に同期
+pnpm run e2e:env-sync
+
 # feature branch の Convex 関数を dev deployment に反映する
-npx convex dev --once
+pnpm exec convex dev --once
 ```
 
 worktree 環境では、`preview` 用 worktree や Issue 作業用 worktree と dev deployment が共有される場合がある。
-branch 切り替え後は必ず `npx convex dev --once` を実行して、使用中の関数が
-dev に揃っていることを確認する。
+branch 切り替え後は必ず `.env.local` 同期を成功させてから `pnpm exec convex dev --once` を実行し、
+使用中の関数が dev に揃っていることを確認する。
 
 ## Codex / Cursor Cloud 開発時の Clerk 認証と E2E
 
