@@ -1191,3 +1191,30 @@ M18では、既存MVP利用者向けに、家計簿の中心を `receipts` か�
 - `receipts` は互換層として維持する。手入力・AI 登録は `expenseEntries` を正本とする。
 - 集計の正本ロジックは `lib/convex/receipts/spendingEntries.ts` に集約する。`convex/receipts/spendingEntries.ts` は `lib/convex/receipts/spendingEntries.ts` への re-export ラッパーとして残す。
 - M18 の後続 Issue は `expenseEntries` を正本として扱える。
+
+## 22. N2. P1 LINE連携基盤
+
+### 22.1 LINE channelとuserIdの境界
+
+LINE Login channelとMessaging API channelは、同じ環境内で同一LINE Providerに所属させる。同一Provider配下では、LINE Login callbackで取得したuserIdとMessaging API WebhookのuserIdを同一の連携キーとして扱える。Development、Preview、Productionはそれぞれ別Provider・別channel・別secretを使い、環境をまたいだuserIdや設定を共有しない。
+
+LINE連携はClerkのWeb認証を置き換えず、Clerkの`identity.tokenIdentifier`に紐づく外部連携として実装する。LINE userIdをクライアント引数の認可キーとして信用せず、サーバー側で有効な連携レコードからkakeibo userIdを解決する。
+
+### 22.2 OAuth 2.1 + PKCE連携
+
+1. 認証済みユーザーがWeb設定画面から連携開始を要求する。
+2. サーバーが短命な一回限りのstate、nonce、PKCE verifierを生成し、ユーザー識別子と有効期限を保存する。クライアントへは認可URLとchallengeだけを返す。
+3. LINE Loginへリダイレクトし、callbackではraw queryのcode/stateを受け取る。
+4. stateを原子的に予約して再利用を拒否し、LINE token endpointへcode、redirect URI、verifierを送る。
+5. ID tokenのnonce、audience、issuer、有効期限を検証し、取得したLINE userIdを有効な連携として保存する。
+6. callbackは秘密値を返さず、成功・失敗の結果コードだけをWeb設定画面へリダイレクトする。
+
+連携解除はClerk認証済みユーザーからのみ実行でき、解除済みレコードはWebhookから解決できない。再連携時は同じkakeiboユーザーまたは同じLINE userIdに残る旧activeレコードを原子的に失効させる。
+
+### 22.3 Webhook受信と非同期処理
+
+Convex HTTP Actionの`/webhooks/line`で、JSON変換前のraw bodyと`x-line-signature`をHMAC-SHA256で検証する。署名不一致、署名欠落、payload不正は処理せず、検証済みイベントだけを内部mutationでclaimする。
+
+`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携だけを後続dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。重いサマリー生成、画像取得、AI解析は後続Issueの責務とする。
+
+payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。Development、Preview、CIではmock clientと疑似Webhookを使い、実LINE APIに依存しない。
