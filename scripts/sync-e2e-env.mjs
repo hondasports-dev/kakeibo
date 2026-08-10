@@ -105,7 +105,9 @@ function ensureCanonicalEnv(canonicalPath, worktrees) {
   }
 
   copyFileSync(bootstrapPath, canonicalPath);
-  console.log(`[e2e:env-sync] preview 正本 .env.local を bootstrap しました（元: ${bootstrapPath}）`);
+  console.log(
+    `[e2e:env-sync] preview 正本 .env.local を bootstrap しました（元: ${bootstrapPath}）`,
+  );
 }
 
 function loadLocalEnv() {
