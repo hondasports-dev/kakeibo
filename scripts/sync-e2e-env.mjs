@@ -25,38 +25,55 @@ function parseEnvFile(content) {
   return values;
 }
 
-function resolveCanonicalEnvPath() {
-  if (process.env.KAKEIBO_E2E_ENV_CANONICAL) {
-    return resolve(process.env.KAKEIBO_E2E_ENV_CANONICAL);
-  }
-  return resolve(repoRoot, "../kakeibo-worktrees/preview/.env.local");
-}
-
-function resolveMainWorktreePath() {
+function listWorktrees() {
   const result = spawnSync("git", ["worktree", "list", "--porcelain"], {
     cwd: repoRoot,
+    encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
     shell: process.platform === "win32",
   });
 
   if (result.status !== 0) {
-    return null;
+    const stderr = result.stderr?.toString() ?? "";
+    throw new Error(
+      "git worktree list の取得に失敗しました。" + (stderr ? ` (${stderr.trim()})` : ""),
+    );
   }
 
-  const firstWorktreeLine = result.stdout
-    ?.toString()
-    .split(/\r?\n/)
-    .find((line) => line.startsWith("worktree "));
-
-  if (!firstWorktreeLine) {
-    return null;
-  }
-
-  return resolve(firstWorktreeLine.slice("worktree ".length));
+  return result.stdout
+    .trim()
+    .split(/\r?\n\r?\n/)
+    .map((block) => {
+      let path = null;
+      let branch = null;
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
+        if (line.startsWith("branch ")) branch = line.slice("branch ".length);
+      }
+      return path ? { path: resolve(path), branch } : null;
+    })
+    .filter(Boolean);
 }
 
-function ensureCanonicalEnv(canonicalPath) {
+function resolveCanonicalEnvPath(worktrees) {
+  if (process.env.KAKEIBO_E2E_ENV_CANONICAL) {
+    return resolve(process.env.KAKEIBO_E2E_ENV_CANONICAL);
+  }
+
+  const previewWorktree = worktrees.find(({ branch }) => branch === "refs/heads/preview");
+  if (!previewWorktree) {
+    throw new Error(
+      "preview worktree が見つかりません。\n" +
+        "初回のみ、元の clone で `git fetch origin preview && git worktree add ../kakeibo-worktrees/preview preview` を実行してください。\n" +
+        "ローカル E2E を未実行のまま先へ進めず、preview worktree を用意してから再実行してください。",
+    );
+  }
+
+  return resolve(previewWorktree.path, ".env.local");
+}
+
+function ensureCanonicalEnv(canonicalPath, worktrees) {
   if (existsSync(canonicalPath)) {
     return;
   }
@@ -68,32 +85,22 @@ function ensureCanonicalEnv(canonicalPath) {
     );
   }
 
-  const canonicalWorktree = dirname(canonicalPath);
-  if (!existsSync(canonicalWorktree)) {
+  const canonicalWorktree = resolve(dirname(canonicalPath));
+  const bootstrapWorktree = worktrees.find(({ path }) => {
+    const worktreePath = resolve(path);
+    return worktreePath !== canonicalWorktree && existsSync(resolve(worktreePath, ".env.local"));
+  });
+
+  if (!bootstrapWorktree) {
     throw new Error(
-      `preview 用 worktree が見つかりません: ${canonicalWorktree}\n` +
-        "初回のみ: git fetch origin preview && git worktree add ../kakeibo-worktrees/preview preview\n" +
-        "worktree を作成してから pnpm run e2e:env-sync を再実行してください。",
+      `preview worktree の正本 .env.local が見つかりません: ${canonicalPath}\n` +
+        "別の登録済み worktree にも .env.local がありません。元の clone に .env.local を配置するか、" +
+        "preview worktree へ手動でコピーしてから再実行してください。\n" +
+        "環境不足を理由に E2E を省略して push / PR へ進めないでください。",
     );
   }
 
-  const mainWorktree = resolveMainWorktreePath();
-  if (!mainWorktree) {
-    throw new Error(
-      "最初の worktree を特定できないため、preview 用 worktree の .env.local を bootstrap できません。",
-    );
-  }
-
-  const bootstrapPath = resolve(mainWorktree, ".env.local");
-  if (!existsSync(bootstrapPath)) {
-    throw new Error(
-      `正本 .env.local と bootstrap 元 .env.local が見つかりません。\n` +
-        `正本: ${canonicalPath}\n` +
-        `bootstrap 元: ${bootstrapPath}\n` +
-        "最初の worktree の .env.local を復旧してから再実行してください。E2E 未実行のまま先へ進まないでください。",
-    );
-  }
-
+  const bootstrapPath = resolve(bootstrapWorktree.path, ".env.local");
   copyFileSync(bootstrapPath, canonicalPath);
   console.log(`[e2e:env-sync] preview 正本 .env.local を bootstrap しました（元: ${bootstrapPath}）`);
 }
@@ -167,12 +174,13 @@ async function main() {
     return;
   }
 
-  const canonicalPath = resolveCanonicalEnvPath();
+  const worktrees = listWorktrees();
+  const canonicalPath = resolveCanonicalEnvPath(worktrees);
   const targetPath = resolve(repoRoot, ".env.local");
 
-  ensureCanonicalEnv(canonicalPath);
+  ensureCanonicalEnv(canonicalPath, worktrees);
 
-  if (canonicalPath !== targetPath) {
+  if (resolve(canonicalPath) !== targetPath) {
     copyFileSync(canonicalPath, targetPath);
     console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
   } else {
