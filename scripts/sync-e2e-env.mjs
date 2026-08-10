@@ -32,6 +32,72 @@ function resolveCanonicalEnvPath() {
   return resolve(repoRoot, "../kakeibo-worktrees/preview/.env.local");
 }
 
+function resolveMainWorktreePath() {
+  const result = spawnSync("git", ["worktree", "list", "--porcelain"], {
+    cwd: repoRoot,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+    shell: process.platform === "win32",
+  });
+
+  if (result.status !== 0) {
+    return null;
+  }
+
+  const firstWorktreeLine = result.stdout
+    ?.toString()
+    .split(/\r?\n/)
+    .find((line) => line.startsWith("worktree "));
+
+  if (!firstWorktreeLine) {
+    return null;
+  }
+
+  return resolve(firstWorktreeLine.slice("worktree ".length));
+}
+
+function ensureCanonicalEnv(canonicalPath) {
+  if (existsSync(canonicalPath)) {
+    return;
+  }
+
+  if (process.env.KAKEIBO_E2E_ENV_CANONICAL) {
+    throw new Error(
+      `指定された正本 .env.local が見つかりません: ${canonicalPath}\n` +
+        "KAKEIBO_E2E_ENV_CANONICAL のパスを修正し、.env.local を復旧してから再実行してください。",
+    );
+  }
+
+  const canonicalWorktree = dirname(canonicalPath);
+  if (!existsSync(canonicalWorktree)) {
+    throw new Error(
+      `preview 用 worktree が見つかりません: ${canonicalWorktree}\n` +
+        "初回のみ: git fetch origin preview && git worktree add ../kakeibo-worktrees/preview preview\n" +
+        "worktree を作成してから pnpm run e2e:env-sync を再実行してください。",
+    );
+  }
+
+  const mainWorktree = resolveMainWorktreePath();
+  if (!mainWorktree) {
+    throw new Error(
+      "最初の worktree を特定できないため、preview 用 worktree の .env.local を bootstrap できません。",
+    );
+  }
+
+  const bootstrapPath = resolve(mainWorktree, ".env.local");
+  if (!existsSync(bootstrapPath)) {
+    throw new Error(
+      `正本 .env.local と bootstrap 元 .env.local が見つかりません。\n` +
+        `正本: ${canonicalPath}\n` +
+        `bootstrap 元: ${bootstrapPath}\n` +
+        "最初の worktree の .env.local を復旧してから再実行してください。E2E 未実行のまま先へ進まないでください。",
+    );
+  }
+
+  copyFileSync(bootstrapPath, canonicalPath);
+  console.log(`[e2e:env-sync] preview 正本 .env.local を bootstrap しました（元: ${bootstrapPath}）`);
+}
+
 function loadLocalEnv() {
   const envPath = resolve(repoRoot, ".env.local");
   if (!existsSync(envPath)) {
@@ -45,10 +111,10 @@ async function verifyCleanupAuth(env) {
   const secret = env.get("E2E_CLEANUP_SECRET");
 
   if (!siteUrl || !secret) {
-    console.warn(
-      "[e2e:env-sync] cleanup 検証をスキップ（VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET が不足）",
+    throw new Error(
+      ".env.local に VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET が不足しています。" +
+        " 正本 .env.local を復旧して pnpm run e2e:env-sync を再実行してください。",
     );
-    return;
   }
 
   const res = await fetch(`${siteUrl}/e2e/cleanup-auth-check`, {
@@ -87,7 +153,8 @@ function syncConvexSecret(secret) {
     const stderr = result.stderr?.toString() ?? "";
     throw new Error(
       "convex env set E2E_CLEANUP_SECRET に失敗しました。" +
-        " CONVEX_DEPLOYMENT / ログイン状態を確認してください。" +
+        " CONVEX_DEPLOYMENT / ログイン状態を確認して再実行してください。" +
+        " この失敗を理由に E2E を省略しないでください。" +
         (stderr ? ` (${stderr.trim()})` : ""),
     );
   }
@@ -100,24 +167,17 @@ async function main() {
     return;
   }
 
-  if (process.env.E2E_SKIP_ENV_SYNC === "1") {
-    console.log("[e2e:env-sync] E2E_SKIP_ENV_SYNC=1 のためスキップ");
-    return;
-  }
-
   const canonicalPath = resolveCanonicalEnvPath();
   const targetPath = resolve(repoRoot, ".env.local");
 
-  if (!existsSync(canonicalPath)) {
-    throw new Error(
-      `正本 .env.local が見つかりません: ${canonicalPath}\n` +
-        "初回のみ: git fetch origin preview && git worktree add ../kakeibo-worktrees/preview preview\n" +
-        "preview worktree に .env.local を配置してから再実行してください（docs/development-process.md 参照）。",
-    );
-  }
+  ensureCanonicalEnv(canonicalPath);
 
-  copyFileSync(canonicalPath, targetPath);
-  console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
+  if (canonicalPath !== targetPath) {
+    copyFileSync(canonicalPath, targetPath);
+    console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
+  } else {
+    console.log(`[e2e:env-sync] 現在の .env.local を正本として使用します（${canonicalPath}）`);
+  }
 
   const env = loadLocalEnv();
   if (!env) {
