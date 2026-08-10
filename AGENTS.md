@@ -93,9 +93,11 @@ Codex Plan モードでは、ユーザーが Main に `gpt-5.6-sol` を選択し
    wait
    ```
 
-2. `convex/**`（`_generated/` 除く）を変更した場合、`pnpm exec convex dev --once` を実行する。
-3. `src/**` または `e2e/**` を変更した場合、`.env.local` を `pnpm run e2e:env-sync` で同期し、変更範囲に応じたローカル Playwright E2E を完走する。
-4. 実行不能な検証は成功扱いにせず、理由を Issue/PR に記録する。
+2. `convex/**`、`src/**`、`e2e/**` のいずれかを変更した worktree では、作成直後に `preview` 用 worktree の正本 `.env.local` をコピーする。正本が無い場合は `docs/development-process.md` の bootstrap 手順で復旧する。
+3. Convex 反映または E2E の直前には `pnpm run e2e:env-sync` を実行し、`.env.local` 同期、Convex `E2E_CLEANUP_SECRET` 反映、cleanup 認証確認まで成功させる。
+4. `convex/**`（`_generated/` 除く）を変更した場合、環境同期後に `pnpm exec convex dev --once` を成功させる。
+5. `src/**` または `e2e/**` を変更した場合、変更範囲に応じたローカル Playwright E2E を完走する。
+6. `.env.local` 不足、Convex CLI 認証不足、外部サービス障害、E2E 実行不能を「理由だけ記録して次へ進む」扱いにしない。必要な検証が成功するまで停止し、review、push、PR 作成へ進まない。
 
 push 前に変更対象に応じて専門 Skill を使い、指摘がなくなるまで修正・再検証する。
 
@@ -133,7 +135,9 @@ Plan モードで GitHub Issue またはマイルストーン対応を依頼さ�
 - GATE0 **Go** 前にソース、テスト、設定、docs を編集しない。
 - Main integrity check が通る前に E2E、検証、Reviewer へ進めない。
 - `code-review` **PASS** 前に push しない。
+- `convex/**`、`src/**`、`e2e/**` 変更で `.env.local` 同期と必要な Convex 反映が成功する前に後続検証へ進まない。
 - `src/**` / `e2e/**` 変更はローカル E2E 成功前に push しない。
+- 検証の失敗・実行不能を Issue / PR へ記録するだけでゲート通過扱いにしない。
 - 検証証拠なしで完了宣言しない。
 - 同一問題で2回失敗したら `stuck-advisor` を使う。
 - Must-fix / diff 内 Nice-to-have の修正対応が合算3回を超えたらユーザーへ ESCALATE する。
@@ -214,7 +218,8 @@ UI/UX変更時だけUX/UI Designerも確認する。必要な役割だけを読�
 - `convex/auth.config.ts` は deployment 側の `CLERK_JWT_ISSUER_DOMAIN` を必要とする。
 - 開発、Preview、CI では `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` と `APP_ENV=development` を使い、実 OpenAI API を呼ばない。
 - GUI/E2E の認証フローには実 Clerk 資格情報が必要。Google OAuth の手操作ではなく、Playwright と `@clerk/testing` の Testing Token を使う。
-- worktree では E2E 前に `pnpm run e2e:env-sync` を実行する。独自 secret で共有 dev deployment を上書きしない。
+- worktree 作成直後に `preview` 用 worktree の正本 `.env.local` をコピーする。正本が無い場合は最初の worktree の `.env.local` から bootstrap する。
+- Convex 反映または E2E の直前には `pnpm run e2e:env-sync` を成功させる。独自 secret で共有 dev deployment を上書きしたり、同期をバイパスしたりしない。
 - Playwright Chromium が未導入なら `pnpm exec playwright install chromium` を一度実行する。
 - E2E は単一 Clerk テストユーザーと共有 Dev DB を直列利用する。AI キュー系は過去ジョブの反映タイミングで稀に flaky になり、単発再実行で通る場合がある。
 - Clerk なしのバックエンド疎通は `docs/development-process.md` と既存 E2E HTTP handler の手順に従う。
