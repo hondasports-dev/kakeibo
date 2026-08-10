@@ -18,6 +18,7 @@ import {
   useGroupMembership,
 } from "./features/group-admin";
 import { SettingsPage } from "./features/settings";
+import { LineLinkCallbackPage } from "./features/settings/pages/LineLinkCallbackPage";
 import { AccountDeletionPage, AccountDeletionStatusPage } from "./features/account-deletion";
 import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
@@ -95,6 +96,10 @@ const appRoutes: RouteObject[] = [
   {
     path: "/settings",
     element: <SettingsPage />,
+  },
+  {
+    path: "/settings/line/callback",
+    element: <LineLinkCallbackPage />,
   },
   {
     path: "/guide",

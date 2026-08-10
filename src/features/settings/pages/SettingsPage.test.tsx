@@ -18,6 +18,10 @@ vi.mock("../components/WeekDaySettingsPanel", () => ({
   WeekDaySettingsPanel: () => <h2>週の設定</h2>,
 }));
 
+vi.mock("../components/LineLinkSettingsPanel", () => ({
+  LineLinkSettingsPanel: () => <h2>LINE連携</h2>,
+}));
+
 describe("SettingsPage", () => {
   it("h1 見出し「設定」が表示される", () => {
     renderWithProviders(
@@ -41,9 +45,9 @@ describe("SettingsPage", () => {
     ).toBeInTheDocument();
 
     const ledger = screen.getByTestId("settings-ledger");
-    expect(ledger.querySelectorAll(":scope > .settings-ledger-section")).toHaveLength(5);
+    expect(ledger.querySelectorAll(":scope > .settings-ledger-section")).toHaveLength(6);
     expect(
       screen.getAllByRole("heading", { level: 2 }).map((heading) => heading.textContent),
-    ).toEqual(["グループ", "カテゴリ", "週の設定", "アカウント", "危険な操作"]);
+    ).toEqual(["グループ", "カテゴリ", "週の設定", "LINE連携", "アカウント", "危険な操作"]);
   });
 });
