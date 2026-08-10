@@ -1,6 +1,6 @@
 ---
 name: verify-pre-push
-description: 変更パスに応じて基本4本、Convex 反映、ローカル E2E を実行し、push 可否を判定する。Plan 契約フェーズ3または push 前検証で使う。
+description: 変更パスに応じて基本4本、.env.local 同期、Convex 反映、ローカル E2E を実行し、push 可否を判定する。Plan 契約フェーズ3または push 前検証で使う。
 ---
 
 # push 前検証（Plan 契約フェーズ3）
@@ -35,23 +35,42 @@ pnpm test --run & pnpm run lint & pnpm run format:check & pnpm run build &
 wait
 ```
 
-### 2. `convex/**` 変更時（`_generated/` 除く）
+### 2. `.env.local` 同期（`convex/**`、`src/**`、`e2e/**` のいずれかを変更した場合）
+
+worktree では、作成直後に `preview` 用 worktree の正本 `.env.local` をコピーしてから作業する。
+正本がまだ無い場合は `docs/development-process.md` の bootstrap 手順で最初の worktree の
+`.env.local` から正本を復旧する。
+
+Convex 反映または E2E の直前には毎回、次を実行する。
+
+```bash
+pnpm run e2e:env-sync
+```
+
+`e2e:env-sync` は次をすべて完了させる必須ゲートとする。
+
+- `preview` 用 worktree の正本 `.env.local` を現在の worktree へコピー
+- Convex dev deployment へ `E2E_CLEANUP_SECRET` を反映
+- cleanup 認証の成功確認
+
+`.env.local` 不足、Convex CLI 認証不足、cleanup 認証失敗を理由にこの手順を省略しない。
+不足を復旧して再実行し、成功するまで後続へ進まない。秘密値の扱いは `service-ops-safety` に従う。
+
+### 3. `convex/**` 変更時（`_generated/` 除く）
+
+`.env.local` 同期の成功後に dev deployment へ変更を反映する。
 
 ```bash
 pnpm exec convex dev --once
 ```
 
-### 3. `src/**` または `e2e/**` 変更時
+失敗した場合は原因を解消して再実行する。失敗したままローカル E2E、review、push、PR 作成へ進まない。
 
-a. **`.env.local` 同期**（E2E 直前毎回。worktree 作成直後も同手順）
+### 4. `src/**` または `e2e/**` 変更時
 
-- 正本: `docs/development-process.md`「`.env.local` 同期」
-- **コマンド**: `pnpm run e2e:env-sync`（`pnpm run e2e` / `e2e:smoke` も先頭で実行）
-- 秘密値の扱いは `service-ops-safety` に従う
+a. **Playwright** — 未導入なら `pnpm exec playwright install chromium`
 
-b. **Playwright** — 未導入なら `pnpm exec playwright install chromium`
-
-c. **E2E 実行** — 変更範囲に応じて該当 spec / smoke / 全件
+b. **E2E 実行** — 変更範囲に応じて該当 spec / smoke / 全件
 
 ```bash
 pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
@@ -59,15 +78,20 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 pnpm run e2e -- --project=chromium
 ```
 
-実行不能な場合のみ Issue / PR に理由を記録し CI に委ねる（**成功扱いにしない**）。
+ローカル E2E が失敗または実行不能なら、原因を解消して再実行する。
+「実行不能理由を Issue / PR に記録して CI に委ねる」は完了条件にしない。
 
 ## 完了条件
 
-- 上記該当項目がすべて成功、または実行不能理由が記録済み
+- 上記の該当項目がすべて成功している
+- `.env.local` 同期、必要な Convex 反映、必要なローカル E2E の未完了項目がない
 - 次フェーズ: `code-review`（PASS まで push 禁止）
 
 ## 停止条件
 
-- 基本4本未実行で push しようとしている
-- `src/**` / `e2e/**` 変更でローカル E2E を CI 任せにしている
-- 検証失敗を成功扱いにしている
+- 基本4本が失敗または未実行
+- 正本 `.env.local` が無く、bootstrap / 同期が完了していない
+- `pnpm run e2e:env-sync` が失敗している
+- `convex/**` 変更で `pnpm exec convex dev --once` が成功していない
+- `src/**` / `e2e/**` 変更でローカル E2E が成功していない
+- 検証失敗や実行不能を記録だけして次フェーズ、push、PR 作成へ進もうとしている
