@@ -20,10 +20,14 @@ pnpm run e2e -- --project=chromium
 ```
 
 Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
-ローカルで必要なE2Eを実行します。Issue 用 worktree では先に
-`docs/development-process.md` の「`.env.local` 同期」を実施します。環境変数不足や
-外部サービス要因で実行できない場合は、
-成功扱いにせず、IssueまたはPRに未実行理由、未確認リスク、再実行条件を記録します。
+ローカルで必要なE2Eを実行します。Issue 用 worktree では作成直後に `preview` 用 worktree の
+正本 `.env.local` をコピーし、Convex 反映または E2E の直前には
+`pnpm run e2e:env-sync` を実行して `.env.local` 同期、Convex `E2E_CLEANUP_SECRET` 反映、
+cleanup 認証確認まで成功させます。正本が無い場合は `docs/development-process.md` の bootstrap 手順で復旧します。
+
+環境変数不足、Convex CLI 認証不足、Clerk/Convex/Vercel の一時的な問題で必要なローカル E2E が
+実行できない場合は、**その状態を理由として PR 作成や次フェーズへ進みません**。
+不足や障害を解消して同期・Convex 反映・E2E を再実行し、成功してから納品を続行します。
 
 ### テストケース判断
 
@@ -85,7 +89,7 @@ Clerk Dashboard で Restricted mode を有効にした状態での公開範囲�
 
 - [ ] 登録済みユーザー A が「Googleでログイン」からログインできること
 - [ ] Convex 認証が完了し、家計簿画面が表示されること
-- [ ] 登録済みユーザー B でも同様に確認できること
+- [ ] 招待済みユーザー B でも同様に確認できること
 
 ### QA-04: 未認証状態での Convex 関数アクセス拒否
 
@@ -111,7 +115,7 @@ Clerk Dashboard で Restricted mode を有効にした状態での公開範囲�
 | レベル   | 内容                             | 対応方針             |
 | -------- | -------------------------------- | -------------------- |
 | Critical | 招待していない人がログインできる | リリースブロック     |
-| Critical | 他グループのデータが見える       | リリースブロック     |
+| Critical | 他グループデータが見える       | リリースブロック     |
 | High     | invited user が登録できない      | リリースブロック     |
 | Medium   | ログアウト後の遷移が不正         | 修正してからリリース |
 | Low      | UI 表示の軽微なずれ              | 次のPRで対応可       |
