@@ -194,6 +194,14 @@ export async function cleanupUserMonthlyIncome(options?: CleanupOptions): Promis
   });
 }
 
+/** E2Eで作成したLINE連携・一時OAuth要求・監査記録をテストユーザー単位で削除する。 */
+export async function cleanupLineLink(options?: CleanupOptions): Promise<void> {
+  await callCleanupEndpoint({
+    ...(await resolveCleanupIdentity(options)),
+    clearLineLink: true,
+  });
+}
+
 /**
  * テストユーザーのグループ所属を削除する。
  */
@@ -300,6 +308,7 @@ async function callCleanupEndpoint(body: {
   clearE2eExpenseEntries?: boolean;
   clearGroupMemberships?: boolean;
   clearGroupInvitations?: boolean;
+  clearLineLink?: boolean;
   setGroupMemberRole?: "owner" | "member";
 }): Promise<void> {
   const siteUrl = process.env.VITE_CONVEX_SITE_URL;
@@ -341,6 +350,7 @@ async function callCleanupEndpoint(body: {
     expenseEntries?: { deletedCount: number } | null;
     groupMemberships?: { deletedCount: number } | null;
     groupInvitations?: { deletedCount: number } | null;
+    lineLink?: { deletedCount: number } | null;
   };
   const deletedCount = data.receipts?.deletedCount ?? data.deletedCount ?? 0;
   if (deletedCount > 0) {

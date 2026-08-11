@@ -31,6 +31,11 @@ import {
   transactionalEmailJobStatusValidator,
   transactionalEmailTypeValidator,
 } from "./email/model";
+import {
+  lineLinkAuditActionValidator,
+  lineLinkRequestStatusValidator,
+  lineLinkStatusValidator,
+} from "./lineLink/model";
 
 export default defineSchema({
   users: defineTable({
@@ -59,6 +64,44 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .searchIndex("search_display_name", { searchField: "displayName" })
     .searchIndex("search_email", { searchField: "email" }),
+
+  // LINE LoginはClerk認証を置き換えない外部連携として、tokenIdentifierで所有者を記録する。
+  // state/nonceはハッシュのみ保存し、LINE userIdはUI・監査ログへ露出しない。
+  lineLinkRequests: defineTable({
+    userId: v.string(),
+    stateHash: v.string(),
+    nonceHash: v.string(),
+    codeVerifier: v.string(),
+    status: lineLinkRequestStatusValidator,
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    claimedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_state_hash", ["stateHash"])
+    .index("by_user_id_and_expires_at", ["userId", "expiresAt"])
+    .index("by_expires_at", ["expiresAt"]),
+
+  lineAccountLinks: defineTable({
+    userId: v.string(),
+    lineUserId: v.string(),
+    status: lineLinkStatusValidator,
+    linkedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_user_id_and_status", ["userId", "status"])
+    .index("by_line_user_id_and_status", ["lineUserId", "status"]),
+
+  lineLinkAuditLogs: defineTable({
+    userId: v.string(),
+    action: lineLinkAuditActionValidator,
+    result: v.union(v.literal("success"), v.literal("failure")),
+    reasonCode: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user_id", ["userId"]),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { gotoAuthenticated } from "./helpers/auth";
-import { cleanupTestCategories } from "./helpers/cleanup";
+import { cleanupLineLink, cleanupTestCategories } from "./helpers/cleanup";
 
 test.describe("設定台帳（Issue #375）", () => {
   test.beforeEach(async ({ page }) => {
@@ -17,7 +17,14 @@ test.describe("設定台帳（Issue #375）", () => {
     await expect(ledger.getByText(/.+曜日 から .+曜日 まで/)).toBeVisible();
 
     const headings = await ledger.getByRole("heading", { level: 2 }).allTextContents();
-    expect(headings).toEqual(["グループ", "カテゴリ", "週の設定", "アカウント", "危険な操作"]);
+    expect(headings).toEqual([
+      "グループ",
+      "カテゴリ",
+      "週の設定",
+      "LINE連携",
+      "アカウント",
+      "危険な操作",
+    ]);
 
     const dangerTrigger = ledger.getByRole("button", { name: "危険な操作" });
     await expect(dangerTrigger).toHaveAttribute("aria-expanded", "false");
@@ -48,6 +55,35 @@ test.describe("設定台帳（Issue #375）", () => {
     await expect(page).toHaveURL("/categories");
     await expect(page.getByTestId("settings-ledger")).toBeVisible();
     await expect(page.getByRole("heading", { name: "カテゴリ", level: 2 })).toBeVisible();
+  });
+});
+
+test.describe("設定台帳（Issue #592 LINE連携）", () => {
+  test.beforeEach(async ({ page }) => {
+    await gotoAuthenticated(page, "/settings");
+    await cleanupLineLink({ page });
+  });
+
+  test.afterEach(async ({ page }) => {
+    await cleanupLineLink({ page });
+  });
+
+  test("@smoke mock OAuthで連携し、再読込後も確認ダイアログから解除できる", async ({ page }) => {
+    await expect(page.getByText("LINEアカウントは連携されていません")).toBeVisible();
+    await page.getByRole("button", { name: "LINEと連携する" }).click();
+    await expect(page).toHaveURL(/\/settings$/);
+    await expect(page.getByText("LINEアカウントを連携しました")).toBeVisible();
+    await expect(page.getByText("LINEアカウントは連携されています")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText("LINEアカウントは連携されています")).toBeVisible();
+    await page.getByRole("button", { name: "連携を解除する" }).click();
+    await expect(page.getByRole("dialog", { name: "LINE連携を解除しますか？" })).toBeVisible();
+    await page.getByRole("button", { name: "解除する" }).click();
+    await expect(page.getByText("LINEアカウントは連携されていません")).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText("LINEアカウントは連携されていません")).toBeVisible();
   });
 });
 
