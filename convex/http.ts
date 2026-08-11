@@ -1,5 +1,6 @@
 import { httpRouter } from "convex/server";
 import { resendWebhookHandler } from "./email/webhooks/resendWebhook";
+import { lineWebhookHandler } from "./lineWebhook/webhook";
 import { e2eCleanupHandler } from "./e2eHttp/e2eCleanup";
 import { e2eCleanupAuthCheckHandler } from "./e2eHttp/e2eAuth";
 import {
@@ -73,6 +74,11 @@ http.route({
   path: "/webhooks/resend",
   method: "POST",
   handler: resendWebhookHandler,
+});
+http.route({
+  path: "/webhooks/line",
+  method: "POST",
+  handler: lineWebhookHandler,
 });
 
 export default http;

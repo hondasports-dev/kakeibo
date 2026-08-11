@@ -569,6 +569,15 @@ export const finalizeAccountDeletion = internalMutation({
       await ctx.scheduler.runAfter(0, internal.accountDeletion.finalizeAccountDeletion, args);
       return;
     }
+    const lineWebhookEvents = await ctx.db
+      .query("lineWebhookEvents")
+      .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", request.userId))
+      .take(GROUP_BATCH_SIZE);
+    if (lineWebhookEvents.length > 0) {
+      for (const event of lineWebhookEvents) await ctx.db.delete(event._id);
+      await ctx.scheduler.runAfter(0, internal.accountDeletion.finalizeAccountDeletion, args);
+      return;
+    }
     if (request.recipientEmailSnapshot)
       await enqueueTransactionalEmailJobHandler(ctx, {
         templateType: "account_deletion_completed",

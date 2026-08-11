@@ -218,6 +218,55 @@ describe("account deletion group purge orchestration", () => {
     expect(jobId).toBeDefined();
   });
 
+  it("完了時に対象ユーザーへ紐づくLINE webhookイベントも削除する", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const userId = "https://clerk.example.test|account-delete-line-events";
+    const { requestId, userDbId } = await t.run(async (ctx) => {
+      const userDbId = await ctx.db.insert("users", {
+        userId,
+        displayName: "LINEイベント退会テスト",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const requestId = await ctx.db.insert("accountDeletionRequests", {
+        userId,
+        clerkUserId: "clerk-account-delete-line-events",
+        status: "identity_deleted",
+        leftGroupCount: 0,
+        deletedGroupCount: 0,
+        attemptCount: 0,
+        maxAttempts: 6,
+        createdAt: 1,
+        updatedAt: 1,
+        identityDeletedAt: 1,
+      });
+      await ctx.db.insert("lineWebhookEvents", {
+        webhookEventId: "account-delete-line-event",
+        eventType: "text",
+        delivery: "linked",
+        userId,
+        messageText: "退会対象",
+        createdAt: 1,
+      });
+      return { requestId, userDbId };
+    });
+
+    await t.mutation(internal.accountDeletion.finalizeAccountDeletion, { requestId });
+    await t.mutation(internal.accountDeletion.finalizeAccountDeletion, { requestId });
+
+    const state = await t.run(async (ctx) => ({
+      request: await ctx.db.get(requestId),
+      user: await ctx.db.get(userDbId),
+      events: await ctx.db
+        .query("lineWebhookEvents")
+        .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", userId))
+        .collect(),
+    }));
+    expect(state.request?.status).toBe("completed");
+    expect(state.user).toBeNull();
+    expect(state.events).toHaveLength(0);
+  });
+
   it("25件を超える共有membershipもページングで取りこぼさず離脱する", async () => {
     const t = convexTest(schema, convexTestModules);
     const userId = "https://clerk.example.test|account-delete-shared-batch";

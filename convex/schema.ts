@@ -36,6 +36,7 @@ import {
   lineLinkRequestStatusValidator,
   lineLinkStatusValidator,
 } from "./lineLink/model";
+import { lineWebhookDeliveryValidator, lineWebhookEventTypeValidator } from "./lineWebhook/model";
 
 export default defineSchema({
   users: defineTable({
@@ -102,6 +103,24 @@ export default defineSchema({
     reasonCode: v.optional(v.string()),
     createdAt: v.number(),
   }).index("by_user_id", ["userId"]),
+
+  // raw payload・署名・LINE userId・replyTokenはこのテーブルへ保存せず、allowlistだけを保持する。
+  // replyTokenはclaimと原子化した案内送信ジョブの引数としてのみ渡す。
+  lineWebhookEvents: defineTable({
+    webhookEventId: v.string(),
+    eventType: lineWebhookEventTypeValidator,
+    delivery: lineWebhookDeliveryValidator,
+    userId: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    messageText: v.optional(v.string()),
+    postbackData: v.optional(v.string()),
+    eventTimestamp: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_webhook_event_id", ["webhookEventId"])
+    .index("by_user_id_and_created_at", ["userId", "createdAt"])
+    .index("by_delivery_and_created_at", ["delivery", "createdAt"])
+    .index("by_created_at", ["createdAt"]),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）

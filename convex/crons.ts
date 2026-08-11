@@ -11,6 +11,13 @@ crons.interval(
 );
 
 crons.interval(
+  "cleanup LINE webhook events",
+  { hours: 24 },
+  internal.lineWebhook.cleanup.cleanupOldEvents,
+  {},
+);
+
+crons.interval(
   "cleanup completed account deletion requests",
   { hours: 24 },
   internal.accountDeletion.cleanupCompletedRequests,
