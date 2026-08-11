@@ -14,7 +14,7 @@ function decodeBase64(value: string): Uint8Array | null {
 }
 
 export async function verifyLineSignature(
-  rawBody: string,
+  rawBody: Uint8Array,
   signature: string,
   channelSecret: string,
 ): Promise<boolean> {
@@ -23,6 +23,8 @@ export async function verifyLineSignature(
   if (!signatureBytes || signatureBytes.byteLength !== 32) return false;
   const signatureBuffer = new ArrayBuffer(signatureBytes.byteLength);
   new Uint8Array(signatureBuffer).set(signatureBytes);
+  const rawBodyBuffer = new ArrayBuffer(rawBody.byteLength);
+  new Uint8Array(rawBodyBuffer).set(rawBody);
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -31,10 +33,5 @@ export async function verifyLineSignature(
     false,
     ["verify"],
   );
-  return crypto.subtle.verify(
-    HMAC_ALGORITHM,
-    key,
-    signatureBuffer,
-    new TextEncoder().encode(rawBody),
-  );
+  return crypto.subtle.verify(HMAC_ALGORITHM, key, signatureBuffer, rawBodyBuffer);
 }

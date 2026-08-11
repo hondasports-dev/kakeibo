@@ -78,13 +78,16 @@ function readOptionalTimestamp(value: unknown): number | undefined {
   return value;
 }
 
-function readSourceUserId(event: Record<string, unknown>): string {
+function readSourceUserId(event: Record<string, unknown>): string | null {
   const source = event.source;
   if (!isRecord(source)) throw new LineWebhookPayloadError();
   const sourceType = readRequiredString(source.type, 16);
   if (sourceType !== "user" && sourceType !== "group" && sourceType !== "room") {
     throw new LineWebhookPayloadError();
   }
+  // kakeiboのLINE連携は1:1のuser sourceだけを対象にする。
+  // group/roomはuserIdが省略される正当なpayloadがあるため、payload全体を400にせず無視する。
+  if (sourceType !== "user") return null;
   return readRequiredString(source.userId, MAX_LINE_USER_ID_LENGTH);
 }
 
@@ -100,10 +103,11 @@ function parseEvent(event: unknown): LineWebhookEventInput | null {
   const eventTimestamp = readOptionalTimestamp(event.timestamp);
 
   if (eventType === "message") {
+    const lineUserId = readSourceUserId(event);
+    if (lineUserId === null) return null;
     if (!isRecord(event.message)) throw new LineWebhookPayloadError();
     const messageType = readRequiredString(event.message.type, 32);
     const messageId = readRequiredString(event.message.id, MAX_MESSAGE_ID_LENGTH);
-    const lineUserId = readSourceUserId(event);
     const replyToken = readReplyToken(event);
 
     if (messageType === "text") {
@@ -135,8 +139,9 @@ function parseEvent(event: unknown): LineWebhookEventInput | null {
   }
 
   if (eventType === "postback") {
-    if (!isRecord(event.postback)) throw new LineWebhookPayloadError();
     const lineUserId = readSourceUserId(event);
+    if (lineUserId === null) return null;
+    if (!isRecord(event.postback)) throw new LineWebhookPayloadError();
     const replyToken = readReplyToken(event);
     const postbackData = readRequiredString(event.postback.data, MAX_POSTBACK_DATA_LENGTH);
     return {
@@ -151,6 +156,7 @@ function parseEvent(event: unknown): LineWebhookEventInput | null {
 
   if (eventType === "follow" || eventType === "unfollow") {
     const lineUserId = readSourceUserId(event);
+    if (lineUserId === null) return null;
     const replyToken = readReplyToken(event);
     return {
       webhookEventId,

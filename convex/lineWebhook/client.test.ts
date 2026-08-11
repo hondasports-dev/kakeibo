@@ -44,6 +44,30 @@ describe("LINE messaging client", () => {
     }
   });
 
+  it("案内送信のprovider errorはbounded retryを予約する", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token",
+    });
+    const fetchImpl = vi.fn().mockRejectedValue(new Error("provider unavailable"));
+    const runAfter = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      await expect(
+        sendUnlinkedGuideHandler({ scheduler: { runAfter } } as unknown as ActionCtx, {
+          replyToken: "reply-token",
+        }),
+      ).resolves.toBeNull();
+      expect(runAfter).toHaveBeenCalledWith(1_000, expect.anything(), {
+        replyToken: "reply-token",
+        attempt: 1,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      restore();
+    }
+  });
+
   it("real modeではserver-side access tokenで固定案内を送る", async () => {
     const restore = setEnvironment({
       LINE_INTEGRATION_MODE: "real",

@@ -31,7 +31,7 @@ describe("LINE webhook event claim", () => {
 
     await expect(
       t.mutation(internal.lineWebhook.internal.claimEvents, { events: [linkedEvent] }),
-    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 0, guideReplies: [] });
+    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 0 });
 
     const events = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
     expect(events).toHaveLength(1);
@@ -60,11 +60,7 @@ describe("LINE webhook event claim", () => {
           },
         ],
       }),
-    ).resolves.toEqual({
-      claimedCount: 1,
-      duplicateCount: 0,
-      guideReplies: [{ replyToken: "reply-token-private" }],
-    });
+    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 1 });
 
     const events = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
     expect(events).toHaveLength(1);
@@ -86,12 +82,33 @@ describe("LINE webhook event claim", () => {
       events: [{ ...linkedEvent, lineUserId: "line-user-unlinked" }],
     });
 
-    expect(first).toEqual({
-      claimedCount: 1,
-      duplicateCount: 0,
-      guideReplies: [{ replyToken: "reply-token-private" }],
-    });
-    expect(second).toEqual({ claimedCount: 0, duplicateCount: 1, guideReplies: [] });
+    expect(first).toEqual({ claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 1 });
+    expect(second).toEqual({ claimedCount: 0, duplicateCount: 1, scheduledGuideCount: 0 });
+    await expect(
+      t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect()),
+    ).resolves.toHaveLength(1);
+  });
+
+  it("同一payload内のwebhookEventId重複は1件だけclaim・案内予約する", async () => {
+    const t = convexTest(schema, convexTestModules);
+
+    await expect(
+      t.mutation(internal.lineWebhook.internal.claimEvents, {
+        events: [
+          {
+            ...linkedEvent,
+            webhookEventId: "event-batch-duplicate",
+            lineUserId: "line-user-unlinked",
+          },
+          {
+            ...linkedEvent,
+            webhookEventId: "event-batch-duplicate",
+            lineUserId: "line-user-unlinked",
+          },
+        ],
+      }),
+    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 1, scheduledGuideCount: 1 });
+
     await expect(
       t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect()),
     ).resolves.toHaveLength(1);
@@ -117,10 +134,7 @@ describe("LINE webhook event claim", () => {
           { ...linkedEvent, webhookEventId: "event-revoked", lineUserId: "line-user-revoked" },
         ],
       }),
-    ).resolves.toMatchObject({
-      claimedCount: 1,
-      guideReplies: [{ replyToken: "reply-token-private" }],
-    });
+    ).resolves.toMatchObject({ claimedCount: 1, scheduledGuideCount: 1 });
   });
 
   it("同じLINE userに異なるactive userが残る不整合時は解決せず案内へ回す", async () => {
@@ -148,10 +162,7 @@ describe("LINE webhook event claim", () => {
           },
         ],
       }),
-    ).resolves.toMatchObject({
-      claimedCount: 1,
-      guideReplies: [{ replyToken: "reply-token-private" }],
-    });
+    ).resolves.toMatchObject({ claimedCount: 1, scheduledGuideCount: 1 });
     const [event] = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
     expect(event?.userId).toBeUndefined();
   });

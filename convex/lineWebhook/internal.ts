@@ -1,4 +1,5 @@
 import { ConvexError, v } from "convex/values";
+import { internal } from "../_generated/api";
 import { internalMutation } from "../_generated/server";
 import { lineWebhookEventInputValidator, MAX_EVENTS_PER_REQUEST } from "./model";
 
@@ -9,7 +10,7 @@ export const claimEvents = internalMutation({
   returns: v.object({
     claimedCount: v.number(),
     duplicateCount: v.number(),
-    guideReplies: v.array(v.object({ replyToken: v.string() })),
+    scheduledGuideCount: v.number(),
   }),
   handler: async (ctx, args) => {
     if (args.events.length > MAX_EVENTS_PER_REQUEST) {
@@ -18,9 +19,16 @@ export const claimEvents = internalMutation({
 
     let claimedCount = 0;
     let duplicateCount = 0;
-    const guideReplies: Array<{ replyToken: string }> = [];
+    let scheduledGuideCount = 0;
+    const seenEventIds = new Set<string>();
 
     for (const event of args.events) {
+      if (seenEventIds.has(event.webhookEventId)) {
+        duplicateCount += 1;
+        continue;
+      }
+      seenEventIds.add(event.webhookEventId);
+
       // 既存データに重複があってもWebhook再送処理自体は継続できるようfirstを使う。
       const duplicate = await ctx.db
         .query("lineWebhookEvents")
@@ -60,11 +68,18 @@ export const claimEvents = internalMutation({
           delivery: "unlinked",
           createdAt: now,
         });
-        if (event.replyToken) guideReplies.push({ replyToken: event.replyToken });
+        if (event.replyToken) {
+          // claimと予約を同じmutationで行う。予約に失敗した場合はinsertも
+          // ロールバックされ、LINE再送時に案内を取りこぼさない。
+          await ctx.scheduler.runAfter(0, internal.lineWebhook.actions.sendUnlinkedGuide, {
+            replyToken: event.replyToken,
+          });
+          scheduledGuideCount += 1;
+        }
       }
       claimedCount += 1;
     }
 
-    return { claimedCount, duplicateCount, guideReplies };
+    return { claimedCount, duplicateCount, scheduledGuideCount };
   },
 });

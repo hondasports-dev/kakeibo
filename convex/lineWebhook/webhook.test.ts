@@ -1,4 +1,3 @@
-import type { ActionCtx } from "../_generated/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createLineWebhookHandler, MAX_RAW_BODY_BYTES } from "./webhook";
 
@@ -15,17 +14,34 @@ class MockResponse {
 }
 
 function createActionCtx(
-  mutationResult = { claimedCount: 1, duplicateCount: 0, guideReplies: [] },
+  mutationResult = { claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 0 },
 ) {
   return {
     runMutation: vi.fn().mockResolvedValue(mutationResult),
     scheduler: { runAfter: vi.fn().mockResolvedValue(undefined) },
-  } as unknown as ActionCtx;
+  };
 }
 
-function createRequest(body: string, signature: string | null = "signature") {
+function createRequest(
+  body: string,
+  signature: string | null = "signature",
+  options: { chunks?: Uint8Array[]; onRead?: () => void; onCancel?: () => void } = {},
+) {
+  const bytes = new TextEncoder().encode(body);
+  const chunks = options.chunks ?? [bytes];
+  let chunkIndex = 0;
   return {
-    text: () => Promise.resolve(body),
+    body: new ReadableStream<Uint8Array>({
+      pull(controller) {
+        options.onRead?.();
+        const chunk = chunks[chunkIndex++];
+        if (chunk) controller.enqueue(chunk);
+        else controller.close();
+      },
+      cancel() {
+        options.onCancel?.();
+      },
+    }),
     headers: { get: (name: string) => (name === "x-line-signature" ? signature : null) },
   };
 }
@@ -36,13 +52,12 @@ describe("LINE webhook HTTP handler", () => {
     (globalThis as any).Response = MockResponse;
   });
 
-  it("署名検証後にraw payloadを正規化し、未連携案内をscheduleする", async () => {
-    const scheduleGuide = vi.fn().mockResolvedValue(undefined);
+  it("署名検証後にraw payloadを正規化してclaim mutationを実行する", async () => {
     const verifySignature = vi.fn().mockResolvedValue(true);
     const ctx = createActionCtx({
       claimedCount: 1,
       duplicateCount: 0,
-      guideReplies: [{ replyToken: "reply-token" }],
+      scheduledGuideCount: 1,
     });
     const rawBody = JSON.stringify({
       events: [
@@ -54,12 +69,20 @@ describe("LINE webhook HTTP handler", () => {
         },
       ],
     });
-    const handler = createLineWebhookHandler(verifySignature, scheduleGuide);
+    const handler = createLineWebhookHandler(verifySignature);
 
     const response = (await asAny(handler)(ctx, createRequest(rawBody))) as MockResponse;
 
     expect(response.status).toBe(200);
-    expect(verifySignature).toHaveBeenCalledWith(rawBody, "signature", "channel-secret");
+    expect(verifySignature).toHaveBeenCalledTimes(1);
+    const [receivedBody, receivedSignature, receivedSecret] = verifySignature.mock.calls[0] as [
+      Uint8Array,
+      string,
+      string,
+    ];
+    expect(Array.from(receivedBody)).toEqual(Array.from(new TextEncoder().encode(rawBody)));
+    expect(receivedSignature).toBe("signature");
+    expect(receivedSecret).toBe("channel-secret");
     expect(ctx.runMutation).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({
@@ -72,7 +95,7 @@ describe("LINE webhook HTTP handler", () => {
         ],
       }),
     );
-    expect(scheduleGuide).toHaveBeenCalledWith(ctx, "reply-token");
+    expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -108,11 +131,27 @@ describe("LINE webhook HTTP handler", () => {
     const ctx = createActionCtx();
     const verifySignature = vi.fn().mockResolvedValue(true);
     const handler = createLineWebhookHandler(verifySignature);
-    const rawBody = "x".repeat(MAX_RAW_BODY_BYTES + 1);
+    const firstChunk = new Uint8Array(MAX_RAW_BODY_BYTES - 1);
+    const secondChunk = new Uint8Array(2);
+    let readCount = 0;
+    let cancelled = false;
 
-    const response = (await asAny(handler)(ctx, createRequest(rawBody))) as MockResponse;
+    const response = (await asAny(handler)(
+      ctx,
+      createRequest("", "signature", {
+        chunks: [firstChunk, secondChunk, new Uint8Array([1])],
+        onRead: () => {
+          readCount += 1;
+        },
+        onCancel: () => {
+          cancelled = true;
+        },
+      }),
+    )) as MockResponse;
 
     expect(response.status).toBe(413);
+    expect(cancelled).toBe(true);
+    expect(readCount).toBeLessThan(3);
     expect(verifySignature).not.toHaveBeenCalled();
     expect(ctx.runMutation).not.toHaveBeenCalled();
   });

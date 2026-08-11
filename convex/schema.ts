@@ -104,7 +104,8 @@ export default defineSchema({
     createdAt: v.number(),
   }).index("by_user_id", ["userId"]),
 
-  // raw payload・署名・reply token・LINE userIdは保存せず、後続処理用のallowlistだけを保持する。
+  // raw payload・署名・LINE userId・replyTokenはこのテーブルへ保存せず、allowlistだけを保持する。
+  // replyTokenはclaimと原子化した案内送信ジョブの引数としてのみ渡す。
   lineWebhookEvents: defineTable({
     webhookEventId: v.string(),
     eventType: lineWebhookEventTypeValidator,
@@ -118,7 +119,8 @@ export default defineSchema({
   })
     .index("by_webhook_event_id", ["webhookEventId"])
     .index("by_user_id_and_created_at", ["userId", "createdAt"])
-    .index("by_delivery_and_created_at", ["delivery", "createdAt"]),
+    .index("by_delivery_and_created_at", ["delivery", "createdAt"])
+    .index("by_created_at", ["createdAt"]),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）

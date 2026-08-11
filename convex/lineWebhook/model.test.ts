@@ -83,6 +83,29 @@ describe("parseLineWebhookPayload", () => {
     ).toEqual([]);
   });
 
+  it("group/room sourceは1:1連携の対象外としてpayload全体を拒否せず無視する", () => {
+    expect(
+      parseLineWebhookPayload({
+        events: [
+          { type: "follow", webhookEventId: "event-group", source: { type: "group" } },
+          {
+            type: "message",
+            webhookEventId: "event-room",
+            source: { type: "room" },
+            message: { type: "text", id: "message-room", text: "対象外" },
+          },
+          { type: "follow", webhookEventId: "event-user", source },
+        ],
+      }),
+    ).toEqual([
+      {
+        webhookEventId: "event-user",
+        eventType: "follow",
+        lineUserId: "line-user-private",
+      },
+    ]);
+  });
+
   it.each([
     ["eventsがない", {}],
     ["event idがない", { events: [{ type: "follow", source }] }],
