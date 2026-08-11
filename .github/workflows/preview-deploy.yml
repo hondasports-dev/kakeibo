@@ -66,6 +66,9 @@ jobs:
       - name: Test
         run: pnpm test --run
 
+      - name: Configure Preview Convex integration mode
+        run: pnpm exec convex env set LINE_INTEGRATION_MODE mock
+
       - name: Build Convex staging and Vercel output
         run: |
           pnpm exec convex deploy \
