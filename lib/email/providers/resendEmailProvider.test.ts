@@ -38,12 +38,11 @@ describe("createResendEmailProvider", () => {
   });
 
   it("returns retryable error on 500", async () => {
-    const sendEmail = vi.fn(
-      (): Promise<CreateEmailResponse> =>
-        Promise.resolve({
-          data: null,
-          error: { statusCode: 500, message: "Internal server error" } as any,
-        }),
+    const sendEmail = vi.fn((): Promise<CreateEmailResponse> =>
+      Promise.resolve({
+        data: null,
+        error: { statusCode: 500, message: "Internal server error" } as any,
+      }),
     );
     const provider = createResendEmailProvider({ from: input.from, sendEmail });
 
@@ -57,12 +56,11 @@ describe("createResendEmailProvider", () => {
   });
 
   it("returns non-retryable error on invalid request", async () => {
-    const sendEmail = vi.fn(
-      (): Promise<CreateEmailResponse> =>
-        Promise.resolve({
-          data: null,
-          error: { statusCode: 422, message: "Invalid email" } as any,
-        }),
+    const sendEmail = vi.fn((): Promise<CreateEmailResponse> =>
+      Promise.resolve({
+        data: null,
+        error: { statusCode: 422, message: "Invalid email" } as any,
+      }),
     );
     const provider = createResendEmailProvider({ from: input.from, sendEmail });
 
@@ -76,8 +74,8 @@ describe("createResendEmailProvider", () => {
   });
 
   it("returns retryable error when send throws", async () => {
-    const sendEmail = vi.fn(
-      (): Promise<CreateEmailResponse> => Promise.reject(new Error("network timeout")),
+    const sendEmail = vi.fn((): Promise<CreateEmailResponse> =>
+      Promise.reject(new Error("network timeout")),
     );
     const provider = createResendEmailProvider({ from: input.from, sendEmail });
 
