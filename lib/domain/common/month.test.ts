@@ -39,14 +39,14 @@ describe("addMonths", () => {
     ["0099-12", 1, "0100-01"],
     ["0100-01", -1, "0099-12"],
     ["9999-11", 1, "9999-12"],
-  ])("年の下位4桁を保ったまま月を移動する: %s %+d", (month, amount, expected) => {
+  ])("年の下位4桁を保ったまま月を移動する: %s (%d)", (month, amount, expected) => {
     expect(addMonths(month, amount)).toBe(expected);
   });
 
   it.each([
     ["0001-01", -1],
     ["9999-12", 1],
-  ])("0001〜9999の範囲外への移動を拒否する: %s %+d", (month, amount) => {
+  ])("0001〜9999の範囲外への移動を拒否する: %s (%d)", (month, amount) => {
     expect(() => addMonths(month, amount)).toThrow(`Invalid month: ${month}`);
   });
 });

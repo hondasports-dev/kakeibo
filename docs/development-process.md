@@ -614,7 +614,7 @@ PR をマージします。
   `DEV_VITE_CONVEX_SITE_URL` / `DEV_E2E_CLEANUP_SECRET` を使う
 - `preview-deploy.yml` は固定 staging deployment 用の `vars.VITE_CONVEX_SITE_URL` /
   `secrets.E2E_CLEANUP_SECRET` を使う。dev と staging の URL / secret を混在させない
-- 対象 deployment の `APP_ENV` が未設定・未知値・production の場合、`convex/http.ts`（実装は
+- 対象 deployment の `APP_ENV` が未設定・未知値・preview・production の場合、`convex/http.ts`（実装は
   `convex/e2eHttp/`）の E2E ルートは登録されず404になる。`APP_ENV=development` でルートが登録された後に
   `E2E_CLERK_USER_ID` / `E2E_CLEANUP_SECRET` が未設定の場合は handler が503を返すため、dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
