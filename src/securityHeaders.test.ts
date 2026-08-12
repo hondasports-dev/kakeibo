@@ -17,6 +17,7 @@ const securityHeaders = new Map(
     entry.headers.map((header) => [header.key, header.value]),
   ) ?? [],
 );
+const contentSecurityPolicy = securityHeaders.get("Content-Security-Policy") ?? "";
 
 describe("Vercel security headers", () => {
   it("全パスにブラウザ防御ヘッダーを適用する", () => {
@@ -29,5 +30,17 @@ describe("Vercel security headers", () => {
     expect(securityHeaders.get("X-Frame-Options")).toBe("DENY");
     expect(securityHeaders.get("Referrer-Policy")).toBe("strict-origin-when-cross-origin");
     expect(securityHeaders.get("Permissions-Policy")).toContain("camera=()");
+  });
+
+  it("ClerkのブラウザSDKを許可されたドメインから読み込める", () => {
+    const scriptSource = contentSecurityPolicy
+      .split(";")
+      .map((directive) => directive.trim())
+      .find((directive) => directive.startsWith("script-src "));
+
+    expect(scriptSource).toContain("'self'");
+    expect(scriptSource).toContain("https://*.clerk.accounts.dev");
+    expect(scriptSource).toContain("https://*.clerk.accounts.com");
+    expect(scriptSource).toContain("https://*.clerk.com");
   });
 });
