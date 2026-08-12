@@ -53,17 +53,15 @@ export function useAiExpenseQueueData({
   const processingItems = useMemo(() => {
     return (jobs ?? [])
       .filter((job) => job.status === "queued" || job.status === "running")
-      .map(
-        (job): AiExpenseQueueItem => ({
-          id: job._id,
-          fileName: job.fileName,
-          jobId: job._id,
-          batchId: job.batchId,
-          previewImageDataUrl: pendingImageDataUrls.get(job._id),
-          status: job.status === "queued" ? "queued" : "analyzing",
-          documentType: "unknown",
-        }),
-      );
+      .map((job): AiExpenseQueueItem => ({
+        id: job._id,
+        fileName: job.fileName,
+        jobId: job._id,
+        batchId: job.batchId,
+        previewImageDataUrl: pendingImageDataUrls.get(job._id),
+        status: job.status === "queued" ? "queued" : "analyzing",
+        documentType: "unknown",
+      }));
   }, [jobs, pendingImageDataUrls]);
 
   const initialItemsWithSessionData = useMemo(
