@@ -4,7 +4,16 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { analyzeImageJobHandler, checkAiReviewRequiredHandler } from "./actions";
-import { updateJobStatusHandler } from "./internal";
+import {
+  countNeedsReviewJobsByBatchIdHandler,
+  deleteReceiptAnalysisDataByUserBatchHandler,
+  finalizeBatchStatusHandler,
+  getBatchByIdHandler,
+  getJobByIdHandler,
+  incrementBatchProcessedCountHandler,
+  scheduleAiReviewNotificationIfNeeded,
+  updateJobStatusHandler,
+} from "./internal";
 import { cancelImageJobHandler, createBatchHandler, retryImageJobHandler } from "./mutations";
 import { listBatchesHandler, listJobsByBatchHandler } from "./queries";
 
@@ -203,6 +212,46 @@ async function withEnv(
 }
 
 const VALID_IMAGE_DATA_URL = "data:image/jpeg;base64," + "A".repeat(100);
+
+function createInternalCtx({
+  docs = {},
+  jobs = [],
+  batches = [],
+}: {
+  docs?: Record<string, unknown>;
+  jobs?: unknown[];
+  batches?: unknown[];
+} = {}) {
+  const get = vi.fn().mockImplementation(async (id: string) => docs[id] ?? null);
+  const patch = vi.fn().mockResolvedValue(undefined);
+  const remove = vi.fn().mockResolvedValue(undefined);
+  const runAfter = vi.fn().mockResolvedValue(undefined);
+  const query = vi.fn().mockImplementation((tableName: string) => ({
+    withIndex: vi
+      .fn()
+      .mockImplementation((_indexName: string, builder?: (q: unknown) => unknown) => {
+        const q = {
+          eq: vi.fn().mockImplementation(() => q),
+        };
+        builder?.(q);
+        const rows = tableName === "receiptAnalysisBatches" ? batches : jobs;
+        return {
+          order: vi.fn().mockReturnThis(),
+          collect: vi.fn().mockResolvedValue(rows),
+          take: vi
+            .fn()
+            .mockImplementation(async (limit: number) =>
+              tableName === "receiptAnalysisBatches" ? rows.slice(0, limit) : rows,
+            ),
+        };
+      }),
+  }));
+
+  return {
+    db: { get, patch, delete: remove, query },
+    scheduler: { runAfter },
+  } as unknown as MutationCtx & QueryCtx;
+}
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -473,6 +522,126 @@ describe("updateJobStatusHandler", () => {
     });
 
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
+  });
+});
+
+describe("receipt analysis internal handlers", () => {
+  it("batch/job取得とneeds_review件数を処理する", async () => {
+    const batch = { _id: "batch-1", processedCount: 0, totalCount: 2 };
+    const job = { _id: "job-1", batchId: "batch-1", status: "needs_review" };
+    const ctx = createInternalCtx({
+      docs: { "batch-1": batch, "job-1": job },
+      jobs: [job, { status: "ready" }],
+    });
+
+    await expect(
+      getBatchByIdHandler(ctx, { batchId: "batch-1" as Id<"receiptAnalysisBatches"> }),
+    ).resolves.toBe(batch);
+    await expect(
+      getJobByIdHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> }),
+    ).resolves.toBe(job);
+    await expect(
+      countNeedsReviewJobsByBatchIdHandler(ctx, {
+        batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+      }),
+    ).resolves.toBe(1);
+    await expect(
+      getJobByIdHandler(createInternalCtx(), {
+        jobId: "missing" as Id<"receiptAnalysisImageJobs">,
+      }),
+    ).rejects.toThrow("Job not found");
+  });
+
+  it("終端状態で未スケジュールのbatchだけ通知を予約する", async () => {
+    const ctx = createInternalCtx({
+      docs: { "batch-1": { _id: "batch-1" } },
+    });
+
+    await scheduleAiReviewNotificationIfNeeded(ctx, {
+      batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+      status: "running",
+    });
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+
+    await scheduleAiReviewNotificationIfNeeded(ctx, {
+      batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+      status: "failed",
+    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "batch-1",
+      expect.objectContaining({ aiReviewNotificationScheduledAt: expect.any(Number) }),
+    );
+    expect(ctx.scheduler.runAfter).toHaveBeenCalledTimes(1);
+
+    await scheduleAiReviewNotificationIfNeeded(ctx, {
+      batchId: "missing" as Id<"receiptAnalysisBatches">,
+      status: "failed",
+    });
+  });
+
+  it("batch処理件数を増やし、未完了・実行中・失敗の状態を分岐する", async () => {
+    const ctx = createInternalCtx({
+      docs: {
+        "batch-1": { _id: "batch-1", processedCount: 0, totalCount: 1 },
+        "batch-incomplete": { _id: "batch-incomplete", processedCount: 0, totalCount: 2 },
+        "batch-running": { _id: "batch-running", processedCount: 1, totalCount: 1 },
+        "batch-failed": { _id: "batch-failed", processedCount: 1, totalCount: 1 },
+      },
+      jobs: [{ status: "failed" }],
+    });
+
+    await incrementBatchProcessedCountHandler(ctx, {
+      batchId: "batch-1" as Id<"receiptAnalysisBatches">,
+    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "batch-1",
+      expect.objectContaining({ processedCount: 1, status: "running" }),
+    );
+    await expect(
+      incrementBatchProcessedCountHandler(createInternalCtx(), {
+        batchId: "missing" as Id<"receiptAnalysisBatches">,
+      }),
+    ).rejects.toThrow("Batch not found");
+
+    await finalizeBatchStatusHandler(ctx, {
+      batchId: "batch-incomplete" as Id<"receiptAnalysisBatches">,
+    });
+    await finalizeBatchStatusHandler(ctx, {
+      batchId: "batch-running" as Id<"receiptAnalysisBatches">,
+    });
+    await finalizeBatchStatusHandler(ctx, {
+      batchId: "batch-failed" as Id<"receiptAnalysisBatches">,
+    });
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "batch-failed",
+      expect.objectContaining({ status: "partially_failed" }),
+    );
+    await finalizeBatchStatusHandler(ctx, {
+      batchId: "missing" as Id<"receiptAnalysisBatches">,
+    });
+    await expect(
+      updateJobStatusHandler(createInternalCtx(), {
+        jobId: "missing" as Id<"receiptAnalysisImageJobs">,
+        status: "ready",
+      }),
+    ).rejects.toThrow("Job not found");
+  });
+
+  it("ユーザー所有の解析データを上限付きで削除する", async () => {
+    const ctx = createInternalCtx({
+      batches: [{ _id: "batch-1" }, { _id: "batch-2" }],
+      jobs: [{ _id: "job-1" }, { _id: "job-2" }],
+    });
+
+    await expect(
+      deleteReceiptAnalysisDataByUserBatchHandler(ctx, {
+        groupId: "group-1" as Id<"groups">,
+        userId: "user-1",
+        limit: 1,
+      }),
+    ).resolves.toEqual({ deletedBatchCount: 1, deletedJobCount: 2, hasMore: true });
+    expect(ctx.db.delete).toHaveBeenCalledWith("job-1");
+    expect(ctx.db.delete).toHaveBeenCalledWith("batch-1");
   });
 });
 

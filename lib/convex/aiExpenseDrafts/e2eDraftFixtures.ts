@@ -3,11 +3,13 @@ import type { Id } from "../../../convex/_generated/dataModel";
 
 export type DeleteDraftsByUserBatchArgs = {
   groupId: Id<"groups">;
+  userId: string;
   limit?: number;
 };
 
 export type CreateE2eReadyDraftForUserArgs = {
   groupId: Id<"groups">;
+  createdByUserId: string;
   categoryId: Id<"categories">;
   secondaryCategoryId?: Id<"categories">;
 };
@@ -49,7 +51,9 @@ export async function deleteDraftsByUserBatchHandler(
   const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
   const drafts = await ctx.db
     .query("aiExpenseDrafts")
-    .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", args.groupId))
+    .withIndex("by_group_id_and_created_by_user_id", (q) =>
+      q.eq("groupId", args.groupId).eq("createdByUserId", args.userId),
+    )
     .order("asc")
     .take(limit);
 
@@ -85,6 +89,7 @@ export async function createE2eReadyDraftForUserHandler(
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId: args.groupId,
+    createdByUserId: args.createdByUserId,
     sourceType: "image_upload",
     status: "ready",
     documentType: "receipt",
@@ -155,6 +160,7 @@ export async function createE2eTaxReviewDraftForUserHandler(
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId: args.groupId,
+    createdByUserId: args.createdByUserId,
     sourceType: "image_upload",
     status: "needs_review",
     documentType: "receipt",
@@ -216,6 +222,7 @@ export async function createE2eTaxSummaryConflictDraftForUserHandler(
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId: args.groupId,
+    createdByUserId: args.createdByUserId,
     sourceType: "image_upload",
     status: "needs_review",
     documentType: "receipt",

@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DashboardPage } from "./DashboardPage";
 
 const useQueryMock = vi.fn();
@@ -29,6 +29,22 @@ import { useWeekSession } from "../hooks/useWeekSession";
 const useWeekSessionMock = vi.mocked(useWeekSession);
 
 describe("DashboardPage", () => {
+  function setCompactViewport(matches: boolean) {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn().mockImplementation((query: string) => ({
+        matches,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(() => false),
+      })),
+    );
+  }
+
   beforeEach(() => {
     useQueryMock.mockReset();
     useWeekSessionMock.mockReturnValue({
@@ -40,6 +56,11 @@ describe("DashboardPage", () => {
         weekStartDate: "2026-06-15",
       },
     });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("セッション読み込み中はローディングを表示する", () => {
@@ -93,5 +114,53 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("heading", { name: "今週の入力" })).toBeInTheDocument();
     expect(screen.getByTestId("week-comparison-chart")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "入力を再開" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "今月の月次サマリーを見る ›" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/months\/\d{4}-\d{2}$/),
+    );
+  });
+
+  it("コンパクト表示では期間行と月次リンクを表示する", () => {
+    setCompactViewport(true);
+    useQueryMock.mockReturnValue({
+      byCategory: [
+        {
+          categoryId: "food",
+          categoryName: "食費",
+          categoryColor: "#123456",
+          count: 1,
+          totalAmountYen: 1200,
+        },
+      ],
+      count: 1,
+      prevWeekTotalAmountYen: 1000,
+      totalAmountYen: 1200,
+      totalIncomeYen: 2000,
+    });
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "今週" })).toBeInTheDocument();
+    expect(screen.getByText(/集計期間：6\/15（月）〜6\/21（日）/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^今月の月次サマリーを見る/ })).toBeInTheDocument();
+  });
+
+  it("サマリー読み込み中でもセッションの画面枠を表示する", () => {
+    useQueryMock.mockReturnValue(undefined);
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "今週のダッシュボード" })).toBeInTheDocument();
+    expect(screen.getByTestId("week-comparison-chart")).toBeInTheDocument();
+    expect(screen.queryByTestId("loading")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".MuiSkeleton-root").length).toBeGreaterThan(0);
   });
 });

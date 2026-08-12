@@ -41,7 +41,7 @@ export async function createIncomeEntryHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateIncomeEntryArgs,
 ): Promise<Id<"expenseEntries">> {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   if (!args.date.trim() || !isValidIsoDateString(args.date)) {
     throw new ConvexError("Date must be a valid YYYY-MM-DD value");
   }
@@ -55,6 +55,7 @@ export async function createIncomeEntryHandler(
   const now = Date.now();
   return await ctx.db.insert("expenseEntries", {
     groupId,
+    createdByUserId: userId,
     date: args.date,
     amount: args.amountYen,
     title: titleResult.title,
@@ -75,7 +76,7 @@ export async function createExpenseEntriesHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateExpenseEntriesArgs,
 ): Promise<void> {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
 
   const now = Date.now();
   let sourceDocumentId = args.sourceDocumentId;
@@ -114,6 +115,7 @@ export async function createExpenseEntriesHandler(
 
     await ctx.db.insert("expenseEntries", {
       groupId,
+      createdByUserId: userId,
       sourceDocumentId,
       date: args.date,
       amount: item.amountYen,

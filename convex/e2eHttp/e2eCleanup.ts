@@ -1,7 +1,100 @@
 import { httpAction } from "../_generated/server";
+import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { invalidJsonResponse, requireE2eSecret } from "./e2eAuth";
+import { readE2eJsonObject, requireE2eSecret, requireE2eUserId } from "./e2eAuth";
+
+type E2eCleanupBody = {
+  userId?: string;
+  email?: string;
+  groupId?: string;
+  resetWeekSession?: boolean;
+  weekStartDate?: string;
+  deleteE2eCategories?: boolean;
+  clearMonthlyIncome?: boolean;
+  clearAiExpenseQueue?: boolean;
+  clearE2eExpenseEntries?: boolean;
+  clearGroupMemberships?: boolean;
+  clearGroupInvitations?: boolean;
+  clearLineLink?: boolean;
+  setGroupMemberRole?: "owner" | "member";
+  seedGroupMember?: { displayName: string; email: string };
+};
+
+const STRING_FIELDS = ["userId", "email", "groupId", "weekStartDate"] as const;
+const MAX_E2E_FIELD_LENGTH = 512;
+const MAX_E2E_EMAIL_LENGTH = 320;
+const BOOLEAN_FIELDS = [
+  "resetWeekSession",
+  "deleteE2eCategories",
+  "clearMonthlyIncome",
+  "clearAiExpenseQueue",
+  "clearE2eExpenseEntries",
+  "clearGroupMemberships",
+  "clearGroupInvitations",
+  "clearLineLink",
+] as const;
+
+function badRequest(message: string) {
+  return new Response(JSON.stringify({ error: message }), {
+    status: 400,
+    headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+  });
+}
+
+function validateCleanupBody(body: E2eCleanupBody) {
+  for (const field of STRING_FIELDS) {
+    if (
+      body[field] !== undefined &&
+      (typeof body[field] !== "string" || body[field].length > MAX_E2E_FIELD_LENGTH)
+    ) {
+      return `Invalid ${field}.`;
+    }
+  }
+  for (const field of BOOLEAN_FIELDS) {
+    if (body[field] !== undefined && typeof body[field] !== "boolean") {
+      return `Invalid ${field}.`;
+    }
+  }
+  if (
+    body.setGroupMemberRole !== undefined &&
+    !["owner", "member"].includes(body.setGroupMemberRole)
+  ) {
+    return "Invalid setGroupMemberRole.";
+  }
+  if (body.seedGroupMember !== undefined) {
+    if (
+      body.seedGroupMember === null ||
+      typeof body.seedGroupMember !== "object" ||
+      typeof body.seedGroupMember.displayName !== "string" ||
+      typeof body.seedGroupMember.email !== "string" ||
+      body.seedGroupMember.displayName.length > MAX_E2E_FIELD_LENGTH ||
+      body.seedGroupMember.email.length > MAX_E2E_EMAIL_LENGTH
+    ) {
+      return "Invalid seedGroupMember.";
+    }
+  }
+  return null;
+}
+
+async function resolveE2eGroupId(
+  ctx: ActionCtx,
+  body: E2eCleanupBody,
+  userId: string,
+): Promise<Id<"groups"> | null> {
+  const configuredGroupId = await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, { userId });
+  if (!body.groupId) {
+    return configuredGroupId;
+  }
+
+  const requestedGroupId = await ctx.runQuery(internal.groups.e2e.normalizeGroupId, {
+    groupId: body.groupId,
+  });
+  if (requestedGroupId === null || requestedGroupId !== configuredGroupId) {
+    return null;
+  }
+  return configuredGroupId;
+}
 
 // ---------------------------------------------------------------------------
 // POST /e2e/cleanup
@@ -14,7 +107,7 @@ import { invalidJsonResponse, requireE2eSecret } from "./e2eAuth";
 // セキュリティ:
 //   - X-E2E-Cleanup-Secret ヘッダーで認証する。
 //     値は環境変数 E2E_CLEANUP_SECRET と照合する。
-//   - 環境変数 E2E_CLEANUP_SECRET が未設定の場合は 503 を返す（本番環境ガード）。
+//   - APP_ENV が development / preview 以外、または固定テストユーザーが未設定の場合は拒否する。
 //
 // リクエストボディ:
 //   {
@@ -32,7 +125,7 @@ import { invalidJsonResponse, requireE2eSecret } from "./e2eAuth";
 // レスポンス:
 //   200: { "deletedCount": <削除件数> }
 //   401: 認証失敗
-//   503: E2E_CLEANUP_SECRET 未設定（本番環境での誤操作防止）
+//   503: E2E設定未完了または本番環境（誤操作防止）
 //
 export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   const authError = requireE2eSecret(req, "E2E cleanup is not enabled in this environment.");
@@ -40,84 +133,44 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     return authError;
   }
 
-  let body: {
-    userId?: string;
-    email?: string;
-    groupId?: string;
-    resetWeekSession?: boolean;
-    weekStartDate?: string;
-    deleteE2eCategories?: boolean;
-    clearMonthlyIncome?: boolean;
-    clearAiExpenseQueue?: boolean;
-    clearE2eExpenseEntries?: boolean;
-    clearGroupMemberships?: boolean;
-    clearGroupInvitations?: boolean;
-    clearLineLink?: boolean;
-    setGroupMemberRole?: "owner" | "member";
-    seedGroupMember?: { displayName: string; email: string };
-  };
-  try {
-    body = (await req.json()) as {
-      userId?: string;
-      email?: string;
-      groupId?: string;
-      resetWeekSession?: boolean;
-      weekStartDate?: string;
-      deleteE2eCategories?: boolean;
-      clearMonthlyIncome?: boolean;
-      clearAiExpenseQueue?: boolean;
-      clearE2eExpenseEntries?: boolean;
-      clearGroupMemberships?: boolean;
-      clearGroupInvitations?: boolean;
-      clearLineLink?: boolean;
-      setGroupMemberRole?: "owner" | "member";
-      seedGroupMember?: { displayName: string; email: string };
-    };
-  } catch {
-    return invalidJsonResponse();
+  const bodyResult = await readE2eJsonObject<E2eCleanupBody>(req);
+  if (bodyResult instanceof Response) {
+    return bodyResult;
   }
+  const body = bodyResult;
+  const validationError = validateCleanupBody(body);
+  if (validationError) return badRequest(validationError);
+
   const userIdByEmail = body.email
     ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
     : null;
   const resolvedUserId = userIdByEmail ?? body.userId ?? null;
 
-  let resolvedGroupId: Id<"groups"> | null = null;
-  if (body.groupId) {
-    resolvedGroupId = await ctx.runQuery(internal.groups.e2e.normalizeGroupId, {
-      groupId: body.groupId,
-    });
-  } else if (resolvedUserId) {
-    resolvedGroupId = await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, {
-      userId: resolvedUserId,
-    });
+  if (!resolvedUserId) {
+    return badRequest("userId or email is required.");
+  }
+  const userAuthorizationError = requireE2eUserId(resolvedUserId);
+  if (userAuthorizationError) {
+    return userAuthorizationError;
   }
 
-  const requestedUserScopedCleanup = Boolean(
-    body.clearMonthlyIncome ||
-    body.clearGroupMemberships ||
-    body.clearLineLink ||
-    body.setGroupMemberRole ||
-    body.seedGroupMember,
-  );
-
-  if (requestedUserScopedCleanup && !resolvedUserId) {
-    return new Response(JSON.stringify({ error: "userId or email is required." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
+  const resolvedGroupId = await resolveE2eGroupId(ctx, body, resolvedUserId);
+  if (body.groupId && resolvedGroupId === null) {
+    return new Response(JSON.stringify({ error: "Forbidden." }), {
+      status: 403,
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
     });
   }
 
   if (body.resetWeekSession && !resolvedGroupId) {
-    return new Response(JSON.stringify({ error: "groupId is required." }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return badRequest("groupId is required.");
   }
 
   let receipts: { deletedCount: number } | null = null;
   if (resolvedGroupId) {
     receipts = await ctx.runMutation(internal.receipts.crud.deleteReceiptsByUser, {
       groupId: resolvedGroupId,
+      userId: resolvedUserId,
     });
   }
 
@@ -140,6 +193,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
         hasMore: boolean;
       } = await ctx.runMutation(internal.aiExpenseDrafts.internal.deleteDraftsByUserBatch, {
         groupId: resolvedGroupId,
+        userId: resolvedUserId,
       });
       deletedDraftCount += draftResult.deletedDraftCount;
       deletedItemCount += draftResult.deletedItemCount;
@@ -154,6 +208,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
           internal.receiptAnalysisJobs.internal.deleteReceiptAnalysisDataByUserBatch,
           {
             groupId: resolvedGroupId,
+            userId: resolvedUserId,
           },
         );
       deletedBatchCount += jobResult.deletedBatchCount;
@@ -176,7 +231,10 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     if (!body.weekStartDate) {
       return new Response(
         JSON.stringify({ error: "weekStartDate is required when resetWeekSession is true." }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -220,6 +278,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
       internal.expenseEntries.internal.deleteE2eExpenseEntriesByUser,
       {
         groupId: resolvedGroupId,
+        userId: resolvedUserId,
       },
     );
   }
@@ -251,10 +310,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   let seededGroupMember: { memberUserId: string } | null = null;
   if (body.seedGroupMember) {
     if (!resolvedGroupId) {
-      return new Response(JSON.stringify({ error: "groupId is required." }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
+      return badRequest("groupId is required.");
     }
 
     const displayName = body.seedGroupMember.displayName?.trim();
@@ -262,7 +318,10 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     if (!displayName || !memberEmail) {
       return new Response(
         JSON.stringify({ error: "seedGroupMember.displayName and email are required." }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+        {
+          status: 400,
+          headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+        },
       );
     }
 
@@ -289,7 +348,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     }),
     {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
     },
   );
 });

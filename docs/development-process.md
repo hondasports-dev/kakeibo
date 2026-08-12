@@ -532,15 +532,18 @@ Copy-Item ../preview/.env.local .env.local -Force
 
 **4. 付随チェック**（Convex 反映 / E2E 実行前）
 
-- **必須（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `E2E_CLEANUP_SECRET` 反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
+- **必須（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `APP_ENV=development`、`E2E_CLERK_USER_ID`、`E2E_CLEANUP_SECRET` を反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
 - `e2e:env-sync` が失敗した場合は原因を解消して再実行する。`E2E_SKIP_ENV_SYNC` 等で同期を飛ばさない。
 - Playwright ブラウザ未導入なら一度だけ: `pnpm exec playwright install chromium`
 - `convex/**` を変更した PR では、`e2e:env-sync` 成功後に: `pnpm exec convex dev --once`
-- 手動で `convex env set E2E_CLEANUP_SECRET` だけ実行しない（GitHub `DEV_E2E_CLEANUP_SECRET` と正本 `.env.local` がズレ、CI E2E が連鎖 401 になる）。どうしても手動なら正本と同じ値のみ:
+- 手動で `convex env set E2E_CLEANUP_SECRET` だけ実行しない（`APP_ENV` / `E2E_CLERK_USER_ID` / secret の組み合わせが崩れ、E2Eが誤設定になる）。どうしても手動なら正本と同じ値を次の3つへ反映する:
 
   ```powershell
   # PowerShell 例: 値をログに出さず convex env set する
   $secret = (Get-Content .env.local | Where-Object { $_ -match '^E2E_CLEANUP_SECRET=' }) -replace '^E2E_CLEANUP_SECRET=',''
+  $userId = (Get-Content .env.local | Where-Object { $_ -match '^E2E_CLERK_USER_ID=' }) -replace '^E2E_CLERK_USER_ID=',''
+  pnpm exec convex env set APP_ENV development
+  pnpm exec convex env set E2E_CLERK_USER_ID $userId
   pnpm exec convex env set E2E_CLEANUP_SECRET $secret
   ```
 
@@ -608,7 +611,7 @@ PR をマージします。
   `DEV_VITE_CONVEX_SITE_URL` / `DEV_E2E_CLEANUP_SECRET` を使う
 - `preview-deploy.yml` は固定 staging deployment 用の `vars.VITE_CONVEX_SITE_URL` /
   `secrets.E2E_CLEANUP_SECRET` を使う。dev と staging の URL / secret を混在させない
-- 対象 deployment に `E2E_CLEANUP_SECRET` が未設定の場合、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E エンドポイントは
+- 対象 deployment に `APP_ENV` / `E2E_CLERK_USER_ID` / `E2E_CLEANUP_SECRET` のいずれかが未設定の場合、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E エンドポイントは
   503 を返す（本番誤操作防止）。dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
   **接続先 deployment** に対して実行する（秘密値はログに出さない）

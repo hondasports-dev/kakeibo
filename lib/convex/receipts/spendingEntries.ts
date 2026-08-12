@@ -26,6 +26,10 @@ export {
 } from "../../domain/receipt/spendingEntry";
 // mapExpenseEntryToSpendingEntry は本ファイルで adapter ラッパーとして定義するため domain からは re-export しない
 
+// 一覧系クエリがグループ内の全データを無制限にメモリへ載せないための防波堤。
+// 上限超過時はページングAPIへ分離するまで明示的に失敗させる。
+export const MAX_DATE_RANGE_ENTRIES = 1_000;
+
 export function mapExpenseEntryToSpendingEntry(
   expenseEntry: Pick<
     Doc<"expenseEntries">,
@@ -166,13 +170,14 @@ async function fetchExpenseEntriesByDateRange(
   startDate: string,
   endDate: string,
 ): Promise<Doc<"expenseEntries">[]> {
-  const entries: Doc<"expenseEntries">[] = [];
-  for await (const entry of ctx.db
+  const entries = await ctx.db
     .query("expenseEntries")
     .withIndex("by_group_id_and_date", (q) =>
       q.eq("groupId", groupId).gte("date", startDate).lte("date", endDate),
-    )) {
-    entries.push(entry);
+    )
+    .take(MAX_DATE_RANGE_ENTRIES + 1);
+  if (entries.length > MAX_DATE_RANGE_ENTRIES) {
+    throw new ConvexError("Too many expense entries for this date range");
   }
   return entries;
 }
@@ -183,13 +188,14 @@ async function fetchReceiptsByDateRange(
   startDate: string,
   endDate: string,
 ): Promise<Doc<"receipts">[]> {
-  const receipts: Doc<"receipts">[] = [];
-  for await (const receipt of ctx.db
+  const receipts = await ctx.db
     .query("receipts")
     .withIndex("by_group_id_and_date", (q) =>
       q.eq("groupId", groupId).gte("date", startDate).lte("date", endDate),
-    )) {
-    receipts.push(receipt);
+    )
+    .take(MAX_DATE_RANGE_ENTRIES + 1);
+  if (receipts.length > MAX_DATE_RANGE_ENTRIES) {
+    throw new ConvexError("Too many receipts for this date range");
   }
   return receipts;
 }
@@ -286,6 +292,8 @@ export async function getMonthSpendingEntries(
     monthEndDate,
   );
   const monthExpenseEntries = expenseEntries.filter((entry) => entry.entryType !== "income");
+  // 同じ種別の新形式がある場合だけ旧形式を抑止する。
+  // 移行途中に支出と収入が混在していても、別種別の記録は補完する。
   if (monthExpenseEntries.length > 0) {
     return enrichSpendingEntriesWithReceiptGroups(
       ctx,
@@ -300,4 +308,28 @@ export async function getMonthSpendingEntries(
       .filter((receipt) => receipt.type !== "income")
       .map((receipt) => mapReceiptToSpendingEntry(receipt)),
   );
+}
+
+export async function getMonthIncomeEntries(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  monthStartDate: string,
+): Promise<IncomeListEntry[]> {
+  const monthEndDate = getMonthEndDate(monthStartDate);
+  const expenseEntries = await fetchExpenseEntriesByDateRange(
+    ctx,
+    groupId,
+    monthStartDate,
+    monthEndDate,
+  );
+  const monthIncomeEntries = expenseEntries.filter((entry) => entry.entryType === "income");
+
+  if (monthIncomeEntries.length > 0) {
+    return monthIncomeEntries.map((entry) => mapIncomeExpenseEntryToListEntry(entry));
+  }
+
+  const receipts = await fetchReceiptsByDateRange(ctx, groupId, monthStartDate, monthEndDate);
+  return receipts
+    .filter((receipt) => receipt.type === "income")
+    .map((receipt) => mapReceiptToIncomeListEntry(receipt));
 }

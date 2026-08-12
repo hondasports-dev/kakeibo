@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ローカル E2E 前の .env.local 同期 + Convex E2E_CLEANUP_SECRET 反映。
+ * ローカル E2E 前の .env.local 同期 + Convex E2E 専用設定反映。
  *
  * 正本: docs/development-process.md「`.env.local` 同期」
  * CI では e2e.yml が同等の同期を行うため、CI=true のときは no-op。
@@ -12,6 +12,13 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function redactSensitiveText(text, sensitiveValues) {
+  return sensitiveValues.reduce(
+    (redacted, value) => (value ? redacted.split(value).join("[REDACTED]") : redacted),
+    text,
+  );
+}
 
 function parseEnvFile(content) {
   const values = new Map();
@@ -31,7 +38,6 @@ function listWorktrees() {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
-    shell: process.platform === "win32",
   });
 
   if (result.status !== 0) {
@@ -121,10 +127,11 @@ function loadLocalEnv() {
 async function verifyCleanupAuth(env) {
   const siteUrl = env.get("VITE_CONVEX_SITE_URL");
   const secret = env.get("E2E_CLEANUP_SECRET");
+  const userId = env.get("E2E_CLERK_USER_ID");
 
-  if (!siteUrl || !secret) {
+  if (!siteUrl || !secret || !userId) {
     throw new Error(
-      ".env.local に VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET が不足しています。" +
+      ".env.local に VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_ID が不足しています。" +
         " 正本 .env.local を復旧して pnpm run e2e:env-sync を再実行してください。",
     );
   }
@@ -142,7 +149,7 @@ async function verifyCleanupAuth(env) {
     return;
   }
 
-  const text = await res.text();
+  const text = redactSensitiveText(await res.text(), [secret, userId]);
   if (res.status === 401) {
     throw new Error(
       "E2E cleanup 認証失敗 (401)。.env.local の E2E_CLEANUP_SECRET と Convex deployment が不一致です。" +
@@ -153,24 +160,44 @@ async function verifyCleanupAuth(env) {
   throw new Error(`E2E cleanup 検証失敗: ${res.status} ${text}`);
 }
 
-function syncConvexSecret(secret) {
-  const result = spawnSync("pnpm", ["exec", "convex", "env", "set", "E2E_CLEANUP_SECRET", secret], {
+function syncConvexEnv(name, value) {
+  const pnpmCommand = process.platform === "win32" ? process.execPath : "pnpm";
+  const pnpmArgs =
+    process.platform === "win32"
+      ? [
+          resolve(dirname(process.execPath), "node_modules/corepack/dist/pnpm.js"),
+          "exec",
+          "convex",
+          "env",
+          "set",
+          name,
+          value,
+        ]
+      : ["exec", "convex", "env", "set", name, value];
+  const result = spawnSync(pnpmCommand, pnpmArgs, {
     cwd: repoRoot,
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
-    shell: process.platform === "win32",
   });
 
   if (result.status !== 0) {
-    const stderr = result.stderr?.toString() ?? "";
+    const stderr = redactSensitiveText(result.stderr?.toString() ?? "", [value]);
     throw new Error(
-      "convex env set E2E_CLEANUP_SECRET に失敗しました。" +
+      `convex env set ${name} に失敗しました。` +
         " CONVEX_DEPLOYMENT / ログイン状態を確認して再実行してください。" +
-        " この失敗を理由に E2E を省略しないでください。" +
+        (name === "E2E_CLEANUP_SECRET" ? " この失敗を理由に E2E を省略しないでください。" : "") +
         (stderr ? ` (${stderr.trim()})` : ""),
     );
   }
-  console.log("[e2e:env-sync] Convex dev に E2E_CLEANUP_SECRET を反映しました");
+}
+
+function syncConvexEnvironment(secret, userId) {
+  syncConvexEnv("APP_ENV", "development");
+  syncConvexEnv("E2E_CLERK_USER_ID", userId);
+  syncConvexEnv("E2E_CLEANUP_SECRET", secret);
+  console.log(
+    "[e2e:env-sync] Convex dev に E2E の環境ガード・テストユーザー・認証設定を反映しました",
+  );
 }
 
 async function main() {
@@ -201,8 +228,12 @@ async function main() {
   if (!secret) {
     throw new Error(".env.local に E2E_CLEANUP_SECRET がありません");
   }
+  const userId = env.get("E2E_CLERK_USER_ID");
+  if (!userId) {
+    throw new Error(".env.local に E2E_CLERK_USER_ID がありません");
+  }
 
-  syncConvexSecret(secret);
+  syncConvexEnvironment(secret, userId);
   await verifyCleanupAuth(env);
 }
 

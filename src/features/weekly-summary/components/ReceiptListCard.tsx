@@ -6,13 +6,17 @@ import { groupReceiptItems, type ReceiptItem } from "../types/types";
 
 export function ReceiptListCard({
   count,
+  emptyMessage = "まだレシートがありません",
   isLoading,
+  listAriaLabel = "週次サマリーの支出一覧",
   receipts,
   onDeleteReceipt,
   onEditReceipt,
 }: {
   count: number;
+  emptyMessage?: string;
   isLoading: boolean;
+  listAriaLabel?: string;
   receipts: ReceiptItem[];
   onDeleteReceipt?: (receipt: ReceiptItem) => void;
   onEditReceipt?: (receipt: ReceiptItem) => void;
@@ -34,7 +38,7 @@ export function ReceiptListCard({
           </Typography>
 
           <Box
-            aria-label="週次サマリーの支出一覧"
+            aria-label={listAriaLabel}
             className="receipt-list"
             role={!isLoading && count > 0 ? "table" : undefined}
           >
@@ -46,7 +50,7 @@ export function ReceiptListCard({
               </>
             ) : count === 0 ? (
               <Typography color="text.secondary" variant="body2">
-                まだレシートがありません
+                {emptyMessage}
               </Typography>
             ) : (
               <>

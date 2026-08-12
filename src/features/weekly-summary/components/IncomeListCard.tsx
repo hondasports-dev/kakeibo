@@ -7,14 +7,18 @@ import { incomeItemToReceiptItem } from "../types/types";
 
 export function IncomeListCard({
   count,
+  emptyMessage = "まだ収入がありません",
   isLoading,
   incomes,
+  listAriaLabel = "週次サマリーの収入一覧",
   onDeleteIncome,
   onEditIncome,
 }: {
   count: number;
+  emptyMessage?: string;
   isLoading: boolean;
   incomes: IncomeItem[];
+  listAriaLabel?: string;
   onDeleteIncome?: (income: IncomeItem) => void;
   onEditIncome?: (income: IncomeItem) => void;
 }) {
@@ -35,7 +39,7 @@ export function IncomeListCard({
           </Typography>
 
           <Box
-            aria-label="週次サマリーの収入一覧"
+            aria-label={listAriaLabel}
             className="receipt-list receipt-list--income"
             role={!isLoading && count > 0 ? "table" : undefined}
           >
@@ -47,7 +51,7 @@ export function IncomeListCard({
               </>
             ) : count === 0 ? (
               <Typography color="text.secondary" variant="body2">
-                まだ収入がありません
+                {emptyMessage}
               </Typography>
             ) : (
               <>
