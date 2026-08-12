@@ -85,7 +85,7 @@ Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2
 `APP_ENV=development` のときだけルート登録される。登録後も
 `E2E_CLEANUP_SECRET`、`E2E_CLERK_USER_ID` の設定とヘッダ
 `X-E2E-Cleanup-Secret` が必要で、対象ユーザーとグループは固定テストユーザーの範囲に限定される。
-secret または user ID が未設定の場合は handler が503を返す。`APP_ENV=production`、未設定、未知の値では
+secret または user ID が未設定の場合は handler が503を返す。`APP_ENV=preview`、`APP_ENV=production`、未設定、未知の値では
 ルート自体が登録されず404になる。
 
 | エンドポイント | 用途 |

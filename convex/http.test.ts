@@ -48,7 +48,13 @@ describe("HTTP router environment boundary", () => {
       expect.arrayContaining([
         "/e2e/cleanup-auth-check",
         "/e2e/cleanup",
+        "/e2e/seed-system-admin-membership",
+        "/e2e/cleanup-system-admin-membership",
+        "/e2e/seed-system-admin-search",
+        "/e2e/cleanup-system-admin-search",
         "/e2e/seed-ai-expense-draft",
+        "/e2e/seed-tax-review-draft",
+        "/e2e/seed-tax-summary-conflict-draft",
         "/e2e/seed-pending-group-invitation",
         "/webhooks/resend",
         "/webhooks/line",
