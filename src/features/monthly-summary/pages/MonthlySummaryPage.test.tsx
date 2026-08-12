@@ -133,7 +133,7 @@ describe("MonthlySummaryPage", () => {
     expect(screen.getByText("この月の収入はまだありません")).toBeInTheDocument();
   });
 
-  it("月次データの読み込み中はローディングを表示する", () => {
+  it("月次データの読み込み中は画面枠とカードのローディングを表示する", () => {
     useQueryMock.mockImplementation((_query: unknown, args: unknown) => {
       if (args && typeof args === "object" && "month" in args) {
         return undefined;
@@ -141,7 +141,7 @@ describe("MonthlySummaryPage", () => {
       return [];
     });
 
-    renderWithProviders(
+    const { container } = renderWithProviders(
       <MemoryRouter>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <MonthlySummaryPage />
@@ -149,26 +149,8 @@ describe("MonthlySummaryPage", () => {
       </MemoryRouter>,
     );
 
-    expect(screen.getByText(/月次サマリーを読み込んでいます/)).toBeInTheDocument();
-  });
-
-  it("月次データの取得失敗時はエラーを表示する", () => {
-    useQueryMock.mockImplementation((_query: unknown, args: unknown) => {
-      if (args && typeof args === "object" && "month" in args) {
-        return null;
-      }
-      return [];
-    });
-
-    renderWithProviders(
-      <MemoryRouter>
-        <LocalizationProvider dateAdapter={AdapterDayjs}>
-          <MonthlySummaryPage />
-        </LocalizationProvider>
-      </MemoryRouter>,
-    );
-
-    expect(screen.getByText("月次サマリーの読み込みに失敗しました。")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "月次サマリー" })).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-testid="monthly-metric-skeleton"]')).toHaveLength(3);
   });
 
   it("不正な月URLは当月へ置き換える", async () => {

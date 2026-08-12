@@ -55,7 +55,7 @@ Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth to
 | ------------------------------ | -------------------------------------------- | ----- | -------------- | ---------- | ---- | ---------- | ---------------------- |
 | `OPENAI_API_KEY`               | OpenAI API 認証キー                          | ❌    | ❌             | ❌         | ✅   | ✅         | Convex Dashboard       |
 | `RECEIPT_IMAGE_EXTRACTOR_MODE` | OpenAI 呼び出しの切り替え（`mock` / `real`） | ✅    | ✅             | ✅         | ✅   | ❌         | Convex Dashboard       |
-| `APP_ENV`                      | real mode の許可判定（`development` / `preview` / `production`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
+| `APP_ENV`                      | real mode の許可判定（`development` / `production`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
 
 ### トランザクションメール (Resend) 関連
 
@@ -82,10 +82,11 @@ Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth to
 | `E2E_CLERK_USER_ID`  | E2E操作を許可する固定テストユーザーの Clerk tokenIdentifier | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
 
 Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2eHttp/`）は、
-`APP_ENV=development` または `APP_ENV=preview`、`E2E_CLEANUP_SECRET`、
-`E2E_CLERK_USER_ID` の3つが揃った環境だけで有効化・実行される。いずれもヘッダ
+`APP_ENV=development` のときだけルート登録される。登録後も
+`E2E_CLEANUP_SECRET`、`E2E_CLERK_USER_ID` の設定とヘッダ
 `X-E2E-Cleanup-Secret` が必要で、対象ユーザーとグループは固定テストユーザーの範囲に限定される。
-`APP_ENV=production`、未設定、未知の値では fail-closed になる。
+secret または user ID が未設定の場合は handler が503を返す。`APP_ENV=production`、未設定、未知の値では
+ルート自体が登録されず404になる。
 
 | エンドポイント | 用途 |
 | --- | --- |
@@ -161,7 +162,7 @@ Convex staging deployment には次を設定する。
 - `CLERK_JWT_ISSUER_DOMAIN`
 - `CLERK_SECRET_KEY`
 - `RECEIPT_IMAGE_EXTRACTOR_MODE=mock`
-- `APP_ENV=preview`
+- `APP_ENV=development`
 
 PREVIEW では Clerk Development instance を使う。Production instance や `pk_live_*` / `sk_live_*` は使わない。
 
@@ -306,10 +307,10 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 - `E2E_CLEANUP_SECRET` — DEV / PREVIEW 専用のE2Eクリーンアップ API 認証シークレット。本番には設定しない
 - `E2E_CLERK_USER_ID` — DEV / PREVIEW でE2E操作を許可する固定テストユーザー。本番には設定しない
 - `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（Local / DEV / PREVIEW）/ `real`（PRODのみ）
-- `APP_ENV` — `development`（Local / DEV）/ `preview`（PREVIEW）/ `production`（PROD）
+- `APP_ENV` — `development`（Local / DEV / PREVIEW）/ `production`（PROD）
 - `OPENAI_API_KEY` — OpenAI API 認証キー（production deployment のみ設定。dev deployment には設定しない）
 
-Convex staging deployment では、`APP_ENV=preview`、
+Convex staging deployment では、`APP_ENV=development`、
 `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使う。PREVIEW には `OPENAI_API_KEY` を設定しない。
 
 CLI での設定例:

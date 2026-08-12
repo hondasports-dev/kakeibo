@@ -1,41 +1,30 @@
 import fs from "node:fs";
 import path from "node:path";
-import { calculateAggregateCoverage, findCoverageEntry } from "./coverage-metrics.mjs";
+import { calculateAggregateCoverage } from "./coverage-metrics.mjs";
 
-const OVERALL_THRESHOLDS = {
-  statements: 90,
-  branches: 85,
-  functions: 90,
-  lines: 90,
+// The changed-file gate remains intentionally strict. The full-repository gate
+// is a non-regression floor captured from origin/preview at c5053c8; raising
+// the floor belongs in a separate coverage-improvement change rather than
+// making every unrelated PR responsible for the existing backlog.
+const OVERALL_BASELINE_THRESHOLDS = {
+  statements: 82.52,
+  branches: 75.32,
+  functions: 81.72,
+  lines: 83.27,
 };
 
 function formatPercentage(value) {
   return `${value.toFixed(2)}%`;
 }
 
-export function checkOverallCoverage(
-  changedFiles,
-  {
-    coveragePath = path.resolve("coverage/coverage-final.json"),
-    rootDirectory = process.cwd(),
-    thresholds = OVERALL_THRESHOLDS,
-  } = {},
-) {
+export function checkOverallCoverage({
+  coveragePath = path.resolve("coverage/overall/coverage-final.json"),
+  thresholds = OVERALL_BASELINE_THRESHOLDS,
+} = {}) {
   const coverage = JSON.parse(fs.readFileSync(coveragePath, "utf8"));
-  const entries = [];
-  let failed = false;
-
-  for (const changedFile of changedFiles) {
-    const entry = findCoverageEntry(coverage, rootDirectory, changedFile);
-    if (!entry) {
-      console.error(`✗ ${changedFile}: coverage data was not found`);
-      failed = true;
-      continue;
-    }
-    entries.push(entry);
-  }
-
-  if (failed) {
+  const entries = Object.values(coverage);
+  if (entries.length === 0) {
+    console.error("✗ Overall production coverage data was not found");
     return 1;
   }
 
@@ -48,11 +37,11 @@ export function checkOverallCoverage(
     .map(([metric, value]) => `${metric} ${formatPercentage(value)}`)
     .join(", ");
 
-  console.log(`Overall changed production coverage`);
+  console.log(`Overall production coverage (baseline gate)`);
   console.log(`${marker} ${details}`);
   for (const [metric, threshold] of failedMetrics) {
     console.error(
-      `  ${metric} ${formatPercentage(overallCoverage[metric])} is below ${threshold}%`,
+      `  ${metric} ${formatPercentage(overallCoverage[metric])} is below baseline ${threshold}%`,
     );
   }
 

@@ -21,6 +21,7 @@ vi.mock("react-router-dom", () => ({
   ),
   Outlet: () => <div>Outlet</div>,
   useLocation: () => ({ pathname: "/" }),
+  useNavigation: () => ({ location: undefined, state: "idle" }),
   useNavigate: () => vi.fn(),
 }));
 

@@ -16,8 +16,8 @@ export async function insertReceiptForGroup(
   ctx: Pick<MutationCtx, "db">,
   groupId: Id<"groups">,
   args: CreateReceiptArgs,
-  weekStartDay = 1,
-  createdByUserId?: string,
+  weekStartDay: number,
+  createdByUserId: string,
 ) {
   let normalized: NormalizedCreateReceipt<Id<"categories">>;
   try {

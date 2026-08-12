@@ -1,6 +1,6 @@
 import { httpAction } from "../_generated/server";
 
-const E2E_ALLOWED_APP_ENVS = new Set(["development", "preview"]);
+const E2E_ALLOWED_APP_ENVS = new Set(["development"]);
 const MAX_E2E_BODY_BYTES = 32_768;
 
 function jsonResponse(body: Record<string, unknown>, status: number) {

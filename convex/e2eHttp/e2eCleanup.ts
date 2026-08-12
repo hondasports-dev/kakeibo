@@ -107,7 +107,7 @@ async function resolveE2eGroupId(
 // セキュリティ:
 //   - X-E2E-Cleanup-Secret ヘッダーで認証する。
 //     値は環境変数 E2E_CLEANUP_SECRET と照合する。
-//   - APP_ENV が development / preview 以外、または固定テストユーザーが未設定の場合は拒否する。
+//   - APP_ENV が development 以外、または固定テストユーザーが未設定の場合は拒否する。
 //
 // リクエストボディ:
 //   {

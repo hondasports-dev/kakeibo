@@ -36,8 +36,17 @@ export function addMonths(month: string, amount: number): string {
   }
 
   const [yearString, monthString] = normalized.split("-");
-  const date = new Date(Date.UTC(Number(yearString), Number(monthString) - 1 + amount, 1));
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+  const year = Number(yearString);
+  const monthNumber = Number(monthString);
+  const monthIndex = (year - 1) * 12 + (monthNumber - 1) + amount;
+  const targetYear = Math.floor(monthIndex / 12) + 1;
+  const targetMonth = (((monthIndex % 12) + 12) % 12) + 1;
+
+  if (targetYear < 1 || targetYear > 9999) {
+    throw new Error(`Invalid month: ${month}`);
+  }
+
+  return `${String(targetYear).padStart(4, "0")}-${String(targetMonth).padStart(2, "0")}`;
 }
 
 export function getCurrentMonth(now: Date | number = new Date()): string {

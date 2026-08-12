@@ -4,7 +4,12 @@ import { httpAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
-import { readE2eJsonObject, requireE2eSecret, requireE2eUserId } from "./e2eAuth";
+import {
+  isE2eAppEnvironment,
+  readE2eJsonObject,
+  requireE2eSecret,
+  requireE2eUserId,
+} from "./e2eAuth";
 
 const prefixPattern = /^e2e-system-admin-504-[a-z0-9-]+$/;
 const MAX_PREFIX_LENGTH = 80;
@@ -13,8 +18,7 @@ const SEARCH_GROUP_COUNT = 24;
 const groupStatuses = ["active", "deleting", "deleted", "archived"] as const;
 
 function assertFixtureEnvironment(prefix: string, actorUserId: string) {
-  if (process.env.APP_ENV !== "development" && process.env.APP_ENV !== "preview")
-    throw new ConvexError("E2E fixture is disabled in production");
+  if (!isE2eAppEnvironment()) throw new ConvexError("E2E fixture is disabled in production");
   const configuredUserId = process.env.E2E_CLERK_USER_ID?.trim().replace(/^['"]+|['"]+$/g, "");
   if (!configuredUserId || actorUserId !== configuredUserId)
     throw new ConvexError("E2E actor is not authorized");
