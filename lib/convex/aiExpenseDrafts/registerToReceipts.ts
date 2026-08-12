@@ -23,7 +23,7 @@ function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
 }
 
 export async function registerReadyDraftsHandler(ctx: MutationCtx, args: RegisterReadyDraftsArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const uniqueDraftIds = dedupeDraftIds(args.draftIds);
   if (uniqueDraftIds.length === 0) {
     return {
@@ -61,13 +61,19 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
   const registeredReceiptIds: Id<"receipts">[] = [];
 
   for (const draft of draftsToRegister) {
-    const receiptId = await insertReceiptForGroup(ctx, groupId, {
-      type: "expense",
-      date: draft.date!,
-      shopName: resolveReceiptShopNameFromDraft(draft),
-      amountYen: draft.amountYen!,
-      categoryId: draft.categoryId!,
-    });
+    const receiptId = await insertReceiptForGroup(
+      ctx,
+      groupId,
+      {
+        type: "expense",
+        date: draft.date!,
+        shopName: resolveReceiptShopNameFromDraft(draft),
+        amountYen: draft.amountYen!,
+        categoryId: draft.categoryId!,
+      },
+      1,
+      userId,
+    );
     registeredReceiptIds.push(receiptId);
   }
 

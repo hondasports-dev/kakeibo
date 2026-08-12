@@ -79,9 +79,13 @@ Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth to
 | 変数名               | 用途                                      | Local | CI  | Secret扱い | 設定場所                                              |
 | -------------------- | ----------------------------------------- | ----- | --- | ---------- | ----------------------------------------------------- |
 | `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
-| `E2E_CLERK_USER_ID`  | テストユーザーの Clerk tokenIdentifier    | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret                    |
+| `E2E_CLERK_USER_ID`  | E2E操作を許可する固定テストユーザーの Clerk tokenIdentifier | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
 
-`E2E_CLEANUP_SECRET` を Convex deployment に設定すると、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E 専用 HTTP エンドポイントが有効化される。いずれもヘッダ `X-E2E-Cleanup-Secret` が必要。
+Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2eHttp/`）は、
+`APP_ENV=development` または `APP_ENV=preview`、`E2E_CLEANUP_SECRET`、
+`E2E_CLERK_USER_ID` の3つが揃った環境だけで有効化・実行される。いずれもヘッダ
+`X-E2E-Cleanup-Secret` が必要で、対象ユーザーとグループは固定テストユーザーの範囲に限定される。
+`APP_ENV=production`、未設定、未知の値では fail-closed になる。
 
 | エンドポイント | 用途 |
 | --- | --- |
@@ -102,6 +106,8 @@ CLERK_SECRET_KEY=sk_test_...
 
 # E2Eテスト用 (Local専用)
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
+E2E_CLERK_USER_ID=https://your-clerk-frontend-api-url.clerk.accounts.dev|user_...
+E2E_CLEANUP_SECRET=...
 # E2E_CLERK_USER_PASSWORD は .env.example に残存するが、現行 auth helper では未使用
 
 # Convex
@@ -144,6 +150,8 @@ GitHub Environment `Preview` には次を設定する。
 | Secret   | `CONVEX_DEPLOY_KEY` | 固定 Convex staging deployment を更新する |
 | Variable | `VERCEL_ORG_ID`     | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
+| Secret   | `E2E_CLEANUP_SECRET` | staging E2E API の認証シークレット      |
+| Secret   | `E2E_CLERK_USER_ID` | staging E2Eで操作を許可する固定テストユーザー |
 
 `CONVEX_DEPLOY_KEY` には、固定 staging deployment 用の deploy key を保存する。
 `preview-deploy.yml` はこの key で staging functions / schema を反映する。
@@ -295,7 +303,8 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Clerk Frontend API URL (`https://xxxx.clerk.accounts.dev`)
 - `CLERK_SECRET_KEY` — Clerk Backend API 用の秘密鍵。グループ招待メール送信で必要
-- `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（未設定時はエンドポイントが 503 を返すため本番誤操作を防止できる）
+- `E2E_CLEANUP_SECRET` — DEV / PREVIEW 専用のE2Eクリーンアップ API 認証シークレット。本番には設定しない
+- `E2E_CLERK_USER_ID` — DEV / PREVIEW でE2E操作を許可する固定テストユーザー。本番には設定しない
 - `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（Local / DEV / PREVIEW）/ `real`（PRODのみ）
 - `APP_ENV` — `development`（Local / DEV）/ `preview`（PREVIEW）/ `production`（PROD）
 - `OPENAI_API_KEY` — OpenAI API 認証キー（production deployment のみ設定。dev deployment には設定しない）
@@ -309,11 +318,14 @@ CLI での設定例:
 # ローカル / dev deployment（mock mode）
 pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
 pnpm exec convex env set APP_ENV development
+pnpm exec convex env set E2E_CLERK_USER_ID 'https://your-clerk-frontend-api-url.clerk.accounts.dev|user_...'
+pnpm exec convex env set E2E_CLEANUP_SECRET '...'
 
 # production deployment（real mode）
 pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE real
 pnpm exec convex env set APP_ENV production
 pnpm exec convex env set OPENAI_API_KEY sk-...
+# production には E2E_CLERK_USER_ID / E2E_CLEANUP_SECRET を設定しない
 ```
 
 > `CLERK_JWT_ISSUER_DOMAIN` はJWT issuerのドメインであり、公開情報に近い値のため

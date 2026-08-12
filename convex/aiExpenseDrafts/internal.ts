@@ -108,6 +108,7 @@ export const deleteOrphanedDraft = internalMutation({
 export const deleteDraftsByUserBatch = internalMutation({
   args: {
     groupId: v.id("groups"),
+    userId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: deleteDraftsByUserBatchHandler,
@@ -116,6 +117,7 @@ export const deleteDraftsByUserBatch = internalMutation({
 export const createE2eReadyDraftForUser = internalMutation({
   args: {
     groupId: v.id("groups"),
+    createdByUserId: v.string(),
     categoryId: v.id("categories"),
     secondaryCategoryId: v.optional(v.id("categories")),
   },
@@ -125,6 +127,7 @@ export const createE2eReadyDraftForUser = internalMutation({
 export const createE2eTaxReviewDraftForUser = internalMutation({
   args: {
     groupId: v.id("groups"),
+    createdByUserId: v.string(),
     categoryId: v.id("categories"),
     secondaryCategoryId: v.optional(v.id("categories")),
   },
@@ -134,6 +137,7 @@ export const createE2eTaxReviewDraftForUser = internalMutation({
 export const createE2eTaxSummaryConflictDraftForUser = internalMutation({
   args: {
     groupId: v.id("groups"),
+    createdByUserId: v.string(),
     categoryId: v.id("categories"),
     secondaryCategoryId: v.optional(v.id("categories")),
   },

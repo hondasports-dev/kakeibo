@@ -17,6 +17,7 @@ export async function insertReceiptForGroup(
   groupId: Id<"groups">,
   args: CreateReceiptArgs,
   weekStartDay = 1,
+  createdByUserId?: string,
 ) {
   let normalized: NormalizedCreateReceipt<Id<"categories">>;
   try {
@@ -41,6 +42,7 @@ export async function insertReceiptForGroup(
 
   return await ctx.db.insert("receipts", {
     groupId,
+    createdByUserId,
     date: normalized.date,
     type: normalized.type,
     shopName: normalized.shopName,
@@ -58,7 +60,7 @@ export async function insertReceiptForGroup(
 export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
   const { groupId, userId } = await requireGroupMembership(ctx);
   const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
-  const receiptId = await insertReceiptForGroup(ctx, groupId, args, weekStartDay);
+  const receiptId = await insertReceiptForGroup(ctx, groupId, args, weekStartDay, userId);
 
   const receipt = await ctx.db.get(receiptId);
   if (receipt === null) {

@@ -1,6 +1,7 @@
 export { addDays, getMonthEndDate } from "../../lib/domain/common/date";
 export {
   getDateSpendingEntries,
+  getMonthIncomeEntries,
   getMonthSpendingEntries,
   getWeekIncomeEntries,
   getWeekSpendingEntries,

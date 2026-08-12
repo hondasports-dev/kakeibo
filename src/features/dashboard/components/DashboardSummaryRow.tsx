@@ -6,6 +6,7 @@ import { useTheme } from "@mui/material/styles";
 import { AnimatedCounter } from "../../ui";
 import { formatAggregationPeriod } from "../utils/formatAggregationPeriod";
 import { calcPrevWeekRatio, formatPrevWeekRatioWithArrow } from "../../../lib/weekComparison";
+import { getCurrentMonth } from "../../../../lib/domain/common/month";
 
 type DashboardSummaryRowProps = {
   count: number;
@@ -82,22 +83,44 @@ function SummaryFooter({
             {formatAggregationPeriod(weekStartDate, weekEndDate)}
           </Typography>
         </Stack>
-        <Typography
-          component={Link}
-          sx={{
-            color: "primary.main",
-            fontWeight: 700,
-            minHeight: 44,
-            display: "inline-flex",
-            alignItems: "center",
-            textDecoration: "none",
-            "&:hover": { textDecoration: "underline" },
-          }}
-          to={`/weeks/${weekStartDate}`}
-          variant="body2"
+        <Stack
+          direction={{ xs: "column", sm: "row" }}
+          spacing={{ xs: 0, sm: 1.5 }}
+          sx={{ alignItems: { xs: "flex-end", sm: "center" } }}
         >
-          今週のサマリーを見る ›
-        </Typography>
+          <Typography
+            component={Link}
+            sx={{
+              color: "primary.main",
+              fontWeight: 700,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+            to={`/weeks/${weekStartDate}`}
+            variant="body2"
+          >
+            今週のサマリーを見る ›
+          </Typography>
+          <Typography
+            component={Link}
+            sx={{
+              color: "primary.main",
+              fontWeight: 700,
+              minHeight: 44,
+              display: "inline-flex",
+              alignItems: "center",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+            to={`/months/${getCurrentMonth()}`}
+            variant="body2"
+          >
+            今月の月次サマリーを見る ›
+          </Typography>
+        </Stack>
       </Stack>
     </>
   );

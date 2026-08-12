@@ -3,6 +3,7 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import type { QueryCtx } from "../../../convex/_generated/server";
 import {
   getDateSpendingEntries,
+  getMonthIncomeEntries,
   getMonthSpendingEntries,
   getWeekIncomeEntries,
   getWeekSpendingEntries,
@@ -544,5 +545,69 @@ describe("getMonthSpendingEntries", () => {
     const result = await getMonthSpendingEntries(ctx, groupId, "2024-01-01");
     expect(result).toHaveLength(1);
     expect(result[0]._id).toBe("r1");
+  });
+
+  it("収入だけの expenseEntries がある月は旧 receipt の支出を補完する", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({ _id: "e-income" as Id<"expenseEntries">, entryType: "income" }),
+      ],
+      receipts: [makeReceipt({ _id: "r1" as Id<"receipts">, type: "expense" })],
+    });
+
+    const result = await getMonthSpendingEntries(ctx, groupId, "2024-01-01");
+    expect(result).toHaveLength(1);
+    expect(result[0]._id).toBe("r1");
+  });
+
+  it("新形式の収入と旧形式の支出が同じ月にあれば両方を返す", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({ _id: "e-income" as Id<"expenseEntries">, entryType: "income" }),
+      ],
+      receipts: [makeReceipt({ _id: "r-expense" as Id<"receipts">, type: "expense" })],
+    });
+
+    const result = await getMonthSpendingEntries(ctx, groupId, "2024-01-01");
+    expect(result.map((entry) => entry._id)).toEqual(["r-expense"]);
+  });
+});
+
+describe("getMonthIncomeEntries", () => {
+  it("expenseEntries がある月は expenseEntries の収入だけを返す", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({ _id: "e-income" as Id<"expenseEntries">, entryType: "income" }),
+        makeExpenseEntry({ _id: "e-expense" as Id<"expenseEntries">, entryType: "expense" }),
+      ],
+      receipts: [makeReceipt({ _id: "r-income" as Id<"receipts">, type: "income" })],
+    });
+
+    const result = await getMonthIncomeEntries(ctx, groupId, "2024-01-01");
+    expect(result).toHaveLength(1);
+    expect(result[0]._id).toBe("e-income");
+  });
+
+  it("expenseEntries が空なら旧 receipt の収入を返す", async () => {
+    const ctx = createQueryCtx({
+      receipts: [makeReceipt({ _id: "r-income" as Id<"receipts">, type: "income" })],
+    });
+
+    const result = await getMonthIncomeEntries(ctx, groupId, "2024-01-01");
+    expect(result).toHaveLength(1);
+    expect(result[0]._id).toBe("r-income");
+  });
+
+  it("新形式が支出だけの月は旧 receipt の収入を補完する", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({ _id: "e-expense" as Id<"expenseEntries">, entryType: "expense" }),
+      ],
+      receipts: [makeReceipt({ _id: "r-income" as Id<"receipts">, type: "income" })],
+    });
+
+    const result = await getMonthIncomeEntries(ctx, groupId, "2024-01-01");
+    expect(result).toHaveLength(1);
+    expect(result[0]._id).toBe("r-income");
   });
 });

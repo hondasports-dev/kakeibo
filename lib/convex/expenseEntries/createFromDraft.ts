@@ -20,7 +20,7 @@ export async function createExpenseEntriesFromDraftHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateExpenseEntriesFromDraftArgs,
 ): Promise<Id<"expenseEntries">[]> {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
 
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
@@ -49,6 +49,7 @@ export async function createExpenseEntriesFromDraftHandler(
 
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
+      createdByUserId: userId,
       sourceDocumentId: undefined,
       aiExpenseDraftId: args.draftId,
       date: draft.date,

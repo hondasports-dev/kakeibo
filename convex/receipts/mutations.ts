@@ -106,20 +106,27 @@ export async function deleteReceiptHandler(ctx: MutationCtx, args: DeleteReceipt
 }
 
 /**
- * 指定グループのレシートを全件削除する（E2E テストデータクリーンアップ専用）。
+ * 指定グループ・作成者のレシートだけを削除する（E2E テストデータクリーンアップ専用）。
  */
 export async function deleteReceiptsByUserHandler(
   ctx: MutationCtx,
-  args: { groupId: Id<"groups"> },
+  args: { groupId: Id<"groups">; userId: string },
 ) {
-  const receipts = await ctx.db
-    .query("receipts")
-    .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", args.groupId))
-    .collect();
+  let deletedCount = 0;
+  while (true) {
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_group_id_and_created_by_user_id", (q) =>
+        q.eq("groupId", args.groupId).eq("createdByUserId", args.userId),
+      )
+      .take(500);
+    if (receipts.length === 0) break;
 
-  await Promise.all(receipts.map((r) => ctx.db.delete(r._id)));
+    await Promise.all(receipts.map((receipt) => ctx.db.delete(receipt._id)));
+    deletedCount += receipts.length;
+  }
 
-  return { deletedCount: receipts.length };
+  return { deletedCount };
 }
 
 export const createReceipt = mutation({
@@ -156,7 +163,7 @@ export const deleteReceipt = mutation({
 });
 
 /**
- * 指定グループのレシートを全件削除する。
+ * 指定グループ・作成者のレシートだけを削除する。
  *
  * この mutation は internalMutation として定義されており、外部クライアントから
  * 直接呼び出せない。E2E テスト用の HTTP エンドポイント（convex/http.ts）経由でのみ呼び出す。
@@ -164,6 +171,7 @@ export const deleteReceipt = mutation({
 export const deleteReceiptsByUser = internalMutation({
   args: {
     groupId: v.id("groups"),
+    userId: v.string(),
   },
   handler: deleteReceiptsByUserHandler,
 });

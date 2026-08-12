@@ -123,13 +123,14 @@ export async function createFromExtractionHandler(
   ctx: MutationCtx,
   args: CreateFromExtractionArgs,
 ) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   await assertCategoryBelongsToGroup(ctx, args.categoryId, groupId);
 
   const now = Date.now();
   const classification = classifyCreatedDraft(args as CreatedDraftClassificationInput);
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId,
+    createdByUserId: userId,
     sourceType: "image_upload",
     status: classification.status,
     documentType: args.documentType,
@@ -163,10 +164,11 @@ export async function createFailedDraftFromImageAnalysisHandler(
   ctx: MutationCtx,
   args: CreateFailedDraftFromImageAnalysisArgs,
 ) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId,
+    createdByUserId: userId,
     sourceType: "image_upload",
     status: "failed",
     documentType: "unknown",

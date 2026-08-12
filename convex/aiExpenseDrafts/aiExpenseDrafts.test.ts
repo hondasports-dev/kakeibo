@@ -4,7 +4,11 @@ import { describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { ActionCtx, MutationCtx, QueryCtx } from "../_generated/server";
 import { analyzeReceiptImageToDraftHandler } from "./actions";
-import { createFailedDraftFromImageAnalysisHandler, createFromExtractionHandler } from "./internal";
+import {
+  createFailedDraftFromImageAnalysisHandler,
+  createFromExtractionHandler,
+  deleteOrphanedDraftHandler,
+} from "./internal";
 import { getWithItemsHandler, listByStatusHandler } from "./queries";
 import {
   deleteDraftHandler,
@@ -694,6 +698,62 @@ describe("aiExpenseDrafts", () => {
     );
   });
 
+  it("存在しないカテゴリを指定した下書き作成は拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity());
+
+    await expect(
+      createFromExtractionHandler(ctx, {
+        documentType: "receipt",
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "category-missing" as any,
+        confidence: {},
+        warnings: [],
+      }),
+    ).rejects.toMatchObject({ data: "Category does not belong to the current group" });
+  });
+
+  it("作成直後に下書きを取得できない場合は失敗として扱う", async () => {
+    const ctx = createMutationCtx(createIdentity());
+
+    await expect(
+      createFromExtractionHandler(ctx, {
+        documentType: "receipt",
+        confidence: {},
+        warnings: [],
+      }),
+    ).rejects.toMatchObject({ data: "AI expense draft was not found after creation" });
+  });
+
+  it("失敗下書きの作成直後に下書きを取得できない場合は失敗として扱う", async () => {
+    const ctx = createMutationCtx(createIdentity());
+
+    await expect(
+      createFailedDraftFromImageAnalysisHandler(ctx, {
+        warning: "解析に失敗しました",
+      }),
+    ).rejects.toMatchObject({ data: "AI expense draft was not found after creation" });
+  });
+
+  it("孤立した下書きと明細を同じグループから削除する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-orphan": { ...ownedDraft, _id: "draft-orphan" },
+      },
+      items: [
+        {
+          ...readyDraftItems[0],
+          _id: "item-orphan",
+          draftId: "draft-orphan",
+        },
+      ],
+    });
+
+    await deleteOrphanedDraftHandler(ctx, { draftId: "draft-orphan" as Id<"aiExpenseDrafts"> });
+
+    expect(ctx.db.delete).toHaveBeenCalledWith("item-orphan");
+    expect(ctx.db.delete).toHaveBeenCalledWith("draft-orphan");
+  });
+
   it("未認証ユーザーは下書きを作成できない", async () => {
     const ctx = createMutationCtx(null);
 
@@ -949,6 +1009,30 @@ describe("aiExpenseDrafts", () => {
         draftIds: ["draft-other"] as any,
       }),
     ).rejects.toMatchObject({ data: "AI expense draft does not belong to the current group" });
+  });
+
+  it("登録対象が空なら何もせず空の結果を返す", async () => {
+    const ctx = createMutationCtx(createIdentity());
+
+    await expect(registerReadyDraftsHandler(ctx, { draftIds: [] })).resolves.toEqual({
+      registeredDraftIds: [],
+      registeredReceiptIds: [],
+      alreadyRegisteredDraftIds: [],
+    });
+    expect(ctx.db.insert).not.toHaveBeenCalled();
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("存在しない下書きの登録は拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: { "draft-missing": null },
+    });
+
+    await expect(
+      registerReadyDraftsHandler(ctx, {
+        draftIds: ["draft-missing" as Id<"aiExpenseDrafts">],
+      }),
+    ).rejects.toMatchObject({ data: "AI expense draft not found" });
   });
 
   it("確認が必要な下書きを編集して登録準備OKへ戻す", async () => {

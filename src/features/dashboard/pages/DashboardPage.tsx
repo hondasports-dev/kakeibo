@@ -5,16 +5,19 @@ import { useTheme } from "@mui/material/styles";
 import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryBreakdownCard";
 import { SuzumemoLoadingState } from "../../ui";
 import { DashboardInputPanel } from "../components/DashboardInputPanel";
+import { DashboardMonthlySummaryLink } from "../components/DashboardMonthlySummaryLink";
 import { DashboardPeriodRow } from "../components/DashboardPeriodRow";
 import { DashboardSummaryLink } from "../components/DashboardSummaryLink";
 import { DashboardSummaryRow } from "../components/DashboardSummaryRow";
 import { WeekComparisonChart } from "../components/WeekComparisonChart";
 import { useWeekSession } from "../hooks/useWeekSession";
+import { getCurrentMonth } from "../../../../lib/domain/common/month";
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down("md"));
+  const currentMonth = getCurrentMonth();
 
   const summary = useQuery(
     getWeekSummaryWithCategoriesApi(),
@@ -115,6 +118,7 @@ export function DashboardPage() {
             {inputPanel}
             {categorySection}
             <DashboardSummaryLink weekStartDate={weekStartDate} />
+            <DashboardMonthlySummaryLink month={currentMonth} />
           </>
         ) : (
           <Box className="dashboard-grid">

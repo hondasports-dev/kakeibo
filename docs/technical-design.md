@@ -669,7 +669,7 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `receipts.summaries.getFourWeeksSummary()`
 - `receipts.summaries.getDailySpendingTrend(weekStartDate)`
 - `receipts.summaries.getMonthlyExpensesSummary(month?)`
-- `receipts.crud.deleteReceiptsByUser(groupId)`（internal）
+- `receipts.crud.deleteReceiptsByUser(groupId, userId)`（internal。指定ユーザーの作成データだけを対象）
 
 `receipts` は支出と収入の両方を扱う schema 互換として残る。新規手入力は `expenseEntries` を正本とし、
 収入は `entryType: "income"`、カテゴリなし、入力内容を `title` に保存する。

@@ -4,10 +4,15 @@ import { describe, expect, it, vi } from "vitest";
 import type { Id } from "../_generated/dataModel";
 import type { MutationCtx } from "../_generated/server";
 import {
+  createExpenseEntries,
+  createExpenseEntriesFromDraft,
+  createIncomeEntry,
   createIncomeEntryHandler,
   createExpenseEntriesFromDraftHandler,
   createExpenseEntriesHandler,
+  deleteExpenseEntry,
   deleteExpenseEntryHandler,
+  updateExpenseEntry,
   updateExpenseEntryHandler,
 } from "./mutations";
 
@@ -86,6 +91,18 @@ const entryId = "entry-001" as Id<"expenseEntries">;
 
 const GROUP_ID = "group-001" as Id<"groups">;
 const OTHER_GROUP_ID = "group-other" as Id<"groups">;
+
+type RegisteredMutation = {
+  _handler: (ctx: MutationCtx, args: unknown) => Promise<unknown>;
+};
+
+function invokeRegisteredMutation(
+  mutation: unknown,
+  ctx: MutationCtx,
+  args: unknown,
+): Promise<unknown> {
+  return (mutation as RegisteredMutation)._handler(ctx, args);
+}
 
 // ---------------------------------------------------------------------------
 // テスト用ヘルパー
@@ -452,6 +469,52 @@ describe("createIncomeEntryHandler", () => {
     const ctx = createMutationCtx(createIdentity());
     await expect(createIncomeEntryHandler(ctx, args)).rejects.toThrow(message);
     expect(ctx.db.insert).not.toHaveBeenCalled();
+  });
+});
+
+describe("registered expense entry mutations", () => {
+  it("登録済みmutationの薄いhandlerを通して各業務handlerを呼び出す", async () => {
+    const incomeCtx = createMutationCtx(createIdentity());
+    await invokeRegisteredMutation(createIncomeEntry, incomeCtx, {
+      date: "2026-06-07",
+      amountYen: 320000,
+      title: "給与",
+    });
+
+    const expenseCtx = createMutationCtx(createIdentity(), {
+      getDocById: { "cat-food": activeFoodCategory },
+    });
+    await invokeRegisteredMutation(createExpenseEntries, expenseCtx, {
+      date: "2026-06-07",
+      items: [{ categoryId: catFoodId, amountYen: 1000, title: "食料品" }],
+    });
+
+    const draftCtx = createMutationCtx(createIdentity(), {
+      getDocById: { "draft-ready": readyDraft, "cat-food": activeFoodCategory },
+    });
+    await invokeRegisteredMutation(createExpenseEntriesFromDraft, draftCtx, {
+      draftId: draftReadyId,
+      items: [{ itemName: "食料品", amountYen: 1000, categoryId: catFoodId }],
+    });
+
+    const updateCtx = createMutationCtx(createIdentity(), {
+      getDocById: { "entry-001": baseExpenseEntry },
+    });
+    await invokeRegisteredMutation(updateExpenseEntry, updateCtx, {
+      expenseEntryId: entryId,
+      title: "更新後",
+    });
+
+    const deleteCtx = createMutationCtx(createIdentity(), {
+      getDocById: { "entry-001": baseExpenseEntry },
+    });
+    await invokeRegisteredMutation(deleteExpenseEntry, deleteCtx, { expenseEntryId: entryId });
+
+    expect(incomeCtx.db.insert).toHaveBeenCalled();
+    expect(expenseCtx.db.insert).toHaveBeenCalled();
+    expect(draftCtx.db.insert).toHaveBeenCalled();
+    expect(updateCtx.db.patch).toHaveBeenCalled();
+    expect(deleteCtx.db.delete).toHaveBeenCalledWith("entry-001");
   });
 });
 

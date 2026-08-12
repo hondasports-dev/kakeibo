@@ -57,6 +57,7 @@ export async function scheduleAiReviewNotificationIfNeeded(
 
 type DeleteReceiptAnalysisDataByUserBatchArgs = {
   groupId: Id<"groups">;
+  userId: string;
   limit?: number;
 };
 
@@ -155,7 +156,9 @@ export async function deleteReceiptAnalysisDataByUserBatchHandler(
   const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
   const batches = await ctx.db
     .query("receiptAnalysisBatches")
-    .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", args.groupId))
+    .withIndex("by_group_id_and_created_by_user_id", (q) =>
+      q.eq("groupId", args.groupId).eq("createdByUserId", args.userId),
+    )
     .order("asc")
     .take(limit);
 
@@ -239,6 +242,7 @@ export const getJobById = internalQuery({
 export const deleteReceiptAnalysisDataByUserBatch = internalMutation({
   args: {
     groupId: v.id("groups"),
+    userId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: deleteReceiptAnalysisDataByUserBatchHandler,

@@ -3,6 +3,16 @@ import react from "@vitejs/plugin-react";
 
 export const resolveAppVersion = (appVersion: string | undefined) => appVersion ?? "local";
 
+const coverageThresholds =
+  process.env.VITEST_COVERAGE_COLLECTION_ONLY === "1"
+    ? undefined
+    : {
+        statements: 90,
+        branches: 85,
+        functions: 90,
+        lines: 90,
+      };
+
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -58,5 +68,11 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     // e2e/ は Playwright で実行するため Vitest から除外
     exclude: ["**/node_modules/**", "**/.pnpm-store/**", "**/e2e/**", "**/*.integration.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: ["**/*.test.*"],
+      ...(coverageThresholds ? { thresholds: coverageThresholds } : {}),
+    },
   },
 });

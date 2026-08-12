@@ -22,7 +22,8 @@ pnpm run e2e -- --project=chromium
 Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
 ローカルで必要なE2Eを実行します。Issue 用 worktree では作成直後に `preview` 用 worktree の
 正本 `.env.local` をコピーし、Convex 反映または E2E の直前には
-`pnpm run e2e:env-sync` を実行して `.env.local` 同期、Convex `E2E_CLEANUP_SECRET` 反映、
+`pnpm run e2e:env-sync` を実行して `.env.local` 同期、Convex `APP_ENV`・
+`E2E_CLERK_USER_ID`・`E2E_CLEANUP_SECRET` 反映、
 cleanup 認証確認まで成功させます。正本が無い場合は `docs/development-process.md` の bootstrap 手順で復旧します。
 
 環境変数不足、Convex CLI 認証不足、Clerk/Convex/Vercel の一時的な問題で必要なローカル E2E が

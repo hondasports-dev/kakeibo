@@ -36,7 +36,7 @@ import {
   SystemAdminUserSearchPage,
 } from "./features/system-admin";
 
-function GroupRouteGuard() {
+export function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
   const deletionStatus = useQuery(getMyAccountDeletionStatusApi(), isAuthenticated ? {} : "skip");
@@ -66,11 +66,21 @@ function GroupRouteGuard() {
   return <AppLayout />;
 }
 
-function SummaryRouteFallback() {
+export function SummaryRouteFallback() {
   return (
     <SuzumemoLoadingState
       label="週次サマリーを読み込み中"
       message="週次サマリーを読み込んでいます…"
+      variant="page"
+    />
+  );
+}
+
+export function MonthlySummaryRouteFallback() {
+  return (
+    <SuzumemoLoadingState
+      label="月次サマリーを読み込み中"
+      message="月次サマリーを読み込んでいます…"
       variant="page"
     />
   );
@@ -91,6 +101,15 @@ const appRoutes: RouteObject[] = [
     lazy: async () => {
       const { SummaryPage } = await import("./features/weekly-summary/pages/SummaryPage");
       return { Component: SummaryPage };
+    },
+  },
+  {
+    path: "/months/:month",
+    HydrateFallback: MonthlySummaryRouteFallback,
+    lazy: async () => {
+      const { MonthlySummaryPage } =
+        await import("./features/monthly-summary/pages/MonthlySummaryPage");
+      return { Component: MonthlySummaryPage };
     },
   },
   {

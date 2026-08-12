@@ -415,6 +415,9 @@ export default defineSchema({
 
   expenseEntries: defineTable({
     groupId: v.id("groups"),
+    // 作成者はE2E cleanupの削除範囲をテストユーザー自身に限定するために保持する。
+    // 既存データとの後方互換性のため optional とする。
+    createdByUserId: v.optional(v.string()),
     sourceDocumentId: v.optional(v.id("sourceDocuments")),
     aiExpenseDraftId: v.optional(v.id("aiExpenseDrafts")),
     date: v.string(),
@@ -429,12 +432,15 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_date", ["groupId", "date"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_category_id_and_date", ["groupId", "categoryId", "date"])
     .index("by_group_id_and_source_document_id", ["groupId", "sourceDocumentId"])
     .index("by_group_id_and_ai_expense_draft_id", ["groupId", "aiExpenseDraftId"]),
 
   receipts: defineTable({
     groupId: v.id("groups"),
+    // 既存データとの後方互換性を保ちつつ、E2E cleanupの削除範囲を限定する。
+    createdByUserId: v.optional(v.string()),
     date: v.string(),
     // type は支出(expense) / 収入(income) を区別する。既存レコードとの後方互換のため optional とする。
     type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
@@ -451,6 +457,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_week_start_date", ["groupId", "weekStartDate"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_date", ["groupId", "date"])
     .index("by_group_id_and_shop_name", ["groupId", "shopName"]),
 
@@ -480,6 +487,8 @@ export default defineSchema({
 
   aiExpenseDrafts: defineTable({
     groupId: v.id("groups"),
+    // E2E cleanupで他メンバーの下書きを削除しないための作成者識別子。
+    createdByUserId: v.optional(v.string()),
     sourceType: aiExpenseDraftSourceTypeValidator,
     status: aiExpenseDraftStatusValidator,
     documentType: aiExpenseDraftDocumentTypeValidator,
@@ -503,6 +512,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_status_and_created_at", ["groupId", "status", "createdAt"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_created_at", ["groupId", "createdAt"])
     .index("by_group_id_and_registered_receipt_id", ["groupId", "registeredReceiptId"]),
 
@@ -550,6 +560,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_status", ["groupId", "status"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_created_at", ["groupId", "createdAt"]),
 
   receiptAnalysisImageJobs: defineTable({
