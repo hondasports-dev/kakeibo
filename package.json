@@ -12,7 +12,7 @@
     "format:check": "oxfmt --check",
     "preview": "vite preview",
     "pretest": "node scripts/check-test-environment.mjs",
-    "test": "vitest --maxWorkers=6",
+    "test": "vitest --maxWorkers=4",
     "test:preflight": "node scripts/check-test-environment.mjs --coverage",
     "test:coverage": "node scripts/run-coverage.mjs",
     "prepare": "husky",
