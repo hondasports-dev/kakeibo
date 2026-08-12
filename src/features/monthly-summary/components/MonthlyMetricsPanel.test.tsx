@@ -52,7 +52,7 @@ describe("MonthlyMetricsPanel", () => {
       <MonthlyMetricsPanel isLoading netAmountYen={0} totalAmountYen={0} totalIncomeYen={0} />,
     );
 
-    expect(container.querySelectorAll(".MuiSkeleton-root")).toHaveLength(3);
+    expect(container.querySelectorAll('[data-testid="monthly-metric-skeleton"]')).toHaveLength(3);
     expect(screen.queryByLabelText("支出")).not.toBeInTheDocument();
   });
 });

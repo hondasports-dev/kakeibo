@@ -417,12 +417,15 @@ E2E 本体へ進みません。
 | `pnpm run format:check`                 | ✅ 必須       | oxfmt によるフォーマット確認                               |
 | `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
 | `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数、`src/**/*.test.tsx` 等を対象   |
+| `pnpm run test:coverage`                | ✅ 必須       | 変更本番ファイルの個別ゲート + 全体本番コードのベースライン非回帰ゲート |
 | `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。PR / `preview` では CI 内 Vite、main リリース候補では Vercel Preview に対して実行 |
 
 **注意事項:**
 
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
 - フロントエンドのコンポーネントテスト（Testing Library 等）は `src/**/*.test.tsx` に既存。変更時は該当 spec を更新する
+- `pnpm run test:coverage` は、変更された本番ファイルを Statements 90% / Branches 85% / Functions 80% / Lines 90% 以上で判定し、別実行で全体本番コードを収集する
+- 全体ゲートは `origin/preview`（`c5053c8`）で計測した Statements 82.52% / Branches 75.32% / Functions 81.72% / Lines 83.27% を下限とする。既存未カバー領域の改善は別Issueで扱い、閾値を下げて隠さない
 - `preview-deploy.yml` は lint + format:check + test + build + CI 内 Vite smoke E2E も実行する
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
@@ -611,8 +614,9 @@ PR をマージします。
   `DEV_VITE_CONVEX_SITE_URL` / `DEV_E2E_CLEANUP_SECRET` を使う
 - `preview-deploy.yml` は固定 staging deployment 用の `vars.VITE_CONVEX_SITE_URL` /
   `secrets.E2E_CLEANUP_SECRET` を使う。dev と staging の URL / secret を混在させない
-- 対象 deployment に `APP_ENV` / `E2E_CLERK_USER_ID` / `E2E_CLEANUP_SECRET` のいずれかが未設定の場合、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E エンドポイントは
-  503 を返す（本番誤操作防止）。dev / staging それぞれへ明示設定が必要
+- 対象 deployment の `APP_ENV` が未設定・未知値・production の場合、`convex/http.ts`（実装は
+  `convex/e2eHttp/`）の E2E ルートは登録されず404になる。`APP_ENV=development` でルートが登録された後に
+  `E2E_CLERK_USER_ID` / `E2E_CLEANUP_SECRET` が未設定の場合は handler が503を返すため、dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
   **接続先 deployment** に対して実行する（秘密値はログに出さない）
 - ローカルで `convex env set E2E_CLEANUP_SECRET` したあと CI E2E が 401 になる場合、
@@ -952,7 +956,7 @@ label は最小構成から始めます。
 
 - CODEOWNERS の範囲を `convex/` と `.github/` 以外にも広げる。
 - 計画管理に GitHub Projects を導入する。
-- coverage 閾値を設定する。
+- 全体 coverage のベースラインを定期的に引き上げる。
 - リリースノートまたは tag ベースのリリース運用を定義する。
 - 大きなアーキテクチャ判断に ADR を導入する。
 - Convex migration/backfill ルールを専用ドキュメントに分離する。

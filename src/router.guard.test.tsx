@@ -34,6 +34,7 @@ vi.mock("./features/app-shell", () => ({
   AppLayout: () => <div data-testid="app-layout" />,
   GuidePage: Page,
   MaintenancePage: Page,
+  MonthlySummaryRouteFallback: Page,
   NotFoundPage: Page,
   PrivacyPolicyPage: Page,
   TermsPage: Page,
@@ -108,6 +109,7 @@ describe("GroupRouteGuard", () => {
   });
 
   it("削除状態があれば削除ステータスへ遷移する", () => {
+    useConvexAuthMock.mockReturnValue({ isAuthenticated: true, isLoading: false });
     useQueryMock.mockReturnValue({ status: "deleting" });
     render(<GroupRouteGuard />);
 

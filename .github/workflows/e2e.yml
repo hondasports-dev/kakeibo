@@ -165,6 +165,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.trust.outputs.trusted == 'true'
         with:
+          persist-credentials: false
           # trust判定で検証したcommitをcheckoutし、Preview URLとE2Eコードのずれを避ける
           ref: ${{ steps.trust.outputs.checkout_ref }}
 
@@ -219,6 +220,7 @@ jobs:
             exit 0
           fi
           pnpm exec convex env set APP_ENV development
+          pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
           pnpm exec convex env set E2E_CLERK_USER_ID "$E2E_CLERK_USER_ID"
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 

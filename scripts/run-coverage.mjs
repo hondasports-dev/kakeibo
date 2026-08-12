@@ -101,7 +101,7 @@ function getChangedFiles(options) {
   return [...new Set(changedFiles)].filter(isChangedProductionFile);
 }
 
-function runVitest(changedFiles, collectCoverage) {
+function runVitest(changedFiles, collectCoverage, coverageDirectory) {
   const maxWorkers = process.env.COVERAGE_MAX_WORKERS ?? "4";
   const vitestPath = path.resolve(rootDirectory, "node_modules/vitest/vitest.mjs");
   const args = [
@@ -110,6 +110,9 @@ function runVitest(changedFiles, collectCoverage) {
     ...(collectCoverage ? ["--coverage"] : []),
     `--maxWorkers=${maxWorkers}`,
   ];
+  if (collectCoverage && coverageDirectory) {
+    args.push("--coverage.reportsDirectory", coverageDirectory);
+  }
   for (const changedFile of changedFiles) {
     args.push("--coverage.include", changedFile);
   }
@@ -150,11 +153,26 @@ for (const changedFile of changedFiles) {
   console.log(`- ${changedFile}`);
 }
 
-const vitestStatus = runVitest(changedFiles, true);
+const changedCoverageDirectory = path.resolve(rootDirectory, "coverage/changed");
+const overallCoverageDirectory = path.resolve(rootDirectory, "coverage/overall");
+
+const vitestStatus = runVitest(changedFiles, true, changedCoverageDirectory);
 if (vitestStatus !== 0) {
   process.exit(vitestStatus);
 }
 
-const changedCoverageStatus = checkChangedCoverage(changedFiles, { rootDirectory });
-const overallCoverageStatus = checkOverallCoverage(changedFiles, { rootDirectory });
+const changedCoverageStatus = checkChangedCoverage(changedFiles, {
+  coveragePath: path.join(changedCoverageDirectory, "coverage-final.json"),
+  rootDirectory,
+});
+
+console.log("Collecting full production coverage for the overall gate...");
+const overallVitestStatus = runVitest([], true, overallCoverageDirectory);
+if (overallVitestStatus !== 0) {
+  process.exit(overallVitestStatus);
+}
+
+const overallCoverageStatus = checkOverallCoverage({
+  coveragePath: path.join(overallCoverageDirectory, "coverage-final.json"),
+});
 process.exitCode = Math.max(changedCoverageStatus, overallCoverageStatus);

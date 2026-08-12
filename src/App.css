@@ -760,11 +760,13 @@
   white-space: nowrap;
 }
 
+.summary-header,
 .weekly-summary-header {
   align-items: center;
   gap: var(--space-md);
 }
 
+.summary-header-icon,
 .weekly-summary-header-icon {
   display: none;
   width: 32px;
@@ -938,14 +940,17 @@
     padding: var(--space-panel);
   }
 
+  .summary-header,
   .weekly-summary-header {
     gap: var(--space-sm);
   }
 
+  .summary-header h1,
   .weekly-summary-header h1 {
     font-size: 1.25rem;
   }
 
+  .summary-header-icon,
   .weekly-summary-header-icon {
     display: block;
   }

@@ -3,16 +3,43 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { jaJP } from "@mui/x-date-pickers/locales";
+import "dayjs/locale/ja";
 import { renderWithProviders } from "../../../test/render";
 import { MonthNavigator } from "./MonthNavigator";
 
 describe("MonthNavigator", () => {
-  it("年月ピッカーを開いて年と月を選べる", async () => {
+  it("不正な年月でも安全なプレースホルダーを表示する", () => {
+    renderWithProviders(
+      <LocalizationProvider
+        adapterLocale="ja"
+        dateAdapter={AdapterDayjs}
+        localeText={jaJP.components.MuiLocalizationProvider.defaultProps.localeText}
+      >
+        <MonthNavigator
+          currentMonth="invalid"
+          month="invalid"
+          onCurrentMonth={vi.fn()}
+          onMonthChange={vi.fn()}
+          onNextMonth={vi.fn()}
+          onPreviousMonth={vi.fn()}
+        />
+      </LocalizationProvider>,
+    );
+
+    expect(screen.getByLabelText("年月を選択")).toBeInTheDocument();
+  });
+
+  it("年月ピッカーを開ける", async () => {
     const user = userEvent.setup();
     const onMonthChange = vi.fn();
 
     renderWithProviders(
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <LocalizationProvider
+        adapterLocale="ja"
+        dateAdapter={AdapterDayjs}
+        localeText={jaJP.components.MuiLocalizationProvider.defaultProps.localeText}
+      >
         <MonthNavigator
           currentMonth="2026-08"
           month="2026-08"
@@ -24,7 +51,7 @@ describe("MonthNavigator", () => {
       </LocalizationProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: /Choose date/ }));
+    await user.click(screen.getByRole("button", { name: /日付を選択/ }));
     expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
@@ -33,7 +60,11 @@ describe("MonthNavigator", () => {
     const onMonthChange = vi.fn();
 
     renderWithProviders(
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <LocalizationProvider
+        adapterLocale="ja"
+        dateAdapter={AdapterDayjs}
+        localeText={jaJP.components.MuiLocalizationProvider.defaultProps.localeText}
+      >
         <MonthNavigator
           currentMonth="2026-08"
           month="2026-08"
@@ -45,15 +76,15 @@ describe("MonthNavigator", () => {
       </LocalizationProvider>,
     );
 
-    await user.click(screen.getByRole("button", { name: /Choose date/ }));
+    await user.click(screen.getByRole("button", { name: /日付を選択/ }));
     await user.click(
-      screen.getByRole("button", { name: /calendar view is open, switch to year view/i }),
+      screen.getByRole("button", { name: /カレンダー表示から年選択表示に切り替える/ }),
     );
     await user.click(screen.getByRole("radio", { name: /^2025$/ }));
 
     expect(onMonthChange).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("radio", { name: /^August$/ }));
+    await user.click(screen.getByRole("radio", { name: /^8月$/ }));
 
     expect(onMonthChange).toHaveBeenCalledOnce();
     expect(onMonthChange).toHaveBeenCalledWith("2025-08");
@@ -61,7 +92,11 @@ describe("MonthNavigator", () => {
 
   it("当月では今月と次月を無効にする", () => {
     renderWithProviders(
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <LocalizationProvider
+        adapterLocale="ja"
+        dateAdapter={AdapterDayjs}
+        localeText={jaJP.components.MuiLocalizationProvider.defaultProps.localeText}
+      >
         <MonthNavigator
           currentMonth="2026-08"
           month="2026-08"
@@ -86,7 +121,11 @@ describe("MonthNavigator", () => {
     };
 
     renderWithProviders(
-      <LocalizationProvider dateAdapter={AdapterDayjs}>
+      <LocalizationProvider
+        adapterLocale="ja"
+        dateAdapter={AdapterDayjs}
+        localeText={jaJP.components.MuiLocalizationProvider.defaultProps.localeText}
+      >
         <MonthNavigator
           currentMonth="2026-08"
           month="2026-07"

@@ -9,7 +9,6 @@ import {
   deleteReceiptApi,
   getMonthSummaryWithCategoriesApi,
 } from "../../../lib/repositories/receipts";
-import { SuzumemoLoadingState } from "../../ui";
 import { ExpenseEntryDeleteDialog } from "../../weekly-summary/components/ExpenseEntryDeleteDialog";
 import { ExpenseEntryEditDialog } from "../../weekly-summary/components/ExpenseEntryEditDialog";
 import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryBreakdownCard";
@@ -41,6 +40,17 @@ export function MonthlySummaryPage() {
   const categoriesQuery = useQuery(listActiveApi());
   const monthlySummary = useQuery(getMonthSummaryWithCategoriesApi(), { month });
   const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
+  const isSummaryLoading = monthlySummary === undefined;
+  const summary = monthlySummary ?? {
+    byCategory: [],
+    count: 0,
+    incomeCount: 0,
+    incomes: [],
+    netAmountYen: 0,
+    receipts: [],
+    totalAmountYen: 0,
+    totalIncomeYen: 0,
+  };
 
   useEffect(() => {
     if (rawMonth !== month) {
@@ -83,33 +93,13 @@ export function MonthlySummaryPage() {
     }
   };
 
-  if (monthlySummary === undefined) {
-    return (
-      <SuzumemoLoadingState
-        label="データを読み込み中"
-        message="月次サマリーを読み込んでいます…"
-        variant="page"
-      />
-    );
-  }
-
-  if (monthlySummary === null) {
-    return (
-      <Box className="app-main">
-        <Alert severity="error" variant="outlined">
-          月次サマリーの読み込みに失敗しました。
-        </Alert>
-      </Box>
-    );
-  }
-
   return (
     <Box className="app-main">
       <Stack spacing={3}>
-        <Stack className="weekly-summary-header" direction="row">
+        <Stack className="summary-header" direction="row">
           <Box
             alt=""
-            className="weekly-summary-header-icon"
+            className="summary-header-icon"
             component="img"
             height={32}
             src="/suzumemo-app-icon.png"
@@ -136,37 +126,37 @@ export function MonthlySummaryPage() {
         )}
 
         <MonthlyMetricsPanel
-          isLoading={false}
-          netAmountYen={monthlySummary.netAmountYen}
-          totalAmountYen={monthlySummary.totalAmountYen}
-          totalIncomeYen={monthlySummary.totalIncomeYen}
+          isLoading={isSummaryLoading}
+          netAmountYen={summary.netAmountYen}
+          totalAmountYen={summary.totalAmountYen}
+          totalIncomeYen={summary.totalIncomeYen}
         />
 
         <CategoryBreakdownCard
-          byCategory={monthlySummary.byCategory}
-          count={monthlySummary.count}
+          byCategory={summary.byCategory}
+          count={summary.count}
           emptyMessage="この月の支出はまだありません"
-          isLoading={false}
+          isLoading={isSummaryLoading}
           showPercentage
           title="支出カテゴリ"
-          totalAmountYen={monthlySummary.totalAmountYen}
+          totalAmountYen={summary.totalAmountYen}
         />
 
         <ReceiptListCard
-          count={monthlySummary.count}
+          count={summary.count}
           emptyMessage="この月の支出はまだありません"
-          isLoading={false}
+          isLoading={isSummaryLoading}
           listAriaLabel="月次サマリーの支出一覧"
           onDeleteReceipt={setDeletingReceipt}
           onEditReceipt={setEditingReceipt}
-          receipts={monthlySummary.receipts}
+          receipts={summary.receipts}
         />
 
         <IncomeListCard
-          count={monthlySummary.incomeCount}
+          count={summary.incomeCount}
           emptyMessage="この月の収入はまだありません"
-          incomes={monthlySummary.incomes}
-          isLoading={false}
+          incomes={summary.incomes}
+          isLoading={isSummaryLoading}
           listAriaLabel="月次サマリーの収入一覧"
           onDeleteIncome={(income) => setDeletingReceipt(incomeItemToReceiptItem(income))}
           onEditIncome={(income) => setEditingReceipt(incomeItemToReceiptItem(income))}

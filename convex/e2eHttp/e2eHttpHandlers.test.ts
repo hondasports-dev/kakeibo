@@ -77,7 +77,7 @@ async function responseJson(response: Response) {
 describe("e2eCleanupHandler", () => {
   beforeEach(configureEnvironment);
 
-  it("secretが不正なら処理せず503を返す", async () => {
+  it("secretが不正なら処理せず401を返す", async () => {
     const response = await e2eCleanupHandler(createActionCtx(), request({}, "wrong-secret"));
 
     expect(response.status).toBe(401);

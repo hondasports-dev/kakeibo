@@ -193,6 +193,7 @@ function syncConvexEnv(name, value) {
 
 function syncConvexEnvironment(secret, userId) {
   syncConvexEnv("APP_ENV", "development");
+  syncConvexEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
   syncConvexEnv("E2E_CLERK_USER_ID", userId);
   syncConvexEnv("E2E_CLEANUP_SECRET", secret);
   console.log(

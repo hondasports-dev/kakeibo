@@ -84,6 +84,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ env.SOURCE_REF }}
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -168,6 +169,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ env.SOURCE_REF }}
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
@@ -185,7 +187,8 @@ jobs:
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
           E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
         run: |
-          pnpm exec convex env set APP_ENV preview
+          pnpm exec convex env set APP_ENV development
+          pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
           pnpm exec convex env set E2E_CLERK_USER_ID "$E2E_CLERK_USER_ID"
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
@@ -282,6 +285,7 @@ jobs:
 
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ env.SOURCE_REF }}
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6

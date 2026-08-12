@@ -21,7 +21,12 @@ function Metric({
     tone === "good" ? "success.main" : tone === "warning" ? "error.main" : "text.primary";
 
   return (
-    <Stack aria-label={label} spacing={0.5} sx={{ minWidth: 0, textAlign: "center" }}>
+    <Stack
+      aria-label={label}
+      data-metric={label}
+      spacing={0.5}
+      sx={{ minWidth: 0, textAlign: "center" }}
+    >
       <Typography color="text.secondary" variant="body2">
         {label}
       </Typography>
@@ -53,7 +58,13 @@ export function MonthlyMetricsPanel({
         {isLoading ? (
           <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))" }}>
             {[0, 1, 2].map((key) => (
-              <Skeleton key={key} height={58} sx={{ mx: { xs: 0.5, sm: 1 } }} variant="rounded" />
+              <Skeleton
+                data-testid="monthly-metric-skeleton"
+                key={key}
+                height={58}
+                sx={{ mx: { xs: 0.5, sm: 1 } }}
+                variant="rounded"
+              />
             ))}
           </Box>
         ) : (
@@ -61,7 +72,7 @@ export function MonthlyMetricsPanel({
             sx={{
               display: "grid",
               gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-              "& > [aria-label] + [aria-label]": {
+              "& > [data-metric] + [data-metric]": {
                 borderLeft: "1px solid",
                 borderColor: "divider",
               },

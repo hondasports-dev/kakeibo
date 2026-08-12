@@ -58,7 +58,7 @@ describe("createE2eAuthCheckResponse", () => {
     process.env.E2E_CLEANUP_SECRET = "test-secret";
     process.env.E2E_CLERK_USER_ID = "clerk|user_e2e";
 
-    for (const appEnv of [undefined, "production", "unknown"]) {
+    for (const appEnv of [undefined, "preview", "production", "unknown"]) {
       if (appEnv === undefined) delete process.env.APP_ENV;
       else process.env.APP_ENV = appEnv;
       expect(createE2eAuthCheckResponse(request("test-secret")).status).toBe(503);

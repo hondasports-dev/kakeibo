@@ -4,7 +4,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { Box, Button, Stack } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { type Dayjs } from "dayjs";
-import { formatMonthLabel } from "../lib/monthNavigation";
+import { formatMonthLabel, normalizeMonth } from "../lib/monthNavigation";
 
 type MonthNavigatorProps = {
   month: string;
@@ -24,6 +24,9 @@ export function MonthNavigator({
   onMonthChange,
 }: MonthNavigatorProps) {
   const pickerView = useRef<"year" | "month">("month");
+  const normalizedMonth = normalizeMonth(month);
+  const normalizedCurrentMonth = normalizeMonth(currentMonth);
+  const monthLabel = normalizedMonth ? formatMonthLabel(normalizedMonth) : "年月";
 
   const handlePickerChange = (value: Dayjs | null) => {
     if (value === null || !value.isValid() || pickerView.current !== "month") {
@@ -53,12 +56,12 @@ export function MonthNavigator({
 
       <DatePicker
         format="YYYY年M月"
-        maxDate={dayjs(`${currentMonth}-01`)}
+        maxDate={normalizedCurrentMonth ? dayjs(`${normalizedCurrentMonth}-01`) : undefined}
         onChange={handlePickerChange}
         openTo="month"
         slotProps={{
           field: {
-            "aria-label": `${formatMonthLabel(month)}を選択`,
+            "aria-label": `${monthLabel}を選択`,
           },
           textField: {
             sx: {
@@ -77,7 +80,7 @@ export function MonthNavigator({
             },
           },
         }}
-        value={dayjs(`${month}-01`)}
+        value={normalizedMonth ? dayjs(`${normalizedMonth}-01`) : null}
         views={["year", "month"]}
         onViewChange={(view) => {
           if (view === "year" || view === "month") {

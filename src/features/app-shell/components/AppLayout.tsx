@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { Box, useMediaQuery } from "@mui/material";
 import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
 import { PageTransition } from "../../ui";
 import { AppBottomNav } from "./AppBottomNav";
 import { AppDrawer } from "./AppDrawer";
+import { NavigationPendingOutlet } from "./NavigationPendingOutlet";
 import { UserMenu } from "./UserMenu";
 import { createNavItems } from "../lib/navigationConfig";
 
@@ -48,7 +49,7 @@ export function AppLayout() {
         <Box component="main" sx={{ flex: 1 }}>
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
-              <Outlet />
+              <NavigationPendingOutlet />
             </PageTransition>
           </AnimatePresence>
         </Box>

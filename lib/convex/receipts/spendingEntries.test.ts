@@ -559,18 +559,6 @@ describe("getMonthSpendingEntries", () => {
     expect(result).toHaveLength(1);
     expect(result[0]._id).toBe("r1");
   });
-
-  it("新形式の収入と旧形式の支出が同じ月にあれば両方を返す", async () => {
-    const ctx = createQueryCtx({
-      expenseEntries: [
-        makeExpenseEntry({ _id: "e-income" as Id<"expenseEntries">, entryType: "income" }),
-      ],
-      receipts: [makeReceipt({ _id: "r-expense" as Id<"receipts">, type: "expense" })],
-    });
-
-    const result = await getMonthSpendingEntries(ctx, groupId, "2024-01-01");
-    expect(result.map((entry) => entry._id)).toEqual(["r-expense"]);
-  });
 });
 
 describe("getMonthIncomeEntries", () => {

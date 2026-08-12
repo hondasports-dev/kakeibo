@@ -63,7 +63,7 @@ Convex staging deployment には、少なくとも以下を設定する。
 - `CLERK_JWT_ISSUER_DOMAIN`
 - `CLERK_SECRET_KEY`
 - `RECEIPT_IMAGE_EXTRACTOR_MODE=mock`
-- `APP_ENV=preview`
+- `APP_ENV=development`
 
 `OPENAI_API_KEY` は PREVIEW に設定しない。通常検証で実OpenAI APIを呼ばない。
 
