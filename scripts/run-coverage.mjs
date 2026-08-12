@@ -102,7 +102,7 @@ function getChangedFiles(options) {
 }
 
 function runVitest(changedFiles, collectCoverage) {
-  const maxWorkers = process.env.COVERAGE_MAX_WORKERS ?? "6";
+  const maxWorkers = process.env.COVERAGE_MAX_WORKERS ?? "4";
   const vitestPath = path.resolve(rootDirectory, "node_modules/vitest/vitest.mjs");
   const args = [
     vitestPath,
