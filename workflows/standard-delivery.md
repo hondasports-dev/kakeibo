@@ -16,7 +16,8 @@
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
 - Reviewer は論理 read-only とし、修正を同じ Implementer へ返す。
 - モデルルーティングは `AGENTS.md` と `workflows/delegation-prompts.md` を正本とする。
-- Release Manager は、QA と Reviewer の結果がそろってから使う。
+- Security ReviewはReviewerとは別のread-only Gateとして、Code Review後・Delivery前に実行する。
+- Release Manager は、QA、Reviewer、Security Review の結果がそろってから使う。
 
 ## 呼び出し方
 
@@ -96,7 +97,35 @@ Acceptance Criteria、scope、状態、Test Strategyを確認する。クォー�
 - Handoffとの差分
 - 未解決事項
 
-### 4. コードレビュー
+### 4. Verification / GitHub Actions E2E（自動実行）
+
+担当: GitHub Actions（自動）／ QA Agent（結果確認）
+
+実装後のlint、format、unit/integration、coverage、build等の基本検証と、必要なE2E要否・実行は
+`skills/verification/SKILL.md` に従ってこのVerification Gateへ記録する。このGitHub Actions部分は
+Codex / Devinが直接操作せず、候補branchへのpushを契機にVercel PreviewデプロイとE2Eが自動実行され、
+QA AgentがGitHub MCPで結果を確認する。
+ここでの候補branch pushはVerification専用で、Deliveryのbranch push・PR作成・merge-ready Evidenceには数えない。
+Security Review後のDeliveryで、レビュー済みheadを対象に公開操作をあらためて確認する。
+
+```
+候補branch push
+  → Vercel Preview デプロイ（自動）
+    → .github/workflows/e2e.yml 起動（自動）
+      → Playwright E2E 実行（自動）
+        → GitHub Checks に結果記録（自動）
+          → QA Agent が GitHub MCP で結果を確認
+```
+
+QA Agentの確認手順と失敗時の対応は `skills/verification/SKILL.md` を参照。
+
+成果物:
+
+- E2E Checkの合否
+- 失敗時: 原因分類（テストコード問題 / 実装問題 / 環境起因）
+- E2Eテストコードを修正した場合: 必要に応じた `docs/qa-checklist.md` の更新
+
+### 5. コードレビュー
 
 コードレビューへ進む前に、Main が `git status --short`、`git diff HEAD`、untracked ファイルの内容を確認して integrity check を行う。
 
@@ -116,31 +145,15 @@ Acceptance Criteria、scope、状態、Test Strategyを確認する。クォー�
 
 `request_changes` は Main が修正 Handoff に変換し、同じ Implementer へ返す。
 
-### 5. GitHub Actions E2E（自動実行）
+### 6. セキュリティレビュー
 
-担当: GitHub Actions（自動）／ QA Agent（結果確認）
+担当: Security Review（Reviewerとは独立した論理 read-only）
 
-このフェーズはCodex / Devinが直接操作しない。PRのpushを契機にVercel Previewデプロイと
-E2Eが自動実行され、QA AgentがGitHub MCPで結果を確認する。
+`skills/security-review/SKILL.md` に従い、認証・認可、data boundary、入力・injection、secret、外部サービス、
+破壊的操作を確認する。判定は `PASS` / `FAIL` / `NOT_REQUIRED` / `BLOCKED` とし、`FAIL` は
+`IMPLEMENTATION → VERIFICATION → CODE_REVIEW → SECURITY_REVIEW` の順で再実行する。
 
-```
-PR push
-  → Vercel Preview デプロイ（自動）
-    → .github/workflows/e2e.yml 起動（自動）
-      → Playwright E2E 実行（自動）
-        → GitHub Checks に結果記録（自動）
-          → QA Agent が GitHub MCP で結果を確認
-```
-
-QA Agentの確認手順と失敗時の対応は `skills/verification/SKILL.md` を参照。
-
-成果物:
-
-- E2E Checkの合否
-- 失敗時: 原因分類（テストコード問題 / 実装問題 / 環境起因）
-- E2Eテストコードを修正した場合: 必要に応じた `docs/qa-checklist.md` の更新
-
-### 6. リリース
+### 7. リリース
 
 担当: Release Manager
 
@@ -159,7 +172,8 @@ QA Agentの確認手順と失敗時の対応は `skills/verification/SKILL.md` �
 - E2E化すべきか判断できない完了条件: QA Agent からRequirementsまたはユーザー確認に戻す。
 - 実装バグ: Mainが同じImplementerへ修正Handoffを渡す。
 - 仕様通り動かない: QA Agent が原因と再現手順をMainへ返し、Mainが同じImplementerへ修正Handoffを渡す。
-- 品質やセキュリティの問題: Reviewer から Main に返し、Mainが修正Handoffを同じImplementerへ渡す。
+- 品質の問題: Reviewer から Main に返し、Mainが修正Handoffを同じImplementerへ渡す。
+- セキュリティの問題: Security Reviewから Main に返し、Mainが修正Handoffを同じImplementerへ渡す。
 - E2E失敗（テストコードの問題）: QA Agent が原因・対象spec・修正方針をMainへ返す → Mainが同じImplementerへ修正Handoff → MainがpushしてE2E再実行。
 - E2E失敗（実装の問題）: QA Agent が原因と再現手順をMainへ返し、Mainが同じImplementerへ修正Handoffを渡す。
 - E2E失敗（環境・インフラ起因）: 作業中断してユーザーに報告する。

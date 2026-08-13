@@ -115,7 +115,7 @@ PROCESS_LEARNING
 DONE
 ```
 
-失敗・BLOCKED・同一失敗の反復は横断的に `INCIDENT` へ入る。
+失敗・BLOCKED・同一失敗の反復は横断的に `INCIDENT` へ入る。ただし、Requirementsのクォーラム未達・重大な仕様対立・Human Gate待ちによる `BLOCKED` は、`.loop/process.yaml` のトップレベル `blocked` stateへ入り、Human Gate後に `requirements` へ戻る。
 
 ```text
 Any Gate FAIL/BLOCKED
@@ -125,6 +125,18 @@ Any Gate FAIL/BLOCKED
  Facts / Root Cause / Fix
         ↓
 restart state
+```
+
+Requirementsのクォーラム未達・重大な仕様対立・Human Gate待ち:
+
+```text
+requirements BLOCKED
+        ↓
+      blocked
+        ↓
+ Human Gate / recovery
+        ↓
+   requirements
 ```
 
 ## Responsibilities
@@ -143,6 +155,8 @@ restart state
 | `incident` | 事実整理、独立仮説、Root Cause、restart stateを決定 |
 | `delivery` | commit/push/PR/CI/review/approval/conflict/merge-ready/merge/cleanup |
 | `process-learning` | correction/failureからCandidateを抽出し、最も強い反映先を選択 |
+
+VerificationでPreview/E2Eを起動する候補branch pushは、Deliveryのbranch push・PR作成とは別の事前検証操作であり、Delivery Evidenceには数えない。
 
 各Skillは**単体で実行手順を理解できる内容を持つ**。削除済み旧SkillやRoleへの実行時依存は持たない。
 

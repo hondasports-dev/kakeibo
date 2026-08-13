@@ -63,8 +63,8 @@ Issueが薄い、古い、または一部曖昧な場合は、次の順で補完
 
 ### 実行契約
 
-1. Mainが要求、Issue、関連docs、既存コード・テスト、現在のリポジトリrevisionから入力スナップショットを固定し、パケットversionを付ける。
-2. 必要人数のレビューエージェントへ、同じ入力スナップショットだけを渡して並列に起動する。Mainの仕様案や他エージェントの結果は、各レビュー提出まで共有しない。
+1. Mainが要求、Issue、関連docs、既存コード・テスト、現在のリポジトリrevisionから入力スナップショットを固定し、パケットversionを付ける。スナップショットには不変の `snapshot_id` と、対象revision・参照ソースのmanifest・digestを記録する。
+2. 必要人数のレビューエージェントへ、同じ `snapshot_id`、source manifest、digestを持つ入力スナップショットだけを渡して並列に起動する。Mainの仕様案や他エージェントの結果は、各レビュー提出まで共有しない。
 3. 各レビューエージェントは編集、stage、commit、pushを行わず、事実と推測を分けて次を返す。
    - 読んだEvidenceと事実
    - 仮定、仕様の穴、曖昧さ、見落とし
@@ -73,8 +73,8 @@ Issueが薄い、古い、または一部曖昧な場合は、次の順で補完
    - edge / error / loading / empty / authorization状態
    - unit / integration / E2E / browser等のTest Strategy案
    - `approved` / `needs_revision` / `blocked` と、その理由
-4. Mainはレビュー結果を合意点、対立点、採用した解決、未解決ブロッカーに分け、最終Requirementsパケットへ統合する。各レビューは `.loop/templates/requirements-review.yaml` の項目で、入力revision、packet version、独立性、判定、再レビューの系譜を記録する。レビュー人数の多数決だけで、ユーザー価値・データ保持・認可・課金・不可逆操作の対立を決めない。
-5. `exempt` でない場合、統合後に別の論理 read-only エージェントが元の入力スナップショットと統合後パケットを照合し、Acceptance Criteria、scope、edge/error状態、Test Strategyの漏れと検証可能性を確認する。統合後レビューも対象revision、packet version、統合後パケットを見たこと、他レビュー結果の事前共有有無、独立性、再レビュー系譜を記録する。`exempt` の場合だけ `not_required` とし、その分類理由を記録する。
+4. Mainはレビュー結果を合意点、対立点、採用した解決、未解決ブロッカーに分け、最終Requirementsパケットへ統合する。各レビューは `.loop/templates/requirements-review.yaml` の項目で、snapshot ID、source manifest/digest、入力revision、packet version、独立性、判定、再レビューの系譜を記録する。レビュー人数の多数決だけで、ユーザー価値・データ保持・認可・課金・不可逆操作の対立を決めない。
+5. `exempt` でない場合、統合後に別の論理 read-only エージェントが元の `snapshot_id` と統合後パケットを照合し、Acceptance Criteria、scope、edge/error状態、Test Strategyの漏れと検証可能性を確認する。統合後レビューも対象revision、snapshot ID、packet version、統合後パケットを見たこと、他レビュー結果の事前共有有無、独立性、再レビュー系譜を記録する。`exempt` の場合だけ `not_required` とし、その分類理由を記録する。
 6. 統合後レビューが `needs_revision` になった場合、パケットversionを上げ、影響する独立レビューからやり直す。必要なレビュー人数を満たせない場合、または重大な仕様対立についてHuman Gateの判断が出るまでの間は `BLOCKED` とし、実装へ進まない。Human Gate後は `requirements` へ戻り、必要なレビューを再実行する。
 
 レビューエージェントの利用不能時は1回だけ再試行するか、別の read-only エージェントへ切り替える。クォーラム未達をMainの自己レビューで補わない。
@@ -230,9 +230,11 @@ Acceptance Criteriaには必要に応じて:
 - 独立レビューのクォーラムを満たしている、または `exempt` の根拠がある
 - 独立レビューがすべて `approved`、または `needs_revision` の指摘を解消して再確認済みである
 - 各レビューのagent ID、観点、入力revision、packet version、独立性attestation、Evidence、必要時の再レビュー系譜が揃っている
+- 各レビューが同じ `snapshot_id`、source manifest、digestを参照していることが確認できる
 - Mainの統合結果に合意点・対立点・解決・未解決ブロッカーが記録されている
 - 統合後仕様レビューが `PASS`。`not_required` は `exempt` のときだけ、分類理由付きで許可する
 - 統合後仕様レビューにも対象revision、packet version、独立性attestation、必要時の再レビュー系譜が揃っている
+- 統合後仕様レビューにも元の `snapshot_id` とsource manifest/digestが記録されている
 - Requirementsパケットが入力スナップショットと同じrevisionに対して作られている
 
 #### Stop / Blocked
@@ -269,6 +271,7 @@ RevisionではRequirements内で再調査し、再度Go / Stopを判定する。
 - E2E追加 / 更新 / 省略を判断できない
 - 必須の独立レビュー、統合結果、統合後仕様レビューが未完了
 - 必須レビューのsnapshot一致、独立性、判定、再レビュー系譜が記録されていない
+- 不変のsnapshot ID、source manifest、digestがなく、同一入力を見たことを検証できない
 - Requirementsパケットを変更したのに、影響するレビューをやり直していない
 - レビューが別々の入力snapshotを見ている、またはMainの草案を先に共有している
 - `exempt` 以外で統合後仕様レビューを `not_required` にしている

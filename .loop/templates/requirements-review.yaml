@@ -3,8 +3,11 @@ requirements_review:
   perspective: ""
   status: pending # approved | needs_revision | blocked | pending
   input_snapshot:
+    snapshot_id: ""
     repository_revision: ""
     packet_version: ""
+    sources_manifest: []
+    digest: ""
     matches_task_snapshot: false
   execution:
     mode: parallel_read_only

@@ -24,6 +24,7 @@
 - 同じ差分の writer は原則 Implementer 1体とし、QA AgentとReviewerは論理 read-only とする。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のQA・E2E結果確認の2回使ってよい。
 - Reviewer の指摘は Main が同じ Implementer へ修正 Handoff として返す。
+- Security ReviewはReviewerとは別のread-only Gateとして、Code Review後・Release Managerの前に実行する。
 
 ## 呼び出し方
 
@@ -205,6 +206,7 @@ untracked ファイルの内容を照合する integrity check を行う。違�
 
 - QA Agent
 - Reviewer
+- Security Review（Reviewerとは独立した論理 read-only）
 
 開始条件:
 
@@ -226,18 +228,27 @@ Reviewer の確認:
 - テスト不足
 - 既存設計との整合性
 
+Security Review の確認:
+
+- 認証・認可
+- data boundary / privacy
+- input / injection
+- secret / external service
+- 破壊的操作
+
 出力:
 
 - QA結果
 - レビュー指摘
 - 修正が必要な項目
 - リリース可否
+- Security Review判定（`PASS` / `FAIL` / `NOT_REQUIRED` / `BLOCKED`）
 
 ## フェーズ7: 修正ループ
 
 条件:
 
-- QAまたはReviewerが重大な問題を見つけた場合。
+- QA、Reviewer、またはSecurity Reviewが重大な問題を見つけた場合。
 
 戻し先:
 
@@ -246,11 +257,13 @@ Reviewer の確認:
 - E2Eテスト設計の不足: Mainの設計工程
 - 実装バグ: Mainが同じImplementerへ修正Handoff
 - UI問題: Mainが optional UX/UI Designer の評価を得て、必要なら同じImplementerへ修正Handoff
+- セキュリティ問題: Security Reviewから Mainへ返し、同じImplementerへ修正Handoff。修正後はVerification、Code Review、Security Reviewを再実行する。
 
 完了条件:
 
 - 重大なQA不具合がない。
 - Reviewerが承認できる。
+- Security Reviewが `PASS` または根拠付き `NOT_REQUIRED` である。
 - 未解決リスクが明示されている。
 
 ## フェーズ8: リリース準備

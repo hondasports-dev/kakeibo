@@ -54,8 +54,10 @@ requirements:
     risk: pending # normal | high | exempt | pending
     packet_version: v0
     input_snapshot:
+      snapshot_id: ""
       repository_revision: ""
-      sources: []
+      sources_manifest: []
+      digest: ""
     review_record_template: .loop/templates/requirements-review.yaml
     required_independent_reviews: 0
     completed_independent_reviews: 0
@@ -71,8 +73,11 @@ requirements:
       status: pending # pending | pass | needs_revision | blocked | not_required
       agent_id: ""
       input_snapshot:
+        snapshot_id: ""
         repository_revision: ""
         packet_version: ""
+        sources_manifest: []
+        digest: ""
         matches_task_snapshot: false
       execution:
         mode: read_only
