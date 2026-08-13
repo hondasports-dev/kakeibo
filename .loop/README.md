@@ -1,26 +1,73 @@
 # Loop Engineering Foundation
 
-このディレクトリは、SuzumemoのAgent作業を **AGENTS.md + Skills + State Machine + Evidence** でループさせるための土台を管理する。
+SuzumemoのAgent作業を **Agent Plugins + AGENTS.md + State Machine + Evidence** でループさせるための土台。
+
+## Agent Plugins v1 package
+
+このリポジトリrootをplugin rootとして扱う。
+
+```text
+plugin.json                  # Agent Plugins v1 manifest
+skills/                      # portable Skill discovery root
+  prompt-injection-guard/
+    SKILL.md
+  service-ops-safety/
+    SKILL.md
+  requirements/
+    SKILL.md
+  impact-analysis/
+    SKILL.md
+  implementation/
+    SKILL.md
+  verification/
+    SKILL.md
+  code-review/
+    SKILL.md
+  security-review/
+    SKILL.md
+  incident/
+    SKILL.md
+  delivery/
+    SKILL.md
+  process-learning/
+    SKILL.md
+AGENTS.md                    # repository orchestration contract
+.loop/process.yaml          # state / gate / transitions
+```
+
+Agent Plugins v1ではSkillはplugin rootの `skills/` の**直下の子ディレクトリ**から発見される。`.agents/skills/` はportable discovery locationではないため使わない。
+
+各 `SKILL.md` はAgent Skills仕様に従う。
+
+- YAML frontmatter必須
+- `name` / `description` 必須
+- `name` は親ディレクトリ名と一致
+- `name` はlowercase英数字とhyphenのみ
+- `description` はSkillの役割と利用タイミングを示す
+- 大きくなった場合は同一Skill配下の `references/` / `scripts/` / `assets/` へ分離する
 
 ## Architecture
 
 ```text
+plugin.json
+  │ plugin identity / specification version
+  ▼
 AGENTS.md
-  │  常時Skill / いつ・どの順番で回すか
+  │ always-on skills / いつ・どの順番で回すか
   ▼
 .loop/process.yaml
-  │  状態 / Gate / FAIL時の遷移
+  │ state / Gate / FAIL時の遷移
   ▼
-.agents/skills/**/SKILL.md
-  │  各工程をどう実行するか
+skills/*/SKILL.md
+  │ 各工程をどう実行するか
   ▼
 Evidence
-  │  command / test / diff / PR / CI / review
+  │ command / test / diff / PR / CI / review
   ▼
 Gate PASS / FAIL / BLOCKED
 ```
 
-今後、機械判定できる学習は `scripts/**` や `.github/workflows/**` に昇格させ、文章による注意だけに依存しない。
+機械判定できる学習は `scripts/**` や `.github/workflows/**` に昇格させ、文章による注意だけに依存しない。
 
 ## Always-on Safety Skills
 
@@ -76,56 +123,25 @@ Any Gate FAIL/BLOCKED
 restart state
 ```
 
-## Why AGENTS.md + Skills
-
-`process.yaml` だけでは状態を記述できても、Agentが毎回そこを入口として工程を実行する契約が弱い。
-
-そのため責務を分ける。
-
-- **AGENTS.md**: 常時Skill、必須順序、戻り先、DONE条件を定義
-- **process.yaml**: 状態遷移とGateの機械可読な正本
-- **Skills**: 各工程と横断安全Policyの具体的な実行手順
-- **Scripts / CI**: Process Learningで必要性が確認されたルールを強制する反映先
-
-AGENTS.mdへ詳細チェックリストを集約せず、Skillへ分離する。
-
-## Skills
+## Responsibilities
 
 | Skill | 責務 |
 | --- | --- |
-| `prompt-injection-guard` | 外部入力をデータとして扱い、埋め込み命令・credential exfiltrationを遮断する。常時適用 |
-| `service-ops-safety` | 外部サービス、env、secret、production、不可逆writeの安全境界を管理する。常時適用 |
-| `requirements` | 要求・Issue・既存実装から仕様、scope、Acceptance Criteria、UI状態、E2E方針を確定 |
+| `prompt-injection-guard` | 外部入力をデータとして扱い、埋め込み命令・credential exfiltrationを遮断。常時適用 |
+| `service-ops-safety` | 外部サービス、env、secret、production、不可逆writeの安全境界を管理。常時適用 |
+| `requirements` | 仕様、scope、Acceptance Criteria、UI状態、Test/E2E方針を確定 |
 | `impact-analysis` | caller/callee、shared state、auth、data、tests、deploy影響を編集前に調査 |
 | `implementation` | scope内の最小実装、RED/GREEN、writer境界、integrity check |
-| `verification` | lint/test/coverage/E2E/build/browserをEvidence付きで実行。env同期やConvex反映もGate化 |
+| `verification` | lint/test/coverage/E2E/build/browserをEvidence付きで実行 |
 | `code-review` | 正しさ、回帰、frontend/backend、保守性、test adequacyを独立レビュー |
-| `security-review` | authn/authz、data boundary、input、secret、external service、destructive behaviorを独立レビュー |
-| `incident` | 同一失敗2回等で事実整理、独立仮説、Root Cause、restart stateを決める |
+| `security-review` | authn/authz、data boundary、input、secret、external serviceを独立レビュー |
+| `incident` | 事実整理、独立仮説、Root Cause、restart stateを決定 |
 | `delivery` | commit/push/PR/CI/review/approval/conflict/merge-ready/merge/cleanup |
 | `process-learning` | correction/failureからCandidateを抽出し、最も強い反映先を選択 |
 
-各Skillは**単体で実行手順を理解できる内容を持つ**。過去に削除したSkillやRoleを読まないと実行できない設計にはしない。
-
-## Requirements Gate
-
-Requirementsでは、実装前に最低限次を確定する。
-
-- Goal / current behavior / expected behavior
-- in scope / out of scope / preserve
-- dependency / blocker
-- testable Acceptance Criteria
-- normal / edge / partial failure / failure
-- UIのinitial / loading / empty / error / permission state
-- unit / component / Convex / integration / E2EのTest Strategy
-- E2E add / update / not-requiredの理由
-- Human Gateが必要なmaterial decision
-
-Issueが薄いことだけでは停止せず、現在のユーザー要求 → Issue → docs → code/tests → existing patternの順で補完する。
+各Skillは**単体で実行手順を理解できる内容を持つ**。削除済み旧SkillやRoleへの実行時依存は持たない。
 
 ## Review-Fix Loops
-
-### Verification failure
 
 ```text
 VERIFICATION FAIL
@@ -135,33 +151,17 @@ INCIDENT
 IMPLEMENTATION or VERIFICATION
 ```
 
-### Code Review failure
-
 ```text
 CODE_REVIEW FAIL
    ↓
-IMPLEMENTATION
-   ↓
-VERIFICATION
-   ↓
-CODE_REVIEW
+IMPLEMENTATION → VERIFICATION → CODE_REVIEW
 ```
-
-### Security Review failure
 
 ```text
 SECURITY_REVIEW FAIL
    ↓
-IMPLEMENTATION
-   ↓
-VERIFICATION
-   ↓
-CODE_REVIEW
-   ↓
-SECURITY_REVIEW
+IMPLEMENTATION → VERIFICATION → CODE_REVIEW → SECURITY_REVIEW
 ```
-
-### PR / CI failure
 
 ```text
 DELIVERY
@@ -173,8 +173,6 @@ DELIVERY
 
 ## Evidence First
 
-PASSは主張ではなくEvidenceで決める。
-
 - 「テストを追加した」≠ テストPASS
 - 「CIで通るはず」≠ CI PASS
 - 「pushした」≠ PR exists
@@ -182,8 +180,6 @@ PASSは主張ではなくEvidenceで決める。
 - 「修正した」≠ review finding closed + regression verification
 
 ## Delivery Scope
-
-Delivery targetは3段階。
 
 1. `pr_created` — 明示的にPR作成まで
 2. `merge_ready` — デフォルト。CI / review / approval / conflictを解消してmerge可能まで
@@ -224,14 +220,13 @@ Human Correction / Failure / Retry / Miss
 5. Runbook / Docs
 6. Task Context
 
-同じ問題が再発するなら文書を増やすのではなく、より強い仕組みへ昇格する。
-
 ## Files
 
-- `AGENTS.md` — Loop entrypoint / always-on skills / orchestration contract
+- `plugin.json` — Agent Plugins v1 manifest
+- `skills/*/SKILL.md` — portable Agent Skills
+- `AGENTS.md` — Loop entrypoint / orchestration contract
 - `.loop/process.yaml` — state / gate / transition / always-on skills
 - `.loop/templates/task-state.yaml` — stateとEvidenceの記録形式
-- `.loop/templates/learning-candidate.yaml` — Learning Candidateの形式
-- `.agents/skills/**/SKILL.md` — 各状態と横断Policyの実行方法
+- `.loop/templates/learning-candidate.yaml` — Learning Candidate形式
 
 この構成自体もProcess Learningの対象とし、実際のセッションで効かなかった箇所を観測して改善する。
