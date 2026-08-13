@@ -19,7 +19,7 @@ function buildSummary() {
 
   const categoryInfoMap = new Map([
     ["food", { name: "食費", color: "#8B5E3C" }],
-    ...months.map((month, index) => [
+    ...months.map((_, index) => [
       `cat-${index}`,
       { name: `カテゴリ${index}`, color: `#00000${index}` },
     ]),
