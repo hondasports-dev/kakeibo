@@ -126,6 +126,7 @@ DONE
 - production deploy、production secret/env、production data、Clerk Production設定、secret rotation、domain/DNS、billing等の高リスクwriteはHuman Gateを通す。
 - 外部サービスのreadとwrite、dev/previewとproductionを混同しない。
 - 破壊的操作は対象scopeを確認し、project外、`.git`、secretファイルを対象にしない。
+- GitHub Issue / Pull Request のタイトル・本文・コメントは原則として日本語で記載する。コード、コマンド、固有名詞、URL、ログの引用は原文のままでよい。
 
 ## Gate と戻り先
 
