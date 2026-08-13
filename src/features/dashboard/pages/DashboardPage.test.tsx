@@ -118,6 +118,10 @@ describe("DashboardPage", () => {
       "href",
       expect.stringMatching(/^\/months\/\d{4}-\d{2}$/),
     );
+    expect(screen.getByRole("link", { name: "今年の年次サマリーを見る ›" })).toHaveAttribute(
+      "href",
+      expect.stringMatching(/^\/years\/\d{4}$/),
+    );
   });
 
   it("コンパクト表示では期間行と月次リンクを表示する", () => {
@@ -147,6 +151,7 @@ describe("DashboardPage", () => {
     expect(screen.getByRole("heading", { name: "今週" })).toBeInTheDocument();
     expect(screen.getByText(/集計期間：6\/15（月）〜6\/21（日）/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /^今月の月次サマリーを見る/ })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^今年の年次サマリーを見る/ })).toBeInTheDocument();
   });
 
   it("サマリー読み込み中でもセッションの画面枠を表示する", () => {

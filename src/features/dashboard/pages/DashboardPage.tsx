@@ -6,18 +6,21 @@ import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryB
 import { SuzumemoLoadingState } from "../../ui";
 import { DashboardInputPanel } from "../components/DashboardInputPanel";
 import { DashboardMonthlySummaryLink } from "../components/DashboardMonthlySummaryLink";
+import { DashboardYearlySummaryLink } from "../components/DashboardYearlySummaryLink";
 import { DashboardPeriodRow } from "../components/DashboardPeriodRow";
 import { DashboardSummaryLink } from "../components/DashboardSummaryLink";
 import { DashboardSummaryRow } from "../components/DashboardSummaryRow";
 import { WeekComparisonChart } from "../components/WeekComparisonChart";
 import { useWeekSession } from "../hooks/useWeekSession";
 import { getCurrentMonth } from "../../../../lib/domain/common/month";
+import { getCurrentYear } from "../../../../lib/domain/common/year";
 
 export function DashboardPage() {
   const { weekSession, sessionError } = useWeekSession();
   const theme = useTheme();
   const isCompact = useMediaQuery(theme.breakpoints.down("md"));
   const currentMonth = getCurrentMonth();
+  const currentYear = getCurrentYear();
 
   const summary = useQuery(
     getWeekSummaryWithCategoriesApi(),
@@ -119,6 +122,7 @@ export function DashboardPage() {
             {categorySection}
             <DashboardSummaryLink weekStartDate={weekStartDate} />
             <DashboardMonthlySummaryLink month={currentMonth} />
+            <DashboardYearlySummaryLink year={currentYear} />
           </>
         ) : (
           <Box className="dashboard-grid">

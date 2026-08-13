@@ -35,6 +35,7 @@ vi.mock("./features/app-shell", () => ({
   GuidePage: Page,
   MaintenancePage: Page,
   MonthlySummaryRouteFallback: Page,
+  YearlySummaryRouteFallback: Page,
   NotFoundPage: Page,
   PrivacyPolicyPage: Page,
   TermsPage: Page,

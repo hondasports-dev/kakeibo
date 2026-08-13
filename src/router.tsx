@@ -4,6 +4,7 @@ import {
   GuidePage,
   MaintenancePage,
   MonthlySummaryRouteFallback,
+  YearlySummaryRouteFallback,
   NotFoundPage,
   PrivacyPolicyPage,
   TermsPage,
@@ -87,7 +88,7 @@ export function ExpenseSearchRouteFallback() {
   );
 }
 
-export { MonthlySummaryRouteFallback };
+export { MonthlySummaryRouteFallback, YearlySummaryRouteFallback };
 
 const appRoutes: RouteObject[] = [
   {
@@ -113,6 +114,15 @@ const appRoutes: RouteObject[] = [
       const { MonthlySummaryPage } =
         await import("./features/monthly-summary/pages/MonthlySummaryPage");
       return { Component: MonthlySummaryPage };
+    },
+  },
+  {
+    path: "/years/:year",
+    HydrateFallback: YearlySummaryRouteFallback,
+    lazy: async () => {
+      const { YearlySummaryPage } =
+        await import("./features/yearly-summary/pages/YearlySummaryPage");
+      return { Component: YearlySummaryPage };
     },
   },
   {

@@ -1,0 +1,67 @@
+import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { renderWithDatePickers } from "../../../test/render";
+import { YearNavigator } from "./YearNavigator";
+
+describe("YearNavigator", () => {
+  it("前年・今年・次年と年ピッカーを表示する", () => {
+    renderWithDatePickers(
+      <YearNavigator
+        currentYear="2026"
+        onCurrentYear={vi.fn()}
+        onNextYear={vi.fn()}
+        onPreviousYear={vi.fn()}
+        onYearChange={vi.fn()}
+        year="2025"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "前年へ" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "今年へ" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "次年へ" })).toBeEnabled();
+    expect(screen.getByLabelText("2025年を選択")).toBeInTheDocument();
+  });
+
+  it("今年表示では次年と今年ボタンを無効化する", () => {
+    renderWithDatePickers(
+      <YearNavigator
+        currentYear="2026"
+        onCurrentYear={vi.fn()}
+        onNextYear={vi.fn()}
+        onPreviousYear={vi.fn()}
+        onYearChange={vi.fn()}
+        year="2026"
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "今年へ" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "次年へ" })).toBeDisabled();
+  });
+
+  it("前年・今年・次年の操作を通知する", async () => {
+    const user = userEvent.setup();
+    const onPreviousYear = vi.fn();
+    const onCurrentYear = vi.fn();
+    const onNextYear = vi.fn();
+
+    renderWithDatePickers(
+      <YearNavigator
+        currentYear="2026"
+        onCurrentYear={onCurrentYear}
+        onNextYear={onNextYear}
+        onPreviousYear={onPreviousYear}
+        onYearChange={vi.fn()}
+        year="2025"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "前年へ" }));
+    await user.click(screen.getByRole("button", { name: "今年へ" }));
+    await user.click(screen.getByRole("button", { name: "次年へ" }));
+
+    expect(onPreviousYear).toHaveBeenCalledTimes(1);
+    expect(onCurrentYear).toHaveBeenCalledTimes(1);
+    expect(onNextYear).toHaveBeenCalledTimes(1);
+  });
+});

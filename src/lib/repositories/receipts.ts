@@ -8,4 +8,5 @@ export const getWeekSummaryWithCategoriesApi = () =>
   api.receipts.summaries.getWeekSummaryWithCategories;
 export const getMonthSummaryWithCategoriesApi = () =>
   api.receipts.summaries.getMonthSummaryWithCategories;
+export const getYearSummaryApi = () => api.receipts.summaries.getYearSummary;
 export const updateReceiptApi = () => api.receipts.crud.updateReceipt;

@@ -90,6 +90,10 @@ describe("SummaryPage", () => {
       "href",
       "/months/2026-06",
     );
+    expect(screen.getByRole("link", { name: "2026年の年次サマリーを見る" })).toHaveAttribute(
+      "href",
+      "/years/2026",
+    );
   });
 
   it("月またぎ週は週開始日の月へのリンクを表示する", () => {

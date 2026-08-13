@@ -18,6 +18,7 @@ import {
   getMonthlyExpensesSummaryHandler,
   getWeekSummaryHandler,
   getWeekSummaryWithCategoriesHandler,
+  getYearSummaryHandler,
 } from "./summaries";
 import { insertReceiptForGroup } from "../../lib/convex/receipts/insert";
 
@@ -3042,5 +3043,114 @@ describe("getMonthSummaryWithCategoriesHandler", () => {
         { month: "2024-13" },
       ),
     ).rejects.toMatchObject({ data: "Invalid month" });
+  });
+});
+
+describe("getYearSummaryHandler", () => {
+  it("未認証の場合は年次サマリーを返さない", async () => {
+    await expect(
+      getYearSummaryHandler(createQueryCtxForSummary(null), { year: "2024" }),
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("月ごとの収支とカテゴリ積み上げを年単位で集計する", async () => {
+    const utilitiesCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-002",
+      name: "光熱費",
+      color: "#4F7CAC",
+      sortOrder: 2,
+    };
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "jan-food",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-01-10",
+        amount: 1200,
+        categoryId: sampleCategory._id,
+        title: "食費",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "aug-utilities",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        date: "2024-08-15",
+        amount: 8000,
+        categoryId: utilitiesCategory._id,
+        title: "電気代",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+      {
+        _id: "aug-income",
+        _creationTime: 1002,
+        groupId: GROUP_ID,
+        date: "2024-08-25",
+        amount: 200000,
+        categoryId: sampleCategory._id,
+        title: "給与",
+        entryType: "income",
+        source: "manual",
+        createdAt: 1002,
+        updatedAt: 1002,
+      },
+    ];
+
+    const result = await getYearSummaryHandler(
+      createQueryCtxForSummary(
+        createIdentity({ tokenIdentifier: USER_ID }),
+        [],
+        [sampleCategory, utilitiesCategory],
+        expenseEntries,
+      ),
+      { year: "2024" },
+    );
+
+    expect(result.year).toBe("2024");
+    expect(result.months).toHaveLength(12);
+    expect(result.totalAmountYen).toBe(9200);
+    expect(result.totalIncomeYen).toBe(200000);
+    expect(result.netAmountYen).toBe(190800);
+    expect(result.months[0]).toMatchObject({
+      month: "2024-01",
+      totalAmountYen: 1200,
+      totalIncomeYen: 0,
+    });
+    expect(result.months[7]).toMatchObject({
+      month: "2024-08",
+      totalAmountYen: 8000,
+      totalIncomeYen: 200000,
+    });
+    expect(result.byCategory.map((category) => category.categoryName)).toEqual(["光熱費", "食費"]);
+  });
+
+  it("データが無い年は0で埋めた12ヶ月を返す", async () => {
+    const result = await getYearSummaryHandler(
+      createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID })),
+      { year: "2023" },
+    );
+
+    expect(result.months).toHaveLength(12);
+    expect(result.totalAmountYen).toBe(0);
+    expect(result.totalIncomeYen).toBe(0);
+    expect(result.byCategory).toEqual([]);
+  });
+
+  it("不正な年を拒否する", async () => {
+    await expect(
+      getYearSummaryHandler(
+        createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID })),
+        {
+          year: "24",
+        },
+      ),
+    ).rejects.toMatchObject({ data: "Invalid year" });
   });
 });
