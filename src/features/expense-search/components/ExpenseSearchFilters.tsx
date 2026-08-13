@@ -1,10 +1,35 @@
 import { Button, MenuItem, Stack, TextField } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs, { type Dayjs } from "dayjs";
 import type { ExpenseSearchFormState } from "../lib/searchParams";
 
 type CategoryOption = {
   _id: string;
   name: string;
 };
+
+const pickerPaperSx = {
+  "& .MuiPaper-root": {
+    border: "1px solid",
+    borderColor: "divider",
+  },
+} as const;
+
+function digitsOnly(value: string): string {
+  return value.replace(/[^\d]/g, "");
+}
+
+function dateFromIso(value: string): Dayjs | null {
+  if (!value) {
+    return null;
+  }
+  const parsed = dayjs(value);
+  return parsed.isValid() ? parsed : null;
+}
+
+function isoFromDate(value: Dayjs | null): string {
+  return value?.isValid() ? value.format("YYYY-MM-DD") : "";
+}
 
 export function ExpenseSearchFilters({
   categories,
@@ -59,35 +84,53 @@ export function ExpenseSearchFilters({
             fullWidth
             label="金額の下限"
             name="minAmountYen"
-            slotProps={{ htmlInput: { inputMode: "numeric", min: 0 } }}
+            slotProps={{ htmlInput: { inputMode: "numeric", pattern: "[0-9]*" } }}
             value={state.minAmountYen}
-            onChange={(event) => onChange({ ...state, minAmountYen: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...state, minAmountYen: digitsOnly(event.target.value) })
+            }
           />
           <TextField
             fullWidth
             label="金額の上限"
-            slotProps={{ htmlInput: { inputMode: "numeric", min: 0 } }}
             name="maxAmountYen"
+            slotProps={{ htmlInput: { inputMode: "numeric", pattern: "[0-9]*" } }}
             value={state.maxAmountYen}
-            onChange={(event) => onChange({ ...state, maxAmountYen: event.target.value })}
+            onChange={(event) =>
+              onChange({ ...state, maxAmountYen: digitsOnly(event.target.value) })
+            }
           />
-          <TextField
-            fullWidth
+          <DatePicker
+            format="YYYY/MM/DD"
             label="開始日"
             name="startDate"
-            slotProps={{ inputLabel: { shrink: true } }}
-            type="date"
-            value={state.startDate}
-            onChange={(event) => onChange({ ...state, startDate: event.target.value })}
+            onChange={(value) => onChange({ ...state, startDate: isoFromDate(value) })}
+            slotProps={{
+              field: { clearable: true },
+              openPickerButton: { "aria-label": "開始日を選択" },
+              popper: { sx: pickerPaperSx },
+              textField: {
+                fullWidth: true,
+                sx: { "& .MuiInputBase-root": { backgroundColor: "background.paper" } },
+              },
+            }}
+            value={dateFromIso(state.startDate)}
           />
-          <TextField
-            fullWidth
+          <DatePicker
+            format="YYYY/MM/DD"
             label="終了日"
             name="endDate"
-            slotProps={{ inputLabel: { shrink: true } }}
-            type="date"
-            value={state.endDate}
-            onChange={(event) => onChange({ ...state, endDate: event.target.value })}
+            onChange={(value) => onChange({ ...state, endDate: isoFromDate(value) })}
+            slotProps={{
+              field: { clearable: true },
+              openPickerButton: { "aria-label": "終了日を選択" },
+              popper: { sx: pickerPaperSx },
+              textField: {
+                fullWidth: true,
+                sx: { "& .MuiInputBase-root": { backgroundColor: "background.paper" } },
+              },
+            }}
+            value={dateFromIso(state.endDate)}
           />
         </Stack>
         <Stack direction="row" spacing={1}>

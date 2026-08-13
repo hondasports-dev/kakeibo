@@ -2,7 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../../test/render";
+import { renderWithDatePickers } from "../../../test/render";
 import { ExpenseSearchPage } from "./ExpenseSearchPage";
 
 const useQueryMock = vi.fn();
@@ -37,7 +37,7 @@ describe("ExpenseSearchPage", () => {
   });
 
   it("検索フォームと空の結果メッセージを表示する", () => {
-    renderWithProviders(
+    renderWithDatePickers(
       <MemoryRouter initialEntries={["/search"]}>
         <ExpenseSearchPage />
       </MemoryRouter>,
@@ -48,13 +48,16 @@ describe("ExpenseSearchPage", () => {
     expect(screen.getByLabelText("カテゴリ")).toBeInTheDocument();
     expect(screen.getByLabelText("金額の下限")).toBeInTheDocument();
     expect(screen.getByLabelText("金額の上限")).toBeInTheDocument();
-    expect(screen.getByLabelText("開始日")).toBeInTheDocument();
-    expect(screen.getByLabelText("終了日")).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "開始日" })).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "終了日" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "開始日を選択" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "終了日を選択" })).toBeInTheDocument();
+    expect(document.querySelector('input[type="date"]')).toBeNull();
     expect(screen.getByText("条件に合う支出はありません")).toBeInTheDocument();
   });
 
   it("不正な金額範囲ならエラーを出して検索しない", () => {
-    renderWithProviders(
+    renderWithDatePickers(
       <MemoryRouter initialEntries={["/search?min=200&max=100"]}>
         <ExpenseSearchPage />
       </MemoryRouter>,
@@ -72,7 +75,7 @@ describe("ExpenseSearchPage", () => {
       return { ...emptySearchResult, truncated: true, isDone: false };
     });
 
-    renderWithProviders(
+    renderWithDatePickers(
       <MemoryRouter initialEntries={["/search"]}>
         <ExpenseSearchPage />
       </MemoryRouter>,
@@ -87,7 +90,7 @@ describe("ExpenseSearchPage", () => {
 
   it("条件を絞り込むとURLへ反映し、クリアで戻せる", async () => {
     const user = userEvent.setup();
-    renderWithProviders(
+    renderWithDatePickers(
       <MemoryRouter initialEntries={["/search"]}>
         <ExpenseSearchPage />
         <LocationProbe />
