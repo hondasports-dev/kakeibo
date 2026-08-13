@@ -2,63 +2,125 @@ task:
   id: ""
   source: ""
   objective: ""
-  current_state: intake
+  current_state: requirements
   base_branch: preview
+  delivery_target: merge_ready # pr_created | merge_ready | merged_cleaned
 
-scope:
+requirements:
+  status: pending # pending | pass | blocked
+  current_behavior: ""
+  expected_behavior: ""
   in_scope: []
   out_of_scope: []
-  assumptions: []
+  acceptance_criteria: []
+  edge_and_error_states: []
+  test_strategy: []
+  decisions: []
+  evidence: []
 
-acceptance_criteria: []
-
-impact:
-  changed_surfaces: []
+impact_analysis:
+  status: pending
+  risk: medium # low | medium | high
+  direct_changes: []
   callers: []
   callees: []
   shared_state: []
-  auth_or_data_boundaries: []
-  regression_risks: []
+  auth_or_authorization_boundaries: []
+  data_or_schema: []
+  affected_ui_or_flows: []
+  regression_tests: []
+  external_or_deployment_impact: []
+  recovery_or_rollback: []
+  evidence: []
 
 implementation:
-  summary: ""
+  status: pending
   changed_files: []
+  red_evidence: []
+  green_evidence: []
+  design_deviations: []
+  impact_changes_discovered: []
+  integrity_check: pending
+  evidence: []
 
 verification:
+  status: pending
   checks: []
-  # Example:
   # - name: unit
-  #   command: pnpm test
+  #   command_or_method: pnpm test --run
   #   status: pass # pass | fail | blocked | not_required
   #   evidence: ""
+  test_adequacy: []
+  coverage: []
+  e2e: []
+  browser_or_runtime: []
+  skipped_checks: []
+  evidence: []
 
-review:
+code_review:
   status: pending # pending | pass | fail | blocked
-  findings: []
+  must_fix: []
+  nice_to_have: []
+  frontend_findings: []
+  backend_findings: []
+  test_adequacy: []
+  regression_risks: []
+  integrity_check: pending
   evidence: []
 
-delivery:
-  commit: ""
-  branch: ""
-  pull_request: ""
-  ci_status: pending
-  review_status: pending
-  merge_status: pending
-  evidence: []
-
-post_check:
-  status: pending
+security_review:
+  status: pending # pending | pass | fail | blocked | not_required
+  authentication: []
+  authorization: []
+  data_boundary_and_privacy: []
+  input_and_injection: []
+  secrets: []
+  external_services: []
+  destructive_operations: []
+  must_fix: []
+  residual_risks: []
   evidence: []
 
 incidents: []
-# - observed_failure: ""
-#   evidence: []
+# - failed_gate: verification
+#   observed_failure: ""
+#   facts: []
+#   hypotheses_tested: []
 #   root_cause_or_blocker: ""
 #   affected_scope: []
-#   restart_state: verify
+#   fix: ""
+#   regression_evidence: []
+#   restart_state: implementation
+#   learning_event: ""
 
-learning_candidates: []
+delivery:
+  status: pending
+  target: merge_ready
+  branch: ""
+  commit: ""
+  pull_request: ""
+  base: preview
+  head: ""
+  draft: false
+  ci_checks: []
+  review_threads: []
+  approval_status: pending
+  mergeable: pending
+  merge_status: pending
+  issue_state: pending
+  branch_cleanup: pending
+  worktree_cleanup: pending
+  evidence: []
+
+process_learning:
+  status: pending
+  events_reviewed: []
+  candidates: []
+  candidates_none_reason: ""
+  human_gate_required: false
+  evidence: []
 
 completion:
   status: in_progress # in_progress | blocked | done
   unresolved_required_items: []
+  evidence: []
