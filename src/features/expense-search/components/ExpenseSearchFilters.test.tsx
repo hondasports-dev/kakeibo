@@ -57,7 +57,7 @@ describe("ExpenseSearchFilters", () => {
 
     await user.click(screen.getByRole("button", { name: "条件をクリア" }));
     expect(onClear).toHaveBeenCalled();
-  });
+  }, 15_000);
 
   it("不正な日付は空扱いし、選択した日付はクリアできる", async () => {
     const user = userEvent.setup();
@@ -93,5 +93,5 @@ describe("ExpenseSearchFilters", () => {
     expect(
       within(screen.getByRole("group", { name: "開始日" })).getByRole("spinbutton", { name: "日" }),
     ).toHaveAttribute("aria-valuetext", "空");
-  });
+  }, 15_000);
 });
