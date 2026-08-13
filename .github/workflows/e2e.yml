@@ -15,7 +15,7 @@ name: E2E
 #   DEV_VITE_CONVEX_SITE_URL         — Dev deployment の Convex HTTP URL
 #   VITE_CONVEX_URL                  — Dev deployment の Convex WebSocket URL
 #   DEV_E2E_CLEANUP_SECRET           — Dev deployment の E2E cleanup 認証シークレット
-#   DEV_CONVEX_DEPLOY_KEY            — Dev deployment の deploy key（CI で関数反映と E2E_CLEANUP_SECRET 同期）
+#   DEV_CONVEX_DEPLOY_KEY            — Dev deployment の deploy key（CI で E2E_CLEANUP_SECRET を同期）
 #   E2E_CLERK_USER_ID                — CIジョブ内でE2E_CLERK_USER_EMAILから解決する値
 #
 # 詳細: docs/development-process.md「E2E 確認方針」
@@ -230,17 +230,6 @@ jobs:
           pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
           pnpm exec convex env set E2E_CLERK_USER_ID "$E2E_CLERK_USER_ID"
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
-
-      - name: Deploy Convex functions to dev deployment
-        if: steps.trust.outputs.trusted == 'true' && matrix.name == 'authenticated'
-        env:
-          CONVEX_DEPLOY_KEY: ${{ secrets.DEV_CONVEX_DEPLOY_KEY }}
-        run: |
-          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
-            echo "::error::DEV_CONVEX_DEPLOY_KEY is not set. New Convex functions cannot be synced to the shared DEV deployment."
-            exit 1
-          fi
-          pnpm exec convex deploy --yes --message "e2e function sync ${GITHUB_SHA}"
 
       - name: Configure local Vite E2E
         if: steps.trust.outputs.trusted == 'true'
