@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "suzumemo-agent-loop",
   "version": "0.1.0",
-  "description": "Suzumemoの要件定義、影響分析、実装、検証、レビュー、Delivery、プロセス学習をEvidenceベースで回すAgent Plugin。",
+  "description": "Suzumemoの要件定義、影響分析、実装、検証、レビュー、Delivery、プロセス学習をEvidenceベースで回すportable Agent Plugin。",
   "author": {
     "name": "hondasports"
   },
@@ -10,6 +10,7 @@
   "license": "Apache-2.0",
   "keywords": [
     "agent-loop",
+    "agent-skills",
     "software-engineering",
     "verification",
     "security",
