@@ -2,12 +2,16 @@ learning_candidate:
   id: ""
   created_from_task: ""
   trigger: ""
-  event_type: human_correction # human_correction | missing_evidence | repeated_retry | escaped_defect | ci_or_e2e_failure | impact_miss | delivery_step_miss
+  event_type: human_correction # human_correction | missing_evidence | repeated_retry | escaped_defect | ci_or_e2e_failure | impact_miss | delivery_step_miss | manual_check_repetition
 
   observed_problem: ""
   evidence: []
 
-  root_cause: ""
+  root_cause:
+    immediate_cause: ""
+    process_cause: ""
+    why_existing_gate_or_skill_missed_it: ""
+
   generalized_rule: ""
 
   recurrence_risk: medium # low | medium | high
@@ -17,11 +21,13 @@ learning_candidate:
   duplicate_check:
     status: pending # pending | unique | duplicate | overlaps
     related_rules: []
+    why_existing_rule_was_insufficient: ""
 
-  proposed_target: task_context # script | ci_gate | skill | policy | runbook | task_context
+  proposed_target: task_context # script_or_code | ci_or_gate | skill | agents_policy | runbook | task_context
   target_reason: ""
 
   human_gate:
+    required: true
     status: pending # pending | accepted | rejected
     decision_reason: ""
 
