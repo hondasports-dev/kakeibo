@@ -1,10 +1,19 @@
+session:
+  current_task_bound: false
+  current_task_id: ""
+  active_delivery_pr: ""
+  parallel_task_authorized: false
+  transition_required_before_new_task: true
+  evidence: []
+
 task:
   id: ""
   source: ""
   objective: ""
   current_state: workspace_preflight
   base_branch: preview
-  delivery_target: merge_ready # pr_created | merge_ready | merged_cleaned
+  delivery_target: merge_ready # merge_ready | merged_cleaned
+  stop_after_publish: false # true is allowed only when the user explicitly asks to stop after PR creation
 
 plugin_package:
   manifest: plugin.json
@@ -162,36 +171,91 @@ security_review:
 incidents: []
 
 delivery:
-  status: pending
-  target: merge_ready
+  status: pending # pending | pass | fail | blocked
+  checkpoint: pr_created
+  mode: pending # pending | create | update_existing
+  task_id: ""
+  task_source: ""
   branch: ""
   commit: ""
   pull_request: ""
   base: preview
   head: ""
-  head_sha: ""
+  published_head_sha: ""
   draft: false
-  ci_checks: []
-  review_threads: []
+  delivery_target: merge_ready
+  evidence: []
+
+pr_aftercare:
+  status: pending # pending | pass | fail | blocked | not_required
+  target: merge_ready
+  pull_request: ""
+  observed_head_sha: ""
+  cycle_count: 0
+  observations: []
+  # - cycle: 1
+  #   observed_head_sha: ""
+  #   checks: []
+  #   reviews: []
+  #   requested_changes: []
+  #   approval_status: pending
+  #   conflict_status: pending
+  #   mergeable: pending
+  #   result: pending
+  checks: []
+  review_findings: []
+  requested_changes: []
   approval_status: pending
+  conflict_status: pending
   mergeable: pending
+  verified_head_is_current: false
   merge_status: pending
   issue_state: pending
   branch_cleanup: pending
   worktree_cleanup: pending
+  not_required_reason: ""
+  blockers: []
   evidence: []
 
 process_learning:
   status: pending
+  aftercare_cycles_reviewed: false
   events_reviewed: []
   candidates: []
   candidates_none_reason: ""
   human_gate_required: false
   evidence: []
 
+task_transition:
+  status: pending # pending | pass | blocked
+  closing_task:
+    id: ""
+    source: ""
+    branch: ""
+    worktree: ""
+    pull_request: ""
+    delivery_target: ""
+    delivery_result: ""
+    final_head_sha: ""
+    process_learning_status: ""
+  next_task:
+    decision: none # none | bind
+    id: ""
+    source: ""
+    objective: ""
+    carried_context: []
+    excluded_prior_context: []
+    next_state: workspace_preflight
+  session_released: false
+  evidence: []
+
 completion:
   status: in_progress # in_progress | blocked | done
   agent_plugins_layout_valid: false
   always_on_safety_applied: false
+  delivery_publish_passed: false
+  pr_aftercare_terminal: false
+  process_learning_passed: false
+  task_transition_passed: false
   unresolved_required_items: []
   evidence: []
