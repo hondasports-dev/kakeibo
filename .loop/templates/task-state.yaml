@@ -2,7 +2,7 @@ task:
   id: ""
   source: ""
   objective: ""
-  current_state: requirements
+  current_state: workspace_preflight
   base_branch: preview
   delivery_target: merge_ready # pr_created | merge_ready | merged_cleaned
 
@@ -19,6 +19,16 @@ always_on_safety:
   service_ops_safety:
     status: pending # pending | pass | blocked
     evidence: []
+
+workspace_preflight:
+  status: pending # pending | pass | blocked | not_required
+  command: "node scripts/check-task-worktree.mjs --require-clean"
+  branch: ""
+  current_worktree: ""
+  canonical_worktree: ""
+  baseline_status: pending # pending | clean | dirty | not_checked
+  exception: ""
+  evidence: []
 
 requirements:
   status: pending # pending | pass | blocked

@@ -60,6 +60,18 @@ cp ../kakeibo-worktrees/preview/.env.local ../kakeibo-worktrees/<branch-name>/.e
 cd ../kakeibo-worktrees/<branch-name>
 ```
 
+### 実装前のWorkspace Preflight
+
+コード、設定、process policyを変更するタスクでは、最初の編集より前にtask worktreeのrootで次を実行します。
+
+```bash
+node scripts/check-task-worktree.mjs --require-clean
+```
+
+終了コードが `0` で `WORKSPACE_PREFLIGHT status: PASS` が出るまで、`apply_patch`、エディタ保存、生成物更新を始めません。このチェックは依存関係のインストールを必要とせず、現在のworktreeがGitに登録済みか、canonical worktreeや `main` / `preview` ではないか、開始時点に既存差分がないかを機械的に確認します。
+
+`docs/` 配下、`README.md`、`CHANGELOG.md`だけの文書変更は、例外理由をtask stateへ記録して省略できます。ユーザーが既存PRへ混ぜる修正を明示した場合は、新しいworktreeの作成だけを省略でき、既存PRのtask worktreeでこのpreflightを実行します。`AGENTS.md`、`.loop/`、`skills/`、`scripts/`、設定ファイルは文書のみの例外に含めません。
+
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
 Plan 契約（`AGENTS.md`）や Implementer ロールで作業ブランチを作成する場合も、
