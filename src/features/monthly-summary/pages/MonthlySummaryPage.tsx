@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Alert, Box, Snackbar, Stack, Typography } from "@mui/material";
+import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { listActiveApi } from "../../../lib/repositories/categories";
 import { deleteExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
@@ -15,13 +15,17 @@ import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryB
 import { IncomeListCard } from "../../weekly-summary/components/IncomeListCard";
 import { ReceiptListCard } from "../../weekly-summary/components/ReceiptListCard";
 import { incomeItemToReceiptItem, type ReceiptItem } from "../../weekly-summary/types/types";
+import { formatJapaneseDate } from "../../../utils/date";
+import { MonthlySpendingCalendar } from "../components/MonthlySpendingCalendar";
 import { MonthNavigator } from "../components/MonthNavigator";
 import { MonthlyMetricsPanel } from "../components/MonthlyMetricsPanel";
 import { addMonths, getCurrentMonth, isFutureMonth, normalizeMonth } from "../lib/monthNavigation";
+import { isDateInMonth } from "../utils/monthlySpendingCalendar";
 
 export function MonthlySummaryPage() {
   const { month: rawMonth } = useParams<{ month: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [editingReceipt, setEditingReceipt] = useState<ReceiptItem | null>(null);
   const [deletingReceipt, setDeletingReceipt] = useState<ReceiptItem | null>(null);
   const [deleteSaving, setDeleteSaving] = useState(false);
@@ -51,12 +55,27 @@ export function MonthlySummaryPage() {
     totalAmountYen: 0,
     totalIncomeYen: 0,
   };
+  const dateQuery = searchParams.get("date");
+  const selectedDate = dateQuery !== null && isDateInMonth(dateQuery, month) ? dateQuery : null;
+  const visibleReceipts = selectedDate
+    ? summary.receipts.filter((receipt) => receipt.date === selectedDate)
+    : summary.receipts;
+  const visibleIncomes = selectedDate
+    ? summary.incomes.filter((income) => income.date === selectedDate)
+    : summary.incomes;
+  const dateLabel = selectedDate ? formatJapaneseDate(selectedDate) : null;
 
   useEffect(() => {
     if (rawMonth !== month) {
       navigate(`/months/${month}`, { replace: true });
     }
   }, [month, navigate, rawMonth]);
+
+  useEffect(() => {
+    if (dateQuery !== null && selectedDate === null) {
+      navigate(`/months/${month}`, { replace: true });
+    }
+  }, [dateQuery, month, navigate, selectedDate]);
 
   const navigateToMonth = (targetMonth: string) => {
     const normalizedTarget = normalizeMonth(targetMonth);
@@ -119,6 +138,15 @@ export function MonthlySummaryPage() {
           onPreviousMonth={() => navigateToMonth(addMonths(month, -1))}
         />
 
+        <MonthlySpendingCalendar
+          expenses={summary.receipts}
+          incomes={summary.incomes}
+          isLoading={isSummaryLoading}
+          month={month}
+          onDateSelect={(date) => navigate(`/months/${month}?date=${date}`)}
+          selectedDate={selectedDate}
+        />
+
         {deleteError && (
           <Alert severity="error" variant="outlined" onClose={() => setDeleteError("")}>
             {deleteError}
@@ -142,22 +170,45 @@ export function MonthlySummaryPage() {
           totalAmountYen={summary.totalAmountYen}
         />
 
+        {selectedDate && dateLabel && (
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            spacing={1}
+            sx={{ alignItems: { xs: "stretch", sm: "center" }, justifyContent: "space-between" }}
+          >
+            <Typography component="h2" variant="h6">
+              {dateLabel}の明細
+            </Typography>
+            <Button
+              onClick={() => navigate(`/months/${month}`)}
+              sx={{ alignSelf: { xs: "flex-start", sm: "auto" }, minHeight: 44 }}
+              variant="outlined"
+            >
+              月全体を見る
+            </Button>
+          </Stack>
+        )}
+
         <ReceiptListCard
-          count={summary.count}
-          emptyMessage="この月の支出はまだありません"
+          count={visibleReceipts.length}
+          emptyMessage={
+            selectedDate ? "この日の支出はまだありません" : "この月の支出はまだありません"
+          }
           isLoading={isSummaryLoading}
-          listAriaLabel="月次サマリーの支出一覧"
+          listAriaLabel={dateLabel ? `${dateLabel}の支出一覧` : "月次サマリーの支出一覧"}
           onDeleteReceipt={setDeletingReceipt}
           onEditReceipt={setEditingReceipt}
-          receipts={summary.receipts}
+          receipts={visibleReceipts}
         />
 
         <IncomeListCard
-          count={summary.incomeCount}
-          emptyMessage="この月の収入はまだありません"
-          incomes={summary.incomes}
+          count={visibleIncomes.length}
+          emptyMessage={
+            selectedDate ? "この日の収入はまだありません" : "この月の収入はまだありません"
+          }
+          incomes={visibleIncomes}
           isLoading={isSummaryLoading}
-          listAriaLabel="月次サマリーの収入一覧"
+          listAriaLabel={dateLabel ? `${dateLabel}の収入一覧` : "月次サマリーの収入一覧"}
           onDeleteIncome={(income) => setDeletingReceipt(incomeItemToReceiptItem(income))}
           onEditIncome={(income) => setEditingReceipt(incomeItemToReceiptItem(income))}
         />
