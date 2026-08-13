@@ -1,9 +1,14 @@
-version: 2
+version: 3
 name: suzumemo-agent-loop
 default_base_branch: preview
 entrypoint: AGENTS.md
 
+always_on_skills:
+  - .agents/skills/prompt-injection-guard/SKILL.md
+  - .agents/skills/service-ops-safety/SKILL.md
+
 principles:
+  - always_on_safety_skills_apply_to_every_task
   - evidence_before_progress
   - failed_or_blocked_gate_does_not_advance
   - test_added_is_not_test_executed
@@ -182,6 +187,7 @@ gates:
       - security_review
 
   incident_gate:
+    evidence_required: true
     pass_when:
       - observed_failure_recorded
       - facts_and_unknowns_separated
@@ -225,6 +231,7 @@ gates:
       - delete_unmerged_or_uncommitted_task_work
 
   learning_gate:
+    evidence_required: true
     pass_when:
       - human_corrections_reviewed
       - failures_and_retries_reviewed
@@ -298,6 +305,7 @@ learning:
 
 completion:
   done_requires:
+    - always_on_safety_skills_applied
     - requirements_gate_pass
     - impact_gate_pass
     - implementation_gate_pass
