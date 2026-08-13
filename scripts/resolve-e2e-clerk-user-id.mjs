@@ -60,4 +60,7 @@ if (
 }
 
 const tokenIdentifier = `${issuer}|${users[0].id}`;
+if (process.env.GITHUB_ACTIONS === "true") {
+  process.stdout.write(`::add-mask::${tokenIdentifier}\n`);
+}
 appendFileSync(githubEnvPath, `E2E_CLERK_USER_ID=${tokenIdentifier}\n`, { encoding: "utf8" });
