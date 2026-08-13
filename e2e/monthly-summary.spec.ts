@@ -68,4 +68,48 @@ test.describe("月次サマリー（Issue #87）", () => {
     await expect(page.getByText("この月の支出はまだありません").first()).toBeVisible();
     await expect(page.getByText("この月の収入はまだありません")).toBeVisible();
   });
+
+  test("@smoke 日付heatmapからその日の明細へ遷移して月全体へ戻れる", async ({ page }) => {
+    const fixedNow = new Date("2026-08-12T03:00:00.000Z");
+    await page.clock.setFixedTime(fixedNow);
+    const currentMonth = "2026-08";
+    const expenseTitle = `E2Eヒートマップ支出_${Date.now()}`;
+    const incomeTitle = `E2Eヒートマップ収入_${Date.now()}`;
+
+    await page.goto("/weeks/current/input");
+    await page
+      .getByRole("listbox", { name: "週内の日付候補" })
+      .getByRole("option", { name: /8\/12/ })
+      .click();
+    await page.getByLabel("店舗名 / 支払先").fill(expenseTitle);
+    await page.getByLabel("合計金額").fill("1234");
+    await page
+      .locator('[role="listbox"][aria-label="カテゴリ候補"] [role="option"]')
+      .first()
+      .click();
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.getByLabel("店舗名 / 支払先")).toHaveValue("", { timeout: 10_000 });
+
+    await page.getByRole("tab", { name: "収入" }).click();
+    await page.getByLabel("金額").fill("77777");
+    await page.getByLabel("収入の内容・メモ").fill(incomeTitle);
+    await page.getByRole("button", { name: "保存して次へ" }).click();
+    await expect(page.getByLabel("金額")).toHaveValue("", { timeout: 10_000 });
+
+    await page.goto(`/months/${currentMonth}`);
+    await expect(page.getByRole("heading", { name: "支出カレンダー", level: 2 })).toBeVisible();
+
+    const dayButton = page.locator('[data-date="2026-08-12"]');
+    await expect(dayButton).toHaveAttribute("data-expense-intensity", /[1-4]/);
+    await expect(dayButton).toHaveAttribute("data-has-income", "true");
+
+    await dayButton.click();
+    await expect(page).toHaveURL(`/months/${currentMonth}?date=${currentMonth}-12`);
+    await expect(page.getByRole("heading", { name: "2026年8月12日の明細" })).toBeVisible();
+    await expect(page.getByLabel("2026年8月12日の支出一覧")).toContainText(expenseTitle);
+    await expect(page.getByLabel("2026年8月12日の収入一覧")).toContainText(incomeTitle);
+
+    await page.getByRole("button", { name: "月全体を見る" }).click();
+    await expect(page).toHaveURL(`/months/${currentMonth}`);
+  });
 });

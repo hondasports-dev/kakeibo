@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -187,6 +187,57 @@ describe("MonthlySummaryPage", () => {
     expect(navigateMock).toHaveBeenNthCalledWith(1, "/months/2026-06");
     expect(navigateMock).toHaveBeenNthCalledWith(2, "/months/2026-08");
     expect(navigateMock).toHaveBeenNthCalledWith(3, "/months/2026-08");
+  });
+
+  it("カレンダーの日付選択で日別一覧へ遷移する", async () => {
+    const user = userEvent.setup();
+
+    renderWithProviders(
+      <MemoryRouter>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <MonthlySummaryPage />
+        </LocalizationProvider>
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByRole("button", { name: /2026年7月10日/ }));
+
+    expect(navigateMock).toHaveBeenCalledWith("/months/2026-07?date=2026-07-10");
+  });
+
+  it("日付クエリがある場合はその日の支出・収入一覧へ絞り込む", async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/months/2026-07?date=2026-07-10"]}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <MonthlySummaryPage />
+        </LocalizationProvider>
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "2026年7月10日の明細" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "月全体を見る" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /2026年7月10日/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    const expenseList = screen.getByLabelText("2026年7月10日の支出一覧");
+    expect(within(expenseList).getByText("スーパー")).toBeInTheDocument();
+    expect(screen.getByText("この日の収入はまだありません")).toBeInTheDocument();
+  });
+
+  it("月外や不正な日付クエリは月全体へ戻す", async () => {
+    renderWithProviders(
+      <MemoryRouter initialEntries={["/months/2026-07?date=2026-02-31"]}>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <MonthlySummaryPage />
+        </LocalizationProvider>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith("/months/2026-07", { replace: true });
+    });
   });
 
   it("支出・収入の編集と削除をキャンセルできる", async () => {
