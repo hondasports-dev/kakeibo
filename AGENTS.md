@@ -13,6 +13,15 @@
 - 人間の訂正、失敗、再試行、見落としを Process Learning の入力にする。
 - `roles/` は使わない。モデルや担当ロールではなく、状態・Skill・Gate・Evidenceでループを制御する。
 
+## 正本の責務
+
+- **AGENTS.md**: ループを必ず使うこと、工程順、FAIL時の戻り先、DONE条件
+- **`.loop/process.yaml`**: 状態名、Gate、遷移、Delivery targetの機械可読な正本
+- **`.agents/skills/**/SKILL.md`**: 各工程の具体的な実行方法
+- **scripts / CI**: 機械的に強制できる学習結果の反映先
+
+同じ詳細手順を複数箇所へ重複記載しない。詳細手順はSkill、状態遷移はprocess.yamlへ寄せる。
+
 ## 必須ループ
 
 リポジトリの変更を伴うタスクは、原則として次の順序で進める。
@@ -108,6 +117,16 @@ DONE
 
 既存規約・コードから一意に決められる細部まで毎回質問しない。
 
+## Delivery target
+
+Delivery開始時に `.agents/skills/delivery/SKILL.md` に従って終了点を決める。
+
+- `pr_created`: 明示的にPR作成まで
+- `merge_ready`: デフォルト。PR作成後の必須CI・レビュー対応・approval・conflict確認まで
+- `merged_cleaned`: mergeまで依頼された場合。merge結果・Issue状態・task branch/worktree後始末まで
+
+merge権限があるだけでは `merged_cleaned` を選ばない。
+
 ## Process Learning
 
 タスク終了前に必ずLearning Eventを確認する。
@@ -134,7 +153,7 @@ Learning Candidateは即座にAGENTS.mdへ追記しない。`.agents/skills/proc
 - 必須Verificationが実行済みかつPASS
 - Code ReviewがPASS
 - Security ReviewがPASSまたは明確に`not_required`で根拠がある
-- 要求されたDelivery範囲が完了している
+- 要求されたDelivery targetが完了している
 - 必須BLOCKED項目が残っていない
 - Learning Eventを評価し、Candidateを記録したか `none` と明示できる
 
