@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "../../../test/render";
+import { renderWithDatePickers } from "../../../test/render";
 import { EMPTY_EXPENSE_SEARCH_FORM } from "../lib/searchParams";
 import { ExpenseSearchFilters } from "./ExpenseSearchFilters";
 
@@ -28,13 +28,28 @@ describe("ExpenseSearchFilters", () => {
     const onClear = vi.fn();
     const onSubmit = vi.fn();
 
-    renderWithProviders(<StatefulFilters onClear={onClear} onSubmit={onSubmit} />);
+    renderWithDatePickers(<StatefulFilters onClear={onClear} onSubmit={onSubmit} />);
 
     await user.type(screen.getByLabelText("店名"), "北浜");
-    await user.type(screen.getByLabelText("金額の下限"), "100");
-    await user.type(screen.getByLabelText("金額の上限"), "5000");
-    await user.type(screen.getByLabelText("開始日"), "2026-07-01");
-    await user.type(screen.getByLabelText("終了日"), "2026-07-31");
+    await user.type(screen.getByLabelText("金額の下限"), "12ab34");
+    await user.type(screen.getByLabelText("金額の上限"), "5,000円");
+    expect(screen.getByLabelText("金額の下限")).toHaveValue("1234");
+    expect(screen.getByLabelText("金額の上限")).toHaveValue("5000");
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "開始日を選択" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    await user.click(screen.getByRole("gridcell", { name: "1" }));
+    expect(
+      within(screen.getByRole("group", { name: "開始日" })).getByRole("spinbutton", { name: "日" }),
+    ).toHaveAttribute("aria-valuenow", "1");
+
+    await user.click(screen.getByRole("button", { name: "終了日を選択" }));
+    await user.click(screen.getByRole("gridcell", { name: "2" }));
+    expect(
+      within(screen.getByRole("group", { name: "終了日" })).getByRole("spinbutton", { name: "日" }),
+    ).toHaveAttribute("aria-valuenow", "2");
+
     await user.click(screen.getByLabelText("カテゴリ"));
     await user.click(screen.getByRole("option", { name: "食費" }));
     await user.click(screen.getByRole("button", { name: "絞り込む" }));
@@ -42,5 +57,41 @@ describe("ExpenseSearchFilters", () => {
 
     await user.click(screen.getByRole("button", { name: "条件をクリア" }));
     expect(onClear).toHaveBeenCalled();
+  });
+
+  it("不正な日付は空扱いし、選択した日付はクリアできる", async () => {
+    const user = userEvent.setup();
+
+    function InvalidDateFilters() {
+      const [state, setState] = useState({
+        ...EMPTY_EXPENSE_SEARCH_FORM,
+        startDate: "not-a-date",
+      });
+      return (
+        <ExpenseSearchFilters
+          categories={[]}
+          state={state}
+          onChange={setState}
+          onClear={() => setState(EMPTY_EXPENSE_SEARCH_FORM)}
+          onSubmit={() => undefined}
+        />
+      );
+    }
+
+    renderWithDatePickers(<InvalidDateFilters />);
+    expect(
+      within(screen.getByRole("group", { name: "開始日" })).getByRole("spinbutton", { name: "日" }),
+    ).toHaveAttribute("aria-valuetext", "空");
+
+    await user.click(screen.getByRole("button", { name: "開始日を選択" }));
+    await user.click(screen.getByRole("gridcell", { name: "1" }));
+    expect(
+      within(screen.getByRole("group", { name: "開始日" })).getByRole("spinbutton", { name: "日" }),
+    ).toHaveAttribute("aria-valuenow", "1");
+
+    await user.click(screen.getByRole("button", { name: "クリア" }));
+    expect(
+      within(screen.getByRole("group", { name: "開始日" })).getByRole("spinbutton", { name: "日" }),
+    ).toHaveAttribute("aria-valuetext", "空");
   });
 });
