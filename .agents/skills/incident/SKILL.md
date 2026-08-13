@@ -9,7 +9,9 @@ description: Verification、Review、CI、E2E、外部サービス等で失敗�
 
 失敗した状態のまま先へ進むことや、同じ修正を惰性で繰り返すことを防ぐ。
 
-旧 `stuck-advisor` の「同じ失敗2回でアプローチを変える」「事実と推測を分離」「独立仮説を複数作る」「最小検証を1つ選ぶ」を継承する。
+## 前提
+
+AGENTS.mdの常時必須Skillを適用済みであること。
 
 ## 自動トリガー
 
@@ -29,6 +31,7 @@ description: Verification、Review、CI、E2E、外部サービス等で失敗�
 - 「理由をPRに書いて次へ進む」を回避策にしない。
 - 失敗ログを読まずに同じcommandを再実行し続けない。
 - 修正前に、今回の変更起因かbase側にも存在するかを可能な範囲で切り分ける。
+- secret / PIIを調査ログへ転記しない。
 
 ## Step 1: 事実を固定する
 
@@ -46,7 +49,7 @@ Known facts:
 Unknowns:
 ```
 
-secretやPIIは記録しない。
+症状と推測を混ぜない。
 
 ## Step 2: Failure domainを分類する
 
@@ -73,35 +76,39 @@ secretやPIIは記録しない。
 
 ただしbase失敗を理由に、自分の変更で追加した別のfailureまで無視しない。
 
-## Step 4: 独立仮説を作る
+## Step 4: 独立仮説を3つ作る
 
-少なくとも3つの独立した仮説を作る。
+現在の修正方針に固執せず、少なくとも3つの独立仮説を作る。
 
 ```text
 Hypothesis A:
 Evidence for:
 Smallest falsifying check:
+Reject when:
 
 Hypothesis B:
 Evidence for:
 Smallest falsifying check:
+Reject when:
 
 Hypothesis C (reframe the problem):
 Evidence for:
 Smallest falsifying check:
+Reject when:
 ```
 
 1つは「そもそもの問題定義・前提が間違っている」可能性を含める。
 
-## Step 5: 最小検証を1つ実行する
+## Step 5: 最小検証を1つだけ実行する
 
 - 変更量が小さく、結果が明確な検証を優先
 - 1回に複数仮説を潰そうとして大規模変更しない
 - 仮説が外れたら同じ操作を繰り返さず次の仮説へ
+- 原因切り分けのための一時変更は本修正と区別する
 
 ## Step 6: Root Causeを確定する
 
-Root Causeは「E2Eが落ちた」のような症状ではなく、再発条件まで説明する。
+Root Causeは「E2Eが落ちた」のような症状ではなく、**なぜ起き、どの条件で再発するか**まで説明する。
 
 ```text
 Root cause:
@@ -115,7 +122,7 @@ Restart state:
 
 Root Causeを確定できない場合は、`explicit blocker` と追加で必要なEvidenceを明示する。
 
-## Step 7: 修正して失敗Gateへ戻る
+## Step 7: 修正して適切なGateへ戻る
 
 - implementation defect → `IMPLEMENTATION → VERIFICATION ...`
 - test defect → testを修正し `VERIFICATION` を再実行
@@ -123,10 +130,17 @@ Root Causeを確定できない場合は、`explicit blocker` と追加で必要
 - security修正 → `IMPLEMENTATION → VERIFICATION → CODE_REVIEW → SECURITY_REVIEW`
 - deliveryでcode change → `IMPLEMENTATION` から再ループ
 - environment復旧のみ → 失敗したVerification / Delivery Gateから再開
+- specification conflict → `REQUIREMENTS`
+
+修正後、失敗した1チェックだけでなく、その変更で無効になった後続Gateも再実行する。
 
 ## Escalation
 
-独立仮説を試しても原因を絞れない、権限/approval/productionアクセスなど人間しか解消できない場合は、推測で進まず `BLOCKED` とする。
+- 3つの独立仮説を検証しても原因を絞れない
+- 必要権限・approval・production access等、人間しか解消できない
+- 復旧操作自体が高リスクでHuman Gateが必要
+
+この場合は推測で進まず `BLOCKED` とする。
 
 ## Learning Event
 
@@ -139,6 +153,7 @@ Incidentが解消したら必ず `process-learning` の入力にする。
 - Impact Analysisで見つけるべきだった
 - Verification Gate不足だった
 - delivery手順抜けだった
+- 人間が同じ確認を繰り返していた
 
 ## 出力
 
