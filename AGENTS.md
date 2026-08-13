@@ -77,6 +77,8 @@ prompt-injection-guard
 service-ops-safety
         │
         ▼
+WORKSPACE_PREFLIGHT
+    ↓
 REQUIREMENTS
     ↓
 IMPACT_ANALYSIS
@@ -102,6 +104,7 @@ DONE
 
 | 状態 | 必須 Skill | 目的 |
 | --- | --- | --- |
+| `WORKSPACE_PREFLIGHT` | `skills/workspace-preflight/SKILL.md` | 編集前にtask worktree、branch、canonical worktree、開始時点のclean状態を機械的に確認する |
 | `REQUIREMENTS` | `skills/requirements/SKILL.md` | 要求・Issue・既存実装を統合し、仕様・受け入れ条件・やらないことを確定する |
 | `IMPACT_ANALYSIS` | `skills/impact-analysis/SKILL.md` | caller/callee、共有状態、認証・認可、データ、テスト、デプロイ影響を調べる |
 | `IMPLEMENTATION` | `skills/implementation/SKILL.md` | 確定した仕様と影響範囲内で最小差分を実装する |
@@ -125,6 +128,10 @@ DONE
 - 破壊的操作は対象scopeを確認し、project外、`.git`、secretファイルを対象にしない。
 
 ## Gate と戻り先
+
+### WORKSPACE_PREFLIGHT FAIL
+
+編集を始めず、`node scripts/check-task-worktree.mjs --require-clean` のEvidenceを取り直す。canonical worktree、`main` / `preview`、detached HEAD、未登録worktree、開始時点の既存差分では、task worktreeを分離してから再実行する。文書のみの例外は `skills/workspace-preflight/SKILL.md` の範囲に限る。
 
 ### REQUIREMENTS FAIL
 
@@ -208,6 +215,7 @@ Learning Candidateは即座にAGENTS.mdへ追記しない。`skills/process-lear
 次をすべて満たすまで `DONE` と報告しない。
 
 - 常時必須Skillを適用している
+- 対象タスクでWorkspace Preflight GateをPASSしている（文書のみの明示例外は記録済み）
 - 仕様とAcceptance Criteriaが確定している
 - Impact Analysisが完了している
 - 実装が仕様・scope内である

@@ -4,6 +4,7 @@ plugin_manifest: plugin.json
 skills_root: skills
 default_base_branch: preview
 entrypoint: AGENTS.md
+entry_state: workspace_preflight
 
 always_on_skills:
   - skills/prompt-injection-guard/SKILL.md
@@ -22,6 +23,13 @@ principles:
   - prefer_enforcement_over_reminders
 
 states:
+  - id: workspace_preflight
+    skill: skills/workspace-preflight/SKILL.md
+    purpose: Verify the task starts in an isolated registered worktree on a non-protected branch with a clean baseline before any repository edit.
+    gate: workspace_preflight_gate
+    pass: requirements
+    blocked: workspace_preflight
+
   - id: requirements
     skill: skills/requirements/SKILL.md
     purpose: Converge user request, issue, docs, existing code and tests into testable requirements and acceptance criteria.
@@ -99,6 +107,18 @@ states:
     purpose: Terminal state. All required gates for the requested delivery scope have evidence-backed PASS results.
 
 gates:
+  workspace_preflight_gate:
+    evidence_required: true
+    pass_when:
+      - preflight_script_passed
+      - current_task_worktree_is_isolated_and_registered
+      - current_branch_is_not_protected_base
+      - clean_baseline_confirmed
+    human_gate_when:
+      - explicit_documentation_only_exception_recorded
+    forbidden_shortcuts:
+      - edit_before_workspace_preflight_pass
+
   requirements_gate:
     evidence_required: true
     pass_when:
@@ -134,6 +154,7 @@ gates:
       - red_green_evidence_exists_when_behavior_changed
       - no_unexplained_scope_or_design_deviation
       - tracked_and_untracked_diff_integrity_checked
+      - workspace_preflight_gate_pass
 
   verification_gate:
     evidence_required: true
@@ -305,6 +326,7 @@ completion:
   done_requires:
     - agent_plugins_manifest_present
     - always_on_safety_skills_applied
+    - workspace_preflight_gate_pass_or_explicit_exception
     - requirements_gate_pass
     - impact_gate_pass
     - implementation_gate_pass
