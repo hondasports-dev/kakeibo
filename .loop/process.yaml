@@ -64,6 +64,12 @@ states:
     gate: incident_gate
     restart: dynamic
 
+  - id: blocked
+    purpose: Non-terminal state for an external dependency or human-only action that prevents a required gate from progressing.
+    terminal: false
+    resume: dynamic
+    done_allowed: false
+
   - id: delivery
     skill: .agents/skills/delivery/SKILL.md
     purpose: Manage commit, push, PR, CI, review aftercare, merge-ready, optional merge and cleanup.
