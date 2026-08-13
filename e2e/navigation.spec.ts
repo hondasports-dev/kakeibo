@@ -273,6 +273,21 @@ test.describe("ナビゲーション（Issue #49）", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
+  test("@navigation シナリオN-8.1: 履歴から表示中の週の月次サマリーへ遷移できる", async ({
+    page,
+  }) => {
+    await gotoAuthenticated(page, "/weeks/2026-04-27");
+
+    const monthlySummaryLink = page.getByRole("link", {
+      name: "2026年4月の月次サマリーを見る",
+    });
+    await expect(monthlySummaryLink).toHaveAttribute("href", "/months/2026-04");
+
+    await monthlySummaryLink.click();
+    await expect(page).toHaveURL("/months/2026-04");
+    await expect(page.getByRole("heading", { name: "月次サマリー", level: 1 })).toBeVisible();
+  });
+
   test("@smoke @navigation [Issue #136] 週別支出推移がPC/SP幅に収まる", async ({ page }) => {
     const weekStartDate = getCurrentWeekStartDate();
     await gotoAuthenticated(page, `/weeks/${weekStartDate}`);
