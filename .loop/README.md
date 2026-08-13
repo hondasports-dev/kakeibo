@@ -1,197 +1,217 @@
 # Loop Engineering Foundation
 
-このディレクトリは、エージェントごとの役割や固定プロンプトではなく、タスクを安全に前進させるための**状態・Gate・Evidence・学習**を正本として管理する。
+このディレクトリは、SuzumemoのAgent作業を **AGENTS.md + Skills + State Machine + Evidence** でループさせるための土台を管理する。
 
-## 目的
+## Architecture
 
-- 「実装した」ではなく「検証できた」を完了条件にする
-- 失敗時に作業を先へ進めず、失敗したGateへ戻す
-- 人間の差し戻しをプロセス改善の入力として扱う
-- 学習結果を無条件に文書へ追加せず、最も強制力の高い反映先を選ぶ
-- Agent固有のroles / skillsを先に固定せず、実際の作業ログから必要な仕組みを育てる
+```text
+AGENTS.md
+  │  いつ・どの順番で回すか
+  ▼
+.loop/process.yaml
+  │  状態 / Gate / FAIL時の遷移
+  ▼
+.agents/skills/**/SKILL.md
+  │  各工程をどう実行するか
+  ▼
+Evidence
+  │  command / test / diff / PR / CI / review
+  ▼
+Gate PASS / FAIL / BLOCKED
+```
+
+今後、機械判定できる学習は `scripts/**` や `.github/workflows/**` に昇格させ、文章による注意だけに依存しない。
 
 ## Main Loop
 
 ```text
-INTAKE
-  ↓
-DISCOVER
-  ↓
-SPECIFY
-  ↓
+REQUIREMENTS
+    ↓
 IMPACT_ANALYSIS
-  ↓
-IMPLEMENT
-  ↓
-VERIFY
-  ↓
-REVIEW
-  ↓
-DELIVER
-  ↓
-POST_CHECK
-  ↓
-LEARN
-  ↓
+    ↓
+IMPLEMENTATION
+    ↓
+VERIFICATION
+    ↓
+CODE_REVIEW
+    ↓
+SECURITY_REVIEW
+    ↓
+DELIVERY
+    ↓
+PROCESS_LEARNING
+    ↓
 DONE
 ```
 
-### 1. INTAKE
+失敗・BLOCKED・同一失敗の反復は横断的に `INCIDENT` へ入る。
 
-要求、Issue、制約、完了条件を受け取る。
+```text
+Any Gate FAIL/BLOCKED
+        ↓
+     INCIDENT
+        ↓
+ Facts / Root Cause / Fix
+        ↓
+restart state
+```
 
-### 2. DISCOVER
+## Why AGENTS.md + Skills
 
-既存コード、関連ドキュメント、依存関係、現在のGit/CI状態を調査する。推測だけで設計・実装へ進まない。
+`process.yaml` だけでは状態を記述できても、Agentが毎回そこを入口として工程を実行する契約が弱い。
 
-### 3. SPECIFY
+そのため役割を分ける。
 
-要求を実装可能な仕様へ収束させる。曖昧さや選択肢が成果物へ大きく影響する場合のみHuman Gateを使う。
+- **AGENTS.md**: 常に読む短いオーケストレーター。必須順序、戻り先、DONE条件を定義
+- **process.yaml**: 状態遷移とGateの機械可読な正本
+- **Skills**: 各工程の具体的な調査・実装・検証・レビュー・Delivery手順
+- **Scripts / CI**: Learningで必要性が確認されたルールを強制する最終反映先
 
-### 4. IMPACT_ANALYSIS
+AGENTS.mdへ詳細チェックリストを集約せず、Skillへ分離する。
 
-変更対象だけでなく、呼び出し元、呼び出し先、共有状態、認証・認可境界、既存テスト、デプロイ影響を確認する。
+## Skills
 
-### 5. IMPLEMENT
+| Skill | 役割 |
+| --- | --- |
+| `requirements` | 要求・Issue・既存実装から仕様とAcceptance Criteriaを確定 |
+| `impact-analysis` | caller/callee、shared state、auth、data、tests、deploy影響を事前調査 |
+| `implementation` | scope内の最小実装、RED/GREEN、integrity check |
+| `verification` | lint/test/coverage/E2E/build/browserをEvidence付きで実行 |
+| `code-review` | 正しさ、回帰、保守性、test adequacyを独立レビュー |
+| `security-review` | authn/authz、data boundary、input、secret、external serviceを独立レビュー |
+| `incident` | 失敗の事実整理、独立仮説、Root Cause、restart state |
+| `delivery` | commit/push/PR/CI/review/merge-ready/merge/cleanup |
+| `process-learning` | correction/failureからCandidateを抽出して反映先を選択 |
 
-確定した仕様と影響範囲に基づいて最小差分を実装する。
+## 旧Skillから再利用したもの
 
-### 6. VERIFY
+旧ファイルをそのまま復元せず、再利用可能な知識だけ新しい責務へ移した。
 
-必要な静的解析、unit/integration/E2E、coverage、build等を実行する。テスト追加とテスト成功は別状態として扱う。
+| 旧Skill / 内容 | 新しい反映先 |
+| --- | --- |
+| `issue-gate-0` | `requirements`: 実装前Go/Stop、Issue補完、Acceptance Criteria、E2E方針 |
+| `tdd-implement` | `implementation`: RED/GREEN、scope契約、integrity check |
+| `verify-pre-push` | `verification`: 基本check、env同期、Convex反映、失敗時停止 |
+| `e2e-author` | `verification`: E2E追加/更新/省略条件、locator品質 |
+| `e2e-smoke-run` | `verification`: smoke、shared test user/DB、env sync |
+| `browser-verification` | `verification`: console/network/runtime/viewport確認 |
+| `code-review` + review checklists | `code-review`: frontend/backend/test review、Must-fix closure |
+| `security-checklist` | `security-review`: auth/authz、secret、XSS、data boundary |
+| `service-ops-safety` | `security-review`: production/secret/domain等のHuman Gate |
+| `prompt-injection-guard` | `security-review`: 外部由来命令とsecret送信の隔離 |
+| `stuck-advisor` | `incident`: 同一失敗2回、複数仮説、最小検証 |
+| `babysit-pr` | `delivery`: checks、review thread、approval、conflict、merge-ready |
+| 旧roles / virtual-company | **復元しない**。役割分担ではなくLoop状態で責務を分離 |
 
-### 7. REVIEW
+## Review-Fix Loops
 
-差分を独立した観点で再確認する。機能、回帰、セキュリティ、データ境界、テスト不足を確認し、指摘があればIMPLEMENTへ戻す。
+### Verification failure
 
-### 8. DELIVER
+```text
+VERIFICATION FAIL
+   ↓
+INCIDENT
+   ↓
+IMPLEMENTATION or VERIFICATION
+```
 
-commit / push / PR / CI / review / mergeable 等、タスクで必要な配送状態を確認する。途中状態をDONEとして扱わない。
+### Code Review failure
 
-### 9. POST_CHECK
+```text
+CODE_REVIEW FAIL
+   ↓
+IMPLEMENTATION
+   ↓
+VERIFICATION
+   ↓
+CODE_REVIEW
+```
 
-統合後または対象環境で、期待した状態になっていることを確認する。
+### Security Review failure
 
-### 10. LEARN
+```text
+SECURITY_REVIEW FAIL
+   ↓
+IMPLEMENTATION
+   ↓
+VERIFICATION
+   ↓
+CODE_REVIEW
+   ↓
+SECURITY_REVIEW
+```
 
-人間の訂正、失敗、再試行、障害、見落としをLearning Candidateとして抽出する。
+### PR / CI failure
+
+```text
+DELIVERY
+  ├─ code fix needed → IMPLEMENTATIONから再ループ
+  ├─ unknown/env failure → INCIDENT
+  ├─ spec conflict → REQUIREMENTS
+  └─ human approval → BLOCKED
+```
 
 ## Evidence First
 
-各Gateは主張ではなくEvidenceで判定する。
+PASSは主張ではなくEvidenceで決める。
 
-```text
-Claim
-  ↓
-Evidence
-  ↓
-Gate判定
-  ├─ FAIL / BLOCKED → 原因調査へ
-  └─ PASS → 次状態へ
-```
+- 「テストを追加した」≠ テストPASS
+- 「CIで通るはず」≠ CI PASS
+- 「pushした」≠ PR exists
+- 「CIが通った」≠ PR merge-ready
+- 「修正した」≠ review finding closed + regression verification
 
-例:
+## Delivery Scope
 
-- 「テストを書いた」だけではVERIFY PASSにしない
-- 実行コマンドと結果が必要
-- 「CIは通るはず」ではDELIVER PASSにしない
-- PR、check、merge状態を実データで確認する
+Delivery targetは3段階。
 
-## Failure / Incident Loop
+1. `pr_created` — 明示的にPR作成まで
+2. `merge_ready` — デフォルト。CI / review / approval / conflictを解消してmerge可能まで
+3. `merged_cleaned` — merge指示がある場合。merge結果、Issue状態、task branch/worktree後始末まで
 
-どの状態でも失敗した場合は次へ進まない。
-
-```text
-FAIL / BLOCKED
-  ↓
-事実とEvidence収集
-  ↓
-再現または失敗条件の特定
-  ↓
-Root Cause
-  ↓
-影響範囲確認
-  ↓
-修正
-  ↓
-失敗したGateから再実行
-```
-
-環境要因を理由に検証を省略して完了扱いにはしない。解決不能な場合はBLOCKEDとして残し、未検証事項を明示する。
+後始末ではtask固有worktreeだけを対象にし、canonical `preview` 作業場所や正本 `.env.local` を勝手に削除しない。
 
 ## Process Learning Loop
 
-Learning Eventの例:
-
-- 人間からの訂正・差し戻し
-- Agentが完了と報告した後の不足発見
-- 同じ原因での再試行
-- CI/E2E/本番相当環境での障害
-- 変更影響範囲の見落とし
-- PRやmergeなど配送工程の抜け
-
-流れ:
-
 ```text
-Learning Event
-  ↓
-Learning Candidate作成
-  ↓
-Root Cause
-  ↓
-一般化
-  ↓
-既存ルールとの重複確認
-  ↓
-最適な反映先を選択
-  ↓
-Human Gate
-  ↓
-反映
-  ↓
-後続タスクで効果観測
-  ↓
-再発したら強制力を上げる
+Human Correction / Failure / Retry / Miss
+                    ↓
+              Learning Event
+                    ↓
+                Root Cause
+                    ↓
+                Generalize
+                    ↓
+              Duplicate Check
+                    ↓
+            Strongest Target
+                    ↓
+                Human Gate
+                    ↓
+                  Apply
+                    ↓
+            Observe future tasks
+                    ↓
+         Effective / Recurred
 ```
 
-### 反映先の優先順位
+反映先の優先順位:
 
-可能な限り上から選ぶ。
+1. Script / Code
+2. CI / Gate
+3. Skill
+4. AGENTS.mdの短いPolicy
+5. Runbook / Docs
+6. Task Context
 
-1. **Code / Script** — 機械的に実行・判定できる
-2. **CI / Gate** — 守らない場合に次工程へ進ませたくない
-3. **Skill** — 複数ステップの判断手順として再利用価値がある
-4. **Policy** — 全タスク共通の短い不変ルール
-5. **Runbook** — 特定障害や低頻度運用時だけ必要
-6. **Task Context** — 今回だけの判断で一般化不要
-
-この初期版ではSkillやPolicyを先に増やさない。Learning Candidateの実績が蓄積してから昇格させる。
-
-## Rule Lifecycle
-
-```text
-Task Context / Runbook
-        ↓ 再発
-      Skill
-        ↓ なお再発
-   Script / CI Gate
-```
-
-逆に、使われないルールや重複ルールは降格・削除対象とする。
-
-## Human Gate
-
-人間は常時交通整理をするのではなく、次の箇所へ徐々に限定する。
-
-- 仕様上の重要な選択
-- 高リスク変更の承認
-- Learning Candidateの採用・棄却
-- 自動化すると危険な不可逆操作
+同じ問題が再発するなら文書を増やすのではなく、より強い仕組みへ昇格する。
 
 ## Files
 
-- `process.yaml` — 状態・Gate・遷移の機械可読な正本
-- `templates/task-state.yaml` — 1タスクの状態とEvidenceの記録形式
-- `templates/learning-candidate.yaml` — プロセス学習候補の記録形式
+- `AGENTS.md` — Loop entrypoint / orchestration contract
+- `.loop/process.yaml` — state / gate / transition
+- `.loop/templates/task-state.yaml` — stateとEvidenceの記録形式
+- `.loop/templates/learning-candidate.yaml` — Learning Candidateの形式
+- `.agents/skills/**/SKILL.md` — 各状態の実行方法
 
-この土台自体も完成形ではない。実際のセッションからLearning Candidateを採取し、必要性が確認されたものだけをScript / CI / Skill / Policy / Runbookへ昇格させる。
+この構成自体もProcess Learningの対象とし、実際のセッションで効かなかった箇所を観測して改善する。
