@@ -1,0 +1,37 @@
+learning_candidate:
+  id: ""
+  created_from_task: ""
+  trigger: ""
+  event_type: human_correction # human_correction | missing_evidence | repeated_retry | escaped_defect | ci_or_e2e_failure | impact_miss | delivery_step_miss
+
+  observed_problem: ""
+  evidence: []
+
+  root_cause: ""
+  generalized_rule: ""
+
+  recurrence_risk: medium # low | medium | high
+  impact: medium # low | medium | high
+  deterministic: false
+
+  duplicate_check:
+    status: pending # pending | unique | duplicate | overlaps
+    related_rules: []
+
+  proposed_target: task_context # script | ci_gate | skill | policy | runbook | task_context
+  target_reason: ""
+
+  human_gate:
+    status: pending # pending | accepted | rejected
+    decision_reason: ""
+
+  application:
+    status: not_applied # not_applied | applied
+    location: ""
+    change_reference: ""
+
+  observation:
+    status: not_started # not_started | observing | effective | recurred
+    task_samples: []
+    recurrence_count: 0
+    escalation_target: ""
