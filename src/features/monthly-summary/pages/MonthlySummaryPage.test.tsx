@@ -102,6 +102,10 @@ describe("MonthlySummaryPage", () => {
     expect(screen.getByRole("heading", { name: "支出カテゴリ" })).toBeInTheDocument();
     expect(screen.getByLabelText("月次サマリーの支出一覧")).toBeInTheDocument();
     expect(screen.getByLabelText("月次サマリーの収入一覧")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "2026年の年次サマリーを見る" })).toHaveAttribute(
+      "href",
+      "/years/2026",
+    );
   });
 
   it("データがない月は支出・収入の空状態を表示する", () => {

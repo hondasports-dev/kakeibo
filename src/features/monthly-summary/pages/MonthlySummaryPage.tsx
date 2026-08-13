@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
@@ -19,6 +19,7 @@ import { formatJapaneseDate } from "../../../utils/date";
 import { MonthlySpendingCalendar } from "../components/MonthlySpendingCalendar";
 import { MonthNavigator } from "../components/MonthNavigator";
 import { MonthlyMetricsPanel } from "../components/MonthlyMetricsPanel";
+import { formatYearLabel } from "../../../../lib/domain/common/year";
 import { addMonths, getCurrentMonth, isFutureMonth, normalizeMonth } from "../lib/monthNavigation";
 import { isDateInMonth } from "../utils/monthlySpendingCalendar";
 
@@ -137,6 +138,15 @@ export function MonthlySummaryPage() {
           onNextMonth={() => navigateToMonth(addMonths(month, 1))}
           onPreviousMonth={() => navigateToMonth(addMonths(month, -1))}
         />
+
+        <Button
+          component={Link}
+          sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
+          to={`/years/${month.slice(0, 4)}`}
+          variant="outlined"
+        >
+          {formatYearLabel(month.slice(0, 4))}の年次サマリーを見る
+        </Button>
 
         <MonthlySpendingCalendar
           expenses={summary.receipts}

@@ -27,6 +27,9 @@ describe("GuidePage", () => {
       screen.getByRole("heading", { name: "週次サマリーを見る", level: 2 }),
     ).toBeInTheDocument();
     expect(
+      screen.getByRole("heading", { name: "年次サマリーを見る", level: 2 }),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: "カテゴリと設定を管理する", level: 2 }),
     ).toBeInTheDocument();
     expect(

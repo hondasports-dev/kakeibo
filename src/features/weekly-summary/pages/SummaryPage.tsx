@@ -13,6 +13,7 @@ import { getUserProfileApi } from "../../../lib/repositories/users";
 import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { formatMonthLabel } from "../../../../lib/domain/common/month";
+import { formatYearLabel } from "../../../../lib/domain/common/year";
 import { WeekNavigator } from "../../week";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
 import { ExpenseEntryDeleteDialog } from "../components/ExpenseEntryDeleteDialog";
@@ -57,6 +58,7 @@ export function SummaryPage() {
   const weekEndDate = getWeekEndDate(weekStartDate);
   const isCurrentWeek = weekStartDate === currentWeekStartDate;
   const summaryMonth = weekStartDate.slice(0, 7);
+  const summaryYear = weekStartDate.slice(0, 4);
 
   useEffect(() => {
     if (userProfile !== undefined && rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
@@ -158,15 +160,26 @@ export function SummaryPage() {
           onNextWeek={() => navigateToWeek(addWeeks(weekStartDate, 1))}
         />
 
-        <Button
-          component={Link}
-          endIcon={<ChevronRightIcon />}
-          sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
-          to={`/months/${summaryMonth}`}
-          variant="outlined"
-        >
-          {formatMonthLabel(summaryMonth)}の月次サマリーを見る
-        </Button>
+        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
+          <Button
+            component={Link}
+            endIcon={<ChevronRightIcon />}
+            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
+            to={`/months/${summaryMonth}`}
+            variant="outlined"
+          >
+            {formatMonthLabel(summaryMonth)}の月次サマリーを見る
+          </Button>
+          <Button
+            component={Link}
+            endIcon={<ChevronRightIcon />}
+            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
+            to={`/years/${summaryYear}`}
+            variant="outlined"
+          >
+            {formatYearLabel(summaryYear)}の年次サマリーを見る
+          </Button>
+        </Stack>
 
         {deleteError && (
           <Alert severity="error" variant="outlined" onClose={() => setDeleteError("")}>

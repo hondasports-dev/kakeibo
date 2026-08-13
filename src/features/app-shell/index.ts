@@ -6,6 +6,7 @@ export { GuidePage } from "./pages/GuidePage";
 export { NotFoundPage } from "./pages/NotFoundPage";
 export { AppLayout } from "./components/AppLayout";
 export { MonthlySummaryRouteFallback } from "./components/MonthlySummaryRouteFallback";
+export { YearlySummaryRouteFallback } from "./components/YearlySummaryRouteFallback";
 export { NavigationPendingOutlet } from "./components/NavigationPendingOutlet";
 export { AppErrorBoundary } from "./components/AppErrorBoundary";
 export { PublicStatusPage } from "./components/PublicStatusPage";
