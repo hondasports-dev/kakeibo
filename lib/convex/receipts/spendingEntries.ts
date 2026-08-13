@@ -335,3 +335,52 @@ export async function getMonthIncomeEntries(
     .filter((receipt) => receipt.type === "income")
     .map((receipt) => mapReceiptToIncomeListEntry(receipt));
 }
+
+export async function getMonthAggregationEntries(
+  ctx: QueryCtx,
+  groupId: Id<"groups">,
+  monthStartDate: string,
+): Promise<{
+  expenses: Array<{ amountYen: number; categoryId: string }>;
+  incomes: Array<{ amountYen: number }>;
+}> {
+  const monthEndDate = getMonthEndDate(monthStartDate);
+  const expenseEntries = await fetchExpenseEntriesByDateRange(
+    ctx,
+    groupId,
+    monthStartDate,
+    monthEndDate,
+  );
+  const monthExpenseEntries = expenseEntries.filter((entry) => entry.entryType !== "income");
+  const monthIncomeEntries = expenseEntries.filter((entry) => entry.entryType === "income");
+  const needsLegacyExpenses = monthExpenseEntries.length === 0;
+  const needsLegacyIncomes = monthIncomeEntries.length === 0;
+  const receipts =
+    needsLegacyExpenses || needsLegacyIncomes
+      ? await fetchReceiptsByDateRange(ctx, groupId, monthStartDate, monthEndDate)
+      : [];
+
+  return {
+    expenses: needsLegacyExpenses
+      ? receipts
+          .filter((receipt) => receipt.type !== "income")
+          .map((receipt) => ({
+            amountYen: receipt.amountYen,
+            categoryId: receipt.categoryId,
+          }))
+      : monthExpenseEntries.map((entry) => {
+          if (entry.categoryId === undefined) {
+            throw new ConvexError("Expense entry category is required for spending aggregation");
+          }
+          return {
+            amountYen: entry.amount,
+            categoryId: entry.categoryId,
+          };
+        }),
+    incomes: needsLegacyIncomes
+      ? receipts
+          .filter((receipt) => receipt.type === "income")
+          .map((receipt) => ({ amountYen: receipt.amountYen }))
+      : monthIncomeEntries.map((entry) => ({ amountYen: entry.amount })),
+  };
+}

@@ -1,9 +1,6 @@
 import type { QueryCtx } from "../../../../convex/_generated/server";
 import { requireGroupMembership } from "../../../../convex/groups/membership";
-import {
-  getMonthIncomeEntries,
-  getMonthSpendingEntries,
-} from "../../../../convex/receipts/spendingEntries";
+import { getMonthAggregationEntries } from "../../../../convex/receipts/spendingEntries";
 import { ConvexError } from "convex/values";
 import { getMonthStartDate } from "../../../domain/common/month";
 import { getYearMonths, normalizeYear } from "../../../domain/common/year";
@@ -27,17 +24,17 @@ export async function getYearSummaryHandler(
 
   const { groupId } = await requireGroupMembership(ctx);
   const months = getYearMonths(year);
-  const monthSources = [];
+  const monthSources = await Promise.all(
+    months.map(async (month) => {
+      const entries = await getMonthAggregationEntries(ctx, groupId, getMonthStartDate(month));
+      return { month, expenses: entries.expenses, incomes: entries.incomes };
+    }),
+  );
   const categoryIds = new Set<string>();
-
-  for (const month of months) {
-    const monthStartDate = getMonthStartDate(month);
-    const expenses = await getMonthSpendingEntries(ctx, groupId, monthStartDate);
-    const incomes = await getMonthIncomeEntries(ctx, groupId, monthStartDate);
-    for (const expense of expenses) {
+  for (const source of monthSources) {
+    for (const expense of source.expenses) {
       categoryIds.add(expense.categoryId);
     }
-    monthSources.push({ month, expenses, incomes });
   }
 
   const categoryInfoMap = await buildCategoryInfoMap(ctx, groupId, Array.from(categoryIds));
