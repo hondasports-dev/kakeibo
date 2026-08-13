@@ -200,7 +200,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
     const seededGroupId = await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, {
       userId: resolvedUserId,
     });
-    if (!actorGroupId || actorGroupId !== seededGroupId) {
+    if (!actorGroupId || (seededGroupId !== null && actorGroupId !== seededGroupId)) {
       return new Response(JSON.stringify({ error: "Forbidden." }), {
         status: 403,
         headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },

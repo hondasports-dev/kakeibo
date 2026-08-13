@@ -133,6 +133,26 @@ describe("e2eCleanupHandler", () => {
     expect(runMutation).toHaveBeenCalledTimes(1);
   });
 
+  it("UIですでに所属解除されたseedユーザーの後処理を冪等に完了できる", async () => {
+    const runQuery = vi
+      .fn()
+      .mockResolvedValueOnce(GROUP_ID)
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(null);
+    const runMutation = vi.fn().mockResolvedValue({ deletedCount: 0 });
+    const response = await e2eCleanupHandler(
+      createActionCtx({ runQuery, runMutation }),
+      request({
+        userId: E2E_USER_ID,
+        seededUserId: "e2e-seed|group-member-removed",
+        clearGroupMemberships: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+
   it.each([
     {
       name: "別グループのseedユーザー",
