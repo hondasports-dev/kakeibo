@@ -31,6 +31,12 @@ describe("ExpenseSearchFilters", () => {
     renderWithProviders(<StatefulFilters onClear={onClear} onSubmit={onSubmit} />);
 
     await user.type(screen.getByLabelText("店名"), "北浜");
+    await user.type(screen.getByLabelText("金額の下限"), "100");
+    await user.type(screen.getByLabelText("金額の上限"), "5000");
+    await user.type(screen.getByLabelText("開始日"), "2026-07-01");
+    await user.type(screen.getByLabelText("終了日"), "2026-07-31");
+    await user.click(screen.getByLabelText("カテゴリ"));
+    await user.click(screen.getByRole("option", { name: "食費" }));
     await user.click(screen.getByRole("button", { name: "絞り込む" }));
     expect(onSubmit).toHaveBeenCalled();
 
