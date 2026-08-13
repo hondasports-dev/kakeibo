@@ -2,7 +2,7 @@ learning_candidate:
   id: ""
   created_from_task: ""
   trigger: ""
-  event_type: human_correction # human_correction | missing_evidence | repeated_retry | escaped_defect | ci_or_e2e_failure | impact_miss | delivery_step_miss | manual_check_repetition
+  event_type: human_correction # human_correction | missing_evidence | repeated_retry | escaped_defect | ci_or_e2e_failure | impact_miss | delivery_step_miss | aftercare_miss | task_transition_miss | session_scope_leak | manual_check_repetition
 
   observed_problem: ""
   evidence: []
