@@ -2,10 +2,16 @@ import { httpAction } from "../_generated/server";
 import type { ActionCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { Id } from "../_generated/dataModel";
-import { readE2eJsonObject, requireE2eSecret, requireE2eUserId } from "./e2eAuth";
+import {
+  getConfiguredE2eUserId,
+  readE2eJsonObject,
+  requireE2eSecret,
+  requireE2eUserId,
+} from "./e2eAuth";
 
 type E2eCleanupBody = {
   userId?: string;
+  seededUserId?: string;
   email?: string;
   groupId?: string;
   resetWeekSession?: boolean;
@@ -21,7 +27,7 @@ type E2eCleanupBody = {
   seedGroupMember?: { displayName: string; email: string };
 };
 
-const STRING_FIELDS = ["userId", "email", "groupId", "weekStartDate"] as const;
+const STRING_FIELDS = ["userId", "seededUserId", "email", "groupId", "weekStartDate"] as const;
 const MAX_E2E_FIELD_LENGTH = 512;
 const MAX_E2E_EMAIL_LENGTH = 320;
 const BOOLEAN_FIELDS = [
@@ -77,6 +83,26 @@ function validateCleanupBody(body: E2eCleanupBody) {
   return null;
 }
 
+function isSeededMembershipCleanupOnly(body: E2eCleanupBody) {
+  return (
+    body.userId !== undefined &&
+    body.email === undefined &&
+    body.seededUserId !== undefined &&
+    body.seededUserId.startsWith("e2e-seed|") &&
+    body.groupId === undefined &&
+    body.clearGroupMemberships === true &&
+    body.resetWeekSession !== true &&
+    body.deleteE2eCategories !== true &&
+    body.clearMonthlyIncome !== true &&
+    body.clearAiExpenseQueue !== true &&
+    body.clearE2eExpenseEntries !== true &&
+    body.clearGroupInvitations !== true &&
+    body.clearLineLink !== true &&
+    body.setGroupMemberRole === undefined &&
+    body.seedGroupMember === undefined
+  );
+}
+
 async function resolveE2eGroupId(
   ctx: ActionCtx,
   body: E2eCleanupBody,
@@ -111,7 +137,8 @@ async function resolveE2eGroupId(
 //
 // リクエストボディ:
 //   {
-//     "userId": "<Clerk の tokenIdentifier>",   // clearMonthlyIncome 用（users テーブルは userId ベースのまま）
+//     "userId": "<Clerk の tokenIdentifier>",   // 固定E2Eユーザー（認証主体）
+//     "seededUserId": "<e2e-seed|...>",        // 所属削除だけを許可するE2E seedユーザー
 //     "email": "<Clerk の email>",              // userId の代替解決用
 //     "groupId": "<groups テーブルの ID>",        // グループデータのクリーンアップ用
 //     "clearGroupMemberships": true,
@@ -144,14 +171,41 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   const userIdByEmail = body.email
     ? await ctx.runQuery(internal.users.internal.getUserIdByEmail, { email: body.email })
     : null;
-  const resolvedUserId = userIdByEmail ?? body.userId ?? null;
+  const actorUserId = userIdByEmail ?? body.userId ?? null;
 
-  if (!resolvedUserId) {
+  if (!actorUserId) {
     return badRequest("userId or email is required.");
   }
-  const userAuthorizationError = requireE2eUserId(resolvedUserId);
+  const userAuthorizationError = requireE2eUserId(actorUserId);
   if (userAuthorizationError) {
     return userAuthorizationError;
+  }
+
+  const configuredUserId = getConfiguredE2eUserId();
+  const isSeededCleanup = body.seededUserId !== undefined;
+  if (isSeededCleanup && !isSeededMembershipCleanupOnly(body)) {
+    return new Response(JSON.stringify({ error: "Forbidden." }), {
+      status: 403,
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+    });
+  }
+
+  const resolvedUserId = body.seededUserId ?? actorUserId;
+  if (isSeededCleanup) {
+    const actorGroupId = configuredUserId
+      ? await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, {
+          userId: configuredUserId,
+        })
+      : null;
+    const seededGroupId = await ctx.runQuery(internal.groups.e2e.getGroupIdByUserId, {
+      userId: resolvedUserId,
+    });
+    if (!actorGroupId || actorGroupId !== seededGroupId) {
+      return new Response(JSON.stringify({ error: "Forbidden." }), {
+        status: 403,
+        headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+      });
+    }
   }
 
   const resolvedGroupId = await resolveE2eGroupId(ctx, body, resolvedUserId);
@@ -167,7 +221,7 @@ export const e2eCleanupHandler = httpAction(async (ctx, req) => {
   }
 
   let receipts: { deletedCount: number } | null = null;
-  if (resolvedGroupId) {
+  if (resolvedGroupId && !isSeededCleanup) {
     receipts = await ctx.runMutation(internal.receipts.crud.deleteReceiptsByUser, {
       groupId: resolvedGroupId,
       userId: resolvedUserId,

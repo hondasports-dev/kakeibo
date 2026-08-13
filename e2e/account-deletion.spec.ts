@@ -45,6 +45,8 @@ test("@group-access 唯一ownerは退会をブロックされ、owner譲渡後�
     await expect(button).toBeEnabled();
   } finally {
     if (currentUserId) await cleanupGroupMembershipsByUser(currentUserId);
-    if (memberUserId) await cleanupGroupMembershipsByUser(memberUserId);
+    if (memberUserId && currentUserId) {
+      await cleanupGroupMembershipsByUser(memberUserId, currentUserId);
+    }
   }
 });
