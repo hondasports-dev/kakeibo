@@ -1,0 +1,218 @@
+version: 1
+name: suzumemo-task-loop
+default_base_branch: preview
+
+principles:
+  - evidence_before_progress
+  - failed_gate_returns_to_source_state
+  - added_tests_are_not_executed_tests
+  - delivery_state_is_part_of_completion
+  - learning_requires_observation
+  - prefer_enforcement_over_reminders
+
+states:
+  - id: intake
+    purpose: Capture request, source, constraints, and completion criteria.
+    next: discover
+
+  - id: discover
+    purpose: Inspect current code, docs, dependencies, git state, and external context.
+    gate: discovery_gate
+    next: specify
+
+  - id: specify
+    purpose: Converge the request into implementable behavior and acceptance criteria.
+    gate: specification_gate
+    next: impact_analysis
+
+  - id: impact_analysis
+    purpose: Identify callers, callees, shared state, auth boundaries, tests, and deployment impact.
+    gate: impact_gate
+    next: implement
+
+  - id: implement
+    purpose: Apply the minimum change that satisfies the accepted specification.
+    next: verify
+
+  - id: verify
+    purpose: Produce executable evidence for correctness.
+    gate: verification_gate
+    pass: review
+    fail: incident
+
+  - id: review
+    purpose: Independently inspect functionality, regression risk, security, data boundaries, and test adequacy.
+    gate: review_gate
+    pass: deliver
+    fail: implement
+
+  - id: deliver
+    purpose: Complete the required commit, push, PR, CI, review, and merge lifecycle.
+    gate: delivery_gate
+    pass: post_check
+    fail: incident
+
+  - id: post_check
+    purpose: Confirm the integrated or target environment matches the intended result.
+    gate: post_check_gate
+    pass: learn
+    fail: incident
+
+  - id: incident
+    purpose: Stop progression, establish facts, find root cause, fix, and restart from the failed gate.
+    required:
+      - observed_failure
+      - evidence
+      - root_cause_or_blocker
+      - affected_scope
+      - restart_state
+
+  - id: learn
+    purpose: Extract reusable process learning without immediately mutating permanent rules.
+    gate: learning_gate
+    next: done
+
+  - id: done
+    purpose: Terminal state. All required gates have evidence-backed PASS results.
+
+gates:
+  discovery_gate:
+    pass_when:
+      - relevant_existing_implementation_checked
+      - relevant_constraints_checked
+      - current_work_state_known
+
+  specification_gate:
+    pass_when:
+      - expected_behavior_defined
+      - acceptance_criteria_defined
+      - material_ambiguities_resolved
+    human_gate_when:
+      - multiple_valid_product_choices
+      - destructive_or_irreversible_choice
+      - materially_different_scope_or_cost
+
+  impact_gate:
+    pass_when:
+      - changed_surface_identified
+      - callers_and_callees_considered
+      - shared_state_considered
+      - auth_and_data_boundaries_considered_when_relevant
+      - regression_tests_identified
+
+  verification_gate:
+    evidence_required: true
+    pass_when:
+      - required_static_checks_pass
+      - required_tests_executed_and_pass
+      - build_or_runtime_check_pass_when_relevant
+      - skipped_checks_have_no_required_status
+    forbidden_shortcuts:
+      - treat_test_added_as_test_passed
+      - treat_expected_success_as_evidence
+      - continue_after_required_check_failed
+
+  review_gate:
+    evidence_required: true
+    pass_when:
+      - no_unresolved_blocking_findings
+      - regression_risk_reviewed
+      - security_reviewed_when_relevant
+      - test_adequacy_reviewed
+
+  delivery_gate:
+    evidence_required: true
+    pass_when:
+      - required_changes_committed
+      - required_branch_pushed
+      - pull_request_exists_when_required
+      - required_ci_passed
+      - required_review_state_satisfied
+      - merge_state_satisfied_when_merge_is_in_scope
+    forbidden_shortcuts:
+      - mark_done_after_push_only
+      - mark_done_after_ci_only
+      - assume_pull_request_exists
+
+  post_check_gate:
+    evidence_required: true
+    pass_when:
+      - target_state_observed
+      - no_known_regression_left_unresolved
+
+  learning_gate:
+    pass_when:
+      - learning_events_reviewed
+      - candidates_recorded_or_explicitly_none
+
+incident_loop:
+  steps:
+    - collect_facts_and_evidence
+    - reproduce_or_identify_failure_condition
+    - identify_root_cause_or_explicit_blocker
+    - reassess_impact_scope
+    - apply_fix
+    - restart_from_failed_gate
+  blocked_is_not_done: true
+
+learning:
+  event_types:
+    - human_correction
+    - missing_evidence
+    - repeated_retry
+    - escaped_defect
+    - ci_or_e2e_failure
+    - impact_miss
+    - delivery_step_miss
+
+  candidate_required_fields:
+    - trigger
+    - observed_problem
+    - root_cause
+    - generalized_rule
+    - recurrence_risk
+    - impact
+    - deterministic
+    - proposed_target
+    - evidence
+
+  targets:
+    script:
+      choose_when:
+        - mechanically_executable_or_checkable
+    ci_gate:
+      choose_when:
+        - violation_must_block_progress
+    skill:
+      choose_when:
+        - reusable_multi_step_judgment
+    policy:
+      choose_when:
+        - short_project_wide_invariant
+    runbook:
+      choose_when:
+        - low_frequency_incident_or_operation
+    task_context:
+      choose_when:
+        - task_specific_and_not_generalizable
+
+  human_gate_required_for_promotion: true
+
+  lifecycle:
+    - candidate
+    - accepted_or_rejected
+    - applied
+    - observing
+    - effective_or_recurred
+
+  escalation_on_recurrence:
+    - task_context_to_runbook
+    - runbook_or_policy_to_skill
+    - skill_to_script_or_ci_gate
+
+completion:
+  done_requires:
+    - all_required_gates_pass
+    - evidence_links_or_results_recorded
+    - no_required_blocked_items
+    - delivery_complete_for_requested_scope
