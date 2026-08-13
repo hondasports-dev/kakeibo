@@ -136,7 +136,7 @@ async function fetchReceiptEnrichmentData(
   return { sourceDocumentMap, aiExpenseDraftMap, aiExpenseDraftItemsMap };
 }
 
-async function enrichSpendingEntriesWithReceiptGroups(
+export async function enrichSpendingEntriesWithReceiptGroups(
   ctx: QueryCtx,
   groupId: Id<"groups">,
   linkages: ReceiptLinkage[],
@@ -156,7 +156,9 @@ async function enrichSpendingEntriesWithReceiptGroups(
   );
 }
 
-function mapExpenseEntriesToReceiptLinkages(entries: Doc<"expenseEntries">[]): ReceiptLinkage[] {
+export function mapExpenseEntriesToReceiptLinkages(
+  entries: Doc<"expenseEntries">[],
+): ReceiptLinkage[] {
   return entries.map((entry) => ({
     entry: mapExpenseEntryToSpendingEntry(entry),
     sourceDocumentId: entry.sourceDocumentId,

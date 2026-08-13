@@ -37,6 +37,7 @@ import type * as email_webhooks_processResendEvent from "../email/webhooks/proce
 import type * as email_webhooks_resendWebhook from "../email/webhooks/resendWebhook.js";
 import type * as expenseEntries_internal from "../expenseEntries/internal.js";
 import type * as expenseEntries_mutations from "../expenseEntries/mutations.js";
+import type * as expenseSearch from "../expenseSearch.js";
 import type * as groups_adminGuards from "../groups/adminGuards.js";
 import type * as groups_auditLogs from "../groups/auditLogs.js";
 import type * as groups_clerkInvitations from "../groups/clerkInvitations.js";
@@ -152,6 +153,7 @@ declare const fullApi: ApiFromModules<{
   "email/webhooks/resendWebhook": typeof email_webhooks_resendWebhook;
   "expenseEntries/internal": typeof expenseEntries_internal;
   "expenseEntries/mutations": typeof expenseEntries_mutations;
+  expenseSearch: typeof expenseSearch;
   "groups/adminGuards": typeof groups_adminGuards;
   "groups/auditLogs": typeof groups_auditLogs;
   "groups/clerkInvitations": typeof groups_clerkInvitations;

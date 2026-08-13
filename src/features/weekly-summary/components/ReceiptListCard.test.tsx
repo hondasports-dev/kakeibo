@@ -29,6 +29,20 @@ describe("ReceiptListCard", () => {
     expect(screen.queryByRole("button", { name: "さらに2件を見る" })).not.toBeInTheDocument();
   });
 
+  it("maxVisibleGroupsを指定すると初期表示件数を変えられる", () => {
+    renderWithProviders(
+      <ReceiptListCard
+        count={7}
+        isLoading={false}
+        maxVisibleGroups={Number.POSITIVE_INFINITY}
+        receipts={receipts}
+      />,
+    );
+
+    expect(screen.getAllByTestId("receipt-row")).toHaveLength(7);
+    expect(screen.queryByRole("button", { name: /さらに/ })).not.toBeInTheDocument();
+  });
+
   it("読込中は既存データの全件展開ボタンを表示しない", () => {
     renderWithProviders(<ReceiptListCard count={7} isLoading receipts={receipts} />);
 

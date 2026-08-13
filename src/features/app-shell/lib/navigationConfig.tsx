@@ -28,7 +28,7 @@ export function createNavItems(): NavItem[] {
 
 export function getBottomNavValue(pathname: string, navItems: NavItem[]) {
   const index = navItems.findIndex((item) => isNavItemSelected(pathname, item.path));
-  return index >= 0 ? index : 0;
+  return index >= 0 ? index : false;
 }
 
 export function isNavItemSelected(pathname: string, path: string) {

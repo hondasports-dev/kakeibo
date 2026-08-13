@@ -7,16 +7,20 @@ import { groupReceiptItems, type ReceiptItem } from "../types/types";
 export function ReceiptListCard({
   count,
   emptyMessage = "まだレシートがありません",
+  heading,
   isLoading,
   listAriaLabel = "週次サマリーの支出一覧",
+  maxVisibleGroups = 5,
   receipts,
   onDeleteReceipt,
   onEditReceipt,
 }: {
   count: number;
   emptyMessage?: string;
+  heading?: string;
   isLoading: boolean;
   listAriaLabel?: string;
+  maxVisibleGroups?: number;
   receipts: ReceiptItem[];
   onDeleteReceipt?: (receipt: ReceiptItem) => void;
   onEditReceipt?: (receipt: ReceiptItem) => void;
@@ -26,7 +30,10 @@ export function ReceiptListCard({
     .map((group, index) => ({ group, index }))
     .sort((a, b) => b.group.date.localeCompare(a.group.date) || b.index - a.index)
     .map(({ group }) => group);
-  const visibleReceiptGroups = expanded ? orderedReceiptGroups : orderedReceiptGroups.slice(0, 5);
+  const visibleReceiptGroups =
+    expanded || maxVisibleGroups === Number.POSITIVE_INFINITY
+      ? orderedReceiptGroups
+      : orderedReceiptGroups.slice(0, maxVisibleGroups);
   const remainingCount = Math.max(orderedReceiptGroups.length - visibleReceiptGroups.length, 0);
 
   return (
@@ -34,7 +41,7 @@ export function ReceiptListCard({
       <Box sx={{ p: 2.5 }}>
         <Stack spacing={2}>
           <Typography component="h2" variant="h6">
-            支出一覧（{orderedReceiptGroups.length}件）
+            {heading ?? `支出一覧（${orderedReceiptGroups.length}件）`}
           </Typography>
 
           <Box
