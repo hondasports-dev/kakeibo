@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { summarizeYearlyTrend } from "../../../../lib/domain/receipt/yearlySummary";
 import {
   MAX_STACKED_CATEGORIES,
+  OTHER_SERIES_DATA_KEY,
   buildYearlyLineSeries,
   buildYearlyTrendChartData,
   formatYearlyBalanceSeriesValue,
@@ -44,7 +45,7 @@ describe("buildYearlyTrendChartData", () => {
     expect(chartData.income[0]).toBe(10000);
     expect(chartData.series).toHaveLength(MAX_STACKED_CATEGORIES + 1);
     expect(chartData.series.at(-1)).toMatchObject({
-      dataKey: toSeriesDataKey("__other__"),
+      dataKey: OTHER_SERIES_DATA_KEY,
       label: "その他",
     });
     expect(chartData.dataset[0]?.[toSeriesDataKey("food")]).toBe(5000);
@@ -98,10 +99,48 @@ describe("buildYearlyTrendChartData", () => {
     });
 
     expect(balanceSeries[0]?.label).toBe("支出");
-    expect(balanceSeries[0]?.valueFormatter?.(3000, { dataIndex: 0 })).toContain("支出");
+    expect(balanceSeries[0]?.valueFormatter(3000, { dataIndex: 0 })).toContain("支出");
     expect(categorySeries[0]).toMatchObject({
       area: true,
       stack: "category",
     });
+  });
+
+  it("ハイフンとアンダースコアのカテゴリIDを区別し、その他は予約キーを使う", () => {
+    expect(toSeriesDataKey("a-b")).not.toBe(toSeriesDataKey("a_b"));
+    expect(toSeriesDataKey("__yearly_other__")).not.toBe(OTHER_SERIES_DATA_KEY);
+
+    const chartData = buildYearlyTrendChartData(
+      summarizeYearlyTrend({
+        year: "2026",
+        months: [
+          {
+            month: "2026-01",
+            expenses: [
+              { amountYen: 2000, categoryId: "a_b" },
+              { amountYen: 1000, categoryId: "a-b" },
+              { amountYen: 100, categoryId: "c1" },
+              { amountYen: 100, categoryId: "c2" },
+              { amountYen: 100, categoryId: "c3" },
+              { amountYen: 50, categoryId: "c4" },
+            ],
+            incomes: [],
+          },
+        ],
+        categoryInfoMap: new Map([
+          ["a_b", { name: "アンダースコア", color: "#111111" }],
+          ["a-b", { name: "ハイフン", color: "#222222" }],
+          ["c1", { name: "C1", color: "#333333" }],
+          ["c2", { name: "C2", color: "#444444" }],
+          ["c3", { name: "C3", color: "#555555" }],
+          ["c4", { name: "C4", color: "#666666" }],
+        ]),
+      }),
+    );
+
+    expect(chartData.dataset[0]?.[toSeriesDataKey("a-b")]).toBe(1000);
+    expect(chartData.dataset[0]?.[toSeriesDataKey("a_b")]).toBe(2000);
+    expect(chartData.series.some((entry) => entry.dataKey === OTHER_SERIES_DATA_KEY)).toBe(true);
+    expect(chartData.dataset[0]?.[OTHER_SERIES_DATA_KEY]).toBe(50);
   });
 });
