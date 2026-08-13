@@ -6,12 +6,12 @@
 
 ## Codex / Devin 共通の実行ルール
 
-- `.agents/roles/` 配下のファイルは、役割別の指示書として扱う。
+- `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` を実行契約の正本とする。旧来のrole定義を実行時の正本にしない。
 - Codex Plan モードでは、メインエージェントが Company Coordinator と Tech Lead を兼務する。要件統合、設計判断、Implementation Handoff、差分統合、Git操作、PRを別エージェントへ移さない。
-- `.codex/agents/*.toml` は使わず、`AGENTS.md`、`.agents/skills/**`、`.agents/roles/**` を正本とする。
+- `.codex/agents/*.toml` は使わず、必要な独立レビューや調査は `skills/*/SKILL.md` の契約に従う。
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
-- サブエージェントは、独立した調査、専門評価、実装、レビューに使う。利用できない場合もメインエージェントが必要な役割指示書を読んで進める。
-- Product Lead の評価結果をメインエージェントが Tech Lead として統合する。
+- サブエージェントは、独立した要件レビュー、調査、実装、レビューに使う。要件レビューのクォーラム未達をMainの自己レビューで代替しない。
+- 要件レビュー結果をMainがRequirementsパケットへ統合し、統合後仕様レビューを通してから設計へ進む。
 - 同じ差分に書き込む Implementer は原則1体とする。複数 writer は編集範囲を完全分離できる場合だけ使う。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のE2E結果確認の2回使ってよい。
 - Reviewer は論理 read-only とし、修正を同じ Implementer へ返す。
@@ -24,7 +24,7 @@
 workflows/standard-delivery.md を使って進めて。
 
 Codexで作業する場合は、この依頼をサブエージェント起動の明示的な許可として扱い、
-必要に応じて Product Lead、Implementer、QA Agent、Reviewer、Release Manager の
+必要に応じて要件レビュー担当、Implementer、QA Agent、Reviewer、Release Manager の
 サブエージェントを起動してよい。
 Tech Lead は Main が兼務する。
 Devinで作業する場合も、同じ役割分担で進めて。
@@ -32,17 +32,23 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 ## フロー
 
-### 1. 企画と要件
+### 1. 要件と仕様の収束
 
-担当: Product Lead
+担当: 独立要件レビューエージェント（通常2、高リスク3）とMain
+
+`skills/requirements/SKILL.md` に従い、同じ入力スナップショットを見たレビューを並列に行う。
+Mainは各レビュー提出後に合意点、対立点、解決、未解決ブロッカーを統合し、別のread-only仕様レビューで
+Acceptance Criteria、scope、状態、Test Strategyを確認する。クォーラム未達や未解決の仕様対立がある間は、
+設計・実装へ進まない。
 
 成果物:
 
-- 対象ユーザー
-- 解く課題
-- MVP範囲
-- 成功指標
-- 作らない機能
+- 対象ユーザーと解く課題
+- In scope / Out of scope / Preserve
+- Given / When / Then形式のAcceptance Criteria
+- edge / error / loading / empty / authorization状態
+- Test / E2E方針
+- 入力revision、packet version、各レビューEvidence、Mainの統合結果、統合後仕様レビュー
 
 ### 2. 設計
 
@@ -61,8 +67,8 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 担当: QA Agent
 
-Product Lead の完了条件と Main（Tech Leadロール）のテスト方針を照合し、実装前にE2Eで確認する範囲を確定する。
-詳細は `.agents/roles/04-qa-agent.md` の「E2Eテスト設計レビュー」を参照。
+確定したAcceptance CriteriaとMainのテスト方針を照合し、実装前にE2Eで確認する範囲を確定する。
+詳細は `skills/verification/SKILL.md` と `skills/requirements/SKILL.md` を参照する。
 
 成果物:
 
@@ -72,7 +78,7 @@ Product Lead の完了条件と Main（Tech Leadロール）のテスト方針�
 - Given / When / Then
 - テストデータ・cleanup要否
 - E2Eではなく単体・統合テスト・手動確認に回す項目
-- 判定（`approved` / `needs_revision` / `needs_discussion`）
+- 判定（`approved` / `needs_revision` / `blocked`）
 - テストケース判断のためだけに一時メモファイルを作らない
 
 ### 3. 実装
@@ -126,7 +132,7 @@ PR push
           → QA Agent が GitHub MCP で結果を確認
 ```
 
-QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` を参照。
+QA Agentの確認手順と失敗時の対応は `skills/verification/SKILL.md` を参照。
 
 成果物:
 
@@ -147,10 +153,10 @@ QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` �
 
 ## 戻し方
 
-- 要件漏れ: Product Lead に戻す。
-- 設計破綻: Main（Tech Leadロール）に戻す。
-- E2Eテスト設計の不足: QA Agent から Main（Tech Leadロール）に戻す。
-- E2E化すべきか判断できない完了条件: QA Agent から Product Lead またはユーザー確認に戻す。
+- 要件漏れ: `requirements` へ戻し、影響する独立レビューからやり直す。
+- 設計破綻: Mainの設計工程に戻す。
+- E2Eテスト設計の不足: QA Agent から Mainの設計工程に戻す。
+- E2E化すべきか判断できない完了条件: QA Agent からRequirementsまたはユーザー確認に戻す。
 - 実装バグ: Mainが同じImplementerへ修正Handoffを渡す。
 - 仕様通り動かない: QA Agent が原因と再現手順をMainへ返し、Mainが同じImplementerへ修正Handoffを渡す。
 - 品質やセキュリティの問題: Reviewer から Main に返し、Mainが修正Handoffを同じImplementerへ渡す。
@@ -164,6 +170,6 @@ QA Agentの確認手順と失敗時の対応は `.agents/roles/04-qa-agent.md` �
 
 | ループ | 上限 |
 |--------|------|
-| Main（Tech Leadロール）↔ QA Agent テスト設計レビュー差し戻し | 2回 |
+| Mainの設計 ↔ QA Agent テスト設計レビュー差し戻し | 2回 |
 | 実装 ↔ レビュー差し戻し | 3回 |
 | E2E失敗 → 修正の繰り返し | 2回 |

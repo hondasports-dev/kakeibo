@@ -1,4 +1,4 @@
-version: 4
+version: 5
 name: suzumemo-agent-loop
 plugin_manifest: plugin.json
 skills_root: skills
@@ -21,6 +21,7 @@ principles:
   - delivery_state_is_part_of_completion
   - learning_is_part_of_completion
   - prefer_enforcement_over_reminders
+  - independent_requirement_review_before_implementation
 
 states:
   - id: workspace_preflight
@@ -32,10 +33,10 @@ states:
 
   - id: requirements
     skill: skills/requirements/SKILL.md
-    purpose: Converge user request, issue, docs, existing code and tests into testable requirements and acceptance criteria.
+    purpose: Converge independent requirement reviews with the user request, issue, docs, existing code and tests into testable requirements and acceptance criteria.
     gate: requirements_gate
     pass: impact_analysis
-    blocked: requirements
+    blocked: blocked
 
   - id: impact_analysis
     skill: skills/impact-analysis/SKILL.md
@@ -106,6 +107,61 @@ states:
   - id: done
     purpose: Terminal state. All required gates for the requested delivery scope have evidence-backed PASS results.
 
+requirements_protocol:
+  required_for:
+    - behavior_change
+    - ui_change
+    - api_or_schema_change
+    - auth_or_data_policy_change
+    - process_policy_change
+  not_required_for:
+    - read_only_investigation
+    - pure_documentation_change
+    - pure_format_or_typo_change
+    - behavior_preserving_refactor
+  classification_precedence:
+    - process_policy_change_overrides_pure_documentation_exemption
+    - high_risk_trigger_overrides_normal_classification
+    - exempt_is_allowed_only_when_no_required_for_condition_applies
+  risk_levels:
+    normal:
+      required_independent_reviews: 2
+      applies_to: behavior_or_ui_changes_without_high_risk_triggers
+    high:
+      required_independent_reviews: 3
+      triggers:
+        - authentication
+        - authorization
+        - api_boundary
+        - schema
+        - data_retention_or_deletion
+        - external_service
+        - process_policy
+        - production_or_irreversible_operation
+  independent_review_contract:
+    - all_reviewers_receive_the_same_input_snapshot_and_repository_revision
+    - reviewers_are_parallel_and_read_only
+    - main_draft_and_other_review_outputs_are_hidden_until_each_review_is_submitted
+    - main_is_the_synthesizer_and_is_not_counted_in_the_review_quorum
+    - each_review_has_agent_id_perspective_status_input_snapshot_and_evidence
+    - each_review_attests_independence_and_records_rerun_lineage_when_invalidated
+  synthesis_contract:
+    - main_records_agreements_conflicts_resolutions_and_open_blockers
+    - material_product_data_auth_or_irreversible_disagreements_are_not_resolved_by_majority_vote
+    - changing_the_requirements_packet_invalidates_affected_reviews_and_bumps_packet_version
+  post_synthesis_review:
+    required: true
+    must_check_acceptance_criteria_edge_error_states_scope_and_testability: true
+    not_required_only_when: risk_is_exempt_and_reason_is_recorded
+    evidence_requires_revision_packet_independence_and_rerun_lineage: true
+  disagreement_handling:
+    material_disagreement: human_gate
+    unresolved_before_decision: blocked
+    resume_after_decision: requirements
+  unavailable:
+    recovery: retry_once_or_use_an_alternate_read_only_agent
+    if_quorum_unmet: blocked
+
 gates:
   workspace_preflight_gate:
     evidence_required: true
@@ -128,11 +184,25 @@ gates:
       - material_edge_and_error_states_considered
       - test_strategy_defined
       - material_ambiguities_resolved_or_human_decision_recorded
+      - requirements_risk_classified
+      - independent_requirement_review_quorum_met_or_not_required_recorded
+      - independent_requirement_reviews_approved_or_resolved
+      - independent_requirement_review_evidence_complete
+      - requirements_synthesis_recorded
+      - post_synthesis_spec_review_passed_or_exempt_recorded
+      - post_synthesis_spec_review_evidence_complete
+      - review_packet_matches_input_snapshot
     human_gate_when:
       - multiple_valid_product_choices_materially_change_outcome
       - auth_or_data_policy_requires_product_decision
       - destructive_or_irreversible_choice
       - material_scope_cost_or_billing_choice
+      - material_disagreement_requires_user_or_owner_decision
+    blocked_when:
+      - required_independent_review_unavailable_after_recovery
+      - required_review_quorum_not_met
+      - material_disagreement_unresolved
+      - review_packet_stale_after_requirements_change
 
   impact_gate:
     evidence_required: true
@@ -328,6 +398,7 @@ completion:
     - always_on_safety_skills_applied
     - workspace_preflight_gate_pass_or_explicit_exception
     - requirements_gate_pass
+    - requirements_convergence_gate_pass_or_not_required
     - impact_gate_pass
     - implementation_gate_pass
     - verification_gate_pass

@@ -56,6 +56,7 @@ Agent Plugins v1のportable Skillは `skills/` の**直下の子ディレクト�
 - PR作成だけで完了扱いにせず、要求された範囲の CI / review / merge-ready / merge / 後始末まで Delivery に含める。
 - 人間の訂正、失敗、再試行、見落としを Process Learning の入力にする。
 - `roles/` は使わない。モデルや担当ロールではなく、状態・Skill・Gate・Evidenceでループを制御する。
+- 要件・仕様を伴う変更は、`skills/requirements/SKILL.md` の独立レビュー収束プロトコルを通す。Main単独の要件整理や自己レビューだけで `REQUIREMENTS PASS` にしない。
 
 ## 正本の責務
 
@@ -105,7 +106,7 @@ DONE
 | 状態 | 必須 Skill | 目的 |
 | --- | --- | --- |
 | `WORKSPACE_PREFLIGHT` | `skills/workspace-preflight/SKILL.md` | 編集前にtask worktree、branch、canonical worktree、開始時点のclean状態を機械的に確認する |
-| `REQUIREMENTS` | `skills/requirements/SKILL.md` | 要求・Issue・既存実装を統合し、仕様・受け入れ条件・やらないことを確定する |
+| `REQUIREMENTS` | `skills/requirements/SKILL.md` | 独立レビューを収束させ、要求・Issue・既存実装を統合した仕様・受け入れ条件・やらないことを確定する |
 | `IMPACT_ANALYSIS` | `skills/impact-analysis/SKILL.md` | caller/callee、共有状態、認証・認可、データ、テスト、デプロイ影響を調べる |
 | `IMPLEMENTATION` | `skills/implementation/SKILL.md` | 確定した仕様と影響範囲内で最小差分を実装する |
 | `VERIFICATION` | `skills/verification/SKILL.md` | unit/integration/coverage/E2E/build/browser確認をEvidence付きで実行する |
@@ -136,7 +137,7 @@ DONE
 
 ### REQUIREMENTS FAIL
 
-仕様・受け入れ条件に成果物を左右する曖昧さが残る場合は実装へ進まない。既存コード・Issue・docsで解消できなければ Human Gate へ戻す。
+仕様・受け入れ条件に成果物を左右する曖昧さ、独立レビューの不足、統合後レビューの未実施が残る場合は実装へ進まない。既存コード・Issue・docsで解消できなければ `requirements` へ戻し、ユーザー価値・データ保持・認可などの実質的な対立は Human Gate へ戻す。仕様パケットを変更した場合は、影響する独立レビューをやり直す。
 
 ### IMPACT_ANALYSIS FAIL
 
@@ -169,6 +170,7 @@ DONE
 - 実行したコマンドと終了結果
 - テスト名・件数・coverage結果
 - browser / runtime確認結果
+- Requirementsの入力スナップショット、独立レビュー、統合結果、統合後仕様レビュー
 - Review findings と closure 状態
 - PR URL、CI checks、review、merge状態
 
@@ -218,6 +220,7 @@ Learning Candidateは即座にAGENTS.mdへ追記しない。`skills/process-lear
 - 常時必須Skillを適用している
 - 対象タスクでWorkspace Preflight GateをPASSしている（文書のみの明示例外は記録済み）
 - 仕様とAcceptance Criteriaが確定している
+- Requirements収束プロトコルが `PASS` または根拠付きで `not_required` になっている
 - Impact Analysisが完了している
 - 実装が仕様・scope内である
 - 必須Verificationが実行済みかつPASS
