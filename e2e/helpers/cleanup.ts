@@ -205,8 +205,15 @@ export async function cleanupLineLink(options?: CleanupOptions): Promise<void> {
 /**
  * テストユーザーのグループ所属を削除する。
  */
-export async function cleanupGroupMembershipsByUser(userId?: string): Promise<void> {
-  const identity = userId ? { userId } : getCleanupIdentity();
+export async function cleanupGroupMembershipsByUser(
+  userId?: string,
+  actorUserId?: string,
+): Promise<void> {
+  const identity = actorUserId
+    ? { userId: actorUserId, seededUserId: userId }
+    : userId
+      ? { userId }
+      : getCleanupIdentity();
   await callCleanupEndpoint({
     ...identity,
     clearGroupMemberships: true,
@@ -299,6 +306,7 @@ export async function cleanupSystemAdminSearchFixture(
 
 async function callCleanupEndpoint(body: {
   userId?: string;
+  seededUserId?: string;
   email?: string;
   resetWeekSession?: boolean;
   weekStartDate?: string;

@@ -46,7 +46,7 @@ test.describe("グループアクセス", () => {
 
   test.afterEach(async () => {
     if (seededMemberUserIdForCleanup) {
-      await cleanupGroupMembershipsByUser(seededMemberUserIdForCleanup);
+      await cleanupGroupMembershipsByUser(seededMemberUserIdForCleanup, currentUserIdForCleanup);
       seededMemberUserIdForCleanup = undefined;
     }
     if (currentUserIdForCleanup) {

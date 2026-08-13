@@ -116,6 +116,47 @@ describe("e2eCleanupHandler", () => {
     expect(response.status).toBe(403);
   });
 
+  it("固定E2Eユーザーを主体にしたseedユーザーの所属だけを削除できる", async () => {
+    const runQuery = vi.fn().mockResolvedValue(GROUP_ID);
+    const runMutation = vi.fn().mockResolvedValue({ deletedCount: 1 });
+    const response = await e2eCleanupHandler(
+      createActionCtx({ runQuery, runMutation }),
+      request({
+        userId: E2E_USER_ID,
+        seededUserId: "e2e-seed|group-member-test",
+        clearGroupMemberships: true,
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(runQuery).toHaveBeenCalledTimes(3);
+    expect(runMutation).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    {
+      name: "別グループのseedユーザー",
+      runQuery: vi.fn().mockResolvedValueOnce(GROUP_ID).mockResolvedValueOnce("group-other"),
+    },
+    {
+      name: "所属削除以外の操作を含むseedユーザー",
+      runQuery: vi.fn().mockResolvedValue(GROUP_ID),
+      body: { clearGroupInvitations: true },
+    },
+  ])("seedユーザーの安全範囲外の操作（$name）は403を返す", async ({ runQuery, body }) => {
+    const response = await e2eCleanupHandler(
+      createActionCtx({ runQuery }),
+      request({
+        userId: E2E_USER_ID,
+        seededUserId: "e2e-seed|group-member-test",
+        clearGroupMemberships: true,
+        ...body,
+      }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it("指定グループが固定グループと異なる場合は403を返す", async () => {
     const runQuery = vi.fn().mockResolvedValueOnce(GROUP_ID).mockResolvedValueOnce("group-other");
     const response = await e2eCleanupHandler(
