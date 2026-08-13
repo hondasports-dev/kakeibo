@@ -23,6 +23,7 @@ vi.mock("react-router-dom", () => ({
   useLocation: () => ({ pathname: "/" }),
   useNavigation: () => ({ location: undefined, state: "idle" }),
   useNavigate: () => vi.fn(),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 vi.mock("@mui/material", async (importOriginal) => {
@@ -104,6 +105,12 @@ describe("AppLayout サイドバー開閉", () => {
         expect(bottomNavigation).toContainElement(link);
         expect(link.querySelector("svg")).toBeInTheDocument();
       }
+    });
+
+    it("ヘッダーに支出検索窓を表示する", () => {
+      renderWithProviders(<AppLayout />);
+
+      expect(screen.getByLabelText("支出を検索")).toBeInTheDocument();
     });
   });
 });

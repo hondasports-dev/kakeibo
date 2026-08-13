@@ -9,6 +9,7 @@ import { AppDrawer } from "./AppDrawer";
 import { NavigationPendingOutlet } from "./NavigationPendingOutlet";
 import { UserMenu } from "./UserMenu";
 import { createNavItems } from "../lib/navigationConfig";
+import { ExpenseSearchBox } from "../../expense-search/components/ExpenseSearchBox";
 
 export function AppLayout() {
   const theme = useTheme();
@@ -37,12 +38,14 @@ export function AppLayout() {
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
+            gap: 1.5,
             px: 2,
             py: 1,
             borderBottom: "1px solid",
             borderColor: "divider",
           }}
         >
+          <ExpenseSearchBox />
           <UserMenu />
         </Box>
 

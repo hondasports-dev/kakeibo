@@ -77,6 +77,16 @@ export function SummaryRouteFallback() {
   );
 }
 
+export function ExpenseSearchRouteFallback() {
+  return (
+    <SuzumemoLoadingState
+      label="支出検索を読み込み中"
+      message="支出検索を読み込んでいます…"
+      variant="page"
+    />
+  );
+}
+
 export { MonthlySummaryRouteFallback };
 
 const appRoutes: RouteObject[] = [
@@ -116,6 +126,15 @@ const appRoutes: RouteObject[] = [
   {
     path: "/guide",
     element: <GuidePage />,
+  },
+  {
+    path: "/search",
+    HydrateFallback: ExpenseSearchRouteFallback,
+    lazy: async () => {
+      const { ExpenseSearchPage } =
+        await import("./features/expense-search/pages/ExpenseSearchPage");
+      return { Component: ExpenseSearchPage };
+    },
   },
   {
     path: "/settings/account/delete",

@@ -2,7 +2,12 @@ import { act, render, screen } from "@testing-library/react";
 import { createMemoryRouter, RouterProvider } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { NavigationPendingOutlet } from "./features/app-shell";
-import { MonthlySummaryRouteFallback, router, SummaryRouteFallback } from "./router";
+import {
+  MonthlySummaryRouteFallback,
+  router,
+  SummaryRouteFallback,
+  ExpenseSearchRouteFallback,
+} from "./router";
 
 describe("system admin route tree", () => {
   it("/adminはGroupRouteGuardのchildrenではなくtop-level siblingである", () => {
@@ -40,11 +45,13 @@ describe("monthly summary route", () => {
       <>
         <SummaryRouteFallback />
         <MonthlySummaryRouteFallback />
+        <ExpenseSearchRouteFallback />
       </>,
     );
 
     expect(screen.getByText("週次サマリーを読み込んでいます…")).toBeInTheDocument();
     expect(screen.getByText("月次サマリーを読み込んでいます…")).toBeInTheDocument();
+    expect(screen.getByText("支出検索を読み込んでいます…")).toBeInTheDocument();
   });
 
   it("月次lazy遷移中は実ルーターのpending UIを表示する", async () => {
@@ -91,17 +98,21 @@ describe("monthly summary route", () => {
     const routes = router.routes.flatMap((route) => route.children ?? []);
     const weeklyRoute = routes.find((route) => route.path === "/weeks/:weekStartDate");
     const monthlyRoute = routes.find((route) => route.path === "/months/:month");
+    const searchRoute = routes.find((route) => route.path === "/search");
 
     if (
       !weeklyRoute ||
       typeof weeklyRoute.lazy !== "function" ||
       !monthlyRoute ||
-      typeof monthlyRoute.lazy !== "function"
+      typeof monthlyRoute.lazy !== "function" ||
+      !searchRoute ||
+      typeof searchRoute.lazy !== "function"
     ) {
-      throw new Error("weekly/monthly lazy route is not configured");
+      throw new Error("weekly/monthly/search lazy route is not configured");
     }
 
     await expect(weeklyRoute.lazy()).resolves.toEqual({ Component: expect.any(Function) });
     await expect(monthlyRoute.lazy()).resolves.toEqual({ Component: expect.any(Function) });
+    await expect(searchRoute.lazy()).resolves.toEqual({ Component: expect.any(Function) });
   });
 });
