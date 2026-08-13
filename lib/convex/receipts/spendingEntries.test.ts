@@ -4,6 +4,8 @@ import type { QueryCtx } from "../../../convex/_generated/server";
 import {
   getDateSpendingEntries,
   getMonthAggregationEntries,
+  getYearAggregationEntries,
+  MAX_YEAR_RANGE_ENTRIES,
   getMonthIncomeEntries,
   getMonthSpendingEntries,
   getWeekIncomeEntries,
@@ -640,5 +642,118 @@ describe("getMonthAggregationEntries", () => {
     const result = await getMonthAggregationEntries(ctx, groupId, "2024-01-01");
     expect(result.expenses).toEqual([{ amountYen: 800, categoryId: "cat-1" }]);
     expect(result.incomes).toEqual([{ amountYen: 20000 }]);
+  });
+
+  it("カテゴリ未設定の支出は集計を拒否する", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({
+          _id: "e-no-category" as Id<"expenseEntries">,
+          amount: 500,
+          entryType: "expense",
+          categoryId: undefined,
+        }),
+      ],
+    });
+
+    await expect(getMonthAggregationEntries(ctx, groupId, "2024-01-01")).rejects.toThrow(
+      "Expense entry category is required for spending aggregation",
+    );
+  });
+});
+
+describe("getYearAggregationEntries", () => {
+  it("1回の取得で月ごとの収支を分けて返す", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({
+          _id: "e-jan" as Id<"expenseEntries">,
+          date: "2024-01-10",
+          amount: 1200,
+          entryType: "expense",
+        }),
+        makeExpenseEntry({
+          _id: "e-aug" as Id<"expenseEntries">,
+          date: "2024-08-15",
+          amount: 8000,
+          entryType: "expense",
+          categoryId: "cat-2" as Id<"categories">,
+        }),
+        makeExpenseEntry({
+          _id: "e-aug-income" as Id<"expenseEntries">,
+          date: "2024-08-25",
+          amount: 200000,
+          entryType: "income",
+        }),
+      ],
+    });
+
+    const result = await getYearAggregationEntries(ctx, groupId, "2024");
+    expect(result).toHaveLength(12);
+    expect(result[0]).toEqual({
+      month: "2024-01",
+      expenses: [{ amountYen: 1200, categoryId: "cat-1" }],
+      incomes: [],
+    });
+    expect(result[7]).toEqual({
+      month: "2024-08",
+      expenses: [{ amountYen: 8000, categoryId: "cat-2" }],
+      incomes: [{ amountYen: 200000 }],
+    });
+    expect(result[1]).toEqual({ month: "2024-02", expenses: [], incomes: [] });
+  });
+
+  it("月ごとに旧 receipt を補完する", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({
+          _id: "e-jan" as Id<"expenseEntries">,
+          date: "2024-01-10",
+          amount: 800,
+          entryType: "expense",
+        }),
+      ],
+      receipts: [
+        makeReceipt({
+          _id: "r-feb-income" as Id<"receipts">,
+          date: "2024-02-05",
+          amountYen: 20000,
+          type: "income",
+        }),
+        makeReceipt({
+          _id: "r-jan-income" as Id<"receipts">,
+          date: "2024-01-20",
+          amountYen: 15000,
+          type: "income",
+        }),
+      ],
+    });
+
+    const result = await getYearAggregationEntries(ctx, groupId, "2024");
+    expect(result[0]).toEqual({
+      month: "2024-01",
+      expenses: [{ amountYen: 800, categoryId: "cat-1" }],
+      incomes: [{ amountYen: 15000 }],
+    });
+    expect(result[1]).toEqual({
+      month: "2024-02",
+      expenses: [],
+      incomes: [{ amountYen: 20000 }],
+    });
+  });
+
+  it("年次の件数上限を超えたら拒否する", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: Array.from({ length: MAX_YEAR_RANGE_ENTRIES + 1 }, (_, index) =>
+        makeExpenseEntry({
+          _id: `e-${index}` as Id<"expenseEntries">,
+          date: "2024-01-01",
+        }),
+      ),
+    });
+
+    await expect(getYearAggregationEntries(ctx, groupId, "2024")).rejects.toThrow(
+      "Too many expense entries for this date range",
+    );
   });
 });

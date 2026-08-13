@@ -1,7 +1,7 @@
 import type { YearlySummary } from "../../../../lib/domain/receipt/yearlySummary";
 import { formatYen } from "../../../utils/currency";
 
-export const OTHER_CATEGORY_ID = "__other__";
+export const OTHER_SERIES_DATA_KEY = "__yearly_other__";
 export const MAX_STACKED_CATEGORIES = 5;
 const OTHER_CATEGORY_COLOR = "#AAB7C4";
 
@@ -19,8 +19,23 @@ export type YearlyTrendChartData = {
   dataset: Array<Record<string, string | number>>;
 };
 
+export type YearlyBalanceLineSeries = {
+  color: string;
+  dataKey: string;
+  label: string;
+  valueFormatter: (value: number | null, context: { dataIndex: number }) => string;
+};
+
+export type YearlyCategoryLineSeries = {
+  area: true;
+  color: string;
+  dataKey: string;
+  label: string;
+  stack: "category";
+};
+
 export function toSeriesDataKey(categoryId: string): string {
-  return `series_${categoryId.replace(/[^a-zA-Z0-9]/g, "_")}`;
+  return `c:${encodeURIComponent(categoryId)}`;
 }
 
 function buildStackedSeries(summary: YearlySummary): YearlyChartSeries[] {
@@ -34,7 +49,7 @@ function buildStackedSeries(summary: YearlySummary): YearlyChartSeries[] {
 
   if (ranked.length > MAX_STACKED_CATEGORIES) {
     series.push({
-      dataKey: toSeriesDataKey(OTHER_CATEGORY_ID),
+      dataKey: OTHER_SERIES_DATA_KEY,
       label: "その他",
       color: OTHER_CATEGORY_COLOR,
     });
@@ -49,13 +64,9 @@ export function buildYearlyTrendChartData(summary: YearlySummary): YearlyTrendCh
   const income = summary.months.map((month) => month.totalIncomeYen);
   const series = buildStackedSeries(summary);
   const topCategoryIds = new Set(
-    series
-      .map((entry) => entry.dataKey)
-      .filter((dataKey) => dataKey !== toSeriesDataKey(OTHER_CATEGORY_ID)),
+    series.map((entry) => entry.dataKey).filter((dataKey) => dataKey !== OTHER_SERIES_DATA_KEY),
   );
-  const includesOther = series.some(
-    (entry) => entry.dataKey === toSeriesDataKey(OTHER_CATEGORY_ID),
-  );
+  const includesOther = series.some((entry) => entry.dataKey === OTHER_SERIES_DATA_KEY);
 
   const dataset = summary.months.map((month, index) => {
     const row: Record<string, string | number> = {
@@ -73,8 +84,7 @@ export function buildYearlyTrendChartData(summary: YearlySummary): YearlyTrendCh
       if (topCategoryIds.has(dataKey)) {
         row[dataKey] = category.totalAmountYen;
       } else if (includesOther) {
-        const otherKey = toSeriesDataKey(OTHER_CATEGORY_ID);
-        row[otherKey] = Number(row[otherKey]) + category.totalAmountYen;
+        row[OTHER_SERIES_DATA_KEY] = Number(row[OTHER_SERIES_DATA_KEY]) + category.totalAmountYen;
       }
     }
 
@@ -106,10 +116,25 @@ export function formatYearlyBalanceSeriesValue(
 }
 
 export function buildYearlyLineSeries(
+  mode: "balance",
+  chartData: YearlyTrendChartData,
+  colors: { expense: string; income: string },
+): YearlyBalanceLineSeries[];
+export function buildYearlyLineSeries(
+  mode: "category",
+  chartData: YearlyTrendChartData,
+  colors: { expense: string; income: string },
+): YearlyCategoryLineSeries[];
+export function buildYearlyLineSeries(
   mode: "balance" | "category",
   chartData: YearlyTrendChartData,
   colors: { expense: string; income: string },
-) {
+): YearlyBalanceLineSeries[] | YearlyCategoryLineSeries[];
+export function buildYearlyLineSeries(
+  mode: "balance" | "category",
+  chartData: YearlyTrendChartData,
+  colors: { expense: string; income: string },
+): YearlyBalanceLineSeries[] | YearlyCategoryLineSeries[] {
   if (mode === "balance") {
     return [
       {
@@ -139,7 +164,7 @@ export function buildYearlyLineSeries(
     ];
   }
 
-  return chartData.series.map((entry) => ({
+  return chartData.series.map((entry): YearlyCategoryLineSeries => ({
     area: true,
     color: entry.color,
     dataKey: entry.dataKey,
