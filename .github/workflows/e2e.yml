@@ -16,7 +16,7 @@ name: E2E
 #   VITE_CONVEX_URL                  — Dev deployment の Convex WebSocket URL
 #   DEV_E2E_CLEANUP_SECRET           — Dev deployment の E2E cleanup 認証シークレット
 #   DEV_CONVEX_DEPLOY_KEY            — Dev deployment の deploy key（CI で E2E_CLEANUP_SECRET を同期）
-#   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
+#   E2E_CLERK_USER_ID                — CIジョブ内でE2E_CLERK_USER_EMAILから解決する値
 #
 # 詳細: docs/development-process.md「E2E 確認方針」
 #       docs/environment-variables.md「GitHub Actions Secrets に保存する項目」
@@ -182,6 +182,14 @@ jobs:
         if: steps.trust.outputs.trusted == 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve E2E Clerk user identifier
+        if: steps.trust.outputs.trusted == 'true'
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+        run: node scripts/resolve-e2e-clerk-user-id.mjs
+
       - name: Cache Playwright browsers
         id: playwright-cache
         if: steps.trust.outputs.trusted == 'true'
@@ -204,7 +212,6 @@ jobs:
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.DEV_CONVEX_DEPLOY_KEY }}
           E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
         run: |
           if [ -z "$E2E_CLEANUP_SECRET" ]; then
             echo "::error::DEV_E2E_CLEANUP_SECRET is not set."
@@ -255,7 +262,6 @@ jobs:
           # CI 内の Vite dev server が接続する Dev deployment の cleanup / seed 設定
           VITE_CONVEX_SITE_URL: ${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
           E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
 
       # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）
       - name: Upload test results on failure

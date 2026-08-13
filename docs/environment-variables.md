@@ -79,7 +79,7 @@ Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth to
 | 変数名               | 用途                                      | Local | CI  | Secret扱い | 設定場所                                              |
 | -------------------- | ----------------------------------------- | ----- | --- | ---------- | ----------------------------------------------------- |
 | `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
-| `E2E_CLERK_USER_ID`  | E2E操作を許可する固定テストユーザーの Clerk tokenIdentifier | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
+| `E2E_CLERK_USER_ID`  | E2E操作を許可する固定テストユーザーの Clerk tokenIdentifier | ✅    | 生成 | ✅         | .env.local / Convex Dashboard |
 
 Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2eHttp/`）は、
 `APP_ENV=development` のときだけルート登録される。登録後も
@@ -87,6 +87,11 @@ Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2
 `X-E2E-Cleanup-Secret` が必要で、対象ユーザーとグループは固定テストユーザーの範囲に限定される。
 secret または user ID が未設定の場合は handler が503を返す。`APP_ENV=preview`、`APP_ENV=production`、未設定、未知の値では
 ルート自体が登録されず404になる。
+
+GitHub Actionsでは、`preview-deploy.yml`、`e2e.yml`、`production-release.yml`が
+`CLERK_SECRET_KEY`で`E2E_CLERK_USER_EMAIL`に対応するClerkユーザーを解決し、
+publishable keyから得たissuerとユーザーIDを組み合わせて`E2E_CLERK_USER_ID`をジョブ内で生成する。
+そのため、CIの固定IDを別のGitHub Secretとして手動同期しない。
 
 | エンドポイント | 用途 |
 | --- | --- |
@@ -152,7 +157,6 @@ GitHub Environment `Preview` には次を設定する。
 | Variable | `VERCEL_ORG_ID`     | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
 | Secret   | `E2E_CLEANUP_SECRET` | staging E2E API の認証シークレット      |
-| Secret   | `E2E_CLERK_USER_ID` | staging E2Eで操作を許可する固定テストユーザー |
 
 `CONVEX_DEPLOY_KEY` には、固定 staging deployment 用の deploy key を保存する。
 `preview-deploy.yml` はこの key で staging functions / schema を反映する。
@@ -269,7 +273,7 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 - `DEV_E2E_CLEANUP_SECRET` — Dev deployment の E2E クリーンアップ API 認証シークレット
 - `DEV_CONVEX_DEPLOY_KEY` — Dev deployment の deploy key（PR E2E 前に `E2E_CLEANUP_SECRET` を Convex へ同期）
 - `E2E_CLEANUP_SECRET` — 固定 staging deployment の E2E クリーンアップ API 認証シークレット
-- `E2E_CLERK_USER_ID` — テストユーザーの Clerk tokenIdentifier（`https://xxx.clerk.accounts.dev|user_xxx`）
+- `E2E_CLERK_USER_ID` — CIでは設定不要。各workflowが`E2E_CLERK_USER_EMAIL`からジョブ内で生成する
 - `PRODUCT_UPDATE_OPENAI_API_KEY` — 任意。Product Update 生成用の OpenAI API key
 
 ### GitHub Environment `Preview` に保存する項目
