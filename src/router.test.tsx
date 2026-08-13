@@ -97,6 +97,46 @@ describe("monthly summary route", () => {
     expect(await screen.findByText("月次サマリー本体")).toBeInTheDocument();
   });
 
+  it("年次lazy遷移中は実ルーターのpending UIを表示する", async () => {
+    let resolveLazy: () => void = () => undefined;
+    const lazyReady = new Promise<void>((resolve) => {
+      resolveLazy = resolve;
+    });
+    const testRouter = createMemoryRouter(
+      [
+        {
+          element: <NavigationPendingOutlet />,
+          children: [
+            { path: "/", element: <div>ホーム</div> },
+            {
+              path: "/years/:year",
+              lazy: async () => {
+                await lazyReady;
+                return { Component: () => <div>年次サマリー本体</div> };
+              },
+            },
+          ],
+        },
+      ],
+      { initialEntries: ["/"] },
+    );
+
+    render(<RouterProvider router={testRouter} />);
+    expect(screen.getByText("ホーム")).toBeInTheDocument();
+
+    let navigationPromise: Promise<void> | undefined;
+    act(() => {
+      navigationPromise = testRouter.navigate("/years/2026");
+    });
+    expect(await screen.findByText("年次サマリーを読み込んでいます…")).toBeInTheDocument();
+
+    await act(async () => {
+      resolveLazy();
+      await navigationPromise;
+    });
+    expect(await screen.findByText("年次サマリー本体")).toBeInTheDocument();
+  });
+
   it("年次サマリーのルートを登録している", () => {
     const yearlyRoute = router.routes
       .flatMap((route) => route.children ?? [])

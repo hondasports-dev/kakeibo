@@ -3,7 +3,7 @@ import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { Box, Button, Stack } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { type Dayjs } from "dayjs";
-import { formatYearLabel, normalizeYear } from "../lib/yearNavigation";
+import { applyPickedYear, formatYearLabel, normalizeYear } from "../lib/yearNavigation";
 
 type YearNavigatorProps = {
   year: string;
@@ -27,10 +27,7 @@ export function YearNavigator({
   const yearLabel = normalizedYear ? formatYearLabel(normalizedYear) : "年";
 
   const handlePickerChange = (value: Dayjs | null) => {
-    if (value === null || !value.isValid()) {
-      return;
-    }
-    onYearChange(value.format("YYYY"));
+    applyPickedYear(value, onYearChange);
   };
 
   return (

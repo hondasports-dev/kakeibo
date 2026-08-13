@@ -102,12 +102,56 @@ describe("YearlySummaryPage", () => {
     expect(navigateMock).toHaveBeenCalledWith("/years/2026", { replace: true });
   });
 
+  it("年パラメータが無いときも今年へ正規化する", () => {
+    routeYear.value = undefined;
+    renderPage();
+
+    expect(navigateMock).toHaveBeenCalledWith("/years/2026", { replace: true });
+  });
+
   it("前年へ移動できる", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.click(screen.getByRole("button", { name: "前年へ" }));
     expect(navigateMock).toHaveBeenCalledWith("/years/2024");
+  });
+
+  it("次年と今年へ移動できる", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "次年へ" }));
+    expect(navigateMock).toHaveBeenCalledWith("/years/2026");
+
+    await user.click(screen.getByRole("button", { name: "今年へ" }));
+    expect(navigateMock).toHaveBeenCalledWith("/years/2026");
+  });
+
+  it("年ピッカーの未来年は今年へ正規化する", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: /日付を選択/ }));
+    await user.click(screen.getByRole("radio", { name: /^2026$/ }));
+    expect(navigateMock).toHaveBeenCalledWith("/years/2026");
+  });
+
+  it("月次データが空でも12ヶ月分の導線を出す", () => {
+    useQueryMock.mockReturnValue({
+      ...summaryResult,
+      months: [],
+    });
+    renderPage();
+
+    expect(screen.getByRole("link", { name: /2025年1月/ })).toHaveAttribute(
+      "href",
+      "/months/2025-01",
+    );
+    expect(screen.getByRole("link", { name: /2025年12月/ })).toHaveAttribute(
+      "href",
+      "/months/2025-12",
+    );
   });
 
   it("読み込み中は指標スケルトンを表示する", () => {

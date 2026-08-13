@@ -64,4 +64,40 @@ describe("YearNavigator", () => {
     expect(onCurrentYear).toHaveBeenCalledTimes(1);
     expect(onNextYear).toHaveBeenCalledTimes(1);
   });
+
+  it("不正な年でもピッカーを表示する", () => {
+    renderWithDatePickers(
+      <YearNavigator
+        currentYear="invalid"
+        onCurrentYear={vi.fn()}
+        onNextYear={vi.fn()}
+        onPreviousYear={vi.fn()}
+        onYearChange={vi.fn()}
+        year="invalid"
+      />,
+    );
+
+    expect(screen.getByLabelText("年を選択")).toBeInTheDocument();
+  });
+
+  it("年ピッカーで選んだ年を通知する", async () => {
+    const user = userEvent.setup();
+    const onYearChange = vi.fn();
+
+    renderWithDatePickers(
+      <YearNavigator
+        currentYear="2026"
+        onCurrentYear={vi.fn()}
+        onNextYear={vi.fn()}
+        onPreviousYear={vi.fn()}
+        onYearChange={onYearChange}
+        year="2025"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: /日付を選択/ }));
+    await user.click(screen.getByRole("radio", { name: /^2024$/ }));
+
+    expect(onYearChange).toHaveBeenCalledWith("2024");
+  });
 });

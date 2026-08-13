@@ -91,3 +91,59 @@ export function formatYearlyBalanceTooltip(
 ): string {
   return `${monthLabel}｜支出 ${formatYen(expenseYen)}｜収入 ${formatYen(incomeYen)}`;
 }
+
+export function formatYearlyBalanceSeriesValue(
+  labels: string[],
+  expense: number[],
+  income: number[],
+  dataIndex: number,
+): string {
+  return formatYearlyBalanceTooltip(
+    labels[dataIndex] ?? "",
+    expense[dataIndex] ?? 0,
+    income[dataIndex] ?? 0,
+  );
+}
+
+export function buildYearlyLineSeries(
+  mode: "balance" | "category",
+  chartData: YearlyTrendChartData,
+  colors: { expense: string; income: string },
+) {
+  if (mode === "balance") {
+    return [
+      {
+        color: colors.expense,
+        dataKey: "expense",
+        label: "支出",
+        valueFormatter: (_value: number | null, context: { dataIndex: number }) =>
+          formatYearlyBalanceSeriesValue(
+            chartData.labels,
+            chartData.expense,
+            chartData.income,
+            context.dataIndex,
+          ),
+      },
+      {
+        color: colors.income,
+        dataKey: "income",
+        label: "収入",
+        valueFormatter: (_value: number | null, context: { dataIndex: number }) =>
+          formatYearlyBalanceSeriesValue(
+            chartData.labels,
+            chartData.expense,
+            chartData.income,
+            context.dataIndex,
+          ),
+      },
+    ];
+  }
+
+  return chartData.series.map((entry) => ({
+    area: true,
+    color: entry.color,
+    dataKey: entry.dataKey,
+    label: entry.label,
+    stack: "category",
+  }));
+}
