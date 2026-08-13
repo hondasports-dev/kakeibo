@@ -6,16 +6,33 @@ task:
   base_branch: preview
   delivery_target: merge_ready # pr_created | merge_ready | merged_cleaned
 
+always_on_safety:
+  prompt_injection_guard:
+    status: pending # pending | pass | blocked
+    evidence: []
+  service_ops_safety:
+    status: pending # pending | pass | blocked
+    evidence: []
+
 requirements:
   status: pending # pending | pass | blocked
+  goal: ""
+  position_or_user_value: ""
   current_behavior: ""
   expected_behavior: ""
   in_scope: []
   out_of_scope: []
+  preserve: []
+  dependencies: []
   acceptance_criteria: []
   edge_and_error_states: []
+  ui_states: []
   test_strategy: []
+  e2e_strategy:
+    decision: pending # add | update | not_required | pending
+    reason: ""
   decisions: []
+  blockers: []
   evidence: []
 
 impact_analysis:
@@ -101,6 +118,7 @@ delivery:
   pull_request: ""
   base: preview
   head: ""
+  head_sha: ""
   draft: false
   ci_checks: []
   review_threads: []
@@ -122,5 +140,6 @@ process_learning:
 
 completion:
   status: in_progress # in_progress | blocked | done
+  always_on_safety_applied: false
   unresolved_required_items: []
   evidence: []
