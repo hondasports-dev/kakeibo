@@ -12,7 +12,7 @@ describe("MonthlySpendingCalendar", () => {
           { amountYen: 1000, date: "2026-07-01" },
           { amountYen: 5000, date: "2026-07-15" },
         ]}
-        incomes={[{ amountYen: 250000, date: "2026-07-25" }]}
+        incomes={[{ amountYen: 250000, date: "2026-07-15" }]}
         month="2026-07"
         onDateSelect={vi.fn()}
       />,
@@ -30,7 +30,7 @@ describe("MonthlySpendingCalendar", () => {
       "data-expense-intensity",
       "4",
     );
-    expect(screen.getByRole("button", { name: /2026年7月25日/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /2026年7月15日/ })).toHaveAttribute(
       "data-has-income",
       "true",
     );

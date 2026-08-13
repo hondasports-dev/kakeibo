@@ -59,4 +59,10 @@ describe("monthlySpendingCalendar", () => {
     expect(isDateInMonth("2026-7-01", "2026-07")).toBe(false);
     expect(isDateInMonth("invalid", "2026-07")).toBe(false);
   });
+
+  it("不正な月は空のカレンダーとして扱う", () => {
+    expect(
+      buildMonthlySpendingCalendarData({ month: "2026-13", expenses: [], incomes: [] }),
+    ).toEqual({ cells: [], days: [], maxExpenseAmountYen: 0 });
+  });
 });
