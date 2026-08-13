@@ -33,7 +33,9 @@ jobs:
       - name: Validate Preview configuration
         env:
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
         run: |
           missing=()
           [ -n "$VERCEL_TOKEN" ] || missing+=("secrets.VERCEL_TOKEN")
@@ -41,7 +43,9 @@ jobs:
           [ -n "$VERCEL_PROJECT_ID" ] || missing+=("vars.VERCEL_PROJECT_ID")
           [ -n "$CONVEX_DEPLOY_KEY" ] || missing+=("secrets.CONVEX_DEPLOY_KEY")
           [ -n "$E2E_CLEANUP_SECRET" ] || missing+=("secrets.E2E_CLEANUP_SECRET")
-          [ -n "$E2E_CLERK_USER_ID" ] || missing+=("secrets.E2E_CLERK_USER_ID")
+          [ -n "$CLERK_PUBLISHABLE_KEY" ] || missing+=("secrets.CLERK_PUBLISHABLE_KEY")
+          [ -n "$CLERK_SECRET_KEY" ] || missing+=("secrets.CLERK_SECRET_KEY")
+          [ -n "$E2E_CLERK_USER_EMAIL" ] || missing+=("secrets.E2E_CLERK_USER_EMAIL")
 
           if [ "${#missing[@]}" -gt 0 ]; then
             printf '::error::Missing required Preview configuration: %s\n' "${missing[*]}"
@@ -72,10 +76,16 @@ jobs:
       - name: Test
         run: pnpm test --run
 
+      - name: Resolve E2E Clerk user identifier
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+        run: node scripts/resolve-e2e-clerk-user-id.mjs
+
       - name: Configure Preview Convex security environment
         env:
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
         run: |
           pnpm exec convex env set APP_ENV development
           pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
@@ -139,7 +149,6 @@ jobs:
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
           VITE_CONVEX_SITE_URL: ${{ vars.VITE_CONVEX_SITE_URL }}
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
 
       - name: Write summary
         run: |
