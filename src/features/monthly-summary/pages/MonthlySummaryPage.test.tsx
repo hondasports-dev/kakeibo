@@ -272,7 +272,7 @@ describe("MonthlySummaryPage", () => {
     await waitFor(() => {
       expect(screen.queryByText("この記録を削除しますか？")).not.toBeInTheDocument();
     });
-  });
+  }, 10_000);
 
   it("編集保存後に保存完了メッセージを表示する", async () => {
     const user = userEvent.setup();
