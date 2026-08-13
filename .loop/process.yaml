@@ -1,4 +1,4 @@
-version: 5
+version: 6
 name: suzumemo-agent-loop
 plugin_manifest: plugin.json
 skills_root: skills
@@ -18,10 +18,43 @@ principles:
   - test_added_is_not_test_executed
   - impact_analysis_before_edit
   - code_review_and_security_review_are_independent_gates
-  - delivery_state_is_part_of_completion
-  - learning_is_part_of_completion
+  - pr_creation_is_checkpoint_not_completion
+  - pr_aftercare_required_before_process_learning
+  - latest_pr_head_is_the_only_merge_ready_evidence_target
+  - process_learning_is_part_of_completion
+  - task_transition_required_before_next_task
+  - one_session_one_current_task_by_default
+  - one_task_one_delivery_pr_by_default
   - prefer_enforcement_over_reminders
   - independent_requirement_review_before_implementation
+
+session_contract:
+  default_max_current_tasks: 1
+  default_max_delivery_prs_per_task: 1
+  parallel_task_ownership_requires_explicit_user_authorization: true
+  new_task_requires_task_transition: true
+  context_isolation:
+    - next_task_gets_a_new_task_packet
+    - prior_issue_review_and_ci_context_are_not_inherited_by_default
+    - only_explicitly_relevant_context_is_carried_forward
+
+delivery_contract:
+  default_target: merge_ready
+  target_values:
+    - merge_ready
+    - merged_cleaned
+  publish_checkpoint: pr_created
+  pr_created_is_terminal_by_default: false
+  explicit_stop_after_publish:
+    allowed: true
+    must_be_explicit: true
+    examples:
+      - stop_after_pr_creation
+      - do_not_wait_for_ci_or_review
+    not_inferred_from:
+      - create_a_pr
+      - open_a_pr
+      - send_a_pr
 
 states:
   - id: workspace_preflight
@@ -75,6 +108,28 @@ states:
     fail: implementation
     blocked: incident
 
+  - id: delivery
+    skill: skills/delivery/SKILL.md
+    purpose: Publish the reviewed head and bind exactly one Delivery PR to the current task. PR creation is a checkpoint, not completion.
+    gate: delivery_gate
+    pass: pr_aftercare
+    fail_routes:
+      code_change_required: implementation
+      unknown_or_operational_failure: incident
+      specification_conflict: requirements
+      human_only_blocker: blocked
+
+  - id: pr_aftercare
+    skill: skills/pr-aftercare/SKILL.md
+    purpose: Observe the latest PR head until CI, review, approvals and mergeability converge to the requested delivery target.
+    gate: pr_aftercare_gate
+    pass: process_learning
+    fail_routes:
+      code_change_required: implementation
+      unknown_or_operational_failure: incident
+      specification_conflict: requirements
+      approval_required: blocked
+
   - id: incident
     skill: skills/incident/SKILL.md
     purpose: Stop progression, establish facts, identify root cause or blocker, fix and restart from the required state.
@@ -87,25 +142,23 @@ states:
     resume: dynamic
     done_allowed: false
 
-  - id: delivery
-    skill: skills/delivery/SKILL.md
-    purpose: Manage commit, push, PR, CI, review aftercare, merge-ready, optional merge and cleanup.
-    gate: delivery_gate
-    pass: process_learning
-    fail_routes:
-      code_change_required: implementation
-      unknown_or_operational_failure: incident
-      specification_conflict: requirements
-      approval_required: blocked
-
   - id: process_learning
     skill: skills/process-learning/SKILL.md
-    purpose: Extract reusable process learning and classify the strongest appropriate enforcement target.
+    purpose: Review the complete task including PR Aftercare, extract reusable learning and choose the strongest appropriate enforcement target.
     gate: learning_gate
-    pass: done
+    pass: task_transition
+
+  - id: task_transition
+    skill: skills/task-transition/SKILL.md
+    purpose: Close the current task identity and either release the session or explicitly bind a new task packet before returning to workspace preflight.
+    gate: task_transition_gate
+    pass_routes:
+      no_next_task: done
+      next_task_bound: workspace_preflight
+    blocked: blocked
 
   - id: done
-    purpose: Terminal state. All required gates for the requested delivery scope have evidence-backed PASS results.
+    purpose: Terminal state. The requested delivery target, aftercare, learning and task transition all have evidence-backed PASS results.
 
 requirements_protocol:
   required_for:
@@ -175,6 +228,45 @@ verification_delivery_boundary:
   delivery_push:
     purpose: Publish the reviewed head and begin Delivery after Security Review.
     counts_as_delivery: true
+
+pr_aftercare_contract:
+  observation_unit: latest_head_sha
+  pending_is_terminal: false
+  head_change_invalidates_prior_observation: true
+  repair_sequence_for_code_change:
+    - implementation
+    - verification
+    - code_review
+    - security_review
+    - delivery
+    - pr_aftercare
+  monitor_until:
+    merge_ready:
+      - required_ci_success
+      - blocking_reviews_closed
+      - requested_changes_closed
+      - required_approvals_satisfied
+      - conflict_free
+      - mergeable
+      - verified_head_is_current
+    merged_cleaned:
+      - merge_ready
+      - merged
+      - merge_result_verified
+      - cleanup_checked
+
+process_learning_boundary:
+  starts_after: pr_aftercare
+  reviews:
+    - human_corrections
+    - incidents
+    - local_verification_failures
+    - ci_and_e2e_failures
+    - review_findings
+    - aftercare_repair_cycles
+    - delivery_and_transition_misses
+  persistent_learning_change_default: record_candidate_for_next_task
+  current_pr_change_requires_revalidation: true
 
 gates:
   workspace_preflight_gate:
@@ -296,6 +388,52 @@ gates:
       - code_review
       - security_review
 
+  delivery_gate:
+    evidence_required: true
+    pass_when:
+      - current_task_identity_bound
+      - delivery_target_is_merge_ready_or_merged_cleaned
+      - intended_changes_committed
+      - intended_branch_pushed
+      - exactly_one_delivery_pr_bound_to_current_task
+      - pull_request_metadata_verified
+      - published_head_matches_reviewed_head
+    forbidden_shortcuts:
+      - treat_pr_created_as_task_done
+      - create_second_delivery_pr_for_same_task
+      - switch_to_new_task_before_pr_aftercare_terminal
+      - count_candidate_branch_preview_push_as_delivery_publish
+
+  pr_aftercare_gate:
+    evidence_required: true
+    pass_when_merge_ready:
+      - latest_head_observed
+      - required_ci_passed_on_latest_head
+      - no_unresolved_blocking_review_threads
+      - no_unresolved_requested_changes
+      - required_approvals_satisfied
+      - no_merge_conflict
+      - pull_request_mergeable
+      - verified_head_is_current
+      - required_preview_or_e2e_passed_on_latest_head
+    pass_when_merged_cleaned:
+      - merge_ready_gate_passed
+      - pull_request_merged
+      - merge_result_verified
+      - issue_state_checked
+      - task_branch_cleanup_checked
+      - task_worktree_cleanup_checked
+      - canonical_preview_or_env_source_not_removed
+    allow_not_required_when:
+      - user_explicitly_requested_stop_after_pr_creation
+    forbidden_shortcuts:
+      - infer_stop_after_publish_from_generic_pr_request
+      - treat_pending_check_as_success
+      - use_success_from_old_head
+      - ignore_actionable_review_finding
+      - mark_merge_ready_after_single_workflow_only
+      - start_another_task_while_aftercare_nonterminal
+
   incident_gate:
     evidence_required: true
     pass_when:
@@ -307,47 +445,35 @@ gates:
       - restart_state_defined
     blocked_is_not_done: true
 
-  delivery_gate:
-    evidence_required: true
-    target_values:
-      - pr_created
-      - merge_ready
-      - merged_cleaned
-    default_target: merge_ready
-    pass_when_common:
-      - intended_changes_committed
-      - intended_branch_pushed
-      - pull_request_exists
-      - pull_request_metadata_verified
-    pass_when_merge_ready:
-      - pull_request_is_not_draft_unless_explicitly_required
-      - required_ci_passed
-      - no_unresolved_blocking_review_threads
-      - required_approvals_satisfied
-      - no_merge_conflict
-      - verified_head_is_current
-    pass_when_merged_cleaned:
-      - pull_request_merged
-      - merge_result_verified
-      - issue_state_checked
-      - task_branch_cleanup_checked
-      - task_worktree_cleanup_checked
-      - canonical_preview_or_env_source_not_removed
-    forbidden_shortcuts:
-      - mark_done_after_push_only
-      - mark_done_after_single_ci_run_only
-      - assume_pull_request_exists
-      - fix_review_or_ci_code_in_delivery_without_reverification
-      - delete_unmerged_or_uncommitted_task_work
-
   learning_gate:
     evidence_required: true
     pass_when:
       - human_corrections_reviewed
       - failures_and_retries_reviewed
-      - impact_and_delivery_misses_reviewed
+      - ci_review_and_aftercare_cycles_reviewed
+      - impact_delivery_and_transition_misses_reviewed
       - candidates_recorded_or_explicitly_none
       - duplicate_check_and_target_selection_done_for_each_candidate
+    forbidden_shortcuts:
+      - run_learning_before_pr_aftercare_terminal
+      - ignore_aftercare_failures_or_review_findings
+
+  task_transition_gate:
+    evidence_required: true
+    pass_when:
+      - current_task_id_and_source_recorded
+      - current_task_branch_worktree_and_pr_recorded
+      - delivery_terminal_state_recorded
+      - pr_aftercare_gate_pass_or_explicit_not_required
+      - learning_gate_pass
+      - no_nonterminal_required_gate_remains
+      - next_task_is_none_or_new_task_packet_is_explicitly_bound
+      - prior_task_context_is_not_implicitly_inherited
+    forbidden_shortcuts:
+      - start_new_task_before_transition
+      - create_new_delivery_pr_before_transition
+      - carry_prior_issue_as_next_task_source_without_explicit_binding
+      - treat_pr_created_checkpoint_as_delivery_terminal
 
 incident_loop:
   trigger_when:
@@ -355,6 +481,8 @@ incident_loop:
     - same_failure_repeated_twice
     - same_review_finding_recurred_twice
     - ci_or_e2e_root_cause_unknown
+    - pr_aftercare_root_cause_unknown
+    - latest_head_and_verified_head_diverge_unexpectedly
   steps:
     - collect_facts_and_exact_evidence
     - classify_failure_domain
@@ -377,6 +505,9 @@ learning:
     - ci_or_e2e_failure
     - impact_miss
     - delivery_step_miss
+    - aftercare_miss
+    - task_transition_miss
+    - session_scope_leak
     - manual_check_repetition
   candidate_required_fields:
     - trigger
@@ -420,7 +551,9 @@ completion:
     - verification_gate_pass
     - code_review_gate_pass
     - security_review_gate_pass_or_not_required
-    - delivery_gate_pass_for_requested_target
+    - delivery_gate_pass
+    - pr_aftercare_gate_pass_or_explicit_not_required
     - learning_gate_pass
+    - task_transition_gate_pass
     - no_required_blocked_items
     - evidence_recorded
