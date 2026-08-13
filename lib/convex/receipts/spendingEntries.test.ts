@@ -3,6 +3,7 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import type { QueryCtx } from "../../../convex/_generated/server";
 import {
   getDateSpendingEntries,
+  getMonthAggregationEntries,
   getMonthIncomeEntries,
   getMonthSpendingEntries,
   getWeekIncomeEntries,
@@ -597,5 +598,47 @@ describe("getMonthIncomeEntries", () => {
     const result = await getMonthIncomeEntries(ctx, groupId, "2024-01-01");
     expect(result).toHaveLength(1);
     expect(result[0]._id).toBe("r-income");
+  });
+});
+
+describe("getMonthAggregationEntries", () => {
+  it("支出と収入を1回の取得で集計用に返す", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({
+          _id: "e-expense" as Id<"expenseEntries">,
+          amount: 1200,
+          entryType: "expense",
+        }),
+        makeExpenseEntry({
+          _id: "e-income" as Id<"expenseEntries">,
+          amount: 50000,
+          entryType: "income",
+        }),
+      ],
+    });
+
+    const result = await getMonthAggregationEntries(ctx, groupId, "2024-01-01");
+    expect(result.expenses).toEqual([{ amountYen: 1200, categoryId: "cat-1" }]);
+    expect(result.incomes).toEqual([{ amountYen: 50000 }]);
+  });
+
+  it("種別ごとに旧 receipt を補完する", async () => {
+    const ctx = createQueryCtx({
+      expenseEntries: [
+        makeExpenseEntry({
+          _id: "e-expense" as Id<"expenseEntries">,
+          amount: 800,
+          entryType: "expense",
+        }),
+      ],
+      receipts: [
+        makeReceipt({ _id: "r-income" as Id<"receipts">, amountYen: 20000, type: "income" }),
+      ],
+    });
+
+    const result = await getMonthAggregationEntries(ctx, groupId, "2024-01-01");
+    expect(result.expenses).toEqual([{ amountYen: 800, categoryId: "cat-1" }]);
+    expect(result.incomes).toEqual([{ amountYen: 20000 }]);
   });
 });

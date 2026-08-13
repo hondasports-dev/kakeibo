@@ -40,7 +40,7 @@ test.describe("年次サマリー（Issue #541）", () => {
       page.locator(`[aria-label="${formatYearLabel(currentYear)}を選択"]`),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: /8月/ }).click();
+    await page.getByRole("link", { name: /2026年8月/ }).click();
     await expect(page).toHaveURL(`/months/${currentYear}-08`);
     await expect(page.getByRole("heading", { name: "月次サマリー", level: 1 })).toBeVisible();
 
