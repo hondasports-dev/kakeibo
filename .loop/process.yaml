@@ -1,13 +1,16 @@
-version: 3
+version: 4
 name: suzumemo-agent-loop
+plugin_manifest: plugin.json
+skills_root: skills
 default_base_branch: preview
 entrypoint: AGENTS.md
 
 always_on_skills:
-  - .agents/skills/prompt-injection-guard/SKILL.md
-  - .agents/skills/service-ops-safety/SKILL.md
+  - skills/prompt-injection-guard/SKILL.md
+  - skills/service-ops-safety/SKILL.md
 
 principles:
+  - agent_plugins_v1_layout
   - always_on_safety_skills_apply_to_every_task
   - evidence_before_progress
   - failed_or_blocked_gate_does_not_advance
@@ -20,28 +23,28 @@ principles:
 
 states:
   - id: requirements
-    skill: .agents/skills/requirements/SKILL.md
+    skill: skills/requirements/SKILL.md
     purpose: Converge user request, issue, docs, existing code and tests into testable requirements and acceptance criteria.
     gate: requirements_gate
     pass: impact_analysis
     blocked: requirements
 
   - id: impact_analysis
-    skill: .agents/skills/impact-analysis/SKILL.md
+    skill: skills/impact-analysis/SKILL.md
     purpose: Identify direct and indirect change impact before editing.
     gate: impact_gate
     pass: implementation
     blocked: impact_analysis
 
   - id: implementation
-    skill: .agents/skills/implementation/SKILL.md
+    skill: skills/implementation/SKILL.md
     purpose: Implement the minimum scoped change, using RED/GREEN where behavior changes.
     gate: implementation_gate
     pass: verification
     fail: incident
 
   - id: verification
-    skill: .agents/skills/verification/SKILL.md
+    skill: skills/verification/SKILL.md
     purpose: Execute required static checks, tests, coverage, E2E, build and runtime/browser verification with evidence.
     gate: verification_gate
     pass: code_review
@@ -49,14 +52,14 @@ states:
     blocked: incident
 
   - id: code_review
-    skill: .agents/skills/code-review/SKILL.md
+    skill: skills/code-review/SKILL.md
     purpose: Independently review correctness, regression, maintainability and test adequacy.
     gate: code_review_gate
     pass: security_review
     fail: implementation
 
   - id: security_review
-    skill: .agents/skills/security-review/SKILL.md
+    skill: skills/security-review/SKILL.md
     purpose: Independently review authentication, authorization, data boundaries, inputs, secrets and external-service risk.
     gate: security_review_gate
     pass: delivery
@@ -64,7 +67,7 @@ states:
     blocked: incident
 
   - id: incident
-    skill: .agents/skills/incident/SKILL.md
+    skill: skills/incident/SKILL.md
     purpose: Stop progression, establish facts, identify root cause or blocker, fix and restart from the required state.
     gate: incident_gate
     restart: dynamic
@@ -76,7 +79,7 @@ states:
     done_allowed: false
 
   - id: delivery
-    skill: .agents/skills/delivery/SKILL.md
+    skill: skills/delivery/SKILL.md
     purpose: Manage commit, push, PR, CI, review aftercare, merge-ready, optional merge and cleanup.
     gate: delivery_gate
     pass: process_learning
@@ -87,7 +90,7 @@ states:
       approval_required: blocked
 
   - id: process_learning
-    skill: .agents/skills/process-learning/SKILL.md
+    skill: skills/process-learning/SKILL.md
     purpose: Extract reusable process learning and classify the strongest appropriate enforcement target.
     gate: learning_gate
     pass: done
@@ -258,7 +261,7 @@ incident_loop:
   blocked_is_not_done: true
 
 learning:
-  skill: .agents/skills/process-learning/SKILL.md
+  skill: skills/process-learning/SKILL.md
   event_types:
     - human_correction
     - missing_evidence
@@ -268,7 +271,6 @@ learning:
     - impact_miss
     - delivery_step_miss
     - manual_check_repetition
-
   candidate_required_fields:
     - trigger
     - observed_problem
@@ -281,7 +283,6 @@ learning:
     - duplicate_status
     - proposed_target
     - target_reason
-
   target_priority:
     - script_or_code
     - ci_or_gate
@@ -289,22 +290,20 @@ learning:
     - agents_policy
     - runbook
     - task_context
-
   human_gate_required_for_promotion: true
-
   lifecycle:
     - candidate
     - accepted_or_rejected
     - applied
     - observing
     - effective_or_recurred
-
   escalation_on_recurrence:
     - task_context_or_runbook_to_skill
     - skill_to_script_or_ci_gate
 
 completion:
   done_requires:
+    - agent_plugins_manifest_present
     - always_on_safety_skills_applied
     - requirements_gate_pass
     - impact_gate_pass
