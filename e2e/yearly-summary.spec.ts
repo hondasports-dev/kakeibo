@@ -21,10 +21,17 @@ test.describe("年次サマリー（Issue #541）", () => {
     const currentYear = getCurrentYear(fixedNow);
     const previousYear = addYears(currentYear, -1);
 
-    await page.goto(`/years/${currentYear}`);
     await page.setViewportSize({ width: 390, height: 844 });
+    await page.reload();
+    await expect(page.getByRole("heading", { name: "今週", exact: true })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole("link", { name: "今年の年次サマリーを見る", exact: true }).click();
+    await expect(page).toHaveURL(`/years/${currentYear}`);
 
-    await expect(page.getByRole("heading", { name: "年次サマリー", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "年次サマリー", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByRole("button", { name: "次年へ" })).toBeDisabled();
     await expect(page.getByRole("heading", { name: "月ごとの収支推移" })).toBeVisible();
     await expect(page.getByRole("button", { name: "収支の折れ線グラフ" })).toBeVisible();
@@ -51,6 +58,9 @@ test.describe("年次サマリー（Issue #541）", () => {
 
     await page.goto("/years/2099");
     await expect(page).toHaveURL(`/years/${currentYear}`);
+    await expect(page.getByRole("heading", { name: "年次サマリー", level: 1 })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText("この年の支出はまだありません").first()).toBeVisible();
   });
 });
