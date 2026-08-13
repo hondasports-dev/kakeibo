@@ -44,6 +44,41 @@ Issueが薄い、古い、または一部曖昧な場合は、次の順で補完
 
 一方、ユーザー価値、データ保持、認可、課金、不可逆操作など、選択肢で成果物が大きく変わるものはHuman Gate対象とする。
 
+## 独立レビュー収束プロトコル
+
+要件と仕様の漏れを減らすため、Mainの整理だけでRequirementsを確定しない。実装・設定・process policyの変更を伴うタスクでは、同じ入力を見た複数の論理 read-only エージェントが独立にレビューし、Mainが結果を統合した後、別の仕様レビューで収束結果を検証する。
+
+### 対象と人数
+
+次のリスク分類を、既存コード・Issue・ユーザー要求を調査したうえで記録する。判定に迷う場合は `high` とする。
+
+| 分類 | 独立レビュー数 | 対象 |
+| --- | ---: | --- |
+| `normal` | 2 | 高リスク条件を含まない通常の振る舞い・UI変更 |
+| `high` | 3 | 認証、認可、API境界、schema、データ保持・削除、外部サービス、process policy、本番・不可逆操作 |
+| `exempt` | 0 | 後続タスクの進め方を変えない読み取りだけの調査、純粋な文書・format/typo修正、振る舞い不変のリファクタ。対象外の理由を必ず残す |
+
+`process policy` には、`AGENTS.md`、`.loop/process.yaml`、`skills/`、CI/Gate、workflowなど、後続タスクの進め方を変える変更を含む。
+`process policy` はファイル形式が文書であっても必須対象であり、純粋な文書変更の免除より優先する。高リスク条件が1つでもあれば `high` とし、免除との境界に迷う場合は `high` とする。
+
+### 実行契約
+
+1. Mainが要求、Issue、関連docs、既存コード・テスト、現在のリポジトリrevisionから入力スナップショットを固定し、パケットversionを付ける。
+2. 必要人数のレビューエージェントへ、同じ入力スナップショットだけを渡して並列に起動する。Mainの仕様案や他エージェントの結果は、各レビュー提出まで共有しない。
+3. 各レビューエージェントは編集、stage、commit、pushを行わず、事実と推測を分けて次を返す。
+   - 読んだEvidenceと事実
+   - 仮定、仕様の穴、曖昧さ、見落とし
+   - In scope / Out of scope / Preserve
+   - Given / When / Then形式のAcceptance Criteria案
+   - edge / error / loading / empty / authorization状態
+   - unit / integration / E2E / browser等のTest Strategy案
+   - `approved` / `needs_revision` / `blocked` と、その理由
+4. Mainはレビュー結果を合意点、対立点、採用した解決、未解決ブロッカーに分け、最終Requirementsパケットへ統合する。各レビューは `.loop/templates/requirements-review.yaml` の項目で、入力revision、packet version、独立性、判定、再レビューの系譜を記録する。レビュー人数の多数決だけで、ユーザー価値・データ保持・認可・課金・不可逆操作の対立を決めない。
+5. `exempt` でない場合、統合後に別の論理 read-only エージェントが元の入力スナップショットと統合後パケットを照合し、Acceptance Criteria、scope、edge/error状態、Test Strategyの漏れと検証可能性を確認する。統合後レビューも対象revision、packet version、統合後パケットを見たこと、他レビュー結果の事前共有有無、独立性、再レビュー系譜を記録する。`exempt` の場合だけ `not_required` とし、その分類理由を記録する。
+6. 統合後レビューが `needs_revision` になった場合、パケットversionを上げ、影響する独立レビューからやり直す。必要なレビュー人数を満たせない場合、または重大な仕様対立についてHuman Gateの判断が出るまでの間は `BLOCKED` とし、実装へ進まない。Human Gate後は `requirements` へ戻り、必要なレビューを再実行する。
+
+レビューエージェントの利用不能時は1回だけ再試行するか、別の read-only エージェントへ切り替える。クォーラム未達をMainの自己レビューで補わない。
+
 ## 手順
 
 ### 1. 問題と期待結果を定義する
@@ -191,6 +226,14 @@ Acceptance Criteriaには必要に応じて:
 - Test Strategyがある
 - 依存ブロッカーがない
 - 重要な仕様判断が確定している
+- リスク分類と必要レビュー人数が記録されている
+- 独立レビューのクォーラムを満たしている、または `exempt` の根拠がある
+- 独立レビューがすべて `approved`、または `needs_revision` の指摘を解消して再確認済みである
+- 各レビューのagent ID、観点、入力revision、packet version、独立性attestation、Evidence、必要時の再レビュー系譜が揃っている
+- Mainの統合結果に合意点・対立点・解決・未解決ブロッカーが記録されている
+- 統合後仕様レビューが `PASS`。`not_required` は `exempt` のときだけ、分類理由付きで許可する
+- 統合後仕様レビューにも対象revision、packet version、独立性attestation、必要時の再レビュー系譜が揃っている
+- Requirementsパケットが入力スナップショットと同じrevisionに対して作られている
 
 #### Stop / Blocked
 
@@ -224,6 +267,12 @@ RevisionではRequirements内で再調査し、再度Go / Stopを判定する。
 - schema変更のmigration / compatibility方針が必要なのに未定
 - 認可変更の期待挙動が不明
 - E2E追加 / 更新 / 省略を判断できない
+- 必須の独立レビュー、統合結果、統合後仕様レビューが未完了
+- 必須レビューのsnapshot一致、独立性、判定、再レビュー系譜が記録されていない
+- Requirementsパケットを変更したのに、影響するレビューをやり直していない
+- レビューが別々の入力snapshotを見ている、またはMainの草案を先に共有している
+- `exempt` 以外で統合後仕様レビューを `not_required` にしている
+- 重大な仕様対立がHuman Gateの判断前に未解決のまま残っている
 - production等の高リスク操作が必要なのにHuman Gate未通過
 
 ## Requirements成果物
@@ -246,6 +295,14 @@ Edge / error states:
 UI states:
 Test strategy:
 E2E strategy: add | update | not_required + reason
+Requirements convergence:
+Risk: normal | high | exempt
+Input snapshot: repository revision / sources / packet version
+Independent reviews: required count / completed count / agent IDs / perspectives / status / evidence
+Synthesis: agreements / conflicts / resolutions / open blockers
+Post-synthesis specification review: status / agent ID / input revision / packet version / independence / findings / evidence / rerun lineage
+Post-synthesis exemption reason: only when Risk is exempt
+Human Gate: status / decision / evidence
 Material decisions:
 Open blockers:
 Evidence:

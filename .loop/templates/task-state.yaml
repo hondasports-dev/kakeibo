@@ -49,6 +49,50 @@ requirements:
     reason: ""
   decisions: []
   blockers: []
+  convergence:
+    decision: pending # required | not_required | blocked | pending
+    risk: pending # normal | high | exempt | pending
+    packet_version: v0
+    input_snapshot:
+      repository_revision: ""
+      sources: []
+    review_record_template: .loop/templates/requirements-review.yaml
+    required_independent_reviews: 0
+    completed_independent_reviews: 0
+    review_outcome: pending # pending | approved | needs_revision | blocked | not_required
+    reviews: []
+    synthesis:
+      status: pending # pending | pass | needs_revision | blocked
+      agreements: []
+      conflicts: []
+      resolutions: []
+      open_blockers: []
+    post_synthesis_review:
+      status: pending # pending | pass | needs_revision | blocked | not_required
+      agent_id: ""
+      input_snapshot:
+        repository_revision: ""
+        packet_version: ""
+        matches_task_snapshot: false
+      execution:
+        mode: read_only
+        started_at: ""
+        submitted_at: ""
+        integrated_packet_seen: false
+        prior_review_outputs_seen_before_submission: false
+        independence_attested: false
+      exemption_reason: ""
+      findings: []
+      evidence: []
+      rerun:
+        invalidated: false
+        rerun_of: ""
+        superseded_by: ""
+    human_gate:
+      status: not_required # pending | passed | blocked | not_required
+      decision: ""
+      requested_for: ""
+      resume_state: requirements
   evidence: []
 
 impact_analysis:

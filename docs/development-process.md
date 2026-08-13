@@ -150,9 +150,10 @@ PR本文、または既存docsへ集約します。
 
 台帳には少なくとも次を含めます。
 
-- Product Lead 要件確認
-- Tech Lead 仕様確定
-- QA Agent E2E テスト設計レビュー
+- 独立要件レビューのクォーラム確認
+- Main による要件・仕様の統合と、統合後仕様レビュー
+- 仕様確定と Implementation Handoff
+- E2E テスト設計レビュー
 - TDD 実装タスク
 - コードレビュー対応
 - ローカル検証
@@ -164,26 +165,30 @@ PR本文、または既存docsへ集約します。
 参照する関数、読む順序、コマンド、worker の返却形式など、一時的な実行情報は Issue ではなく
 Implementation Handoff にだけ含めます。
 
-### Issue の要件確認（Main 中心の統合）
+### Issue の要件・仕様確認（独立レビュー収束）
 
-Plan 契約（`AGENTS.md`）では、Main が Company Coordinator と Tech Lead を兼務し、現在の
-ユーザー要求、Issue、`AGENTS.md`、関連 docs、既存コード・テストを統合します。Product Lead A/B/C、
-QA Agent、UX/UI Designer などの独立した専門評価は、必要に応じて論理 read-only サブエージェントへ
-委譲できます。これは instruction 上の編集禁止であり、sandbox やファイル権限による強制ではありません。
-Tech Lead の設計判断は Main に残します。
+Plan 契約（`AGENTS.md`）では、Mainは要件の統合者であって、単独で要件を承認する担当ではありません。
+実装、設定、またはprocess policyを変えるタスクでは、`skills/requirements/SKILL.md` の
+独立レビュー収束プロトコルを適用します。通常変更は2エージェント、高リスク変更は3エージェントが、
+同じ入力スナップショットを使って並列・論理read-onlyで評価します。Mainの草案や他レビューの結果は、
+各レビュー提出まで共有しません。
 
-| エージェント | 担当観点                                 |
-| ------------ | ---------------------------------------- |
-| Product Lead A の観点 | ユーザー価値・解く課題・ペルソナ |
-| Product Lead B の観点 | 最小スコープ・スコープ肥大化検出 |
-| Product Lead C の観点 | 完了条件の検証可能性・受け入れ基準の粒度 |
+| 観点 | 主な確認内容 |
+| --- | --- |
+| ユーザー価値 | 対象ユーザー、解く課題、期待結果、既存挙動との差分 |
+| スコープ | In scope / Out of scope / Preserve、スコープ肥大化、依存関係 |
+| 検証可能性 | Given / When / Then、edge / error / UI状態、Test / E2E方針 |
 
-Main が各観点を統合して `approved` / `needs_discussion` の最終判定を出します。
-詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
+各レビューは事実、仮定、仕様の穴、Acceptance Criteria案、未解決点、判定をEvidence付きで返します。
+Mainは合意点、対立点、解決、未解決ブロッカーをRequirementsパケットへ統合し、各レビューを
+`.loop/templates/requirements-review.yaml` の形式で記録します。`exempt` 以外は別のread-only仕様レビューで
+漏れと検証可能性を確認し、`not_required` にできるのは `exempt` の場合だけです。高リスクのユーザー価値、
+データ保持、認可、課金、不可逆操作の対立は多数決で決めず、Human Gateの判断まで `BLOCKED` として、
+判断後に `requirements` へ戻します。
 
-UI/UXを変更するIssueでは、Product Leadとの要件定義フェーズで
-UX/UI Designer の観点も確認し、Product Lead の評価と統合します。独立して評価できる場合は
-論理 read-only サブエージェントへ委譲してもかまいません。
+読み取りだけ、純粋な文書・format・typo変更、振る舞い不変のリファクタは、対象外の理由を記録したうえで
+独立レビューを `not_required` にできます。レビューのクォーラム未達や統合後レビューの差し戻しが
+解消されるまで、技術設計・実装へ進みません。
 
 UI/UX変更に含める範囲:
 
@@ -192,31 +197,30 @@ UI/UX変更に含める範囲:
 - レスポンシブ、空状態、エラー状態、ローディング状態の変更
 - 見た目の調整であっても、操作効率や可読性に影響する変更
 
-Optional UX/UI Designer は `.agents/roles/optional-ux-ui-designer.md` と
-`docs/ui-ux-design.md` を参照し、次の観点を確認します。
+UI/UX変更では、独立レビューのうち少なくとも1つで `docs/ui-ux-design.md` と既存画面を参照し、次の観点を確認します。
 
-- Product Lead の要件が、既存のUI/UX方針と矛盾しないか
+- 要件が、既存のUI/UX方針と矛盾しないか
 - ユーザーフロー、画面構成、UI状態に抜けがないか
 - 実装前に具体化すべきUX上の曖昧さがないか
-- Tech Lead と QA Agent に渡すべきUI/UX上の注意点
+- 設計・実装・検証へ渡すべきUI/UX上の注意点
 
-Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能なUI完了条件を指摘した場合、
-最終判定は `needs_discussion` とし、ユーザー確認または要件の具体化を行ってから
-フェーズ1（Tech Lead）へ進みます。
+UX上の曖昧さ、既存方針との矛盾、または検証不能なUI完了条件が残る場合は、
+最終判定を `needs_revision` または `blocked` とし、要件の具体化やHuman Gateの判断が終わるまで技術設計へ進みません。
 
 ### Issue への要件定義結果・議論の記録
 
-要件定義フェーズ（Product Lead によるレビュー、UX/UI Designer との議論、ユーザーとの確認）で
+要件定義フェーズ（独立レビュー、Mainの統合、統合後仕様レビュー、ユーザーとの確認）で
 決まった内容や変更になった判断は、**まとまった単位で Issue にコメントとして記録**します。
 
 記録するタイミングと内容:
 
 | タイミング                          | 記録する内容                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------- |
-| Product Lead 評価完了時             | 3エージェントの評価サマリーと `approved` / `needs_discussion` の判定   |
-| UX/UI Designer レビュー完了時       | 指摘事項、方針との整合性確認結果、Tech Lead に渡す注意点               |
-| `needs_discussion` → 再確認完了時   | ユーザーとの合意内容、変更になったスコープや完了条件                   |
-| Tech Lead 設計完了時（フェーズ1）   | 採用アーキテクチャ、見送った代替案とその理由、実装方針の決定内容       |
+| 独立要件レビュー完了時              | 入力revision、各agent ID・観点・判定、Evidence、クォーラム結果         |
+| Mainの統合完了時                    | 合意点、対立点、解決、未解決ブロッカー、Requirementsパケットversion     |
+| 統合後仕様レビュー完了時             | Acceptance Criteria、scope、状態、Test Strategyの指摘と判定            |
+| `blocked` → 再確認完了時            | ユーザーとの合意内容、変更になったスコープや完了条件                   |
+| 技術設計完了時                       | 採用アーキテクチャ、見送った代替案とその理由、実装方針の決定内容       |
 | 実装中に設計を変更した場合          | 変更した判断内容と理由（実装コメントではなく Issue へ）                |
 
 記録の粒度:
@@ -264,7 +268,7 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 ### Issue 対応フロー（Plan 契約の手順正本）
 
 オーケストレーションは `AGENTS.md`「Plan モードでの Issue 対応（エージェント契約）」。
-各フェーズの専門ナレッジは `.agents/skills/` の該当 Skill を参照する。
+各フェーズの専門ナレッジは `skills/*/SKILL.md` の該当 Skill を参照する。
 
 #### 必要なドキュメント
 
@@ -693,7 +697,7 @@ PROD smoke は初期運用では非破壊確認に限定します。workflow は
 
 ### E2E テスト設計基準（issue-gate-0 / QA Agent 向け）
 
-- Product Lead の完了条件と Tech Lead のテスト方針を照合する。
+- 確定したAcceptance Criteriaと技術設計のテスト方針を照合する。
 - 既存テストでカバーできる場合は、新規 E2E を増やさず `e2e/` の該当ファイルを参照する。
 - 新規シナリオが必要な場合は、優先度（P0/P1/P2）、カテゴリ、Given / When / Then、テストデータ・cleanup 要否を決める。
 - テストケース判断のためだけに `e2e-test-case.md` のような一時ファイルを作らない。要件、コード、既存テストを読んで判断する。
