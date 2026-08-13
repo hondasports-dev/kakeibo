@@ -25,6 +25,7 @@ learning_candidate:
 
   proposed_target: task_context # script_or_code | ci_or_gate | skill | agents_policy | runbook | task_context
   target_reason: ""
+  target_location: "" # Skillの場合は skills/<name>/SKILL.md または同一Skill配下のreferences/scripts/assets
 
   human_gate:
     required: true
