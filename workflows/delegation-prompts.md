@@ -46,6 +46,15 @@ stage、commit、pushは行わないでください。他のレビュー担当�
 Requirements packet version:
 {packet_version}
 
+Immutable input snapshot ID:
+{snapshot_id}
+
+Sources manifest:
+{sources_manifest}
+
+Digest:
+{digest}
+
 出力:
 - 読んだEvidenceと事実
 - 仮定、仕様の穴、曖昧さ、見落とし
@@ -54,7 +63,7 @@ Requirements packet version:
 - edge / error / loading / empty / authorization状態
 - unit / integration / E2E / browser等のTest Strategy案
 - 判定: approved / needs_revision / blocked
-- agent ID、観点、入力revision、未解決事項
+- agent ID、観点、snapshot ID、sources manifest、digest、入力revision、未解決事項
 ```
 
 ## Tech Lead

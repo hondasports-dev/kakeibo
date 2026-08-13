@@ -140,6 +140,8 @@ requirements_protocol:
         - production_or_irreversible_operation
   independent_review_contract:
     - all_reviewers_receive_the_same_input_snapshot_and_repository_revision
+    - all_reviewers_reference_the_same_immutable_snapshot_id_or_digest
+    - snapshot_identity_includes_repository_revision_sources_manifest_and_digest
     - reviewers_are_parallel_and_read_only
     - main_draft_and_other_review_outputs_are_hidden_until_each_review_is_submitted
     - main_is_the_synthesizer_and_is_not_counted_in_the_review_quorum
@@ -161,6 +163,18 @@ requirements_protocol:
   unavailable:
     recovery: retry_once_or_use_an_alternate_read_only_agent
     if_quorum_unmet: blocked
+
+verification_delivery_boundary:
+  candidate_branch_preview_push:
+    purpose: Run preview or E2E verification before code review when the workflow requires it.
+    counts_as_delivery: false
+    does_not_satisfy:
+      - intended_changes_committed
+      - intended_branch_pushed
+      - pull_request_exists
+  delivery_push:
+    purpose: Publish the reviewed head and begin Delivery after Security Review.
+    counts_as_delivery: true
 
 gates:
   workspace_preflight_gate:
@@ -188,6 +202,7 @@ gates:
       - independent_requirement_review_quorum_met_or_not_required_recorded
       - independent_requirement_reviews_approved_or_resolved
       - independent_requirement_review_evidence_complete
+      - requirements_input_snapshot_identity_complete
       - requirements_synthesis_recorded
       - post_synthesis_spec_review_passed_or_exempt_recorded
       - post_synthesis_spec_review_evidence_complete
@@ -245,6 +260,7 @@ gates:
       - skip_required_e2e_due_to_environment_failure
       - continue_after_required_environment_sync_failed
       - delegate_required_local_verification_to_future_ci
+      - count_candidate_branch_preview_push_as_delivery_evidence
 
   code_review_gate:
     evidence_required: true
