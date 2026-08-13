@@ -11,10 +11,7 @@ import {
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import { formatYenCompact } from "../../../utils/currency";
-import {
-  formatYearlyBalanceTooltip,
-  type YearlyTrendChartData,
-} from "../utils/yearlyTrendChartData";
+import { buildYearlyLineSeries, type YearlyTrendChartData } from "../utils/yearlyTrendChartData";
 
 export type YearlyChartMode = "balance" | "category";
 
@@ -114,44 +111,20 @@ export function YearlyTrendChart({
               height={chartHeight}
               hideLegend={mode === "balance"}
               margin={chartMargin}
-              series={
-                mode === "balance"
-                  ? [
-                      {
-                        color: theme.palette.error.main,
-                        dataKey: "expense",
-                        label: "支出",
-                        valueFormatter: (_value, context) => {
-                          const monthLabel = labels[context.dataIndex] ?? "";
-                          return formatYearlyBalanceTooltip(
-                            monthLabel,
-                            expense[context.dataIndex] ?? 0,
-                            income[context.dataIndex] ?? 0,
-                          );
-                        },
-                      },
-                      {
-                        color: theme.palette.success.main,
-                        dataKey: "income",
-                        label: "収入",
-                        valueFormatter: (_value, context) => {
-                          const monthLabel = labels[context.dataIndex] ?? "";
-                          return formatYearlyBalanceTooltip(
-                            monthLabel,
-                            expense[context.dataIndex] ?? 0,
-                            income[context.dataIndex] ?? 0,
-                          );
-                        },
-                      },
-                    ]
-                  : series.map((entry) => ({
-                      area: true,
-                      color: entry.color,
-                      dataKey: entry.dataKey,
-                      label: entry.label,
-                      stack: "category",
-                    }))
-              }
+              series={buildYearlyLineSeries(
+                mode,
+                {
+                  dataset,
+                  expense,
+                  income,
+                  labels,
+                  series,
+                },
+                {
+                  expense: theme.palette.error.main,
+                  income: theme.palette.success.main,
+                },
+              )}
               skipAnimation
               xAxis={[{ dataKey: "label", scaleType: "point" }]}
               yAxis={[
