@@ -1,0 +1,64 @@
+task:
+  id: ""
+  source: ""
+  objective: ""
+  current_state: intake
+  base_branch: preview
+
+scope:
+  in_scope: []
+  out_of_scope: []
+  assumptions: []
+
+acceptance_criteria: []
+
+impact:
+  changed_surfaces: []
+  callers: []
+  callees: []
+  shared_state: []
+  auth_or_data_boundaries: []
+  regression_risks: []
+
+implementation:
+  summary: ""
+  changed_files: []
+
+verification:
+  checks: []
+  # Example:
+  # - name: unit
+  #   command: pnpm test
+  #   status: pass # pass | fail | blocked | not_required
+  #   evidence: ""
+
+review:
+  status: pending # pending | pass | fail | blocked
+  findings: []
+  evidence: []
+
+delivery:
+  commit: ""
+  branch: ""
+  pull_request: ""
+  ci_status: pending
+  review_status: pending
+  merge_status: pending
+  evidence: []
+
+post_check:
+  status: pending
+  evidence: []
+
+incidents: []
+# - observed_failure: ""
+#   evidence: []
+#   root_cause_or_blocker: ""
+#   affected_scope: []
+#   restart_state: verify
+
+learning_candidates: []
+
+completion:
+  status: in_progress # in_progress | blocked | done
+  unresolved_required_items: []
