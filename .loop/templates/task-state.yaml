@@ -6,6 +6,12 @@ task:
   base_branch: preview
   delivery_target: merge_ready # pr_created | merge_ready | merged_cleaned
 
+plugin_package:
+  manifest: plugin.json
+  skills_root: skills
+  layout_status: pending # pending | pass | fail | not_changed
+  evidence: []
+
 always_on_safety:
   prompt_injection_guard:
     status: pending # pending | pass | blocked
@@ -63,10 +69,6 @@ implementation:
 verification:
   status: pending
   checks: []
-  # - name: unit
-  #   command_or_method: pnpm test --run
-  #   status: pass # pass | fail | blocked | not_required
-  #   evidence: ""
   test_adequacy: []
   coverage: []
   e2e: []
@@ -99,16 +101,6 @@ security_review:
   evidence: []
 
 incidents: []
-# - failed_gate: verification
-#   observed_failure: ""
-#   facts: []
-#   hypotheses_tested: []
-#   root_cause_or_blocker: ""
-#   affected_scope: []
-#   fix: ""
-#   regression_evidence: []
-#   restart_state: implementation
-#   learning_event: ""
 
 delivery:
   status: pending
@@ -140,6 +132,7 @@ process_learning:
 
 completion:
   status: in_progress # in_progress | blocked | done
+  agent_plugins_layout_valid: false
   always_on_safety_applied: false
   unresolved_required_items: []
   evidence: []
