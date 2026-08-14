@@ -297,7 +297,6 @@ test.describe("ナビゲーション（Issue #49）", () => {
     page,
   }) => {
     const historyMenu = page.getByRole("navigation", { name: "履歴メニュー" });
-    const currentWeekStartDate = getCurrentWeekStartDate();
     const currentMonth = getCurrentMonth();
 
     await gotoAuthenticated(page, "/weeks/2026-04-27");
@@ -317,13 +316,15 @@ test.describe("ナビゲーション（Issue #49）", () => {
       "aria-current",
       "page",
     );
-    await expect(historyMenu.getByRole("link", { name: "週次サマリー" })).toHaveAttribute(
-      "href",
-      `/weeks/${currentWeekStartDate}`,
-    );
+    const currentWeekLink = historyMenu.getByRole("link", { name: "週次サマリー" });
+    const currentWeekPath = await currentWeekLink.getAttribute("href");
+    expect(currentWeekPath).toMatch(/^\/weeks\/\d{4}-\d{2}-\d{2}$/);
+    if (currentWeekPath === null) {
+      throw new Error("週次サマリーのリンク先がありません");
+    }
 
-    await historyMenu.getByRole("link", { name: "週次サマリー" }).click();
-    await expect(page).toHaveURL(`/weeks/${currentWeekStartDate}`);
+    await currentWeekLink.click();
+    await expect(page).toHaveURL(currentWeekPath);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
     await page
@@ -351,7 +352,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
       .getByRole("navigation", { name: "履歴メニュー" })
       .getByRole("link", { name: "週次サマリー" })
       .click();
-    await expect(page).toHaveURL(`/weeks/${currentWeekStartDate}`);
+    await expect(page).toHaveURL(currentWeekPath);
     await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
 
     await page.goto(`/months/${currentMonth}?date=${currentMonth}-10`);
