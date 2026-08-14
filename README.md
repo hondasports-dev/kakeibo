@@ -8,6 +8,8 @@ Suzumemoは、思いついた時に支出や収入を軽く記録し、あとか
 
 UI ブランド名は **Suzumemo**、リポジトリ名は **kakeibo** です。
 
+現在コード上で実装されている画面・ルート・データモデル・外部連携の状態は [`docs/current-implementation.md`](docs/current-implementation.md) を参照してください。要件・設計ドキュメントに将来方針が含まれる場合、実装済みかどうかの確認は現行コードとこのスナップショットを基準にします。
+
 ## ローカル起動
 
 ### 1. 依存関係と環境変数
@@ -69,24 +71,25 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 
 ### 設計・仕様
 
-| 用途                                 | 参照先                          |
-| ------------------------------------ | ------------------------------- |
-| プロダクト要件                       | `docs/requirements.md`          |
-| 技術設計、認証、環境分離             | `docs/technical-design.md`      |
-| UI/UX、MUI方針、入力フロー           | `docs/ui-ux-design.md`          |
-| グループ管理・権限                   | `docs/group-admin-permissions.md` |
+| 用途 | 参照先 |
+| --- | --- |
+| 現行コードの実装スナップショット | `docs/current-implementation.md` |
+| プロダクト要件 | `docs/requirements.md` |
+| 技術設計、認証、環境分離 | `docs/technical-design.md` |
+| UI/UX、MUI方針、入力フロー | `docs/ui-ux-design.md` |
+| グループ管理・権限 | `docs/group-admin-permissions.md` |
 | 外部サービス操作ツールのセットアップ | `docs/service-tooling-setup.md` |
 
 ### 開発プロセス・運用
 
-| 用途                           | 参照先                          |
-| ------------------------------ | ------------------------------- |
-| 開発プロセス、PR、CI、レビュー | `docs/development-process.md`   |
-| 認証ガード設計                 | `docs/auth-guard.md`            |
-| 環境変数一覧                   | `docs/environment-variables.md` |
-| QAチェックリスト               | `docs/qa-checklist.md`          |
-| エージェント運用マニュアル     | `OPERATING_MANUAL.md`           |
-| 仮想開発会社の構成             | `COMPANY.md`                    |
+| 用途 | 参照先 |
+| --- | --- |
+| 開発プロセス、PR、CI、レビュー | `docs/development-process.md` |
+| 認証ガード設計 | `docs/auth-guard.md` |
+| 環境変数一覧 | `docs/environment-variables.md` |
+| QAチェックリスト | `docs/qa-checklist.md` |
+| エージェント運用マニュアル | `OPERATING_MANUAL.md` |
+| 仮想開発会社の構成 | `COMPANY.md` |
 
 ## エージェントループ
 
@@ -98,19 +101,19 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 
 このリポジトリでは、Codex / Devin 向けの共有Skillを `.agents/skills/` に置きます。
 
-| Skill                   | 用途                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `$issue-gate-0`         | Plan 契約フェーズ0。実装前仕様ゲート                                           |
-| `$tdd-implement`        | Plan 契約フェーズ1。TDD 実装（RED/GREEN）                                      |
-| `$e2e-author`           | Plan 契約フェーズ2。E2E 追加・更新・省略判断                                   |
-| `$e2e-smoke-run`        | Smoke E2E 実行手順。依存更新 PR などで golden-path ユーザー導線が壊れていないか確認する |
-| `$verify-pre-push`      | Plan 契約フェーズ3。push 前検証                                                |
-| `$code-review`          | Plan 契約フェーズ4。preview 差分のセルフレビュー                               |
-| `$babysit-pr`           | PR を merge-ready にする                                                       |
+| Skill | 用途 |
+| --- | --- |
+| `$issue-gate-0` | Plan 契約フェーズ0。実装前仕様ゲート |
+| `$tdd-implement` | Plan 契約フェーズ1。TDD 実装（RED/GREEN） |
+| `$e2e-author` | Plan 契約フェーズ2。E2E 追加・更新・省略判断 |
+| `$e2e-smoke-run` | Smoke E2E 実行手順。依存更新 PR などで golden-path ユーザー導線が壊れていないか確認する |
+| `$verify-pre-push` | Plan 契約フェーズ3。push 前検証 |
+| `$code-review` | Plan 契約フェーズ4。preview 差分のセルフレビュー |
+| `$babysit-pr` | PR を merge-ready にする |
 | `$prompt-injection-guard` | GitHub Issue / PRコメント、ログ、Web等の外部由来コンテンツを扱う前の安全確認 |
-| `$virtual-company`      | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択                       |
-| `$service-ops-safety`   | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |
-| `$browser-verification` | Chrome DevTools MCPによる画面、Console、Network、DOM確認                       |
+| `$virtual-company` | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択 |
+| `$service-ops-safety` | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |
+| `$browser-verification` | Chrome DevTools MCPによる画面、Console、Network、DOM確認 |
 
 `.agents/roles/` 配下は実行時サブエージェントではなく、Codex / Devin 共通の役割別プロンプト集です。詳細な使い方は `OPERATING_MANUAL.md` と `COMPANY.md` を参照してください。
 
