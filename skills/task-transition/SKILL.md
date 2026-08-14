@@ -58,6 +58,7 @@ Explicitly excluded prior context
 
 - Aftercare未完了 → PR_AFTERCARE
 - Process Learning未完了 → PROCESS_LEARNING
+- 振り返り保留中 → DONEにせず、Aftercareが非terminalならPR_AFTERCARE、terminalならPROCESS_LEARNING
 - task identity / sourceが不明 → 新taskを開始せずBLOCKED
 - 前taskの未完了を発見 → 対応Gateへ戻る
 

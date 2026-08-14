@@ -84,7 +84,7 @@ DONE
 
 review済みheadをcommit/pushし、現在taskに紐づくPRを作成または更新する。
 
-**`PR created` はcheckpointでありcompletionではない。**
+**`PR created` はcheckpointでありcompletionではない。** PR URLを完了成果物として報告せず、同じsessionでPR Aftercareへ進む。
 
 ### PR_AFTERCARE
 
@@ -108,11 +108,13 @@ DELIVERY
 PR_AFTERCARE
 ```
 
-headが変わるたびに最新headで観測をやり直す。pendingや過去headのsuccessはmerge-ready Evidenceではない。
+headが変わるたびに最新headで観測をやり直す。pendingや過去headのsuccessはmerge-ready Evidenceではない。pending CIを作業終了理由にしない。
+
+振り返りだけ後回しにされた場合もAftercareは続ける。
 
 ### PROCESS_LEARNING
 
-Aftercareがterminalになった後に実行する。
+Aftercareがterminalになった後に実行する。ユーザーが振り返りを後回しにした場合は開始を遅らせるだけで、Aftercare完了後に飛ばさない。
 
 CI/E2E failure、review finding、requested changes、修正cycle、conflict、人間からの訂正、task切替ミスまで振り返り対象にする。
 

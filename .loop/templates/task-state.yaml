@@ -218,7 +218,7 @@ pr_aftercare:
   evidence: []
 
 process_learning:
-  status: pending
+  status: pending # pending while aftercare runs, or while the user deferred learning; do not set stop_after_publish
   aftercare_cycles_reviewed: false
   events_reviewed: []
   candidates: []

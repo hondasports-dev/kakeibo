@@ -21,6 +21,8 @@ license: Apache-2.0
 
 PR公開直後には実行しない。CI、review、conflict、approval、追加修正まで含めたAftercare全体をLearning Eventの対象にする。
 
+ユーザーが振り返りだけ後回しにした場合は、本Gateを開始しない。PR Aftercareは止めない。Aftercareがterminalになったら、保留を恒久スキップに読み替えず本Gateを実行する。`stop_after_publish` や Aftercare `NOT_REQUIRED` にはしない。
+
 Learning Eventが無い場合も `none` と判定してGateを閉じる。
 
 ## Learning Event

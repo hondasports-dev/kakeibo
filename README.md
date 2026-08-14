@@ -88,6 +88,12 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 | エージェント運用マニュアル     | `OPERATING_MANUAL.md`           |
 | 仮想開発会社の構成             | `COMPANY.md`                    |
 
+## エージェントループ
+
+リポジトリ変更を伴うエージェント作業の必須ループは `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` です。PR作成は checkpoint であり、次は PR Aftercare、その後に Process Learning です。
+
+下表の Codex / Devin 向け Skill は実行補助です。`$code-review` は `skills/code-review/SKILL.md` の代替ではありません。`$babysit-pr` は `skills/pr-aftercare/SKILL.md` の代替ではありません。
+
 ## Codex / Devinでの作業
 
 このリポジトリでは、Codex / Devin 向けの共有Skillを `.agents/skills/` に置きます。
