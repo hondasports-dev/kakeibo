@@ -59,6 +59,16 @@ Agent Plugins v1のportable Skillは `skills/` の直下の子ディレクトリ
 - **Process Learning後にTask Transitionを通すまで別taskへ移らない。**
 - `roles/` は使わず、状態・Skill・Gate・Evidenceで制御する。
 
+## Review and delegation policy
+
+- 必須なのはレビュー観点・判定・Evidenceの独立性であり、サブエージェント数ではない。
+- `独立レビュー` は、実装中の自己確認ではなく、実装完了後に最終head SHAを固定して別フェーズで実施するレビュー手順を指す。別エージェントは、各SkillまたはRequirements protocolが明示しない限り必須ではない。
+- Code ReviewとSecurity Reviewは別Gateとして判定するが、独立性の要件から複数エージェント起動を推論しない。
+- 追加のレビュー観点が必要なのは、Requirements / `.loop/process.yaml` が必要人数を明示する場合、ユーザーが複数視点を要求した場合、または仕様・影響範囲・リスクに単一観点では収束できない合理的な対立がある場合に限る。
+- 複数エージェントを起動する場合は、役割・観点・対象SHAを分け、同じ指示の複製をしない。レビューの一意キーは `head SHA + review role + review round` とし、同じキーを二度起動しない。
+- レビュー後に変更してhead SHAが変わった場合だけ、新しいreview roundとして影響するレビューを再実行する。人数とquorumの正本は `skills/requirements/SKILL.md` と `.loop/process.yaml` とし、ここへ重複記載しない。
+- エージェント起動の根拠を文書またはユーザー指示で説明できない場合は、追加起動せず最小構成で進める。
+
 ## User instruction reconciliation
 
 ユーザーの最新メッセージを、毎回の作業判断の基準にする。以前の依頼、task summary、plan、他エージェントの提案は補助contextであり、最新指示と矛盾したら破棄する。
