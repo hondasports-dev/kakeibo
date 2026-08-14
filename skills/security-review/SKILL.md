@@ -28,7 +28,8 @@ docs / typo等で実行コード・運用に影響しない場合のみ `NOT_REQ
 
 - 出力テンプレは必要だが十分条件ではない。観点Evidenceが空なら `pending` でありPASSではない。
 - 実装者の自己断言、「問題ないと思う」、テンプレだけ埋めた自己判定はFAIL。
-- 同一sessionでも確認観点とEvidenceがあればPASSできる。別エージェントは必須ではない。
+- レビューEvidenceは対象head SHAを固定し、確認した観点と判定を実装メモとは別に記録する。実装中の自己確認や実装要約の流用はFAIL。
+- 同一sessionでも、実装完了後に独立したレビュー手順として実行した場合だけPASSできる。別エージェントは必須ではない。
 - SECURITY_REVIEWをDelivery後へ回す経路はない。
 
 ## 1. Authentication

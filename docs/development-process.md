@@ -291,7 +291,7 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 
 #### PR 作成・公開（DELIVERY）
 
-- CODE_REVIEW と SECURITY_REVIEW がPASSするまで Delivery の commit/push をしない。実装者の自己判定をレビュー代わりにしない
+- CODE_REVIEW と SECURITY_REVIEW がPASSするまで Delivery の push / PR更新をしない。レビュー前のローカルcommitは許可する。実装者の自己判定をレビュー代わりにしない
 - Issue に属するファイルだけをステージングする。`git add -A` は無関係な変更がない場合のみ
 - コミットメッセージは日本語で理由が分かる形にする
 - PR は明示要求がある場合だけ Draft にする。エージェントの既定は Draft ではない
