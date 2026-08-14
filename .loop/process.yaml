@@ -41,10 +41,10 @@ specification_confidence:
       definition: missing_detail_is_reconstructed_from_authoritative_evidence_without_material_product_choice
     c0_unclear:
       implementation_allowed: false
-      action: requirements_discovery
+      action: requirements_discovery_then_human_gate
     c0_conflicted:
       implementation_allowed: false
-      action: source_reconciliation_or_human_gate
+      action: source_reconciliation_then_human_gate
   evidence_order:
     - current_user_instruction
     - latest_explicitly_approved_spec_or_decision
@@ -56,6 +56,36 @@ specification_confidence:
     expected_delta_is_not_conflict: issue_explicitly_states_current_to_target_change
     unresolved_material_conflict: human_gate
     stale_source_may_be_selected_only_with_evidence: true
+
+pre_profile_spec_resolution:
+  profile_independent: true
+  applies_before_risk_classification: true
+  transitions:
+    - id: c0_unclear_to_human_gate
+      from: requirements
+      when: spec_confidence_is_c0_unclear
+      action: requirements_discovery
+      to: human_gate
+      profile_required: false
+    - id: c0_conflicted_to_human_gate
+      from: requirements
+      when: spec_confidence_is_c0_conflicted
+      action: source_reconciliation
+      to: human_gate
+      profile_required: false
+    - id: resolved_spec_human_gate_to_requirements
+      from: human_gate
+      when: spec_resolution_complete
+      to: requirements
+      action: rerun_requirements_and_reclassify_spec_confidence
+      profile_required: false
+  guards:
+    risk_classification_requires:
+      - spec_confidence_c1_or_c2
+    profile_selection_requires:
+      - spec_confidence_c1_or_c2
+    implementation_requires:
+      - spec_confidence_c1_or_c2
 
 risk_model:
   axes:
@@ -295,6 +325,7 @@ states:
     blocked_when:
       - spec_confidence_is_c0
       - unresolved_material_spec_conflict
+    c0_resolution_uses: pre_profile_spec_resolution
 
   impact_analysis:
     skill: skills/impact-analysis/SKILL.md
@@ -362,6 +393,8 @@ states:
 
   human_gate:
     terminal: false
+    profile_independent_entry_allowed: true
+    spec_resolution_resume: requirements
     resume: dynamic
 
   done:
