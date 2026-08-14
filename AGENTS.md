@@ -59,6 +59,17 @@ Agent Plugins v1のportable Skillは `skills/` の直下の子ディレクトリ
 - **Process Learning後にTask Transitionを通すまで別taskへ移らない。**
 - `roles/` は使わず、状態・Skill・Gate・Evidenceで制御する。
 
+## User instruction reconciliation
+
+ユーザーの最新メッセージを、毎回の作業判断の基準にする。以前の依頼、task summary、plan、他エージェントの提案は補助contextであり、最新指示と矛盾したら破棄する。
+
+- 最新メッセージが目的・scope・停止条件を変更していないか、tool callの前に判定する。変更している場合は、`objective / in_scope / out_of_scope / allowed_mutations / stop_condition` を最新メッセージから作り直す。
+- 「これだけ」「この結果だけ」「docs only」「振り返りだけ」「テスト不要」などの限定は強いscope lockとする。指定外のコード、script、workflow、設定、テスト、レビュー再実行、PR操作を追加しない。
+- 「説明して」「振り返って」「レビューして」「statusを教えて」はread-only依頼として扱い、変更・commit・push・PR作成・Aftercareを勝手に続けない。既存taskの公開後でも、ユーザーが現在の依頼で継続を明示するまで新しい外部writeを開始しない。
+- 以前の計画を継続する場合でも、現在のユーザー要求が同じかを確認する。要約や途中計画だけを根拠に実装・検証・レビューを再開しない。
+- 新しい改善案や懸念を見つけても、scope内でなければ実装せず、残余リスクまたはfollow-upとして記録する。scopeを広げる必要がある場合は、先にユーザーの明示指示を得る。
+- ユーザーが作業停止または説明への切替を示したら、進行中の反復・polling・review待ちを止め、現在状態だけを報告する。pending状態を理由に自動継続しない。
+
 ## Session / Task invariant
 
 通常は次を不変条件とする。
