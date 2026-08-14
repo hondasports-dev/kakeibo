@@ -201,7 +201,6 @@ profiles:
       - implementation
       - verification
       - code_review
-      - security_review
       - delivery
       - pr_aftercare
       - process_learning
