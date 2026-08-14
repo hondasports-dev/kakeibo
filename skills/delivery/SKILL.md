@@ -22,6 +22,8 @@ license: Apache-2.0
 
 VerificationのためのPreview/E2E用candidate branch pushはDelivery Evidenceに数えない。Security Review後の検証済みheadをあらためて公開対象とする。
 
+CODE_REVIEW / SECURITY_REVIEW がPASS（またはSecurityの根拠付きNOT_REQUIRED）になる前にcommit/pushしてPRを更新しない。実装者の自己判定をレビュー済みheadにしない。後でレビューする予定はDeliveryの経路にならない。
+
 ## Delivery target
 
 通常のtargetは次の2つだけ。
@@ -135,3 +137,5 @@ Evidence:
 ```
 
 PASS後は必ず `PR_AFTERCARE` へ進む。PR作成時点でDONEへ進まない。
+
+PR URL / commit SHAはcheckpointの識別子であり、完了成果物ではない。Aftercareを「後で見る」としてsessionを終えない。pending CIは次工程へ進む理由にも作業終了理由にもならない。

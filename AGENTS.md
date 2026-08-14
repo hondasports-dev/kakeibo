@@ -50,10 +50,12 @@ Agent Plugins v1のportable Skillは `skills/` の直下の子ディレクトリ
 - 必須Gateが `FAIL` / `BLOCKED` のまま次工程へ進まない。
 - テストを追加したことと、実行して成功したことを分ける。
 - 変更前にImpact Analysis、変更後に独立Code ReviewとSecurity Reviewを行う。
+- 実装者の自己判定は CODE_REVIEW / SECURITY_REVIEW のEvidenceではない。後回しにしてDeliveryへ進まない。
 - 要件・仕様変更は `requirements` の独立レビュー収束プロトコルを通す。
-- **PR作成はcheckpointでありtask completionではない。**
-- **PR公開後は最新headがmerge-readyになるまでPR Aftercareを続ける。**
+- **PR作成はcheckpointでありtask completionではない。** PR URLやcommitを完了報告にせず、同じsessionでPR Aftercareへ進む。
+- **PR公開後は最新headがmerge-readyになるまでPR Aftercareを続ける。** pending CIを作業終了理由にしない。
 - **PR Aftercare完了後にProcess Learningを行う。** CI失敗やレビュー修正も振り返り対象に含める。
+- Process Learningの保留はAftercareを止めない。振り返りを後回しにしても `stop_after_publish` にはしない。
 - **Process Learning後にTask Transitionを通すまで別taskへ移らない。**
 - `roles/` は使わず、状態・Skill・Gate・Evidenceで制御する。
 
@@ -206,7 +208,7 @@ Aftercare内で直接patchして終わらせない。headが変わったら最�
 - Process Learning結果
 - Task Transition packet
 
-`未実行だが通るはず`、`追加したのでOK`、`CIに任せる`、`PRを作ったので完了` はEvidenceではない。
+`未実行だが通るはず`、`追加したのでOK`、`CIに任せる`、`PRを作ったので完了`、`実装中に見たのでレビュー済み`、`後でレビューする`、`CI待ちなので今日は終わり` はEvidenceではない。
 
 ## Delivery target
 

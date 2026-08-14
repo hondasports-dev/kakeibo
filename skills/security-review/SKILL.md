@@ -22,6 +22,14 @@ license: Apache-2.0
 コード・設定・workflow・外部サービスに触れる変更では原則実行する。
 
 docs / typo等で実行コード・運用に影響しない場合のみ `NOT_REQUIRED` とでき、その理由を明記する。
+`AGENTS.md`、`.loop/`、`skills/`、CI / Gate 等の process policy 変更には、このdocs免除を使わない。
+
+独立Gateの判定:
+
+- 出力テンプレは必要だが十分条件ではない。観点Evidenceが空なら `pending` でありPASSではない。
+- 実装者の自己断言、「問題ないと思う」、テンプレだけ埋めた自己判定はFAIL。
+- 同一sessionでも確認観点とEvidenceがあればPASSできる。別エージェントは必須ではない。
+- SECURITY_REVIEWをDelivery後へ回す経路はない。
 
 ## 1. Authentication
 
@@ -171,3 +179,5 @@ Evidence:
 ```
 
 Must-fixが0件で、該当観点の確認内容を説明できる場合だけPASS。
+
+実装者の自己評価をこの出力の代わりにしない。Deliveryへ進む前にこのGateを閉じる。

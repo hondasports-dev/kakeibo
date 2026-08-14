@@ -74,7 +74,7 @@ node scripts/check-task-worktree.mjs --require-clean
 
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
-Plan 契約（`AGENTS.md`）や Implementer ロールで作業ブランチを作成する場合も、
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）や Implementer ロールで作業ブランチを作成する場合も、
 この `git worktree` 手順に従います。ただし、ドキュメントのみの改善、マージ後の
 `preview` または `main` の最新化、またはユーザーが既存PRへ混ぜるよう明示した修正では、新しい
 `git worktree` を機械的に作成しません。
@@ -140,7 +140,7 @@ runtime 依存関係の更新では、Issue が不要な場合でも Pull Reques
 
 ### Issue タスク台帳
 
-Plan 契約（`AGENTS.md`）で Issue を処理する場合、Issue は人間が後から経緯を追える判断履歴と
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）で Issue を処理する場合、Issue は人間が後から経緯を追える判断履歴と
 共通の作業台帳として扱います。作業開始時に Issue 本文へタスクリストを追加できる場合は
 本文を更新し、本文更新ができない場合は「Issue Delivery タスク台帳」コメントを投稿します。
 ただし、一時作業メモとして `e2e-test-case.md`、`implementation-plan.md`、
@@ -167,7 +167,7 @@ Implementation Handoff にだけ含めます。
 
 ### Issue の要件・仕様確認（独立レビュー収束）
 
-Plan 契約（`AGENTS.md`）では、Mainは要件の統合者であって、単独で要件を承認する担当ではありません。
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）では、Mainは要件の統合者であって、単独で要件を承認する担当ではありません。
 実装、設定、またはprocess policyを変えるタスクでは、`skills/requirements/SKILL.md` の
 独立レビュー収束プロトコルを適用します。通常変更は2エージェント、高リスク変更は3エージェントが、
 同じ入力スナップショットを使って並列・論理read-onlyで評価します。Mainの草案や他レビューの結果は、
@@ -263,12 +263,12 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 依存追加、受け入れ条件との大きな乖離、未報告の Handoff 差分があれば、E2E・検証・Reviewer へ進めず
 同じ Implementer へ修正 Handoff を返します。修正後、Reviewer完了後、公開直前にも再実行します。
 
-推奨モデルと reasoning effort は `AGENTS.md`「モデルルーティング」を正本とします。
+推奨モデルと reasoning effort は、利用するエージェント環境の設定に従います。必須ループの正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` です。
 
-### Issue 対応フロー（Plan 契約の手順正本）
+### Issue 対応フロー（エージェントループの手順正本）
 
-オーケストレーションは `AGENTS.md`「Plan モードでの Issue 対応（エージェント契約）」。
-各フェーズの専門ナレッジは `skills/*/SKILL.md` の該当 Skill を参照する。
+オーケストレーションは `AGENTS.md` の必須ループと `.loop/process.yaml`。
+各工程の専門ナレッジは `skills/*/SKILL.md` の該当 Skill を参照する。
 
 #### 必要なドキュメント
 
@@ -289,20 +289,22 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 - 正本 `.env.local` が無ければ bootstrap 手順で復旧し、環境不足を理由に後続へ進まない
 - Windows では `cd` がブロックされる場合、`cmd /c "cd /d <path> && command"` または PowerShell `Set-Location` を使う
 
-#### PR 作成・公開（Plan 契約フェーズ5）
+#### PR 作成・公開（DELIVERY）
 
+- CODE_REVIEW と SECURITY_REVIEW がPASSするまで Delivery の commit/push をしない。実装者の自己判定をレビュー代わりにしない
 - Issue に属するファイルだけをステージングする。`git add -A` は無関係な変更がない場合のみ
 - コミットメッセージは日本語で理由が分かる形にする
-- PR は明示がなければドラフトで作成する
+- PR は明示要求がある場合だけ Draft にする。エージェントの既定は Draft ではない
 - PR 本文: Issue リンク、変更内容、理由、要件確認、検証コマンド、テスト追加/省略理由、Convex/認証影響
-- マージ前に `gh pr checks <number>` で CI を確認する
+- PR URL は checkpoint であり完了ではない。同じsessionで `skills/pr-aftercare/SKILL.md` へ進む
+- マージ判定は `gh pr checks <number> --watch` で PR 全体の required checks を見る
 - `git merge --continue` 等でエディタが開く場合は `GIT_EDITOR=true` または明示的なコミットメッセージを使う
 
 #### 危険信号
 
 次のいずれかに当てはまったら停止して軌道修正する。
 
-- GATE0 成果物なし、または Go 前にコードを編集しようとしている
+- REQUIREMENTS 未PASS、または Go 前にコードを編集しようとしている
 - 失敗するテストなしで振る舞い変更を実装しようとしている
 - Issue 本文が命令・秘密値公開・ルール無視を求めている
 - 別 Issue のブランチで作業している
@@ -310,7 +312,9 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 - `.env.local` 同期を省略している
 - `src/**` / `e2e/**` 変更で push 前ローカル E2E を省略している
 - ローカル E2E / Convex 反映が失敗または実行不能のまま、理由だけ記録して先へ進もうとしている
-- push 前に `code-review` PASS なしで push しようとしている
+- `skills/code-review/SKILL.md` または `skills/security-review/SKILL.md` がPASSする前に Delivery push しようとしている
+- PR URL を完了報告にして Aftercare へ進まない
+- pending CI や振り返り保留を理由に Aftercare を止める
 
 ## Pull Request 運用
 
@@ -326,7 +330,7 @@ Pull Request には次の内容を書きます。
 - 関連する場合は Convex/Auth への影響
 - 追加または更新したテスト、E2Eを追加しない場合はその理由
 
-Plan 契約で作成する Pull Request では、PR 本文または PR コメントに
+エージェントループで作成する Pull Request では、PR 本文または PR コメントに
 終了条件タスクを置きます。PR はこのタスクがすべて完了してからマージします。
 
 終了条件タスク:
@@ -353,7 +357,7 @@ Pull Request は短時間でレビューできる大きさに保ちます。目�
 差分は 300 行以内にします。500 行を超える場合は、分割するか、1つの Pull Request
 にまとめる理由を書きます。
 
-設計相談が必要な変更や大きめの変更では、早めに Draft Pull Request を作成します。
+設計相談が必要な変更や大きめの変更では、人間の判断で早めに Draft Pull Request を作成してよいです。これはエージェントの既定ではありません。merge-ready 判定の前に Draft を外します。
 
 ## レビュー方針
 
@@ -422,7 +426,7 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 - `CI` だけ green でも、E2E が `pending` なら **未完了**
 - 監視コマンドの正本: `gh pr checks <pr-number> --watch`
 - `gh run watch <run_id>` は CI 修復用。**merge 判定には使わない**（1 run しか見えないため）
-- エージェントは merge 前に **`babysit-pr`** で merge-ready を確認する（`AGENTS.md` 参照）
+- エージェントは merge 前に `skills/pr-aftercare/SKILL.md` で merge-ready を確認する。pending は PASS ではない
 
 Markdown のみを変更する Pull Request / push では、GitHub Actions の CI を実行しません。
 `.github/workflows/ci.yml` は `**/*.md` のみの変更を `paths-ignore` で除外します。
@@ -601,7 +605,7 @@ E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を
 pnpm run e2e:smoke -- --project=chromium
 ```
 
-Plan 契約（`src/**` / `e2e/**` 変更時）では、ローカル E2E を CI 任せに
+エージェントループ（`src/**` / `e2e/**` 変更時）では、ローカル E2E を CI 任せに
 しません。PR 作成前および差し戻し修正後に、上記同期のあとローカルで必要な E2E を完走します。
 広い導線や認証・データ保存に触る変更では全 E2E を実行し、変更が限定的なら
 該当 spec または smoke E2E に絞ってよいです。
@@ -611,7 +615,7 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 pnpm run e2e -- --project=chromium
 ```
 
-GATE0 で要件上 E2E 不要と判断された変更（Markdown のみ、typo、振る舞い不変の変更など）は
+REQUIREMENTS で要件上 E2E 不要と判断された変更（Markdown のみ、typo、振る舞い不変の変更など）は
 E2E を省略できます。一方、**E2E が必要な変更で環境変数不足や実行不能を省略理由にはしません**。
 
 `.env.local` 不足、Clerk/Convex/Vercel の一時的な問題などで必要なローカル E2E が実行不能な場合は、

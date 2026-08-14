@@ -138,7 +138,9 @@ terminal?
   └─ yes → Merge-ready Gate
 ```
 
-「CIがまだ動いている」「review botがまだ処理中」は作業終了理由にしない。
+「CIがまだ動いている」「review botがまだ処理中」は作業終了理由にしない。sessionをreleaseせず、`PR_AFTERCARE` に留まって再観測する。
+
+ユーザーが振り返りだけ後回しにした場合もAftercareは続ける。review bot指摘への対応はAftercareのfinding closureであり、Aftercareを `NOT_REQUIRED` にしない。`stop_after_publish` にもしない。
 
 同じfailure / findingを2回繰り返したら `INCIDENT` へ入る。Aftercare修正cycleが5回を超える場合も、惰性で続けずRoot Causeを再評価する。
 

@@ -31,6 +31,10 @@ Issue / Acceptance Criteriaに対する差分の正しさと回帰リスクを�
 - diffだけでなくcaller / shared moduleなど**変更されていない影響先**も見る。
 - 指摘には「問題」「なぜ問題か」「再現/影響」「修正方向」を含める。
 - Review中に差分を変更した場合、Verificationへ戻る。
+- 出力テンプレは必要だが十分条件ではない。観点Evidenceが空なら `pending` でありPASSではない。
+- 実装者の自己断言、「問題ないと思う」、テンプレだけ埋めた自己判定はFAIL。
+- 同一sessionでも確認観点とEvidenceがあればPASSできる。別エージェントは必須ではない。
+- CODE_REVIEWをDelivery後へ回す経路はない。
 
 ## 1. 差分確定
 
@@ -185,3 +189,5 @@ Evidence:
 ```
 
 Must-fix 0件かつ確認観点を明示できた場合だけPASS。次は `security-review`。
+
+実装者の自己評価をこの出力の代わりにしない。Deliveryへ進む前にこのGateを閉じる。

@@ -364,6 +364,11 @@ gates:
       - frontend_or_backend_specific_checks_applied_when_relevant
       - test_adequacy_reviewed
       - final_diff_integrity_checked
+      - review_viewpoints_and_evidence_recorded
+    forbidden_shortcuts:
+      - treat_implementer_self_check_as_code_review
+      - mark_pass_with_empty_review_evidence
+      - defer_code_review_until_after_delivery
     fail_restart_sequence:
       - implementation
       - verification
@@ -380,8 +385,16 @@ gates:
       - external_service_risk_reviewed_when_relevant
       - destructive_operations_reviewed_when_relevant
       - no_unresolved_security_must_fix_findings
+      - review_viewpoints_and_evidence_recorded
     allow_not_required_when:
       - no_executable_configuration_or_operational_behavior_changed
+    not_required_forbidden_when:
+      - process_policy_changed
+    forbidden_shortcuts:
+      - treat_implementer_self_check_as_security_review
+      - mark_pass_with_empty_review_evidence
+      - defer_security_review_until_after_delivery
+      - treat_process_policy_change_as_pure_documentation_exemption
     fail_restart_sequence:
       - implementation
       - verification
@@ -403,6 +416,9 @@ gates:
       - create_second_delivery_pr_for_same_task
       - switch_to_new_task_before_pr_aftercare_terminal
       - count_candidate_branch_preview_push_as_delivery_publish
+      - publish_before_code_review_and_security_review_pass
+      - treat_implementer_self_check_as_reviewed_head
+      - report_pr_url_as_completion_and_end_session
 
   pr_aftercare_gate:
     evidence_required: true
@@ -433,6 +449,8 @@ gates:
       - ignore_actionable_review_finding
       - mark_merge_ready_after_single_workflow_only
       - start_another_task_while_aftercare_nonterminal
+      - end_session_while_required_checks_pending
+      - treat_process_learning_pause_as_aftercare_not_required
 
   incident_gate:
     evidence_required: true
@@ -457,6 +475,7 @@ gates:
     forbidden_shortcuts:
       - run_learning_before_pr_aftercare_terminal
       - ignore_aftercare_failures_or_review_findings
+      - treat_deferred_learning_as_not_required
 
   task_transition_gate:
     evidence_required: true
