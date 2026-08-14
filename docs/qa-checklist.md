@@ -19,11 +19,16 @@ pnpm run e2e:smoke -- --project=chromium
 pnpm run e2e -- --project=chromium
 ```
 
-Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
-ローカルで必要なE2Eを実行します。Issue 用 worktree では先に
-`docs/development-process.md` の「`.env.local` 同期」を実施します。環境変数不足や
-外部サービス要因で実行できない場合は、
-成功扱いにせず、IssueまたはPRに未実行理由、未確認リスク、再実行条件を記録します。
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）でコード変更を含むPRを納品する場合は、PR作成前または差し戻し修正後に
+ローカルで必要なE2Eを実行します。Issue 用 worktree では作成直後に `preview` 用 worktree の
+正本 `.env.local` をコピーし、Convex 反映または E2E の直前には
+`pnpm run e2e:env-sync` を実行して `.env.local` 同期、Convex `APP_ENV`・
+`E2E_CLERK_USER_ID`・`E2E_CLEANUP_SECRET` 反映、
+cleanup 認証確認まで成功させます。正本が無い場合は `docs/development-process.md` の bootstrap 手順で復旧します。
+
+環境変数不足、Convex CLI 認証不足、Clerk/Convex/Vercel の一時的な問題で必要なローカル E2E が
+実行できない場合は、**その状態を理由として PR 作成や次フェーズへ進みません**。
+不足や障害を解消して同期・Convex 反映・E2E を再実行し、成功してから納品を続行します。
 
 ### テストケース判断
 
@@ -43,10 +48,10 @@ Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合�
 - 週次サマリーの支出一覧: 初期表示が5件で、残件数付きの全件展開、編集・削除、メモの展開・折りたたみが機能すること
 - 週次サマリーのレスポンシブ: PCはグラフとカテゴリ内訳が2カラム、SPは1カラムかつ横スクロールなしで、編集・削除操作が44px以上あること
 - 週次サマリー境界値: 直前2週間の支出がともに0円の場合、平均比が「比較データなし」と表示されること
-- 設定: カテゴリ設定と週の開始・終了曜日を保存できること
+- 設定: カテゴリ設定と週の開始曜日を保存できること（終了曜日は自動）
 - グループ管理（`e2e/group-access.spec.ts`）: グループ作成、招待、切り替え、メンバー削除。グループ削除はownerの名称確認、status画面、開始直後のアクセス遮断、実engine完了後の選択/setup遷移を確認する。開始・失敗・完了通知の宛先とdedupeはConvex testで確認する
 - 公開ページ（`e2e/public-pages.spec.ts`）: `/privacy`、`/terms` が認証なしで表示されること
-- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、税警告表示、`registerReadyDraftsAsExpenseEntries` によるまとめて登録
+- AI支出下書き（`e2e/ai-expense-queue.spec.ts`）: `ready` / `needs_review` の確認、編集、税警告表示、`registerReadyDraftsAsExpenseEntries` によるまとめて登録、セッション内サムネイル/拡大プレビュー、失敗時の固定ヒントと再撮影導線、複数画像を同一バッチとして扱う進捗表示、全件`ready`までの一括登録無効化、複数バッチの混在防止
 - 認証（`e2e/auth.spec.ts`）: 未認証時のリダイレクト、ログイン後のダッシュボード表示
 - ナビゲーション（`e2e/navigation.spec.ts`）: 主要画面間の遷移
 - 設定（`e2e/settings.spec.ts`）: カテゴリ・週設定の保存
@@ -54,6 +59,8 @@ Plan 契約（`AGENTS.md`）でコード変更を含むPRを納品する場合�
 - レシート画像抽出（`e2e/receipt-image-extraction.spec.ts`）: 画像解析フローの疎通
 - ダッシュボード（`e2e/dashboard-home.spec.ts`）: ホーム画面の集計・導線
 - レシートフォーム（`e2e/receipt-form.spec.ts`）: 手入力フォームの保存
+- アカウント削除（`e2e/account-deletion.spec.ts`）: `/settings/account/delete` からの非同期削除リクエストと status 確認
+- システム管理者（`e2e/system-admin-route.spec.ts`、`e2e/system-admin-search.spec.ts`、`e2e/system-admin-membership.spec.ts`）: `/admin` ルート制御、ユーザー・グループ検索、メンバー・権限操作
 - `e2e/monthly-income.spec.ts` は空のプレースホルダー（#79 で月収入 UI 削除済み）。削除候補
 
 ## Clerk Restricted mode + Invitation 手動 QA

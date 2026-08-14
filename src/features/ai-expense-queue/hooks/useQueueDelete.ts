@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
+import { deleteDraftApi } from "../../../lib/repositories/aiExpenseDrafts";
+import { cancelImageJobApi } from "../../../lib/repositories/receiptAnalysisJobs";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
 import type { AiExpenseQueueItem } from "../types/types";
 import { toUserFacingDeleteError } from "../utils/userFacingErrors";
 
@@ -10,12 +11,12 @@ export function useQueueDelete() {
   const [hiddenItemIds, setHiddenItemIds] = useState<string[]>([]);
   const [queueDeleteError, setQueueDeleteError] = useState("");
 
-  const cancelImageJob = useMutation(api.receiptAnalysisJobs.mutations.cancelImageJob);
-  const deleteDraft = useMutation(api.aiExpenseDrafts.mutations.deleteDraft);
+  const cancelImageJob = useMutation(cancelImageJobApi());
+  const deleteDraft = useMutation(deleteDraftApi());
 
-  const deleteQueueItem = async (item: AiExpenseQueueItem) => {
+  const deleteQueueItem = async (item: AiExpenseQueueItem): Promise<boolean> => {
     if (deletingIds.includes(item.id)) {
-      return;
+      return false;
     }
     setQueueDeleteError("");
     setDeletingIds((current) => [...current, item.id]);
@@ -26,8 +27,10 @@ export function useQueueDelete() {
         await deleteDraft({ draftId: item.id as Id<"aiExpenseDrafts"> });
       }
       setHiddenItemIds((current) => (current.includes(item.id) ? current : [...current, item.id]));
+      return true;
     } catch (error) {
       setQueueDeleteError(toUserFacingDeleteError(error));
+      return false;
     } finally {
       setDeletingIds((current) => current.filter((id) => id !== item.id));
     }

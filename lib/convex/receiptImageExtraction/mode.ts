@@ -1,17 +1,16 @@
 import { ConvexError } from "convex/values";
+import {
+  getResolveExtractorModeErrorMessage,
+  resolveExtractorMode,
+} from "../../../lib/domain/receiptImageExtraction/mode";
 
 export function getExtractorMode(appEnv: string): "mock" | "real" {
   const mode = process.env.RECEIPT_IMAGE_EXTRACTOR_MODE;
-  if (mode === undefined || mode === "") {
-    if (appEnv === "production") {
-      throw new ConvexError("RECEIPT_IMAGE_EXTRACTOR_MODE を production では必ず設定してください");
-    }
-    return "mock";
+  const result = resolveExtractorMode({ appEnv, mode });
+
+  if ("error" in result) {
+    throw new ConvexError(getResolveExtractorModeErrorMessage(result.error));
   }
-  if (mode !== "mock" && mode !== "real") {
-    throw new ConvexError(
-      "RECEIPT_IMAGE_EXTRACTOR_MODE は mock または real のどちらかを指定してください",
-    );
-  }
-  return mode;
+
+  return result.mode;
 }

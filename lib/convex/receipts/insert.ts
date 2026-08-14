@@ -3,35 +3,27 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { calculateWeekStartDate } from "../../../convex/lib/weekDates";
+import { getWeeklyStartDayForUser } from "../../../convex/users/weeklySettings";
+import {
+  normalizeCreateReceiptArgs,
+  type CreateReceiptInput,
+  type NormalizedCreateReceipt,
+} from "../../../lib/domain/receipt/normalize";
 
-export type CreateReceiptArgs =
-  | {
-      type?: "expense";
-      date: string;
-      shopName: string;
-      amountYen: number;
-      categoryId: Id<"categories">;
-      memo?: string;
-    }
-  | {
-      type: "income";
-      date: string;
-      bankName: string;
-      amountYen: number;
-      categoryId: Id<"categories">;
-      memo?: string;
-    };
+export type CreateReceiptArgs = CreateReceiptInput<Id<"categories">>;
 
 export async function insertReceiptForGroup(
   ctx: Pick<MutationCtx, "db">,
   groupId: Id<"groups">,
   args: CreateReceiptArgs,
+  weekStartDay: number,
+  createdByUserId: string,
 ) {
-  if (args.type !== "income" && !args.shopName) {
-    throw new ConvexError("shopName is required for expense receipts");
-  }
-  if (args.type === "income" && !args.bankName) {
-    throw new ConvexError("bankName is required for income receipts");
+  let normalized: NormalizedCreateReceipt<Id<"categories">>;
+  try {
+    normalized = normalizeCreateReceiptArgs(args);
+  } catch (err) {
+    throw new ConvexError(err instanceof Error ? err.message : "Invalid receipt");
   }
 
   const category = await ctx.db.get(args.categoryId);
@@ -46,17 +38,18 @@ export async function insertReceiptForGroup(
   }
 
   const now = Date.now();
-  const weekStartDate = calculateWeekStartDate(args.date);
+  const weekStartDate = calculateWeekStartDate(normalized.date, weekStartDay);
 
   return await ctx.db.insert("receipts", {
     groupId,
-    date: args.date,
-    type: args.type,
-    shopName: args.type === "income" ? undefined : args.shopName,
-    bankName: args.type === "income" ? args.bankName : undefined,
-    amountYen: args.amountYen,
+    createdByUserId,
+    date: normalized.date,
+    type: normalized.type,
+    shopName: normalized.shopName,
+    bankName: normalized.bankName,
+    amountYen: normalized.amountYen,
     categoryId: args.categoryId,
-    memo: args.memo,
+    memo: normalized.memo,
     weekStartDate,
     createdAt: now,
     updatedAt: now,
@@ -65,8 +58,9 @@ export async function insertReceiptForGroup(
 
 /** createReceipt mutation の handler ロジック（テスト用に export） */
 export async function createReceiptHandler(ctx: MutationCtx, args: CreateReceiptArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
-  const receiptId = await insertReceiptForGroup(ctx, groupId, args);
+  const { groupId, userId } = await requireGroupMembership(ctx);
+  const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
+  const receiptId = await insertReceiptForGroup(ctx, groupId, args, weekStartDay, userId);
 
   const receipt = await ctx.db.get(receiptId);
   if (receipt === null) {

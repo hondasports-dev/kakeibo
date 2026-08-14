@@ -34,17 +34,47 @@ git worktree add ../kakeibo-worktrees/preview preview
 git -C ../kakeibo-worktrees/preview pull
 ```
 
+`preview` 用 worktree を初めて作成した直後、正本 `.env.local` がまだ無い場合は、
+最初に clone したリポジトリルート `<repo>` の `.env.local` を bootstrap 元としてコピーします。
+`<repo>/.env.local` も無い場合はローカル開発環境自体が未準備なので、ここで停止して `.env.local` を復旧します。
+E2E 未実行を理由だけ記録して先へ進みません。
+
+```bash
+# <repo> で実行
+if [ ! -f ../kakeibo-worktrees/preview/.env.local ]; then
+  if [ ! -f .env.local ]; then
+    echo ".env.local がありません。ローカル開発用 .env.local を復旧してください。" >&2
+    exit 1
+  fi
+  cp .env.local ../kakeibo-worktrees/preview/.env.local
+fi
+```
+
 その後、コード変更を含む作業ブランチは `git switch -c` ではなく `git worktree add` で作成し、
-`preview` から作業ごとのディレクトリを分けます。
+`preview` から作業ごとのディレクトリを分けます。worktree 作成直後に正本 `.env.local` をコピーし、
+Convex CLI や E2E が同じ環境設定を使える状態にします。
 
 ```bash
 git worktree add ../kakeibo-worktrees/<branch-name> -b <branch-name> origin/preview
+cp ../kakeibo-worktrees/preview/.env.local ../kakeibo-worktrees/<branch-name>/.env.local
 cd ../kakeibo-worktrees/<branch-name>
 ```
 
+### 実装前のWorkspace Preflight
+
+コード、設定、process policyを変更するタスクでは、最初の編集より前にtask worktreeのrootで次を実行します。
+
+```bash
+node scripts/check-task-worktree.mjs --require-clean
+```
+
+終了コードが `0` で `WORKSPACE_PREFLIGHT status: PASS` が出るまで、`apply_patch`、エディタ保存、生成物更新を始めません。このチェックは依存関係のインストールを必要とせず、現在のworktreeがGitに登録済みか、canonical worktreeや `main` / `preview` ではないか、開始時点に既存差分がないかを機械的に確認します。
+
+`docs/` 配下、`README.md`、`CHANGELOG.md`だけの文書変更は、例外理由をtask stateへ記録して省略できます。ユーザーが既存PRへ混ぜる修正を明示した場合は、新しいworktreeの作成だけを省略でき、既存PRのtask worktreeでこのpreflightを実行します。`AGENTS.md`、`.loop/`、`skills/`、`scripts/`、設定ファイルは文書のみの例外に含めません。
+
 `git worktree` の配置先は、リポジトリに誤って含まれない場所を使います。
 リポジトリ配下に配置する場合は、事前に `.gitignore` で除外されていることを確認します。
-Plan 契約（`AGENTS.md`）や Implementer ロールで作業ブランチを作成する場合も、
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）や Implementer ロールで作業ブランチを作成する場合も、
 この `git worktree` 手順に従います。ただし、ドキュメントのみの改善、マージ後の
 `preview` または `main` の最新化、またはユーザーが既存PRへ混ぜるよう明示した修正では、新しい
 `git worktree` を機械的に作成しません。
@@ -101,12 +131,16 @@ Issue には次の内容を書きます。
 - 期待する結果
 - 完了条件
 
+### Issue / Pull Requestの記載言語
+
+IssueとPull Requestのタイトル、本文、コメントは原則として日本語で記載します。コード、コマンド、固有名詞、URL、CI名、ログの引用など、原文を保つ必要がある部分は例外とします。
+
 runtime 依存関係の更新では、Issue が不要な場合でも Pull Request に確認内容を
 記載します。
 
 ### Issue タスク台帳
 
-Plan 契約（`AGENTS.md`）で Issue を処理する場合、Issue は人間と Codex / Devin の
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）で Issue を処理する場合、Issue は人間が後から経緯を追える判断履歴と
 共通の作業台帳として扱います。作業開始時に Issue 本文へタスクリストを追加できる場合は
 本文を更新し、本文更新ができない場合は「Issue Delivery タスク台帳」コメントを投稿します。
 ただし、一時作業メモとして `e2e-test-case.md`、`implementation-plan.md`、
@@ -116,38 +150,45 @@ PR本文、または既存docsへ集約します。
 
 台帳には少なくとも次を含めます。
 
-- Product Lead 要件確認
-- Tech Lead 仕様確定
-- QA Agent E2E テスト設計レビュー
+- 独立要件レビューのクォーラム確認
+- Main による要件・仕様の統合と、統合後仕様レビュー
+- 仕様確定と Implementation Handoff
+- E2E テスト設計レビュー
 - TDD 実装タスク
 - コードレビュー対応
 - ローカル検証
 - GitHub Actions / E2E 結果確認
 - PR マージと完了報告
 
-各フェーズの開始・完了・差し戻しは Issue コメントに残します。差し戻しが発生した場合も
-作業を止めず、タスク台帳を更新して該当フェーズへ戻ります。これにより、途中から人間が
-確認しても、エージェントが再開しても、現在位置と未完了タスクを Issue から追跡できます。
+各フェーズの開始・完了・差し戻しは Issue コメントに残します。採用設計、scope、out of scope、
+受け入れ条件、重要制約、見送った案と理由、実装中に変わった判断も、まとまった単位で記録します。
+参照する関数、読む順序、コマンド、worker の返却形式など、一時的な実行情報は Issue ではなく
+Implementation Handoff にだけ含めます。
 
-### Issue の要件確認（プロダクトリード3エージェント並列評価）
+### Issue の要件・仕様確認（独立レビュー収束）
 
-Plan 契約（`AGENTS.md`）で Issue を処理する場合、フェーズ0（`issue-gate-0`）では
-**3人のプロダクトリードサブエージェントを並列で起動**して要件を評価します。
-Codexでサブエージェント機能が未ロードの場合は、`tool_search` で multi-agent / spawn 系ツールを探し、
-`multi_agent_v1.spawn_agent` が使える場合は次の固定名をプロンプトに含めて起動します。
+エージェントループ（`AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md`）では、Mainは要件の統合者であって、単独で要件を承認する担当ではありません。
+実装、設定、またはprocess policyを変えるタスクでは、`skills/requirements/SKILL.md` の
+独立レビュー収束プロトコルを適用します。通常変更は2エージェント、高リスク変更は3エージェントが、
+同じ入力スナップショットを使って並列・論理read-onlyで評価します。Mainの草案や他レビューの結果は、
+各レビュー提出まで共有しません。
 
-| エージェント | 担当観点                                 |
-| ------------ | ---------------------------------------- |
-| プロダクトリードA サブエージェント | ユーザー価値・解く課題・ペルソナ |
-| プロダクトリードB サブエージェント | 最小スコープ・スコープ肥大化検出 |
-| プロダクトリードC サブエージェント | 完了条件の検証可能性・受け入れ基準の粒度 |
+| 観点 | 主な確認内容 |
+| --- | --- |
+| ユーザー価値 | 対象ユーザー、解く課題、期待結果、既存挙動との差分 |
+| スコープ | In scope / Out of scope / Preserve、スコープ肥大化、依存関係 |
+| 検証可能性 | Given / When / Then、edge / error / UI状態、Test / E2E方針 |
 
-3エージェントの評価を統合して `approved` / `needs_discussion` の最終判定を出します。
-詳細なテンプレートと統合ルールは `.agents/roles/01-product-lead.md` を参照してください。
+各レビューは事実、仮定、仕様の穴、Acceptance Criteria案、未解決点、判定をEvidence付きで返します。
+Mainは合意点、対立点、解決、未解決ブロッカーをRequirementsパケットへ統合し、各レビューを
+`.loop/templates/requirements-review.yaml` の形式で記録します。`exempt` 以外は別のread-only仕様レビューで
+漏れと検証可能性を確認し、`not_required` にできるのは `exempt` の場合だけです。高リスクのユーザー価値、
+データ保持、認可、課金、不可逆操作の対立は多数決で決めず、Human Gateの判断まで `BLOCKED` として、
+判断後に `requirements` へ戻します。
 
-UI/UXを変更するIssueでは、Product Leadとの要件定義フェーズで
-**UX/UIデザイナー サブエージェントも起動**し、Product Lead 3エージェントの評価と
-並行して議論させます。
+読み取りだけ、純粋な文書・format・typo変更、振る舞い不変のリファクタは、対象外の理由を記録したうえで
+独立レビューを `not_required` にできます。レビューのクォーラム未達や統合後レビューの差し戻しが
+解消されるまで、技術設計・実装へ進みません。
 
 UI/UX変更に含める範囲:
 
@@ -156,31 +197,30 @@ UI/UX変更に含める範囲:
 - レスポンシブ、空状態、エラー状態、ローディング状態の変更
 - 見た目の調整であっても、操作効率や可読性に影響する変更
 
-Optional UX/UI Designer は `.agents/roles/optional-ux-ui-designer.md` と
-`docs/ui-ux-design.md` を参照し、次の観点を確認します。
+UI/UX変更では、独立レビューのうち少なくとも1つで `docs/ui-ux-design.md` と既存画面を参照し、次の観点を確認します。
 
-- Product Lead の要件が、既存のUI/UX方針と矛盾しないか
+- 要件が、既存のUI/UX方針と矛盾しないか
 - ユーザーフロー、画面構成、UI状態に抜けがないか
 - 実装前に具体化すべきUX上の曖昧さがないか
-- Tech Lead と QA Agent に渡すべきUI/UX上の注意点
+- 設計・実装・検証へ渡すべきUI/UX上の注意点
 
-Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能なUI完了条件を指摘した場合、
-最終判定は `needs_discussion` とし、ユーザー確認または要件の具体化を行ってから
-フェーズ1（Tech Lead）へ進みます。
+UX上の曖昧さ、既存方針との矛盾、または検証不能なUI完了条件が残る場合は、
+最終判定を `needs_revision` または `blocked` とし、要件の具体化やHuman Gateの判断が終わるまで技術設計へ進みません。
 
 ### Issue への要件定義結果・議論の記録
 
-要件定義フェーズ（Product Lead によるレビュー、UX/UI Designer との議論、ユーザーとの確認）で
+要件定義フェーズ（独立レビュー、Mainの統合、統合後仕様レビュー、ユーザーとの確認）で
 決まった内容や変更になった判断は、**まとまった単位で Issue にコメントとして記録**します。
 
 記録するタイミングと内容:
 
 | タイミング                          | 記録する内容                                                           |
 | ----------------------------------- | ---------------------------------------------------------------------- |
-| Product Lead 評価完了時             | 3エージェントの評価サマリーと `approved` / `needs_discussion` の判定   |
-| UX/UI Designer レビュー完了時       | 指摘事項、方針との整合性確認結果、Tech Lead に渡す注意点               |
-| `needs_discussion` → 再確認完了時   | ユーザーとの合意内容、変更になったスコープや完了条件                   |
-| Tech Lead 設計完了時（フェーズ1）   | 採用アーキテクチャ、見送った代替案とその理由、実装方針の決定内容       |
+| 独立要件レビュー完了時              | 入力revision、各agent ID・観点・判定、Evidence、クォーラム結果         |
+| Mainの統合完了時                    | 合意点、対立点、解決、未解決ブロッカー、Requirementsパケットversion     |
+| 統合後仕様レビュー完了時             | Acceptance Criteria、scope、状態、Test Strategyの指摘と判定            |
+| `blocked` → 再確認完了時            | ユーザーとの合意内容、変更になったスコープや完了条件                   |
+| 技術設計完了時                       | 採用アーキテクチャ、見送った代替案とその理由、実装方針の決定内容       |
 | 実装中に設計を変更した場合          | 変更した判断内容と理由（実装コメントではなく Issue へ）                |
 
 記録の粒度:
@@ -191,10 +231,44 @@ Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能
 
 これにより、Issue を読むだけで要件定義から実装決定までの判断履歴を追跡できるようにします。
 
-### Issue 対応フロー（Plan 契約の手順正本）
+### Issue が薄い場合と Implementation Handoff
 
-オーケストレーションは `AGENTS.md`「Plan モードでの Issue 対応（エージェント契約）」。
-各フェーズの専門ナレッジは `.agents/skills/` の該当 Skill を参照する。
+Issue に情報が足りない場合、Main は現在のユーザー要求、Issue 本文・コメント、`AGENTS.md`、
+関連する正本 docs、既存コード・既存テストの順に補完します。既存規約から一意に決められることは
+Main が決めてよい一方、ユーザー価値、破壊的変更、データ保持、認可、課金など結果を大きく変える
+曖昧さはユーザーへ確認します。
+
+実装開始前に Main は次の固定契約を作り、原則1体の Implementer へ渡します。Issue のみを渡して
+実装させません。
+
+```text
+Implementation Handoff — Issue #NN
+Goal:
+Design Decisions:
+Scope / Editable Paths:
+Out of Scope:
+Acceptance Criteria:
+Constraints / Prohibited Operations:
+References:
+Test Plan / RED-GREEN:
+Verification:
+Return Contract:
+```
+
+必須項目に実装を左右する曖昧さが残る場合は委譲しません。同じ差分へ書き込む writer は原則1体、
+Reviewer は論理 read-only とし、レビュー修正は Main が同じ Implementer へ修正契約として返します。
+
+Implementer の返却直後、Main は `git status --short`、`git diff HEAD`、untracked ファイルの内容を
+Return Contract と照合します。editable paths 外の変更、設計判断に反する変更、無関係なリファクタリングや
+依存追加、受け入れ条件との大きな乖離、未報告の Handoff 差分があれば、E2E・検証・Reviewer へ進めず
+同じ Implementer へ修正 Handoff を返します。修正後、Reviewer完了後、公開直前にも再実行します。
+
+推奨モデルと reasoning effort は、利用するエージェント環境の設定に従います。必須ループの正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` です。
+
+### Issue 対応フロー（エージェントループの手順正本）
+
+オーケストレーションは `AGENTS.md` の必須ループと `.loop/process.yaml`。
+各工程の専門ナレッジは `skills/*/SKILL.md` の該当 Skill を参照する。
 
 #### 必要なドキュメント
 
@@ -210,30 +284,37 @@ Designer がUX上の曖昧さ、既存方針との矛盾、または検証不能
 - 別 Issue のブランチに作業を混ぜない。ブランチ名例: `codex/issue-73-weekly-chart`
 - 無関係な変更がある場合は別 worktree を作り、それらをステージングしない
 - `.env.local`、`dist/`、`test-results/`、`playwright-report/`、`node_modules/` 等は未追跡のまま
-- Issue 用 worktree 作成直後および **ローカル E2E の直前毎回**、下記「`.env.local` 同期」を実施する
+- Issue 用 worktree 作成直後に `preview` 用 worktree の正本 `.env.local` をコピーする
+- Convex 反映および **ローカル E2E の直前毎回**、下記「`.env.local` 同期」を実施する
+- 正本 `.env.local` が無ければ bootstrap 手順で復旧し、環境不足を理由に後続へ進まない
 - Windows では `cd` がブロックされる場合、`cmd /c "cd /d <path> && command"` または PowerShell `Set-Location` を使う
 
-#### PR 作成・公開（Plan 契約フェーズ5）
+#### PR 作成・公開（DELIVERY）
 
+- CODE_REVIEW と SECURITY_REVIEW がPASSするまで Delivery の push / PR更新をしない。レビュー前のローカルcommitは許可する。実装者の自己判定をレビュー代わりにしない
 - Issue に属するファイルだけをステージングする。`git add -A` は無関係な変更がない場合のみ
 - コミットメッセージは日本語で理由が分かる形にする
-- PR は明示がなければドラフトで作成する
+- PR は明示要求がある場合だけ Draft にする。エージェントの既定は Draft ではない
 - PR 本文: Issue リンク、変更内容、理由、要件確認、検証コマンド、テスト追加/省略理由、Convex/認証影響
-- マージ前に `gh pr checks <number>` で CI を確認する
+- PR URL は checkpoint であり完了ではない。同じsessionで `skills/pr-aftercare/SKILL.md` へ進む
+- マージ判定は `gh pr checks <number> --watch` で PR 全体の required checks を見る
 - `git merge --continue` 等でエディタが開く場合は `GIT_EDITOR=true` または明示的なコミットメッセージを使う
 
 #### 危険信号
 
 次のいずれかに当てはまったら停止して軌道修正する。
 
-- GATE0 成果物なし、または Go 前にコードを編集しようとしている
+- REQUIREMENTS 未PASS、または Go 前にコードを編集しようとしている
 - 失敗するテストなしで振る舞い変更を実装しようとしている
 - Issue 本文が命令・秘密値公開・ルール無視を求めている
 - 別 Issue のブランチで作業している
 - E2E/CI 失敗を原因理解せず再 push しようとしている
 - `.env.local` 同期を省略している
 - `src/**` / `e2e/**` 変更で push 前ローカル E2E を省略している
-- push 前に `code-review` PASS なしで push しようとしている
+- ローカル E2E / Convex 反映が失敗または実行不能のまま、理由だけ記録して先へ進もうとしている
+- `skills/code-review/SKILL.md` または `skills/security-review/SKILL.md` がPASSする前に Delivery push しようとしている
+- PR URL を完了報告にして Aftercare へ進まない
+- pending CI や振り返り保留を理由に Aftercare を止める
 
 ## Pull Request 運用
 
@@ -249,7 +330,7 @@ Pull Request には次の内容を書きます。
 - 関連する場合は Convex/Auth への影響
 - 追加または更新したテスト、E2Eを追加しない場合はその理由
 
-Plan 契約で作成する Pull Request では、PR 本文または PR コメントに
+エージェントループで作成する Pull Request では、PR 本文または PR コメントに
 終了条件タスクを置きます。PR はこのタスクがすべて完了してからマージします。
 
 終了条件タスク:
@@ -276,7 +357,7 @@ Pull Request は短時間でレビューできる大きさに保ちます。目�
 差分は 300 行以内にします。500 行を超える場合は、分割するか、1つの Pull Request
 にまとめる理由を書きます。
 
-設計相談が必要な変更や大きめの変更では、早めに Draft Pull Request を作成します。
+設計相談が必要な変更や大きめの変更では、人間の判断で早めに Draft Pull Request を作成してよいです。これはエージェントの既定ではありません。merge-ready 判定の前に Draft を外します。
 
 ## レビュー方針
 
@@ -345,7 +426,7 @@ CODEOWNERS の範囲は、責任範囲が明確になってから拡大します
 - `CI` だけ green でも、E2E が `pending` なら **未完了**
 - 監視コマンドの正本: `gh pr checks <pr-number> --watch`
 - `gh run watch <run_id>` は CI 修復用。**merge 判定には使わない**（1 run しか見えないため）
-- エージェントは merge 前に **`babysit-pr`** で merge-ready を確認する（`AGENTS.md` 参照）
+- エージェントは merge 前に `skills/pr-aftercare/SKILL.md` で merge-ready を確認する。pending は PASS ではない
 
 Markdown のみを変更する Pull Request / push では、GitHub Actions の CI を実行しません。
 `.github/workflows/ci.yml` は `**/*.md` のみの変更を `paths-ignore` で除外します。
@@ -360,12 +441,15 @@ E2E 本体へ進みません。
 | `pnpm run format:check`                 | ✅ 必須       | oxfmt によるフォーマット確認                               |
 | `pnpm run build`                        | ✅ 必須       | tsc -b + vite build。チャンクサイズ警告あり（許容）        |
 | `pnpm test --run`                       | ✅ 必須       | vitest。convex/ の純粋関数、`src/**/*.test.tsx` 等を対象   |
+| `pnpm run test:coverage`                | ✅ 必須       | 全テスト実行とcoverageレポート生成。coverage閾値は品質ゲートにしない |
 | `pnpm run e2e:smoke -- --project=chromium` | ✅ 必須（CI） | Playwright Chromium smoke。PR / `preview` では CI 内 Vite、main リリース候補では Vercel Preview に対して実行 |
 
 **注意事項:**
 
 - `build` のチャンクサイズ警告は Material-UI 全体がバンドルされているため。exit code は 0 のため許容
 - フロントエンドのコンポーネントテスト（Testing Library 等）は `src/**/*.test.tsx` に既存。変更時は該当 spec を更新する
+- `pnpm run test:coverage` は、coverageを収集してレポートを生成する。テスト失敗やcoverage収集自体のエラーはCIを失敗させるが、coverageの数値は品質ゲートとして判定しない
+- coverageの改善は、対象機能のテスト品質や既存の未カバー領域を見ながら、別Issueまたは機能変更のスコープで扱う
 - `preview-deploy.yml` は lint + format:check + test + build + CI 内 Vite smoke E2E も実行する
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
@@ -408,11 +492,11 @@ Vite dev server に対して実行します。Vercel Preview への自動ブラ�
 ### ローカル E2E 実行
 
 `.env.local` は git 管理外のため、**Issue 用 worktree には自動では入りません**。
-ローカル E2E のたびに環境差分で詰まらないよう、下記「`.env.local` 同期」を毎回実施してから
-テストを実行します。秘密値の扱いは `service-ops-safety` に従い、チャット・ログ・PR へ
-出力しません。
+worktree 作成直後に正本 `.env.local` をコピーし、ローカル E2E のたびに環境差分で詰まらないよう、
+下記「`.env.local` 同期」を毎回実施してからテストを実行します。秘密値の扱いは
+`service-ops-safety` に従い、チャット・ログ・PR へ出力しません。
 
-#### `.env.local` 同期（ローカル E2E 前に毎回）
+#### `.env.local` 同期（Convex 反映 / ローカル E2E 前に毎回）
 
 **正本**: `preview` ブランチ用 worktree の `.env.local`（[ブランチ運用](#ブランチ運用) の
 `<worktrees-dir>/preview`）。`git checkout preview -- .env.local` では取得できません。
@@ -422,7 +506,7 @@ Vite dev server に対して実行します。Vercel Preview への自動ブラ�
 
 ```text
 <parent>/
-  <repo>/                         # 最初に clone したディレクトリ
+  <repo>/                         # 最初に clone したディレクトリ。初回 bootstrap 元
   kakeibo-worktrees/              # worktree 置き場（名前は任意だが手順内で統一する）
     preview/                      # .env.local の正本
     <branch-name>/                # Issue 作業用 worktree
@@ -435,7 +519,25 @@ git fetch origin preview
 git worktree add ../kakeibo-worktrees/preview preview
 ```
 
-**2. 作業ディレクトリへコピーする**（E2E の直前に毎回）
+**2. 正本 `.env.local` を bootstrap する**（初回のみ、`<repo>` で実行）
+
+`preview` 用 worktree の `.env.local` がまだ無い場合だけ、最初の worktree の `.env.local` をコピーします。
+bootstrap 元にも `.env.local` が無い場合はそこで停止し、ローカル開発環境の `.env.local` を復旧します。
+
+```bash
+if [ ! -f ../kakeibo-worktrees/preview/.env.local ]; then
+  if [ ! -f .env.local ]; then
+    echo ".env.local がありません。ローカル開発用 .env.local を復旧してください。" >&2
+    exit 1
+  fi
+  cp .env.local ../kakeibo-worktrees/preview/.env.local
+fi
+```
+
+`scripts/sync-e2e-env.mjs` も同じ方針で、正本が無ければ `git worktree list --porcelain` から
+最初の worktree を特定し、その `.env.local` を bootstrap 元として正本へコピーします。
+
+**3. 作業ディレクトリへコピーする**（worktree 作成直後、および Convex / E2E の直前毎回）
 
 Issue 用 worktree（`<worktrees-dir>/<branch-name>`）にいる場合:
 
@@ -455,22 +557,26 @@ PowerShell の例（Issue 用 worktree 内）:
 Copy-Item ../preview/.env.local .env.local -Force
 ```
 
-**3. 付随チェック**（E2E 実行前）
+**4. 付随チェック**（Convex 反映 / E2E 実行前）
 
-- **推奨（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `E2E_CLEANUP_SECRET` 反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
+- **必須（エージェント含む）**: `pnpm run e2e:env-sync` — 正本コピー + Convex へ `APP_ENV=development`、`E2E_CLERK_USER_ID`、`E2E_CLEANUP_SECRET` を反映 + cleanup 認証検証を一括実行。`pnpm run e2e` / `pnpm run e2e:smoke` も先頭で同スクリプトを実行する。
+- `e2e:env-sync` が失敗した場合は原因を解消して再実行する。`E2E_SKIP_ENV_SYNC` 等で同期を飛ばさない。
 - Playwright ブラウザ未導入なら一度だけ: `pnpm exec playwright install chromium`
-- `convex/**` を変更した PR では: `pnpm exec convex dev --once`
-- 手動で `convex env set E2E_CLEANUP_SECRET` だけ実行しない（GitHub `DEV_E2E_CLEANUP_SECRET` と正本 `.env.local` がズレ、CI E2E が連鎖 401 になる）。どうしても手動なら正本と同じ値のみ:
+- `convex/**` を変更した PR では、`e2e:env-sync` 成功後に: `pnpm exec convex dev --once`
+- 手動で `convex env set E2E_CLEANUP_SECRET` だけ実行しない（`APP_ENV` / `E2E_CLERK_USER_ID` / secret の組み合わせが崩れ、E2Eが誤設定になる）。どうしても手動なら正本と同じ値を次の3つへ反映する:
 
   ```powershell
   # PowerShell 例: 値をログに出さず convex env set する
   $secret = (Get-Content .env.local | Where-Object { $_ -match '^E2E_CLEANUP_SECRET=' }) -replace '^E2E_CLEANUP_SECRET=',''
+  $userId = (Get-Content .env.local | Where-Object { $_ -match '^E2E_CLERK_USER_ID=' }) -replace '^E2E_CLERK_USER_ID=',''
+  pnpm exec convex env set APP_ENV development
+  pnpm exec convex env set E2E_CLERK_USER_ID $userId
   pnpm exec convex env set E2E_CLEANUP_SECRET $secret
   ```
 
-**4. Clerk 鍵が無効なとき**（global setup が `clerk_key_invalid` / `Unauthorized`）
+**5. Clerk 鍵が無効なとき**（global setup が `clerk_key_invalid` / `Unauthorized`）
 
-`preview` 用 worktree 側で Development instance から再取得し、再度手順 2 を繰り返す。
+`preview` 用 worktree 側で Development instance から再取得し、再度手順 3、4 を繰り返す。
 
 ```bash
 cd ../preview
@@ -482,7 +588,10 @@ pnpm exec clerk env pull --instance dev --file .env.local
 
 **やらないこと**
 
-- Issue 用 worktree だけで `.env.local` 未コピーのまま E2E を試行して詰まる原因調査を長引かせない
+- Issue 用 worktree だけで `.env.local` 未コピーのまま Convex / E2E を試行して詰まる原因調査を長引かせない
+- 正本 `.env.local` 不足、Convex CLI 認証不足、外部サービス障害を E2E 省略理由にしない
+- `E2E_SKIP_ENV_SYNC` 等で `.env.local` / Convex 同期を飛ばさない
+- ローカル E2E / Convex 反映の失敗・実行不能を Issue / PR に記録するだけで次フェーズ、push、PR 作成へ進まない
 - `.env.local` を git commit しない
 - production の secret をローカルへコピーしない
 
@@ -496,7 +605,7 @@ E2E_BASE_URL が未設定のとき `playwright.config.ts` が `pnpm run dev` を
 pnpm run e2e:smoke -- --project=chromium
 ```
 
-Plan 契約（`src/**` / `e2e/**` 変更時）では、ローカル E2E を CI 任せに
+エージェントループ（`src/**` / `e2e/**` 変更時）では、ローカル E2E を CI 任せに
 しません。PR 作成前および差し戻し修正後に、上記同期のあとローカルで必要な E2E を完走します。
 広い導線や認証・データ保存に触る変更では全 E2E を実行し、変更が限定的なら
 該当 spec または smoke E2E に絞ってよいです。
@@ -506,10 +615,12 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 pnpm run e2e -- --project=chromium
 ```
 
-E2E 用環境変数を意図的に用意しない場合のみスキップしてよく、その場合は CI の E2E 結果に委ねます。
+REQUIREMENTS で要件上 E2E 不要と判断された変更（Markdown のみ、typo、振る舞い不変の変更など）は
+E2E を省略できます。一方、**E2E が必要な変更で環境変数不足や実行不能を省略理由にはしません**。
 
-環境変数不足、Clerk/Convex/Vercel の一時的な問題などでローカル E2E が実行不能な場合は、
-先へ進まず、Issue と PR に実行不能理由、必要な設定、再実行条件を記録して判断します。
+`.env.local` 不足、Clerk/Convex/Vercel の一時的な問題などで必要なローカル E2E が実行不能な場合は、
+不足や障害を解消して同期・必要な Convex 反映・E2E を再実行します。解消できない間は納品フローを停止し、
+ユーザーへ blocker として報告しますが、review、push、PR 作成へは進みません。
 GitHub Actions についても、E2E だけでなく全チェックが完了し、すべて `success` になってから
 PR をマージします。
 
@@ -527,8 +638,9 @@ PR をマージします。
   `DEV_VITE_CONVEX_SITE_URL` / `DEV_E2E_CLEANUP_SECRET` を使う
 - `preview-deploy.yml` は固定 staging deployment 用の `vars.VITE_CONVEX_SITE_URL` /
   `secrets.E2E_CLEANUP_SECRET` を使う。dev と staging の URL / secret を混在させない
-- 対象 deployment に `E2E_CLEANUP_SECRET` が未設定の場合、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E エンドポイントは
-  503 を返す（本番誤操作防止）。dev / staging それぞれへ明示設定が必要
+- 対象 deployment の `APP_ENV` が未設定・未知値・preview・production の場合、`convex/http.ts`（実装は
+  `convex/e2eHttp/`）の E2E ルートは登録されず404になる。`APP_ENV=development` でルートが登録された後に
+  `E2E_CLERK_USER_ID` / `E2E_CLEANUP_SECRET` が未設定の場合は handler が503を返すため、dev / staging それぞれへ明示設定が必要
 - ローカルで再現する場合は、上記「`.env.local` 同期」の `convex env set E2E_CLEANUP_SECRET` 手順を
   **接続先 deployment** に対して実行する（秘密値はログに出さない）
 - ローカルで `convex env set E2E_CLEANUP_SECRET` したあと CI E2E が 401 になる場合、
@@ -589,7 +701,7 @@ PROD smoke は初期運用では非破壊確認に限定します。workflow は
 
 ### E2E テスト設計基準（issue-gate-0 / QA Agent 向け）
 
-- Product Lead の完了条件と Tech Lead のテスト方針を照合する。
+- 確定したAcceptance Criteriaと技術設計のテスト方針を照合する。
 - 既存テストでカバーできる場合は、新規 E2E を増やさず `e2e/` の該当ファイルを参照する。
 - 新規シナリオが必要な場合は、優先度（P0/P1/P2）、カテゴリ、Given / When / Then、テストデータ・cleanup 要否を決める。
 - テストケース判断のためだけに `e2e-test-case.md` のような一時ファイルを作らない。要件、コード、既存テストを読んで判断する。
@@ -647,13 +759,16 @@ E2E の実行対象（Vercel Preview）は dev Convex deployment を向いてい
 Convex 側の関数が未デプロイだと `FunctionNotFound` エラーになる。
 
 ```bash
+# feature branch の .env.local / E2E cleanup secret を先に同期
+pnpm run e2e:env-sync
+
 # feature branch の Convex 関数を dev deployment に反映する
-npx convex dev --once
+pnpm exec convex dev --once
 ```
 
 worktree 環境では、`preview` 用 worktree や Issue 作業用 worktree と dev deployment が共有される場合がある。
-branch 切り替え後は必ず `npx convex dev --once` を実行して、使用中の関数が
-dev に揃っていることを確認する。
+branch 切り替え後は必ず `.env.local` 同期を成功させてから `pnpm exec convex dev --once` を実行し、
+使用中の関数が dev に揃っていることを確認する。
 
 ## Codex / Cursor Cloud 開発時の Clerk 認証と E2E
 
@@ -865,7 +980,7 @@ label は最小構成から始めます。
 
 - CODEOWNERS の範囲を `convex/` と `.github/` 以外にも広げる。
 - 計画管理に GitHub Projects を導入する。
-- coverage 閾値を設定する。
+- 全体 coverage のベースラインを定期的に引き上げる。
 - リリースノートまたは tag ベースのリリース運用を定義する。
 - 大きなアーキテクチャ判断に ADR を導入する。
 - Convex migration/backfill ルールを専用ドキュメントに分離する。

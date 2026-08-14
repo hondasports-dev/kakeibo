@@ -3,6 +3,8 @@ import {
   AppLayout,
   GuidePage,
   MaintenancePage,
+  MonthlySummaryRouteFallback,
+  YearlySummaryRouteFallback,
   NotFoundPage,
   PrivacyPolicyPage,
   TermsPage,
@@ -18,11 +20,12 @@ import {
   useGroupMembership,
 } from "./features/group-admin";
 import { SettingsPage } from "./features/settings";
+import { LineLinkCallbackPage } from "./features/settings/pages/LineLinkCallbackPage";
 import { AccountDeletionPage, AccountDeletionStatusPage } from "./features/account-deletion";
 import { SuzumemoLoadingState } from "./features/ui";
 import { e2eRoutes, shouldEnableE2eRoutes } from "./routing/e2eRoutes";
 import { useConvexAuth, useQuery } from "convex/react";
-import { api } from "../convex/_generated/api";
+import { getMyAccountDeletionStatusApi } from "./lib/repositories/accountDeletion";
 import {
   SystemAdminGroupDetailPage,
   SystemAdminGroupDeletionPage,
@@ -35,13 +38,10 @@ import {
   SystemAdminUserSearchPage,
 } from "./features/system-admin";
 
-function GroupRouteGuard() {
+export function GroupRouteGuard() {
   const { hasGroups, needsSelection, isLoading } = useGroupMembership();
   const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
-  const deletionStatus = useQuery(
-    api.accountDeletion.getMyAccountDeletionStatus,
-    isAuthenticated ? {} : "skip",
-  );
+  const deletionStatus = useQuery(getMyAccountDeletionStatusApi(), isAuthenticated ? {} : "skip");
 
   if (isAuthLoading || isLoading || (isAuthenticated && deletionStatus === undefined)) {
     return (
@@ -68,7 +68,7 @@ function GroupRouteGuard() {
   return <AppLayout />;
 }
 
-function SummaryRouteFallback() {
+export function SummaryRouteFallback() {
   return (
     <SuzumemoLoadingState
       label="週次サマリーを読み込み中"
@@ -77,6 +77,18 @@ function SummaryRouteFallback() {
     />
   );
 }
+
+export function ExpenseSearchRouteFallback() {
+  return (
+    <SuzumemoLoadingState
+      label="支出検索を読み込み中"
+      message="支出検索を読み込んでいます…"
+      variant="page"
+    />
+  );
+}
+
+export { MonthlySummaryRouteFallback, YearlySummaryRouteFallback };
 
 const appRoutes: RouteObject[] = [
   {
@@ -96,12 +108,43 @@ const appRoutes: RouteObject[] = [
     },
   },
   {
+    path: "/months/:month",
+    HydrateFallback: MonthlySummaryRouteFallback,
+    lazy: async () => {
+      const { MonthlySummaryPage } =
+        await import("./features/monthly-summary/pages/MonthlySummaryPage");
+      return { Component: MonthlySummaryPage };
+    },
+  },
+  {
+    path: "/years/:year",
+    HydrateFallback: YearlySummaryRouteFallback,
+    lazy: async () => {
+      const { YearlySummaryPage } =
+        await import("./features/yearly-summary/pages/YearlySummaryPage");
+      return { Component: YearlySummaryPage };
+    },
+  },
+  {
     path: "/settings",
     element: <SettingsPage />,
   },
   {
+    path: "/settings/line/callback",
+    element: <LineLinkCallbackPage />,
+  },
+  {
     path: "/guide",
     element: <GuidePage />,
+  },
+  {
+    path: "/search",
+    HydrateFallback: ExpenseSearchRouteFallback,
+    lazy: async () => {
+      const { ExpenseSearchPage } =
+        await import("./features/expense-search/pages/ExpenseSearchPage");
+      return { Component: ExpenseSearchPage };
+    },
   },
   {
     path: "/settings/account/delete",

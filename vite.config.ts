@@ -58,5 +58,10 @@ export default defineConfig({
     setupFiles: ["./src/test/setup.ts"],
     // e2e/ は Playwright で実行するため Vitest から除外
     exclude: ["**/node_modules/**", "**/.pnpm-store/**", "**/e2e/**", "**/*.integration.test.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html"],
+      exclude: ["**/*.test.*"],
+    },
   },
 });

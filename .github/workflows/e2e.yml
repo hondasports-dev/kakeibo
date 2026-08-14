@@ -16,7 +16,7 @@ name: E2E
 #   VITE_CONVEX_URL                  — Dev deployment の Convex WebSocket URL
 #   DEV_E2E_CLEANUP_SECRET           — Dev deployment の E2E cleanup 認証シークレット
 #   DEV_CONVEX_DEPLOY_KEY            — Dev deployment の deploy key（CI で E2E_CLEANUP_SECRET を同期）
-#   E2E_CLERK_USER_ID                — テストユーザーの Clerk tokenIdentifier
+#   E2E_CLERK_USER_ID                — CIジョブ内でE2E_CLERK_USER_EMAILから解決する値
 #
 # 詳細: docs/development-process.md「E2E 確認方針」
 #       docs/environment-variables.md「GitHub Actions Secrets に保存する項目」
@@ -58,7 +58,7 @@ jobs:
     steps:
       - name: Verify trusted deployment source
         id: trust
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         with:
           script: |
             const deployment = context.payload.deployment
@@ -162,16 +162,17 @@ jobs:
               core.notice(`Skipping secrets-backed E2E: ${reason}`)
             }
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         if: steps.trust.outputs.trusted == 'true'
         with:
+          persist-credentials: false
           # trust判定で検証したcommitをcheckoutし、Preview URLとE2Eコードのずれを避ける
           ref: ${{ steps.trust.outputs.checkout_ref }}
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
         if: steps.trust.outputs.trusted == 'true'
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         if: steps.trust.outputs.trusted == 'true'
         with:
           node-version-file: ".nvmrc"
@@ -181,10 +182,18 @@ jobs:
         if: steps.trust.outputs.trusted == 'true'
         run: pnpm install --frozen-lockfile
 
+      - name: Resolve E2E Clerk user identifier
+        if: steps.trust.outputs.trusted == 'true'
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+        run: node scripts/resolve-e2e-clerk-user-id.mjs
+
       - name: Cache Playwright browsers
         id: playwright-cache
         if: steps.trust.outputs.trusted == 'true'
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           # @playwright/test のバージョンが変わったときのみ再ダウンロード
@@ -208,11 +217,18 @@ jobs:
             echo "::error::DEV_E2E_CLEANUP_SECRET is not set."
             exit 1
           fi
+          if [ -z "$E2E_CLERK_USER_ID" ]; then
+            echo "::error::E2E_CLERK_USER_ID is not set."
+            exit 1
+          fi
           if [ -z "$CONVEX_DEPLOY_KEY" ]; then
             echo "::warning::DEV_CONVEX_DEPLOY_KEY is not set. Skipping Convex env sync."
-            echo "Ensure Convex dev E2E_CLEANUP_SECRET already matches DEV_E2E_CLEANUP_SECRET."
+            echo "Ensure Convex dev APP_ENV=development, E2E_CLERK_USER_ID, and E2E_CLEANUP_SECRET already match the CI secrets."
             exit 0
           fi
+          pnpm exec convex env set APP_ENV development
+          pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
+          pnpm exec convex env set E2E_CLERK_USER_ID "$E2E_CLERK_USER_ID"
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
       - name: Configure local Vite E2E
@@ -246,12 +262,11 @@ jobs:
           # CI 内の Vite dev server が接続する Dev deployment の cleanup / seed 設定
           VITE_CONVEX_SITE_URL: ${{ secrets.DEV_VITE_CONVEX_SITE_URL }}
           E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
 
       # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）
       - name: Upload test results on failure
         if: failure() && steps.trust.outputs.trusted == 'true'
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: playwright-report-${{ github.run_id }}
           path: |

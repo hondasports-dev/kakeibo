@@ -99,6 +99,16 @@ test.describe("Issue #144 読み取りUI", () => {
         { timeout: 15000 },
       )
       .toBeGreaterThanOrEqual(2);
+    const batchProgress = queue.getByText(/今回の追加 \d+\/2件が登録準備OK/).first();
+    await expect(batchProgress).toBeVisible({ timeout: 15_000 });
+    const batchRegisterButton = queue.getByRole("button", { name: /まとめて登録（\d+件）/ }).last();
+    await expect(batchRegisterButton).toBeVisible();
+    const batchProgressText = (await batchProgress.textContent()) ?? "";
+    if (batchProgressText.includes("2/2")) {
+      await expect(batchRegisterButton).toBeEnabled();
+    } else {
+      await expect(batchRegisterButton).toBeDisabled();
+    }
     const processingSection = queue.getByRole("region", { name: "読み取り中" });
     await expect(processingSection).toBeVisible();
     await expect(processingSection.getByText("2件")).toBeVisible();
@@ -107,6 +117,35 @@ test.describe("Issue #144 読み取りUI", () => {
     // Issue #181: ReceiptForm → ExpenseEntryForm に変更
     await expect(page.getByLabel("店舗名 / 支払先")).toBeVisible();
     await expect(page.getByLabel("合計金額")).toBeVisible();
+  });
+
+  test("@smoke セッション中の画像をサムネイルからプレビューできる", async ({ page }) => {
+    await gotoAuthenticated(page, INPUT_PATH);
+
+    const queue = await waitForReceiptInputQueue(page);
+    const stamp = Date.now();
+    const files = [
+      await createSyntheticReceiptImage(page, `ai-queue-preview-${stamp}.jpg`),
+      await createSyntheticReceiptImage(page, `ai-queue-preview-2-${stamp}.jpg`),
+    ];
+    await page.getByLabel("読み取り用画像を追加").setInputFiles(files);
+    await acceptReceiptImageConsentIfNeeded(page, `ai-queue-preview-${stamp}.jpg`);
+
+    const previewButton = queue.getByRole("button", {
+      name: `ai-queue-preview-${stamp}.jpgの画像をプレビュー`,
+    });
+    await expect(previewButton).toBeVisible({ timeout: 15_000 });
+    await previewButton.click();
+
+    const dialog = page.getByRole("dialog", {
+      name: `ai-queue-preview-${stamp}.jpgの画像プレビュー`,
+    });
+    await expect(dialog).toBeVisible();
+    await expect(
+      dialog.getByRole("img", { name: `ai-queue-preview-${stamp}.jpgのレシート画像` }),
+    ).toBeVisible();
+    await dialog.getByRole("button", { name: "プレビューを閉じる" }).click();
+    await expect(dialog).toBeHidden();
   });
 
   test("@smoke SP幅では撮影して追加導線が表示され、撮影用inputにcapture属性が付く", async ({
@@ -199,13 +238,21 @@ test.describe("Issue #146 AI支出下書きの確認要否分類", () => {
 
     const reviewSection = queue.getByRole("region", { name: "確認待ち" });
     await expect(reviewSection.getByText("review-payment.png")).toBeVisible();
-    await expect(reviewSection.getByText("必須項目不足")).toBeVisible();
-    await expect(reviewSection.getByText("必須項目不足")).toBeVisible();
+    await expect(reviewSection.getByText("未分類あり")).toBeVisible();
+    await expect(reviewSection.getByText("他2件")).toBeVisible();
     await expect(reviewSection.getByRole("button", { name: "確認する" })).toBeEnabled();
 
     const failedSection = queue.getByRole("region", { name: "読み取り失敗" });
     await expect(failedSection.getByText("failed-receipt.png")).toBeVisible();
     await expect(failedSection.getByText("解析失敗")).toBeVisible();
+    await expect(
+      failedSection.getByText(
+        "明るい場所で、影や反射を避け、レシート全体を正面から撮影してください。",
+      ),
+    ).toBeVisible();
+    await expect(failedSection.getByRole("button", { name: "再解析" })).toBeDisabled();
+    await expect(failedSection.getByRole("button", { name: "再撮影" })).toBeEnabled();
+    await expect(page.getByLabel("再撮影する画像を選択")).toHaveAttribute("capture", "environment");
   });
 });
 
@@ -282,14 +329,15 @@ test.describe("Issue #321 AI支出下書きの明細確認・修正UI", () => {
     await dialog.getByRole("button", { name: "修正する" }).click();
     await expect(dialog.getByRole("heading", { name: "明細" })).toBeVisible();
     await expect(dialog.getByLabel("金額の照合")).toBeVisible();
+    await dialog.getByRole("button", { name: "内訳を表示" }).click();
     await expect(dialog.getByText("お支払い（レシート合計）")).toBeVisible();
     await expect(dialog.getByText("読み取り内容の信頼度が低い").first()).toBeVisible();
     await expect(dialog.getByLabel("明細カテゴリ")).toHaveCount(2);
-    await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toContainText("食費");
-    await expect(dialog.getByLabel("明細カテゴリ").nth(1)).toContainText("水道光熱費");
+    await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toHaveValue("食費");
+    await expect(dialog.getByLabel("明細カテゴリ").nth(1)).toHaveValue("水道光熱費");
     await dialog.getByLabel("明細カテゴリ").nth(0).click();
     await page.getByRole("option", { name: "水道光熱費" }).click();
-    await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toContainText("水道光熱費");
+    await expect(dialog.getByLabel("明細カテゴリ").nth(0)).toHaveValue("水道光熱費");
 
     await dialog.getByLabel("レシートの金額", { exact: true }).first().fill("400");
     await dialog.getByRole("button", { name: "胃薬を削除" }).click();
@@ -361,11 +409,15 @@ test.describe("下書き確認の税状態保存", () => {
     await dialog.getByRole("button", { name: "修正する" }).click();
     await dialog.getByRole("button", { name: "税率を一括適用" }).click();
     await expect(dialog.getByText(/税率 8%/).first()).toBeVisible({ timeout: 15_000 });
-    await expect(dialog.getByText("登録合計（税込）")).toBeVisible();
-    await expect(dialog.getByText("登録額: 108円（税込）")).toBeVisible();
-    await expect(dialog.getByText("金額は一致しています")).toBeVisible();
+    await expect(dialog.getByText("金額一致　108円")).toBeVisible();
 
     await dialog.getByLabel("レシートの金額", { exact: true }).fill("99");
+    await dialog.getByRole("button", { name: "内訳を表示" }).click();
+    await expect(dialog.getByText("登録合計（税込）")).toBeVisible();
+    await expect(dialog.getByText("登録額: 108円（税込）")).toBeVisible();
+    await expect(
+      dialog.getByText("印字合計とレシート小計が1円ずれています。金額が怪しい行を確認してください"),
+    ).toBeVisible();
     await expect(dialog.getByText(/登録額: \d+円（税込）/)).toBeVisible();
     await dialog.getByRole("button", { name: "保存して閉じる" }).click();
     await expect(dialog).toBeHidden();
@@ -449,7 +501,7 @@ test.describe("Issue #337 レシート入力UI改善の表示・操作回帰", (
       queue.getByRole("region", { name: "登録できます" }).getByRole("button", { name: "登録する" }),
     ).toBeVisible();
     await expect(
-      queue.getByRole("region", { name: "読み取り失敗" }).getByRole("button", { name: "再試行" }),
+      queue.getByRole("region", { name: "読み取り失敗" }).getByRole("button", { name: "再撮影" }),
     ).toBeVisible();
 
     await page.waitForTimeout(400);
@@ -554,7 +606,7 @@ test.describe("Issue #435 税率別集計の conflict 修正", () => {
     const taxIncludedAmountInput = dialog.getByRole("spinbutton", { name: "税込合計" });
     await taxIncludedAmountInput.fill("1060");
 
-    await dialog.getByRole("button", { name: "保存" }).click();
+    await dialog.getByRole("button", { name: "保存", exact: true }).click();
     await expect(dialog.getByRole("button", { name: "保存中…" })).toHaveCount(0, {
       timeout: 15_000,
     });
@@ -573,6 +625,7 @@ test.describe("Issue #435 税率別集計の conflict 修正", () => {
     const readySection = queue.getByRole("region", { name: "登録できます" });
     await readySection.getByRole("button", { name: "修正する" }).click();
     await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "税情報を確認" }).click();
     await expect(dialog.getByText("対象額 1,060円（税込）")).toBeVisible({ timeout: 10_000 });
   });
 });

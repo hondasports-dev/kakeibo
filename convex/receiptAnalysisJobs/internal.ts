@@ -4,12 +4,9 @@ import type { MutationCtx, QueryCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { internal } from "../_generated/api";
 import { deleteDraftAndItems } from "../../lib/convex/aiExpenseDrafts/draftRepository";
+import { isTerminalImageJobStatus } from "../../lib/domain/receiptAnalysisJobs/status";
 
-const TERMINAL_IMAGE_JOB_STATUSES = new Set(["ready", "needs_review", "failed", "cancelled"]);
-
-export function isTerminalImageJobStatus(status: string): boolean {
-  return TERMINAL_IMAGE_JOB_STATUSES.has(status);
-}
+export { isTerminalImageJobStatus } from "../../lib/domain/receiptAnalysisJobs/status";
 
 export async function getBatchByIdHandler(
   ctx: QueryCtx,
@@ -60,6 +57,7 @@ export async function scheduleAiReviewNotificationIfNeeded(
 
 type DeleteReceiptAnalysisDataByUserBatchArgs = {
   groupId: Id<"groups">;
+  userId: string;
   limit?: number;
 };
 
@@ -158,7 +156,9 @@ export async function deleteReceiptAnalysisDataByUserBatchHandler(
   const limit = Math.min(Math.max(Math.floor(args.limit ?? 25), 1), 100);
   const batches = await ctx.db
     .query("receiptAnalysisBatches")
-    .withIndex("by_group_id_and_created_at", (q) => q.eq("groupId", args.groupId))
+    .withIndex("by_group_id_and_created_by_user_id", (q) =>
+      q.eq("groupId", args.groupId).eq("createdByUserId", args.userId),
+    )
     .order("asc")
     .take(limit);
 
@@ -242,6 +242,7 @@ export const getJobById = internalQuery({
 export const deleteReceiptAnalysisDataByUserBatch = internalMutation({
   args: {
     groupId: v.id("groups"),
+    userId: v.string(),
     limit: v.optional(v.number()),
   },
   handler: deleteReceiptAnalysisDataByUserBatchHandler,

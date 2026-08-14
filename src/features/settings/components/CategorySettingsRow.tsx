@@ -2,7 +2,7 @@ import { Box, Button, Chip, Collapse, Stack, TextField, Typography } from "@mui/
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { designTokens } from "../../../designTokens";
 import type { Category } from "../hooks/useCategorySettings";
-import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/categoryDescription";
+import { MAX_CATEGORY_DESCRIPTION_LENGTH } from "../../../../lib/domain/categories/category";
 
 type CategorySettingsRowProps = {
   category: Category;

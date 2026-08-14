@@ -682,6 +682,12 @@
   overflow: hidden;
 }
 
+.app-header-search {
+  flex: 1 1 160px;
+  min-width: 0;
+  max-width: 360px;
+}
+
 .user-menu-button span {
   min-width: 0;
   overflow: hidden;
@@ -760,11 +766,13 @@
   white-space: nowrap;
 }
 
+.summary-header,
 .weekly-summary-header {
   align-items: center;
   gap: var(--space-md);
 }
 
+.summary-header-icon,
 .weekly-summary-header-icon {
   display: none;
   width: 32px;
@@ -938,14 +946,17 @@
     padding: var(--space-panel);
   }
 
+  .summary-header,
   .weekly-summary-header {
     gap: var(--space-sm);
   }
 
+  .summary-header h1,
   .weekly-summary-header h1 {
     font-size: 1.25rem;
   }
 
+  .summary-header-icon,
   .weekly-summary-header-icon {
     display: block;
   }
@@ -1110,6 +1121,10 @@
 
   .user-menu-button {
     max-width: calc(100vw - 32px);
+  }
+
+  .app-header-search {
+    max-width: none;
   }
 
   .user-menu-button > span {

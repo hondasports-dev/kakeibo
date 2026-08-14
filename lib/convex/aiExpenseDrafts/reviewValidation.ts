@@ -1,12 +1,25 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { isValidSignedLineItemAmount } from "../../../convex/lib/discountItems";
+import { isValidSignedLineItemAmount } from "../../../lib/domain/receipt/discountItems";
+import { trimOptional } from "../../../lib/domain/common/string";
 import {
-  AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
-  type AiExpenseDraftDocumentType,
-} from "./validators";
-import { resolveReceiptShopNameFromDraft } from "./display";
+  getReviewUpdateReadyErrorMessage,
+  validateReviewUpdateCanBecomeReady,
+} from "../../../lib/domain/aiExpenseDrafts/review";
+import { type AiExpenseDraftDocumentType } from "./validators";
+import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
+import {
+  aggregateDraftItemsByCategory as aggregateDraftItemsByCategoryDomain,
+  getDraftItemAggregationErrorMessage,
+  validatePositiveCategoryTotals,
+} from "../../../lib/domain/aiExpenseDrafts/reviewItems";
+
+export { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
+export {
+  hasLowConfidenceItem,
+  summarizeItems,
+} from "../../../lib/domain/aiExpenseDrafts/reviewItems";
 
 export type UpdateForReviewItem = {
   itemId?: Id<"aiExpenseDraftItems">;
@@ -35,52 +48,11 @@ export type UpdateForReviewArgs = {
   items?: UpdateForReviewItem[];
 };
 
-export function trimOptional(value: string | undefined) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-}
-
-export function hasCounterparty(args: UpdateForReviewArgs) {
-  if (args.documentType === "convenience_payment") {
-    return (
-      !!trimOptional(args.shopName) ||
-      (!!trimOptional(args.payeeName) && !!trimOptional(args.paymentPurpose))
-    );
-  }
-  return (
-    !!trimOptional(args.shopName) ||
-    !!trimOptional(args.payeeName) ||
-    !!trimOptional(args.paymentPlace)
-  );
-}
-
 export function assertReviewUpdateCanBecomeReady(args: UpdateForReviewArgs) {
-  if (args.documentType === "unknown") {
-    throw new ConvexError("Draft document type must be selected to mark ready");
-  }
-  const date = trimOptional(args.date);
-  if (!date) {
-    throw new ConvexError("Draft date is required to mark ready");
-  }
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const parsedDate = match ? new Date(`${date}T00:00:00Z`) : null;
-  if (
-    !match ||
-    !parsedDate ||
-    Number.isNaN(parsedDate.getTime()) ||
-    parsedDate.toISOString().slice(0, 10) !== date
-  ) {
-    throw new ConvexError("Draft date must be a valid YYYY-MM-DD date");
-  }
-  if (!Number.isInteger(args.amountYen) || args.amountYen <= 0) {
-    throw new ConvexError("Draft amount is required to mark ready");
-  }
-  if (!hasCounterparty(args)) {
-    if (args.documentType === "convenience_payment") {
-      throw new ConvexError("Draft shop name or payment details are required to mark ready");
-    }
-    throw new ConvexError("Draft shop, payment place, or payee is required to mark ready");
-  }
+  const result = validateReviewUpdateCanBecomeReady(args);
+  if (result.success) return;
+
+  throw new ConvexError(getReviewUpdateReadyErrorMessage(result.error, args.documentType));
 }
 
 export async function assertActiveCategoryBelongsToGroup(
@@ -98,200 +70,35 @@ export async function assertActiveCategoryBelongsToGroup(
 }
 
 export function assertPositiveCategoryTotals(items: NonNullable<UpdateForReviewArgs["items"]>) {
-  const totals = new Map<Id<"categories">, number>();
-  for (const item of items) {
-    totals.set(item.categoryId, (totals.get(item.categoryId) ?? 0) + item.amountYen);
-  }
-  if ([...totals.values()].some((amountYen) => amountYen <= 0)) {
+  if (!validatePositiveCategoryTotals(items)) {
     throw new ConvexError("Draft category total must be greater than zero");
   }
-}
-
-export function hasLowConfidenceDraftItem(item: Doc<"aiExpenseDraftItems">) {
-  return (
-    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
-      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
-  );
-}
-
-export function hasLowConfidenceItem(item: {
-  confidence: {
-    itemName?: number;
-    amountYen?: number;
-    categoryName?: number;
-    categoryId?: number;
-  };
-}) {
-  return (
-    (item.confidence.itemName ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.amountYen ?? 1) < AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD ||
-    (item.confidence.categoryId ?? item.confidence.categoryName ?? 1) <
-      AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD
-  );
-}
-
-export function summarizeItems(
-  draft: { amountYen?: number },
-  items: Array<{
-    amountYen: number;
-    normalizedAmountYen?: number;
-    categoryId?: Id<"categories">;
-    confidence: {
-      itemName?: number;
-      amountYen?: number;
-      categoryName?: number;
-      categoryId?: number;
-    };
-  }>,
-) {
-  if (items.length === 0) {
-    return undefined;
-  }
-
-  const categoryAmounts = new Map<Id<"categories">, number>();
-  let itemTotalYen = 0;
-  let hasUncategorizedItems = false;
-  let hasLowConfidenceItems = false;
-
-  for (const item of items) {
-    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
-    itemTotalYen += registrationAmountYen;
-    if (item.categoryId === undefined) {
-      hasUncategorizedItems = true;
-    } else {
-      categoryAmounts.set(
-        item.categoryId,
-        (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
-      );
-    }
-    if (hasLowConfidenceItem(item)) {
-      hasLowConfidenceItems = true;
-    }
-  }
-
-  return {
-    itemTotalYen,
-    itemDifferenceYen: draft.amountYen === undefined ? undefined : draft.amountYen - itemTotalYen,
-    hasUncategorizedItems,
-    hasLowConfidenceItems,
-    categoryAggregates: Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
-      categoryId,
-      amountYen,
-    })),
-  };
 }
 
 export function aggregateDraftItemsByCategory(
   draft: Doc<"aiExpenseDrafts">,
   items: Doc<"aiExpenseDraftItems">[],
-) {
-  if (items.length === 0) {
-    return [
-      {
-        itemName: resolveReceiptShopNameFromDraft(draft),
-        amountYen: draft.amountYen!,
-        categoryId: draft.categoryId!,
-      },
-    ];
+): Array<{ itemName: string; amountYen: number; categoryId: Id<"categories"> }> {
+  const result = aggregateDraftItemsByCategoryDomain(
+    {
+      amountYen: draft.amountYen!,
+      categoryId: draft.categoryId!,
+      documentType: draft.documentType,
+      shopName: draft.shopName,
+      paymentPlace: draft.paymentPlace,
+      payeeName: draft.payeeName,
+      paymentPurpose: draft.paymentPurpose,
+    },
+    items,
+  );
+  if (!result.success) {
+    throw new ConvexError(getDraftItemAggregationErrorMessage(result.error));
   }
-
-  let itemTotal = 0;
-  const categoryAmounts = new Map<Id<"categories">, number>();
-  for (const item of items) {
-    const registrationAmountYen = item.normalizedAmountYen ?? item.amountYen;
-    if (!isValidSignedLineItemAmount(item.itemName, registrationAmountYen)) {
-      throw new ConvexError("Draft item amount is required to register");
-    }
-    if (item.categoryId === undefined) {
-      throw new ConvexError("Draft item category is required to register");
-    }
-    if (hasLowConfidenceDraftItem(item)) {
-      throw new ConvexError("Low confidence draft items must be reviewed before register");
-    }
-
-    itemTotal += registrationAmountYen;
-    categoryAmounts.set(
-      item.categoryId,
-      (categoryAmounts.get(item.categoryId) ?? 0) + registrationAmountYen,
-    );
-  }
-
-  if (itemTotal !== draft.amountYen) {
-    throw new ConvexError("Draft item total must match draft amount");
-  }
-  if ([...categoryAmounts.values()].some((amountYen) => amountYen <= 0)) {
-    throw new ConvexError("Draft category total must be greater than zero");
-  }
-
-  const itemNamesByCategory = new Map<Id<"categories">, string[]>();
-  for (const item of items) {
-    if (item.categoryId === undefined) {
-      continue;
-    }
-    const itemNames = itemNamesByCategory.get(item.categoryId) ?? [];
-    itemNames.push(item.itemName.trim());
-    itemNamesByCategory.set(item.categoryId, itemNames);
-  }
-
-  return Array.from(categoryAmounts.entries()).map(([categoryId, amountYen]) => ({
-    itemName:
-      itemNamesByCategory.get(categoryId)?.join("、") ?? resolveReceiptShopNameFromDraft(draft),
-    amountYen,
-    categoryId,
-  }));
-}
-
-type ReviewReplacePreviousItem = Pick<
-  Doc<"aiExpenseDraftItems">,
-  "amountYen" | "printedAmountYen" | "normalizedAmountYen" | "taxResolutionStatus" | "amountBasis"
->;
-
-export function resolveReviewItemAmountsForReplace(
-  submittedAmountYen: number,
-  previous: ReviewReplacePreviousItem | undefined,
-): {
-  amountYen: number;
-  printedAmountYen: number;
-  normalizedAmountYen?: number;
-} {
-  if (previous?.taxResolutionStatus === "resolved" && previous.printedAmountYen !== undefined) {
-    if (previous.amountBasis === "tax_included") {
-      const previousDisplay = previous.normalizedAmountYen ?? previous.amountYen;
-      if (submittedAmountYen === previousDisplay) {
-        return {
-          amountYen: previousDisplay,
-          printedAmountYen: previous.printedAmountYen,
-          normalizedAmountYen: previous.normalizedAmountYen ?? previousDisplay,
-        };
-      }
-      return {
-        amountYen: submittedAmountYen,
-        printedAmountYen: submittedAmountYen,
-        normalizedAmountYen: submittedAmountYen,
-      };
-    }
-
-    const previousPrinted = previous.printedAmountYen;
-    if (submittedAmountYen === previousPrinted) {
-      return {
-        amountYen: previous.normalizedAmountYen ?? submittedAmountYen,
-        printedAmountYen: previousPrinted,
-        normalizedAmountYen: previous.normalizedAmountYen,
-      };
-    }
-    return {
-      amountYen: submittedAmountYen,
-      printedAmountYen: submittedAmountYen,
-      normalizedAmountYen: undefined,
-    };
-  }
-
-  return {
-    amountYen: submittedAmountYen,
-    printedAmountYen: submittedAmountYen,
-  };
+  return result.items as Array<{
+    itemName: string;
+    amountYen: number;
+    categoryId: Id<"categories">;
+  }>;
 }
 
 export async function replaceDraftItemsForReview(

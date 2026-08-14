@@ -1,3 +1,4 @@
+import { api } from "../../../../convex/_generated/api";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,7 +15,6 @@ vi.mock("convex/react", () => ({
 }));
 
 import { SystemAdminManagementPage } from "./SystemAdminManagementPage";
-import { api } from "../../../../convex/_generated/api";
 
 describe("SystemAdminManagementPage", () => {
   const actionMock = vi.fn();

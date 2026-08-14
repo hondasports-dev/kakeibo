@@ -5,6 +5,7 @@ import type { CategorySummary } from "../types/types";
 export function CategoryBreakdownCard({
   byCategory,
   count,
+  emptyMessage = "まだレシートがありません",
   isLoading,
   showPercentage = false,
   title = "カテゴリ別",
@@ -12,6 +13,7 @@ export function CategoryBreakdownCard({
 }: {
   byCategory: CategorySummary[];
   count: number;
+  emptyMessage?: string;
   isLoading: boolean;
   showPercentage?: boolean;
   title?: string;
@@ -43,7 +45,7 @@ export function CategoryBreakdownCard({
             </>
           ) : count === 0 ? (
             <Typography color="text.secondary" variant="body2">
-              まだレシートがありません
+              {emptyMessage}
             </Typography>
           ) : (
             <Stack spacing={1.5}>

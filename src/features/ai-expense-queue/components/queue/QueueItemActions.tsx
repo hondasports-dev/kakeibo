@@ -1,4 +1,5 @@
 import ReplayIcon from "@mui/icons-material/Replay";
+import CameraAltIcon from "@mui/icons-material/CameraAlt";
 import { Button, Stack } from "@mui/material";
 import type { AiExpenseQueueItem } from "../../types/types";
 import { DeleteQueueButton } from "./DeleteQueueButton";
@@ -8,19 +9,25 @@ export function QueueItemActions({
   onOpenReview,
   onRegisterItem,
   onRetry,
+  onReanalyze,
   onDelete,
   onReturnToManualInput,
   isDeleting,
   isRegistering,
+  isRetrying,
+  canReanalyze,
 }: {
   item: AiExpenseQueueItem;
   onOpenReview: (itemId: string) => void;
   onRegisterItem: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
+  onReanalyze?: (itemId: string) => void;
   onDelete?: (item: AiExpenseQueueItem) => void;
   onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
   isDeleting: boolean;
   isRegistering: boolean;
+  isRetrying: boolean;
+  canReanalyze: boolean;
 }) {
   const canDelete = item.status !== "registered" && item.status !== "registering";
 
@@ -39,13 +46,24 @@ export function QueueItemActions({
     return (
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
         <Button
+          disabled={isRetrying || !canReanalyze}
           size="small"
           startIcon={<ReplayIcon fontSize="small" />}
+          onClick={() => onReanalyze?.(item.id)}
+          type="button"
+          variant="outlined"
+        >
+          再解析
+        </Button>
+        <Button
+          disabled={isRetrying}
+          size="small"
+          startIcon={<CameraAltIcon fontSize="small" />}
           onClick={() => onRetry?.(item.id)}
           type="button"
           variant="outlined"
         >
-          再試行
+          再撮影
         </Button>
         <Button
           disabled={isDeleting}

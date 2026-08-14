@@ -14,16 +14,17 @@
 
 ## Codex / Devin 共通の委譲ルール
 
-- `.agents/roles/` 配下のファイルは、役割別の指示書として扱う。
-- 実行環境がサブエージェントを利用できる場合は、ユーザーの明示的な許可があるときだけ必要な役割へ委譲する。
-- Codexでは、開始プロンプトに「必要に応じてサブエージェントを起動してよい」と明記されている場合、それを単なる許可ではなく、役割分担・並列調査・独立した実装タスクが有効な局面でサブエージェント起動を要求する指示として扱う。
-- Codexでサブエージェント機能が未ロードなら、まず `tool_search` で multi-agent / spawn 系ツールを探す。`multi_agent_v1.spawn_agent` が使える場合はそれを使い、プロンプトに「xxx サブエージェントを起動」という役割名を明記する。
+- `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` を実行契約の正本とする。旧来のrole定義を実行時の正本にしない。
+- 実行環境がサブエージェントを利用できる場合は、ユーザーの明示的な許可、または `AGENTS.md` / `skills/requirements/SKILL.md` が要求する要件レビュー契約に従って委譲する。
+- Codex Plan モードでは Main が Company Coordinator と Tech Lead を兼務し、要件統合、設計判断、Implementation Handoff、Git操作を管理する。
+- `.codex/agents/*.toml` は使わず、独立レビューや調査は `skills/*/SKILL.md` の契約に従う。
 - Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
-- 実行時サブエージェントが利用できない環境では、利用できない理由を明記してから、メインエージェントが必要な役割指示書を読み、同じ順序で作業する。
-- Product Lead と Tech Lead は、要件が曖昧な間は順番に進める。
-- Implementer は、担当範囲が分離できる場合だけ複数に分ける。
+- 要件レビューのクォーラム未達をMainの自己レビューで代替しない。利用不能時はRequirementsの契約に従って再試行・代替・BLOCKEDを記録する。
+- 独立要件レビューの結果を Main が統合し、統合後仕様レビューを通してから技術設計へ進む。
+- 同じ差分の writer は原則 Implementer 1体とし、QA AgentとReviewerは論理 read-only とする。
 - QA Agent は、実装前のE2Eテスト設計レビューと、実装後のQA・E2E結果確認の2回使ってよい。
-- PR作成後の QA Agent と Reviewer は並列で実行してよい。
+- Reviewer の指摘は Main が同じ Implementer へ修正 Handoff として返す。
+- Security ReviewはReviewerとは別のread-only Gateとして、Code Review後・Release Managerの前に実行する。
 
 ## 呼び出し方
 
@@ -35,7 +36,7 @@ workflows/market-to-build.md を使って、
 アプリ案が決まるまでは実装サブエージェントを起動しないで。
 
 私が「この案で進める」と言ったら、
-Tech Lead、必要ならUX/UI Designer、Implementer、QA Agent、Reviewer、Release Managerを使って、
+Main が Tech Lead を兼務し、必要なら UX/UI Designer、Implementer、QA Agent、Reviewer、Release Manager を使って、
 開発からリリース準備まで進めて。
 
 Codexで作業する場合は、この依頼をサブエージェント起動の明示的な許可として扱い、
@@ -47,7 +48,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 担当:
 
-- Product Lead
+- 市場調査担当
 - `$research-current-market`
 
 入力:
@@ -98,19 +99,21 @@ Devinで作業する場合も、同じ役割分担で進めて。
 - 候補を絞り直す。
 - 企画の壁打ちを続ける。
 
-## フェーズ2: 要件確定
+## フェーズ2: 要件・仕様の収束
 
 担当:
 
-- Product Lead
+- 独立要件レビューエージェント（通常2、高リスク3）
+- Main
 
 実施内容:
 
-- 対象ユーザーを確定する。
-- 解く課題を1つに絞る。
-- MVP機能を3から5個に絞る。
-- 作らない機能を明記する。
-- 成功指標を決める。
+- `skills/requirements/SKILL.md` に従い、同じ入力スナップショットを使って並列レビューする。
+- 対象ユーザー、解く課題、期待結果を確定する。
+- In scope / Out of scope / Preserveを分ける。
+- edge / error / loading / empty / authorization状態を確認する。
+- Given / When / Then形式のAcceptance CriteriaとTest / E2E方針を作る。
+- Mainが合意点、対立点、解決、未解決ブロッカーを統合し、別エージェントが統合後仕様をレビューする。
 
 出力:
 
@@ -118,12 +121,13 @@ Devinで作業する場合も、同じ役割分担で進めて。
 - MVP範囲
 - 非機能要件の初期案
 - 受け入れ条件
+- 入力revision、packet version、独立レビューEvidence、統合結果、統合後仕様レビュー
 
 ## フェーズ3: 技術設計
 
 担当:
 
-- Tech Lead
+- Main（Coordinator兼Tech Lead）
 - UIが重要な場合のみ optional UX/UI Designer
 
 実施内容:
@@ -153,7 +157,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 実施内容:
 
-- Product Lead の受け入れ条件と Tech Lead のテスト方針を照合する。
+- 確定した受け入れ条件とTech Leadのテスト方針を照合する。
 - 既存の `e2e/*.spec.ts` と `docs/qa-checklist.md` の観点でカバーできるか確認する。
 - E2Eで確認する項目、単体・統合テストで確認する項目、手動確認に回す項目を分類する。
 - 新規E2Eが必要な場合は、優先度、カテゴリ、Given / When / Then、テストデータ・cleanup要否を決める。
@@ -166,7 +170,7 @@ Devinで作業する場合も、同じ役割分担で進めて。
 - 優先度とカテゴリ
 - E2E以外で確認する項目
 - `docs/qa-checklist.md` 更新要否
-- 判定（`approved` / `needs_revision` / `needs_discussion`）
+- 判定（`approved` / `needs_revision` / `blocked`）
 
 ## フェーズ5: 実装
 
@@ -174,9 +178,11 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 - Implementer
 
+Main が固定形式の Implementation Handoff を確定し、原則1体の Implementer へ渡す。
+
 実施内容:
 
-- Tech Lead の設計に沿って実装する。
+- Main が確定した Implementation Handoff に沿って実装する。
 - 変更範囲を小さく保つ。
 - 必要なテストを追加する。
 - 新規E2Eが必要な場合は `e2e/` を更新し、恒久的なQA観点の更新が必要な場合だけ `docs/qa-checklist.md` を最小差分で更新する。
@@ -187,18 +193,24 @@ Devinで作業する場合も、同じ役割分担で進めて。
 - コード変更
 - テスト追加
 - 検証結果
+- Handoffとの差分
 - 未解決事項
 
 ## フェーズ6: QAとレビュー
+
+QAとレビューへ進む前に、Main が Implementation Handoff と `git status --short`、`git diff HEAD`、
+untracked ファイルの内容を照合する integrity check を行う。違反があれば同じ Implementer へ修正 Handoff を返す。
+修正後、Reviewer完了後、公開直前にも再実行する。
 
 担当:
 
 - QA Agent
 - Reviewer
+- Security Review（Reviewerとは独立した論理 read-only）
 
-並列化:
+開始条件:
 
-- 実装が完了した後、QA Agent と Reviewer は並列で実行してよい。
+- 実装完了後の Main integrity check が通っている。
 
 QA Agent の確認:
 
@@ -216,31 +228,42 @@ Reviewer の確認:
 - テスト不足
 - 既存設計との整合性
 
+Security Review の確認:
+
+- 認証・認可
+- data boundary / privacy
+- input / injection
+- secret / external service
+- 破壊的操作
+
 出力:
 
 - QA結果
 - レビュー指摘
 - 修正が必要な項目
 - リリース可否
+- Security Review判定（`PASS` / `FAIL` / `NOT_REQUIRED` / `BLOCKED`）
 
 ## フェーズ7: 修正ループ
 
 条件:
 
-- QAまたはReviewerが重大な問題を見つけた場合。
+- QA、Reviewer、またはSecurity Reviewが重大な問題を見つけた場合。
 
 戻し先:
 
-- 仕様漏れ: Product Lead
-- 設計問題: Tech Lead
-- E2Eテスト設計の不足: Tech Lead
-- 実装バグ: Implementer
-- UI問題: optional UX/UI Designer または Implementer
+- 仕様漏れ: Requirementsへ戻し、影響する独立レビューからやり直す。
+- 設計問題: Mainの設計工程
+- E2Eテスト設計の不足: Mainの設計工程
+- 実装バグ: Mainが同じImplementerへ修正Handoff
+- UI問題: Mainが optional UX/UI Designer の評価を得て、必要なら同じImplementerへ修正Handoff
+- セキュリティ問題: Security Reviewから Mainへ返し、同じImplementerへ修正Handoff。修正後はVerification、Code Review、Security Reviewを再実行する。
 
 完了条件:
 
 - 重大なQA不具合がない。
 - Reviewerが承認できる。
+- Security Reviewが `PASS` または根拠付き `NOT_REQUIRED` である。
 - 未解決リスクが明示されている。
 
 ## フェーズ8: リリース準備
@@ -272,7 +295,7 @@ Reviewer の確認:
 - Go / No-Go ゲートでは、ユーザー承認なしに進まない。
 - 開発フェーズに入ったら、作業を細かく分け、明示的な許可がある場合だけ必要なサブエージェントへ委譲する。
 - Codexでサブエージェントを起動する場合は、各サブエージェントの担当範囲と成果物を明確にし、同じファイルを複数のImplementerに編集させない。
-- サブエージェントを起動しない場合でも、各役割の指示書に沿って同じ成果物を作る。
+- サブエージェントを起動しない場合でも、`AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` の正本契約に沿って同じ成果物を作る。要件レビューが必須なのに利用できない場合は、Mainの自己レビューで代替せず `BLOCKED` とする。
 - 最終回答では、現在フェーズ、完了したこと、次のアクションを明示する。
 
 ## 便利な開始プロンプト

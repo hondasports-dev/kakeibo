@@ -1,10 +1,20 @@
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
-import { Alert, Box, Snackbar, Stack, Typography } from "@mui/material";
+import { listActiveApi } from "../../../lib/repositories/categories";
+import { deleteExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
+import {
+  deleteReceiptApi,
+  getFourWeeksSummaryApi,
+  getWeekSummaryWithCategoriesApi,
+} from "../../../lib/repositories/receipts";
+import { getUserProfileApi } from "../../../lib/repositories/users";
+import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
+import { formatYearLabel } from "../../../../lib/domain/common/year";
 import { WeekNavigator } from "../../week";
+import { HistoryNavigation } from "../../app-shell/components/HistoryNavigation";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
 import { ExpenseEntryDeleteDialog } from "../components/ExpenseEntryDeleteDialog";
 import { ExpenseEntryEditDialog } from "../components/ExpenseEntryEditDialog";
@@ -28,14 +38,18 @@ export function SummaryPage() {
   const [deleteError, setDeleteError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
 
-  const deleteExpenseEntry = useMutation(api.expenseEntries.mutations.deleteExpenseEntry);
-  const deleteReceipt = useMutation(api.receipts.crud.deleteReceipt);
-  const categoriesQuery = useQuery(api.categories.queries.listActive);
+  const deleteExpenseEntry = useMutation(deleteExpenseEntryApi());
+  const deleteReceipt = useMutation(deleteReceiptApi());
+  const userProfile = useQuery(getUserProfileApi());
+  const categoriesQuery = useQuery(listActiveApi());
   const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
 
-  const currentWeekStartDate = getCurrentWeekStartDate();
+  const weeklyStartDay = userProfile?.weeklyStartDay ?? 1;
+  const currentWeekStartDate = getCurrentWeekStartDate(weeklyStartDay);
 
-  const normalized = rawWeekStartDate ? normalizeWeekStartDate(rawWeekStartDate) : null;
+  const normalized = rawWeekStartDate
+    ? normalizeWeekStartDate(rawWeekStartDate, weeklyStartDay)
+    : null;
   const weekStartDate =
     normalized !== null && !isFutureWeek(normalized, currentWeekStartDate)
       ? normalized
@@ -43,17 +57,30 @@ export function SummaryPage() {
 
   const weekEndDate = getWeekEndDate(weekStartDate);
   const isCurrentWeek = weekStartDate === currentWeekStartDate;
+  const summaryMonth = weekStartDate.slice(0, 7);
+  const summaryYear = weekStartDate.slice(0, 4);
+  const historyNavigation = (
+    <HistoryNavigation
+      monthlyPath={`/months/${summaryMonth}`}
+      searchPath="/search"
+      weeklyPath={`/weeks/${weekStartDate}`}
+    />
+  );
 
   useEffect(() => {
-    if (rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
+    if (userProfile !== undefined && rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
       navigate(`/weeks/${weekStartDate}`, { replace: true });
     }
-  }, [rawWeekStartDate, weekStartDate, navigate]);
+  }, [rawWeekStartDate, userProfile, weekStartDate, navigate]);
 
-  const weeklySummary = useQuery(api.receipts.summaries.getWeekSummaryWithCategories, {
-    weekStartDate,
-  });
-  const fourWeeksSummary = useQuery(api.receipts.summaries.getFourWeeksSummary, { weekStartDate });
+  const weeklySummary = useQuery(
+    getWeekSummaryWithCategoriesApi(),
+    userProfile === undefined ? "skip" : { weekStartDate },
+  );
+  const fourWeeksSummary = useQuery(
+    getFourWeeksSummaryApi(),
+    userProfile === undefined ? "skip" : { weekStartDate },
+  );
   const weeklyExpenseTrend =
     fourWeeksSummary !== undefined && Array.isArray(fourWeeksSummary.weeks)
       ? buildWeeklyExpenseChartData({
@@ -64,7 +91,7 @@ export function SummaryPage() {
       : undefined;
 
   const navigateToWeek = (newWeekStartDate: string) => {
-    const norm = normalizeWeekStartDate(newWeekStartDate) ?? currentWeekStartDate;
+    const norm = normalizeWeekStartDate(newWeekStartDate, weeklyStartDay) ?? currentWeekStartDate;
     const target = isFutureWeek(norm, currentWeekStartDate) ? currentWeekStartDate : norm;
     navigate(`/weeks/${target}`);
   };
@@ -94,22 +121,30 @@ export function SummaryPage() {
     }
   };
 
-  if (weeklySummary === undefined) {
+  if (userProfile === undefined || weeklySummary === undefined) {
     return (
-      <SuzumemoLoadingState
-        label="データを読み込み中"
-        message="週次サマリーを読み込んでいます…"
-        variant="page"
-      />
+      <Box className="app-main">
+        <Stack spacing={3}>
+          {historyNavigation}
+          <SuzumemoLoadingState
+            label="データを読み込み中"
+            message="週次サマリーを読み込んでいます…"
+            variant="page"
+          />
+        </Stack>
+      </Box>
     );
   }
 
   if (weeklySummary === null) {
     return (
       <Box className="app-main">
-        <Alert severity="error" variant="outlined">
-          週次サマリーの読み込みに失敗しました。
-        </Alert>
+        <Stack spacing={3}>
+          {historyNavigation}
+          <Alert severity="error" variant="outlined">
+            週次サマリーの読み込みに失敗しました。
+          </Alert>
+        </Stack>
       </Box>
     );
   }
@@ -117,6 +152,7 @@ export function SummaryPage() {
   return (
     <Box className="app-main">
       <Stack spacing={3}>
+        {historyNavigation}
         <Stack className="weekly-summary-header" direction="row">
           <Box
             alt=""
@@ -139,6 +175,16 @@ export function SummaryPage() {
           onPreviousWeek={() => navigateToWeek(addWeeks(weekStartDate, -1))}
           onNextWeek={() => navigateToWeek(addWeeks(weekStartDate, 1))}
         />
+
+        <Button
+          component={Link}
+          endIcon={<ChevronRightIcon />}
+          sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
+          to={`/years/${summaryYear}`}
+          variant="outlined"
+        >
+          {formatYearLabel(summaryYear)}の年次サマリーを見る
+        </Button>
 
         {deleteError && (
           <Alert severity="error" variant="outlined" onClose={() => setDeleteError("")}>

@@ -2,6 +2,7 @@ import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
+import { getCurrentWeekStartDate } from "../../week";
 import { AppLayout } from "./AppLayout";
 
 const { useClerkMock, useUserMock, useMediaQueryMock } = vi.hoisted(() => ({
@@ -9,10 +10,15 @@ const { useClerkMock, useUserMock, useMediaQueryMock } = vi.hoisted(() => ({
   useUserMock: vi.fn(),
   useMediaQueryMock: vi.fn(),
 }));
+const useQueryMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/react", () => ({
   useClerk: useClerkMock,
   useUser: useUserMock,
+}));
+
+vi.mock("convex/react", () => ({
+  useQuery: (...args: unknown[]) => useQueryMock(...args),
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -21,7 +27,9 @@ vi.mock("react-router-dom", () => ({
   ),
   Outlet: () => <div>Outlet</div>,
   useLocation: () => ({ pathname: "/" }),
+  useNavigation: () => ({ location: undefined, state: "idle" }),
   useNavigate: () => vi.fn(),
+  useSearchParams: () => [new URLSearchParams(), vi.fn()],
 }));
 
 vi.mock("@mui/material", async (importOriginal) => {
@@ -39,6 +47,7 @@ describe("AppLayout サイドバー開閉", () => {
       signOut: vi.fn(),
     });
     useUserMock.mockReturnValue({ user: null });
+    useQueryMock.mockReturnValue({ weeklyStartDay: 1 });
   });
 
   describe("PC表示（isPC=true）", () => {
@@ -79,6 +88,17 @@ describe("AppLayout サイドバー開閉", () => {
       // 閉じるボタンに戻る
       expect(screen.getByRole("button", { name: "サイドバーを閉じる" })).toBeInTheDocument();
     });
+
+    it("履歴リンクにユーザーの週開始曜日を反映する", () => {
+      useQueryMock.mockReturnValue({ weeklyStartDay: 3 });
+
+      renderWithProviders(<AppLayout />);
+
+      expect(screen.getByRole("link", { name: "履歴" })).toHaveAttribute(
+        "href",
+        `/weeks/${getCurrentWeekStartDate(3)}`,
+      );
+    });
   });
 
   describe("スマートフォン表示（isPC=false）", () => {
@@ -103,6 +123,12 @@ describe("AppLayout サイドバー開閉", () => {
         expect(bottomNavigation).toContainElement(link);
         expect(link.querySelector("svg")).toBeInTheDocument();
       }
+    });
+
+    it("ヘッダーに支出検索窓を表示する", () => {
+      renderWithProviders(<AppLayout />);
+
+      expect(screen.getByLabelText("支出を検索")).toBeInTheDocument();
     });
   });
 });

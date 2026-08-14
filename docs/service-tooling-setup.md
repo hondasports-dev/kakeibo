@@ -202,6 +202,7 @@ pnpm run dev -- --host 127.0.0.1
 - `babysit-pr` — PR merge-ready 化
 - `code-review` — PR前セルフレビュー（Plan 契約フェーズ4）
 - `e2e-author` — E2E 追加・更新・省略判断と spec 作成
+- `e2e-smoke-run` — Smoke E2E 実行手順
 - `issue-gate-0` — 実装前仕様ゲート（Plan 契約フェーズ0）
 - `prompt-injection-guard` — プロンプトインジェクション対策
 - `service-ops-safety` — 外部サービス操作安全確認
@@ -744,3 +745,22 @@ args: -y chrome-devtools-mcp@latest
 - Convex MCP: <https://docs.convex.dev/ai/convex-mcp-server>
 - Convex production: <https://docs.convex.dev/production>
 - Chrome DevTools MCP: <https://developer.chrome.com/blog/chrome-devtools-mcp>
+
+## 13. LINE連携基盤の外部設定・手動疎通方針
+
+### 13.1 設定単位
+
+LINE Developers Consoleでは、Development、Preview、ProductionごとにProviderとchannelを分離する。各環境のProvider内にLINE Login channelとMessaging API channelを作成し、callback URL、Webhook URL、channel secret、access tokenを同じ環境のものだけに紐づける。実際のchannel作成やsecret設定はこの文書の手順確認後に人間が実施し、Codexは今回実行しない。
+
+### 13.2 secretとrotation
+
+LINE Login channel secret、Messaging API channel secret、Messaging API channel access tokenはConvexの対象環境secretとして保管し、フロントエンドへ渡さない。rotation時は対象環境のsecretを先に更新し、OAuth callbackとWebhookの疑似検証を確認してから旧secretを失効させる。Production secretの作成・更新・読み取り・失効は明示承認なしに実行しない。
+
+### 13.3 mock・疑似Webhook・手動疎通
+
+- Unit / Convex test: `LINE_INTEGRATION_MODE=mock`でtoken交換、ID token検証、返信clientをstubする。
+- CI: raw bodyと署名を固定fixtureで送る疑似Webhookを使い、実LINE APIを呼ばない。
+- Development / Previewの手動確認: 人間が専用channelのcallback URLとWebhook URLを設定し、LINE Login連携、署名付きtext/image/followイベント、連携解除、再送を確認する。
+- Production: 今回は設定変更・疎通確認を行わない。実施時はRelease Managerと人間承認を経て、Production用手順を別途記録する。
+
+手動疎通を未実施のまま完了する場合は、対象環境、未実施理由、必要なsecret設定、再確認条件をIssueまたはPRへ記録する。secret、署名、LINE userId、家計データをログやIssue本文へ貼り付けない。

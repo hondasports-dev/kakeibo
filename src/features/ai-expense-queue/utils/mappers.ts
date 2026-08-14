@@ -1,4 +1,7 @@
 import type { Doc, Id } from "../../../../convex/_generated/dataModel";
+import { getImageCaptureFailureHint } from "../../../../lib/domain/aiExpenseDrafts/failure";
+import { getDraftTitle } from "../../../../lib/domain/aiExpenseDrafts/title";
+import { resolveReviewItemDisplayAmountYen } from "../../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
 import type {
   AiExpenseDraft,
   AiExpenseDraftStatus,
@@ -17,23 +20,11 @@ export const emptyReviewForm: ReviewFormValues = {
   categoryId: "",
 };
 
-function resolveDraftTitle(draft: AiExpenseDraft) {
-  if (draft.documentType === "convenience_payment") {
-    const paymentDescription = [draft.payeeName, draft.paymentPurpose]
-      .map((value) => value?.trim())
-      .filter(Boolean)
-      .join(" ");
-    return (
-      paymentDescription || draft.shopName?.trim() || draft.paymentPlace?.trim() || "AI支出下書き"
-    );
-  }
-  return draft.shopName || draft.payeeName || draft.paymentPlace || "AI支出下書き";
-}
-
 export function mapDraftToQueueItem(
   draft: AiExpenseDraft,
   statusOverrides: Partial<Record<string, AiExpenseQueueStatus>>,
   categories?: Array<{ _id: Id<"categories"> | string; name: string }>,
+  previewImageDataUrl?: string,
 ): AiExpenseQueueItem {
   const categoryName = categories?.find((c) => c._id === draft.categoryId)?.name;
   const categoryAggregates = draft.itemSummary?.categoryAggregates.map((aggregate) => ({
@@ -43,9 +34,11 @@ export function mapDraftToQueueItem(
   return {
     id: draft._id,
     fileName: draft.imageFileName ?? "AI支出下書き",
+    previewImageDataUrl,
+    failureHint: getImageCaptureFailureHint(draft.status as AiExpenseDraftStatus),
     status: statusOverrides[draft._id] ?? draft.status,
     documentType: draft.documentType,
-    title: resolveDraftTitle(draft),
+    title: getDraftTitle(draft),
     amountYen: draft.amountYen,
     date: draft.date,
     categoryName,
@@ -79,23 +72,9 @@ export function mapConvexDraftToAiExpenseDraft(draft: Doc<"aiExpenseDrafts">): A
 }
 
 export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
-  const paymentDescription =
-    draft.documentType === "convenience_payment"
-      ? [draft.payeeName, draft.paymentPurpose]
-          .map((value) => value?.trim())
-          .filter(Boolean)
-          .join(" ")
-      : "";
-  const shopName =
-    paymentDescription ||
-    draft.shopName?.trim() ||
-    draft.payeeName?.trim() ||
-    draft.paymentPlace?.trim() ||
-    "";
-
   return {
     documentType: draft.documentType,
-    shopName,
+    shopName: getDraftTitle(draft, ""),
     date: draft.date ?? "",
     amountYen: draft.amountYen?.toString() ?? "",
     categoryId: draft.categoryId ?? "",
@@ -106,12 +85,7 @@ export function mapDraftItemsToReviewItems(
   items: AiExpenseDraftWithItems["items"],
 ): ReviewItemValues[] {
   return items.map((item, index) => {
-    const displayAmountYen =
-      item.taxResolutionStatus === "resolved" &&
-      item.amountBasis === "tax_included" &&
-      item.normalizedAmountYen != null
-        ? item.normalizedAmountYen
-        : (item.printedAmountYen ?? item.normalizedAmountYen ?? item.amountYen);
+    const displayAmountYen = resolveReviewItemDisplayAmountYen(item);
 
     return {
       id: item._id ?? `item-${index}`,

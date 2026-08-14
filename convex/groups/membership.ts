@@ -6,6 +6,7 @@ import { isGroupDeleted } from "./lib/groupLifecycle";
 import type { GroupDoc, GroupMembership, UserDoc } from "./lib/groupTypes";
 import { readQueryDoc, readQueryDocs } from "./lib/groupQueryHelpers";
 import { requireAuthenticatedUserId } from "../users/auth";
+import { resolveActiveMembership } from "../../lib/domain/groups/membershipResolution";
 
 export type { GroupMembership } from "./lib/groupTypes";
 
@@ -41,13 +42,7 @@ export async function getGroupMembership(
     ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
   );
 
-  const activeGroupId = user?.activeGroupId ?? null;
-  const activeMembership =
-    activeGroupId === null
-      ? activeMemberships.length === 1
-        ? activeMemberships[0]
-        : null
-      : (activeMemberships.find((membership) => membership.groupId === activeGroupId) ?? null);
+  const activeMembership = resolveActiveMembership(activeMemberships, user?.activeGroupId);
 
   if (activeMembership === null) return null;
 
@@ -89,12 +84,7 @@ export async function getResolvedMemberships(ctx: Pick<QueryCtx, "auth" | "db">)
     activeMemberships.push(membership);
   }
 
-  const activeMembership =
-    activeGroupId === null
-      ? activeMemberships.length === 1
-        ? activeMemberships[0]
-        : null
-      : (activeMemberships.find((membership) => membership.groupId === activeGroupId) ?? null);
+  const activeMembership = resolveActiveMembership(activeMemberships, activeGroupId);
 
   return { memberships: activeMemberships, activeMembership };
 }

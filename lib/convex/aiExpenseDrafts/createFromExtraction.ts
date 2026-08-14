@@ -2,12 +2,14 @@ import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import {
-  AI_EXPENSE_DRAFT_REVIEW_REASONS,
-  classifyAiExpenseDraft,
   type AiExpenseDraftConfidence,
   type AiExpenseDraftDocumentType,
   type AiExpenseDraftReviewReason,
-} from "../../../convex/aiExpenseDrafts/model";
+} from "../../../lib/domain/aiExpenseDrafts/constants";
+import {
+  classifyCreatedDraft,
+  type CreatedDraftClassificationInput,
+} from "../../../lib/domain/aiExpenseDrafts/classification";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { deleteDraftAndItems } from "./draftRepository";
 import type {
@@ -67,32 +69,6 @@ export type CreateFailedDraftFromImageAnalysisArgs = {
   imageFileName?: string;
 };
 
-function mergeReviewReasons(
-  computedReasons: AiExpenseDraftReviewReason[],
-  explicitReasons: AiExpenseDraftReviewReason[] | undefined,
-) {
-  const reasons = new Set<AiExpenseDraftReviewReason>(computedReasons);
-  for (const reason of explicitReasons ?? []) {
-    reasons.add(reason);
-  }
-  return AI_EXPENSE_DRAFT_REVIEW_REASONS.filter((reason) => reasons.has(reason));
-}
-
-function resolveDraftClassification(args: CreateFromExtractionArgs): {
-  status: "ready" | "needs_review";
-  reviewReasons: AiExpenseDraftReviewReason[];
-} {
-  const computed = classifyAiExpenseDraft(args);
-  const reviewReasons = mergeReviewReasons(computed.reviewReasons, [
-    ...(args.reviewReasons ?? []),
-    "user_confirmation_required",
-  ]);
-  return {
-    status: reviewReasons.length === 0 ? "ready" : "needs_review",
-    reviewReasons,
-  };
-}
-
 async function assertCategoryBelongsToGroup(
   ctx: Pick<MutationCtx, "db">,
   categoryId: Id<"categories"> | undefined,
@@ -147,13 +123,14 @@ export async function createFromExtractionHandler(
   ctx: MutationCtx,
   args: CreateFromExtractionArgs,
 ) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   await assertCategoryBelongsToGroup(ctx, args.categoryId, groupId);
 
   const now = Date.now();
-  const classification = resolveDraftClassification(args);
+  const classification = classifyCreatedDraft(args as CreatedDraftClassificationInput);
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId,
+    createdByUserId: userId,
     sourceType: "image_upload",
     status: classification.status,
     documentType: args.documentType,
@@ -187,10 +164,11 @@ export async function createFailedDraftFromImageAnalysisHandler(
   ctx: MutationCtx,
   args: CreateFailedDraftFromImageAnalysisArgs,
 ) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
     groupId,
+    createdByUserId: userId,
     sourceType: "image_upload",
     status: "failed",
     documentType: "unknown",

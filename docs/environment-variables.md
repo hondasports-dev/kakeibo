@@ -15,6 +15,21 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 
 ## 環境変数一覧
 
+### LINE連携基盤関連（N2 / P1）
+
+| 変数名 | 用途 | Local / DEV / Preview | PROD | Secret扱い | 設定場所 |
+| --- | --- | --- | --- | --- | --- |
+| `LINE_INTEGRATION_MODE` | LINE外部APIの切替（`mock` / `real`） | `mock` | `real`（導入時に別途承認） | ❌ | Convex環境変数 |
+| `LINE_LOGIN_CHANNEL_ID` | LINE Loginのchannel ID | 環境ごとに設定 | 環境ごとに設定 | ❌ | Convex環境変数 |
+| `LINE_LOGIN_CHANNEL_SECRET` | LINE Login OAuth token交換用secret | 未設定または環境専用値 | 環境専用値 | ✅ | Convex環境変数 |
+| `LINE_LOGIN_REDIRECT_URI` | LINE Login callback URL | 環境ごとに設定 | 環境ごとに設定 | ❌ | Convex環境変数 |
+| `LINE_MESSAGING_CHANNEL_SECRET` | Messaging API Webhook署名検証用secret | 未設定または環境専用値 | 環境専用値 | ✅ | Convex環境変数 |
+| `LINE_MESSAGING_CHANNEL_ACCESS_TOKEN` | LINE返信API用access token | 未設定または環境専用値 | 環境専用値 | ✅ | Convex環境変数 |
+
+LINE Login channelとMessaging API channelは同一環境内で同一Providerに所属させる。環境間ではProvider、channel、callback URL、Webhook URL、secretを共有しない。今回のIssue #591ではchannel作成、secret設定、rotation、Production変更を行わず、変数名・責務・設定場所だけを定義する。
+
+Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth token交換、Messaging API返信、実LINE疎通を発生させない。secret値、channel IDの実値、callbackの実URLはGitへ保存しない。
+
 ### Clerk認証関連
 
 | 変数名                       | 用途                           | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所                            |
@@ -40,7 +55,7 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | ------------------------------ | -------------------------------------------- | ----- | -------------- | ---------- | ---- | ---------- | ---------------------- |
 | `OPENAI_API_KEY`               | OpenAI API 認証キー                          | ❌    | ❌             | ❌         | ✅   | ✅         | Convex Dashboard       |
 | `RECEIPT_IMAGE_EXTRACTOR_MODE` | OpenAI 呼び出しの切り替え（`mock` / `real`） | ✅    | ✅             | ✅         | ✅   | ❌         | Convex Dashboard       |
-| `APP_ENV`                      | real mode の許可判定（`development` / `preview` / `production`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
+| `APP_ENV`                      | real mode の許可判定（`development` / `production`） | ✅ | ✅ | ✅ | ✅ | ❌ | Convex Dashboard |
 
 ### トランザクションメール (Resend) 関連
 
@@ -64,9 +79,19 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 | 変数名               | 用途                                      | Local | CI  | Secret扱い | 設定場所                                              |
 | -------------------- | ----------------------------------------- | ----- | --- | ---------- | ----------------------------------------------------- |
 | `E2E_CLEANUP_SECRET` | E2E クリーンアップ API の認証シークレット | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret / Convex Dashboard |
-| `E2E_CLERK_USER_ID`  | テストユーザーの Clerk tokenIdentifier    | ✅    | ✅  | ✅         | .env.local / GitHub Actions Secret                    |
+| `E2E_CLERK_USER_ID`  | E2E操作を許可する固定テストユーザーの Clerk tokenIdentifier | ✅    | 生成 | ✅         | .env.local / Convex Dashboard |
 
-`E2E_CLEANUP_SECRET` を Convex deployment に設定すると、`convex/http.ts`（実装は `convex/e2eHttp/`）の E2E 専用 HTTP エンドポイントが有効化される。いずれもヘッダ `X-E2E-Cleanup-Secret` が必要。
+Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2eHttp/`）は、
+`APP_ENV=development` のときだけルート登録される。登録後も
+`E2E_CLEANUP_SECRET`、`E2E_CLERK_USER_ID` の設定とヘッダ
+`X-E2E-Cleanup-Secret` が必要で、対象ユーザーとグループは固定テストユーザーの範囲に限定される。
+secret または user ID が未設定の場合は handler が503を返す。`APP_ENV=preview`、`APP_ENV=production`、未設定、未知の値では
+ルート自体が登録されず404になる。
+
+GitHub Actionsでは、`preview-deploy.yml`、`e2e.yml`、`production-release.yml`が
+`CLERK_SECRET_KEY`で`E2E_CLERK_USER_EMAIL`に対応するClerkユーザーを解決し、
+publishable keyから得たissuerとユーザーIDを組み合わせて`E2E_CLERK_USER_ID`をジョブ内で生成する。
+そのため、CIの固定IDを別のGitHub Secretとして手動同期しない。
 
 | エンドポイント | 用途 |
 | --- | --- |
@@ -87,6 +112,8 @@ CLERK_SECRET_KEY=sk_test_...
 
 # E2Eテスト用 (Local専用)
 E2E_CLERK_USER_EMAIL=codex+clerk_test@example.com
+E2E_CLERK_USER_ID=https://your-clerk-frontend-api-url.clerk.accounts.dev|user_...
+E2E_CLEANUP_SECRET=...
 # E2E_CLERK_USER_PASSWORD は .env.example に残存するが、現行 auth helper では未使用
 
 # Convex
@@ -129,6 +156,7 @@ GitHub Environment `Preview` には次を設定する。
 | Secret   | `CONVEX_DEPLOY_KEY` | 固定 Convex staging deployment を更新する |
 | Variable | `VERCEL_ORG_ID`     | Vercel project の所属ID               |
 | Variable | `VERCEL_PROJECT_ID` | Vercel project ID                     |
+| Secret   | `E2E_CLEANUP_SECRET` | staging E2E API の認証シークレット      |
 
 `CONVEX_DEPLOY_KEY` には、固定 staging deployment 用の deploy key を保存する。
 `preview-deploy.yml` はこの key で staging functions / schema を反映する。
@@ -138,7 +166,7 @@ Convex staging deployment には次を設定する。
 - `CLERK_JWT_ISSUER_DOMAIN`
 - `CLERK_SECRET_KEY`
 - `RECEIPT_IMAGE_EXTRACTOR_MODE=mock`
-- `APP_ENV=preview`
+- `APP_ENV=development`
 
 PREVIEW では Clerk Development instance を使う。Production instance や `pk_live_*` / `sk_live_*` は使わない。
 
@@ -245,7 +273,7 @@ PROD 反映では、`main` への push で `production-release.yml` が自動起
 - `DEV_E2E_CLEANUP_SECRET` — Dev deployment の E2E クリーンアップ API 認証シークレット
 - `DEV_CONVEX_DEPLOY_KEY` — Dev deployment の deploy key（PR E2E 前に `E2E_CLEANUP_SECRET` を Convex へ同期）
 - `E2E_CLEANUP_SECRET` — 固定 staging deployment の E2E クリーンアップ API 認証シークレット
-- `E2E_CLERK_USER_ID` — テストユーザーの Clerk tokenIdentifier（`https://xxx.clerk.accounts.dev|user_xxx`）
+- `E2E_CLERK_USER_ID` — CIでは設定不要。各workflowが`E2E_CLERK_USER_EMAIL`からジョブ内で生成する
 - `PRODUCT_UPDATE_OPENAI_API_KEY` — 任意。Product Update 生成用の OpenAI API key
 
 ### GitHub Environment `Preview` に保存する項目
@@ -280,12 +308,13 @@ Convex Dashboard (Deployment Settings > Environment Variables) に以下を設�
 
 - `CLERK_JWT_ISSUER_DOMAIN` — Clerk Frontend API URL (`https://xxxx.clerk.accounts.dev`)
 - `CLERK_SECRET_KEY` — Clerk Backend API 用の秘密鍵。グループ招待メール送信で必要
-- `E2E_CLEANUP_SECRET` — E2E クリーンアップ API 認証シークレット（未設定時はエンドポイントが 503 を返すため本番誤操作を防止できる）
+- `E2E_CLEANUP_SECRET` — DEV / PREVIEW 専用のE2Eクリーンアップ API 認証シークレット。本番には設定しない
+- `E2E_CLERK_USER_ID` — DEV / PREVIEW でE2E操作を許可する固定テストユーザー。本番には設定しない
 - `RECEIPT_IMAGE_EXTRACTOR_MODE` — `mock`（Local / DEV / PREVIEW）/ `real`（PRODのみ）
-- `APP_ENV` — `development`（Local / DEV）/ `preview`（PREVIEW）/ `production`（PROD）
+- `APP_ENV` — `development`（Local / DEV / PREVIEW）/ `production`（PROD）
 - `OPENAI_API_KEY` — OpenAI API 認証キー（production deployment のみ設定。dev deployment には設定しない）
 
-Convex staging deployment では、`APP_ENV=preview`、
+Convex staging deployment では、`APP_ENV=development`、
 `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使う。PREVIEW には `OPENAI_API_KEY` を設定しない。
 
 CLI での設定例:
@@ -294,11 +323,14 @@ CLI での設定例:
 # ローカル / dev deployment（mock mode）
 pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
 pnpm exec convex env set APP_ENV development
+pnpm exec convex env set E2E_CLERK_USER_ID 'https://your-clerk-frontend-api-url.clerk.accounts.dev|user_...'
+pnpm exec convex env set E2E_CLEANUP_SECRET '...'
 
 # production deployment（real mode）
 pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE real
 pnpm exec convex env set APP_ENV production
 pnpm exec convex env set OPENAI_API_KEY sk-...
+# production には E2E_CLERK_USER_ID / E2E_CLEANUP_SECRET を設定しない
 ```
 
 > `CLERK_JWT_ISSUER_DOMAIN` はJWT issuerのドメインであり、公開情報に近い値のため

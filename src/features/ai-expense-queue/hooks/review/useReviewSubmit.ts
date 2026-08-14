@@ -1,7 +1,10 @@
 import { useState } from "react";
 import { useMutation } from "convex/react";
+import {
+  registerReadyDraftsAsExpenseEntriesApi,
+  updateForReviewApi,
+} from "../../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../../convex/_generated/dataModel";
-import { api } from "../../../../../convex/_generated/api";
 import { getReviewSubmitError } from "../../utils/reviewValidation";
 import { toUserFacingReviewError } from "../../utils/userFacingErrors";
 import type {
@@ -38,10 +41,8 @@ export function useReviewSubmit({
   } | null>(null);
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
-  const updateForReview = useMutation(api.aiExpenseDrafts.mutations.updateForReview);
-  const registerReadyDraftsAsExpenseEntries = useMutation(
-    api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
-  );
+  const updateForReview = useMutation(updateForReviewApi());
+  const registerReadyDraftsAsExpenseEntries = useMutation(registerReadyDraftsAsExpenseEntriesApi());
 
   const handleSubmitReview = async (registerAfterUpdate: boolean) => {
     if (!selectedReviewDraftId) {

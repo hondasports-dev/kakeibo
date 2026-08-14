@@ -4,8 +4,13 @@ import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
 import { requireGroupMembership } from "../groups/membership";
 import { calculateWeekStartDate } from "../lib/weekDates";
+import { getWeeklyStartDayForUser } from "../users/weeklySettings";
 import { v } from "convex/values";
 import { createReceiptHandler } from "../../lib/convex/receipts/insert";
+import {
+  normalizeUpdateReceiptPatch,
+  type NormalizedUpdateReceiptPatch,
+} from "../../lib/domain/receipt/normalize";
 
 type UpdateReceiptArgs = {
   receiptId: Id<"receipts">;
@@ -19,7 +24,7 @@ type UpdateReceiptArgs = {
 
 /** updateReceipt mutation の handler ロジック（テスト用に export） */
 export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceiptArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
 
   // receipt の所有権チェック
   const receipt = await ctx.db.get(args.receiptId);
@@ -44,6 +49,13 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
     }
   }
 
+  let normalizedPatch: NormalizedUpdateReceiptPatch;
+  try {
+    normalizedPatch = normalizeUpdateReceiptPatch(args);
+  } catch (err) {
+    throw new ConvexError(err instanceof Error ? err.message : "Invalid receipt");
+  }
+
   const now = Date.now();
   const patch: Partial<{
     date: string;
@@ -54,26 +66,14 @@ export async function updateReceiptHandler(ctx: MutationCtx, args: UpdateReceipt
     memo: string | undefined;
     weekStartDate: string;
     updatedAt: number;
-  }> = { updatedAt: now };
+  }> = { updatedAt: now, ...normalizedPatch };
 
-  if (args.date !== undefined) {
-    patch.date = args.date;
-    patch.weekStartDate = calculateWeekStartDate(args.date);
-  }
-  if (args.shopName !== undefined) {
-    patch.shopName = args.shopName;
-  }
-  if (args.bankName !== undefined) {
-    patch.bankName = args.bankName;
-  }
-  if (args.amountYen !== undefined) {
-    patch.amountYen = args.amountYen;
+  if (normalizedPatch.date !== undefined) {
+    const weekStartDay = await getWeeklyStartDayForUser(ctx, userId);
+    patch.weekStartDate = calculateWeekStartDate(normalizedPatch.date, weekStartDay);
   }
   if (args.categoryId !== undefined) {
     patch.categoryId = args.categoryId;
-  }
-  if (args.memo !== undefined) {
-    patch.memo = args.memo;
   }
 
   await ctx.db.patch(args.receiptId, patch);
@@ -106,20 +106,27 @@ export async function deleteReceiptHandler(ctx: MutationCtx, args: DeleteReceipt
 }
 
 /**
- * 指定グループのレシートを全件削除する（E2E テストデータクリーンアップ専用）。
+ * 指定グループ・作成者のレシートだけを削除する（E2E テストデータクリーンアップ専用）。
  */
 export async function deleteReceiptsByUserHandler(
   ctx: MutationCtx,
-  args: { groupId: Id<"groups"> },
+  args: { groupId: Id<"groups">; userId: string },
 ) {
-  const receipts = await ctx.db
-    .query("receipts")
-    .withIndex("by_group_id_and_week_start_date", (q) => q.eq("groupId", args.groupId))
-    .collect();
+  let deletedCount = 0;
+  while (true) {
+    const receipts = await ctx.db
+      .query("receipts")
+      .withIndex("by_group_id_and_created_by_user_id", (q) =>
+        q.eq("groupId", args.groupId).eq("createdByUserId", args.userId),
+      )
+      .take(500);
+    if (receipts.length === 0) break;
 
-  await Promise.all(receipts.map((r) => ctx.db.delete(r._id)));
+    await Promise.all(receipts.map((receipt) => ctx.db.delete(receipt._id)));
+    deletedCount += receipts.length;
+  }
 
-  return { deletedCount: receipts.length };
+  return { deletedCount };
 }
 
 export const createReceipt = mutation({
@@ -156,7 +163,7 @@ export const deleteReceipt = mutation({
 });
 
 /**
- * 指定グループのレシートを全件削除する。
+ * 指定グループ・作成者のレシートだけを削除する。
  *
  * この mutation は internalMutation として定義されており、外部クライアントから
  * 直接呼び出せない。E2E テスト用の HTTP エンドポイント（convex/http.ts）経由でのみ呼び出す。
@@ -164,6 +171,7 @@ export const deleteReceipt = mutation({
 export const deleteReceiptsByUser = internalMutation({
   args: {
     groupId: v.id("groups"),
+    userId: v.string(),
   },
   handler: deleteReceiptsByUserHandler,
 });

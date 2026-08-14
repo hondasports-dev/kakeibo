@@ -3,33 +3,27 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { insertReceiptForGroup } from "../../../convex/receipts/crud";
 import { requireGroupMembership } from "../../../convex/groups/membership";
-import { resolveReceiptShopNameFromDraft } from "./display";
+import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
+import {
+  dedupeDraftIds,
+  getReadyDraftRegistrationErrorMessage,
+  isAlreadyRegisteredAsReceipt,
+  validateReadyDraftForRegistration,
+} from "../../domain/aiExpenseDrafts/registration";
 
 type RegisterReadyDraftsArgs = {
   draftIds: Id<"aiExpenseDrafts">[];
 };
 
-function dedupeDraftIds(draftIds: Id<"aiExpenseDrafts">[]) {
-  return [...new Set(draftIds)];
-}
-
 function assertReadyDraftCanBeRegistered(draft: Doc<"aiExpenseDrafts">) {
-  if (draft.status !== "ready") {
-    throw new ConvexError("Only ready drafts can be registered");
-  }
-  if (!draft.date) {
-    throw new ConvexError("Draft date is required to register");
-  }
-  if (draft.amountYen === undefined || draft.amountYen <= 0) {
-    throw new ConvexError("Draft amount is required to register");
-  }
-  if (!draft.categoryId) {
-    throw new ConvexError("Draft category is required to register");
+  const result = validateReadyDraftForRegistration(draft);
+  if (!result.success) {
+    throw new ConvexError(getReadyDraftRegistrationErrorMessage(result.error));
   }
 }
 
 export async function registerReadyDraftsHandler(ctx: MutationCtx, args: RegisterReadyDraftsArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const uniqueDraftIds = dedupeDraftIds(args.draftIds);
   if (uniqueDraftIds.length === 0) {
     return {
@@ -56,7 +50,7 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
   const alreadyRegisteredDraftIds: Id<"aiExpenseDrafts">[] = [];
 
   for (const draft of drafts) {
-    if (draft.status === "registered" && draft.registeredReceiptId) {
+    if (isAlreadyRegisteredAsReceipt(draft)) {
       alreadyRegisteredDraftIds.push(draft._id);
       continue;
     }
@@ -67,13 +61,19 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
   const registeredReceiptIds: Id<"receipts">[] = [];
 
   for (const draft of draftsToRegister) {
-    const receiptId = await insertReceiptForGroup(ctx, groupId, {
-      type: "expense",
-      date: draft.date!,
-      shopName: resolveReceiptShopNameFromDraft(draft),
-      amountYen: draft.amountYen!,
-      categoryId: draft.categoryId!,
-    });
+    const receiptId = await insertReceiptForGroup(
+      ctx,
+      groupId,
+      {
+        type: "expense",
+        date: draft.date!,
+        shopName: resolveReceiptShopNameFromDraft(draft),
+        amountYen: draft.amountYen!,
+        categoryId: draft.categoryId!,
+      },
+      1,
+      userId,
+    );
     registeredReceiptIds.push(receiptId);
   }
 

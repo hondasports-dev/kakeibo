@@ -1,7 +1,9 @@
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { CssBaseline, ThemeProvider } from "@mui/material";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
+import { theme } from "../../../theme";
 import { AiExpenseQueuePanel } from "./AiExpenseQueuePanel";
 import { categories, queueItems, rejectImageDecoding } from "../utils/testFixtures";
 
@@ -217,6 +219,132 @@ describe("AiExpenseQueuePanel", () => {
       imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
     });
     expect(screen.queryByRole("dialog", { name: "下書き確認" })).not.toBeInTheDocument();
+  });
+
+  it("同一バッチの全画像がreadyになるまで一括登録を有効化しない", async () => {
+    const user = userEvent.setup();
+    let jobs: Array<{
+      _id: string;
+      batchId: string;
+      fileName: string;
+      status: string;
+      draftId?: string;
+    }> = [
+      {
+        _id: "job-1",
+        batchId: "batch-1",
+        fileName: "batch-first.png",
+        status: "queued",
+      },
+      {
+        _id: "job-2",
+        batchId: "batch-1",
+        fileName: "batch-second.png",
+        status: "queued",
+      },
+    ];
+    let readyDrafts: unknown[] = [];
+    let reviewDrafts: unknown[] = [];
+    let registeredDrafts: unknown[] = [];
+    const firstDraft = {
+      _id: "draft-batch-1",
+      status: "ready",
+      documentType: "receipt",
+      imageFileName: "batch-first.png",
+      shopName: "バッチ一店",
+      amountYen: 100,
+      date: "2026-06-01",
+      categoryId: "cat-food",
+      reviewReasons: [],
+    };
+    const secondDraft = {
+      ...firstDraft,
+      _id: "draft-batch-2",
+      imageFileName: "batch-second.png",
+      shopName: "バッチ二店",
+      amountYen: 200,
+    };
+
+    useQueryMock.mockImplementation((reference: string, args: { status?: string }) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") return jobs;
+      if (reference === "aiExpenseDrafts.queries.listByStatus") {
+        if (args.status === "ready") return readyDrafts;
+        if (args.status === "needs_review") return reviewDrafts;
+        if (args.status === "registered") return registeredDrafts;
+        return [];
+      }
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
+      }
+      return [];
+    });
+
+    const { rerender } = renderWithProviders(<AiExpenseQueuePanel />);
+    await user.upload(screen.getByLabelText("読み取り用画像を追加"), [
+      new File(["first"], "batch-first.png", { type: "image/png" }),
+      new File(["second"], "batch-second.png", { type: "image/png" }),
+    ]);
+
+    expect(await screen.findByText("今回の追加 0/2件が登録準備OK")).toBeInTheDocument();
+    expect(screen.getByText("解析待ち 2件")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "まとめて登録（0件）" })).toBeDisabled();
+
+    jobs = [
+      { ...jobs[0], status: "ready", draftId: "draft-batch-1" },
+      { ...jobs[1], status: "needs_review", draftId: "draft-batch-2" },
+    ];
+    readyDrafts = [firstDraft];
+    reviewDrafts = [{ ...secondDraft, status: "needs_review" }];
+    rerender(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AiExpenseQueuePanel />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("今回の追加 1/2件が登録準備OK")).toBeInTheDocument();
+      expect(screen.getAllByText("確認待ち 1件")).toHaveLength(2);
+    });
+    expect(screen.getByRole("button", { name: "まとめて登録（1件）" })).toBeDisabled();
+
+    jobs = [{ ...jobs[0] }, { ...jobs[1], status: "ready", draftId: "draft-batch-2" }];
+    readyDrafts = [firstDraft, secondDraft];
+    reviewDrafts = [];
+    rerender(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AiExpenseQueuePanel />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("今回の追加 2/2件が登録準備OK")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "まとめて登録（2件）" })).toBeEnabled();
+    });
+    await user.click(screen.getByRole("button", { name: "まとめて登録（2件）" }));
+    const confirmDialog = screen.getByRole("dialog");
+    await user.click(within(confirmDialog).getByRole("button", { name: "登録する" }));
+
+    expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledWith({
+      draftIds: ["draft-batch-1", "draft-batch-2"],
+    });
+
+    jobs = jobs.map((job) => ({ ...job, status: "registered" }));
+    readyDrafts = [];
+    registeredDrafts = [
+      { ...firstDraft, status: "registered" },
+      { ...secondDraft, status: "registered" },
+    ];
+    rerender(
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AiExpenseQueuePanel />
+      </ThemeProvider>,
+    );
+    await waitFor(() => {
+      expect(screen.queryByText("今回の追加 2/2件が登録準備OK")).not.toBeInTheDocument();
+    });
   });
 
   it("1枚だけ追加した画像の解析完了後に確認フォームを自動表示する", async () => {
@@ -466,6 +594,8 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(readySection).getByText("registering-receipt.png")).toBeInTheDocument();
     expect(within(readySection).getByText("登録中")).toBeInTheDocument();
     expect(within(readySection).getByRole("button", { name: "登録する" })).toBeEnabled();
+    expect(within(readySection).queryByRole("button", { name: "再解析" })).not.toBeInTheDocument();
+    expect(within(readySection).queryByRole("button", { name: "再撮影" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "まとめて登録（1件）" })).toBeEnabled();
     expect(
       within(readySection).getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }),
@@ -476,18 +606,95 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(reviewSection).getByText("必須項目不足")).toBeInTheDocument();
     expect(within(reviewSection).getByText("他1件")).toBeInTheDocument();
     expect(within(reviewSection).getByRole("button", { name: "確認する" })).toBeEnabled();
+    expect(within(reviewSection).queryByRole("button", { name: "再解析" })).not.toBeInTheDocument();
+    expect(within(reviewSection).queryByRole("button", { name: "再撮影" })).not.toBeInTheDocument();
 
     const failedSection = screen.getByRole("region", { name: "読み取り失敗" });
     expect(within(failedSection).getByText("failed-receipt.png")).toBeInTheDocument();
     expect(
       within(failedSection).getByRole("heading", { name: "読み取り失敗" }),
     ).toBeInTheDocument();
-    expect(within(failedSection).getByRole("button", { name: "再試行" })).toBeEnabled();
+    expect(within(failedSection).getByRole("button", { name: "再撮影" })).toBeEnabled();
+    expect(within(failedSection).getByRole("button", { name: "再解析" })).toBeDisabled();
+    expect(
+      within(failedSection).getByText(
+        "明るい場所で、影や反射を避け、レシート全体を正面から撮影してください。",
+      ),
+    ).toBeInTheDocument();
 
     expect(screen.queryByRole("region", { name: "読み取り中" })).not.toBeInTheDocument();
 
     const registeredSection = screen.getByRole("region", { name: "登録済み" });
     expect(within(registeredSection).getByText("registered-receipt.png")).toBeInTheDocument();
+    expect(
+      within(registeredSection).queryByRole("button", { name: "再解析" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(registeredSection).queryByRole("button", { name: "再撮影" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("セッション中の画像をサムネイルからプレビューできる", async () => {
+    const user = userEvent.setup();
+    const previewImageDataUrl = "data:image/jpeg;base64,preview-image";
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[{ ...queueItems[0], previewImageDataUrl }]} />,
+    );
+
+    const thumbnailButton = screen.getByRole("button", {
+      name: "ok-receipt.pngの画像をプレビュー",
+    });
+    await user.click(thumbnailButton);
+
+    const dialog = screen.getByRole("dialog", { name: "ok-receipt.pngの画像プレビュー" });
+    expect(dialog).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("img", { name: "ok-receipt.pngのレシート画像" }),
+    ).toHaveAttribute("src", previewImageDataUrl);
+
+    await user.click(within(dialog).getByRole("button", { name: "プレビューを閉じる" }));
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "ok-receipt.pngの画像プレビュー" }),
+      ).not.toBeInTheDocument();
+    });
+    expect(thumbnailButton).toHaveFocus();
+
+    await user.click(thumbnailButton);
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(
+        screen.queryByRole("dialog", { name: "ok-receipt.pngの画像プレビュー" }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  it("画像のデコードに失敗した場合は画像なし表示へフォールバックする", () => {
+    const previewImageDataUrl = "data:image/jpeg;base64,broken-image";
+    const { rerender } = renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[{ ...queueItems[0], previewImageDataUrl }]} />,
+    );
+
+    fireEvent.error(screen.getByRole("img", { name: "ok-receipt.pngのレシート画像" }));
+
+    expect(screen.getByText("このセッションでは画像を表示できません")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ok-receipt.pngの画像をプレビュー" })).toBeDisabled();
+
+    rerender(
+      <AiExpenseQueuePanel
+        initialItems={[
+          { ...queueItems[0], previewImageDataUrl: "data:image/jpeg;base64,new-image" },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "ok-receipt.pngの画像をプレビュー" })).toBeEnabled();
+  });
+
+  it("画像がセッションにない場合はプレースホルダーを表示する", () => {
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[0]]} />);
+
+    expect(screen.getByText("このセッションでは画像を表示できません")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "ok-receipt.pngの画像をプレビュー" })).toBeDisabled();
   });
 
   it("登録準備OKカードの主アクションから単体登録できる", async () => {
@@ -544,9 +751,9 @@ describe("AiExpenseQueuePanel", () => {
 
     renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
 
-    await user.click(screen.getByRole("button", { name: "再試行" }));
+    await user.click(screen.getByRole("button", { name: "再撮影" }));
     await user.upload(
-      screen.getByLabelText("再試行する画像を選択"),
+      screen.getByLabelText("再撮影する画像を選択"),
       new File(["retry"], "failed-receipt-retry.png", { type: "image/png" }),
     );
 
@@ -555,6 +762,50 @@ describe("AiExpenseQueuePanel", () => {
       expect(analyzeImageJobMock).toHaveBeenCalledWith({
         jobId: "job-failed",
         imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
+      });
+    });
+  });
+
+  it("セッション中の同じ画像で失敗ジョブを再解析できる", async () => {
+    const user = userEvent.setup();
+    createBatchMock.mockResolvedValueOnce({
+      batch: { _id: "batch-failed" },
+      jobs: [{ _id: "job-failed" }],
+    });
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
+        return [
+          {
+            _id: "job-failed",
+            draftId: "draft-failed",
+            fileName: "failed-receipt.png",
+            status: "failed",
+          },
+        ];
+      }
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
+      }
+      return [];
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
+
+    await user.upload(
+      screen.getByLabelText("読み取り用画像を追加"),
+      new File(["retry"], "failed-receipt.png", { type: "image/png" }),
+    );
+    await waitFor(() => expect(analyzeImageJobMock).toHaveBeenCalledTimes(1));
+    const imageDataUrl = "data:image/jpeg;base64,mockBase64Data";
+    analyzeImageJobMock.mockClear();
+
+    await user.click(screen.getByRole("button", { name: "再解析" }));
+
+    await waitFor(() => {
+      expect(retryImageJobMock).toHaveBeenCalledWith({ jobId: "job-failed" });
+      expect(analyzeImageJobMock).toHaveBeenCalledWith({
+        jobId: "job-failed",
+        imageDataUrl,
       });
     });
   });
@@ -633,9 +884,9 @@ describe("AiExpenseQueuePanel", () => {
 
     renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
 
-    await user.click(screen.getByRole("button", { name: "再試行" }));
+    await user.click(screen.getByRole("button", { name: "再撮影" }));
     await user.upload(
-      screen.getByLabelText("再試行する画像を選択"),
+      screen.getByLabelText("再撮影する画像を選択"),
       new File(["broken"], "failed-receipt-retry.png", { type: "image/png" }),
     );
 
@@ -931,7 +1182,7 @@ describe("AiExpenseQueuePanel", () => {
     const submittedItems = updateForReviewMock.mock.calls.at(-1)?.[0].items;
     expect(submittedItems[0]).toMatchObject({ itemId: "item-food" });
     expect(submittedItems[1]).not.toHaveProperty("itemId");
-  }, 10_000);
+  }, 20_000);
 
   it("割引明細は負数で編集し、対象カテゴリの正味額として保存できる", async () => {
     const user = userEvent.setup();

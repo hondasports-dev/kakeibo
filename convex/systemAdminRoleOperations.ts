@@ -1,6 +1,10 @@
 import { ConvexError, v } from "convex/values";
 import { mutation, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
 import { requireSystemAdmin } from "./systemAdmins";
 import { assertAccountDeletionNotInProgress } from "./accountDeletion";
 
@@ -70,9 +74,10 @@ export const systemAdminRoleOperation = mutation({
   returns: v.null(),
   handler: async (ctx, args) => {
     const actor = await requireSystemAdmin(ctx);
-    const reason = args.reason.trim();
-    if (reason.length < 1 || reason.length > 500)
-      throw new ConvexError("理由は1〜500文字で入力してください");
+    const reasonResult = normalizeSystemAdminReason(args.reason);
+    if (!reasonResult.success)
+      throw new ConvexError(getNormalizeReasonErrorMessage(reasonResult.error));
+    const reason = reasonResult.reason;
     const group = await ctx.db.get(args.groupId);
     if (!group || group.status !== "active")
       throw new ConvexError("active状態のグループだけを指定できます");

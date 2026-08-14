@@ -1,0 +1,662 @@
+version: 7
+name: suzumemo-agent-loop
+plugin_manifest: plugin.json
+skills_root: skills
+default_base_branch: preview
+entrypoint: AGENTS.md
+entry_state: workspace_preflight
+
+always_on_skills:
+  - skills/prompt-injection-guard/SKILL.md
+  - skills/service-ops-safety/SKILL.md
+
+principles:
+  - agent_plugins_v1_layout
+  - always_on_safety_skills_apply_to_every_task
+  - evidence_before_progress
+  - failed_or_blocked_gate_does_not_advance
+  - test_added_is_not_test_executed
+  - impact_analysis_before_edit
+  - code_review_and_security_review_are_independent_gates
+  - pr_creation_is_checkpoint_not_completion
+  - pr_aftercare_required_before_process_learning
+  - latest_pr_head_is_the_only_merge_ready_evidence_target
+  - process_learning_is_part_of_completion
+  - task_transition_required_before_next_task
+  - one_session_one_current_task_by_default
+  - one_task_one_delivery_pr_by_default
+  - prefer_enforcement_over_reminders
+  - independent_requirement_review_before_implementation
+
+session_contract:
+  default_max_current_tasks: 1
+  default_max_delivery_prs_per_task: 1
+  parallel_task_ownership_requires_explicit_user_authorization: true
+  new_task_requires_task_transition: true
+  context_isolation:
+    - next_task_gets_a_new_task_packet
+    - prior_issue_review_and_ci_context_are_not_inherited_by_default
+    - only_explicitly_relevant_context_is_carried_forward
+
+delivery_contract:
+  default_target: merge_ready
+  target_values:
+    - merge_ready
+    - merged_cleaned
+  publish_checkpoint: pr_created
+  pr_created_is_terminal_by_default: false
+  explicit_stop_after_publish:
+    allowed: true
+    must_be_explicit: true
+    examples:
+      - stop_after_pr_creation
+      - do_not_wait_for_ci_or_review
+    not_inferred_from:
+      - create_a_pr
+      - open_a_pr
+      - send_a_pr
+
+risk_profiles:
+  default: full
+  low_risk_ui:
+    eligibility:
+      changed_path_roots:
+        - src/
+        - e2e/
+        - public/
+      excluded_path_roots:
+        - convex/
+        - src/auth/
+        - src/api/
+        - .loop/
+        - skills/
+        - .github/
+        - .husky/
+      excluded_paths:
+        - AGENTS.md
+        - plugin.json
+        - package.json
+        - pnpm-lock.yaml
+      excluded_risks:
+        - authentication
+        - authorization
+        - schema
+        - billing
+        - production_or_irreversible_operation
+        - data_migration
+        - external_service
+        - process_policy
+      requirements_risk: normal
+      impact_risk: low
+      requires_acceptance_matrix: true
+      requires_clean_ci_and_review: true
+    loop:
+      - workspace_preflight
+      - requirements
+      - impact_analysis
+      - implementation
+      - verification
+      - code_review
+      - security_review
+      - delivery
+      - pr_aftercare
+    requirements:
+      independent_review_runs: 1
+      convergence_runs: 1
+      acceptance_matrix_required: true
+    local_verification:
+      required:
+        - changed_tests
+        - lint
+        - build
+        - representative_e2e
+      full_suite: ci_authoritative
+      full_coverage: ci_authoritative
+    aftercare:
+      terminal_required: true
+      notify_only_on_observation_change: true
+    fallback_to: full
+    fallback_when:
+      - high_risk_trigger_detected
+      - ci_failure
+      - review_finding
+      - acceptance_matrix_gap
+
+states:
+  - id: workspace_preflight
+    skill: skills/workspace-preflight/SKILL.md
+    purpose: Verify the task starts in an isolated registered worktree on a non-protected branch with a clean baseline before any repository edit.
+    gate: workspace_preflight_gate
+    pass: requirements
+    blocked: workspace_preflight
+
+  - id: requirements
+    skill: skills/requirements/SKILL.md
+    purpose: Converge independent requirement reviews with the user request, issue, docs, existing code and tests into testable requirements and acceptance criteria.
+    gate: requirements_gate
+    pass: impact_analysis
+    blocked: blocked
+
+  - id: impact_analysis
+    skill: skills/impact-analysis/SKILL.md
+    purpose: Identify direct and indirect change impact before editing.
+    gate: impact_gate
+    pass: implementation
+    blocked: impact_analysis
+
+  - id: implementation
+    skill: skills/implementation/SKILL.md
+    purpose: Implement the minimum scoped change, using RED/GREEN where behavior changes.
+    gate: implementation_gate
+    pass: verification
+    fail: incident
+
+  - id: verification
+    skill: skills/verification/SKILL.md
+    purpose: Execute required static checks, tests, coverage, E2E, build and runtime/browser verification with evidence.
+    gate: verification_gate
+    pass: code_review
+    fail: incident
+    blocked: incident
+
+  - id: code_review
+    skill: skills/code-review/SKILL.md
+    purpose: Independently review correctness, regression, maintainability and test adequacy.
+    gate: code_review_gate
+    pass: security_review
+    fail: implementation
+
+  - id: security_review
+    skill: skills/security-review/SKILL.md
+    purpose: Independently review authentication, authorization, data boundaries, inputs, secrets and external-service risk.
+    gate: security_review_gate
+    pass: delivery
+    fail: implementation
+    blocked: incident
+
+  - id: delivery
+    skill: skills/delivery/SKILL.md
+    purpose: Publish the reviewed head and bind exactly one Delivery PR to the current task. PR creation is a checkpoint, not completion.
+    gate: delivery_gate
+    pass: pr_aftercare
+    fail_routes:
+      code_change_required: implementation
+      unknown_or_operational_failure: incident
+      specification_conflict: requirements
+      human_only_blocker: blocked
+
+  - id: pr_aftercare
+    skill: skills/pr-aftercare/SKILL.md
+    purpose: Observe the latest PR head until CI, review, approvals and mergeability converge to the requested delivery target.
+    gate: pr_aftercare_gate
+    pass: process_learning
+    fail_routes:
+      code_change_required: implementation
+      unknown_or_operational_failure: incident
+      specification_conflict: requirements
+      approval_required: blocked
+
+  - id: incident
+    skill: skills/incident/SKILL.md
+    purpose: Stop progression, establish facts, identify root cause or blocker, fix and restart from the required state.
+    gate: incident_gate
+    restart: dynamic
+
+  - id: blocked
+    purpose: Non-terminal state for an external dependency or human-only action that prevents a required gate from progressing.
+    terminal: false
+    resume: dynamic
+    done_allowed: false
+
+  - id: process_learning
+    skill: skills/process-learning/SKILL.md
+    purpose: Review the complete task including PR Aftercare, extract reusable learning and choose the strongest appropriate enforcement target.
+    gate: learning_gate
+    pass: task_transition
+
+  - id: task_transition
+    skill: skills/task-transition/SKILL.md
+    purpose: Close the current task identity and either release the session or explicitly bind a new task packet before returning to workspace preflight.
+    gate: task_transition_gate
+    pass_routes:
+      no_next_task: done
+      next_task_bound: workspace_preflight
+    blocked: blocked
+
+  - id: done
+    purpose: Terminal state. The requested delivery target, aftercare, learning and task transition all have evidence-backed PASS results.
+
+requirements_protocol:
+  required_for:
+    - behavior_change
+    - ui_change
+    - api_or_schema_change
+    - auth_or_data_policy_change
+    - process_policy_change
+  not_required_for:
+    - read_only_investigation
+    - pure_documentation_change
+    - pure_format_or_typo_change
+    - behavior_preserving_refactor
+  classification_precedence:
+    - process_policy_change_overrides_pure_documentation_exemption
+    - high_risk_trigger_overrides_normal_classification
+    - exempt_is_allowed_only_when_no_required_for_condition_applies
+  risk_levels:
+    normal:
+      required_independent_reviews: 2
+      applies_to: behavior_or_ui_changes_without_high_risk_triggers
+    high:
+      required_independent_reviews: 3
+      triggers:
+        - authentication
+        - authorization
+        - api_boundary
+        - schema
+        - data_retention_or_deletion
+        - external_service
+        - process_policy
+        - production_or_irreversible_operation
+  profile_overrides:
+    low_risk_ui:
+      required_independent_reviews: 1
+      post_synthesis_review: not_required
+      convergence_runs: 1
+      reason: acceptance_matrix_fixed_in_the_single_requirements_cycle
+  independent_review_contract:
+    - all_reviewers_receive_the_same_input_snapshot_and_repository_revision
+    - all_reviewers_reference_the_same_immutable_snapshot_id_or_digest
+    - snapshot_identity_includes_repository_revision_sources_manifest_and_digest
+    - reviewers_are_parallel_and_read_only
+    - main_draft_and_other_review_outputs_are_hidden_until_each_review_is_submitted
+    - main_is_the_synthesizer_and_is_not_counted_in_the_review_quorum
+    - each_review_has_agent_id_perspective_status_input_snapshot_and_evidence
+    - each_review_attests_independence_and_records_rerun_lineage_when_invalidated
+  synthesis_contract:
+    - main_records_agreements_conflicts_resolutions_and_open_blockers
+    - material_product_data_auth_or_irreversible_disagreements_are_not_resolved_by_majority_vote
+    - changing_the_requirements_packet_invalidates_affected_reviews_and_bumps_packet_version
+  post_synthesis_review:
+    required: true
+    must_check_acceptance_criteria_edge_error_states_scope_and_testability: true
+    not_required_only_when: risk_is_exempt_or_low_risk_ui_with_acceptance_matrix_and_reason_recorded
+    evidence_requires_revision_packet_independence_and_rerun_lineage: true
+  disagreement_handling:
+    material_disagreement: human_gate
+    unresolved_before_decision: blocked
+    resume_after_decision: requirements
+  unavailable:
+    recovery: retry_once_or_use_an_alternate_read_only_agent
+    if_quorum_unmet: blocked
+
+verification_delivery_boundary:
+  candidate_branch_preview_push:
+    purpose: Run preview or E2E verification before code review when the workflow requires it.
+    counts_as_delivery: false
+    does_not_satisfy:
+      - intended_changes_committed
+      - intended_branch_pushed
+      - pull_request_exists
+  delivery_push:
+    purpose: Publish the reviewed head and begin Delivery after Security Review.
+    counts_as_delivery: true
+
+pr_aftercare_contract:
+  observation_unit: latest_head_sha
+  pending_is_terminal: false
+  head_change_invalidates_prior_observation: true
+  notify_only_on_observation_change: true
+  merge_and_cleanup_are_separate: true
+  repair_sequence_for_code_change:
+    - implementation
+    - verification
+    - code_review
+    - security_review
+    - delivery
+    - pr_aftercare
+  monitor_until:
+    merge_ready:
+      - required_ci_success
+      - blocking_reviews_closed
+      - requested_changes_closed
+      - required_approvals_satisfied
+      - conflict_free
+      - mergeable
+      - verified_head_is_current
+    merged_cleaned:
+      - merge_ready
+      - merged
+      - merge_result_verified
+      - cleanup_checked
+
+process_learning_boundary:
+  starts_after: pr_aftercare
+  reviews:
+    - human_corrections
+    - incidents
+    - local_verification_failures
+    - ci_and_e2e_failures
+    - review_findings
+    - aftercare_repair_cycles
+    - delivery_and_transition_misses
+  persistent_learning_change_default: record_candidate_for_next_task
+  current_pr_change_requires_revalidation: true
+
+gates:
+  workspace_preflight_gate:
+    evidence_required: true
+    pass_when:
+      - preflight_script_passed
+      - current_task_worktree_is_isolated_and_registered
+      - current_branch_is_not_protected_base
+      - clean_baseline_confirmed
+    human_gate_when:
+      - explicit_documentation_only_exception_recorded
+    forbidden_shortcuts:
+      - edit_before_workspace_preflight_pass
+
+  requirements_gate:
+    evidence_required: true
+    pass_when:
+      - goal_and_expected_behavior_defined
+      - in_scope_and_out_of_scope_defined
+      - acceptance_criteria_are_testable
+      - material_edge_and_error_states_considered
+      - test_strategy_defined
+      - material_ambiguities_resolved_or_human_decision_recorded
+      - requirements_risk_classified
+      - selected_risk_profile_applied
+      - independent_requirement_review_quorum_met_or_not_required_recorded
+      - independent_requirement_reviews_approved_or_resolved
+      - independent_requirement_review_evidence_complete
+      - requirements_input_snapshot_identity_complete
+      - requirements_synthesis_recorded
+      - post_synthesis_spec_review_passed_or_exempt_recorded
+      - post_synthesis_spec_review_evidence_complete
+      - review_packet_matches_input_snapshot
+    human_gate_when:
+      - multiple_valid_product_choices_materially_change_outcome
+      - auth_or_data_policy_requires_product_decision
+      - destructive_or_irreversible_choice
+      - material_scope_cost_or_billing_choice
+      - material_disagreement_requires_user_or_owner_decision
+    blocked_when:
+      - required_independent_review_unavailable_after_recovery
+      - required_review_quorum_not_met
+      - material_disagreement_unresolved
+      - review_packet_stale_after_requirements_change
+
+  impact_gate:
+    evidence_required: true
+    pass_when:
+      - direct_change_surfaces_identified
+      - relevant_callers_and_callees_checked
+      - shared_state_checked
+      - auth_and_authorization_boundaries_checked_when_relevant
+      - data_or_schema_impact_checked_when_relevant
+      - affected_ui_or_flows_checked_when_relevant
+      - regression_tests_identified
+      - external_or_deployment_impact_checked_when_relevant
+
+  implementation_gate:
+    evidence_required: true
+    pass_when:
+      - implementation_matches_requirements
+      - implementation_stays_within_scope
+      - red_green_evidence_exists_when_behavior_changed
+      - no_unexplained_scope_or_design_deviation
+      - tracked_and_untracked_diff_integrity_checked
+      - workspace_preflight_gate_pass
+
+  verification_gate:
+    evidence_required: true
+    pass_when:
+      - required_static_checks_executed_and_pass
+      - required_tests_executed_and_pass
+      - test_cases_cover_required_normal_edge_partial_failure_and_failure_paths
+      - coverage_checked_when_required
+      - e2e_executed_and_pass_when_required
+      - required_environment_sync_passed
+      - convex_dev_reflection_passed_when_required
+      - build_passed_when_required
+      - browser_or_runtime_check_passed_when_required
+      - skipped_checks_are_explicitly_not_required_with_reason
+      - selected_risk_profile_is_recorded
+    forbidden_shortcuts:
+      - treat_test_added_as_test_passed
+      - treat_expected_success_as_evidence
+      - skip_required_e2e_due_to_environment_failure
+      - continue_after_required_environment_sync_failed
+      - delegate_required_local_verification_to_future_ci
+      - count_candidate_branch_preview_push_as_delivery_evidence
+
+  code_review_gate:
+    evidence_required: true
+    pass_when:
+      - acceptance_criteria_match_reviewed
+      - no_unresolved_must_fix_findings
+      - regression_risk_reviewed
+      - maintainability_reviewed
+      - frontend_or_backend_specific_checks_applied_when_relevant
+      - test_adequacy_reviewed
+      - final_diff_integrity_checked
+      - review_viewpoints_and_evidence_recorded
+    forbidden_shortcuts:
+      - treat_implementer_self_check_as_code_review
+      - reuse_implementation_notes_as_code_review_evidence
+      - mark_pass_with_empty_review_evidence
+      - defer_code_review_until_after_delivery
+    fail_restart_sequence:
+      - implementation
+      - verification
+      - code_review
+
+  security_review_gate:
+    evidence_required: true
+    pass_when:
+      - authentication_reviewed_when_relevant
+      - authorization_reviewed_when_relevant
+      - data_boundary_and_privacy_reviewed_when_relevant
+      - input_and_injection_reviewed_when_relevant
+      - secret_handling_reviewed_when_relevant
+      - external_service_risk_reviewed_when_relevant
+      - destructive_operations_reviewed_when_relevant
+      - no_unresolved_security_must_fix_findings
+      - review_viewpoints_and_evidence_recorded
+    allow_not_required_when:
+      - no_executable_configuration_or_operational_behavior_changed
+    not_required_forbidden_when:
+      - process_policy_changed
+    forbidden_shortcuts:
+      - treat_implementer_self_check_as_security_review
+      - reuse_implementation_notes_as_security_review_evidence
+      - mark_pass_with_empty_review_evidence
+      - defer_security_review_until_after_delivery
+      - treat_process_policy_change_as_pure_documentation_exemption
+    fail_restart_sequence:
+      - implementation
+      - verification
+      - code_review
+      - security_review
+
+  delivery_gate:
+    evidence_required: true
+    pass_when:
+      - current_task_identity_bound
+      - delivery_target_is_merge_ready_or_merged_cleaned
+      - intended_changes_committed
+      - intended_branch_pushed
+      - exactly_one_delivery_pr_bound_to_current_task
+      - pull_request_metadata_verified
+      - published_head_matches_reviewed_head
+      - loop_review_evidence_check_passed
+    forbidden_shortcuts:
+      - treat_pr_created_as_task_done
+      - create_second_delivery_pr_for_same_task
+      - switch_to_new_task_before_pr_aftercare_terminal
+      - count_candidate_branch_preview_push_as_delivery_publish
+      - publish_before_code_review_and_security_review_pass
+      - treat_implementer_self_check_as_reviewed_head
+      - report_pr_url_as_completion_and_end_session
+      - use_skip_if_missing_review_evidence_as_delivery
+
+  pr_aftercare_gate:
+    evidence_required: true
+    pass_when_merge_ready:
+      - latest_head_observed
+      - required_ci_passed_on_latest_head
+      - no_unresolved_blocking_review_threads
+      - no_unresolved_requested_changes
+      - required_approvals_satisfied
+      - no_merge_conflict
+      - pull_request_mergeable
+      - verified_head_is_current
+      - required_preview_or_e2e_passed_on_latest_head
+      - unchanged_observations_are_not_repeated_in_user_updates
+    pass_when_merged_cleaned:
+      - merge_ready_gate_passed
+      - pull_request_merged
+      - merge_result_verified
+      - issue_state_checked
+      - task_branch_cleanup_checked
+      - task_worktree_cleanup_checked
+      - canonical_preview_or_env_source_not_removed
+    allow_not_required_when:
+      - user_explicitly_requested_stop_after_pr_creation
+    forbidden_shortcuts:
+      - infer_stop_after_publish_from_generic_pr_request
+      - treat_pending_check_as_success
+      - use_success_from_old_head
+      - ignore_actionable_review_finding
+      - mark_merge_ready_after_single_workflow_only
+      - start_another_task_while_aftercare_nonterminal
+      - combine_merge_result_and_cleanup_in_one_command
+      - end_session_while_required_checks_pending
+      - treat_process_learning_pause_as_aftercare_not_required
+
+  incident_gate:
+    evidence_required: true
+    pass_when:
+      - observed_failure_recorded
+      - facts_and_unknowns_separated
+      - root_cause_or_explicit_blocker_recorded
+      - affected_scope_recorded
+      - regression_evidence_defined
+      - restart_state_defined
+    blocked_is_not_done: true
+
+  learning_gate:
+    evidence_required: true
+    pass_when:
+      - human_corrections_reviewed
+      - failures_and_retries_reviewed
+      - ci_review_and_aftercare_cycles_reviewed
+      - impact_delivery_and_transition_misses_reviewed
+      - candidates_recorded_or_explicitly_none
+      - duplicate_check_and_target_selection_done_for_each_candidate
+      - loop_learning_application_check_passed_when_user_requested_current_pr_apply
+    forbidden_shortcuts:
+      - run_learning_before_pr_aftercare_terminal
+      - ignore_aftercare_failures_or_review_findings
+      - treat_deferred_learning_as_not_required
+      - close_user_requested_current_pr_apply_without_observable_application
+
+  task_transition_gate:
+    evidence_required: true
+    pass_when:
+      - current_task_id_and_source_recorded
+      - current_task_branch_worktree_and_pr_recorded
+      - delivery_terminal_state_recorded
+      - pr_aftercare_gate_pass_or_explicit_not_required
+      - learning_gate_pass
+      - no_nonterminal_required_gate_remains
+      - next_task_is_none_or_new_task_packet_is_explicitly_bound
+      - prior_task_context_is_not_implicitly_inherited
+    forbidden_shortcuts:
+      - start_new_task_before_transition
+      - create_new_delivery_pr_before_transition
+      - carry_prior_issue_as_next_task_source_without_explicit_binding
+      - treat_pr_created_checkpoint_as_delivery_terminal
+
+incident_loop:
+  trigger_when:
+    - required_gate_failed_or_blocked
+    - same_failure_repeated_twice
+    - same_review_finding_recurred_twice
+    - ci_or_e2e_root_cause_unknown
+    - pr_aftercare_root_cause_unknown
+    - latest_head_and_verified_head_diverge_unexpectedly
+  steps:
+    - collect_facts_and_exact_evidence
+    - classify_failure_domain
+    - compare_with_base_or_last_known_good_when_possible
+    - create_independent_hypotheses
+    - run_smallest_discriminating_check
+    - identify_root_cause_or_explicit_blocker
+    - reassess_affected_scope
+    - apply_fix
+    - restart_from_required_state
+  blocked_is_not_done: true
+
+learning:
+  skill: skills/process-learning/SKILL.md
+  event_types:
+    - human_correction
+    - missing_evidence
+    - repeated_retry
+    - escaped_defect
+    - ci_or_e2e_failure
+    - impact_miss
+    - delivery_step_miss
+    - aftercare_miss
+    - task_transition_miss
+    - session_scope_leak
+    - manual_check_repetition
+  candidate_required_fields:
+    - trigger
+    - observed_problem
+    - evidence
+    - root_cause
+    - generalized_rule
+    - recurrence_risk
+    - impact
+    - deterministic
+    - duplicate_status
+    - proposed_target
+    - target_reason
+  target_priority:
+    - script_or_code
+    - ci_or_gate
+    - skill
+    - agents_policy
+    - runbook
+    - task_context
+  human_gate_required_for_promotion: true
+  lifecycle:
+    - candidate
+    - accepted_or_rejected
+    - applied
+    - observing
+    - effective_or_recurred
+  escalation_on_recurrence:
+    - task_context_or_runbook_to_skill
+    - skill_to_script_or_ci_gate
+
+completion:
+  done_requires:
+    - agent_plugins_manifest_present
+    - always_on_safety_skills_applied
+    - workspace_preflight_gate_pass_or_explicit_exception
+    - requirements_gate_pass
+    - requirements_convergence_gate_pass_or_not_required
+    - impact_gate_pass
+    - implementation_gate_pass
+    - verification_gate_pass
+    - code_review_gate_pass
+    - security_review_gate_pass_or_not_required
+    - delivery_gate_pass
+    - pr_aftercare_gate_pass_or_explicit_not_required
+    - learning_gate_pass
+    - task_transition_gate_pass
+    - no_required_blocked_items
+    - evidence_recorded

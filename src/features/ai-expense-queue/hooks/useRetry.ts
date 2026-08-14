@@ -1,7 +1,10 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useAction, useMutation } from "convex/react";
+import {
+  analyzeImageJobApi,
+  retryImageJobApi,
+} from "../../../lib/repositories/receiptAnalysisJobs";
 import type { Doc } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
 import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../../../utils/imageDataUrl";
 
 export function useRetry({
@@ -13,15 +16,17 @@ export function useRetry({
 }) {
   const retryInputRef = useRef<HTMLInputElement>(null);
   const [retryError, setRetryError] = useState("");
+  const [retryingItemId, setRetryingItemId] = useState<string | null>(null);
   const [pendingRetryJob, setPendingRetryJob] = useState<Doc<"receiptAnalysisImageJobs"> | null>(
     null,
   );
 
-  const retryImageJob = useMutation(api.receiptAnalysisJobs.mutations.retryImageJob);
-  const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
+  const retryImageJob = useMutation(retryImageJobApi());
+  const analyzeImageJob = useAction(analyzeImageJobApi());
 
   const runRetry = async (job: Doc<"receiptAnalysisImageJobs">, imageDataUrl: string) => {
     setRetryError("");
+    setRetryingItemId(job.draftId ?? null);
     setPendingImageDataUrls((current) => {
       const next = new Map(current);
       next.set(job._id, imageDataUrl);
@@ -32,6 +37,8 @@ export function useRetry({
       await analyzeImageJob({ jobId: job._id, imageDataUrl });
     } catch (err) {
       setRetryError(err instanceof Error ? err.message : "再試行に失敗しました");
+    } finally {
+      setRetryingItemId(null);
     }
   };
 
@@ -45,10 +52,23 @@ export function useRetry({
       setRetryError("再試行対象の画像ジョブが見つかりません");
       return;
     }
+    setPendingRetryJob(job);
+    retryInputRef.current?.click();
+  };
+
+  const handleReanalyze = async (
+    draftId: string,
+    jobs: Doc<"receiptAnalysisImageJobs">[] | undefined,
+  ) => {
+    setRetryError("");
+    const job = jobs?.find((j) => j.draftId === draftId);
+    if (!job) {
+      setRetryError("再解析対象の画像ジョブが見つかりません");
+      return;
+    }
     const imageDataUrl = pendingImageDataUrls.get(job._id);
     if (!imageDataUrl) {
-      setPendingRetryJob(job);
-      retryInputRef.current?.click();
+      setRetryError("このセッションに画像がありません。再撮影または画像を選び直してください。");
       return;
     }
     await runRetry(job, imageDataUrl);
@@ -73,10 +93,12 @@ export function useRetry({
   return {
     retryError,
     retryInputRef,
+    retryingItemId,
     pendingRetryJob,
     setRetryError,
     setPendingRetryJob,
     handleRetry,
+    handleReanalyze,
     handleRetryFileSelected,
   };
 }

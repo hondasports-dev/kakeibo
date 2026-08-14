@@ -104,6 +104,19 @@ export function GuidePage() {
           </GuideSteps>
         </GuideSection>
 
+        <GuideSection title="年次サマリーを見る">
+          <Typography color="text.secondary" variant="body2">
+            年次サマリーでは、月ごとの支出・収入の折れ線と、カテゴリ別の積み上げ面グラフで1年の流れを振り返れます。
+          </Typography>
+          <GuideSteps>
+            <ListItem disableGutters>ダッシュボードや週次・月次サマリーから年を開きます。</ListItem>
+            <ListItem disableGutters>年の切り替えで、過去の季節ごとの傾向を確認します。</ListItem>
+            <ListItem disableGutters>
+              月ごとの合計から、気になる月の月次サマリーへ進めます。
+            </ListItem>
+          </GuideSteps>
+        </GuideSection>
+
         <GuideSection title="カテゴリと設定を管理する">
           <Typography color="text.secondary" variant="body2">
             設定では、カテゴリの追加・変更・無効化、週の開始曜日、グループの管理を行えます。

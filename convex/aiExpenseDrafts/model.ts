@@ -24,5 +24,5 @@ export {
   type AiExpenseDraftConfidence,
 } from "../../lib/convex/aiExpenseDrafts/validators";
 
-export { classifyAiExpenseDraft } from "../../lib/convex/aiExpenseDrafts/classification";
-export { resolveReceiptShopNameFromDraft } from "../../lib/convex/aiExpenseDrafts/display";
+export { classifyAiExpenseDraft } from "../../lib/domain/aiExpenseDrafts/classification";
+export { resolveReceiptShopNameFromDraft } from "../../lib/domain/aiExpenseDrafts/shopName";

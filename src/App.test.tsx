@@ -210,6 +210,17 @@ describe("App authentication states", () => {
     expect(screen.getByTestId("router-provider")).toBeInTheDocument();
   });
 
+  it("年次サマリーpathでは未ログインならサインイン画面を表示する", () => {
+    window.history.pushState({}, "", "/years/2026");
+    useAuthMock.mockReturnValue({ isLoaded: true, isSignedIn: false });
+    useConvexAuthMock.mockReturnValue({ isLoading: false, isAuthenticated: false });
+
+    renderWithProviders(<App />);
+
+    expect(screen.getByRole("button", { name: "Googleでログイン" })).toBeInTheDocument();
+    expect(screen.queryByTestId("router-provider")).not.toBeInTheDocument();
+  });
+
   it("メンテナンスモードでは通常ページにメンテナンス画面を表示する", () => {
     vi.stubEnv("VITE_APP_MAINTENANCE_MODE", "true");
     window.history.pushState({}, "", "/");

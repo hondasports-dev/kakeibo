@@ -21,6 +21,8 @@ export function useAiExpenseQueuePanel({
     categories,
     hiddenItemIds: queueDelete.hiddenItemIds,
     initialItems,
+    pendingImageDataUrls: imageUpload.pendingImageDataUrls,
+    sessionBatches: imageUpload.sessionBatches,
   });
   const bulkRegister = useBulkRegister({
     readyItemIds: queueData.readyItemIds,
@@ -59,8 +61,11 @@ export function useAiExpenseQueuePanel({
   }, [autoReviewJob, autoReviewJobId, handleOpenReview, selectedReviewDraftId, setAutoReviewJobId]);
 
   const wrappedDeleteQueueItem = async (item: AiExpenseQueueItem) => {
-    await queueDelete.deleteQueueItem(item);
-    bulkRegister.removeFromSelection(item.id);
+    const deleted = await queueDelete.deleteQueueItem(item);
+    if (deleted) {
+      imageUpload.removeSessionJob(item.jobId ?? item.id);
+      bulkRegister.removeFromSelection(item.id);
+    }
   };
 
   const wrappedHandleClearOpenQueue = async () => {
@@ -71,6 +76,10 @@ export function useAiExpenseQueuePanel({
 
   const wrappedHandleRetry = async (draftId: string) => {
     await retry.handleRetry(draftId, queueData.jobs);
+  };
+
+  const wrappedHandleReanalyze = async (draftId: string) => {
+    await retry.handleReanalyze(draftId, queueData.jobs);
   };
 
   return {
@@ -87,10 +96,13 @@ export function useAiExpenseQueuePanel({
     items: queueData.items,
     queueDeleteError: queueDelete.queueDeleteError,
     readyItems: queueData.readyItems,
+    sessionBatchSummaries: queueData.sessionBatchSummaries,
+    unbatchedReadyItems: queueData.unbatchedReadyItems,
     registeringIds: bulkRegister.registeringIds,
     registrationError: bulkRegister.registrationError,
     retryError: imageUpload.uploadError || retry.retryError,
     retryInputRef: retry.retryInputRef,
+    retryingItemId: retry.retryingItemId,
     reviewError: reviewDialog.reviewError,
     reviewSaveFeedback: reviewDialog.reviewSaveFeedback,
     reviewForm: reviewDialog.reviewForm,
@@ -115,6 +127,7 @@ export function useAiExpenseQueuePanel({
     handleOpenReview: reviewDialog.handleOpenReview,
     handleRegisterReady: bulkRegister.handleRegisterReady,
     handleRetry: wrappedHandleRetry,
+    handleReanalyze: wrappedHandleReanalyze,
     handleRetryFileSelected: retry.handleRetryFileSelected,
     handleReviewFieldChange: reviewDialog.handleReviewFieldChange,
     handleReviewItemChange: reviewDialog.handleReviewItemChange,

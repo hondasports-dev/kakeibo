@@ -160,6 +160,15 @@ src/
       types/
       utils/
       index.ts
+    account-deletion/          # アカウント削除リクエスト・status UI
+      pages/
+      index.ts
+    system-admin/                # `/admin` システム管理者 UI
+      components/
+      hooks/
+      pages/
+      types/
+      index.ts
 
 convex/
   auth.config.ts
@@ -220,6 +229,27 @@ convex/
     internal.ts
   receiptImageExtraction/
     extraction.ts              # public action の薄いラッパー
+  accountDeletion.ts          # セルフサービス退会リクエスト・ジョブ制御
+  accountDeletionActions.ts   # 退会処理の Clerk 連携 action
+  email/                      # トランザクションメール送信・抑制・webhook 処理
+    actions.ts
+    cleanup.ts
+    internal.ts
+    jobs.ts
+    suppressions.ts
+    model.ts
+    lib/providers.ts
+    webhooks/processResendEvent.ts
+  crons.ts                    # 定期 cleanup ジョブ
+  systemAdmins.ts             # システム管理者認可・管理 API
+  systemAdminSearch.ts
+  systemAdminMembership.ts
+  systemAdminRoleOperations.ts
+  systemAdminPendingInvitation.ts
+  systemAdminPendingInvitationAction.ts
+  systemAdminOwnerlessGroupRecovery.ts
+  systemAdminGroupDeletion.ts
+  legacyGroupDeletionAuditMigration.ts
 
 lib/                           # Convex 外の純粋ヘルパー（api.d.ts 肥大化回避）
   convex/
@@ -271,7 +301,20 @@ lib/                           # Convex 外の純粋ヘルパー（api.d.ts 肥�
   `convex/` 配下の `.ts` は Convex が `api.d.ts` に載せるため、ヘルパーを増やしすぎると型推論が深くなりビルドが失敗しうる。
 - **HTTP** は `convex/http.ts` が router のみを担当し、E2E 用 handler は `convex/e2eHttp/` に分離する。
 
-### 5.3 スタイリング責務
+### 5.3 ドメインレイヤー（DDD）
+
+ドメイン駆動設計に基づき、フロントエンド・バックエンド双方で使える **純粋なドメインルール** は `lib/domain/<domain>/` に配置する。
+
+- `lib/domain/<domain>/` には、値オブジェクト・ドメイン型・純粋バリデーション・ドメインサービスを置く。
+- `convex/<domain>/lib/` は `lib/domain/<domain>/` を利用した **Convex アダプタ** と位置づけ、UI から直接 import しない。
+- `src/features/<feature>/` はプレゼンテーション層とし、ドメインルールが必要な場合は `lib/domain/<domain>/` を経由して利用する。
+
+例として `lib/domain/groups/groupName.ts` ではグループ名の最大長・trim・空文字/超過判定を行い、
+`convex/groups/lib/groupName.ts` はそれを `ConvexError` でラップして利用する。
+同様に `lib/domain/groups/role.ts` は `GroupRole` 型とロールラベル関数を提供し、
+フロントエンド・バックエンドの重複を解消する。
+
+### 5.4 スタイリング責務
 
 MUIとTailwind CSSは併用するが、責務を分ける。
 
@@ -383,7 +426,7 @@ active record が確認できない場合は fail closed にする。
 | `/`                            | ダッシュボード     | 今週の支出、カテゴリ別支出、入力状態を確認する |
 | `/weeks/current/input`         | 今週のレシート入力 | レシートを連続入力する                     |
 | `/weeks/:weekStartDate`        | 週次サマリー       | 指定週の集計、支出一覧を確認する           |
-| `/settings`                    | 設定               | グループ、カテゴリ、週の開始・終了曜日を設定する |
+| `/settings`                    | 設定               | グループ、カテゴリ、週の開始曜日を設定する（終了曜日は自動） |
 | `/categories`                  | 設定               | `/settings` と同じ設定画面への互換ルート   |
 | `/group/setup`                 | グループ作成       | グループ未所属ユーザーが家族グループを作成する |
 | `/group/select`                | グループ選択       | 複数所属ユーザーが表示対象グループを選ぶ     |
@@ -408,6 +451,10 @@ active record が確認できない場合は fail closed にする。
 
 ## 8. データ設計
 
+家計簿の中心データは `expenseEntries` に寄せ、入力元原本は `sourceDocuments` を正本とする。
+`receipts` は既存データ互換のため当面残す。これらの詳細な schema と互換方針は
+21 節も参照。
+
 ### 8.1 users
 
 | 項目                                      | 型                | 説明                                           |
@@ -417,7 +464,7 @@ active record が確認できない場合は fail closed にする。
 | email                                     | string (optional) | メールアドレス                                 |
 | monthlyIncome                             | number (optional) | 月収入。現行UIからの設定導線は削除済み         |
 | weeklyStartDay                            | number (optional) | 週の開始曜日（0=日曜、1=月曜）。未設定は月曜   |
-| weeklyEndDay                              | number (optional) | 週の終了曜日（0=日曜、1=月曜）。未設定は日曜   |
+| weeklyEndDay                              | number (optional) | 週の終了曜日（0=日曜、1=月曜）。weeklyStartDay の6日後として自動算出・保存。未設定は weeklyStartDay 未設定時の日曜 |
 | receiptImageExternalApiConsentAcceptedAt  | number (optional) | レシート画像を外部APIへ送信することへの承認時刻 |
 | createdAt                                 | number            | 作成日時                                       |
 | updatedAt                                 | number            | 更新日時                                       |
@@ -510,6 +557,20 @@ active record が確認できない場合は fail closed にする。
 画像解析直後は `user_confirmation_required` を付与して常に `needs_review` とする。確認フォームから
 `updateForReview` を実行すると当該理由を除去し、確定したレシート記載日を `draft.date` に保存する。
 カテゴリ別に生成する全 `expenseEntries.date` はこの確定日を使い、`createdAt` は登録時刻に限定する。
+
+AI支出下書き一覧の画像プレビューは、画像送信時にクライアントのReact stateで保持している
+リサイズ済みData URLを利用する。画像本体は `aiExpenseDrafts`、`receiptAnalysisImageJobs`、
+Convex Storageへ保存しないため、ページ更新・別端末・別セッションではプレビューできない。
+同時に選択または撮影した画像群は、クライアントの `sessionBatches` に `batchId`、対象ジョブID、
+ファイル名だけを保持し、`listJobs` の `jobId` / `draftId` と結合して同一バッチの進捗を表示する。
+バッチ情報も永続化せず、複数バッチの登録対象を混在させない。
+失敗ジョブの「再解析」は同じセッションの画像を再送し、「再撮影」はカメラまたはファイルから
+新しい画像を選んで同じジョブを再試行する。画像品質の失敗ヒントは固定の一般案内であり、自動画質診断ではない。
+
+バッチの「まとめて登録」は、紐付く全ジョブが `ready` であり、登録準備OKの下書きIDが
+同一バッチ内で揃った場合だけ有効にする。`queued` / `running`、`needs_review`、`failed`、
+ジョブ未反映が残る間は無効とし、個別の確認・再試行・削除による既存の状態遷移を利用する。
+初期表示の下書きなどセッションバッチに属さない項目は、従来どおり個別選択の一括登録対象とする。
 
 画像解析では所属グループの有効カテゴリ名を先に取得し、OpenAIのプロンプトへ命令ではなくJSONデータとして渡す。
 構造化出力の `categoryName` は空文字列または有効カテゴリ名の動的 enum に制限し、下書き全体と各明細で
@@ -608,7 +669,7 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `receipts.summaries.getFourWeeksSummary()`
 - `receipts.summaries.getDailySpendingTrend(weekStartDate)`
 - `receipts.summaries.getMonthlyExpensesSummary(month?)`
-- `receipts.crud.deleteReceiptsByUser(groupId)`（internal）
+- `receipts.crud.deleteReceiptsByUser(groupId, userId)`（internal。指定ユーザーの作成データだけを対象）
 
 `receipts` は支出と収入の両方を扱う schema 互換として残る。新規手入力は `expenseEntries` を正本とし、
 収入は `entryType: "income"`、カテゴリなし、入力内容を `title` に保存する。
@@ -644,8 +705,9 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `users.mutations.updateWeeklyDays(weeklyStartDay, weeklyEndDay)`
 - `users.internal.clearUserMonthlyIncome(userId)`（internal）
 
-週の開始・終了曜日は `users` に保存する。ただし現行の週計算は月曜始まり・日曜終わり固定であり、
-保存値はまだ `getWeekStartDate` / `getWeekEndDate` に反映していない。
+週の開始・終了曜日は `users` に保存する。`weeklyEndDay` は `weeklyStartDay` から
+`getWeekEndDay()` で自動算出し、7日間の週が維持されるよう整合性を保つ。
+週計算・週セッション作成・週次サマリーの集計範囲には `weeklyStartDay` が反映される。
 
 ### 10.6 export
 
@@ -740,14 +802,14 @@ Convexにも引数validatorがあるため、Valibotだけに依存しない。�
 
 ### 12.1 週計算
 
-- 週開始日は月曜日
-- `getWeekStartDate(date)` で対象日の週開始日を求める
-- `getWeekEndDate(weekStartDate)` で週終了日を求める
+- 週の開始曜日は `users.weeklyStartDay` から決まり、未設定は月曜日
+- `convex/lib/weekDates.calculateWeekStartDate(date, weekStartDay)` で対象日の週開始日を求める
+- `calculateWeekEndDate(weekStartDate)` / `getWeekEndDay(weekStartDay)` で週終了日・終了曜日を求める
 - 日付は `YYYY-MM-DD` 文字列として扱う
 
-ユーザー設定として `weeklyStartDay` と `weeklyEndDay` は保存できるが、現行コードの週計算には
-まだ反映していない。週次セッション、receipt保存時の `weekStartDate`、週次サマリーは月曜始まり・
-日曜終わりで計算する。
+`users.weeklyStartDay` は週セッション作成、receipt / expenseEntries 保存時の `weekStartDate`、
+週次サマリーの集計範囲に反映される。`weeklyEndDay` は `weeklyStartDay` から7日間になるよう
+自動算出して保存する。
 
 ### 12.2 集計
 
@@ -992,7 +1054,6 @@ MVPでは自動migrationを最小限にする。Convex schema変更時は、以�
 現行コードで未実装または未反映の項目:
 
 - CSVエクスポート画面とCSV生成処理
-- 週の開始・終了曜日設定の週計算への反映
 - 月収入設定UI
 
 収入入力 UI は `ExpenseEntryForm` の `entryType` 切り替えで実装済み。
@@ -1130,3 +1191,30 @@ M18では、既存MVP利用者向けに、家計簿の中心を `receipts` か�
 - `receipts` は互換層として維持する。手入力・AI 登録は `expenseEntries` を正本とする。
 - 集計の正本ロジックは `lib/convex/receipts/spendingEntries.ts` に集約する。`convex/receipts/spendingEntries.ts` は `lib/convex/receipts/spendingEntries.ts` への re-export ラッパーとして残す。
 - M18 の後続 Issue は `expenseEntries` を正本として扱える。
+
+## 22. N2. P1 LINE連携基盤
+
+### 22.1 LINE channelとuserIdの境界
+
+LINE Login channelとMessaging API channelは、同じ環境内で同一LINE Providerに所属させる。同一Provider配下では、LINE Login callbackで取得したuserIdとMessaging API WebhookのuserIdを同一の連携キーとして扱える。Development、Preview、Productionはそれぞれ別Provider・別channel・別secretを使い、環境をまたいだuserIdや設定を共有しない。
+
+LINE連携はClerkのWeb認証を置き換えず、Clerkの`identity.tokenIdentifier`に紐づく外部連携として実装する。LINE userIdをクライアント引数の認可キーとして信用せず、サーバー側で有効な連携レコードからkakeibo userIdを解決する。
+
+### 22.2 OAuth 2.1 + PKCE連携
+
+1. 認証済みユーザーがWeb設定画面から連携開始を要求する。
+2. サーバーが短命な一回限りのstate、nonce、PKCE verifierを生成し、ユーザー識別子と有効期限を保存する。クライアントへは認可URLとchallengeだけを返す。
+3. LINE Loginへリダイレクトし、callbackではraw queryのcode/stateを受け取る。
+4. stateを原子的に予約して再利用を拒否し、LINE token endpointへcode、redirect URI、verifierを送る。
+5. ID tokenのnonce、audience、issuer、有効期限を検証し、取得したLINE userIdを有効な連携として保存する。
+6. callbackは秘密値を返さず、成功・失敗の結果コードだけをWeb設定画面へリダイレクトする。
+
+連携解除はClerk認証済みユーザーからのみ実行でき、解除済みレコードはWebhookから解決できない。再連携時は同じkakeiboユーザーまたは同じLINE userIdに残る旧activeレコードを原子的に失効させる。
+
+### 22.3 Webhook受信と非同期処理
+
+Convex HTTP Actionの`/webhooks/line`で、JSON変換前のraw bodyと`x-line-signature`をHMAC-SHA256で検証する。署名不一致、署名欠落、payload不正は処理せず、検証済みイベントだけを内部mutationでclaimする。
+
+`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携だけを後続dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。重いサマリー生成、画像取得、AI解析は後続Issueの責務とする。
+
+payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。Development、Preview、CIではmock clientと疑似Webhookを使い、実LINE APIに依存しない。

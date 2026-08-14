@@ -6,11 +6,15 @@ import { QueueStatusHeader } from "./QueueStatusHeader";
 import { QueueReadyRegisterPanel } from "./QueueReadyRegisterPanel";
 import { QueueActiveSections } from "./QueueActiveSections";
 
+const noopAsync = async () => {};
+
 export function QueueActiveContent({
   clearableCount,
   deletingIds,
   groupedItems,
   readyItems,
+  sessionBatchSummaries,
+  unbatchedReadyItems,
   registeringIds,
   registrationError,
   selectedReadyIds,
@@ -19,6 +23,8 @@ export function QueueActiveContent({
   onOpenReview,
   onRegisterReady,
   onRetry,
+  onReanalyze = noopAsync,
+  retryingItemId = null,
   onToggleReadySelection,
 }: QueueContentProps) {
   const { firstReviewItem, prioritizedReviewItems } = getQueueContentSummary({
@@ -56,11 +62,22 @@ export function QueueActiveContent({
       )}
 
       <QueueReadyRegisterPanel
-        readyItems={readyItems}
+        batchSummary={undefined}
+        readyItems={unbatchedReadyItems}
         selectedReadyIds={selectedReadyIds}
         registeringIds={registeringIds}
         onRegisterReady={onRegisterReady}
       />
+      {sessionBatchSummaries.map((batchSummary) => (
+        <QueueReadyRegisterPanel
+          batchSummary={batchSummary}
+          key={batchSummary.batchId}
+          readyItems={batchSummary.readyItems}
+          selectedReadyIds={selectedReadyIds}
+          registeringIds={registeringIds}
+          onRegisterReady={onRegisterReady}
+        />
+      ))}
 
       <Divider />
 
@@ -71,6 +88,8 @@ export function QueueActiveContent({
         onOpenReview={onOpenReview}
         onRegisterReady={onRegisterReady}
         onRetry={onRetry}
+        onReanalyze={onReanalyze}
+        retryingItemId={retryingItemId}
         onToggleReadySelection={onToggleReadySelection}
         prioritizedReviewItems={prioritizedReviewItems}
         registeringIds={registeringIds}

@@ -10,6 +10,11 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import {
+  getNormalizeReasonErrorMessage,
+  MAX_REASON_LENGTH,
+  normalizeSystemAdminReason,
+} from "../../../../lib/domain/systemAdmin/reason";
 import type { SystemAdminListItem, UserSearchItem } from "../types";
 
 export type SystemAdminAction = "grant" | "regrant" | "revoke";
@@ -49,8 +54,9 @@ export function SystemAdminActionDialog({
 
   const normalizedReason = reason.trim();
   const reasonError = useMemo(() => {
-    if (normalizedReason.length === 0 || normalizedReason.length > 500) {
-      return "理由は1〜500文字で入力してください";
+    const result = normalizeSystemAdminReason(normalizedReason);
+    if (!result.success) {
+      return getNormalizeReasonErrorMessage(result.error);
     }
     return "";
   }, [normalizedReason]);
@@ -95,11 +101,11 @@ export function SystemAdminActionDialog({
           />
           <Typography
             aria-live="polite"
-            color={normalizedReason.length > 500 ? "error" : "text.secondary"}
+            color={normalizedReason.length > MAX_REASON_LENGTH ? "error" : "text.secondary"}
             id="system-admin-reason-count"
             variant="caption"
           >
-            {normalizedReason.length}/500文字
+            {normalizedReason.length}/{MAX_REASON_LENGTH}文字
           </Typography>
           {error ? (
             <Typography color="error" role="alert" variant="body2">

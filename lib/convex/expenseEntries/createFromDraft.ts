@@ -3,12 +3,13 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { assertExpenseCategoryBelongsToGroup } from "./expenseEntryValidation";
+import {
+  buildDraftExpenseEntry,
+  getDraftExpenseEntryErrorMessage,
+  type DraftExpenseEntryInput,
+} from "../../../lib/domain/expenseEntries/createFromDraft";
 
-type DraftItemArg = {
-  itemName?: string;
-  amountYen: number;
-  categoryId?: Id<"categories">;
-};
+type DraftItemArg = DraftExpenseEntryInput<Id<"categories">>;
 
 export type CreateExpenseEntriesFromDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -19,7 +20,7 @@ export async function createExpenseEntriesFromDraftHandler(
   ctx: Pick<MutationCtx, "auth" | "db">,
   args: CreateExpenseEntriesFromDraftArgs,
 ): Promise<Id<"expenseEntries">[]> {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
 
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
@@ -39,24 +40,22 @@ export async function createExpenseEntriesFromDraftHandler(
   const createdIds: Id<"expenseEntries">[] = [];
 
   for (const item of args.items) {
-    if (!Number.isInteger(item.amountYen) || item.amountYen <= 0) {
-      throw new ConvexError("Amount must be a positive integer");
-    }
-    const categoryId = item.categoryId ?? draft.categoryId;
-    if (categoryId === undefined) {
-      throw new ConvexError("Category ID is required");
+    const buildResult = buildDraftExpenseEntry(item, draft.categoryId);
+    if (!buildResult.success) {
+      throw new ConvexError(getDraftExpenseEntryErrorMessage(buildResult.error));
     }
 
-    await assertExpenseCategoryBelongsToGroup(ctx, categoryId, groupId);
+    await assertExpenseCategoryBelongsToGroup(ctx, buildResult.entry.categoryId, groupId);
 
     const entryId = await ctx.db.insert("expenseEntries", {
       groupId,
+      createdByUserId: userId,
       sourceDocumentId: undefined,
       aiExpenseDraftId: args.draftId,
       date: draft.date,
-      amount: item.amountYen,
-      categoryId,
-      title: item.itemName ?? "不明",
+      amount: buildResult.entry.amount,
+      categoryId: buildResult.entry.categoryId,
+      title: buildResult.entry.title,
       entryType: "expense",
       source: "ai_suggested",
       createdAt: now,

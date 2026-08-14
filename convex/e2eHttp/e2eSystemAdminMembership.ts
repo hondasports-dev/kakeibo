@@ -4,14 +4,24 @@ import { internalMutation } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { MutationCtx } from "../_generated/server";
 import type { Id } from "../_generated/dataModel";
-import { requireE2eSecret, invalidJsonResponse } from "./e2eAuth";
+import {
+  isE2eAppEnvironment,
+  readE2eJsonObject,
+  requireE2eSecret,
+  requireE2eUserId,
+} from "./e2eAuth";
 
 const prefixPattern = /^e2e-system-admin-291-[a-z0-9-]+$/;
+const MAX_PREFIX_LENGTH = 80;
 
-function assertFixtureEnvironment(prefix: string) {
-  if (process.env.APP_ENV === "production")
-    throw new ConvexError("E2E fixture is disabled in production");
-  if (!prefixPattern.test(prefix)) throw new ConvexError("invalid fixture prefix");
+function assertFixtureEnvironment(prefix: string, actorUserId: string) {
+  if (!isE2eAppEnvironment()) throw new ConvexError("E2E fixture is disabled in production");
+  const configuredUserId = process.env.E2E_CLERK_USER_ID?.trim().replace(/^['"]+|['"]+$/g, "");
+  if (!configuredUserId || actorUserId !== configuredUserId)
+    throw new ConvexError("E2E actor is not authorized");
+  if (prefix.length > MAX_PREFIX_LENGTH || !prefixPattern.test(prefix)) {
+    throw new ConvexError("invalid fixture prefix");
+  }
 }
 
 async function deleteFixture(ctx: MutationCtx, prefix: string) {
@@ -68,7 +78,7 @@ async function deleteFixture(ctx: MutationCtx, prefix: string) {
 export const seedSystemAdminMembershipFixture = internalMutation({
   args: { actorUserId: v.string(), prefix: v.string() },
   handler: async (ctx, args) => {
-    assertFixtureEnvironment(args.prefix);
+    assertFixtureEnvironment(args.prefix, args.actorUserId);
     await deleteFixture(ctx, args.prefix);
     const actor = await ctx.db
       .query("users")
@@ -147,7 +157,7 @@ export const seedSystemAdminMembershipFixture = internalMutation({
 export const cleanupSystemAdminMembershipFixture = internalMutation({
   args: { actorUserId: v.string(), prefix: v.string() },
   handler: async (ctx, args) => {
-    assertFixtureEnvironment(args.prefix);
+    assertFixtureEnvironment(args.prefix, args.actorUserId);
     await deleteFixture(ctx, args.prefix);
     const actor = await ctx.db
       .query("users")
@@ -167,11 +177,15 @@ export const cleanupSystemAdminMembershipFixture = internalMutation({
 type FixtureBody = { actorUserId?: string; prefix?: string };
 
 async function readBody(req: Request): Promise<FixtureBody | Response> {
-  try {
-    return (await req.json()) as FixtureBody;
-  } catch {
-    return invalidJsonResponse();
+  const result = await readE2eJsonObject<FixtureBody>(req);
+  if (result instanceof Response) return result;
+  if (typeof result.actorUserId !== "string" || typeof result.prefix !== "string") {
+    return new Response(JSON.stringify({ error: "Invalid JSON body." }), {
+      status: 400,
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+    });
   }
+  return result;
 }
 
 export const seedSystemAdminMembershipHandler = httpAction(async (ctx, req) => {
@@ -179,7 +193,14 @@ export const seedSystemAdminMembershipHandler = httpAction(async (ctx, req) => {
   if (authError) return authError;
   const body = await readBody(req);
   if (body instanceof Response || !body.actorUserId || !body.prefix)
-    return body instanceof Response ? body : invalidJsonResponse();
+    return body instanceof Response
+      ? body
+      : new Response(JSON.stringify({ error: "Invalid JSON body." }), {
+          status: 400,
+          headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+        });
+  const userAuthorizationError = requireE2eUserId(body.actorUserId);
+  if (userAuthorizationError) return userAuthorizationError;
   const args = { actorUserId: body.actorUserId, prefix: body.prefix };
   try {
     const result: { targetUserId: Id<"users">; groupA: Id<"groups">; groupB: Id<"groups"> } =
@@ -189,13 +210,13 @@ export const seedSystemAdminMembershipHandler = httpAction(async (ctx, req) => {
       );
     return new Response(JSON.stringify(result), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
     });
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "fixture seed failed" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+  } catch {
+    return new Response(JSON.stringify({ error: "fixture seed failed" }), {
+      status: 400,
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+    });
   }
 });
 
@@ -204,7 +225,14 @@ export const cleanupSystemAdminMembershipHandler = httpAction(async (ctx, req) =
   if (authError) return authError;
   const body = await readBody(req);
   if (body instanceof Response || !body.actorUserId || !body.prefix)
-    return body instanceof Response ? body : invalidJsonResponse();
+    return body instanceof Response
+      ? body
+      : new Response(JSON.stringify({ error: "Invalid JSON body." }), {
+          status: 400,
+          headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+        });
+  const userAuthorizationError = requireE2eUserId(body.actorUserId);
+  if (userAuthorizationError) return userAuthorizationError;
   const args = { actorUserId: body.actorUserId, prefix: body.prefix };
   try {
     await ctx.runMutation(
@@ -213,12 +241,12 @@ export const cleanupSystemAdminMembershipHandler = httpAction(async (ctx, req) =
     );
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
     });
-  } catch (error) {
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "fixture cleanup failed" }),
-      { status: 400, headers: { "Content-Type": "application/json" } },
-    );
+  } catch {
+    return new Response(JSON.stringify({ error: "fixture cleanup failed" }), {
+      status: 400,
+      headers: { "Cache-Control": "no-store", "Content-Type": "application/json" },
+    });
   }
 });

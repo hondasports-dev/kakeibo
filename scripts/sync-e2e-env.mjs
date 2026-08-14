@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * ローカル E2E 前の .env.local 同期 + Convex E2E_CLEANUP_SECRET 反映。
+ * ローカル E2E 前の .env.local 同期 + Convex E2E 専用設定反映。
  *
  * 正本: docs/development-process.md「`.env.local` 同期」
  * CI では e2e.yml が同等の同期を行うため、CI=true のときは no-op。
@@ -12,6 +12,13 @@ import { fileURLToPath } from "node:url";
 import { spawnSync } from "node:child_process";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+
+function redactSensitiveText(text, sensitiveValues) {
+  return sensitiveValues.reduce(
+    (redacted, value) => (value ? redacted.split(value).join("[REDACTED]") : redacted),
+    text,
+  );
+}
 
 function parseEnvFile(content) {
   const values = new Map();
@@ -25,11 +32,88 @@ function parseEnvFile(content) {
   return values;
 }
 
-function resolveCanonicalEnvPath() {
+function listWorktrees() {
+  const result = spawnSync("git", ["worktree", "list", "--porcelain"], {
+    cwd: repoRoot,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
+  });
+
+  if (result.status !== 0) {
+    const stderr = result.stderr?.toString() ?? "";
+    throw new Error(
+      "git worktree list の取得に失敗しました。" + (stderr ? ` (${stderr.trim()})` : ""),
+    );
+  }
+
+  return result.stdout
+    .trim()
+    .split(/\r?\n\r?\n/)
+    .map((block) => {
+      let path = null;
+      let branch = null;
+      for (const line of block.split(/\r?\n/)) {
+        if (line.startsWith("worktree ")) path = line.slice("worktree ".length);
+        if (line.startsWith("branch ")) branch = line.slice("branch ".length);
+      }
+      return path ? { path: resolve(path), branch } : null;
+    })
+    .filter(Boolean);
+}
+
+function resolveCanonicalEnvPath(worktrees) {
   if (process.env.KAKEIBO_E2E_ENV_CANONICAL) {
     return resolve(process.env.KAKEIBO_E2E_ENV_CANONICAL);
   }
-  return resolve(repoRoot, "../kakeibo-worktrees/preview/.env.local");
+
+  const previewWorktree = worktrees.find(({ branch }) => branch === "refs/heads/preview");
+  if (!previewWorktree) {
+    throw new Error(
+      "preview worktree が見つかりません。\n" +
+        "初回のみ、元の clone で `git fetch origin preview && git worktree add ../kakeibo-worktrees/preview preview` を実行してください。\n" +
+        "ローカル E2E を未実行のまま先へ進めず、preview worktree を用意してから再実行してください。",
+    );
+  }
+
+  return resolve(previewWorktree.path, ".env.local");
+}
+
+function ensureCanonicalEnv(canonicalPath, worktrees) {
+  if (existsSync(canonicalPath)) {
+    return;
+  }
+
+  if (process.env.KAKEIBO_E2E_ENV_CANONICAL) {
+    throw new Error(
+      `指定された正本 .env.local が見つかりません: ${canonicalPath}\n` +
+        "KAKEIBO_E2E_ENV_CANONICAL のパスを修正し、.env.local を復旧してから再実行してください。",
+    );
+  }
+
+  const mainWorktree = worktrees[0];
+  const bootstrapPath = mainWorktree ? resolve(mainWorktree.path, ".env.local") : null;
+
+  if (!bootstrapPath || !existsSync(bootstrapPath)) {
+    throw new Error(
+      `preview worktree の正本 .env.local が見つかりません: ${canonicalPath}\n` +
+        `bootstrap 元: ${bootstrapPath ?? "特定不能"}\n` +
+        "最初の worktree の .env.local を復旧するか、preview worktree へ手動でコピーしてから再実行してください。\n" +
+        "環境不足を理由に E2E を省略して push / PR へ進めないでください。",
+    );
+  }
+
+  if (resolve(dirname(canonicalPath)) === resolve(mainWorktree.path)) {
+    throw new Error(
+      `preview worktree 自体が bootstrap 元ですが .env.local がありません: ${canonicalPath}\n` +
+        "ローカル開発用 .env.local を復旧してから再実行してください。",
+    );
+  }
+
+  copyFileSync(bootstrapPath, canonicalPath);
+  console.log(
+    `[e2e:env-sync] preview 正本 .env.local を bootstrap しました（元: ${bootstrapPath}）`,
+  );
 }
 
 function loadLocalEnv() {
@@ -43,12 +127,13 @@ function loadLocalEnv() {
 async function verifyCleanupAuth(env) {
   const siteUrl = env.get("VITE_CONVEX_SITE_URL");
   const secret = env.get("E2E_CLEANUP_SECRET");
+  const userId = env.get("E2E_CLERK_USER_ID");
 
-  if (!siteUrl || !secret) {
-    console.warn(
-      "[e2e:env-sync] cleanup 検証をスキップ（VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET が不足）",
+  if (!siteUrl || !secret || !userId) {
+    throw new Error(
+      ".env.local に VITE_CONVEX_SITE_URL / E2E_CLEANUP_SECRET / E2E_CLERK_USER_ID が不足しています。" +
+        " 正本 .env.local を復旧して pnpm run e2e:env-sync を再実行してください。",
     );
-    return;
   }
 
   const res = await fetch(`${siteUrl}/e2e/cleanup-auth-check`, {
@@ -64,7 +149,7 @@ async function verifyCleanupAuth(env) {
     return;
   }
 
-  const text = await res.text();
+  const text = redactSensitiveText(await res.text(), [secret, userId]);
   if (res.status === 401) {
     throw new Error(
       "E2E cleanup 認証失敗 (401)。.env.local の E2E_CLEANUP_SECRET と Convex deployment が不一致です。" +
@@ -75,23 +160,45 @@ async function verifyCleanupAuth(env) {
   throw new Error(`E2E cleanup 検証失敗: ${res.status} ${text}`);
 }
 
-function syncConvexSecret(secret) {
-  const result = spawnSync("pnpm", ["exec", "convex", "env", "set", "E2E_CLEANUP_SECRET", secret], {
+function syncConvexEnv(name, value) {
+  const pnpmCommand = process.platform === "win32" ? process.execPath : "pnpm";
+  const pnpmArgs =
+    process.platform === "win32"
+      ? [
+          resolve(dirname(process.execPath), "node_modules/corepack/dist/pnpm.js"),
+          "exec",
+          "convex",
+          "env",
+          "set",
+          name,
+          value,
+        ]
+      : ["exec", "convex", "env", "set", name, value];
+  const result = spawnSync(pnpmCommand, pnpmArgs, {
     cwd: repoRoot,
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
-    shell: process.platform === "win32",
   });
 
   if (result.status !== 0) {
-    const stderr = result.stderr?.toString() ?? "";
+    const stderr = redactSensitiveText(result.stderr?.toString() ?? "", [value]);
     throw new Error(
-      "convex env set E2E_CLEANUP_SECRET に失敗しました。" +
-        " CONVEX_DEPLOYMENT / ログイン状態を確認してください。" +
+      `convex env set ${name} に失敗しました。` +
+        " CONVEX_DEPLOYMENT / ログイン状態を確認して再実行してください。" +
+        (name === "E2E_CLEANUP_SECRET" ? " この失敗を理由に E2E を省略しないでください。" : "") +
         (stderr ? ` (${stderr.trim()})` : ""),
     );
   }
-  console.log("[e2e:env-sync] Convex dev に E2E_CLEANUP_SECRET を反映しました");
+}
+
+function syncConvexEnvironment(secret, userId) {
+  syncConvexEnv("APP_ENV", "development");
+  syncConvexEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
+  syncConvexEnv("E2E_CLERK_USER_ID", userId);
+  syncConvexEnv("E2E_CLEANUP_SECRET", secret);
+  console.log(
+    "[e2e:env-sync] Convex dev に E2E の環境ガード・テストユーザー・認証設定を反映しました",
+  );
 }
 
 async function main() {
@@ -100,24 +207,18 @@ async function main() {
     return;
   }
 
-  if (process.env.E2E_SKIP_ENV_SYNC === "1") {
-    console.log("[e2e:env-sync] E2E_SKIP_ENV_SYNC=1 のためスキップ");
-    return;
-  }
-
-  const canonicalPath = resolveCanonicalEnvPath();
+  const worktrees = listWorktrees();
+  const canonicalPath = resolveCanonicalEnvPath(worktrees);
   const targetPath = resolve(repoRoot, ".env.local");
 
-  if (!existsSync(canonicalPath)) {
-    throw new Error(
-      `正本 .env.local が見つかりません: ${canonicalPath}\n` +
-        "初回のみ: git fetch origin preview && git worktree add ../kakeibo-worktrees/preview preview\n" +
-        "preview worktree に .env.local を配置してから再実行してください（docs/development-process.md 参照）。",
-    );
-  }
+  ensureCanonicalEnv(canonicalPath, worktrees);
 
-  copyFileSync(canonicalPath, targetPath);
-  console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
+  if (resolve(canonicalPath) !== targetPath) {
+    copyFileSync(canonicalPath, targetPath);
+    console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
+  } else {
+    console.log(`[e2e:env-sync] 現在の .env.local を正本として使用します（${canonicalPath}）`);
+  }
 
   const env = loadLocalEnv();
   if (!env) {
@@ -128,8 +229,12 @@ async function main() {
   if (!secret) {
     throw new Error(".env.local に E2E_CLEANUP_SECRET がありません");
   }
+  const userId = env.get("E2E_CLERK_USER_ID");
+  if (!userId) {
+    throw new Error(".env.local に E2E_CLERK_USER_ID がありません");
+  }
 
-  syncConvexSecret(secret);
+  syncConvexEnvironment(secret, userId);
   await verifyCleanupAuth(env);
 }
 

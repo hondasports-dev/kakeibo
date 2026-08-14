@@ -59,6 +59,8 @@ pnpm run format:check
 pnpm run build
 pnpm run e2e:smoke -- --project=chromium
 pnpm run e2e -- --project=chromium
+pnpm run e2e:public -- --project=chromium
+pnpm run test:email-integration
 ```
 
 E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同期が必要です（[`docs/development-process.md`](docs/development-process.md) 参照）。
@@ -86,6 +88,12 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 | エージェント運用マニュアル     | `OPERATING_MANUAL.md`           |
 | 仮想開発会社の構成             | `COMPANY.md`                    |
 
+## エージェントループ
+
+リポジトリ変更を伴うエージェント作業の必須ループは `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` です。PR作成は checkpoint であり、次は PR Aftercare、その後に Process Learning です。
+
+下表の Codex / Devin 向け Skill は実行補助です。`$code-review` は `skills/code-review/SKILL.md` の代替ではありません。`$babysit-pr` は `skills/pr-aftercare/SKILL.md` の代替ではありません。
+
 ## Codex / Devinでの作業
 
 このリポジトリでは、Codex / Devin 向けの共有Skillを `.agents/skills/` に置きます。
@@ -95,6 +103,7 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 | `$issue-gate-0`         | Plan 契約フェーズ0。実装前仕様ゲート                                           |
 | `$tdd-implement`        | Plan 契約フェーズ1。TDD 実装（RED/GREEN）                                      |
 | `$e2e-author`           | Plan 契約フェーズ2。E2E 追加・更新・省略判断                                   |
+| `$e2e-smoke-run`        | Smoke E2E 実行手順。依存更新 PR などで golden-path ユーザー導線が壊れていないか確認する |
 | `$verify-pre-push`      | Plan 契約フェーズ3。push 前検証                                                |
 | `$code-review`          | Plan 契約フェーズ4。preview 差分のセルフレビュー                               |
 | `$babysit-pr`           | PR を merge-ready にする                                                       |

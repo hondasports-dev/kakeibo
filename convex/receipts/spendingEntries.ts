@@ -1,6 +1,9 @@
-export { addDays, getMonthEndDate } from "../../lib/convex/dateUtils";
+export { addDays, getMonthEndDate } from "../../lib/domain/common/date";
 export {
   getDateSpendingEntries,
+  getMonthAggregationEntries,
+  getYearAggregationEntries,
+  getMonthIncomeEntries,
   getMonthSpendingEntries,
   getWeekIncomeEntries,
   getWeekSpendingEntries,

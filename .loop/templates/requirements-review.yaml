@@ -1,0 +1,34 @@
+requirements_review:
+  agent_id: ""
+  perspective: ""
+  status: pending # approved | needs_revision | blocked | pending
+  input_snapshot:
+    snapshot_id: ""
+    repository_revision: ""
+    packet_version: ""
+    sources_manifest: []
+    digest: ""
+    matches_task_snapshot: false
+  execution:
+    mode: parallel_read_only
+    started_at: ""
+    submitted_at: ""
+    main_draft_seen_before_submission: false
+    other_review_outputs_seen_before_submission: false
+    independence_attested: false
+  facts: []
+  assumptions: []
+  omissions_or_ambiguities: []
+  in_scope: []
+  out_of_scope: []
+  preserve: []
+  acceptance_criteria: []
+  edge_error_loading_empty_authorization_states: []
+  test_strategy: []
+  findings: []
+  resolution: ""
+  rerun:
+    invalidated: false
+    rerun_of: ""
+    superseded_by: ""
+  evidence: []

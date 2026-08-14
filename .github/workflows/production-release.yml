@@ -82,13 +82,14 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ env.SOURCE_REF }}
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: ".nvmrc"
           cache: pnpm
@@ -143,7 +144,6 @@ jobs:
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           VITE_CONVEX_SITE_URL: ${{ vars.VITE_CONVEX_SITE_URL }}
@@ -156,7 +156,6 @@ jobs:
           [ -n "$CLERK_PUBLISHABLE_KEY" ] || missing+=("secrets.CLERK_PUBLISHABLE_KEY")
           [ -n "$CLERK_SECRET_KEY" ] || missing+=("secrets.CLERK_SECRET_KEY")
           [ -n "$E2E_CLERK_USER_EMAIL" ] || missing+=("secrets.E2E_CLERK_USER_EMAIL")
-          [ -n "$E2E_CLERK_USER_ID" ] || missing+=("secrets.E2E_CLERK_USER_ID")
           [ -n "$E2E_CLEANUP_SECRET" ] || missing+=("secrets.E2E_CLEANUP_SECRET")
           [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ] || missing+=("secrets.VERCEL_AUTOMATION_BYPASS_SECRET")
           [ -n "$VITE_CONVEX_SITE_URL" ] || missing+=("vars.VITE_CONVEX_SITE_URL")
@@ -166,19 +165,36 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ env.SOURCE_REF }}
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Resolve E2E Clerk user identifier
+        env:
+          CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
+          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
+          E2E_CLERK_USER_EMAIL: ${{ secrets.E2E_CLERK_USER_EMAIL }}
+        run: node scripts/resolve-e2e-clerk-user-id.mjs
+
+      - name: Configure release candidate Convex security environment
+        env:
+          E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
+        run: |
+          pnpm exec convex env set APP_ENV development
+          pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
+          pnpm exec convex env set E2E_CLERK_USER_ID "$E2E_CLERK_USER_ID"
+          pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
       - name: Build Convex staging and Vercel release candidate
         run: |
@@ -196,7 +212,7 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
           key: playwright-chromium-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -220,7 +236,6 @@ jobs:
           E2E_CLERK_USER_PASSWORD: ${{ secrets.E2E_CLERK_USER_PASSWORD }}
           VITE_CONVEX_SITE_URL: ${{ vars.VITE_CONVEX_SITE_URL }}
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
-          E2E_CLERK_USER_ID: ${{ secrets.E2E_CLERK_USER_ID }}
 
       - name: Write release candidate summary
         env:
@@ -271,19 +286,23 @@ jobs:
             exit 1
           fi
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ env.SOURCE_REF }}
 
-      - uses: pnpm/action-setup@v6
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Enforce production Convex environment
+        run: pnpm exec convex env set APP_ENV production
 
       - name: Set APP_VERSION and PUBLISHED_AT
         id: version

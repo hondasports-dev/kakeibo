@@ -10,13 +10,17 @@ import {
   getReceiptsByWeekHandler,
   updateReceiptHandler,
 } from "./crud";
+import { createReceipt, deleteReceipt, deleteReceiptsByUser, updateReceipt } from "./mutations";
 import {
   getDailySpendingTrendHandler,
   getFourWeeksSummaryHandler,
+  getMonthSummaryWithCategoriesHandler,
   getMonthlyExpensesSummaryHandler,
   getWeekSummaryHandler,
   getWeekSummaryWithCategoriesHandler,
+  getYearSummaryHandler,
 } from "./summaries";
+import { insertReceiptForGroup } from "../../lib/convex/receipts/insert";
 
 // ---------------------------------------------------------------------------
 // テスト用型定義
@@ -83,6 +87,18 @@ function createIdentity(overrides: Partial<UserIdentity> = {}): UserIdentity {
 const GROUP_ID = "group-001";
 const OTHER_GROUP_ID = "group-other";
 
+type RegisteredMutation = {
+  _handler: (ctx: MutationCtx, args: unknown) => Promise<unknown>;
+};
+
+function invokeRegisteredMutation(
+  mutation: unknown,
+  ctx: MutationCtx,
+  args: unknown,
+): Promise<unknown> {
+  return (mutation as RegisteredMutation)._handler(ctx, args);
+}
+
 /**
  * MutationCtx の最小モックを生成する。
  *
@@ -99,8 +115,10 @@ function createMutationCtx(
     getDocById?: Record<string, ReceiptDoc | CategoryDoc | null>;
     insertedDoc?: ReceiptDoc;
     updatedDoc?: ReceiptDoc;
+    returnNullAfterPatch?: boolean;
     queryDocs?: ReceiptDoc[];
     groupId?: string;
+    weeklyStartDay?: number;
   } = {},
 ): MutationCtx {
   const insertMock = vi.fn().mockResolvedValue("new-receipt-id");
@@ -133,6 +151,9 @@ function createMutationCtx(
       return insertedDoc;
     }
     // patch が完了した後の get は updatedDoc を返す
+    if (patchCalled && opts.returnNullAfterPatch) {
+      return null;
+    }
     if (patchCalled && updatedDoc !== null && id === updatedDoc._id) {
       return updatedDoc;
     }
@@ -167,6 +188,15 @@ function createMutationCtx(
       // groupMembers テーブルの by_user_id クエリはグループメンバーを返す
       if (_indexName === "by_user_id") {
         return { unique: vi.fn().mockResolvedValue(groupMember) };
+      }
+      if (_indexName === "by_token_identifier") {
+        return {
+          unique: vi
+            .fn()
+            .mockResolvedValue(
+              opts.weeklyStartDay === undefined ? null : { weeklyStartDay: opts.weeklyStartDay },
+            ),
+        };
       }
       return queryChain;
     });
@@ -557,6 +587,36 @@ describe("createReceipt", () => {
     );
   });
 
+  it("水曜日始まりの設定で作成時の週開始日を計算する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const createdReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "new-receipt-id",
+      date: "2024-01-14",
+      weekStartDate: "2024-01-10",
+    };
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+      insertedDoc: createdReceipt,
+      weeklyStartDay: 3,
+    });
+
+    await createReceiptHandler(ctx, {
+      date: "2024-01-14",
+      shopName: "スーパー",
+      amountYen: 1500,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-001" as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "receipts",
+      expect.objectContaining({ date: "2024-01-14", weekStartDate: "2024-01-10" }),
+    );
+  });
+
   it("未認証時: ConvexError が throw される", async () => {
     const ctx = createMutationCtx(null);
 
@@ -631,6 +691,129 @@ describe("createReceipt", () => {
     ).rejects.toMatchObject({
       data: "Inactive category cannot be used for new receipts",
     });
+  });
+
+  it("カテゴリが存在しない場合は作成を拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity);
+
+    await expect(
+      createReceiptHandler(ctx, {
+        date: "2024-01-10",
+        shopName: "スーパー",
+        amountYen: 1500,
+        categoryId: "cat-missing" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Category not found" });
+  });
+
+  it("作成直後に receipt を取得できない場合は失敗として扱う", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+    });
+
+    await expect(
+      createReceiptHandler(ctx, {
+        date: "2024-01-10",
+        shopName: "スーパー",
+        amountYen: 1500,
+        categoryId: "cat-001" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Failed to retrieve created receipt" });
+  });
+
+  it("グループに属さないカテゴリを低レベル挿入でも拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity({ tokenIdentifier: USER_ID }), {
+      getDocById: { "cat-other": otherGroupCategory },
+    });
+
+    await expect(
+      insertReceiptForGroup(
+        ctx,
+        GROUP_ID as any,
+        {
+          date: "2024-01-10",
+          shopName: "スーパー",
+          amountYen: 1500,
+          categoryId: "cat-other" as any,
+        },
+        1,
+        USER_ID,
+      ),
+    ).rejects.toMatchObject({ data: "Category does not belong to the current group" });
+  });
+
+  it("カテゴリが存在しない場合は更新を拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": sampleReceipt },
+    });
+
+    await expect(
+      updateReceiptHandler(ctx, {
+        receiptId: "receipt-001" as any,
+        categoryId: "cat-missing" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Category not found" });
+  });
+
+  it("別グループのカテゴリへの更新を拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: {
+        "receipt-001": sampleReceipt,
+        "cat-other": otherGroupCategory,
+      },
+    });
+
+    await expect(
+      updateReceiptHandler(ctx, {
+        receiptId: "receipt-001" as any,
+        categoryId: "cat-other" as any,
+      }),
+    ).rejects.toMatchObject({ data: "Category does not belong to the current group" });
+  });
+
+  it("存在しない receipt の更新を拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity);
+
+    await expect(
+      updateReceiptHandler(ctx, {
+        receiptId: "receipt-missing" as any,
+        shopName: "更新後店舗",
+      }),
+    ).rejects.toMatchObject({ data: "Receipt not found" });
+  });
+
+  it("不正な更新値を拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": sampleReceipt },
+    });
+
+    await expect(
+      updateReceiptHandler(ctx, {
+        receiptId: "receipt-001" as any,
+        date: "2024-99-99",
+      }),
+    ).rejects.toMatchObject({ data: "Date must be a valid YYYY-MM-DD value" });
+  });
+
+  it("更新後の receipt を取得できない場合は失敗として扱う", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": sampleReceipt },
+      returnNullAfterPatch: true,
+    });
+
+    await expect(
+      updateReceiptHandler(ctx, {
+        receiptId: "receipt-001" as any,
+        shopName: "更新後店舗",
+      }),
+    ).rejects.toMatchObject({ data: "Failed to retrieve updated receipt" });
   });
 
   it("収入: bankName で receipt が作成されて返される", async () => {
@@ -818,6 +1001,39 @@ describe("updateReceipt", () => {
         amountYen: 2000,
         updatedAt: expect.any(Number),
       }),
+    );
+  });
+
+  it("水曜日始まりの設定で日付更新時の週開始日を再計算する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const existingReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      date: "2024-01-10",
+      weekStartDate: "2024-01-10",
+    };
+    const updatedReceipt: ReceiptDoc = {
+      ...existingReceipt,
+      date: "2024-01-14",
+      weekStartDate: "2024-01-10",
+      updatedAt: 9999,
+    };
+    const ctx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": existingReceipt },
+      updatedDoc: updatedReceipt,
+      weeklyStartDay: 3,
+    });
+
+    await updateReceiptHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      receiptId: "receipt-001" as any,
+      date: "2024-01-14",
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(dbPatch).toHaveBeenCalledWith(
+      "receipt-001",
+      expect.objectContaining({ date: "2024-01-14", weekStartDate: "2024-01-10" }),
     );
   });
 
@@ -1027,6 +1243,56 @@ describe("deleteReceipt", () => {
       data: "Receipt does not belong to the current group",
     });
   });
+
+  it("存在しない receipt の削除を拒否する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const ctx = createMutationCtx(identity);
+
+    await expect(
+      deleteReceiptHandler(ctx, { receiptId: "receipt-missing" as any }),
+    ).rejects.toMatchObject({ data: "Receipt not found" });
+  });
+});
+
+describe("registered receipt mutations", () => {
+  it("登録済みmutationのhandlerを通して通常処理を呼び出す", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const createCtx = createMutationCtx(identity, {
+      getDocById: { "cat-001": sampleCategory },
+      insertedDoc: sampleReceipt,
+    });
+    await invokeRegisteredMutation(createReceipt, createCtx, {
+      date: "2024-01-10",
+      amountYen: 1000,
+      categoryId: "cat-001",
+      type: "expense",
+      shopName: "店",
+    });
+
+    const updateCtx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": sampleReceipt },
+      updatedDoc: sampleReceipt,
+    });
+    await invokeRegisteredMutation(updateReceipt, updateCtx, {
+      receiptId: "receipt-001",
+      shopName: "更新店",
+    });
+
+    const deleteCtx = createMutationCtx(identity, {
+      getDocById: { "receipt-001": sampleReceipt },
+    });
+    await invokeRegisteredMutation(deleteReceipt, deleteCtx, { receiptId: "receipt-001" });
+
+    const cleanupCtx = createMutationCtx(identity, { queryDocs: [] });
+    await invokeRegisteredMutation(deleteReceiptsByUser, cleanupCtx, {
+      groupId: GROUP_ID,
+      userId: USER_ID,
+    });
+
+    expect(createCtx.db.insert).toHaveBeenCalled();
+    expect(updateCtx.db.patch).toHaveBeenCalled();
+    expect(deleteCtx.db.delete).toHaveBeenCalledWith("receipt-001");
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -1164,6 +1430,30 @@ describe("getWeekSummary", () => {
     expect(result.totalAmountYen).toBe(501);
   });
 
+  it("開始曜日を変更した週でもレシートの実日付で集計する", async () => {
+    const identity = createIdentity({ tokenIdentifier: USER_ID });
+    const receipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "receipt-custom-week",
+      date: "2024-01-14",
+      amountYen: 3200,
+      // 旧設定（月曜始まり）で保存された値でも、水曜始まりの週に含める。
+      weekStartDate: "2024-01-08",
+    };
+    const ctx = createQueryCtx(identity, [receipt]);
+
+    const result = await getWeekSummaryHandler(ctx, {
+      weekStartDate: "2024-01-10",
+    });
+
+    expect(result).toEqual({
+      count: 1,
+      totalAmountYen: 3200,
+      prevWeekReceiptCount: 0,
+      prevWeekTotalAmountYen: null,
+    });
+  });
+
   it("前週レシートがあるとき: 前週件数と合計金額を返す", async () => {
     const identity = createIdentity({ tokenIdentifier: USER_ID });
     const currentReceipt: ReceiptDoc = {
@@ -1175,6 +1465,7 @@ describe("getWeekSummary", () => {
     const prevReceipt: ReceiptDoc = {
       ...sampleReceipt,
       _id: "receipt-prev",
+      date: "2024-01-03",
       amountYen: 5000,
       weekStartDate: "2024-01-01",
     };
@@ -1203,6 +1494,7 @@ describe("getWeekSummary", () => {
     const prevReceipts: ReceiptDoc[] = Array.from({ length: 201 }, (_, index) => ({
       ...sampleReceipt,
       _id: `receipt-prev-${index}`,
+      date: "2024-01-03",
       amountYen: 100,
       weekStartDate: "2024-01-01",
     }));
@@ -1647,6 +1939,7 @@ describe("getWeekSummaryWithCategories", () => {
     const prevReceipt: ReceiptDoc = {
       ...sampleReceipt,
       _id: "receipt-prev",
+      date: "2024-01-03",
       amountYen: 5000,
       categoryId: "cat-001",
       weekStartDate: "2024-01-01",
@@ -2456,5 +2749,408 @@ describe("getDailySpendingTrendHandler", () => {
     await expect(
       getDailySpendingTrendHandler(ctx, { weekStartDate: "2024-01-08" }),
     ).rejects.toBeInstanceOf(ConvexError);
+  });
+});
+
+describe("getMonthSummaryWithCategoriesHandler", () => {
+  it("未認証の場合は月次サマリーを返さない", async () => {
+    await expect(
+      getMonthSummaryWithCategoriesHandler(createQueryCtxForSummary(null), { month: "2024-02" }),
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("支出・収入・差引・カテゴリを expenseEntries から集計する", async () => {
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "entry-expense",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-02-01",
+        amount: 2000,
+        categoryId: sampleCategory._id,
+        title: "スーパー",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "entry-income",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        date: "2024-02-29",
+        amount: 50000,
+        categoryId: sampleCategory._id,
+        title: "給与",
+        entryType: "income",
+        source: "manual",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+    ];
+    const legacyReceipts: ReceiptDoc[] = [
+      {
+        ...sampleReceipt,
+        _id: "legacy-expense",
+        date: "2024-02-15",
+        amountYen: 999,
+      },
+      {
+        ...sampleReceipt,
+        _id: "legacy-income",
+        date: "2024-02-20",
+        type: "income",
+        bankName: "旧口座",
+        shopName: undefined,
+        amountYen: 9999,
+      },
+    ];
+
+    const result = await getMonthSummaryWithCategoriesHandler(
+      createQueryCtxForSummary(
+        createIdentity({ tokenIdentifier: USER_ID }),
+        legacyReceipts,
+        [sampleCategory],
+        expenseEntries,
+      ),
+      { month: "2024-02" },
+    );
+
+    expect(result.totalAmountYen).toBe(2000);
+    expect(result.totalIncomeYen).toBe(50000);
+    expect(result.netAmountYen).toBe(48000);
+    expect(result.count).toBe(1);
+    expect(result.incomeCount).toBe(1);
+    expect(result.receipts.map((receipt) => receipt._id)).toEqual(["entry-expense"]);
+    expect(result.incomes.map((income) => income._id)).toEqual(["entry-income"]);
+    expect(result.byCategory).toEqual([
+      {
+        categoryId: sampleCategory._id,
+        categoryName: sampleCategory.name,
+        categoryColor: sampleCategory.color,
+        totalAmountYen: 2000,
+        count: 1,
+      },
+    ]);
+  });
+
+  it("複数カテゴリとマイナス差引を正しく集計する", async () => {
+    const transportCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-002",
+      name: "交通費",
+      color: "#4F7CAC",
+      sortOrder: 2,
+    };
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "food-1",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-02-10",
+        amount: 4000,
+        categoryId: sampleCategory._id,
+        title: "食料品1",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "food-2",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        date: "2024-02-11",
+        amount: 1000,
+        categoryId: sampleCategory._id,
+        title: "食料品2",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+      {
+        _id: "transport-1",
+        _creationTime: 1002,
+        groupId: GROUP_ID,
+        date: "2024-02-12",
+        amount: 1500,
+        categoryId: transportCategory._id,
+        title: "電車",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1002,
+        updatedAt: 1002,
+      },
+      {
+        _id: "income-1",
+        _creationTime: 1003,
+        groupId: GROUP_ID,
+        date: "2024-02-29",
+        amount: 3000,
+        categoryId: sampleCategory._id,
+        title: "給料",
+        entryType: "income",
+        source: "manual",
+        createdAt: 1003,
+        updatedAt: 1003,
+      },
+    ];
+
+    const result = await getMonthSummaryWithCategoriesHandler(
+      createQueryCtxForSummary(
+        createIdentity({ tokenIdentifier: USER_ID }),
+        [],
+        [sampleCategory, transportCategory],
+        expenseEntries,
+      ),
+      { month: "2024-02" },
+    );
+
+    expect(result.totalAmountYen).toBe(6500);
+    expect(result.totalIncomeYen).toBe(3000);
+    expect(result.netAmountYen).toBe(-3500);
+    expect(result.byCategory).toEqual([
+      {
+        categoryId: sampleCategory._id,
+        categoryName: sampleCategory.name,
+        categoryColor: sampleCategory.color,
+        totalAmountYen: 5000,
+        count: 2,
+      },
+      {
+        categoryId: transportCategory._id,
+        categoryName: transportCategory.name,
+        categoryColor: transportCategory.color,
+        totalAmountYen: 1500,
+        count: 1,
+      },
+    ]);
+  });
+
+  it("カテゴリが削除済みでも不明カテゴリとして集計する", async () => {
+    const expenseEntry: ExpenseEntryDoc = {
+      _id: "missing-category-entry",
+      _creationTime: 1000,
+      groupId: GROUP_ID,
+      date: "2024-02-10",
+      amount: 1200,
+      categoryId: "missing-category",
+      title: "カテゴリなし支出",
+      entryType: "expense",
+      source: "manual",
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    const result = await getMonthSummaryWithCategoriesHandler(
+      createQueryCtxForSummary(
+        createIdentity({ tokenIdentifier: USER_ID }),
+        [],
+        [],
+        [expenseEntry],
+      ),
+      { month: "2024-02" },
+    );
+
+    expect(result.receipts[0]).toMatchObject({
+      categoryId: "missing-category",
+      categoryName: "不明",
+      categoryColor: "#AAB7C4",
+    });
+    expect(result.byCategory).toEqual([
+      {
+        categoryId: "missing-category",
+        categoryName: "不明",
+        categoryColor: "#AAB7C4",
+        totalAmountYen: 1200,
+        count: 1,
+      },
+    ]);
+  });
+
+  it("expenseEntries がない場合は旧 receipts の月初・月末を集計する", async () => {
+    const receipts: ReceiptDoc[] = [
+      { ...sampleReceipt, _id: "month-start", date: "2024-02-01", amountYen: 1000 },
+      { ...sampleReceipt, _id: "month-end", date: "2024-02-29", amountYen: 2000 },
+      { ...sampleReceipt, _id: "next-month", date: "2024-03-01", amountYen: 4000 },
+    ];
+
+    const result = await getMonthSummaryWithCategoriesHandler(
+      createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID }), receipts, [
+        sampleCategory,
+      ]),
+      { month: "2024-02" },
+    );
+
+    expect(result.totalAmountYen).toBe(3000);
+    expect(result.count).toBe(2);
+    expect(result.receipts.map((receipt) => receipt._id)).toEqual(["month-start", "month-end"]);
+  });
+
+  it("アクティブグループ以外のデータを月次集計に含めない", async () => {
+    const otherGroupReceipt: ReceiptDoc = {
+      ...sampleReceipt,
+      _id: "other-group-receipt",
+      groupId: OTHER_GROUP_ID,
+      date: "2024-02-15",
+      amountYen: 9999,
+    };
+
+    const result = await getMonthSummaryWithCategoriesHandler(
+      createQueryCtxForSummary(
+        createIdentity({ tokenIdentifier: USER_ID }),
+        [otherGroupReceipt],
+        [otherGroupCategory],
+      ),
+      { month: "2024-02" },
+    );
+
+    expect(result).toMatchObject({
+      count: 0,
+      totalAmountYen: 0,
+      totalIncomeYen: 0,
+      netAmountYen: 0,
+      incomeCount: 0,
+      byCategory: [],
+      receipts: [],
+      incomes: [],
+    });
+  });
+
+  it("対象月にデータがなければ空のサマリーを返す", async () => {
+    const result = await getMonthSummaryWithCategoriesHandler(
+      createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID })),
+      { month: "2024-02" },
+    );
+
+    expect(result).toEqual({
+      count: 0,
+      totalAmountYen: 0,
+      totalIncomeYen: 0,
+      netAmountYen: 0,
+      incomeCount: 0,
+      byCategory: [],
+      receipts: [],
+      incomes: [],
+    });
+  });
+
+  it("不正な年月を拒否する", async () => {
+    await expect(
+      getMonthSummaryWithCategoriesHandler(
+        createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID })),
+        { month: "2024-13" },
+      ),
+    ).rejects.toMatchObject({ data: "Invalid month" });
+  });
+});
+
+describe("getYearSummaryHandler", () => {
+  it("未認証の場合は年次サマリーを返さない", async () => {
+    await expect(
+      getYearSummaryHandler(createQueryCtxForSummary(null), { year: "2024" }),
+    ).rejects.toBeInstanceOf(ConvexError);
+  });
+
+  it("月ごとの収支とカテゴリ積み上げを年単位で集計する", async () => {
+    const utilitiesCategory: CategoryDoc = {
+      ...sampleCategory,
+      _id: "cat-002",
+      name: "光熱費",
+      color: "#4F7CAC",
+      sortOrder: 2,
+    };
+    const expenseEntries: ExpenseEntryDoc[] = [
+      {
+        _id: "jan-food",
+        _creationTime: 1000,
+        groupId: GROUP_ID,
+        date: "2024-01-10",
+        amount: 1200,
+        categoryId: sampleCategory._id,
+        title: "食費",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1000,
+        updatedAt: 1000,
+      },
+      {
+        _id: "aug-utilities",
+        _creationTime: 1001,
+        groupId: GROUP_ID,
+        date: "2024-08-15",
+        amount: 8000,
+        categoryId: utilitiesCategory._id,
+        title: "電気代",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1001,
+        updatedAt: 1001,
+      },
+      {
+        _id: "aug-income",
+        _creationTime: 1002,
+        groupId: GROUP_ID,
+        date: "2024-08-25",
+        amount: 200000,
+        categoryId: sampleCategory._id,
+        title: "給与",
+        entryType: "income",
+        source: "manual",
+        createdAt: 1002,
+        updatedAt: 1002,
+      },
+    ];
+
+    const result = await getYearSummaryHandler(
+      createQueryCtxForSummary(
+        createIdentity({ tokenIdentifier: USER_ID }),
+        [],
+        [sampleCategory, utilitiesCategory],
+        expenseEntries,
+      ),
+      { year: "2024" },
+    );
+
+    expect(result.year).toBe("2024");
+    expect(result.months).toHaveLength(12);
+    expect(result.totalAmountYen).toBe(9200);
+    expect(result.totalIncomeYen).toBe(200000);
+    expect(result.netAmountYen).toBe(190800);
+    expect(result.months[0]).toMatchObject({
+      month: "2024-01",
+      totalAmountYen: 1200,
+      totalIncomeYen: 0,
+    });
+    expect(result.months[7]).toMatchObject({
+      month: "2024-08",
+      totalAmountYen: 8000,
+      totalIncomeYen: 200000,
+    });
+    expect(result.byCategory.map((category) => category.categoryName)).toEqual(["光熱費", "食費"]);
+  });
+
+  it("データが無い年は0で埋めた12ヶ月を返す", async () => {
+    const result = await getYearSummaryHandler(
+      createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID })),
+      { year: "2023" },
+    );
+
+    expect(result.months).toHaveLength(12);
+    expect(result.totalAmountYen).toBe(0);
+    expect(result.totalIncomeYen).toBe(0);
+    expect(result.byCategory).toEqual([]);
+  });
+
+  it("不正な年を拒否する", async () => {
+    await expect(
+      getYearSummaryHandler(
+        createQueryCtxForSummary(createIdentity({ tokenIdentifier: USER_ID })),
+        {
+          year: "24",
+        },
+      ),
+    ).rejects.toMatchObject({ data: "Invalid year" });
   });
 });

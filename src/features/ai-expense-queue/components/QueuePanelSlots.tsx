@@ -23,6 +23,10 @@ function queueContentProps(queue: ReturnType<typeof useAiExpenseQueuePanelContex
     onOpenReview: queue.handleOpenReview,
     onRegisterReady: queue.handleRegisterReady,
     onRetry: queue.handleRetry,
+    onReanalyze: queue.handleReanalyze,
+    retryingItemId: queue.retryingItemId,
+    sessionBatchSummaries: queue.sessionBatchSummaries,
+    unbatchedReadyItems: queue.unbatchedReadyItems,
     onToggleReadySelection: queue.handleToggleReadySelection,
   };
 }

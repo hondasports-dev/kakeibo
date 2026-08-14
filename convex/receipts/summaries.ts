@@ -20,8 +20,14 @@ export {
 } from "../../lib/convex/receipts/summaryLib/trend";
 export {
   getMonthlyExpensesSummaryHandler,
+  getMonthSummaryWithCategoriesHandler,
   type MonthlyExpensesSummary,
+  type MonthlySummaryWithCategories,
 } from "../../lib/convex/receipts/summaryLib/monthly";
+export {
+  getYearSummaryHandler,
+  type YearlySummary,
+} from "../../lib/convex/receipts/summaryLib/yearly";
 
 import {
   getWeekSummaryHandler,
@@ -29,7 +35,11 @@ import {
   getFourWeeksSummaryHandler,
 } from "../../lib/convex/receipts/summaryLib/week";
 import { getDailySpendingTrendHandler } from "../../lib/convex/receipts/summaryLib/trend";
-import { getMonthlyExpensesSummaryHandler } from "../../lib/convex/receipts/summaryLib/monthly";
+import {
+  getMonthlyExpensesSummaryHandler,
+  getMonthSummaryWithCategoriesHandler,
+} from "../../lib/convex/receipts/summaryLib/monthly";
+import { getYearSummaryHandler } from "../../lib/convex/receipts/summaryLib/yearly";
 
 export const getWeekSummary = query({
   args: {
@@ -74,6 +84,17 @@ const categorySummaryValidator = v.object({
   count: v.number(),
 });
 
+const monthlySummaryWithCategoriesValidator = v.object({
+  count: v.number(),
+  totalAmountYen: v.number(),
+  totalIncomeYen: v.number(),
+  netAmountYen: v.number(),
+  incomeCount: v.number(),
+  byCategory: v.array(categorySummaryValidator),
+  receipts: v.array(receiptWithCategoryValidator),
+  incomes: v.array(incomeListEntryValidator),
+});
+
 export const getWeekSummaryWithCategories = query({
   args: {
     weekStartDate: v.string(),
@@ -90,6 +111,14 @@ export const getWeekSummaryWithCategories = query({
     incomes: v.array(incomeListEntryValidator),
   }),
   handler: getWeekSummaryWithCategoriesHandler,
+});
+
+export const getMonthSummaryWithCategories = query({
+  args: {
+    month: v.string(),
+  },
+  returns: monthlySummaryWithCategoriesValidator,
+  handler: getMonthSummaryWithCategoriesHandler,
 });
 
 export const getFourWeeksSummary = query({
@@ -111,4 +140,33 @@ export const getMonthlyExpensesSummary = query({
     monthStartDate: v.string(),
   },
   handler: getMonthlyExpensesSummaryHandler,
+});
+
+const yearlyMonthPointValidator = v.object({
+  month: v.string(),
+  totalAmountYen: v.number(),
+  totalIncomeYen: v.number(),
+  netAmountYen: v.number(),
+  count: v.number(),
+  incomeCount: v.number(),
+  byCategory: v.array(categorySummaryValidator),
+});
+
+const yearlySummaryValidator = v.object({
+  year: v.string(),
+  totalAmountYen: v.number(),
+  totalIncomeYen: v.number(),
+  netAmountYen: v.number(),
+  count: v.number(),
+  incomeCount: v.number(),
+  byCategory: v.array(categorySummaryValidator),
+  months: v.array(yearlyMonthPointValidator),
+});
+
+export const getYearSummary = query({
+  args: {
+    year: v.string(),
+  },
+  returns: yearlySummaryValidator,
+  handler: getYearSummaryHandler,
 });

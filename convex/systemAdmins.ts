@@ -3,10 +3,31 @@ import { paginationOptsValidator, paginationResultValidator } from "convex/serve
 import { internalMutation, mutation, query } from "./_generated/server";
 import type { MutationCtx, QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
+import {
+  getResolveAppEnvironmentErrorMessage,
+  resolveAppEnvironment,
+  type AppEnvironment,
+} from "../lib/domain/systemAdmin/environment";
 
-const REASON_MAX_LENGTH = 500;
-const ENVIRONMENTS = ["development", "preview", "production"] as const;
-type AppEnvironment = (typeof ENVIRONMENTS)[number];
+function normalizeReason(reason: string): string {
+  const result = normalizeSystemAdminReason(reason);
+  if (!result.success) {
+    throw new ConvexError(getNormalizeReasonErrorMessage(result.error));
+  }
+  return result.reason;
+}
+
+function getAppEnvironment(expected?: string): AppEnvironment {
+  const result = resolveAppEnvironment(process.env.APP_ENV, expected);
+  if (!result.success) {
+    throw new ConvexError(getResolveAppEnvironmentErrorMessage(result.error));
+  }
+  return result.environment;
+}
 
 const systemAdminStatusValidator = v.union(v.literal("active"), v.literal("revoked"));
 const systemAdminAuditActionValidator = v.union(
@@ -81,27 +102,6 @@ const systemAdminAuditItemValidator = v.object({
 });
 
 type DbCtx = Pick<QueryCtx, "db" | "auth"> | Pick<MutationCtx, "db" | "auth">;
-
-function normalizeReason(reason: string): string {
-  const normalized = reason.trim();
-  if (normalized.length < 1 || normalized.length > REASON_MAX_LENGTH) {
-    throw new ConvexError("理由は1〜500文字で入力してください");
-  }
-  return normalized;
-}
-
-function getAppEnvironment(expected?: string): AppEnvironment {
-  const actual = process.env.APP_ENV;
-  if (!expected) {
-    return ENVIRONMENTS.includes(actual as AppEnvironment)
-      ? (actual as AppEnvironment)
-      : "development";
-  }
-  if (!ENVIRONMENTS.includes(actual as AppEnvironment) || actual !== expected) {
-    throw new ConvexError("対象環境が一致しません");
-  }
-  return actual as AppEnvironment;
-}
 
 async function findUserByTokenIdentifier(ctx: DbCtx, tokenIdentifier: string) {
   return ctx.db

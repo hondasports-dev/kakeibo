@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAction } from "convex/react";
+import { searchUsersApi } from "../../../lib/repositories/systemAdmin";
 import { Link as RouterLink } from "react-router-dom";
 import {
   Alert,
@@ -14,7 +15,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { api } from "../../../../convex/_generated/api";
 import {
   SystemAdminEmptyState,
   SystemAdminErrorState,
@@ -25,7 +25,7 @@ import type { PageResult, UserSearchItem } from "../types";
 type UserQueryType = "displayName" | "email" | "userId";
 
 export function SystemAdminUserSearchPage() {
-  const searchUsers = useAction(api.systemAdminSearch.searchUsers);
+  const searchUsers = useAction(searchUsersApi());
   const [query, setQuery] = useState("");
   const [queryType, setQueryType] = useState<UserQueryType>("displayName");
   const [result, setResult] = useState<PageResult<UserSearchItem> | null>(null);

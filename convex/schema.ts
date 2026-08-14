@@ -31,6 +31,12 @@ import {
   transactionalEmailJobStatusValidator,
   transactionalEmailTypeValidator,
 } from "./email/model";
+import {
+  lineLinkAuditActionValidator,
+  lineLinkRequestStatusValidator,
+  lineLinkStatusValidator,
+} from "./lineLink/model";
+import { lineWebhookDeliveryValidator, lineWebhookEventTypeValidator } from "./lineWebhook/model";
 
 export default defineSchema({
   users: defineTable({
@@ -59,6 +65,62 @@ export default defineSchema({
     .index("by_created_at", ["createdAt"])
     .searchIndex("search_display_name", { searchField: "displayName" })
     .searchIndex("search_email", { searchField: "email" }),
+
+  // LINE LoginはClerk認証を置き換えない外部連携として、tokenIdentifierで所有者を記録する。
+  // state/nonceはハッシュのみ保存し、LINE userIdはUI・監査ログへ露出しない。
+  lineLinkRequests: defineTable({
+    userId: v.string(),
+    stateHash: v.string(),
+    nonceHash: v.string(),
+    codeVerifier: v.string(),
+    status: lineLinkRequestStatusValidator,
+    expiresAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    claimedAt: v.optional(v.number()),
+    completedAt: v.optional(v.number()),
+  })
+    .index("by_state_hash", ["stateHash"])
+    .index("by_user_id_and_expires_at", ["userId", "expiresAt"])
+    .index("by_expires_at", ["expiresAt"]),
+
+  lineAccountLinks: defineTable({
+    userId: v.string(),
+    lineUserId: v.string(),
+    status: lineLinkStatusValidator,
+    linkedAt: v.number(),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+    revokedAt: v.optional(v.number()),
+  })
+    .index("by_user_id_and_status", ["userId", "status"])
+    .index("by_line_user_id_and_status", ["lineUserId", "status"]),
+
+  lineLinkAuditLogs: defineTable({
+    userId: v.string(),
+    action: lineLinkAuditActionValidator,
+    result: v.union(v.literal("success"), v.literal("failure")),
+    reasonCode: v.optional(v.string()),
+    createdAt: v.number(),
+  }).index("by_user_id", ["userId"]),
+
+  // raw payload・署名・LINE userId・replyTokenはこのテーブルへ保存せず、allowlistだけを保持する。
+  // replyTokenはclaimと原子化した案内送信ジョブの引数としてのみ渡す。
+  lineWebhookEvents: defineTable({
+    webhookEventId: v.string(),
+    eventType: lineWebhookEventTypeValidator,
+    delivery: lineWebhookDeliveryValidator,
+    userId: v.optional(v.string()),
+    messageId: v.optional(v.string()),
+    messageText: v.optional(v.string()),
+    postbackData: v.optional(v.string()),
+    eventTimestamp: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_webhook_event_id", ["webhookEventId"])
+    .index("by_user_id_and_created_at", ["userId", "createdAt"])
+    .index("by_delivery_and_created_at", ["delivery", "createdAt"])
+    .index("by_created_at", ["createdAt"]),
 
   // ---------------------------------------------------------------------------
   // グループ管理テーブル（Issue #103: 家族グループへのアクセス変更）
@@ -353,6 +415,9 @@ export default defineSchema({
 
   expenseEntries: defineTable({
     groupId: v.id("groups"),
+    // 作成者はE2E cleanupの削除範囲をテストユーザー自身に限定するために保持する。
+    // 既存データとの後方互換性のため optional とする。
+    createdByUserId: v.optional(v.string()),
     sourceDocumentId: v.optional(v.id("sourceDocuments")),
     aiExpenseDraftId: v.optional(v.id("aiExpenseDrafts")),
     date: v.string(),
@@ -367,12 +432,15 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_date", ["groupId", "date"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_category_id_and_date", ["groupId", "categoryId", "date"])
     .index("by_group_id_and_source_document_id", ["groupId", "sourceDocumentId"])
     .index("by_group_id_and_ai_expense_draft_id", ["groupId", "aiExpenseDraftId"]),
 
   receipts: defineTable({
     groupId: v.id("groups"),
+    // 既存データとの後方互換性を保ちつつ、E2E cleanupの削除範囲を限定する。
+    createdByUserId: v.optional(v.string()),
     date: v.string(),
     // type は支出(expense) / 収入(income) を区別する。既存レコードとの後方互換のため optional とする。
     type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
@@ -389,6 +457,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_week_start_date", ["groupId", "weekStartDate"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_date", ["groupId", "date"])
     .index("by_group_id_and_shop_name", ["groupId", "shopName"]),
 
@@ -418,6 +487,8 @@ export default defineSchema({
 
   aiExpenseDrafts: defineTable({
     groupId: v.id("groups"),
+    // E2E cleanupで他メンバーの下書きを削除しないための作成者識別子。
+    createdByUserId: v.optional(v.string()),
     sourceType: aiExpenseDraftSourceTypeValidator,
     status: aiExpenseDraftStatusValidator,
     documentType: aiExpenseDraftDocumentTypeValidator,
@@ -441,6 +512,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_status_and_created_at", ["groupId", "status", "createdAt"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_created_at", ["groupId", "createdAt"])
     .index("by_group_id_and_registered_receipt_id", ["groupId", "registeredReceiptId"]),
 
@@ -488,6 +560,7 @@ export default defineSchema({
     updatedAt: v.number(),
   })
     .index("by_group_id_and_status", ["groupId", "status"])
+    .index("by_group_id_and_created_by_user_id", ["groupId", "createdByUserId"])
     .index("by_group_id_and_created_at", ["groupId", "createdAt"]),
 
   receiptAnalysisImageJobs: defineTable({

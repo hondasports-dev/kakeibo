@@ -1,20 +1,25 @@
 import { useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
+import { useQuery } from "convex/react";
 import { Box, useMediaQuery } from "@mui/material";
 import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
 import { PageTransition } from "../../ui";
 import { AppBottomNav } from "./AppBottomNav";
 import { AppDrawer } from "./AppDrawer";
+import { NavigationPendingOutlet } from "./NavigationPendingOutlet";
 import { UserMenu } from "./UserMenu";
 import { createNavItems } from "../lib/navigationConfig";
+import { ExpenseSearchBox } from "../../expense-search/components/ExpenseSearchBox";
+import { getUserProfileApi } from "../../../lib/repositories/users";
 
 export function AppLayout() {
   const theme = useTheme();
   const isPC = useMediaQuery(theme.breakpoints.up("md"));
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const navItems = createNavItems();
+  const userProfile = useQuery(getUserProfileApi());
+  const navItems = createNavItems(userProfile?.weeklyStartDay);
 
   return (
     <Box className="app-layout">
@@ -36,19 +41,21 @@ export function AppLayout() {
             display: "flex",
             alignItems: "center",
             justifyContent: "flex-end",
+            gap: 1.5,
             px: 2,
             py: 1,
             borderBottom: "1px solid",
             borderColor: "divider",
           }}
         >
+          <ExpenseSearchBox />
           <UserMenu />
         </Box>
 
         <Box component="main" sx={{ flex: 1 }}>
           <AnimatePresence mode="wait">
             <PageTransition key={location.pathname}>
-              <Outlet />
+              <NavigationPendingOutlet />
             </PageTransition>
           </AnimatePresence>
         </Box>

@@ -1,5 +1,6 @@
 import type { QueryCtx } from "../../../convex/_generated/server";
 import { requireGroupMembership } from "../../../convex/groups/membership";
+import { addDays } from "../../domain/common/date";
 
 type GetReceiptsByWeekArgs = {
   weekStartDate: string;
@@ -8,11 +9,12 @@ type GetReceiptsByWeekArgs = {
 /** getReceiptsByWeek query の handler ロジック（テスト用に export） */
 export async function getReceiptsByWeekHandler(ctx: QueryCtx, args: GetReceiptsByWeekArgs) {
   const { groupId } = await requireGroupMembership(ctx);
+  const weekEndDate = addDays(args.weekStartDate, 6);
 
   return await ctx.db
     .query("receipts")
-    .withIndex("by_group_id_and_week_start_date", (q) =>
-      q.eq("groupId", groupId).eq("weekStartDate", args.weekStartDate),
+    .withIndex("by_group_id_and_date", (q) =>
+      q.eq("groupId", groupId).gte("date", args.weekStartDate).lte("date", weekEndDate),
     )
     .order("desc")
     .take(200);

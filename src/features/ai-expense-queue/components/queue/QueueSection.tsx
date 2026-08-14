@@ -12,6 +12,8 @@ export function QueueSection({
   onOpenReview,
   onRegisterItem,
   onRetry,
+  onReanalyze,
+  retryingItemId,
   onDelete,
   onReturnToManualInput,
   deletingIds,
@@ -24,6 +26,8 @@ export function QueueSection({
   onOpenReview: (itemId: string) => void;
   onRegisterItem: (itemId: string) => void;
   onRetry?: (itemId: string) => void;
+  onReanalyze?: (itemId: string) => void;
+  retryingItemId?: string | null;
   onDelete?: (item: AiExpenseQueueItem) => void;
   onReturnToManualInput?: (item: AiExpenseQueueItem) => void;
   deletingIds: string[];
@@ -66,6 +70,8 @@ export function QueueSection({
               onOpenReview={onOpenReview}
               onRegisterItem={onRegisterItem}
               onRetry={onRetry}
+              onReanalyze={onReanalyze}
+              isRetrying={retryingItemId === item.id}
               onReturnToManualInput={onReturnToManualInput}
               onToggleReadySelection={onToggleReadySelection}
             />

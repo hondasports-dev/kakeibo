@@ -4,6 +4,15 @@ import type { MutationCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { assertAccountDeletionNotInProgress } from "./accountDeletion";
 import { requireSystemAdmin } from "./systemAdmins";
+import {
+  getMembershipOperationShapeErrorMessage,
+  validateMembershipOperationShape,
+  type MembershipOperation,
+} from "../lib/domain/systemAdmin/membershipOperation";
+import {
+  getNormalizeReasonErrorMessage,
+  normalizeSystemAdminReason,
+} from "../lib/domain/systemAdmin/reason";
 
 const operationValidator = v.union(
   v.literal("add"),
@@ -16,16 +25,15 @@ const resultValidator = v.object({
   operation: operationValidator,
   status: v.literal("success"),
 });
-const reasonMaxLength = 500;
-type Operation = "add" | "remove" | "transfer" | "set_active" | "clear_active";
+type Operation = MembershipOperation;
 type MembershipStatus = "none" | "member" | "owner";
 
 function normalizeReason(reason: string) {
-  const normalized = reason.trim();
-  if (normalized.length < 1 || normalized.length > reasonMaxLength) {
-    throw new ConvexError("理由は1〜500文字で入力してください");
+  const result = normalizeSystemAdminReason(reason);
+  if (!result.success) {
+    throw new ConvexError(getNormalizeReasonErrorMessage(result.error));
   }
-  return normalized;
+  return result.reason;
 }
 
 function assertGroupArgumentShape(
@@ -33,15 +41,9 @@ function assertGroupArgumentShape(
   sourceGroupId: Id<"groups"> | undefined,
   targetGroupId: Id<"groups"> | undefined,
 ) {
-  const valid =
-    (operation === "add" && !sourceGroupId && !!targetGroupId) ||
-    (operation === "remove" && !!sourceGroupId && !targetGroupId) ||
-    (operation === "transfer" && !!sourceGroupId && !!targetGroupId) ||
-    (operation === "set_active" && !sourceGroupId && !!targetGroupId) ||
-    (operation === "clear_active" && !sourceGroupId && !targetGroupId);
-  if (!valid) throw new ConvexError("操作対象グループの指定が不正です");
-  if (sourceGroupId && targetGroupId && sourceGroupId === targetGroupId) {
-    throw new ConvexError("移動元と移動先は異なるグループを指定してください");
+  const result = validateMembershipOperationShape(operation, sourceGroupId, targetGroupId);
+  if (!result.success) {
+    throw new ConvexError(getMembershipOperationShapeErrorMessage(result.error));
   }
 }
 

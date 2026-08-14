@@ -1,0 +1,74 @@
+import { describe, expect, it } from "vitest";
+import { isValidAccountDeletionConfirmation } from "./confirmation";
+import { getAccountDeletionErrorCategory } from "./errorCategory";
+import { getAccountDeletionRetryDelay } from "./retry";
+import { resolveAccountDeletionResumeStatus } from "./resume";
+import { isActiveAccountDeletionStatus, isAccountDeletionFinalizableStatus } from "./status";
+
+describe("isActiveAccountDeletionStatus", () => {
+  it("active なステータスを判定する", () => {
+    expect(isActiveAccountDeletionStatus("requested")).toBe(true);
+    expect(isActiveAccountDeletionStatus("failed")).toBe(true);
+  });
+
+  it("完了は active でない", () => {
+    expect(isActiveAccountDeletionStatus("completed")).toBe(false);
+  });
+});
+
+describe("isAccountDeletionFinalizableStatus", () => {
+  it("identity_deleted と finalization_retry_wait は最終化可能", () => {
+    expect(isAccountDeletionFinalizableStatus("identity_deleted")).toBe(true);
+    expect(isAccountDeletionFinalizableStatus("finalization_retry_wait")).toBe(true);
+  });
+
+  it("それ以外は最終化不可", () => {
+    expect(isAccountDeletionFinalizableStatus("preparing_groups")).toBe(false);
+    expect(isAccountDeletionFinalizableStatus("completed")).toBe(false);
+  });
+});
+
+describe("getAccountDeletionRetryDelay", () => {
+  it("試行回数に応じた遅延を返す", () => {
+    expect(getAccountDeletionRetryDelay(0)).toBe(60_000);
+    expect(getAccountDeletionRetryDelay(4)).toBe(6 * 60 * 60_000);
+  });
+
+  it("最大インデックスを超えても最後の値を返す", () => {
+    expect(getAccountDeletionRetryDelay(10)).toBe(6 * 60 * 60_000);
+  });
+});
+
+describe("resolveAccountDeletionResumeStatus", () => {
+  it("identityDeletedAt があれば identity_deleted", () => {
+    expect(resolveAccountDeletionResumeStatus({ identityDeletedAt: 1 })).toBe("identity_deleted");
+  });
+
+  it("preparationCompletedAt があれば purging_groups", () => {
+    expect(resolveAccountDeletionResumeStatus({ preparationCompletedAt: 1 })).toBe(
+      "purging_groups",
+    );
+  });
+
+  it("どちらもなければ preparing_groups", () => {
+    expect(resolveAccountDeletionResumeStatus({})).toBe("preparing_groups");
+  });
+});
+
+describe("getAccountDeletionErrorCategory", () => {
+  it("failed のときは lastErrorCode かデフォルトを返す", () => {
+    expect(getAccountDeletionErrorCategory("failed", "some_error")).toBe("some_error");
+    expect(getAccountDeletionErrorCategory("failed")).toBe("identity_deletion_failed");
+  });
+
+  it("failed 以外は null", () => {
+    expect(getAccountDeletionErrorCategory("preparing_groups")).toBeNull();
+  });
+});
+
+describe("isValidAccountDeletionConfirmation", () => {
+  it("削除 のみ有効", () => {
+    expect(isValidAccountDeletionConfirmation("削除")).toBe(true);
+    expect(isValidAccountDeletionConfirmation("消去")).toBe(false);
+  });
+});

@@ -1,5 +1,5 @@
-import type { GroupAdminRole } from "../adminGuards";
+import type { GroupRole } from "../../../lib/domain/groups/role";
 
-export function formatGroupRoleLabel(role: GroupAdminRole): string {
-  return role === "owner" ? "オーナー" : "メンバー";
-}
+export type { GroupRole };
+
+export { formatGroupRoleLabel } from "../../../lib/domain/groups/role";

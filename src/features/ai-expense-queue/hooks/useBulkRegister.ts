@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation } from "convex/react";
+import { registerReadyDraftsAsExpenseEntriesApi } from "../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { api } from "../../../../convex/_generated/api";
 import { toUserFacingRegistrationError } from "../utils/userFacingErrors";
 
 export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
@@ -10,9 +10,7 @@ export function useBulkRegister({ readyItemIds }: { readyItemIds: string[] }) {
   const [registeringIds, setRegisteringIds] = useState<string[]>([]);
   const [registrationError, setRegistrationError] = useState("");
 
-  const registerReadyDraftsAsExpenseEntries = useMutation(
-    api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries,
-  );
+  const registerReadyDraftsAsExpenseEntries = useMutation(registerReadyDraftsAsExpenseEntriesApi());
 
   useEffect(() => {
     const previousReadyItemIds = previousReadyItemIdsRef.current;

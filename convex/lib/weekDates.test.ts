@@ -27,6 +27,11 @@ describe("calculateWeekStartDate", () => {
   it("月をまたぐ日付でも正しく計算する", () => {
     expect(calculateWeekStartDate("2024-02-01")).toBe("2024-01-29");
   });
+
+  it("指定した曜日を週の始まりとして計算する", () => {
+    expect(calculateWeekStartDate("2024-01-10", 3)).toBe("2024-01-10");
+    expect(calculateWeekStartDate("2024-01-14", 3)).toBe("2024-01-10");
+  });
 });
 
 describe("calculateWeekEndDate", () => {

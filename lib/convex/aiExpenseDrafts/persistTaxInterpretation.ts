@@ -1,54 +1,20 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import {
-  AI_EXPENSE_DRAFT_REVIEW_REASONS,
-  classifyAiExpenseDraft,
-  type AiExpenseDraftReviewReason,
-} from "../../../convex/aiExpenseDrafts/model";
-import {
-  deriveTaxReviewReasons,
-  isTaxInterpretationWarning,
-  type DraftItemTaxFields,
-} from "../../receiptTax/draftTaxMapping";
+import { classifyAiExpenseDraft } from "../../../convex/aiExpenseDrafts/model";
+import { deriveTaxReviewReasons, mapDraftItemToTaxFields } from "../../receiptTax/draftTaxMapping";
 import {
   reinterpretDraftTax,
   type BulkUnresolvedTaxOverride,
   type DraftSummaryOverride,
   type DraftTaxOverride,
 } from "../../receiptTax/reinterpretDraftTax";
-
-export function mergeReviewReasons(
-  computedReasons: AiExpenseDraftReviewReason[],
-  existingReasons: AiExpenseDraftReviewReason[],
-) {
-  const reasons = new Set<AiExpenseDraftReviewReason>([...computedReasons, ...existingReasons]);
-  return AI_EXPENSE_DRAFT_REVIEW_REASONS.filter((reason) => reasons.has(reason));
-}
-
-export function nonTaxReviewReasons(reviewReasons: AiExpenseDraftReviewReason[]) {
-  return reviewReasons.filter(
-    (reason) => reason !== "user_confirmation_required" && reason !== "amount_mismatch",
-  );
-}
-
-function draftItemToTaxFields(item: Doc<"aiExpenseDraftItems">): DraftItemTaxFields {
-  return {
-    itemName: item.itemName,
-    printedAmountYen: item.printedAmountYen ?? item.amountYen,
-    amountBasis: item.amountBasis,
-    taxRatePercent: item.taxRatePercent ?? null,
-    markers: item.markers,
-    taxMarker: item.taxMarker,
-    categoryName: item.categoryName,
-    quantity: item.quantity,
-    unitPriceYen: item.unitPriceYen,
-    warnings: item.warnings,
-    taxResolutionStatus: item.taxResolutionStatus,
-    taxResolutionSource: item.taxResolutionSource,
-    taxReviewReasons: item.taxReviewReasons,
-  };
-}
+import {
+  filterNonInterpretationWarnings,
+  mergeReviewReasons,
+  nonTaxReviewReasons,
+} from "../../../lib/domain/aiExpenseDrafts/reviewReasons";
+import type { AiExpenseDraftReviewReason } from "../../../lib/domain/aiExpenseDrafts/constants";
 
 export type PersistDraftTaxInterpretationArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -91,7 +57,7 @@ export async function persistDraftTaxInterpretation(
     amountYen: draft.amountYen,
     taxSummaries: draft.taxSummaries,
     markerDefinitions: draft.markerDefinitions,
-    items: items.map(draftItemToTaxFields),
+    items: items.map(mapDraftItemToTaxFields),
     override: args.override,
     bulkUnresolvedOverride: args.bulkUnresolvedOverride,
     summaryOverride: args.summaryOverride,
@@ -142,9 +108,7 @@ export async function persistDraftTaxInterpretation(
     });
   }
 
-  const nonInterpretationWarnings = (draft.warnings ?? []).filter(
-    (warning) => !isTaxInterpretationWarning(warning),
-  );
+  const nonInterpretationWarnings = filterNonInterpretationWarnings(draft.warnings ?? []);
 
   await ctx.db.patch(args.draftId, {
     status,

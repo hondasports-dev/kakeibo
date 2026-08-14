@@ -1,23 +1,29 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { useAction, useMutation, useQuery } from "convex/react";
-import { api } from "../../../../convex/_generated/api";
+import { analyzeImageJobApi, createBatchApi } from "../../../lib/repositories/receiptAnalysisJobs";
+import {
+  acceptReceiptImageExternalApiConsentApi,
+  getReceiptImageConsentApi,
+} from "../../../lib/repositories/users";
 import { getImageFileErrorMessage, resizeImageFileToDataUrl } from "../../../utils/imageDataUrl";
+import type { AiExpenseUploadBatch } from "../types/types";
 
 export function useImageUpload() {
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [pendingImageDataUrls, setPendingImageDataUrls] = useState<Map<string, string>>(new Map());
+  const [sessionBatches, setSessionBatches] = useState<AiExpenseUploadBatch[]>([]);
   const [pendingConsentFiles, setPendingConsentFiles] = useState<File[] | null>(null);
   const [consentStatus, setConsentStatus] = useState<"idle" | "saving">("idle");
   const [uploadError, setUploadError] = useState("");
   const [autoReviewJobId, setAutoReviewJobId] = useState<string | null>(null);
 
-  const createBatch = useMutation(api.receiptAnalysisJobs.mutations.createBatch);
-  const analyzeImageJob = useAction(api.receiptAnalysisJobs.actions.analyzeImageJob);
+  const createBatch = useMutation(createBatchApi());
+  const analyzeImageJob = useAction(analyzeImageJobApi());
   const acceptReceiptImageExternalApiConsent = useMutation(
-    api.users.mutations.acceptReceiptImageExternalApiConsent,
+    acceptReceiptImageExternalApiConsentApi(),
   );
-  const receiptImageConsent = useQuery(api.users.queries.getReceiptImageConsent);
+  const receiptImageConsent = useQuery(getReceiptImageConsentApi());
 
   const processFiles = async (files: File[]) => {
     let fileDataUrls: string[];
@@ -33,6 +39,15 @@ export function useImageUpload() {
       setUploadError("画像の追加に失敗しました。もう一度お試しください。");
       return;
     }
+
+    setSessionBatches((current) => [
+      ...current,
+      {
+        batchId: result.batch._id,
+        fileNames: files.map((file) => file.name),
+        jobIds: result.jobs.map((job) => job._id),
+      },
+    ]);
 
     setPendingImageDataUrls((current) => {
       const nextPending = new Map(current);
@@ -100,6 +115,32 @@ export function useImageUpload() {
     setPendingConsentFiles(null);
   };
 
+  const removeSessionJob = (jobId: string) => {
+    setSessionBatches((current) =>
+      current
+        .map((batch) => {
+          const removedIndex = batch.jobIds.indexOf(jobId);
+          if (removedIndex === -1) {
+            return batch;
+          }
+          return {
+            ...batch,
+            fileNames: batch.fileNames.filter((_, index) => index !== removedIndex),
+            jobIds: batch.jobIds.filter((id) => id !== jobId),
+          };
+        })
+        .filter((batch) => batch.jobIds.length > 0),
+    );
+    setPendingImageDataUrls((current) => {
+      if (!current.has(jobId)) {
+        return current;
+      }
+      const next = new Map(current);
+      next.delete(jobId);
+      return next;
+    });
+  };
+
   return {
     cameraInputRef,
     consentIsLoading: receiptImageConsent === undefined,
@@ -107,11 +148,13 @@ export function useImageUpload() {
     consentStatus,
     inputRef,
     pendingImageDataUrls,
+    sessionBatches,
     autoReviewJobId,
     uploadError,
     setPendingImageDataUrls,
     setUploadError,
     setAutoReviewJobId,
+    removeSessionJob,
     handleAcceptConsent,
     handleDeclineConsent,
     handleFilesSelected,

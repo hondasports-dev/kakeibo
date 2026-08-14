@@ -1,3 +1,9 @@
+import { MAX_IMAGE_DATA_URL_LENGTH as _MAX_IMAGE_DATA_URL_LENGTH } from "../../../lib/domain/common/imageDataUrl";
+import {
+  JAPAN_TIME_ZONE as _JAPAN_TIME_ZONE,
+  MAX_EXTRACTED_LINE_ITEMS as _MAX_EXTRACTED_LINE_ITEMS,
+} from "../../../lib/domain/receipt/extraction";
+
 export type ExtractionConfidence = {
   shopName: number;
   date: number;
@@ -112,6 +118,6 @@ export type OpenAIReceiptExtractorArgs = {
 };
 
 /** Convex string value の 1MB 制限を下回る imageDataUrl の最大長 */
-export const MAX_IMAGE_DATA_URL_LENGTH = 900_000;
-export const MAX_EXTRACTED_LINE_ITEMS = 100;
-export const JAPAN_TIME_ZONE = "Asia/Tokyo";
+export const MAX_IMAGE_DATA_URL_LENGTH = _MAX_IMAGE_DATA_URL_LENGTH;
+export const MAX_EXTRACTED_LINE_ITEMS = _MAX_EXTRACTED_LINE_ITEMS;
+export const JAPAN_TIME_ZONE = _JAPAN_TIME_ZONE;
