@@ -53,6 +53,19 @@ pnpm run test:coverage
 
 全体値だけでなく、変更したロジックが十分に検証されているかを見る。
 
+### `low_risk_ui` profile
+
+`AGENTS.md` / `.loop/process.yaml` の条件を満たす場合は、全量検証をローカルで重ねず、次だけを実行する。
+
+```bash
+pnpm exec vitest run <変更対象テスト> --maxWorkers=4
+pnpm run lint
+pnpm run build
+pnpm exec playwright test <受入マトリクスに必要な代表spec> --project=chromium
+```
+
+全テスト、全coverage、認証を含む全E2EはCIをauthoritative evidenceとする。変更対象テストや代表E2Eが受入マトリクスを満たさない場合、またはCI / reviewで問題が出た場合は `full` profileへ戻る。test-only修正は、影響分析で範囲が限定されている場合だけ変更対象テスト中心にできる。
+
 ## 3. テストケース妥当性
 
 ### 正常系

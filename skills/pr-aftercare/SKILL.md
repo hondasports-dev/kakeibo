@@ -48,6 +48,8 @@ CI・review・mergeable判定は必ず `Observed head SHA` に対して評価す
 
 head SHAが変わったら、古いheadのsuccessを新しいheadへ流用しない。新しいObservation epochとして監視をやり直す。
 
+同じhead SHAで、checks・review・requested changes・approval・conflict・mergeable・draftの状態に変化がない場合は、観測cycleだけを進めて詳細ログを再出力しない。ユーザー向け通知も状態変化時だけにする。値が欠落・矛盾している場合は不確実として再取得し、pendingやuncertainをPASS扱いしない。
+
 ## 2. 監視対象
 
 ### CI / Checks
@@ -166,6 +168,8 @@ terminal?
 ユーザーが明示的にmergeまで依頼している場合だけ実行する。
 
 merge直前にMerge-ready Gateを再確認し、repository方針に合うmerge methodを使う。
+
+merge結果の確認とremote branch / local branch / worktree cleanupは別操作・別状態にする。`gh pr merge --delete-branch` のように外部writeとcleanupを一体化したコマンドは使わない。merge結果が不明な場合は再mergeせず、GitHubのPRとbase反映を先に確認する。
 
 merge後は次を確認する。
 

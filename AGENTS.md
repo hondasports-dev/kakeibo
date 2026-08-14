@@ -126,6 +126,29 @@ DONE
 
 どの工程でも原因不明の失敗・実行不能・同じ失敗の反復が発生した場合は `INCIDENT` へ入り、原因を特定して必要なGateへ戻る。
 
+## Risk-based verification profile
+
+低リスクUI変更は、次の条件をすべて満たす場合だけ `low_risk_ui` を選べる。
+
+- 変更がUIとそのテストに限定され、schema、auth/authz、課金、production、data migration、外部サービス、process policyを含まない
+- Requirements / Impact Analysisが低リスクで、受入マトリクスが確定している
+- 既存のCI・reviewで問題が出ていない
+
+選択時のループは次の短縮形にする。安全Skill、Code Review、Security Review、PR Aftercareは省略しない。
+
+```text
+WORKSPACE_PREFLIGHT
+  → REQUIREMENTS 1回 + 受入マトリクス
+  → IMPACT_ANALYSIS
+  → IMPLEMENTATION
+  → 変更対象テスト + lint/build
+  → 受入マトリクスに必要な代表E2E 1回
+  → CODE_REVIEW / SECURITY_REVIEW
+  → DELIVERY / PR_AFTERCARE
+```
+
+全テスト・全coverageはCIを正とし、ローカルで同じ全量検証を重ねない。test-only修正は影響範囲が限定される場合に限り変更対象テスト中心とする。CIまたはreviewで問題が出た場合、または条件が崩れた場合は即座に `full` へ戻す。AftercareはCIがterminalになるまで続けるが、同じ状態の通知は状態変化時だけにする。merge結果の確認とbranch/worktree cleanupは別操作にする。
+
 ## 各工程と Skill
 
 | 状態 | 必須 Skill | 目的 |

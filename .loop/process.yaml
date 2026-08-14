@@ -1,4 +1,4 @@
-version: 6
+version: 7
 name: suzumemo-agent-loop
 plugin_manifest: plugin.json
 skills_root: skills
@@ -55,6 +55,72 @@ delivery_contract:
       - create_a_pr
       - open_a_pr
       - send_a_pr
+
+risk_profiles:
+  default: full
+  low_risk_ui:
+    eligibility:
+      changed_path_roots:
+        - src/
+        - e2e/
+        - public/
+      excluded_path_roots:
+        - convex/
+        - src/auth/
+        - src/api/
+        - .loop/
+        - skills/
+        - .github/
+        - .husky/
+      excluded_paths:
+        - AGENTS.md
+        - plugin.json
+        - package.json
+        - pnpm-lock.yaml
+      excluded_risks:
+        - authentication
+        - authorization
+        - schema
+        - billing
+        - production_or_irreversible_operation
+        - data_migration
+        - external_service
+        - process_policy
+      requirements_risk: normal
+      impact_risk: low
+      requires_acceptance_matrix: true
+      requires_clean_ci_and_review: true
+    loop:
+      - workspace_preflight
+      - requirements
+      - impact_analysis
+      - implementation
+      - verification
+      - code_review
+      - security_review
+      - delivery
+      - pr_aftercare
+    requirements:
+      independent_review_runs: 1
+      convergence_runs: 1
+      acceptance_matrix_required: true
+    local_verification:
+      required:
+        - changed_tests
+        - lint
+        - build
+        - representative_e2e
+      full_suite: ci_authoritative
+      full_coverage: ci_authoritative
+    aftercare:
+      terminal_required: true
+      notify_only_on_observation_change: true
+    fallback_to: full
+    fallback_when:
+      - high_risk_trigger_detected
+      - ci_failure
+      - review_finding
+      - acceptance_matrix_gap
 
 states:
   - id: workspace_preflight
@@ -191,6 +257,12 @@ requirements_protocol:
         - external_service
         - process_policy
         - production_or_irreversible_operation
+  profile_overrides:
+    low_risk_ui:
+      required_independent_reviews: 1
+      post_synthesis_review: not_required
+      convergence_runs: 1
+      reason: acceptance_matrix_fixed_in_the_single_requirements_cycle
   independent_review_contract:
     - all_reviewers_receive_the_same_input_snapshot_and_repository_revision
     - all_reviewers_reference_the_same_immutable_snapshot_id_or_digest
@@ -207,7 +279,7 @@ requirements_protocol:
   post_synthesis_review:
     required: true
     must_check_acceptance_criteria_edge_error_states_scope_and_testability: true
-    not_required_only_when: risk_is_exempt_and_reason_is_recorded
+    not_required_only_when: risk_is_exempt_or_low_risk_ui_with_acceptance_matrix_and_reason_recorded
     evidence_requires_revision_packet_independence_and_rerun_lineage: true
   disagreement_handling:
     material_disagreement: human_gate
@@ -233,6 +305,8 @@ pr_aftercare_contract:
   observation_unit: latest_head_sha
   pending_is_terminal: false
   head_change_invalidates_prior_observation: true
+  notify_only_on_observation_change: true
+  merge_and_cleanup_are_separate: true
   repair_sequence_for_code_change:
     - implementation
     - verification
@@ -291,6 +365,7 @@ gates:
       - test_strategy_defined
       - material_ambiguities_resolved_or_human_decision_recorded
       - requirements_risk_classified
+      - selected_risk_profile_applied
       - independent_requirement_review_quorum_met_or_not_required_recorded
       - independent_requirement_reviews_approved_or_resolved
       - independent_requirement_review_evidence_complete
@@ -346,6 +421,7 @@ gates:
       - build_passed_when_required
       - browser_or_runtime_check_passed_when_required
       - skipped_checks_are_explicitly_not_required_with_reason
+      - selected_risk_profile_is_recorded
     forbidden_shortcuts:
       - treat_test_added_as_test_passed
       - treat_expected_success_as_evidence
@@ -436,6 +512,7 @@ gates:
       - pull_request_mergeable
       - verified_head_is_current
       - required_preview_or_e2e_passed_on_latest_head
+      - unchanged_observations_are_not_repeated_in_user_updates
     pass_when_merged_cleaned:
       - merge_ready_gate_passed
       - pull_request_merged
@@ -453,6 +530,7 @@ gates:
       - ignore_actionable_review_finding
       - mark_merge_ready_after_single_workflow_only
       - start_another_task_while_aftercare_nonterminal
+      - combine_merge_result_and_cleanup_in_one_command
       - end_session_while_required_checks_pending
       - treat_process_learning_pause_as_aftercare_not_required
 
