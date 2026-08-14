@@ -79,6 +79,12 @@ Issueが薄い、古い、または一部曖昧な場合は、次の順で補完
 
 レビューエージェントの利用不能時は1回だけ再試行するか、別の read-only エージェントへ切り替える。クォーラム未達をMainの自己レビューで補わない。
 
+### `low_risk_ui` profile
+
+`AGENTS.md` / `.loop/process.yaml` の条件を満たす低リスクUI変更では、Requirementsは1回の収束サイクルにする。1名の独立read-only reviewとMainの統合で、受入マトリクスを同じpacketへ固定する。このprofileでは別エージェントによるpost-synthesis reviewを繰り返さず、Mainのマトリクスと独立reviewをEvidenceとして理由を記録する。レビューの再起動は、新しい事実、受入条件の欠落、または高リスク境界の発見がある場合だけ行い、条件が崩れたら `full` profileへ戻す。
+
+受入マトリクスには、変更対象画面・遷移方向・ユーザー設定の伝播・共有fixtureの前提・必要な代表E2Eを最低限記録する。将来改善や受入条件に影響しない推測的な指摘は、現在のscopeを広げずにout of scope / residual riskとして記録する。
+
 ## 手順
 
 ### 1. 問題と期待結果を定義する
