@@ -1,6 +1,6 @@
 ---
 name: delivery
-description: Security Review PASS後、レビュー済みheadをcommit/pushし、現在taskに紐づくPRを作成または更新してPR identityを固定する。PR公開checkpointへ進むときに使う。
+description: 選択されたRisk Profileで必要なVerification/ReviewがPASSしたheadをcommit/pushし、現在taskのPRを作成または更新してPR identityを固定する。PR公開checkpointに使う。
 license: Apache-2.0
 ---
 
@@ -8,144 +8,97 @@ license: Apache-2.0
 
 ## 目的
 
-レビュー済みの変更をGitHubへ公開し、現在taskのDelivery PRを確定する。
+検証済みheadをGitHubへ公開し、現在taskの唯一のDelivery PRへ束縛する。
 
-**PR作成はcheckpointであり、通常の完了条件ではない。** このSkillのPASS後は `pr-aftercare` へ進む。
+**PR作成はcheckpointでありcompletionではない。** PASS後は `PR_AFTERCARE`。
 
 ## 前提
 
-- `VERIFICATION: PASS`
-- `CODE_REVIEW: PASS`
-- `SECURITY_REVIEW: PASS` または根拠付き `NOT_REQUIRED`
+- Spec Confidence: C1/C2
+- Risk Level / selected profile記録済み
+- profile-required Verification: PASS
+- profile-required Code Review: PASSまたはNOT_REQUIRED
+- profile-required Security Review: PASSまたはNOT_REQUIRED
 - scope integrity確認済み
-- 常時必須Skillを適用済み
 
-VerificationのためのPreview/E2E用candidate branch pushはDelivery Evidenceに数えない。Security Review後の検証済みheadをあらためて公開対象とする。
+「Security Reviewが無いからDelivery不可」ではなく、**profile上requiredなのに未実施なら不可**とする。
 
-CODE_REVIEW / SECURITY_REVIEW がPASS（またはSecurityの根拠付きNOT_REQUIRED）になる前にpushしてPRを更新しない。Code Reviewの入力は `git diff origin/preview...HEAD` のため、レビュー前のローカルcommitは許可する。公開するheadがレビュー済みheadと一致することを確認する。実装者の自己判定をレビュー済みheadにしない。後でレビューする予定はDeliveryの経路にならない。
+## Review Evidence checker
+
+`check-loop-evidence.mjs --require-review` は、separate review evidenceを要求するprofileで使う補助checkerである。
+
+- R3/R4: 使用
+- R1/R2: profileのreview evidence形式がcheckerと一致する場合のみ使用
+- R0: separate review自体がNOT_REQUIREDなので、このcheckerを必須化しない
+
+checkerの存在をRisk Profileより強い隠れGateにしない。
 
 ## Delivery target
 
-通常のtargetは次の2つだけ。
+- `merge_ready`: default
+- `merged_cleaned`: ユーザーがmergeまで依頼した場合
 
-- `merge_ready`: デフォルト。PR公開後、AftercareでCI・review・approval・conflictを収束させる
-- `merged_cleaned`: ユーザーがmergeまで明示した場合。Aftercareでmergeと後始末まで行う
+`pr_created` はtargetではなくcheckpoint。
 
-`pr_created` はtargetではなくcheckpointとして扱う。
-
-単に「PRを投げて」「PR作って」と言われた場合は `merge_ready` を使う。「PR作成までで止めて」等と明示された場合だけAftercareの例外候補とする。
+「PRを投げて」は通常 `merge_ready`。明示的に「PR作成までで止めて」の場合だけAftercare例外候補。
 
 ## Session / Task invariant
 
-通常は1 sessionにつきcurrent taskは1つ、current taskにつきDelivery PRは最大1つとする。
+- current taskにつきDelivery PRは最大1
+- 既存PRがあれば同じbranch / PRを更新
+- Aftercare terminal前に別task PRを作らない
 
-既に現在taskのPRが存在する場合、新しいPRを作らず同じbranch / PRを更新する。
+## Publish前確認
 
-Aftercareがterminalになる前に別taskのbranch / worktree / PRへ切り替えない。並行taskはユーザーが明示的に許可した場合だけ例外とする。
+- intended diffのみ
+- untracked / local-only / secretなし
+- baseとの差分に他task変更なし
+- published headがprofile-required Verification/Review済みheadと一致
+- Risk escalation後に旧profileのEvidenceを流用していない
 
-## 1. Publish前確認
+## Commit / Push
 
-- intended diffだけか
-- untrackedを見落としていないか
-- local-only fileや不要artifactを含めていないか
-- Verification / Review後の未検証変更がないか
-- baseとの差分に他task変更が混ざっていないか
-- task ID / source / branch / worktree / Delivery targetが現在taskと一致するか
+- task branch
+- intended filesのみ
+- push後にremote head SHAを確認
 
-未検証変更があればVerificationへ戻る。
+## PR create / update
 
-push前に、対象 head SHA へ固定した独立レビューEvidenceを機械検証する。skip-if-missing は Delivery に使わない。Skill を迂回した `git push` はこのチェックを強制しない。
+PRには最低限:
 
-```bash
-node scripts/check-loop-evidence.mjs --require-review --head "$(git rev-parse HEAD)" --file .loop/review-evidence.json --changed-paths-json '["AGENTS.md"]'
-```
-
-`changed-paths-json` は `origin/preview...HEAD` のパス一覧を呼び出し側が JSON 配列で渡す。checker は git を呼ばない。process policy 変更を含む head では SECURITY_REVIEW の `NOT_REQUIRED` は FAIL する。
-
-終了コードが 0 でない head はレビュー済みとして公開しない。
-
-## 2. Commit / Push
-
-- task専用branchを使う
-- intended filesだけstageする
-- unrelated changesを含めない
-- commit messageは差分目的を表す
-- push後にremote branchとhead SHAを実データで確認する
-
-既存PR更新時も、pushしたhead SHAとPR head SHAが一致することを確認する。
-
-## 3. PR create / update
-
-PRが無い場合だけ作成する。既に現在taskのPRがある場合はそのPRを更新する。
-
-PRには最低限次を含める。
-
-- 何を変えたか / なぜ変えたか
-- 主要な設計判断
+- 変更内容 / 理由
+- Spec Confidence / Risk / Profile
 - Verification evidence
-- Code Review / Security Review結果
-- 既知のリスク / follow-up
-- 関連Issueまたは明示的なtask source
-
-タイトル・本文・Agentが作成するコメントは原則日本語とする。
-
-Draftはデフォルトにしない。明示的にDraftを求められた場合だけ使う。
-
-## 4. PR identity確認
-
-```text
-Task ID:
-Task source:
-PR URL:
-Base:
-Head branch:
-Published head SHA:
-Draft:
-State:
-Delivery target:
-```
-
-「pushしたのでPRがあるはず」と推測しない。
+- required Review evidence
+- residual risk / follow-up
+- Issueまたはtask source
 
 ## Gate
 
-次を満たした場合だけPASSする。
+PASS条件:
 
-- intended changesがcommit済み
-- intended branchがpush済み
-- 現在taskに紐づくDelivery PRがちょうど1つ
-- PR metadataを実データで確認済み
-- PR headが公開した検証済みheadと一致
-- Delivery targetが `merge_ready` または `merged_cleaned`
+- intended changes committed / pushed
+- current taskのDelivery PRが1つ
+- PR metadata確認済み
+- PR head == published verified head
+- profile-required gatesが満たされている
 
-ここではCIやreviewの成功を要求しない。それらは次の `PR_AFTERCARE` Gateが所有する。
-
-## FAIL / BLOCKED
-
-- 公開前にcode修正が必要 → `IMPLEMENTATION`
-- 仕様矛盾 → `REQUIREMENTS`
-- GitHub操作や環境の原因不明失敗 → `INCIDENT`
-- 人間しか解消できない必須操作 → `BLOCKED`
+CI / external reviewのterminal判定は `PR_AFTERCARE` が所有する。
 
 ## 出力
 
 ```text
 DELIVERY
 Status: PASS | FAIL | BLOCKED
+Spec confidence:
+Risk / profile:
 Checkpoint: pr_created
 Mode: create | update_existing
-Task ID:
-Task source:
 Branch:
 Commit:
 PR:
-Base / head:
 Head SHA:
-Draft:
 Delivery target:
+Required review evidence:
 Evidence:
 ```
-
-PASS後は必ず `PR_AFTERCARE` へ進む。PR作成時点でDONEへ進まない。
-
-PR URL / commit SHAはcheckpointの識別子であり、完了成果物ではない。Aftercareを「後で見る」としてsessionを終えない。pending CIは次工程へ進む理由にも作業終了理由にもならない。
