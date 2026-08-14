@@ -166,6 +166,8 @@ SECURITY_REVIEW（全項目を再確認）
 ```text
 SECURITY_REVIEW
 Status: PASS | FAIL | NOT_REQUIRED | BLOCKED
+Reviewed head SHA:
+independence_attested: true | false
 Authentication:
 Authorization:
 Data boundary / privacy:

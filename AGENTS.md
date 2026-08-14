@@ -250,7 +250,7 @@ Process Learningは**PR Aftercareがterminalになった後**に必ず実行す�
 - 人間からの訂正
 - task切替・source混線
 
-Learning Candidateは即座に現在PRへ混ぜない。原則としてCandidateを記録し、必要ならTask Transitionで次taskへ引き継ぐ。現在PRへprocess変更を追加した場合はMerge-ready Evidenceが無効になるため必要Gateを再実行する。
+Learning Candidateは原則として記録し、ユーザーが現在PRへの適用を明示していない場合は次taskへ引き継ぐ。ユーザーが現在PRへ含めるよう求めた場合は、記録だけで閉じず観測可能な enforcement を同じ Delivery PR へ入れる。現在PRへprocess変更を追加した場合はMerge-ready Evidenceが無効になるため必要Gateを再実行する。
 
 反映先は `Script / Code → CI / Gate → Skill → AGENTS.md短いPolicy → Runbook / Docs → Task Context` の順に検討する。
 

@@ -58,3 +58,6 @@ playwright/.clerk/
 # Logs and OS files
 *.log
 .DS_Store
+
+# Agent loop local review evidence (Delivery reads this; humans do not need it)
+.loop/review-evidence.json

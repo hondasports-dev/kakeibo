@@ -218,7 +218,7 @@ Human Correction / Failure / Retry / CI / Review / Aftercare Miss
 5. Runbook / Docs
 6. Task Context
 
-Aftercare PASS後に見つけた恒久改善は原則として現在PRへ混ぜず、CandidateとしてTask Transitionへ渡す。現在PRを変更した場合はmerge-ready Evidenceがstaleになるため必要Gateを再実行する。
+Aftercare PASS後に見つけた恒久改善は、ユーザーが現在PRへの適用を明示していない場合は Candidate として次taskへ渡す。明示された場合は同じ Delivery PR へ観測可能な enforcement を入れ、merge-ready Evidence を取り直す。
 
 ## Responsibilities
 
@@ -247,5 +247,7 @@ Aftercare PASS後に見つけた恒久改善は原則として現在PRへ混ぜ�
 - `.loop/process.yaml` — state / gate / transition / session and delivery contracts
 - `.loop/templates/task-state.yaml` — stateとEvidenceの記録形式
 - `.loop/templates/learning-candidate.yaml` — Learning Candidate形式
+- `.loop/templates/review-evidence.json` — Delivery が読むレビューEvidenceの形
+- `scripts/check-loop-evidence.mjs` — SHA固定レビューEvidenceと学習適用の機械Gate
 
 この構成自体もProcess Learningの対象とし、実際のsessionで効かなかった箇所を観測して改善する。
