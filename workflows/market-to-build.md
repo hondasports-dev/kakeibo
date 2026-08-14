@@ -1,55 +1,29 @@
-# 市場調査から開発までのワークフロー
+# 市場調査から開発までのワークフロー v8
 
 ## 目的
 
-アプリ案が曖昧な状態から、市場調査と壁打ちを行い、ユーザーが作るものを決めた後に、必要な開発エージェントへ委譲して実装へ進める。
+アプリ案が曖昧な状態では市場調査と壁打ちに集中し、ユーザーがGoを出した後だけ開発へ移る。開発フェーズでは、すべての変更へ同じ重いGateを課さず、`AGENTS.md` / `.loop/process.yaml` の **Spec Confidence + Risk-based Profile** を使う。
+
+## 正本
+
+- Agent Loop入口: `AGENTS.md`
+- state / risk / profile: `.loop/process.yaml`
+- 各工程: `skills/*/SKILL.md`
+
+このworkflowが正本と矛盾する場合は上記を優先する。
 
 ## 原則
 
 - 市場調査フェーズでは実装しない。
-- ユーザーが明示的に「この案で進める」と言うまで、開発フェーズへ進まない。
-- 調査結果は、作るべき案、保留すべき案、避けるべき案に分ける。
-- 開発フェーズでは、必要なエージェントだけを使う。
-- 実装前にMVP範囲と作らない機能を確定する。
+- ユーザーが明示的にGoを出すまで開発Agentを起動しない。
+- 調査結果は「作る」「保留」「避ける」に分ける。
+- Go後はMVP範囲と作らない機能を固定する。
+- 高価なmulti-agent reviewは常時起動せず、Risk/Profileが要求するときだけ使う。
+- 同一差分のwriterは原則1体。
 
-## Codex / Devin 共通の委譲ルール
+---
 
-- `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` を実行契約の正本とする。旧来のrole定義を実行時の正本にしない。
-- 実行環境がサブエージェントを利用できる場合は、ユーザーの明示的な許可、または `AGENTS.md` / `skills/requirements/SKILL.md` が要求する要件レビュー契約に従って委譲する。
-- Codex Plan モードでは Main が Company Coordinator と Tech Lead を兼務し、要件統合、設計判断、Implementation Handoff、Git操作を管理する。
-- `.codex/agents/*.toml` は使わず、独立レビューや調査は `skills/*/SKILL.md` の契約に従う。
-- Devinでは、同じ指示を役割別エージェントまたは内部タスク分割への委譲許可として扱う。
-- 要件レビューのクォーラム未達をMainの自己レビューで代替しない。利用不能時はRequirementsの契約に従って再試行・代替・BLOCKEDを記録する。
-- 独立要件レビューの結果を Main が統合し、統合後仕様レビューを通してから技術設計へ進む。
-- 同じ差分の writer は原則 Implementer 1体とし、QA AgentとReviewerは論理 read-only とする。
-- QA Agent は、実装前のE2Eテスト設計レビューと、実装後のQA・E2E結果確認の2回使ってよい。
-- Reviewer の指摘は Main が同じ Implementer へ修正 Handoff として返す。
-- Security ReviewはReviewerとは別のread-only Gateとして、Code Review後・Release Managerの前に実行する。
-
-## 呼び出し方
-
-Codex / Devin には次のように依頼する。
-
-```text
-workflows/market-to-build.md を使って、
-まず $research-current-market で市場調査と壁打ちをして。
-アプリ案が決まるまでは実装サブエージェントを起動しないで。
-
-私が「この案で進める」と言ったら、
-Main が Tech Lead を兼務し、必要なら UX/UI Designer、Implementer、QA Agent、Reviewer、Release Manager を使って、
-開発からリリース準備まで進めて。
-
-Codexで作業する場合は、この依頼をサブエージェント起動の明示的な許可として扱い、
-必要に応じてサブエージェントを起動してよい。
-Devinで作業する場合も、同じ役割分担で進めて。
-```
-
-## フェーズ1: 市場調査と壁打ち
-
-担当:
-
-- 市場調査担当
-- `$research-current-market`
+# フェーズ1: 市場調査と壁打ち
 
 入力:
 
@@ -59,260 +33,294 @@ Devinで作業する場合も、同じ役割分担で進めて。
 
 実施内容:
 
-- 現在の市場、競合、ユーザー課題、収益化、参入余地を調査する。
+- 市場、競合、ユーザー課題、収益化、参入余地を調査する。
 - アプリ候補を複数出す。
-- 各候補を、痛みの強さ、頻度、支払い意欲、競争、実装難易度、集客しやすさで比較する。
-- 最初に作るべき候補を1つ推奨する。
+- 痛みの強さ、頻度、支払い意欲、競争、実装難易度、集客しやすさで比較する。
+- 最初に作る候補を1つ推奨する。
 
 出力:
 
-- 候補アプリ一覧
-- 推奨案
-- 推奨理由
+- 候補一覧
+- 推奨案 / 推奨理由
+- 代替案
 - 避けるべき案
 - 未確認リスク
-- 次にユーザーが決めるべきこと
+- 次にユーザーが決めること
 
-完了条件:
+禁止:
 
-- ユーザーが候補を理解している。
-- 推奨案と代替案が比較できる。
-- 実装に進む前の質問が整理されている。
+- コードを書く
+- 技術設計へ進む
+- 実装・QA・Reviewを開始する
 
-禁止事項:
+## Go / No-Go
 
-- コードを書く。
-- 技術設計へ進む。
-- Implementer、QA Agent、Reviewer、Release Managerを起動する。
+開発へ進む条件:
 
-## Go / No-Go ゲート
+- ユーザーが「この案で進める」「これを作る」「Go」等で明示承認
+- MVP範囲が概ね決定
+- 作らない機能が明確
 
-開発フェーズへ進む条件:
+承認が無ければ追加調査 / 壁打ちへ戻る。
 
-- ユーザーが「この案で進める」「これを作る」「Go」など、明示的に承認する。
-- MVP範囲が概ね決まっている。
-- 作らない機能が明確になっている。
+市場調査上の不確実性を、そのまま変更Riskへ読み替えない。Go後に実装仕様の確度を改めて判定する。
 
-ユーザー承認がない場合:
+---
 
-- 追加調査を行う。
-- 候補を絞り直す。
-- 企画の壁打ちを続ける。
+# フェーズ2: Spec Confidence
 
-## フェーズ2: 要件・仕様の収束
+開発開始時に `skills/requirements/SKILL.md` に従い、何を作るべきかを判定する。
 
-担当:
+- `C2 confirmed`: 仕様・ACが明確、material conflictなし
+- `C1 reconstructed`: 不足をcanonical docs / tests / existing patternからほぼ一意に補完可能
+- `C0 unclear`: 複数の妥当な成果物がある
+- `C0 conflicted`: desired stateについて有力sourceが矛盾
 
-- 独立要件レビューエージェント（通常2、高リスク3）
-- Main
+`C0` のまま設計・実装へ進まない。
 
-実施内容:
+Issueと既存実装が異なっていても、Issueが「現在BをAへ変更する」と明示しているならexpected deltaでありConflictではない。
 
-- `skills/requirements/SKILL.md` に従い、同じ入力スナップショットを使って並列レビューする。
-- 対象ユーザー、解く課題、期待結果を確定する。
-- In scope / Out of scope / Preserveを分ける。
-- edge / error / loading / empty / authorization状態を確認する。
-- Given / When / Then形式のAcceptance CriteriaとTest / E2E方針を作る。
-- Mainが合意点、対立点、解決、未解決ブロッカーを統合し、別エージェントが統合後仕様をレビューする。
+解消不能なmaterial choice / conflictはHuman Gateへ送る。
 
-出力:
+---
 
-- 要件定義
-- MVP範囲
-- 非機能要件の初期案
-- 受け入れ条件
-- 入力revision、packet version、独立レビューEvidence、統合結果、統合後仕様レビュー
+# フェーズ3: Risk Classification / Requirements
 
-## フェーズ3: 技術設計
+Spec ConfidenceがC1/C2になった後にRiskを確定する。
 
-担当:
+4軸:
 
-- Main（Coordinator兼Tech Lead）
-- UIが重要な場合のみ optional UX/UI Designer
+1. Blast Radius
+2. Data / Security
+3. Reversibility
+4. Uncertainty
 
-実施内容:
+各0..2点。目安:
 
-- 技術構成を決める。
-- 画面、データ、API、状態管理を設計する。
-- 実装タスクを分解する。
-- テスト方針とE2E候補シナリオを決める。
-- リスクと代替案を整理する。
+- 0..2 → R1
+- 3..4 → R2
+- 5..8 → R3
 
-出力:
+R0 / R4は明示condition。
 
-- 技術方針
-- 画面構成
-- データ/API設計
-- 実装タスク
-- テスト方針
-- E2E候補シナリオ
-- QA Agent への引き継ぎメモ
-- リスク
+### R3 floor
 
-## フェーズ4: E2Eテスト設計レビュー
+- authn / authz
+- tenant / group / data boundary
+- schema / migration
+- data deletion / retention
+- billing / payment
+- privileged secret / env
+- webhook / external service write
+- production behavior config
 
-担当:
+### R4 critical
 
-- QA Agent
+- production DB migration
+- bulk / irreversible data mutation
+- account deletion semantics
+- authorization model overhaul
+- financial settlement integrity
+- production secret rotation
+- production DNS / domain cutover
 
-実施内容:
+## Requirements review人数
 
-- 確定した受け入れ条件とTech Leadのテスト方針を照合する。
-- 既存の `e2e/*.spec.ts` と `docs/qa-checklist.md` の観点でカバーできるか確認する。
-- E2Eで確認する項目、単体・統合テストで確認する項目、手動確認に回す項目を分類する。
-- 新規E2Eが必要な場合は、優先度、カテゴリ、Given / When / Then、テストデータ・cleanup要否を決める。
-- テストケース判断のためだけに一時メモファイルを作らない。
+| Risk | independent Requirements review | post-synthesis review |
+| --- | ---: | ---: |
+| R0 | 0 | 0 |
+| R1 | 0 | 0 |
+| R2 | 0 default / 条件付き1 | 0 |
+| R3 | 2 | 0 |
+| R4 | 3 | 1 |
 
-出力:
+R2で1 reviewを起動する条件:
 
-- E2E追加要否
-- 対象シナリオ
-- 優先度とカテゴリ
-- E2E以外で確認する項目
-- `docs/qa-checklist.md` 更新要否
-- 判定（`approved` / `needs_revision` / `blocked`）
+- C1
+- material uncertainty
+- cross-cutting change
+- Mainがmaterial ambiguityを検出
 
-## フェーズ5: 実装
-
-担当:
-
-- Implementer
-
-Main が固定形式の Implementation Handoff を確定し、原則1体の Implementer へ渡す。
-
-実施内容:
-
-- Main が確定した Implementation Handoff に沿って実装する。
-- 変更範囲を小さく保つ。
-- 必要なテストを追加する。
-- 新規E2Eが必要な場合は `e2e/` を更新し、恒久的なQA観点の更新が必要な場合だけ `docs/qa-checklist.md` を最小差分で更新する。
-- 実行した検証を記録する。
+低Riskへreview人数だけ追加して安心感を作らない。新しい事実がRisk上昇を示すならprofile自体を上げる。
 
 出力:
 
-- コード変更
-- テスト追加
-- 検証結果
-- Handoffとの差分
-- 未解決事項
+- Spec Confidence
+- Goal / MVP scope / Out of scope / Preserve
+- Acceptance Criteria
+- Test Strategy
+- Risk axes / score / floor trigger
+- Risk Level / selected profile
 
-## フェーズ6: QAとレビュー
+---
 
-QAとレビューへ進む前に、Main が Implementation Handoff と `git status --short`、`git diff HEAD`、
-untracked ファイルの内容を照合する integrity check を行う。違反があれば同じ Implementer へ修正 Handoff を返す。
-修正後、Reviewer完了後、公開直前にも再実行する。
+# フェーズ4: 技術設計 / Impact
 
-担当:
+### R0 / R1
 
-- QA Agent
-- Reviewer
-- Security Review（Reviewerとは独立した論理 read-only）
+別Impact Gateは原則起動しない。Requirements packetのimpact summaryへ:
 
-開始条件:
+- direct change
+- shared surface
+- auth/data boundary
+- external/deployment
+- regression tests
 
-- 実装完了後の Main integrity check が通っている。
+を記録する。
 
-QA Agent の確認:
+### R2–R4
 
-- 受け入れ条件
-- 主要フロー
-- 異常系
-- 回帰リスク
-- リリース可否
+`skills/impact-analysis/SKILL.md` を独立Gateとして実行する。
 
-Reviewer の確認:
+- caller / callee
+- shared state
+- auth / data / schema
+- affected user flow
+- tests
+- external / deploy
+- rollback / recovery
 
-- バグ
-- セキュリティ
-- 保守性
-- テスト不足
-- 既存設計との整合性
+新しい影響を発見したらRiskを即時昇格する。
 
-Security Review の確認:
+---
 
-- 認証・認可
-- data boundary / privacy
-- input / injection
-- secret / external service
-- 破壊的操作
+# フェーズ5: 実装
 
-出力:
+MainがImplementation Handoffを固定し、原則1 writerへ渡す。
 
-- QA結果
-- レビュー指摘
-- 修正が必要な項目
-- リリース可否
-- Security Review判定（`PASS` / `FAIL` / `NOT_REQUIRED` / `BLOCKED`）
+Handoff:
 
-## フェーズ7: 修正ループ
+- Spec Confidence
+- Risk / Profile
+- Acceptance Criteria
+- editable scope
+- impact summary / Impact Analysis
+- required Verification
 
-条件:
+Issue本文だけをwriterへの仕様にしない。
 
-- QA、Reviewer、またはSecurity Reviewが重大な問題を見つけた場合。
+実装中にmaterial ambiguityやR3/R4 triggerを発見したらRequirements / Impactへ戻る。
 
-戻し先:
+---
 
-- 仕様漏れ: Requirementsへ戻し、影響する独立レビューからやり直す。
-- 設計問題: Mainの設計工程
-- E2Eテスト設計の不足: Mainの設計工程
-- 実装バグ: Mainが同じImplementerへ修正Handoff
-- UI問題: Mainが optional UX/UI Designer の評価を得て、必要なら同じImplementerへ修正Handoff
-- セキュリティ問題: Security Reviewから Mainへ返し、同じImplementerへ修正Handoff。修正後はVerification、Code Review、Security Reviewを再実行する。
+# フェーズ6: Verification / QA / Review
 
-完了条件:
+## R0 TRIVIAL
 
-- 重大なQA不具合がない。
-- Reviewerが承認できる。
-- Security Reviewが `PASS` または根拠付き `NOT_REQUIRED` である。
-- 未解決リスクが明示されている。
+- targeted static check
+- separate Code / Security Reviewは原則不要
 
-## フェーズ8: リリース準備
+## R1 FAST
 
-担当:
+- changed tests
+- 必要なlint / build / representative E2E
+- 1回のCode ReviewでSecurity quick scanも実施
 
-- Release Manager
+## R2 STANDARD
 
-実施内容:
+- affected scopeのtests / coverage / E2E
+- Code Review + Security quick scan
+- quick scanでauth/data/secret/external/destructive triggerを発見したらR3へ昇格
 
-- リリースノートを作る。
-- デプロイ手順を整理する。
-- リリース前後チェックを作る。
-- ロールバック方針をまとめる。
-- 未解決リスクを明示する。
+## R3 HIGH
 
-出力:
+- full affected-scope Verification
+- Code Review
+- Security Reviewを独立Gate化
 
-- リリースノート
-- デプロイ手順
-- リリース前チェック
-- リリース後確認
-- ロールバック方針
+## R4 CRITICAL
 
-## Coordinator の実行ルール
+R3に加えて:
 
-- 最初にこのワークフローを読み、現在フェーズを宣言する。
-- 各フェーズの完了条件を満たしたら、次のフェーズへ進む。
-- Go / No-Go ゲートでは、ユーザー承認なしに進まない。
-- 開発フェーズに入ったら、作業を細かく分け、明示的な許可がある場合だけ必要なサブエージェントへ委譲する。
-- Codexでサブエージェントを起動する場合は、各サブエージェントの担当範囲と成果物を明確にし、同じファイルを複数のImplementerに編集させない。
-- サブエージェントを起動しない場合でも、`AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` の正本契約に沿って同じ成果物を作る。要件レビューが必須なのに利用できない場合は、Mainの自己レビューで代替せず `BLOCKED` とする。
-- 最終回答では、現在フェーズ、完了したこと、次のアクションを明示する。
+- rollback / recovery Evidence
+- implementation前Human Gate
+- production / irreversible operation直前Human Gate
 
-## 便利な開始プロンプト
+E2Eはユーザー導線や複数層を跨ぐAcceptance Criteriaの証明に必要な場合だけ使う。全テスト・全coverageをローカルとCIで無条件に二重実行しない。
+
+---
+
+# フェーズ7: 修正ループ
+
+- spec漏れ / conflict → Requirements
+- impact拡大 → Risk再分類
+- code/test defect → Implementation → profile-required Verification / Review
+- security floor trigger → R3+
+- unknown / repeated failure → Incident
+- human-only high-impact step → Human Gate
+
+修正後にheadが変わったら旧headのEvidenceを流用しない。
+
+---
+
+# フェーズ8: Delivery / PR Aftercare
+
+PR作成はcheckpoint。
 
 ```text
-workflows/market-to-build.md を使って進めて。
-
-興味領域:
-{興味領域}
-
-制約:
-{個人開発 / チーム開発 / 期間 / 技術スタック / 予算}
-
-まず市場調査と壁打ちから始めて。
-私が「この案で進める」と言うまで実装には進まないで。
-
-Codexで作業する場合は、私が「この案で進める」と言った後、
-必要に応じてサブエージェントを起動してよい。
-Devinで作業する場合も、同じ役割分担で進めて。
+DELIVERY
+  ↓
+PR_AFTERCARE
+  latest head
+  ├ required CI
+  ├ actionable review findings
+  ├ requested changes
+  ├ approval
+  └ conflict / mergeability
+  ↓
+merge_ready
 ```
+
+同一taskの修正は同じbranch / PRへ積む。
+
+ユーザーが明示的に「PR作成までで止めて」と指定した場合だけAftercareを省略できる。
+
+---
+
+# フェーズ9: Process Learning / Task Transition
+
+R0–R2はevent-driven。
+
+Learning Eventが無ければ:
+
+```text
+Events: none
+Candidates: none
+```
+
+で閉じる。
+
+full Process Learning:
+
+- R3 / R4
+- human correction
+- Gate / CI / E2E failure
+- actionable review finding
+- retry / Incident
+- scope / impact / delivery / transition miss
+
+最後にTask Transitionでcurrent taskを閉じ、前taskのIssue / PR / CI contextを次taskへ暗黙に持ち越さない。
+
+---
+
+# リリース準備
+
+merge後またはrelease対象が確定した時点で必要に応じて:
+
+- リリースノート
+- deploy手順
+- release前後check
+- rollback方針
+- residual risk
+
+をまとめる。
+
+## Coordinator rules
+
+- 市場調査の不確実性と実装仕様の不確実性を分ける。
+- C0で実装へ進まない。
+- Riskは変更量ではなく影響で決める。
+- 必要なAgentだけを使う。
+- multi-agent reviewを常時起動しない。
+- Riskが途中で上がったら即時profileを切り替える。
+- PR作成でsessionを終了せず、required Aftercareまで同じtaskを保持する。
