@@ -12,9 +12,9 @@ import {
 import { getUserProfileApi } from "../../../lib/repositories/users";
 import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { formatMonthLabel } from "../../../../lib/domain/common/month";
 import { formatYearLabel } from "../../../../lib/domain/common/year";
 import { WeekNavigator } from "../../week";
+import { HistoryNavigation } from "../../app-shell/components/HistoryNavigation";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
 import { ExpenseEntryDeleteDialog } from "../components/ExpenseEntryDeleteDialog";
 import { ExpenseEntryEditDialog } from "../components/ExpenseEntryEditDialog";
@@ -59,6 +59,13 @@ export function SummaryPage() {
   const isCurrentWeek = weekStartDate === currentWeekStartDate;
   const summaryMonth = weekStartDate.slice(0, 7);
   const summaryYear = weekStartDate.slice(0, 4);
+  const historyNavigation = (
+    <HistoryNavigation
+      monthlyPath={`/months/${summaryMonth}`}
+      searchPath="/search"
+      weeklyPath={`/weeks/${weekStartDate}`}
+    />
+  );
 
   useEffect(() => {
     if (userProfile !== undefined && rawWeekStartDate && weekStartDate !== rawWeekStartDate) {
@@ -116,20 +123,28 @@ export function SummaryPage() {
 
   if (userProfile === undefined || weeklySummary === undefined) {
     return (
-      <SuzumemoLoadingState
-        label="データを読み込み中"
-        message="週次サマリーを読み込んでいます…"
-        variant="page"
-      />
+      <Box className="app-main">
+        <Stack spacing={3}>
+          {historyNavigation}
+          <SuzumemoLoadingState
+            label="データを読み込み中"
+            message="週次サマリーを読み込んでいます…"
+            variant="page"
+          />
+        </Stack>
+      </Box>
     );
   }
 
   if (weeklySummary === null) {
     return (
       <Box className="app-main">
-        <Alert severity="error" variant="outlined">
-          週次サマリーの読み込みに失敗しました。
-        </Alert>
+        <Stack spacing={3}>
+          {historyNavigation}
+          <Alert severity="error" variant="outlined">
+            週次サマリーの読み込みに失敗しました。
+          </Alert>
+        </Stack>
       </Box>
     );
   }
@@ -137,6 +152,7 @@ export function SummaryPage() {
   return (
     <Box className="app-main">
       <Stack spacing={3}>
+        {historyNavigation}
         <Stack className="weekly-summary-header" direction="row">
           <Box
             alt=""
@@ -160,26 +176,15 @@ export function SummaryPage() {
           onNextWeek={() => navigateToWeek(addWeeks(weekStartDate, 1))}
         />
 
-        <Stack direction={{ xs: "column", sm: "row" }} spacing={1}>
-          <Button
-            component={Link}
-            endIcon={<ChevronRightIcon />}
-            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
-            to={`/months/${summaryMonth}`}
-            variant="outlined"
-          >
-            {formatMonthLabel(summaryMonth)}の月次サマリーを見る
-          </Button>
-          <Button
-            component={Link}
-            endIcon={<ChevronRightIcon />}
-            sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
-            to={`/years/${summaryYear}`}
-            variant="outlined"
-          >
-            {formatYearLabel(summaryYear)}の年次サマリーを見る
-          </Button>
-        </Stack>
+        <Button
+          component={Link}
+          endIcon={<ChevronRightIcon />}
+          sx={{ alignSelf: { xs: "stretch", sm: "flex-start" }, minHeight: 44 }}
+          to={`/years/${summaryYear}`}
+          variant="outlined"
+        >
+          {formatYearLabel(summaryYear)}の年次サマリーを見る
+        </Button>
 
         {deleteError && (
           <Alert severity="error" variant="outlined" onClose={() => setDeleteError("")}>

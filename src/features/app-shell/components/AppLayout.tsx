@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
+import { useQuery } from "convex/react";
 import { Box, useMediaQuery } from "@mui/material";
 import { AnimatePresence } from "framer-motion";
 import { useTheme } from "@mui/material/styles";
@@ -10,13 +11,15 @@ import { NavigationPendingOutlet } from "./NavigationPendingOutlet";
 import { UserMenu } from "./UserMenu";
 import { createNavItems } from "../lib/navigationConfig";
 import { ExpenseSearchBox } from "../../expense-search/components/ExpenseSearchBox";
+import { getUserProfileApi } from "../../../lib/repositories/users";
 
 export function AppLayout() {
   const theme = useTheme();
   const isPC = useMediaQuery(theme.breakpoints.up("md"));
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const navItems = createNavItems();
+  const userProfile = useQuery(getUserProfileApi());
+  const navItems = createNavItems(userProfile?.weeklyStartDay);
 
   return (
     <Box className="app-layout">

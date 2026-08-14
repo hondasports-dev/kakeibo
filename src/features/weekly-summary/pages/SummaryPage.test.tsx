@@ -59,7 +59,7 @@ describe("SummaryPage", () => {
 
   function renderSummaryPage() {
     renderWithProviders(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/weeks/2026-06-15"]}>
         <SummaryPage />
       </MemoryRouter>,
     );
@@ -77,16 +77,17 @@ describe("SummaryPage", () => {
   it("振り返りとセッション完了のUIを表示しない", () => {
     renderSummaryPage();
 
+    expect(screen.getByRole("navigation", { name: "履歴メニュー" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "週次振り返り" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "セッションを完了" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("振り返りメモ")).not.toBeInTheDocument();
   });
 
-  it("表示中の週の月次サマリーへのリンクを表示する", () => {
+  it("表示中の週の履歴メニューから月次・年次サマリーへ進める", () => {
     renderSummaryPage();
 
-    expect(screen.getByRole("link", { name: "2026年6月の月次サマリーを見る" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
       "href",
       "/months/2026-06",
     );
@@ -101,7 +102,7 @@ describe("SummaryPage", () => {
 
     renderSummaryPage();
 
-    expect(screen.getByRole("link", { name: "2026年4月の月次サマリーを見る" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
       "href",
       "/months/2026-04",
     );
@@ -118,7 +119,7 @@ describe("SummaryPage", () => {
 
     renderSummaryPage();
 
-    expect(screen.getByRole("link", { name: "2026年4月の月次サマリーを見る" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
       "href",
       "/months/2026-04",
     );
@@ -129,6 +130,7 @@ describe("SummaryPage", () => {
 
     renderSummaryPage();
 
+    expect(screen.getByRole("navigation", { name: "履歴メニュー" })).toBeInTheDocument();
     expect(screen.getByText("週次サマリーを読み込んでいます…")).toBeInTheDocument();
   });
 
@@ -142,6 +144,7 @@ describe("SummaryPage", () => {
 
     renderSummaryPage();
 
+    expect(screen.getByRole("navigation", { name: "履歴メニュー" })).toBeInTheDocument();
     expect(screen.getByText("週次サマリーの読み込みに失敗しました。")).toBeInTheDocument();
   });
 

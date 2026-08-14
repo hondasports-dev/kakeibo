@@ -1,13 +1,19 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithDatePickers } from "../../../test/render";
+import { getCurrentWeekStartDate } from "../../week";
 import { ExpenseSearchPage } from "./ExpenseSearchPage";
 
 const useQueryMock = vi.fn();
+const getUserProfileApiMock = vi.hoisted(() => vi.fn(() => "get-user-profile"));
 vi.mock("convex/react", () => ({
   useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+
+vi.mock("../../../lib/repositories/users", () => ({
+  getUserProfileApi: getUserProfileApiMock,
 }));
 
 function LocationProbe() {
@@ -26,6 +32,9 @@ const emptySearchResult = {
 describe("ExpenseSearchPage", () => {
   beforeEach(() => {
     useQueryMock.mockImplementation((_api: unknown, args: unknown) => {
+      if (_api === "get-user-profile") {
+        return { weeklyStartDay: 3 };
+      }
       if (args === undefined) {
         return [{ _id: "cat-food", name: "食費" }];
       }
@@ -43,6 +52,16 @@ describe("ExpenseSearchPage", () => {
       </MemoryRouter>,
     );
 
+    const historyNavigation = screen.getByRole("navigation", { name: "履歴メニュー" });
+    expect(historyNavigation).toBeInTheDocument();
+    expect(within(historyNavigation).getByRole("link", { name: "支出検索" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(historyNavigation).getByRole("link", { name: "週次サマリー" })).toHaveAttribute(
+      "href",
+      `/weeks/${getCurrentWeekStartDate(3)}`,
+    );
     expect(screen.getByRole("heading", { name: "支出検索", level: 1 })).toBeInTheDocument();
     expect(screen.getByLabelText("店名")).toBeInTheDocument();
     expect(screen.getByLabelText("カテゴリ")).toBeInTheDocument();
@@ -63,6 +82,7 @@ describe("ExpenseSearchPage", () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByRole("navigation", { name: "履歴メニュー" })).toBeInTheDocument();
     expect(screen.getByText("金額の下限は上限以下にしてください")).toBeInTheDocument();
     expect(screen.queryByText("条件に合う支出はありません")).not.toBeInTheDocument();
   });

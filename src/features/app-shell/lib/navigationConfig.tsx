@@ -14,8 +14,8 @@ export type NavItem = {
   icon: React.ReactNode;
 };
 
-export function createNavItems(): NavItem[] {
-  const currentWeekStartDate = getCurrentWeekStartDate();
+export function createNavItems(weeklyStartDay?: number): NavItem[] {
+  const currentWeekStartDate = getCurrentWeekStartDate(weeklyStartDay);
 
   return [
     { label: "ホーム", path: "/", icon: <HomeIcon /> },
@@ -34,7 +34,12 @@ export function getBottomNavValue(pathname: string, navItems: NavItem[]) {
 export function isNavItemSelected(pathname: string, path: string) {
   if (path === "/") return pathname === "/";
   if (path === "/weeks/current/input") return pathname === "/weeks/current/input";
-  if (path.startsWith("/weeks/"))
-    return pathname.startsWith("/weeks/") && pathname !== "/weeks/current/input";
+  if (path.startsWith("/weeks/")) {
+    return (
+      (pathname.startsWith("/weeks/") && pathname !== "/weeks/current/input") ||
+      pathname.startsWith("/months/") ||
+      pathname === "/search"
+    );
+  }
   return pathname === path;
 }
