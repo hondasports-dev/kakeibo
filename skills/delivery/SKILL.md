@@ -22,7 +22,7 @@ license: Apache-2.0
 
 VerificationのためのPreview/E2E用candidate branch pushはDelivery Evidenceに数えない。Security Review後の検証済みheadをあらためて公開対象とする。
 
-CODE_REVIEW / SECURITY_REVIEW がPASS（またはSecurityの根拠付きNOT_REQUIRED）になる前にcommit/pushしてPRを更新しない。実装者の自己判定をレビュー済みheadにしない。後でレビューする予定はDeliveryの経路にならない。
+CODE_REVIEW / SECURITY_REVIEW がPASS（またはSecurityの根拠付きNOT_REQUIRED）になる前にpushしてPRを更新しない。Code Reviewの入力は `git diff origin/preview...HEAD` のため、レビュー前のローカルcommitは許可する。公開するheadがレビュー済みheadと一致することを確認する。実装者の自己判定をレビュー済みheadにしない。後でレビューする予定はDeliveryの経路にならない。
 
 ## Delivery target
 

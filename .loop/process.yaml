@@ -367,6 +367,7 @@ gates:
       - review_viewpoints_and_evidence_recorded
     forbidden_shortcuts:
       - treat_implementer_self_check_as_code_review
+      - reuse_implementation_notes_as_code_review_evidence
       - mark_pass_with_empty_review_evidence
       - defer_code_review_until_after_delivery
     fail_restart_sequence:
@@ -392,6 +393,7 @@ gates:
       - process_policy_changed
     forbidden_shortcuts:
       - treat_implementer_self_check_as_security_review
+      - reuse_implementation_notes_as_security_review_evidence
       - mark_pass_with_empty_review_evidence
       - defer_security_review_until_after_delivery
       - treat_process_policy_change_as_pure_documentation_exemption
