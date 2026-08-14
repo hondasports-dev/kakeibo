@@ -56,7 +56,7 @@ head SHAが変わったら、古いheadのsuccessを新しいheadへ流用しな
 
 PR全体のrequired checksを確認する。
 
-- lint / format / build / test / changed-file coverage
+- lint / format / build / test / coverage
 - E2E / Preview / deployment check（必要時）
 - CodeQL等のrequired security check
 

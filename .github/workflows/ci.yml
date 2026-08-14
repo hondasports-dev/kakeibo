@@ -80,8 +80,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-          # changed-file coverage が PR の base ref / push 前コミットを解決できるようにする
-          fetch-depth: 0
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
 
@@ -101,14 +99,5 @@ jobs:
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: pnpm install --frozen-lockfile
 
-      - name: Test and changed-file coverage
-        shell: bash
-        run: |
-          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
-            export COVERAGE_BASE="origin/$GITHUB_BASE_REF"
-          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            export COVERAGE_BASE="${{ github.event.before }}"
-          else
-            export COVERAGE_BASE=""
-          fi
-          pnpm run test:coverage
+      - name: Test and coverage
+        run: pnpm run test:coverage

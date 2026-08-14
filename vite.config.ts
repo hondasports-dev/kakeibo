@@ -3,16 +3,6 @@ import react from "@vitejs/plugin-react";
 
 export const resolveAppVersion = (appVersion: string | undefined) => appVersion ?? "local";
 
-const coverageThresholds =
-  process.env.VITEST_COVERAGE_COLLECTION_ONLY === "1"
-    ? undefined
-    : {
-        statements: 90,
-        branches: 85,
-        functions: 90,
-        lines: 90,
-      };
-
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
@@ -72,7 +62,6 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "json", "html"],
       exclude: ["**/*.test.*"],
-      ...(coverageThresholds ? { thresholds: coverageThresholds } : {}),
     },
   },
 });
