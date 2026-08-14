@@ -413,6 +413,7 @@ gates:
       - exactly_one_delivery_pr_bound_to_current_task
       - pull_request_metadata_verified
       - published_head_matches_reviewed_head
+      - loop_review_evidence_check_passed
     forbidden_shortcuts:
       - treat_pr_created_as_task_done
       - create_second_delivery_pr_for_same_task
@@ -421,6 +422,7 @@ gates:
       - publish_before_code_review_and_security_review_pass
       - treat_implementer_self_check_as_reviewed_head
       - report_pr_url_as_completion_and_end_session
+      - use_skip_if_missing_review_evidence_as_delivery
 
   pr_aftercare_gate:
     evidence_required: true
@@ -474,10 +476,12 @@ gates:
       - impact_delivery_and_transition_misses_reviewed
       - candidates_recorded_or_explicitly_none
       - duplicate_check_and_target_selection_done_for_each_candidate
+      - loop_learning_application_check_passed_when_user_requested_current_pr_apply
     forbidden_shortcuts:
       - run_learning_before_pr_aftercare_terminal
       - ignore_aftercare_failures_or_review_findings
       - treat_deferred_learning_as_not_required
+      - close_user_requested_current_pr_apply_without_observable_application
 
   task_transition_gate:
     evidence_required: true

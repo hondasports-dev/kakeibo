@@ -54,6 +54,16 @@ Aftercareがterminalになる前に別taskのbranch / worktree / PRへ切り替�
 
 未検証変更があればVerificationへ戻る。
 
+push前に、対象 head SHA へ固定した独立レビューEvidenceを機械検証する。skip-if-missing は Delivery に使わない。Skill を迂回した `git push` はこのチェックを強制しない。
+
+```bash
+node scripts/check-loop-evidence.mjs --require-review --head "$(git rev-parse HEAD)" --file .loop/review-evidence.json --changed-paths-json '["AGENTS.md"]'
+```
+
+`changed-paths-json` は `origin/preview...HEAD` のパス一覧を呼び出し側が JSON 配列で渡す。checker は git を呼ばない。process policy 変更を含む head では SECURITY_REVIEW の `NOT_REQUIRED` は FAIL する。
+
+終了コードが 0 でない head はレビュー済みとして公開しない。
+
 ## 2. Commit / Push
 
 - task専用branchを使う

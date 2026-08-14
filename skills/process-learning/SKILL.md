@@ -138,9 +138,17 @@ Issue固有名を外して再利用可能な条件にする。
 
 ## Step 7: 現在PRとの境界
 
-Aftercare PASS後に見つけた恒久的なprocess改善は、原則として**現在の機能PRへ後付けしない**。Candidateとして記録し、必要なら次taskとして `TASK_TRANSITION` で明示的に引き継ぐ。
+ユーザーが現在task内での適用を明示していない恒久process改善は、原則として**現在の機能PRへ後付けしない**。Candidateとして記録し、必要なら次taskへ引き継ぐ。
 
-ユーザーが現在task内での適用を明示した場合、差分変更によりMerge-ready Evidenceが無効になるため、必要な `REQUIREMENTS → ... → PR_AFTERCARE` を再実行する。
+ユーザーが現在PRへ含めるよう求めた場合は、Candidate記録や `not_applied` のままでは `learning_gate` を PASS にしない。観測可能な enforcement を同じ Delivery PR へ入れ、Merge-ready Evidenceが無効になるため必要な `REQUIREMENTS → ... → PR_AFTERCARE` を再実行する。
+
+適用要求は chat 推測ではなく、recorded flag / CLI で渡す。
+
+```bash
+node scripts/check-loop-evidence.mjs --learning --user-requested-apply true --candidates-json '[{"applicationStatus":"applied","location":"scripts/check-loop-evidence.mjs"}]'
+```
+
+`--user-requested-apply false` のとき、未適用 Candidate は PASS する（既定の defer を維持する）。適用済み Candidate が混ざると FAIL する。
 
 ## Step 8: Human Gate
 

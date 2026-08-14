@@ -176,6 +176,8 @@ PASS直前にtracked / untrackedを再確認し、レビュー中にscope外変�
 ```text
 CODE_REVIEW
 Status: PASS | FAIL
+Reviewed head SHA:
+independence_attested: true | false
 Base:
 Reviewed scope:
 Must-fix:
