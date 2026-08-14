@@ -5,6 +5,7 @@ import { Alert, Box, Button, Snackbar, Stack, Typography } from "@mui/material";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { listActiveApi } from "../../../lib/repositories/categories";
 import { deleteExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
+import { getUserProfileApi } from "../../../lib/repositories/users";
 import {
   deleteReceiptApi,
   getMonthSummaryWithCategoriesApi,
@@ -15,6 +16,8 @@ import { CategoryBreakdownCard } from "../../weekly-summary/components/CategoryB
 import { IncomeListCard } from "../../weekly-summary/components/IncomeListCard";
 import { ReceiptListCard } from "../../weekly-summary/components/ReceiptListCard";
 import { incomeItemToReceiptItem, type ReceiptItem } from "../../weekly-summary/types/types";
+import { HistoryNavigation } from "../../app-shell/components/HistoryNavigation";
+import { getCurrentWeekStartDate } from "../../week";
 import { formatJapaneseDate } from "../../../utils/date";
 import { MonthlySpendingCalendar } from "../components/MonthlySpendingCalendar";
 import { MonthNavigator } from "../components/MonthNavigator";
@@ -42,6 +45,7 @@ export function MonthlySummaryPage() {
 
   const deleteExpenseEntry = useMutation(deleteExpenseEntryApi());
   const deleteReceipt = useMutation(deleteReceiptApi());
+  const userProfile = useQuery(getUserProfileApi());
   const categoriesQuery = useQuery(listActiveApi());
   const monthlySummary = useQuery(getMonthSummaryWithCategoriesApi(), { month });
   const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
@@ -65,6 +69,10 @@ export function MonthlySummaryPage() {
     ? summary.incomes.filter((income) => income.date === selectedDate)
     : summary.incomes;
   const dateLabel = selectedDate ? formatJapaneseDate(selectedDate) : null;
+  const monthlyHistoryPath = selectedDate
+    ? `/months/${month}?date=${selectedDate}`
+    : `/months/${month}`;
+  const weeklyStartDay = userProfile?.weeklyStartDay;
 
   useEffect(() => {
     if (rawMonth !== month) {
@@ -116,6 +124,11 @@ export function MonthlySummaryPage() {
   return (
     <Box className="app-main">
       <Stack spacing={3}>
+        <HistoryNavigation
+          monthlyPath={monthlyHistoryPath}
+          searchPath="/search"
+          weeklyPath={`/weeks/${getCurrentWeekStartDate(weeklyStartDay)}`}
+        />
         <Stack className="summary-header" direction="row">
           <Box
             alt=""

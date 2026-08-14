@@ -30,6 +30,11 @@ function getCurrentWeekStartDate(): string {
   return `${year}-${month}-${dayOfMonth}`;
 }
 
+function getCurrentMonth(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
 test.describe("ナビゲーション（Issue #49）", () => {
   test("@navigation シナリオN-1.1: SP幅でBottomNavigationの非選択項目と選択状態が視認できる", async ({
     page,
@@ -278,14 +283,103 @@ test.describe("ナビゲーション（Issue #49）", () => {
   }) => {
     await gotoAuthenticated(page, "/weeks/2026-04-27");
 
-    const monthlySummaryLink = page.getByRole("link", {
-      name: "2026年4月の月次サマリーを見る",
-    });
+    const monthlySummaryLink = page
+      .getByRole("navigation", { name: "履歴メニュー" })
+      .getByRole("link", { name: "月次サマリー" });
     await expect(monthlySummaryLink).toHaveAttribute("href", "/months/2026-04");
 
     await monthlySummaryLink.click();
     await expect(page).toHaveURL("/months/2026-04");
     await expect(page.getByRole("heading", { name: "月次サマリー", level: 1 })).toBeVisible();
+  });
+
+  test("@smoke @navigation [Issue #618] 履歴メニューから週次・月次・検索を切り替えられる", async ({
+    page,
+  }) => {
+    const historyMenu = page.getByRole("navigation", { name: "履歴メニュー" });
+    const currentMonth = getCurrentMonth();
+
+    await gotoAuthenticated(page, "/weeks/2026-04-27");
+    await expect(historyMenu).toBeVisible();
+    await expect(historyMenu.getByRole("link", { name: "週次サマリー" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    await expect(historyMenu.getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
+      "href",
+      "/months/2026-04",
+    );
+
+    await historyMenu.getByRole("link", { name: "月次サマリー" }).click();
+    await expect(page).toHaveURL("/months/2026-04");
+    await expect(historyMenu.getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    const currentWeekLink = historyMenu.getByRole("link", { name: "週次サマリー" });
+    const currentWeekPath = await currentWeekLink.getAttribute("href");
+    expect(currentWeekPath).toMatch(/^\/weeks\/\d{4}-\d{2}-\d{2}$/);
+    if (currentWeekPath === null) {
+      throw new Error("週次サマリーのリンク先がありません");
+    }
+
+    await currentWeekLink.click();
+    await expect(page).toHaveURL(currentWeekPath);
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+
+    await page
+      .getByRole("navigation", { name: "履歴メニュー" })
+      .getByRole("link", { name: "支出検索" })
+      .click();
+    await expect(page).toHaveURL("/search");
+    await expect(page.getByRole("heading", { name: "支出検索", level: 1 })).toBeVisible();
+
+    await page
+      .getByRole("navigation", { name: "履歴メニュー" })
+      .getByRole("link", { name: "月次サマリー" })
+      .click();
+    await expect(page).toHaveURL(`/months/${currentMonth}`);
+    await expect(page.getByRole("heading", { name: "月次サマリー", level: 1 })).toBeVisible();
+
+    await page
+      .getByRole("navigation", { name: "履歴メニュー" })
+      .getByRole("link", { name: "支出検索" })
+      .click();
+    await expect(page).toHaveURL("/search");
+    await expect(page.getByRole("heading", { name: "支出検索", level: 1 })).toBeVisible();
+
+    await page
+      .getByRole("navigation", { name: "履歴メニュー" })
+      .getByRole("link", { name: "週次サマリー" })
+      .click();
+    await expect(page).toHaveURL(currentWeekPath);
+    await expect(page.getByRole("heading", { name: "週次サマリー", level: 1 })).toBeVisible();
+
+    await page.goto(`/months/${currentMonth}?date=${currentMonth}-10`);
+    await expect(historyMenu.getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
+      "href",
+      `/months/${currentMonth}?date=${currentMonth}-10`,
+    );
+
+    await page.goto(`/search?q=${encodeURIComponent("店")}&from=${currentMonth}-01`);
+    await expect(historyMenu.getByRole("link", { name: "支出検索" })).toHaveAttribute(
+      "href",
+      `/search?q=${encodeURIComponent("店")}&from=${currentMonth}-01`,
+    );
+    await expect(historyMenu.getByRole("link", { name: "支出検索" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+      .toBe(true);
+    const searchLink = historyMenu.getByRole("link", { name: "支出検索" });
+    await searchLink.focus();
+    await expect(searchLink).toBeFocused();
+    await searchLink.press("Enter");
+    await expect(page).toHaveURL(`/search?q=${encodeURIComponent("店")}&from=${currentMonth}-01`);
   });
 
   test("@smoke @navigation [Issue #136] 週別支出推移がPC/SP幅に収まる", async ({ page }) => {

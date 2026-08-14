@@ -6,12 +6,14 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { getCurrentMonth } from "../../../../lib/domain/common/month";
 import { renderWithProviders } from "../../../test/render";
+import { getCurrentWeekStartDate } from "../../week";
 import { MonthlySummaryPage } from "./MonthlySummaryPage";
 
 const useQueryMock = vi.hoisted(() => vi.fn());
 const useMutationMock = vi.hoisted(() => vi.fn(() => vi.fn()));
 const navigateMock = vi.hoisted(() => vi.fn());
 const routeMonth = vi.hoisted(() => ({ value: "2026-07" as string | undefined }));
+const getUserProfileApiMock = vi.hoisted(() => vi.fn(() => "get-user-profile"));
 
 vi.mock("../../../../lib/domain/common/month", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../../../lib/domain/common/month")>();
@@ -21,6 +23,10 @@ vi.mock("../../../../lib/domain/common/month", async (importOriginal) => {
 vi.mock("convex/react", () => ({
   useMutation: () => useMutationMock(),
   useQuery: (...args: unknown[]) => useQueryMock(...args),
+}));
+
+vi.mock("../../../lib/repositories/users", () => ({
+  getUserProfileApi: getUserProfileApiMock,
 }));
 
 vi.mock("react-router-dom", async (importOriginal) => {
@@ -38,6 +44,9 @@ describe("MonthlySummaryPage", () => {
     useMutationMock.mockReset();
     useMutationMock.mockImplementation(() => vi.fn());
     useQueryMock.mockImplementation((_query: unknown, args: unknown) => {
+      if (_query === "get-user-profile") {
+        return { weeklyStartDay: 3 };
+      }
       if (args && typeof args === "object" && "month" in args) {
         return {
           byCategory: [
@@ -88,7 +97,7 @@ describe("MonthlySummaryPage", () => {
 
   it("月次の収支、カテゴリ、支出・収入一覧を表示する", () => {
     renderWithProviders(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={["/months/2026-07"]}>
         <LocalizationProvider dateAdapter={AdapterDayjs}>
           <MonthlySummaryPage />
         </LocalizationProvider>
@@ -96,6 +105,19 @@ describe("MonthlySummaryPage", () => {
     );
 
     expect(screen.getByRole("heading", { name: "月次サマリー" })).toBeInTheDocument();
+    const historyNavigation = screen.getByRole("navigation", { name: "履歴メニュー" });
+    expect(within(historyNavigation).getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
+      "href",
+      "/months/2026-07",
+    );
+    expect(within(historyNavigation).getByRole("link", { name: "月次サマリー" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+    expect(within(historyNavigation).getByRole("link", { name: "週次サマリー" })).toHaveAttribute(
+      "href",
+      `/weeks/${getCurrentWeekStartDate(3)}`,
+    );
     expect(screen.getByLabelText("支出")).toHaveTextContent("1,200円");
     expect(screen.getByLabelText("収入")).toHaveTextContent("50,000円");
     expect(screen.getByLabelText("差引")).toHaveTextContent("+48,800円");
@@ -133,6 +155,7 @@ describe("MonthlySummaryPage", () => {
       </MemoryRouter>,
     );
 
+    expect(screen.getByRole("navigation", { name: "履歴メニュー" })).toBeInTheDocument();
     expect(screen.getAllByText("この月の支出はまだありません").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByText("この月の収入はまだありません")).toBeInTheDocument();
   });
