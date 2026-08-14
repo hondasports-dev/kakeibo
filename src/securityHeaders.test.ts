@@ -19,6 +19,15 @@ const securityHeaders = new Map(
 );
 const contentSecurityPolicy = securityHeaders.get("Content-Security-Policy") ?? "";
 
+function getDirectiveSources(directiveName: string) {
+  const directive = contentSecurityPolicy
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith(`${directiveName} `));
+
+  return directive?.split(/\s+/).slice(1) ?? [];
+}
+
 describe("Vercel security headers", () => {
   it("全パスにブラウザ防御ヘッダーを適用する", () => {
     expect(vercelConfig.headers?.map((entry) => entry.source)).toContain("/(.*)");
@@ -33,14 +42,21 @@ describe("Vercel security headers", () => {
   });
 
   it("ClerkのブラウザSDKを許可されたドメインから読み込める", () => {
-    const scriptSource = contentSecurityPolicy
-      .split(";")
-      .map((directive) => directive.trim())
-      .find((directive) => directive.startsWith("script-src "));
+    const scriptSources = getDirectiveSources("script-src");
 
-    expect(scriptSource).toContain("'self'");
-    expect(scriptSource).toContain("https://*.clerk.accounts.dev");
-    expect(scriptSource).toContain("https://*.clerk.accounts.com");
-    expect(scriptSource).toContain("https://*.clerk.com");
+    expect(scriptSources).toContain("'self'");
+    expect(scriptSources).toContain("https://*.clerk.accounts.dev");
+    expect(scriptSources).toContain("https://*.clerk.accounts.com");
+    expect(scriptSources).toContain("https://*.clerk.com");
+  });
+
+  it("Clerk ProductionのカスタムFAPIを必要な通信だけに許可する", () => {
+    const clerkProductionOrigin = "https://clerk.suzumemo.jp";
+
+    expect(getDirectiveSources("script-src")).toContain(clerkProductionOrigin);
+    expect(getDirectiveSources("connect-src")).toContain(clerkProductionOrigin);
+    expect(getDirectiveSources("frame-src")).not.toContain(clerkProductionOrigin);
+    expect(getDirectiveSources("form-action")).not.toContain(clerkProductionOrigin);
+    expect(contentSecurityPolicy).not.toContain("https://*.suzumemo.jp");
   });
 });
