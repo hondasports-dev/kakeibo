@@ -191,6 +191,24 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
     expect(inactiveCtx.db.patch).not.toHaveBeenCalled();
   });
 
+  it("未認証では書き込まない", async () => {
+    const ctx = createMutationCtx(
+      {
+        "cat-food": foodCategory,
+        "entry-001": expenseEntry,
+      },
+      { identity: null },
+    );
+    await expect(
+      bulkUpdateSpendingCategoriesHandler(ctx, {
+        expenseEntryIds: ["entry-001" as Id<"expenseEntries">],
+        receiptIds: [],
+        categoryId: "cat-food" as Id<"categories">,
+      }),
+    ).rejects.toThrow();
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
   it("空配列と101件超は拒否する", async () => {
     const ctx = createMutationCtx({ "cat-food": foodCategory });
     await expect(
