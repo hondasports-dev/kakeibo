@@ -35,6 +35,21 @@ describe("getManagementAuditLogDetailLabel", () => {
     expect(getManagementAuditLogDetailLabel(log)).toBe("メンバー → オーナー");
   });
 
+  it("支出の一括操作は対象ラベルを表示する", () => {
+    const log: GroupManagementAuditLogListItem = {
+      _id: "log-004",
+      action: "spending_bulk_category_changed",
+      actionLabel: "支出明細のカテゴリを一括変更",
+      actorDisplayName: "メンバーA",
+      targetLabel: "支出明細2件: 日用品 → 食費",
+      beforeValue: null,
+      afterValue: '{"recordCount":2}',
+      createdAt: 1000,
+    };
+
+    expect(getManagementAuditLogDetailLabel(log)).toBe("支出明細2件: 日用品 → 食費");
+  });
+
   it("対象ラベルがある場合はそれを表示する", () => {
     const log: GroupManagementAuditLogListItem = {
       _id: "log-002",

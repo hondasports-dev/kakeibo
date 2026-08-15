@@ -659,6 +659,10 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `expenseEntries.mutations.deleteExpenseEntry(id)`
 - `expenseEntries.mutations.bulkUpdateSpendingCategories({ expenseEntryIds, receiptIds, categoryId })`
 - `expenseEntries.mutations.bulkDeleteSpendingRecords({ expenseEntryIds, receiptIds })`
+- 上記2つの成功時は同一mutationで `managementAuditLogs` に
+  `spending_bulk_category_changed` / `spending_bulk_deleted` を1件記録する。
+  `afterValue` には件数・対象ID・日付・カテゴリID/名前だけを入れ、金額・店名・メモは保存しない。
+  閲覧は既存の `groups.auditLogs.listManagementAuditLogs`（ownerのみ）を使う。
 
 ### 10.2 receipts（互換層）
 
