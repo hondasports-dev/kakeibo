@@ -29,6 +29,7 @@ jobs:
       VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
       CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY }}
       SOURCE_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref || github.ref_name }}
+      PREVIEW_DOMAIN: preview.suzumemo.jp
     steps:
       - name: Validate Preview configuration
         env:
@@ -108,6 +109,13 @@ jobs:
           deployment_url="$(pnpm exec vercel deploy --prebuilt --archive=tgz --target=preview --token "$VERCEL_TOKEN")"
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
 
+      - name: Assign fixed Preview domain
+        run: |
+          pnpm exec vercel alias set \
+            "${{ steps.vercel.outputs.url }}" \
+            "$PREVIEW_DOMAIN" \
+            --token "$VERCEL_TOKEN"
+
       - name: Cache Playwright browsers
         id: playwright-cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -159,7 +167,8 @@ jobs:
             echo "| --- | --- |"
             echo "| Source ref | \`$SOURCE_REF\` |"
             echo "| Convex deployment | \`staging\` |"
-            echo "| Vercel Preview URL | ${{ steps.vercel.outputs.url }} |"
+            echo "| Vercel deployment URL | ${{ steps.vercel.outputs.url }} |"
+            echo "| Fixed Preview URL | https://$PREVIEW_DOMAIN |"
             echo
             echo "This deployment uses the fixed Convex staging deployment and Clerk Development instance."
           } >> "$GITHUB_STEP_SUMMARY"
