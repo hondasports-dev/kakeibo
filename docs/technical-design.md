@@ -657,6 +657,8 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `expenseEntries.mutations.createExpenseEntries(input)`
 - `expenseEntries.mutations.updateExpenseEntry(id, input)`
 - `expenseEntries.mutations.deleteExpenseEntry(id)`
+- `expenseEntries.mutations.bulkUpdateSpendingCategories({ expenseEntryIds, receiptIds, categoryId })`
+- `expenseEntries.mutations.bulkDeleteSpendingRecords({ expenseEntryIds, receiptIds })`
 
 ### 10.2 receipts（互換層）
 
