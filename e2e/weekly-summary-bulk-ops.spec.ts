@@ -76,7 +76,10 @@ test.describe("週次サマリーの一括操作（Issue #550）", () => {
 
     await firstRow.getByRole("checkbox", { name: /を選択/ }).check();
     await secondRow.getByRole("checkbox", { name: /を選択/ }).check();
-    await page.getByRole("button", { name: "削除" }).click();
+    await page
+      .locator(".receipt-bulk-actions")
+      .getByRole("button", { name: "削除", exact: true })
+      .click();
     const deleteDialog = page.getByRole("dialog");
     await expect(
       deleteDialog.getByRole("heading", { name: "明細2件を削除しますか？" }),
