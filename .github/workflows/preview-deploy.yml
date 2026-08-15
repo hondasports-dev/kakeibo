@@ -15,7 +15,7 @@ permissions:
 
 concurrency:
   group: preview-staging-deploy
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   preview:
@@ -107,12 +107,35 @@ jobs:
         id: vercel
         run: |
           deployment_url="$(pnpm exec vercel deploy --prebuilt --archive=tgz --target=preview --token "$VERCEL_TOKEN")"
+          if [[ ! "$deployment_url" =~ ^https://[a-z0-9-]+\.vercel\.app$ ]]; then
+            echo "::error::Unexpected Vercel deployment URL format."
+            exit 1
+          fi
           echo "url=$deployment_url" >> "$GITHUB_OUTPUT"
 
       - name: Assign fixed Preview domain
+        env:
+          VERCEL_DEPLOYMENT_URL: ${{ steps.vercel.outputs.url }}
         run: |
+          if [[ ! "$VERCEL_DEPLOYMENT_URL" =~ ^https://[a-z0-9-]+\.vercel\.app$ ]]; then
+            echo "::error::Unexpected Vercel deployment URL format."
+            exit 1
+          fi
+
+          deployed_sha="$(git rev-parse HEAD)"
+          latest_preview_sha="$(git ls-remote origin refs/heads/preview | awk '{print $1}')"
+          if [ -z "$latest_preview_sha" ]; then
+            echo "::error::Could not resolve the latest preview branch commit."
+            exit 1
+          fi
+
+          if [ "$deployed_sha" != "$latest_preview_sha" ]; then
+            echo "Skipping fixed Preview alias because a newer preview commit exists."
+            exit 0
+          fi
+
           pnpm exec vercel alias set \
-            "${{ steps.vercel.outputs.url }}" \
+            "$VERCEL_DEPLOYMENT_URL" \
             "$PREVIEW_DOMAIN" \
             --token "$VERCEL_TOKEN"
 
@@ -159,6 +182,8 @@ jobs:
           E2E_CLEANUP_SECRET: ${{ secrets.E2E_CLEANUP_SECRET }}
 
       - name: Write summary
+        env:
+          VERCEL_DEPLOYMENT_URL: ${{ steps.vercel.outputs.url }}
         run: |
           {
             echo "## Preview branch deploy"
@@ -167,7 +192,7 @@ jobs:
             echo "| --- | --- |"
             echo "| Source ref | \`$SOURCE_REF\` |"
             echo "| Convex deployment | \`staging\` |"
-            echo "| Vercel deployment URL | ${{ steps.vercel.outputs.url }} |"
+            echo "| Vercel deployment URL | $VERCEL_DEPLOYMENT_URL |"
             echo "| Fixed Preview URL | https://$PREVIEW_DOMAIN |"
             echo
             echo "This deployment uses the fixed Convex staging deployment and Clerk Development instance."
