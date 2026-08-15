@@ -27,6 +27,18 @@ export function WeeklySummaryPanel({
   onDeleteReceipt,
   onEditReceipt,
   weekStartDate,
+  selectionEnabled = false,
+  selectedCount,
+  limitMessage,
+  previewCategory,
+  saving,
+  isSelected,
+  onToggleSelection,
+  onSelectVisible,
+  onDeselectVisible,
+  onClearSelection,
+  onBulkChangeCategory,
+  onBulkDelete,
 }: WeeklySummaryPanelProps) {
   const targetWeek = weeklyExpenseTrend?.items.at(-1);
   const previousDiff =
@@ -65,6 +77,18 @@ export function WeeklySummaryPanel({
         receipts={receipts}
         onDeleteReceipt={onDeleteReceipt}
         onEditReceipt={onEditReceipt}
+        isSelected={isSelected}
+        limitMessage={limitMessage}
+        previewCategory={previewCategory}
+        saving={saving}
+        selectedCount={selectedCount}
+        selectionEnabled={selectionEnabled}
+        onBulkChangeCategory={onBulkChangeCategory}
+        onBulkDelete={onBulkDelete}
+        onClearSelection={onClearSelection}
+        onDeselectVisible={onDeselectVisible}
+        onSelectVisible={onSelectVisible}
+        onToggleSelection={onToggleSelection}
       />
 
       <IncomeListCard
