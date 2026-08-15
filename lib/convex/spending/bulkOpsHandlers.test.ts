@@ -43,7 +43,7 @@ function createMutationCtx(
       get: vi.fn().mockImplementation(async (id: string) => docs[id] ?? null),
       patch: vi.fn().mockResolvedValue(undefined),
       delete: vi.fn().mockResolvedValue(undefined),
-      insert: vi.fn(),
+      insert: vi.fn().mockResolvedValue("audit-001"),
       query: vi.fn().mockReturnValue({
         withIndex: vi.fn().mockImplementation((indexName: string) => {
           if (indexName === "by_user_id") {
@@ -70,6 +70,13 @@ const foodCategory = {
   isActive: true,
 };
 
+const dailyCategory = {
+  _id: "cat-daily",
+  groupId: GROUP_ID,
+  name: "日用品",
+  isActive: true,
+};
+
 const inactiveCategory = {
   _id: "cat-old",
   groupId: GROUP_ID,
@@ -82,6 +89,7 @@ const expenseEntry = {
   groupId: GROUP_ID,
   entryType: "expense",
   categoryId: "cat-daily",
+  date: "2026-08-10",
 };
 
 const incomeEntry = {
@@ -95,12 +103,14 @@ const expenseReceipt = {
   groupId: GROUP_ID,
   type: "expense",
   categoryId: "cat-daily",
+  date: "2026-08-10",
 };
 
 describe("bulkUpdateSpendingCategoriesHandler", () => {
   it("expenseEntry と receipt を同一カテゴリへ一括更新する", async () => {
     const ctx = createMutationCtx({
       "cat-food": foodCategory,
+      "cat-daily": dailyCategory,
       "entry-001": expenseEntry,
       "receipt-001": expenseReceipt,
     });
@@ -122,11 +132,27 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
       "receipt-001",
       expect.objectContaining({ categoryId: "cat-food" }),
     );
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "managementAuditLogs",
+      expect.objectContaining({
+        groupId: GROUP_ID,
+        actorUserId: "https://issuer.example|user-001",
+        action: "spending_bulk_category_changed",
+        targetKind: "group",
+        targetLabel: "支出明細2件: 日用品 → 食費",
+      }),
+    );
+    const auditInsert = vi.mocked(ctx.db.insert).mock.calls[0]?.[1] as {
+      afterValue?: string;
+    };
+    expect(auditInsert.afterValue).toContain("entry-001");
+    expect(auditInsert.afterValue).not.toMatch(/amount|shopName|title|memo/i);
   });
 
   it("重複IDは1件として数え、検証後にだけ書き込む", async () => {
     const ctx = createMutationCtx({
       "cat-food": foodCategory,
+      "cat-daily": dailyCategory,
       "entry-001": expenseEntry,
     });
 
@@ -153,6 +179,7 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
       }),
     ).rejects.toThrow(ConvexError);
     expect(otherGroupCtx.db.patch).not.toHaveBeenCalled();
+    expect(otherGroupCtx.db.insert).not.toHaveBeenCalled();
 
     const incomeCtx = createMutationCtx({
       "cat-food": foodCategory,
@@ -166,6 +193,7 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
       }),
     ).rejects.toThrow("Income records cannot be included in bulk spending operations");
     expect(incomeCtx.db.patch).not.toHaveBeenCalled();
+    expect(incomeCtx.db.insert).not.toHaveBeenCalled();
 
     const missingCtx = createMutationCtx({ "cat-food": foodCategory });
     await expect(
@@ -176,6 +204,7 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
       }),
     ).rejects.toThrow("Expense entry not found");
     expect(missingCtx.db.patch).not.toHaveBeenCalled();
+    expect(missingCtx.db.insert).not.toHaveBeenCalled();
 
     const inactiveCtx = createMutationCtx({
       "cat-old": inactiveCategory,
@@ -189,6 +218,7 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
       }),
     ).rejects.toThrow("Inactive category cannot be used for expense entries");
     expect(inactiveCtx.db.patch).not.toHaveBeenCalled();
+    expect(inactiveCtx.db.insert).not.toHaveBeenCalled();
   });
 
   it("空配列と101件超は拒否する", async () => {
@@ -215,12 +245,14 @@ describe("bulkUpdateSpendingCategoriesHandler", () => {
       `At most ${MAX_BULK_SPENDING_SELECTION} spending records can be updated at once`,
     );
     expect(ctx.db.patch).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 });
 
 describe("bulkDeleteSpendingRecordsHandler", () => {
   it("検証後に expenseEntry と receipt をまとめて削除する", async () => {
     const ctx = createMutationCtx({
+      "cat-daily": dailyCategory,
       "entry-001": expenseEntry,
       "receipt-001": expenseReceipt,
     });
@@ -233,6 +265,13 @@ describe("bulkDeleteSpendingRecordsHandler", () => {
     ).resolves.toEqual({ deletedCount: 2 });
     expect(ctx.db.delete).toHaveBeenCalledWith("entry-001");
     expect(ctx.db.delete).toHaveBeenCalledWith("receipt-001");
+    expect(ctx.db.insert).toHaveBeenCalledWith(
+      "managementAuditLogs",
+      expect.objectContaining({
+        action: "spending_bulk_deleted",
+        targetLabel: "支出明細2件",
+      }),
+    );
   });
 
   it("1件でも不正なら削除しない", async () => {
@@ -248,5 +287,6 @@ describe("bulkDeleteSpendingRecordsHandler", () => {
       }),
     ).rejects.toThrow("Income records cannot be included in bulk spending operations");
     expect(ctx.db.delete).not.toHaveBeenCalled();
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 });

@@ -11,6 +11,8 @@ export const managementAuditActionValidator = v.union(
   v.literal("system_admin_granted"),
   v.literal("system_admin_revoked"),
   v.literal("system_admin_delegated"),
+  v.literal("spending_bulk_category_changed"),
+  v.literal("spending_bulk_deleted"),
 );
 
 export type ManagementAuditAction =
@@ -23,7 +25,9 @@ export type ManagementAuditAction =
   | "group_deleted"
   | "system_admin_granted"
   | "system_admin_revoked"
-  | "system_admin_delegated";
+  | "system_admin_delegated"
+  | "spending_bulk_category_changed"
+  | "spending_bulk_deleted";
 
 export const managementAuditTargetKindValidator = v.union(
   v.literal("group"),
@@ -44,6 +48,8 @@ export const MANAGEMENT_AUDIT_ACTION_LABELS: Record<ManagementAuditAction, strin
   system_admin_granted: "システム管理者権限を付与",
   system_admin_revoked: "システム管理者権限を剥奪",
   system_admin_delegated: "システム管理者による操作代行",
+  spending_bulk_category_changed: "支出明細のカテゴリを一括変更",
+  spending_bulk_deleted: "支出明細を一括削除",
 };
 
 export const managementAuditLogListItemValidator = v.object({

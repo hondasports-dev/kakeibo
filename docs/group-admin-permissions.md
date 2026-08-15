@@ -238,6 +238,7 @@ group admin から他ユーザーの Clerk アカウントを削除する機能�
 | メンバー追加 | `convex/groups/members.ts` `addMemberByEmail` | あり | |
 | メンバー解除 | `convex/groups/members.ts` `removeMember` | あり | owner 対象拒否・自己操作拒否・users 非削除を実装済み（#217） |
 | ロール変更 | `convex/groups/members.ts` `changeMemberRole` | あり | 最後の owner 保護・監査ログ（#223, #225） |
+| 支出一括カテゴリ変更・削除の監査 | `lib/convex/spending/bulkOpsHandlers.ts` | 記録はメンバー可、閲覧は owner | `spending_bulk_category_changed` / `spending_bulk_deleted`。金額・店名は残さない（#550） |
 | オーナー権限譲渡 | `convex/groups/members.ts` `transferGroupOwnership` | あり | 譲渡先は member のみ。昇格→降格順（#222, #225） |
 | グループ管理 UI | `src/features/group-admin/components/GroupSettingsPanel.tsx` | UI のみ | Phase1 で画面構成整理（#214） |
 | グループ運用手順 | `docs/technical-design.md` 6.3 | — | 本ドキュメントを正本とする |

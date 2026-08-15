@@ -17,7 +17,7 @@ export type RecordManagementAuditLogArgs = {
 };
 
 export async function recordManagementAuditLog(
-  ctx: MutationCtx,
+  ctx: Pick<MutationCtx, "db">,
   args: RecordManagementAuditLogArgs,
 ): Promise<Id<"managementAuditLogs">> {
   const now = Date.now();

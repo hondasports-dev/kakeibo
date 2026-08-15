@@ -19,7 +19,9 @@ type ManagementAuditLogDoc = {
     | "group_deleted"
     | "system_admin_granted"
     | "system_admin_revoked"
-    | "system_admin_delegated";
+    | "system_admin_delegated"
+    | "spending_bulk_category_changed"
+    | "spending_bulk_deleted";
   targetKind: "group" | "member" | "invitation";
   targetId?: string;
   targetLabel?: string;
