@@ -102,4 +102,16 @@ export type WeeklySummaryPanelProps = {
   weeklyExpenseTrend?: WeeklyExpenseChartData | null;
   onDeleteReceipt?: (receipt: ReceiptItem) => void;
   onEditReceipt?: (receipt: ReceiptItem) => void;
+  selectionEnabled?: boolean;
+  selectedCount?: number;
+  limitMessage?: string;
+  previewCategory?: { _id: string; name: string; color?: string } | null;
+  saving?: boolean;
+  isSelected?: (receipt: ReceiptItem) => boolean;
+  onToggleSelection?: (receipt: ReceiptItem, checked: boolean) => void;
+  onSelectVisible?: (receipts: ReceiptItem[]) => void;
+  onDeselectVisible?: (receipts: ReceiptItem[]) => void;
+  onClearSelection?: () => void;
+  onBulkChangeCategory?: () => void;
+  onBulkDelete?: () => void;
 };

@@ -3,7 +3,11 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "convex/react";
 import { listActiveApi } from "../../../lib/repositories/categories";
-import { deleteExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
+import {
+  bulkDeleteSpendingRecordsApi,
+  bulkUpdateSpendingCategoriesApi,
+  deleteExpenseEntryApi,
+} from "../../../lib/repositories/expenseEntries";
 import {
   deleteReceiptApi,
   getFourWeeksSummaryApi,
@@ -16,10 +20,16 @@ import { formatYearLabel } from "../../../../lib/domain/common/year";
 import { WeekNavigator } from "../../week";
 import { HistoryNavigation } from "../../app-shell/components/HistoryNavigation";
 import { WeeklySummaryPanel } from "../components/WeeklySummaryPanel";
+import { ExpenseBulkCategoryDialog } from "../components/ExpenseBulkCategoryDialog";
+import { ExpenseBulkDeleteDialog } from "../components/ExpenseBulkDeleteDialog";
 import { ExpenseEntryDeleteDialog } from "../components/ExpenseEntryDeleteDialog";
 import { ExpenseEntryEditDialog } from "../components/ExpenseEntryEditDialog";
+import type { CategoryPreview } from "../components/ReceiptRow";
+import { useWeeklyBulkSelection } from "../hooks/useWeeklyBulkSelection";
 import { SuzumemoLoadingState } from "../../ui";
 import type { ReceiptItem } from "../types/types";
+
+const EMPTY_RECEIPTS: ReceiptItem[] = [];
 import { buildWeeklyExpenseChartData } from "../utils/weeklyExpenseChartData";
 import {
   addWeeks,
@@ -37,9 +47,15 @@ export function SummaryPage() {
   const [deleteSaving, setDeleteSaving] = useState(false);
   const [deleteError, setDeleteError] = useState("");
   const [saveMessage, setSaveMessage] = useState("");
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkSaving, setBulkSaving] = useState(false);
+  const [previewCategory, setPreviewCategory] = useState<CategoryPreview | null>(null);
 
   const deleteExpenseEntry = useMutation(deleteExpenseEntryApi());
   const deleteReceipt = useMutation(deleteReceiptApi());
+  const bulkUpdateSpendingCategories = useMutation(bulkUpdateSpendingCategoriesApi());
+  const bulkDeleteSpendingRecords = useMutation(bulkDeleteSpendingRecordsApi());
   const userProfile = useQuery(getUserProfileApi());
   const categoriesQuery = useQuery(listActiveApi());
   const categories = Array.isArray(categoriesQuery) ? categoriesQuery : [];
@@ -82,13 +98,19 @@ export function SummaryPage() {
     userProfile === undefined ? "skip" : { weekStartDate },
   );
   const weeklyExpenseTrend =
-    fourWeeksSummary !== undefined && Array.isArray(fourWeeksSummary.weeks)
+    fourWeeksSummary != null && Array.isArray(fourWeeksSummary.weeks)
       ? buildWeeklyExpenseChartData({
           weeks: fourWeeksSummary.weeks,
           targetWeekStartDate: weekStartDate,
           currentWeekStartDate,
         })
       : undefined;
+
+  const receipts =
+    weeklySummary && Array.isArray(weeklySummary.receipts)
+      ? weeklySummary.receipts
+      : EMPTY_RECEIPTS;
+  const bulkSelection = useWeeklyBulkSelection(receipts, weekStartDate);
 
   const navigateToWeek = (newWeekStartDate: string) => {
     const norm = normalizeWeekStartDate(newWeekStartDate, weeklyStartDay) ?? currentWeekStartDate;
@@ -118,6 +140,44 @@ export function SummaryPage() {
       setDeleteError("削除に失敗しました。時間をおいて再度お試しください。");
     } finally {
       setDeleteSaving(false);
+    }
+  };
+
+  const handleBulkChangeCategory = async (categoryId: string) => {
+    setBulkSaving(true);
+    setDeleteError("");
+    try {
+      const result = await bulkUpdateSpendingCategories({
+        expenseEntryIds: bulkSelection.selectedIds.expenseEntryIds as Id<"expenseEntries">[],
+        receiptIds: bulkSelection.selectedIds.receiptIds as Id<"receipts">[],
+        categoryId: categoryId as Id<"categories">,
+      });
+      setBulkCategoryOpen(false);
+      setPreviewCategory(null);
+      bulkSelection.clearSelection();
+      setSaveMessage(`明細${result.updatedCount}件のカテゴリを変更しました。`);
+    } catch {
+      setDeleteError("カテゴリの一括変更に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setBulkSaving(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkSaving(true);
+    setDeleteError("");
+    try {
+      const result = await bulkDeleteSpendingRecords({
+        expenseEntryIds: bulkSelection.selectedIds.expenseEntryIds as Id<"expenseEntries">[],
+        receiptIds: bulkSelection.selectedIds.receiptIds as Id<"receipts">[],
+      });
+      setBulkDeleteOpen(false);
+      bulkSelection.clearSelection();
+      setSaveMessage(`明細${result.deletedCount}件を削除しました。`);
+    } catch {
+      setDeleteError("一括削除に失敗しました。時間をおいて再度お試しください。");
+    } finally {
+      setBulkSaving(false);
     }
   };
 
@@ -206,6 +266,18 @@ export function SummaryPage() {
           weeklyExpenseTrend={weeklyExpenseTrend}
           onDeleteReceipt={setDeletingReceipt}
           onEditReceipt={setEditingReceipt}
+          isSelected={bulkSelection.isSelected}
+          limitMessage={bulkSelection.limitMessage}
+          previewCategory={previewCategory}
+          saving={bulkSaving}
+          selectedCount={bulkSelection.selectedCount}
+          selectionEnabled
+          onBulkChangeCategory={() => setBulkCategoryOpen(true)}
+          onBulkDelete={() => setBulkDeleteOpen(true)}
+          onClearSelection={bulkSelection.clearSelection}
+          onDeselectVisible={bulkSelection.deselectVisible}
+          onSelectVisible={bulkSelection.selectVisible}
+          onToggleSelection={bulkSaving ? undefined : bulkSelection.toggleReceipt}
         />
       </Stack>
 
@@ -222,6 +294,27 @@ export function SummaryPage() {
         saving={deleteSaving}
         onCancel={() => setDeletingReceipt(null)}
         onConfirm={() => void handleConfirmDelete()}
+      />
+
+      <ExpenseBulkCategoryDialog
+        categories={categories}
+        open={bulkCategoryOpen}
+        saving={bulkSaving}
+        selectedReceipts={bulkSelection.selectedReceipts}
+        onCancel={() => {
+          setBulkCategoryOpen(false);
+          setPreviewCategory(null);
+        }}
+        onConfirm={(categoryId) => void handleBulkChangeCategory(categoryId)}
+        onPreviewCategory={setPreviewCategory}
+      />
+
+      <ExpenseBulkDeleteDialog
+        open={bulkDeleteOpen}
+        saving={bulkSaving}
+        selectedCount={bulkSelection.selectedCount}
+        onCancel={() => setBulkDeleteOpen(false)}
+        onConfirm={() => void handleBulkDelete()}
       />
 
       <Snackbar

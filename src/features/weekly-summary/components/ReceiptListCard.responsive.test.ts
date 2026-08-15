@@ -9,6 +9,12 @@ describe("ReceiptListCard responsive styles", () => {
     expect(css).toMatch(/grid-template-columns:\s*88px minmax\(200px, 1\.4fr\) 104px/);
   });
 
+  it("選択可能な週次一覧だけチェックボックス列を足す", () => {
+    expect(css).toMatch(
+      /\.receipt-list--selectable \.receipt-list-header[\s\S]*grid-template-columns:\s*44px 88px minmax\(200px, 1\.4fr\) 104px/,
+    );
+  });
+
   it("長い店名でもグリッド列からはみ出さない", () => {
     expect(css).toMatch(/\.receipt-row-name\s*\{[^}]*min-width:\s*0/);
   });
