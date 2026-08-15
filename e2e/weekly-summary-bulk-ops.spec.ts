@@ -59,7 +59,9 @@ test.describe("週次サマリーの一括操作（Issue #550）", () => {
     const categoryOption = page.getByRole("option").nth(1);
     const categoryName = (await categoryOption.innerText()).trim();
     await categoryOption.click();
-    await expect(categoryDialog.getByText(new RegExp(categoryName))).toBeVisible();
+    await expect(
+      categoryDialog.getByText(`明細2件を「${categoryName}」へ変更します。`),
+    ).toBeVisible();
     await categoryDialog.getByRole("button", { name: "キャンセル" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.getByText("明細2件を選択中")).toBeVisible();
@@ -74,7 +76,10 @@ test.describe("週次サマリーの一括操作（Issue #550）", () => {
 
     await firstRow.getByRole("checkbox", { name: /を選択/ }).check();
     await secondRow.getByRole("checkbox", { name: /を選択/ }).check();
-    await page.getByRole("button", { name: "削除" }).click();
+    await page
+      .locator(".receipt-bulk-actions")
+      .getByRole("button", { name: "削除", exact: true })
+      .click();
     const deleteDialog = page.getByRole("dialog");
     await expect(
       deleteDialog.getByRole("heading", { name: "明細2件を削除しますか？" }),

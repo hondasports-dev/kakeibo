@@ -55,6 +55,7 @@ describe("ExpenseBulkCategoryDialog", () => {
 
     await user.click(screen.getByLabelText("変更後のカテゴリ"));
     await user.click(screen.getByRole("option", { name: "食費" }));
+    expect(screen.getByText("明細2件を「食費」へ変更します。")).toBeInTheDocument();
     expect(onPreviewCategory).toHaveBeenCalledWith({ _id: "food", name: "食費" });
 
     await user.click(screen.getByRole("button", { name: "変更する" }));
