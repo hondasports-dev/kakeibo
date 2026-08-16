@@ -4,7 +4,6 @@ import {
   LINE_NO_GROUP_MESSAGE,
   formatCategoryReply,
   formatNoDataReply,
-  formatUnknownCategoryReply,
   formatWeekCategoriesReply,
   formatWeekExpenseReply,
   formatWeekIncomeReply,
@@ -106,13 +105,6 @@ describe("LINE summary reply formatting", () => {
         "・今週（2026-08-10〜2026-08-16） 400円",
       ].join("\n"),
     );
-  });
-
-  it("未知カテゴリは金額を出さず案内だけ返す", () => {
-    const text = formatUnknownCategoryReply("旅行");
-    expect(text).toContain("「旅行」");
-    expect(text).toContain(LINE_HELP_MESSAGE);
-    expect(text).not.toContain("円");
   });
 
   it("グループ未設定メッセージに家計金額を含めない", () => {

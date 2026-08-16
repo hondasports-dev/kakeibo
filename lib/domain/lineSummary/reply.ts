@@ -19,8 +19,6 @@ export const LINE_NO_GROUP_MESSAGE =
 export const LINE_UNRESOLVED_GROUP_MESSAGE =
   "表示するグループが決まっていません。kakeiboのWebでグループを選択してください。";
 
-export const LINE_UNKNOWN_CATEGORY_MESSAGE = "一致するカテゴリが見つかりません。";
-
 const yenFormatter = new Intl.NumberFormat("ja-JP");
 
 export function formatLineYen(amount: number): string {
@@ -132,10 +130,6 @@ export function formatCategoryReply(
     return formatNoDataReply("category", input.weekStartDate, categoryName);
   }
   return `今週（${formatWeekRange(input.weekStartDate)}）の${category.categoryName}: ${formatLineYen(category.totalAmountYen)}（${category.count}件）`;
-}
-
-export function formatUnknownCategoryReply(name: string): string {
-  return clipReply([`「${name}」に${LINE_UNKNOWN_CATEGORY_MESSAGE}`, LINE_HELP_MESSAGE].join("\n"));
 }
 
 export function formatWeekTrendReply(input: WeekTrendReplyInput): string {

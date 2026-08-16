@@ -10,7 +10,6 @@ import {
   LINE_NO_GROUP_MESSAGE,
   LINE_UNRESOLVED_GROUP_MESSAGE,
   formatCategoryReply,
-  formatUnknownCategoryReply,
   formatWeekCategoriesReply,
   formatWeekExpenseReply,
   formatWeekIncomeReply,
@@ -27,6 +26,8 @@ import {
   summarizeReceipts,
 } from "../../lib/convex/receipts/summaryLib/categoryAggregation";
 import { getWeekIncomeEntries, getWeekSpendingEntries } from "../receipts/spendingEntries";
+import { isGroupDeleted } from "../groups/lib/groupLifecycle";
+import type { GroupDoc } from "../groups/lib/groupTypes";
 import { resolveActiveGroupForUserId } from "../groups/membership";
 import { getWeeklyStartDayForUser } from "../users/weeklySettings";
 import { LINE_UNLINKED_GUIDANCE_MESSAGE } from "./client";
@@ -102,6 +103,11 @@ export async function buildSummaryReplyHandler(
   }
 
   const groupId = groupResolution.membership.groupId;
+  const group = (await ctx.db.get(groupId)) as GroupDoc | null;
+  if (group === null || isGroupDeleted(group)) {
+    return { replyText: LINE_NO_GROUP_MESSAGE };
+  }
+
   const weekStartDay = await getWeeklyStartDayForUser(ctx, args.userId);
   const today = getTodayDateStringInJapan(args.nowMs);
   const weekStartDate = calculateWeekStartDate(today, weekStartDay);
@@ -123,7 +129,7 @@ export async function buildSummaryReplyHandler(
   if (command.type === "category_lookup") {
     const category = await findActiveCategoryByName(ctx, groupId, command.name);
     if (category === undefined) {
-      return { replyText: formatUnknownCategoryReply(command.name) };
+      return { replyText: LINE_HELP_MESSAGE };
     }
     const matched = weekSummary.byCategory.find((entry) => entry.categoryId === category._id);
     return { replyText: formatCategoryReply(weekSummary, command.name, matched) };

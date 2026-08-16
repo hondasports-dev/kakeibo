@@ -171,6 +171,7 @@ describe("LINE readonly summary", () => {
       userId: "user-a",
       lineUserId: "line-a",
       groupName: "A家",
+      extraGroup: true,
     });
     await seedLinkedHousehold(t, {
       userId: "user-b",
@@ -299,7 +300,7 @@ describe("LINE readonly summary", () => {
       nowMs: NOW_MS,
     });
 
-    expect(unknown.replyText).toContain(LINE_HELP_MESSAGE);
+    expect(unknown.replyText).toBe(LINE_HELP_MESSAGE);
     expect(unknown.replyText).not.toMatch(/\d+円/);
     expect(help.replyText).toBe(LINE_HELP_MESSAGE);
     expect(noGroup.replyText).toBe(LINE_NO_GROUP_MESSAGE);
@@ -345,5 +346,69 @@ describe("LINE readonly summary", () => {
       nowMs: NOW_MS,
     });
     expect(reply.replyText).toBe("今週（2026-08-10〜2026-08-16）の家計データはありません。");
+  });
+
+  it("グループ文書が無い所属だけでは家計金額を返さない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await t.run(async (ctx) => {
+      const groupId = await ctx.db.insert("groups", {
+        name: "消えるグループ",
+        status: "active",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("users", {
+        userId: "user-orphan",
+        displayName: "orphan",
+        createdAt: 1,
+        updatedAt: 1,
+        activeGroupId: groupId,
+      });
+      await ctx.db.insert("groupMembers", {
+        groupId,
+        userId: "user-orphan",
+        role: "owner",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "user-orphan",
+        lineUserId: "line-orphan",
+        status: "active",
+        linkedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const foodId = await ctx.db.insert("categories", {
+        groupId,
+        name: "食費",
+        color: "#f97316",
+        isActive: true,
+        sortOrder: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("expenseEntries", {
+        groupId,
+        date: "2026-08-11",
+        amount: 7777,
+        categoryId: foodId,
+        title: "残存支出",
+        entryType: "expense",
+        source: "manual",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.delete(groupId);
+    });
+
+    const reply = await t.query(internal.lineWebhook.summary.buildReply, {
+      userId: "user-orphan",
+      messageText: "今週",
+      nowMs: NOW_MS,
+    });
+    expect(reply.replyText).toBe(LINE_NO_GROUP_MESSAGE);
+    expect(reply.replyText).not.toContain("7,777");
+    expect(reply.replyText).not.toMatch(/\d+円/);
   });
 });
