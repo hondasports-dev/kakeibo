@@ -69,3 +69,37 @@ export function buildLineRichMenuObject(): LineRichMenuObject {
     })),
   };
 }
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a] as const;
+const LINE_RICH_MENU_IMAGE_MAX_BYTES = 1_000_000;
+
+function readPngUint32(bytes: Uint8Array, offset: number): number {
+  const b0 = bytes[offset];
+  const b1 = bytes[offset + 1];
+  const b2 = bytes[offset + 2];
+  const b3 = bytes[offset + 3];
+  if (b0 === undefined || b1 === undefined || b2 === undefined || b3 === undefined) {
+    throw new Error("LINE rich menu image is invalid");
+  }
+  return ((b0 << 24) | (b1 << 16) | (b2 << 8) | b3) >>> 0;
+}
+
+export function validateLineRichMenuImage(bytes: Uint8Array): void {
+  if (bytes.length === 0 || bytes.length > LINE_RICH_MENU_IMAGE_MAX_BYTES) {
+    throw new Error("LINE rich menu image is invalid");
+  }
+  if (bytes.length < 24) {
+    throw new Error("LINE rich menu image is invalid");
+  }
+  for (const [index, expected] of PNG_SIGNATURE.entries()) {
+    if (bytes[index] !== expected) {
+      throw new Error("LINE rich menu image is invalid");
+    }
+  }
+  if (readPngUint32(bytes, 16) !== LINE_RICH_MENU_SIZE.width) {
+    throw new Error("LINE rich menu image is invalid");
+  }
+  if (readPngUint32(bytes, 20) !== LINE_RICH_MENU_SIZE.height) {
+    throw new Error("LINE rich menu image is invalid");
+  }
+}
