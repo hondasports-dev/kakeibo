@@ -94,7 +94,7 @@ jobs:
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
       - name: Configure Preview Convex integration mode
-        run: pnpm exec convex env set LINE_INTEGRATION_MODE mock
+        run: node scripts/ensure-line-integration-mode.mjs
 
       - name: Build Convex staging and Vercel output
         run: |

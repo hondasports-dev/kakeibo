@@ -1252,4 +1252,4 @@ Messaging API channel の default Rich Menu は、既存の読み取り専用テ
 - 抽出と下書き作成は Web と同じ `extractReceiptFieldsFromImage` と `classifyCreatedDraft()` を使う。画像作成直後は `user_confirmation_required` により常に `needs_review` とする。`expenseEntries` / `receipts` への自動登録はしない。
 - 返信は Messaging API の reply のみとし、Push は使わない。確認導線は `APP_BASE_URL` の `/weeks/current/input` へ誘導する。返信文に家計金額を含めない。
 - 過大または非対応画像はリサイズせずスキップして失敗返信する。解析失敗時は Web と同じ failed 下書きを残す。
-- Development / Preview / CI では `LINE_INTEGRATION_MODE=mock` と `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、実LINE content API と OpenAI を呼ばない。
+- Development / Preview / CI の未設定時は `LINE_INTEGRATION_MODE=mock` と `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、実LINE content API と OpenAI を呼ばない。CI は既存の `LINE_INTEGRATION_MODE=real` を mock で上書きしない。
