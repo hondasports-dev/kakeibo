@@ -33,9 +33,10 @@ export async function resolveActiveGroupForUserId(
   const activeMemberships: typeof memberships = [];
   for (const membership of memberships) {
     const group = (await ctx.db.get(membership.groupId)) as GroupDoc | null;
-    if (group !== null && !isGroupDeleted(group)) {
-      activeMemberships.push(membership);
+    if (group !== null && isGroupDeleted(group)) {
+      continue;
     }
+    activeMemberships.push(membership);
   }
 
   if (activeMemberships.length === 0) {
