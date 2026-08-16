@@ -136,11 +136,17 @@ implementation:
 verification:
   status: pending
   mode: pending # targeted | scoped_full | full_for_affected_scope | full_plus_recovery_evidence
+  verification_epoch: "" # edit batch since the previous verification
+  evidence_snapshot: "" # head SHA or local snapshot identifier
+  affected_scope: []
+  check_authority: [] # local | ci | runtime
   checks: []
   coverage: []
   e2e: []
   browser_or_runtime: []
   skipped_checks: []
+  reruns: [] # check, reason, and invalidating change/failure
+  duplicate_full_check_reason: ""
   evidence: []
 
 code_review:

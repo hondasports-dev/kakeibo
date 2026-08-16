@@ -310,7 +310,7 @@ Return Contract と照合します。editable paths 外の変更、設計判断�
 - 別 Issue のブランチで作業している
 - E2E/CI 失敗を原因理解せず再 push しようとしている
 - `.env.local` 同期を省略している
-- `src/**` / `e2e/**` 変更で push 前ローカル E2E を省略している
+- browser層のAcceptance Criteriaがあるのに対象の機能E2Eを実行せず、または `src/**` の変更だけを理由に不要なE2E全量実行をしている
 - ローカル E2E / Convex 反映が失敗または実行不能のまま、理由だけ記録して先へ進もうとしている
 - `skills/code-review/SKILL.md` または `skills/security-review/SKILL.md` がPASSする前に Delivery push しようとしている
 - PR URL を完了報告にして Aftercare へ進まない
@@ -339,8 +339,8 @@ Pull Request には次の内容を書きます。
 - [ ] 要件定義結果が Issue に記録されている
 - [ ] 実装タスクがすべて完了している
 - [ ] TDD のテスト追加または更新が含まれている（振る舞い変更の場合）
-- [ ] 対象のローカル検証（lint / format / 必要なtest / 必要なbuild）が成功している
-- [ ] 機能E2Eがrequiredなら `pnpm run e2e -- --project=chromium` がローカルで成功している。不要ならPR本文に `E2E: NOT_REQUIRED` と理由がある
+- [ ] 変更範囲に対応したローカル検証（scopeを絞れるlint / format / 必要なtest / 必要なbuild）が成功している。全量checkをローカルでも実行した場合は重複理由が記録されている
+- [ ] 機能E2Eがrequiredなら対象specを `--project=chromium` でローカル実行して成功している。不要ならPR本文に `E2E: NOT_REQUIRED` と理由がある
 - [ ] GitHub Actions の required checks が最新headで成功している
 - [ ] `skills/pr-aftercare/SKILL.md` の merge-ready を満たしている（post-ready review epochを含む）
 - [ ] actionableなreview findingsが fixed / rejected with reason / resolved になっている
@@ -457,6 +457,22 @@ E2E 本体へ進みません。
 
 必須 CI が失敗している状態ではマージしません。flaky なチェックや環境要因でブロック
 されている場合は、Issue を作成またはリンクし、理由を記録してから判断します。
+
+### 検証の重複を避ける
+
+検証は、関連する編集をまとめた `verification epoch` 単位で実行します。ファイルを1つ
+編集するたびに全テストを回すのではなく、変更バッチごとに影響範囲を決め、対象テストと
+必要な静的チェックをまとめて実行します。
+
+- ローカル: 変更・直接影響を受けるテスト、変更パスに対してscopeを絞れる lint / format / type / build、
+  browser層のAcceptance Criteriaがある場合の対象機能E2E
+- CI Aftercare: 最新headに対するリポジトリ全体のtest / coverage、回帰E2E、必須のbuild /
+  lint / format
+- 同じheadの全量checkをローカルとCIで重ねるのは既定では不要です。依存関係・設定変更、
+  影響範囲を絞れない変更、CI障害中の診断、広域な失敗切り分け、Human Gateの要求がある
+  場合だけ、重複理由をEvidenceへ残して実行します。
+- 失敗修正後は失敗checkと依存するcheckだけを再実行します。headが変わっただけで、同じ
+  ローカル全量suiteを盲目的にやり直しません。最新headのCIをDelivery Evidenceの正本にします。
 
 推奨する `main` ruleset:
 

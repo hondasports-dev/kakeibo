@@ -1,4 +1,4 @@
-version: 8
+version: 9
 name: suzumemo-agent-loop
 plugin_manifest: plugin.json
 skills_root: skills
@@ -9,6 +9,8 @@ entry_state: workspace_preflight
 principles:
   - evidence_before_progress
   - cheap_deterministic_gates_are_always_on
+  - verification_is_batched_and_scope_aware
+  - one_authoritative_full_check_per_head_by_default
   - expensive_reasoning_gates_are_risk_or_event_driven
   - specification_confidence_is_separate_from_change_risk
   - c0_never_advances_to_implementation
@@ -20,6 +22,64 @@ principles:
   - latest_pr_head_is_the_only_merge_ready_evidence_target
   - one_session_one_current_task_by_default
   - one_task_one_delivery_pr_by_default
+
+verification_policy:
+  name: batched_scope_aware_verification
+  purpose: "同じ変更に対するローカルとCIの重複実行を避け、変更範囲に対応した最小十分なEvidenceを残す"
+  evidence_identity:
+    required:
+      - verification_epoch
+      - evidence_snapshot
+      - affected_scope
+      - check_authority
+      - reruns
+      - duplicate_full_check_reason_when_needed
+    definition: "verification_epochは、直前の検証から次のsource/test/config変更までの編集バッチを識別する"
+  batching:
+    edit_batch_boundary:
+      - targeted_checks_pass
+      - commit_or_push
+      - user_requested_checkpoint
+    rule: "ファイル単位で検証を繰り返さず、関連する編集を一つのepochにまとめて検証する"
+  default_authority:
+    local:
+      - changed_or_directly_affected_tests
+      - scopeable_static_checks_for_changed_paths
+      - functional_e2e_when_acceptance_criteria_crosses_browser_layer
+    ci_aftercare:
+      - full_repository_test_and_coverage
+      - regression_e2e
+      - required_build_lint_and_format
+  profile_mapping:
+    r0_trivial: targeted
+    r1_low: targeted
+    r2_medium: affected_scope
+    r3_high: affected_scope_full
+    r4_critical: affected_scope_full_plus_recovery
+  full_repository_local_run:
+    default: not_required_when_required_ci_check_exists_for_the_head
+    allowed_when:
+      - dependency_or_lockfile_changed
+      - test_build_or_tooling_configuration_changed
+      - affected_scope_cannot_be_bounded
+      - required_ci_is_unavailable_and_local_feedback_is_needed
+      - prior_failure_requires_broader_local_diagnosis
+      - human_gate_explicitly_requires_it
+    evidence: "実行した場合は、CIとの重複理由をverification evidenceへ記録する"
+  rerun:
+    no_blind_retry: true
+    rerun_only_when:
+      - source_test_or_config_change_intersects_check_scope
+      - the_check_failed_and_the_cause_was_fixed
+      - infrastructure_or_flake_failure_requires_one_bounded_retry
+      - latest_head_requires_new_pr_aftercare_observation
+    rule: "headが変わっただけでは同じローカル全量テストを再実行せず、変更範囲のtargeted checkとCI最新head確認でEvidenceを更新する"
+  duplicate_full_check:
+    default: forbidden_without_reason
+    exception_requires:
+      - explicit_reason
+      - affected_risk_or_feedback_latency_justification
+      - no_reuse_of_old_head_as_delivery_evidence
 
 always_on_skills:
   - skills/prompt-injection-guard/SKILL.md
@@ -344,6 +404,12 @@ states:
   verification:
     skill: skills/verification/SKILL.md
     profile_driven: true
+    evidence_fields:
+      - verification_epoch
+      - affected_scope
+      - checks
+      - reruns
+      - duplicate_full_check_reason_when_needed
 
   code_review:
     skill: skills/code-review/SKILL.md
