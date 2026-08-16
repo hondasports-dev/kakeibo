@@ -22,6 +22,20 @@ type SearchDocsResult<T> = {
   truncated: boolean;
 };
 
+function groupDocsByMonth<T extends { date: string }>(docs: T[]): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const doc of docs) {
+    const month = doc.date.slice(0, 7);
+    const bucket = grouped.get(month);
+    if (bucket === undefined) {
+      grouped.set(month, [doc]);
+    } else {
+      bucket.push(doc);
+    }
+  }
+  return grouped;
+}
+
 async function fetchExpenseEntriesForSearch(
   ctx: QueryCtx,
   groupId: Id<"groups">,
@@ -98,28 +112,58 @@ export async function loadHistoryEntriesForSearch(
   ]);
   const newEntries = newEntryResult.docs;
   const receipts = receiptResult.docs;
-  const newExpenseEntries = newEntries.filter((entry) => entry.entryType === "expense");
-  const newIncomeEntries = newEntries.filter((entry) => entry.entryType === "income");
 
-  const entries =
-    newExpenseEntries.length > 0
-      ? await enrichSpendingEntriesWithReceiptGroups(
-          ctx,
-          groupId,
-          mapExpenseEntriesToReceiptLinkages(newExpenseEntries),
-        )
-      : addLegacyReceiptGroups(
-          receipts
-            .filter((receipt) => receipt.type !== "income")
-            .map((receipt) => mapReceiptToSpendingEntry(receipt)),
-        );
+  // 旧形式との切替は検索範囲全体ではなく月単位で判定する。
+  // 検索範囲に新形式が1件あるだけで、別月に残る旧形式まで落とすと、
+  // 移行期間の履歴を欠落させてしまうため、集計側の互換ルールに合わせる。
+  const newEntriesByMonth = groupDocsByMonth(newEntries);
+  const receiptsByMonth = groupDocsByMonth(receipts);
+  const months = Array.from(new Set([...newEntriesByMonth.keys(), ...receiptsByMonth.keys()])).sort(
+    (left, right) => right.localeCompare(left),
+  );
+  const expenseEntriesToUse: Doc<"expenseEntries">[] = [];
+  const legacyExpenseReceiptsToUse: Doc<"receipts">[] = [];
+  const incomeEntriesToUse: Doc<"expenseEntries">[] = [];
+  const legacyIncomeReceiptsToUse: Doc<"receipts">[] = [];
 
-  const incomes =
-    newIncomeEntries.length > 0
-      ? newIncomeEntries.map((entry) => mapIncomeExpenseEntryToListEntry(entry))
-      : receipts
-          .filter((receipt) => receipt.type === "income")
-          .map((receipt) => mapReceiptToIncomeListEntry(receipt));
+  for (const month of months) {
+    const monthEntries = newEntriesByMonth.get(month) ?? [];
+    const monthReceipts = receiptsByMonth.get(month) ?? [];
+    const monthExpenseEntries = monthEntries.filter((entry) => entry.entryType === "expense");
+    const monthIncomeEntries = monthEntries.filter((entry) => entry.entryType === "income");
+
+    if (monthExpenseEntries.length > 0) {
+      expenseEntriesToUse.push(...monthExpenseEntries);
+    } else {
+      legacyExpenseReceiptsToUse.push(
+        ...monthReceipts.filter((receipt) => receipt.type !== "income"),
+      );
+    }
+
+    if (monthIncomeEntries.length > 0) {
+      incomeEntriesToUse.push(...monthIncomeEntries);
+    } else {
+      legacyIncomeReceiptsToUse.push(
+        ...monthReceipts.filter((receipt) => receipt.type === "income"),
+      );
+    }
+  }
+
+  const enrichedEntries = await enrichSpendingEntriesWithReceiptGroups(
+    ctx,
+    groupId,
+    mapExpenseEntriesToReceiptLinkages(expenseEntriesToUse),
+  );
+  const entries = [
+    ...enrichedEntries,
+    ...addLegacyReceiptGroups(
+      legacyExpenseReceiptsToUse.map((receipt) => mapReceiptToSpendingEntry(receipt)),
+    ),
+  ];
+  const incomes = [
+    ...incomeEntriesToUse.map((entry) => mapIncomeExpenseEntryToListEntry(entry)),
+    ...legacyIncomeReceiptsToUse.map((receipt) => mapReceiptToIncomeListEntry(receipt)),
+  ];
 
   return {
     entries,
