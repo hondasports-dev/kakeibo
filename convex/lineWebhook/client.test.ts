@@ -6,6 +6,10 @@ import {
   getLineMessageContent,
   sendLineTextReply,
 } from "./client";
+import {
+  LineImageContentTooLargeError,
+  MAX_LINE_IMAGE_RAW_BYTES,
+} from "../../lib/domain/lineImage/content";
 import { sendSummaryReplyHandler, sendUnlinkedGuideHandler } from "./actions";
 
 function setEnvironment(values: Record<string, string | undefined>) {
@@ -251,6 +255,67 @@ describe("LINE messaging client", () => {
       } finally {
         withToken();
       }
+    } finally {
+      restore();
+    }
+  });
+
+  it("real modeの画像取得はContent-Length超過なら本文を読まず失敗する", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+    });
+    let pullCount = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        controller.enqueue(new Uint8Array(1024).fill(1));
+      },
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: {
+          "content-type": "image/jpeg",
+          "content-length": String(MAX_LINE_IMAGE_RAW_BYTES + 1),
+        },
+      }),
+    );
+    try {
+      await expect(getLineMessageContent("message-id-private", fetchImpl)).rejects.toBeInstanceOf(
+        LineImageContentTooLargeError,
+      );
+      expect(pullCount).toBe(0);
+    } finally {
+      restore();
+    }
+  });
+
+  it("real modeの画像取得はストリーム読取中に生バイト上限を超えたら中断する", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+    });
+    let pullCount = 0;
+    const chunk = new Uint8Array(100_000).fill(1);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    try {
+      await expect(getLineMessageContent("message-id-private", fetchImpl)).rejects.toBeInstanceOf(
+        LineImageContentTooLargeError,
+      );
+      expect(pullCount).toBeGreaterThan(0);
+      expect(pullCount).toBeLessThan(20);
     } finally {
       restore();
     }

@@ -1,4 +1,5 @@
 import { v } from "convex/values";
+import type { Infer } from "convex/values";
 
 export const lineWebhookEventTypeValidator = v.union(
   v.literal("text"),
@@ -27,14 +28,8 @@ export const lineImageSkipReasonValidator = v.union(
   v.literal("too_large"),
 );
 
-export type LineImageSkipReason =
-  | "unlinked"
-  | "no_consent"
-  | "no_group"
-  | "unresolved_group"
-  | "fetch_failed"
-  | "invalid_image"
-  | "too_large";
+export type LineImageJobStatus = Infer<typeof lineImageJobStatusValidator>;
+export type LineImageSkipReason = Infer<typeof lineImageSkipReasonValidator>;
 
 export const lineWebhookEventInputValidator = v.object({
   webhookEventId: v.string(),

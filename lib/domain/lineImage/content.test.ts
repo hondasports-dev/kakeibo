@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { MAX_IMAGE_DATA_URL_LENGTH } from "../common/imageDataUrl";
-import { bytesToBase64, normalizeImageContentType, toImageDataUrl } from "./content";
+import {
+  MAX_LINE_IMAGE_RAW_BYTES,
+  bytesToBase64,
+  normalizeImageContentType,
+  toImageDataUrl,
+} from "./content";
 
 describe("LINE image content conversion", () => {
   it("許可されたMIMEだけをdata URLにする", () => {
@@ -28,7 +32,7 @@ describe("LINE image content conversion", () => {
       error: "unsupported_mime_type",
     });
 
-    const oversized = new Uint8Array(MAX_IMAGE_DATA_URL_LENGTH);
+    const oversized = new Uint8Array(MAX_LINE_IMAGE_RAW_BYTES + 1);
     oversized.fill(1);
     expect(toImageDataUrl({ bytes: oversized, contentType: "image/jpeg" })).toEqual({
       ok: false,

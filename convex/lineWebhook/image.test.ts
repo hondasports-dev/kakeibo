@@ -7,7 +7,7 @@ import { internal } from "../_generated/api";
 import schema from "../schema";
 import { convexTestModules } from "../test.setup";
 import { MOCK_LINE_IMAGE_BYTES } from "./client";
-import { buildLinkedImageReply } from "./image";
+import { buildLinkedImageReply, processLinkedImageHandler } from "./image";
 import {
   LINE_IMAGE_CONSENT_REQUIRED_MESSAGE,
   LINE_IMAGE_FETCH_FAILED_MESSAGE,
@@ -21,7 +21,10 @@ import {
   LINE_NO_GROUP_MESSAGE,
   LINE_UNRESOLVED_GROUP_MESSAGE,
 } from "../../lib/domain/lineSummary/reply";
-import { MAX_IMAGE_DATA_URL_LENGTH } from "../../lib/domain/common/imageDataUrl";
+import {
+  LineImageContentTooLargeError,
+  MAX_LINE_IMAGE_RAW_BYTES,
+} from "../../lib/domain/lineImage/content";
 
 const USER_A = "kakeibo-user-a";
 const USER_B = "kakeibo-user-b";
@@ -136,12 +139,13 @@ async function seedHousehold(
 describe("LINE linked image processing", () => {
   afterEach(() => {
     vi.useRealTimers();
+    vi.unstubAllEnvs();
   });
   it("同意とグループがある連携ユーザーの画像はneeds_review下書きになり、自動登録しない", async () => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
-    process.env.APP_BASE_URL = "https://suzumemo.test";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
+    vi.stubEnv("APP_BASE_URL", "https://suzumemo.test");
     const { groupId } = await seedHousehold(t, {
       userId: USER_A,
       lineUserId: LINE_USER_A,
@@ -189,8 +193,8 @@ describe("LINE linked image processing", () => {
 
   it("再実行時は画像再取得も下書き再作成もしない", async () => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
     await seedHousehold(t, { userId: USER_A, lineUserId: LINE_USER_A, consent: true });
     const getContent = vi.fn().mockResolvedValue(jpegContent());
     const args = {
@@ -214,8 +218,8 @@ describe("LINE linked image processing", () => {
 
   it("Web同意が無い連携ユーザーはOpenAIも下書きも作らず、取得失敗でも家計金額を返さない", async () => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "real";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "real");
     await seedHousehold(t, { userId: USER_A, lineUserId: LINE_USER_A, consent: false });
     const getContent = vi.fn().mockResolvedValue(jpegContent());
 
@@ -231,6 +235,7 @@ describe("LINE linked image processing", () => {
     );
 
     expect(reply).toBe(LINE_IMAGE_CONSENT_REQUIRED_MESSAGE);
+    expect(getContent).not.toHaveBeenCalled();
     const state = await t.run(async (ctx) => ({
       drafts: await ctx.db.query("aiExpenseDrafts").collect(),
       jobs: await ctx.db.query("lineImageJobs").collect(),
@@ -241,14 +246,16 @@ describe("LINE linked image processing", () => {
 
   it("グループ未所属では下書きを作らず既存の案内文を返す", async () => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
     await seedHousehold(t, {
       userId: USER_A,
       lineUserId: LINE_USER_A,
       consent: true,
       withGroup: false,
     });
+
+    const getContent = vi.fn().mockResolvedValue(jpegContent());
 
     const reply = await buildLinkedImageReply(
       asActionCtx(t),
@@ -258,10 +265,11 @@ describe("LINE linked image processing", () => {
         webhookEventId: WEBHOOK_EVENT_ID,
         messageId: MESSAGE_ID,
       },
-      async () => jpegContent(),
+      getContent,
     );
 
     expect(reply).toBe(LINE_NO_GROUP_MESSAGE);
+    expect(getContent).not.toHaveBeenCalled();
     await expect(
       t.run(async (ctx) => ctx.db.query("aiExpenseDrafts").collect()),
     ).resolves.toHaveLength(0);
@@ -269,8 +277,8 @@ describe("LINE linked image processing", () => {
 
   it("activeグループ未解決では下書きを作らず既存の案内文を返す", async () => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
     await seedHousehold(t, {
       userId: USER_A,
       lineUserId: LINE_USER_A,
@@ -279,6 +287,8 @@ describe("LINE linked image processing", () => {
       activeGroup: false,
     });
 
+    const getContent = vi.fn().mockResolvedValue(jpegContent());
+
     const reply = await buildLinkedImageReply(
       asActionCtx(t),
       {
@@ -287,10 +297,11 @@ describe("LINE linked image processing", () => {
         webhookEventId: WEBHOOK_EVENT_ID,
         messageId: MESSAGE_ID,
       },
-      async () => jpegContent(),
+      getContent,
     );
 
     expect(reply).toBe(LINE_UNRESOLVED_GROUP_MESSAGE);
+    expect(getContent).not.toHaveBeenCalled();
     await expect(
       t.run(async (ctx) => ctx.db.query("aiExpenseDrafts").collect()),
     ).resolves.toHaveLength(0);
@@ -313,14 +324,22 @@ describe("LINE linked image processing", () => {
       "too_large",
       LINE_IMAGE_TOO_LARGE_MESSAGE,
       async () => {
-        const oversized = new Uint8Array(MAX_IMAGE_DATA_URL_LENGTH);
+        const oversized = new Uint8Array(MAX_LINE_IMAGE_RAW_BYTES + 1);
         oversized.fill(1);
         return { bytes: oversized, contentType: "image/jpeg" };
       },
     ],
+    [
+      "too_large_stream",
+      LINE_IMAGE_TOO_LARGE_MESSAGE,
+      async () => {
+        throw new LineImageContentTooLargeError();
+      },
+    ],
   ] as const)("%sでは下書きを作らず失敗返信する", async (_label, expectedReply, getContent) => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
     await seedHousehold(t, { userId: USER_A, lineUserId: LINE_USER_A, consent: true });
 
     await expect(
@@ -342,8 +361,9 @@ describe("LINE linked image processing", () => {
 
   it("解析失敗時はfailed下書きを残し、他ユーザーのグループへは作らない", async () => {
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "real";
+    // development + real は extractor の設定ガードを解析失敗経路として使う。
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "real");
     const { groupId: userBGroupId } = await seedHousehold(t, {
       userId: USER_B,
       lineUserId: "line-user-b",
@@ -377,9 +397,9 @@ describe("LINE linked image processing", () => {
   it("claimから予約されたimage actionはmock modeで下書きを作り外部APIを呼ばない", async () => {
     vi.useFakeTimers();
     const t = convexTest(schema, convexTestModules);
-    process.env.APP_ENV = "development";
-    process.env.LINE_INTEGRATION_MODE = "mock";
-    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
+    vi.stubEnv("APP_ENV", "development");
+    vi.stubEnv("LINE_INTEGRATION_MODE", "mock");
+    vi.stubEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
     await seedHousehold(t, { userId: USER_A, lineUserId: LINE_USER_A, consent: true });
     await t.run(async (ctx) => {
       const jobs = await ctx.db.query("lineImageJobs").collect();
@@ -414,5 +434,73 @@ describe("LINE linked image processing", () => {
     });
     expect(state.jobs[0]).toMatchObject({ status: "drafted" });
     expect(state.entries).toHaveLength(0);
+  });
+
+  it("処理例外はbounded retryを予約し、最終失敗時だけjobをfailedにする", async () => {
+    const t = convexTest(schema, convexTestModules);
+    vi.stubEnv("APP_ENV", "development");
+    await seedHousehold(t, { userId: USER_A, lineUserId: LINE_USER_A, consent: true });
+
+    const runAfter = vi.fn().mockResolvedValue(undefined);
+    const runMutation = vi.fn();
+    const failingCtx = {
+      runQuery: vi.fn().mockRejectedValue(new Error("query unavailable")),
+      runMutation,
+      scheduler: { runAfter },
+    } as unknown as ActionCtx;
+
+    await expect(
+      processLinkedImageHandler(
+        failingCtx,
+        {
+          replyToken: "reply-token-private",
+          userId: USER_A,
+          webhookEventId: WEBHOOK_EVENT_ID,
+          messageId: MESSAGE_ID,
+        },
+        vi.fn(),
+      ),
+    ).resolves.toBeNull();
+    expect(runAfter).toHaveBeenCalledWith(
+      1_000,
+      internal.lineWebhook.image.processLinkedImage,
+      expect.objectContaining({
+        webhookEventId: WEBHOOK_EVENT_ID,
+        attempt: 1,
+      }),
+    );
+    expect(runMutation).not.toHaveBeenCalled();
+
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      await expect(
+        processLinkedImageHandler(
+          {
+            runQuery: vi.fn().mockRejectedValue(new Error("query unavailable")),
+            runMutation: (mutation, args) => t.mutation(mutation, args),
+            scheduler: { runAfter },
+          } as unknown as ActionCtx,
+          {
+            replyToken: "reply-token-private",
+            userId: USER_A,
+            webhookEventId: WEBHOOK_EVENT_ID,
+            messageId: MESSAGE_ID,
+            attempt: 2,
+          },
+          vi.fn(),
+        ),
+      ).resolves.toBeNull();
+      expect(runAfter).toHaveBeenCalledTimes(1);
+      const logged = JSON.stringify(errorSpy.mock.calls);
+      expect(logged).toContain(WEBHOOK_EVENT_ID);
+      expect(logged).not.toContain(USER_A);
+      expect(logged).not.toContain(MESSAGE_ID);
+    } finally {
+      errorSpy.mockRestore();
+    }
+
+    await expect(t.run(async (ctx) => ctx.db.query("lineImageJobs").collect())).resolves.toEqual([
+      expect.objectContaining({ webhookEventId: WEBHOOK_EVENT_ID, status: "failed" }),
+    ]);
   });
 });

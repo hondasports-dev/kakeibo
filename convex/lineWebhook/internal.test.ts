@@ -321,11 +321,12 @@ describe("LINE webhook event claim", () => {
       messageId: "message-image-linked",
       status: "pending",
     });
-    expect(
-      state.events.find((event) => event.webhookEventId === "event-image-unlinked"),
-    ).toMatchObject({
-      delivery: "unlinked",
-    });
+    const unlinkedEvent = state.events.find(
+      (event) => event.webhookEventId === "event-image-unlinked",
+    );
+    expect(unlinkedEvent).toMatchObject({ delivery: "unlinked" });
+    expect(unlinkedEvent?.userId).toBeUndefined();
+    expect(unlinkedEvent?.messageId).toBeUndefined();
     expect(JSON.stringify(state)).not.toContain("line-user-");
     expect(JSON.stringify(state)).not.toContain("reply-token");
     expect(JSON.stringify(state)).not.toContain("data:image");

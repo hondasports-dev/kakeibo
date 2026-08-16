@@ -1,3 +1,4 @@
+import type { Id } from "../_generated/dataModel";
 import { ConvexError, v } from "convex/values";
 import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
@@ -5,6 +6,7 @@ import type { QueryCtx } from "../_generated/server";
 import { MAX_CATEGORIES_PER_GROUP } from "../../lib/domain/categories/defaults";
 import { resolveActiveGroupForUserId } from "../groups/membership";
 import {
+  lineImageJobStatusValidator,
   lineImageSkipReasonValidator,
   lineWebhookEventInputValidator,
   MAX_EVENTS_PER_REQUEST,
@@ -131,12 +133,7 @@ const imageJobValidator = v.object({
   webhookEventId: v.string(),
   userId: v.string(),
   messageId: v.string(),
-  status: v.union(
-    v.literal("pending"),
-    v.literal("drafted"),
-    v.literal("failed"),
-    v.literal("skipped"),
-  ),
+  status: lineImageJobStatusValidator,
   skipReason: v.optional(lineImageSkipReasonValidator),
   draftId: v.optional(v.id("aiExpenseDrafts")),
 });
@@ -181,7 +178,18 @@ export const loadImageProcessingContext = internalQuery({
   },
 });
 
-export async function loadImageProcessingContextHandler(ctx: QueryCtx, userId: string) {
+type ImageProcessingContext = {
+  hasUniqueActiveLink: boolean;
+  hasConsent: boolean;
+  groupStatus: "resolved" | "no_group" | "unresolved";
+  groupId?: Id<"groups">;
+  categories: Array<{ _id: Id<"categories">; name: string; description?: string }>;
+};
+
+export async function loadImageProcessingContextHandler(
+  ctx: QueryCtx,
+  userId: string,
+): Promise<ImageProcessingContext> {
   const activeLinks = await ctx.db
     .query("lineAccountLinks")
     .withIndex("by_user_id_and_status", (q) => q.eq("userId", userId).eq("status", "active"))

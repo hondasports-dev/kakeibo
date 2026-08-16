@@ -4,7 +4,7 @@ import type { ActionCtx } from "../_generated/server";
 import type { Doc, Id } from "../_generated/dataModel";
 import { v } from "convex/values";
 import { mapExtractionToDraftArgs } from "../../lib/domain/aiExpenseDrafts/extractionMapping";
-import { toImageDataUrl } from "../../lib/domain/lineImage/content";
+import { LineImageContentTooLargeError, toImageDataUrl } from "../../lib/domain/lineImage/content";
 import {
   LINE_IMAGE_CONSENT_REQUIRED_MESSAGE,
   LINE_IMAGE_FETCH_FAILED_MESSAGE,
@@ -21,10 +21,10 @@ import {
 import { getSafeFailureWarning } from "../../lib/convex/receiptImageExtraction/analyzeReceiptImageCore";
 import { extractReceiptFieldsFromImage } from "../receiptImageExtraction/extraction";
 import { LINE_UNLINKED_GUIDANCE_MESSAGE, getLineMessageContent, sendLineTextReply } from "./client";
-import type { LineImageSkipReason } from "./model";
+import type { LineImageJobStatus, LineImageSkipReason } from "./model";
 
-const GUIDE_RETRY_DELAY_MS = 1_000;
-const MAX_GUIDE_RETRIES = 2;
+const IMAGE_RETRY_DELAY_MS = 1_000;
+const MAX_IMAGE_RETRIES = 2;
 const LINE_IMAGE_FILE_NAME = "line-receipt.jpg";
 
 type ProcessLinkedImageArgs = {
@@ -36,7 +36,7 @@ type ProcessLinkedImageArgs = {
 };
 
 type ImageJobSnapshot = {
-  status: "pending" | "drafted" | "failed" | "skipped";
+  status: LineImageJobStatus;
   skipReason?: LineImageSkipReason;
   draftId?: Id<"aiExpenseDrafts">;
 };
@@ -140,11 +140,23 @@ export async function buildLinkedImageReply(
   if (!context.hasUniqueActiveLink) {
     return await skipJob(ctx, args.webhookEventId, "unlinked");
   }
+  if (!context.hasConsent) {
+    return await skipJob(ctx, args.webhookEventId, "no_consent");
+  }
+  if (context.groupStatus === "no_group") {
+    return await skipJob(ctx, args.webhookEventId, "no_group");
+  }
+  if (context.groupStatus !== "resolved" || context.groupId === undefined) {
+    return await skipJob(ctx, args.webhookEventId, "unresolved_group");
+  }
 
   let content;
   try {
     content = await getContent(job.messageId);
-  } catch {
+  } catch (error) {
+    if (error instanceof LineImageContentTooLargeError) {
+      return await skipJob(ctx, args.webhookEventId, "too_large");
+    }
     return await skipJob(ctx, args.webhookEventId, "fetch_failed");
   }
 
@@ -155,16 +167,6 @@ export async function buildLinkedImageReply(
       args.webhookEventId,
       dataUrl.error === "too_large" ? "too_large" : "invalid_image",
     );
-  }
-
-  if (!context.hasConsent) {
-    return await skipJob(ctx, args.webhookEventId, "no_consent");
-  }
-  if (context.groupStatus === "no_group") {
-    return await skipJob(ctx, args.webhookEventId, "no_group");
-  }
-  if (context.groupStatus !== "resolved" || context.groupId === undefined) {
-    return await skipJob(ctx, args.webhookEventId, "unresolved_group");
   }
 
   const draft = await createDraftFromImage(ctx, {
@@ -199,9 +201,9 @@ export async function processLinkedImageHandler(
       await sendLineTextReply(args.replyToken, replyText);
     }
   } catch {
-    if (attempt < MAX_GUIDE_RETRIES) {
+    if (attempt < MAX_IMAGE_RETRIES) {
       await ctx.scheduler.runAfter(
-        GUIDE_RETRY_DELAY_MS,
+        IMAGE_RETRY_DELAY_MS,
         internal.lineWebhook.image.processLinkedImage,
         {
           replyToken: args.replyToken,
@@ -211,7 +213,15 @@ export async function processLinkedImageHandler(
           attempt: attempt + 1,
         },
       );
+      return null;
     }
+    console.error("LINE image processing failed", {
+      webhookEventId: args.webhookEventId,
+      attempt,
+    });
+    await ctx.runMutation(internal.lineWebhook.internal.markImageJobFailed, {
+      webhookEventId: args.webhookEventId,
+    });
   }
   return null;
 }

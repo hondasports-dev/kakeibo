@@ -1,5 +1,9 @@
+import {
+  LineImageContentTooLargeError,
+  MAX_LINE_IMAGE_RAW_BYTES,
+  type LineImageContent,
+} from "../../lib/domain/lineImage/content";
 import { getLineIntegrationMode } from "../lineLink/model";
-import type { LineImageContent } from "../../lib/domain/lineImage/content";
 
 const LINE_REPLY_ENDPOINT = "https://api.line.me/v2/bot/message/reply";
 const LINE_CONTENT_ENDPOINT_PREFIX = "https://api-data.line.me/v2/bot/message/";
@@ -88,6 +92,61 @@ export async function getLineMessageContent(
   if (!response.ok) throw new Error("LINE messaging provider rejected the content request");
 
   const contentType = response.headers.get("content-type") ?? "application/octet-stream";
-  const bytes = new Uint8Array(await response.arrayBuffer());
+  const bytes = await readLimitedBody(response, MAX_LINE_IMAGE_RAW_BYTES);
   return { bytes, contentType };
+}
+
+function parseContentLength(headers: Headers): number | null {
+  const raw = headers.get("content-length");
+  if (raw === null) return null;
+  const length = Number(raw);
+  if (!Number.isSafeInteger(length) || length < 0) return null;
+  return length;
+}
+
+async function readLimitedBody(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const declaredLength = parseContentLength(response.headers);
+  if (declaredLength !== null && declaredLength > maxBytes) {
+    try {
+      await response.body?.cancel();
+    } catch {
+      // Content-Length 超過時は本文を破棄して読取りを止める。
+    }
+    throw new LineImageContentTooLargeError();
+  }
+
+  if (!response.body) return new Uint8Array();
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      const chunk = value instanceof Uint8Array ? value : new Uint8Array(value);
+      totalBytes += chunk.byteLength;
+      if (totalBytes > maxBytes) {
+        try {
+          await reader.cancel("LINE image content too large");
+        } catch {
+          // 読み込み停止が既に完了している場合も上限超過として扱う。
+        }
+        throw new LineImageContentTooLargeError();
+      }
+      chunks.push(chunk);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const bytes = new Uint8Array(totalBytes);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
