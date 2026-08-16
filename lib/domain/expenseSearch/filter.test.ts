@@ -187,6 +187,7 @@ describe("parseExpenseSearchFilters", () => {
     ).toEqual({
       ok: true,
       filters: {
+        entryType: "all",
         shopQuery: "北浜",
         minAmountYen: 100,
         maxAmountYen: 200,
@@ -231,10 +232,10 @@ describe("parseExpenseSearchFilters", () => {
     });
   });
 
-  it("長すぎる店名クエリを拒否する", () => {
+  it("長すぎる検索語を拒否する", () => {
     expect(parseExpenseSearchFilters({ shopQuery: "あ".repeat(81) })).toEqual({
       ok: false,
-      error: "店名は80文字以内で指定してください",
+      error: "検索語は80文字以内で指定してください",
     });
   });
 

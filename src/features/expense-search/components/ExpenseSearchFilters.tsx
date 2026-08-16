@@ -1,6 +1,20 @@
-import { Button, MenuItem, Stack, TextField } from "@mui/material";
+import {
+  Button,
+  MenuItem,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs, { type Dayjs } from "dayjs";
+import {
+  getHistoryDatePresetForRange,
+  getHistoryDateRangeForPreset,
+  type HistoryDatePreset,
+} from "../../../../lib/domain/expenseSearch/datePresets";
+import type { HistoryEntryType } from "../../../../lib/domain/expenseSearch/filter";
 import type { ExpenseSearchFormState } from "../lib/searchParams";
 
 type CategoryOption = {
@@ -14,6 +28,14 @@ const pickerPaperSx = {
     borderColor: "divider",
   },
 } as const;
+
+const datePresetOptions: Array<{ label: string; value: Exclude<HistoryDatePreset, "custom"> }> = [
+  { label: "今週", value: "thisWeek" },
+  { label: "今月", value: "thisMonth" },
+  { label: "先月", value: "lastMonth" },
+  { label: "直近3か月", value: "last3Months" },
+  { label: "今年", value: "thisYear" },
+];
 
 function digitsOnly(value: string): string {
   return value.replace(/[^\d]/g, "");
@@ -37,14 +59,38 @@ export function ExpenseSearchFilters({
   onChange,
   onClear,
   onSubmit,
+  weekStartDay,
 }: {
   categories: CategoryOption[];
   state: ExpenseSearchFormState;
   onChange: (state: ExpenseSearchFormState) => void;
   onClear: () => void;
   onSubmit: () => void;
+  weekStartDay?: number;
 }) {
-  const hasFilter = Object.values(state).some((value) => value.length > 0);
+  const hasFilter =
+    state.entryType !== "all" ||
+    [
+      state.shopQuery,
+      state.categoryId,
+      state.minAmountYen,
+      state.maxAmountYen,
+      state.startDate,
+      state.endDate,
+    ].some((value) => value.length > 0);
+  const selectedPreset =
+    state.startDate && state.endDate
+      ? getHistoryDatePresetForRange(
+          { startDate: state.startDate, endDate: state.endDate },
+          undefined,
+          weekStartDay,
+        )
+      : "custom";
+
+  const handlePresetChange = (preset: Exclude<HistoryDatePreset, "custom">) => {
+    const range = getHistoryDateRangeForPreset(preset, undefined, weekStartDay);
+    onChange({ ...state, startDate: range.startDate, endDate: range.endDate });
+  };
 
   return (
     <form
@@ -54,17 +100,51 @@ export function ExpenseSearchFilters({
       }}
     >
       <Stack spacing={2}>
+        <Stack spacing={1}>
+          <Typography component="h2" variant="subtitle1">
+            記録種別
+          </Typography>
+          <ToggleButtonGroup
+            aria-label="記録種別"
+            exclusive
+            onChange={(_event, value: HistoryEntryType | null) => {
+              if (value !== null) {
+                onChange({
+                  ...state,
+                  entryType: value,
+                  categoryId: value === "income" ? "" : state.categoryId,
+                });
+              }
+            }}
+            value={state.entryType}
+          >
+            <ToggleButton sx={{ minHeight: 44 }} value="all">
+              すべて
+            </ToggleButton>
+            <ToggleButton sx={{ minHeight: 44 }} value="expense">
+              支出
+            </ToggleButton>
+            <ToggleButton sx={{ minHeight: 44 }} value="income">
+              収入
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Stack>
+
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <TextField
             fullWidth
-            label="店名"
+            label="キーワード"
             name="shopQuery"
-            placeholder="店名・商品名"
+            placeholder="店名・内容・メモ"
             value={state.shopQuery}
             onChange={(event) => onChange({ ...state, shopQuery: event.target.value })}
           />
           <TextField
             fullWidth
+            disabled={state.entryType === "income"}
+            helperText={
+              state.entryType === "income" ? "カテゴリは支出にのみ適用されます" : undefined
+            }
             select
             label="カテゴリ"
             name="categoryId"
@@ -79,6 +159,38 @@ export function ExpenseSearchFilters({
             ))}
           </TextField>
         </Stack>
+
+        <Stack spacing={1}>
+          <Typography component="h2" variant="subtitle1">
+            期間
+          </Typography>
+          <Stack
+            aria-label="期間プリセット"
+            direction="row"
+            spacing={1}
+            sx={{ flexWrap: "wrap" }}
+            useFlexGap
+          >
+            {datePresetOptions.map((option) => (
+              <Button
+                key={option.value}
+                onClick={() => handlePresetChange(option.value)}
+                sx={{ minHeight: 44 }}
+                variant={selectedPreset === option.value ? "contained" : "outlined"}
+              >
+                {option.label}
+              </Button>
+            ))}
+            <Button
+              onClick={() => onChange({ ...state, startDate: "", endDate: "" })}
+              sx={{ minHeight: 44 }}
+              variant={selectedPreset === "custom" ? "contained" : "outlined"}
+            >
+              期間指定
+            </Button>
+          </Stack>
+        </Stack>
+
         <Stack direction={{ xs: "column", md: "row" }} spacing={2}>
           <TextField
             fullWidth
@@ -133,13 +245,14 @@ export function ExpenseSearchFilters({
             value={dateFromIso(state.endDate)}
           />
         </Stack>
+
         <Stack direction="row" spacing={1}>
           <Button type="submit" variant="contained">
             絞り込む
           </Button>
           {hasFilter ? (
             <Button onClick={onClear} type="button">
-              条件をクリア
+              すべてクリア
             </Button>
           ) : null}
         </Stack>

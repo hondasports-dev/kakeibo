@@ -125,10 +125,10 @@ describe("AppLayout サイドバー開閉", () => {
       }
     });
 
-    it("ヘッダーに支出検索窓を表示する", () => {
+    it("ヘッダーに履歴検索窓を表示する", () => {
       renderWithProviders(<AppLayout />);
 
-      expect(screen.getByLabelText("支出を検索")).toBeInTheDocument();
+      expect(screen.getByLabelText("履歴を検索")).toBeInTheDocument();
     });
   });
 });
