@@ -348,6 +348,95 @@ describe("LINE readonly summary", () => {
     expect(reply.replyText).toBe("今週（2026-08-10〜2026-08-16）の家計データはありません。");
   });
 
+  it("日曜の当日支出は今週サマリーの合計に含まれ、前後の週は含めない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const sundayNowMs = Date.parse("2026-08-16T12:00:00+09:00");
+    await t.run(async (ctx) => {
+      const groupId = await ctx.db.insert("groups", {
+        name: "日曜グループ",
+        status: "active",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("users", {
+        userId: "user-sunday",
+        displayName: "sunday",
+        createdAt: 1,
+        updatedAt: 1,
+        activeGroupId: groupId,
+      });
+      await ctx.db.insert("groupMembers", {
+        groupId,
+        userId: "user-sunday",
+        role: "owner",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "user-sunday",
+        lineUserId: "line-sunday",
+        status: "active",
+        linkedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const foodId = await ctx.db.insert("categories", {
+        groupId,
+        name: "食費",
+        color: "#f97316",
+        isActive: true,
+        sortOrder: 0,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      await ctx.db.insert("expenseEntries", {
+        groupId,
+        date: "2026-08-16",
+        amount: 1234,
+        categoryId: foodId,
+        title: "当日の弁当",
+        entryType: "expense",
+        source: "manual",
+        createdAt: sundayNowMs,
+        updatedAt: sundayNowMs,
+      });
+      await ctx.db.insert("expenseEntries", {
+        groupId,
+        date: "2026-08-09",
+        amount: 9999,
+        categoryId: foodId,
+        title: "前週の弁当",
+        entryType: "expense",
+        source: "manual",
+        createdAt: sundayNowMs,
+        updatedAt: sundayNowMs,
+      });
+      await ctx.db.insert("expenseEntries", {
+        groupId,
+        date: "2026-08-17",
+        amount: 8888,
+        categoryId: foodId,
+        title: "翌週の弁当",
+        entryType: "expense",
+        source: "manual",
+        createdAt: sundayNowMs,
+        updatedAt: sundayNowMs,
+      });
+    });
+
+    const reply = await t.query(internal.lineWebhook.summary.buildReply, {
+      userId: "user-sunday",
+      messageText: "今週",
+      nowMs: sundayNowMs,
+    });
+
+    expect(reply.replyText).toContain("今週（2026-08-10〜2026-08-16）");
+    expect(reply.replyText).toContain("支出: 1,234円");
+    expect(reply.replyText).not.toContain("9,999");
+    expect(reply.replyText).not.toContain("8,888");
+    expect(reply.replyText).not.toContain("当日の弁当");
+  });
+
   it("グループ文書が無い所属だけでは家計金額を返さない", async () => {
     const t = convexTest(schema, convexTestModules);
     await t.run(async (ctx) => {

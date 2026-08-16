@@ -1,6 +1,7 @@
 /**
  * LINE Messaging API channel の default Rich Menu 仕様。
- * タップは既存の読み取り専用テキストコマンドを送り、Webhook dispatch は変えない。
+ * タップは既存の読み取り専用テキストコマンドを送る。設置正本は message action。
+ * inbound postback はセル id / 送信テキストへ正規化して同じ dispatcher へ乗せる。
  */
 
 export const LINE_RICH_MENU_SIZE = { width: 2500, height: 1686 } as const;

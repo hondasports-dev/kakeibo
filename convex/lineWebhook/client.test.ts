@@ -11,6 +11,7 @@ import {
   MAX_LINE_IMAGE_RAW_BYTES,
 } from "../../lib/domain/lineImage/content";
 import { sendSummaryReplyHandler, sendUnlinkedGuideHandler } from "./actions";
+import { LINE_SUMMARY_UNAVAILABLE_MESSAGE } from "../../lib/domain/lineSummary/reply";
 
 function setEnvironment(values: Record<string, string | undefined>) {
   const original = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
@@ -192,6 +193,38 @@ describe("LINE messaging client", () => {
     } finally {
       vi.unstubAllGlobals();
       realRestore();
+    }
+  });
+
+  it("summary query失敗時は金額なしの固定文を送り、沈黙しない", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token",
+    });
+    const runQuery = vi.fn().mockRejectedValue(new Error("query failed"));
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    const runAfter = vi.fn();
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      await expect(
+        sendSummaryReplyHandler({ runQuery, scheduler: { runAfter } } as unknown as ActionCtx, {
+          replyToken: "reply-token",
+          userId: "user-a",
+          messageText: "今週",
+          nowMs: 1,
+        }),
+      ).resolves.toBeNull();
+      expect(runAfter).not.toHaveBeenCalled();
+      expect(
+        JSON.parse(String((fetchImpl.mock.calls[0] as [string, RequestInit])[1].body)),
+      ).toEqual({
+        replyToken: "reply-token",
+        messages: [{ type: "text", text: LINE_SUMMARY_UNAVAILABLE_MESSAGE }],
+      });
+      expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toContain("円");
+    } finally {
+      vi.unstubAllGlobals();
+      restore();
     }
   });
 

@@ -2,6 +2,7 @@ import { internalAction } from "../_generated/server";
 import { internal } from "../_generated/api";
 import type { ActionCtx } from "../_generated/server";
 import { v } from "convex/values";
+import { LINE_SUMMARY_UNAVAILABLE_MESSAGE } from "../../lib/domain/lineSummary/reply";
 import { sendLineTextReply, LINE_UNLINKED_GUIDANCE_MESSAGE } from "./client";
 
 const GUIDE_RETRY_DELAY_MS = 1_000;
@@ -46,12 +47,20 @@ export async function sendSummaryReplyHandler(
   },
 ) {
   const attempt = args.attempt ?? 0;
+  let replyText = LINE_SUMMARY_UNAVAILABLE_MESSAGE;
   try {
-    const { replyText } = await ctx.runQuery(internal.lineWebhook.summary.buildReply, {
+    const result = await ctx.runQuery(internal.lineWebhook.summary.buildReply, {
       userId: args.userId,
       messageText: args.messageText,
       nowMs: args.nowMs,
     });
+    replyText = result.replyText;
+  } catch {
+    console.error("LINE summary query failed");
+    replyText = LINE_SUMMARY_UNAVAILABLE_MESSAGE;
+  }
+
+  try {
     await sendLineTextReply(args.replyToken, replyText);
   } catch {
     if (attempt < MAX_GUIDE_RETRIES) {

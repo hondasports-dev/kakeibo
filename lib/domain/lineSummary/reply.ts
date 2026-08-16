@@ -19,6 +19,9 @@ export const LINE_NO_GROUP_MESSAGE =
 export const LINE_UNRESOLVED_GROUP_MESSAGE =
   "表示するグループが決まっていません。kakeiboのWebでグループを選択してください。";
 
+export const LINE_SUMMARY_UNAVAILABLE_MESSAGE =
+  "家計データを取得できませんでした。しばらくしてから、もう一度お試しください。";
+
 const yenFormatter = new Intl.NumberFormat("ja-JP");
 
 export function formatLineYen(amount: number): string {
