@@ -181,6 +181,91 @@ describe("ExpenseSearchPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("追加読み込み後も初回の前期間比較を保持する", async () => {
+    const user = userEvent.setup();
+    const firstPage: ExpenseSearchResult = {
+      ...emptySearchResult,
+      page: [
+        {
+          _id: "expense-1",
+          date: "2026-08-01",
+          type: "expense",
+          shopName: "表示済みの店",
+          amountYen: 1200,
+          categoryId: "cat-food",
+          categoryName: "食費",
+          categoryColor: "#f97316",
+          recordType: "expenseEntry",
+        },
+      ],
+      continueCursor: "cursor-1",
+      isDone: false,
+      totalCount: 1,
+      expenseCount: 1,
+      totalExpenseYen: 1200,
+      comparison: {
+        currentStartDate: "2026-08-01",
+        currentEndDate: "2026-08-31",
+        previousStartDate: "2026-07-01",
+        previousEndDate: "2026-07-31",
+        current: {
+          count: 1,
+          expenseCount: 1,
+          incomeCount: 0,
+          totalExpenseYen: 1200,
+          totalIncomeYen: 0,
+          netAmountYen: -1200,
+          byCategory: [],
+        },
+        previous: {
+          count: 1,
+          expenseCount: 1,
+          incomeCount: 0,
+          totalExpenseYen: 800,
+          totalIncomeYen: 0,
+          netAmountYen: -800,
+          byCategory: [],
+        },
+        diffExpenseYen: 400,
+        diffIncomeYen: 0,
+        diffNetYen: -400,
+        categoryChanges: [],
+        hasPreviousData: true,
+      },
+    };
+    const secondPage: ExpenseSearchResult = {
+      ...firstPage,
+      page: [],
+      continueCursor: "v1.done",
+      isDone: true,
+      comparison: null,
+    };
+    useQueryMock.mockImplementation((_api: unknown, args: unknown) => {
+      if (_api === "get-user-profile") {
+        return { weeklyStartDay: 3 };
+      }
+      if (args === undefined) {
+        return [];
+      }
+      const cursor =
+        typeof args === "object" && args !== null && "paginationOpts" in args
+          ? (args as { paginationOpts?: { cursor?: string | null } }).paginationOpts?.cursor
+          : null;
+      return cursor === "cursor-1" ? secondPage : firstPage;
+    });
+
+    renderWithDatePickers(
+      <MemoryRouter initialEntries={["/search"]}>
+        <ExpenseSearchPage />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("heading", { name: "前期間との比較" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "さらに読み込む" }));
+
+    expect(screen.getByRole("heading", { name: "前期間との比較" })).toBeInTheDocument();
+  });
+
   it("件数上限を超えた場合は案内を表示する", () => {
     useQueryMock.mockImplementation((_api: unknown, args: unknown) => {
       if (_api === "get-user-profile") {

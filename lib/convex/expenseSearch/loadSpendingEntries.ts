@@ -22,18 +22,21 @@ type SearchDocsResult<T> = {
   truncated: boolean;
 };
 
-function groupDocsByMonth<T extends { date: string }>(docs: T[]): Map<string, T[]> {
-  const grouped = new Map<string, T[]>();
-  for (const doc of docs) {
-    const month = doc.date.slice(0, 7);
-    const bucket = grouped.get(month);
-    if (bucket === undefined) {
-      grouped.set(month, [doc]);
-    } else {
-      bucket.push(doc);
+/**
+ * 移行期間は新旧sourceが同じ月に共存しうる。source間には同一明細を
+ * 判定できるlinkがないため、日付・金額・名称での推測dedupeは行わず、
+ * sourceとIDが同じものだけを重複排除する。
+ */
+function dedupeSearchEntries<T extends { _id: string; recordType: string }>(entries: T[]): T[] {
+  const seen = new Set<string>();
+  return entries.filter((entry) => {
+    const sourceKey = `${entry.recordType}:${entry._id}`;
+    if (seen.has(sourceKey)) {
+      return false;
     }
-  }
-  return grouped;
+    seen.add(sourceKey);
+    return true;
+  });
 }
 
 async function fetchExpenseEntriesForSearch(
@@ -113,57 +116,30 @@ export async function loadHistoryEntriesForSearch(
   const newEntries = newEntryResult.docs;
   const receipts = receiptResult.docs;
 
-  // 旧形式との切替は検索範囲全体ではなく月単位で判定する。
-  // 検索範囲に新形式が1件あるだけで、別月に残る旧形式まで落とすと、
-  // 移行期間の履歴を欠落させてしまうため、集計側の互換ルールに合わせる。
-  const newEntriesByMonth = groupDocsByMonth(newEntries);
-  const receiptsByMonth = groupDocsByMonth(receipts);
-  const months = Array.from(new Set([...newEntriesByMonth.keys(), ...receiptsByMonth.keys()])).sort(
-    (left, right) => right.localeCompare(left),
-  );
-  const expenseEntriesToUse: Doc<"expenseEntries">[] = [];
-  const legacyExpenseReceiptsToUse: Doc<"receipts">[] = [];
-  const incomeEntriesToUse: Doc<"expenseEntries">[] = [];
-  const legacyIncomeReceiptsToUse: Doc<"receipts">[] = [];
-
-  for (const month of months) {
-    const monthEntries = newEntriesByMonth.get(month) ?? [];
-    const monthReceipts = receiptsByMonth.get(month) ?? [];
-    const monthExpenseEntries = monthEntries.filter((entry) => entry.entryType === "expense");
-    const monthIncomeEntries = monthEntries.filter((entry) => entry.entryType === "income");
-
-    if (monthExpenseEntries.length > 0) {
-      expenseEntriesToUse.push(...monthExpenseEntries);
-    } else {
-      legacyExpenseReceiptsToUse.push(
-        ...monthReceipts.filter((receipt) => receipt.type !== "income"),
-      );
-    }
-
-    if (monthIncomeEntries.length > 0) {
-      incomeEntriesToUse.push(...monthIncomeEntries);
-    } else {
-      legacyIncomeReceiptsToUse.push(
-        ...monthReceipts.filter((receipt) => receipt.type === "income"),
-      );
-    }
-  }
+  // 新旧sourceを月単位で切り替えると、同じ月に残る旧形式の明細が欠落する。
+  // 同じ明細であることを確実に判定できないため、検索では両sourceを結合して
+  // source-qualified IDだけでdedupeする。週次・月次集計の互換ルールとは別に、
+  // 移行中の履歴検索は利用可能な履歴をすべて表示する。
+  const expenseEntriesToUse = newEntries.filter((entry) => entry.entryType === "expense");
+  const legacyExpenseReceiptsToUse = receipts.filter((receipt) => receipt.type !== "income");
+  const incomeEntriesToUse = newEntries.filter((entry) => entry.entryType === "income");
+  const legacyIncomeReceiptsToUse = receipts.filter((receipt) => receipt.type === "income");
 
   const enrichedEntries = await enrichSpendingEntriesWithReceiptGroups(
     ctx,
     groupId,
     mapExpenseEntriesToReceiptLinkages(expenseEntriesToUse),
   );
-  const entries = [
+  const entries = dedupeSearchEntries([
     ...enrichedEntries,
     ...addLegacyReceiptGroups(
       legacyExpenseReceiptsToUse.map((receipt) => mapReceiptToSpendingEntry(receipt)),
     ),
-  ];
-  const incomes = [
+  ]);
+  const incomes = dedupeSearchEntries([
     ...incomeEntriesToUse.map((entry) => mapIncomeExpenseEntryToListEntry(entry)),
     ...legacyIncomeReceiptsToUse.map((receipt) => mapReceiptToIncomeListEntry(receipt)),
-  ];
+  ]);
 
   return {
     entries,

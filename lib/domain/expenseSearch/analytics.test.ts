@@ -101,6 +101,56 @@ describe("expense search analytics", () => {
     ]);
   });
 
+  it("32日以上の範囲を週単位にまとめ、範囲端を切り詰める", () => {
+    const groups = groupHistoryEntries(
+      [expense("e1", "2026-07-10", 1000)],
+      [income("i1", "2026-08-10", 2000)],
+    );
+    const trend = buildHistoryTrend(groups, {
+      entryType: "all",
+      startDate: "2026-07-10",
+      endDate: "2026-08-10",
+    });
+
+    expect(trend[0]).toMatchObject({
+      granularity: "week",
+      startDate: "2026-07-10",
+      endDate: "2026-07-12",
+      totalExpenseYen: 1000,
+    });
+    expect(trend[trend.length - 1]).toMatchObject({
+      granularity: "week",
+      startDate: "2026-08-10",
+      endDate: "2026-08-10",
+      totalIncomeYen: 2000,
+    });
+  });
+
+  it("181日以上の範囲を月単位にまとめ、範囲端を切り詰める", () => {
+    const groups = groupHistoryEntries(
+      [expense("e1", "2026-01-15", 1000)],
+      [income("i1", "2026-08-20", 2000)],
+    );
+    const trend = buildHistoryTrend(groups, {
+      entryType: "all",
+      startDate: "2026-01-15",
+      endDate: "2026-08-20",
+    });
+
+    expect(trend[0]).toMatchObject({
+      granularity: "month",
+      startDate: "2026-01-15",
+      endDate: "2026-01-31",
+      totalExpenseYen: 1000,
+    });
+    expect(trend[trend.length - 1]).toMatchObject({
+      granularity: "month",
+      startDate: "2026-08-01",
+      endDate: "2026-08-20",
+      totalIncomeYen: 2000,
+    });
+  });
+
   it("前期間を計算し、増減とカテゴリ変化を返す", () => {
     expect(calculatePreviousHistoryPeriod("2026-07-01", "2026-07-31")).toEqual({
       startDate: "2026-05-31",
@@ -137,6 +187,27 @@ describe("expense search analytics", () => {
       currentAmountYen: 1200,
       previousAmountYen: 800,
       diffAmountYen: 400,
+    });
+  });
+
+  it("前期間が0円のカテゴリは増減率を計算不能として返す", () => {
+    const current = summarizeHistoryGroups(
+      groupHistoryEntries([expense("current", "2026-07-05", 1200)], []),
+      categoryInfo,
+    );
+    const previous = summarizeHistoryGroups([], categoryInfo);
+    const comparison = buildHistoryComparison({
+      current,
+      currentStartDate: "2026-07-01",
+      currentEndDate: "2026-07-31",
+      previous,
+      previousPeriod: { startDate: "2026-06-01", endDate: "2026-06-30" },
+    });
+
+    expect(comparison.hasPreviousData).toBe(false);
+    expect(comparison.categoryChanges[0]).toMatchObject({
+      categoryId: "food",
+      diffRatePercent: null,
     });
   });
 });

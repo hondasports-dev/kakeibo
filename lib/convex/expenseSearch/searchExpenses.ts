@@ -175,10 +175,13 @@ export async function searchExpensesHandler(
     parsed.filters,
   );
 
-  const previousPeriod = calculatePreviousHistoryPeriod(
-    parsed.filters.startDate,
-    parsed.filters.endDate,
-  );
+  // 前期間比較は初回ページでだけ計算する。ページ追加時は現在期間の集計を
+  // 更新しつつ、初回レスポンスの比較をUI側で保持することで、同じ比較を
+  // 毎ページ読み直すコストと上限超過リスクを避ける。
+  const previousPeriod =
+    args.paginationOpts.cursor === null
+      ? calculatePreviousHistoryPeriod(parsed.filters.startDate, parsed.filters.endDate)
+      : null;
   let previousGroups: SearchableHistoryGroup[] = [];
   let previousTruncated = false;
   if (previousPeriod !== null) {

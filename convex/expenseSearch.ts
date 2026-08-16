@@ -21,6 +21,51 @@ const expenseSearchReceiptValidator = v.object({
   receiptTotalAmountYen: v.optional(v.number()),
 });
 
+const historyCategorySummaryValidator = v.object({
+  categoryId: v.string(),
+  categoryName: v.string(),
+  categoryColor: v.string(),
+  totalAmountYen: v.number(),
+  count: v.number(),
+});
+
+const historyAggregateValidator = v.object({
+  count: v.number(),
+  expenseCount: v.number(),
+  incomeCount: v.number(),
+  totalExpenseYen: v.number(),
+  totalIncomeYen: v.number(),
+  netAmountYen: v.number(),
+  byCategory: v.array(historyCategorySummaryValidator),
+});
+
+const historyComparisonValidator = v.union(
+  v.object({
+    currentStartDate: v.string(),
+    currentEndDate: v.string(),
+    previousStartDate: v.string(),
+    previousEndDate: v.string(),
+    current: historyAggregateValidator,
+    previous: historyAggregateValidator,
+    diffExpenseYen: v.number(),
+    diffIncomeYen: v.number(),
+    diffNetYen: v.number(),
+    categoryChanges: v.array(
+      v.object({
+        categoryId: v.string(),
+        categoryName: v.string(),
+        categoryColor: v.string(),
+        currentAmountYen: v.number(),
+        previousAmountYen: v.number(),
+        diffAmountYen: v.number(),
+        diffRatePercent: v.union(v.number(), v.null()),
+      }),
+    ),
+    hasPreviousData: v.boolean(),
+  }),
+  v.null(),
+);
+
 export const searchExpenses = query({
   args: {
     entryType: v.optional(v.union(v.literal("all"), v.literal("expense"), v.literal("income"))),
@@ -45,15 +90,7 @@ export const searchExpenses = query({
     totalExpenseYen: v.number(),
     totalIncomeYen: v.number(),
     netAmountYen: v.number(),
-    byCategory: v.array(
-      v.object({
-        categoryId: v.string(),
-        categoryName: v.string(),
-        categoryColor: v.string(),
-        totalAmountYen: v.number(),
-        count: v.number(),
-      }),
-    ),
+    byCategory: v.array(historyCategorySummaryValidator),
     trend: v.array(
       v.object({
         key: v.string(),
@@ -65,64 +102,7 @@ export const searchExpenses = query({
         netAmountYen: v.number(),
       }),
     ),
-    comparison: v.union(
-      v.object({
-        currentStartDate: v.string(),
-        currentEndDate: v.string(),
-        previousStartDate: v.string(),
-        previousEndDate: v.string(),
-        current: v.object({
-          count: v.number(),
-          expenseCount: v.number(),
-          incomeCount: v.number(),
-          totalExpenseYen: v.number(),
-          totalIncomeYen: v.number(),
-          netAmountYen: v.number(),
-          byCategory: v.array(
-            v.object({
-              categoryId: v.string(),
-              categoryName: v.string(),
-              categoryColor: v.string(),
-              totalAmountYen: v.number(),
-              count: v.number(),
-            }),
-          ),
-        }),
-        previous: v.object({
-          count: v.number(),
-          expenseCount: v.number(),
-          incomeCount: v.number(),
-          totalExpenseYen: v.number(),
-          totalIncomeYen: v.number(),
-          netAmountYen: v.number(),
-          byCategory: v.array(
-            v.object({
-              categoryId: v.string(),
-              categoryName: v.string(),
-              categoryColor: v.string(),
-              totalAmountYen: v.number(),
-              count: v.number(),
-            }),
-          ),
-        }),
-        diffExpenseYen: v.number(),
-        diffIncomeYen: v.number(),
-        diffNetYen: v.number(),
-        categoryChanges: v.array(
-          v.object({
-            categoryId: v.string(),
-            categoryName: v.string(),
-            categoryColor: v.string(),
-            currentAmountYen: v.number(),
-            previousAmountYen: v.number(),
-            diffAmountYen: v.number(),
-            diffRatePercent: v.union(v.number(), v.null()),
-          }),
-        ),
-        hasPreviousData: v.boolean(),
-      }),
-      v.null(),
-    ),
+    comparison: historyComparisonValidator,
   }),
   handler: searchExpensesHandler,
 });

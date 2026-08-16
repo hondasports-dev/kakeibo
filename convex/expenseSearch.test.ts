@@ -465,6 +465,17 @@ describe("searchExpenses", () => {
     const t = convexTest(schema, convexTestModules);
     const ids = await seed(t);
     const legacyIds = await t.run(async (ctx) => {
+      const sameMonthExpenseId = await ctx.db.insert("receipts", {
+        groupId: ids.groupId,
+        date: "2026-07-17",
+        type: "expense",
+        shopName: "旧同月スーパー",
+        amountYen: 700,
+        categoryId: ids.foodId,
+        weekStartDate: "2026-07-13",
+        createdAt: 1,
+        updatedAt: 1,
+      });
       const expenseId = await ctx.db.insert("receipts", {
         groupId: ids.groupId,
         date: "2026-04-02",
@@ -487,7 +498,7 @@ describe("searchExpenses", () => {
         createdAt: 1,
         updatedAt: 1,
       });
-      return { expenseId, incomeId };
+      return { sameMonthExpenseId, expenseId, incomeId };
     });
 
     const result = await t
@@ -496,6 +507,7 @@ describe("searchExpenses", () => {
         paginationOpts: { numItems: 20, cursor: null },
       });
 
+    expect(result.page.some((item) => item._id === legacyIds.sameMonthExpenseId)).toBe(true);
     expect(result.page.some((item) => item._id === legacyIds.expenseId)).toBe(true);
     expect(result.page.some((item) => item._id === legacyIds.incomeId)).toBe(true);
   });
