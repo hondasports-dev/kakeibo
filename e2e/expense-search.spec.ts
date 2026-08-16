@@ -65,7 +65,10 @@ test.describe("履歴検索（Issue #537 / #637〜#643）", () => {
     await expect(page.getByText("収入一覧（1件）")).toBeVisible({ timeout: 15_000 });
     await expect(page.getByText("検索用給与").first()).toBeVisible();
 
-    await page.getByRole("button", { name: "支出" }).click();
+    await page
+      .getByRole("group", { name: "記録種別" })
+      .getByRole("button", { name: "支出" })
+      .click();
     await page.getByRole("button", { name: "絞り込む" }).click();
     await expect(page.getByText("条件に合う履歴はありません")).toBeVisible({ timeout: 15_000 });
   });

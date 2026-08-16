@@ -2,6 +2,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ExpenseSearchResult } from "../../../../lib/convex/expenseSearch/searchExpenses";
 import { renderWithDatePickers } from "../../../test/render";
 import { getCurrentWeekStartDate } from "../../week";
 import { ExpenseSearchPage } from "./ExpenseSearchPage";
@@ -23,11 +24,12 @@ function LocationProbe() {
   return <div>{`${location.pathname}${location.search}`}</div>;
 }
 
-const emptySearchResult = {
+const emptySearchResult: ExpenseSearchResult = {
   page: [],
   continueCursor: "v1.empty",
   isDone: true,
   truncated: false,
+  comparisonTruncated: false,
   matchedGroupCount: 0,
   totalCount: 0,
   expenseCount: 0,
@@ -181,6 +183,9 @@ describe("ExpenseSearchPage", () => {
 
   it("件数上限を超えた場合は案内を表示する", () => {
     useQueryMock.mockImplementation((_api: unknown, args: unknown) => {
+      if (_api === "get-user-profile") {
+        return { weeklyStartDay: 3 };
+      }
       if (args === undefined) {
         return [];
       }

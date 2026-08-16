@@ -59,23 +59,48 @@ export function HistoryComparisonCard({
               {comparison.categoryChanges.length > 0 ? (
                 <Stack spacing={0.75}>
                   <Typography variant="subtitle2">カテゴリ別の変化</Typography>
-                  {comparison.categoryChanges.map((category) => (
-                    <Button
-                      key={category.categoryId}
-                      onClick={() => onCategorySelect?.(category.categoryId)}
-                      sx={{ justifyContent: "space-between", minHeight: 44, textTransform: "none" }}
-                      variant="text"
-                    >
-                      <span>{category.categoryName}</span>
-                      <span>
-                        {formatDiff(category.diffAmountYen)}（
-                        {category.diffRatePercent === null
-                          ? "—"
-                          : `${category.diffRatePercent > 0 ? "+" : ""}${category.diffRatePercent}%`}
-                        ）
-                      </span>
-                    </Button>
-                  ))}
+                  {comparison.categoryChanges.map((category) => {
+                    const content = (
+                      <>
+                        <span>{category.categoryName}</span>
+                        <span>
+                          {formatDiff(category.diffAmountYen)}（
+                          {category.diffRatePercent === null
+                            ? "—"
+                            : `${category.diffRatePercent > 0 ? "+" : category.diffRatePercent < 0 ? "−" : ""}${Math.abs(category.diffRatePercent)}%`}
+                          ）
+                        </span>
+                      </>
+                    );
+
+                    return onCategorySelect ? (
+                      <Button
+                        key={category.categoryId}
+                        onClick={() => onCategorySelect(category.categoryId)}
+                        sx={{
+                          justifyContent: "space-between",
+                          minHeight: 44,
+                          textTransform: "none",
+                        }}
+                        variant="text"
+                      >
+                        {content}
+                      </Button>
+                    ) : (
+                      <Stack
+                        direction="row"
+                        key={category.categoryId}
+                        spacing={1}
+                        sx={{
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          minHeight: 44,
+                        }}
+                      >
+                        {content}
+                      </Stack>
+                    );
+                  })}
                 </Stack>
               ) : null}
             </>
@@ -90,6 +115,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   return (
     <Stack
       aria-label={label}
+      role="group"
       spacing={0.5}
       sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1.25 }}
     >

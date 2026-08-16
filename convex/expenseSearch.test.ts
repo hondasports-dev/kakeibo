@@ -286,6 +286,8 @@ describe("searchExpenses", () => {
     expect(first.page.length).toBeGreaterThanOrEqual(100);
     expect(second.page.length).toBeGreaterThan(0);
     expect(new Set(idsFromPages).size).toBe(idsFromPages.length);
+    expect(first.totalCount).toBe(103);
+    expect(idsFromPages.length).toBe(104);
     expect(second.isDone).toBe(true);
   });
 

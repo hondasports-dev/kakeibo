@@ -56,6 +56,7 @@ export type ExpenseSearchResult = {
   continueCursor: string;
   isDone: boolean;
   truncated: boolean;
+  comparisonTruncated: boolean;
   matchedGroupCount: number;
   totalCount: number;
   expenseCount: number;
@@ -74,6 +75,7 @@ function emptySearchResult(): ExpenseSearchResult {
     continueCursor: "v1.empty",
     isDone: true,
     truncated: false,
+    comparisonTruncated: false,
     matchedGroupCount: 0,
     totalCount: 0,
     expenseCount: 0,
@@ -209,8 +211,8 @@ export async function searchExpensesHandler(
       ? null
       : buildHistoryComparison({
           current: aggregate,
-          currentStartDate: parsed.filters.startDate ?? groups[groups.length - 1]?.date ?? "",
-          currentEndDate: parsed.filters.endDate ?? groups[0]?.date ?? "",
+          currentStartDate: parsed.filters.startDate!,
+          currentEndDate: parsed.filters.endDate!,
           previous: summarizeHistoryGroups(previousGroups, categoryInfoMap),
           previousPeriod,
         });
@@ -219,7 +221,8 @@ export async function searchExpensesHandler(
     page,
     continueCursor: paged.continueCursor,
     isDone: paged.isDone,
-    truncated: source.truncated || previousTruncated,
+    truncated: source.truncated,
+    comparisonTruncated: previousTruncated,
     matchedGroupCount: groups.length,
     totalCount: aggregate.count,
     expenseCount: aggregate.expenseCount,

@@ -21,6 +21,9 @@ export function HistoryCategoryChart({
       ? window.matchMedia(theme.breakpoints.down("sm")).matches
       : false;
   const topCategories = buildHistoryCategoryBreakdown(categories);
+  const hasOtherCategory = topCategories.some(
+    (category) => category.categoryId === HISTORY_OTHER_CATEGORY_ID,
+  );
   const totalAmountYen = categories.reduce((total, category) => total + category.totalAmountYen, 0);
 
   const hasData = topCategories.some((category) => category.totalAmountYen > 0);
@@ -102,6 +105,7 @@ export function HistoryCategoryChart({
         {hasData && onCategorySelect ? (
           <Typography color="text.secondary" variant="caption">
             棒をクリックすると、そのカテゴリで絞り込めます
+            {hasOtherCategory ? "（その他を除く）" : ""}
           </Typography>
         ) : null}
       </Box>
