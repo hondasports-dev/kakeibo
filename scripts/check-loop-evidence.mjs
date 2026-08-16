@@ -3,6 +3,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REVIEW_STATUSES = new Set(["PASS", "FAIL", "NOT_REQUIRED", "BLOCKED"]);
+const VERIFICATION_AUTHORITIES = new Set(["local", "ci", "runtime"]);
+const VERIFICATION_SCOPES = new Set([
+  "targeted",
+  "affected_scope",
+  "full_repository",
+  "functional_e2e",
+  "regression_e2e",
+  "static",
+  "runtime",
+]);
 
 export function normalizeChangedPath(filePath) {
   return String(filePath).replaceAll("\\", "/").replace(/^\.\//, "");
@@ -157,6 +167,113 @@ export function evaluateSkipIfMissingReview({ evidence, headSha, changedPaths })
   return evaluateReviewEvidence({ evidence, headSha, changedPaths });
 }
 
+function normalizedCheckName(value) {
+  return String(value).trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function evaluateVerificationEvidence({ evidence }) {
+  const errors = [];
+
+  if (evidence === null || evidence === undefined || typeof evidence !== "object") {
+    return { ok: false, errors: ["verification evidence object is missing"] };
+  }
+
+  if (evidence.status !== "PASS") {
+    errors.push("verification.status must be PASS");
+  }
+
+  const requiredTextKeys = ["verification_epoch", "evidence_snapshot"];
+  for (const key of requiredTextKeys) {
+    if (isEmptyText(evidence[key])) {
+      errors.push(`verification evidence requires ${key}`);
+    }
+  }
+
+  if (!Array.isArray(evidence.affected_scope) || evidence.affected_scope.length === 0) {
+    errors.push("verification evidence requires a non-empty affected_scope");
+  }
+
+  const authorities = evidence.check_authority;
+  if (!Array.isArray(authorities) || authorities.length === 0) {
+    errors.push("verification evidence requires a non-empty check_authority");
+  } else {
+    for (const authority of authorities) {
+      if (!VERIFICATION_AUTHORITIES.has(authority)) {
+        errors.push(`unknown check_authority: ${String(authority)}`);
+      }
+    }
+  }
+
+  const checks = evidence.checks;
+  if (!Array.isArray(checks) || checks.length === 0) {
+    errors.push("verification evidence requires a non-empty checks list");
+  }
+
+  const checkNames = new Map();
+  for (const [index, check] of (Array.isArray(checks) ? checks : []).entries()) {
+    if (typeof check !== "object" || check === null || Array.isArray(check)) {
+      errors.push(`check[${index}] must be an object`);
+      continue;
+    }
+
+    if (isEmptyText(check.name)) {
+      errors.push(`check[${index}].name is required`);
+    }
+    if (!VERIFICATION_AUTHORITIES.has(check.authority)) {
+      errors.push(`check[${index}].authority is invalid`);
+    }
+    if (!VERIFICATION_SCOPES.has(check.scope)) {
+      errors.push(`check[${index}].scope is invalid`);
+    }
+    if (!REVIEW_STATUSES.has(check.status)) {
+      errors.push(`check[${index}].status is invalid`);
+    } else if (check.status !== "PASS" && check.status !== "NOT_REQUIRED") {
+      errors.push(`check[${index}].status must be PASS or NOT_REQUIRED`);
+    }
+    if (check.status === "NOT_REQUIRED" && isEmptyText(check.not_required_reason)) {
+      errors.push(`check[${index}].NOT_REQUIRED requires not_required_reason`);
+    }
+
+    if (check.scope === "full_repository" && check.status !== "NOT_REQUIRED") {
+      const name = normalizedCheckName(check.name);
+      if (name) {
+        const existing = checkNames.get(name) ?? [];
+        existing.push(index);
+        checkNames.set(name, existing);
+      }
+    }
+  }
+
+  const reruns = evidence.reruns;
+  if (!Array.isArray(reruns)) {
+    errors.push("verification evidence requires reruns to be an array");
+  } else {
+    for (const [index, rerun] of reruns.entries()) {
+      if (typeof rerun !== "object" || rerun === null || Array.isArray(rerun)) {
+        errors.push(`rerun[${index}] must be an object`);
+        continue;
+      }
+      if (isEmptyText(rerun.check)) {
+        errors.push(`rerun[${index}].check is required`);
+      }
+      if (isEmptyText(rerun.reason)) {
+        errors.push(`rerun[${index}].reason is required`);
+      }
+      if (isEmptyText(rerun.invalidated_by)) {
+        errors.push(`rerun[${index}].invalidated_by is required`);
+      }
+    }
+  }
+
+  const duplicateFullChecks = [...checkNames.entries()].filter(([, indexes]) => indexes.length > 1);
+  if (duplicateFullChecks.length > 0 && isEmptyText(evidence.duplicate_full_check_reason)) {
+    const names = duplicateFullChecks.map(([name]) => name).join(", ");
+    errors.push(`duplicate full checks require duplicate_full_check_reason: ${names}`);
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
 function readJsonFile(filePath) {
   return JSON.parse(readFileSync(filePath, "utf8"));
 }
@@ -178,6 +295,7 @@ export function parseLoopEvidenceArguments(args) {
     if (arg === "--require-review") options.mode = "require-review";
     else if (arg === "--skip-if-missing") options.mode = "skip-if-missing";
     else if (arg === "--learning") options.mode = "learning";
+    else if (arg === "--verification") options.mode = "verification";
     else if (arg === "--head") {
       options.headSha = next ?? "";
       index += 1;
@@ -202,7 +320,9 @@ export function parseLoopEvidenceArguments(args) {
   }
 
   if (!options.mode) {
-    throw new Error("one of --require-review, --skip-if-missing, or --learning is required");
+    throw new Error(
+      "one of --require-review, --skip-if-missing, --learning, or --verification is required",
+    );
   }
 
   return options;
@@ -230,6 +350,21 @@ export function runLoopEvidenceCheck(options) {
       candidates: Array.isArray(candidates) ? candidates : candidates.candidates,
     });
     console.log(`LOOP_EVIDENCE learning: ${result.ok ? "PASS" : "FAIL"}`);
+    for (const error of result.errors) console.error(`error: ${error}`);
+    return result.ok ? 0 : 1;
+  }
+
+  if (options.mode === "verification") {
+    let evidence;
+    try {
+      evidence = loadEvidence(options);
+    } catch (error) {
+      console.log("LOOP_EVIDENCE verification: FAIL");
+      console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
+    const result = evaluateVerificationEvidence({ evidence });
+    console.log(`LOOP_EVIDENCE verification: ${result.ok ? "PASS" : "FAIL"}`);
     for (const error of result.errors) console.error(`error: ${error}`);
     return result.ok ? 0 : 1;
   }

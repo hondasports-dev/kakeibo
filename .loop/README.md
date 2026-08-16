@@ -1,4 +1,4 @@
-# Loop Engineering Foundation v8
+# Loop Engineering Foundation v9
 
 SuzumemoのAgent Loopは、すべての変更へ同じ重いGateを課す方式から、**Spec Confidence + Risk-based Profile** へ移行する。
 

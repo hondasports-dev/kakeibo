@@ -5,6 +5,7 @@ import {
   evaluateLearningApplication,
   evaluateReviewEvidence,
   evaluateSkipIfMissingReview,
+  evaluateVerificationEvidence,
   hasProcessPolicyChange,
   isProcessPolicyPath,
   normalizeChangedPath,
@@ -25,6 +26,33 @@ function validEvidence(overrides = {}) {
     reviewed_head_sha: HEAD,
     code_review: passReview(),
     security_review: passReview(),
+    ...overrides,
+  };
+}
+
+function validVerificationEvidence(overrides = {}) {
+  return {
+    status: "PASS",
+    verification_epoch: "epoch-1",
+    evidence_snapshot: HEAD,
+    affected_scope: ["scripts/check-loop-evidence.mjs"],
+    check_authority: ["local", "ci"],
+    checks: [
+      {
+        name: "loop evidence targeted test",
+        authority: "local",
+        scope: "targeted",
+        status: "PASS",
+      },
+      {
+        name: "repository test",
+        authority: "ci",
+        scope: "full_repository",
+        status: "PASS",
+      },
+    ],
+    reruns: [],
+    duplicate_full_check_reason: "",
     ...overrides,
   };
 }
@@ -182,6 +210,95 @@ describe("evaluateSkipIfMissingReview", () => {
         changedPaths: [],
       }),
     ).toMatchObject({ ok: false });
+  });
+});
+
+describe("evaluateVerificationEvidence", () => {
+  it("passes scoped local checks with CI as the full-check authority", () => {
+    expect(evaluateVerificationEvidence({ evidence: validVerificationEvidence() })).toMatchObject({
+      ok: true,
+      errors: [],
+    });
+  });
+
+  it("fails duplicate full checks without an explicit reason", () => {
+    const result = evaluateVerificationEvidence({
+      evidence: validVerificationEvidence({
+        checks: [
+          {
+            name: "repository test",
+            authority: "local",
+            scope: "full_repository",
+            status: "PASS",
+          },
+          {
+            name: "repository test",
+            authority: "ci",
+            scope: "full_repository",
+            status: "PASS",
+          },
+        ],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      "duplicate full checks require duplicate_full_check_reason: repository test",
+    );
+  });
+
+  it("fails a verification marked PASS when an individual check failed", () => {
+    const result = evaluateVerificationEvidence({
+      evidence: validVerificationEvidence({
+        checks: [
+          {
+            name: "targeted test",
+            authority: "local",
+            scope: "targeted",
+            status: "FAIL",
+          },
+        ],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("check[0].status must be PASS or NOT_REQUIRED");
+  });
+
+  it("allows duplicate full checks when the duplication is justified", () => {
+    expect(
+      evaluateVerificationEvidence({
+        evidence: validVerificationEvidence({
+          checks: [
+            {
+              name: "repository test",
+              authority: "local",
+              scope: "full_repository",
+              status: "PASS",
+            },
+            {
+              name: "repository test",
+              authority: "ci",
+              scope: "full_repository",
+              status: "PASS",
+            },
+          ],
+          duplicate_full_check_reason:
+            "CI feedback was unavailable during a broad failure diagnosis",
+        }),
+      }),
+    ).toMatchObject({ ok: true, errors: [] });
+  });
+
+  it("requires a reason and invalidation for every rerun", () => {
+    const result = evaluateVerificationEvidence({
+      evidence: validVerificationEvidence({
+        reruns: [{ check: "repository test", reason: "fixed assertion" }],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("rerun[0].invalidated_by is required");
   });
 });
 

@@ -15,6 +15,7 @@
 
 - EvidenceなしでGateをPASSにしない。
 - 必須Gateが `FAIL` / `BLOCKED` のまま進まない。
+- 検証は編集バッチ単位で行い、同じheadの全量checkを理由なくローカルとCIで重複実行しない。
 - `PR created` はcheckpointでありtask completionではない。
 - PR公開後は最新headが要求されたDelivery targetへ収束するまで `PR_AFTERCARE` を続ける。
 - `roles/` やmodel/effort固定ではなく、state / Skill / Gate / Evidenceで制御する。
@@ -185,7 +186,7 @@ WORKSPACE_PREFLIGHT
 
 - independent Requirements Review: 0
 - ImpactはRequirements packet内のsummaryで済ませる
-- local verificationはchanged tests / 必要なlint/build/E2Eに限定
+- local verificationはchanged tests / 影響範囲にscopeを絞れるlint/build/E2Eに限定し、全量checkをローカルで重ねる場合は理由を記録
 - SecurityはCode Review内のquick scan
 
 ## R2 — STANDARD
