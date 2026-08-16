@@ -13,6 +13,7 @@ describe("expense search params", () => {
       "q=北浜&categoryId=cat-1&min=100&max=2000&from=2026-07-01&to=2026-07-31",
     );
     expect(readExpenseSearchFormState(params)).toEqual({
+      entryType: "all",
       shopQuery: "北浜",
       categoryId: "cat-1",
       minAmountYen: "100",
@@ -25,6 +26,7 @@ describe("expense search params", () => {
   it("空の条件は /search になる", () => {
     expect(
       expenseSearchPath({
+        entryType: "all",
         shopQuery: "  ",
         categoryId: "",
         minAmountYen: "",
@@ -38,6 +40,7 @@ describe("expense search params", () => {
   it("すべての条件をクエリへ載せる", () => {
     expect(
       expenseSearchPath({
+        entryType: "expense",
         shopQuery: "北浜",
         categoryId: "cat-1",
         minAmountYen: "100",
@@ -46,13 +49,27 @@ describe("expense search params", () => {
         endDate: "2026-07-31",
       }),
     ).toBe(
-      "/search?q=%E5%8C%97%E6%B5%9C&categoryId=cat-1&min=100&max=2000&from=2026-07-01&to=2026-07-31",
+      "/search?type=expense&q=%E5%8C%97%E6%B5%9C&categoryId=cat-1&min=100&max=2000&from=2026-07-01&to=2026-07-31",
     );
+  });
+
+  it("収入検索ではカテゴリ条件を持ち込まない", () => {
+    expect(readExpenseSearchFormState(new URLSearchParams("type=income&categoryId=cat-1"))).toEqual(
+      expect.objectContaining({ entryType: "income", categoryId: "" }),
+    );
+    expect(
+      expenseSearchPath({
+        ...EMPTY_EXPENSE_SEARCH_FORM,
+        entryType: "income",
+        categoryId: "cat-1",
+      }),
+    ).toBe("/search?type=income");
   });
 
   it("金額の下限が上限より大きい場合はエラーにする", () => {
     expect(
       parseExpenseSearchFormState({
+        entryType: "all",
         shopQuery: "",
         categoryId: "",
         minAmountYen: "200",
@@ -91,6 +108,7 @@ describe("expense search params", () => {
   it("正規化した条件をConvex引数へ変換する", () => {
     expect(
       toExpenseSearchQueryArgs({
+        entryType: "all",
         shopQuery: " 北浜 ",
         categoryId: "cat-1",
         minAmountYen: "100",
@@ -101,6 +119,7 @@ describe("expense search params", () => {
     ).toEqual({
       ok: true,
       args: {
+        entryType: "all",
         shopQuery: "北浜",
         categoryId: "cat-1",
         minAmountYen: 100,

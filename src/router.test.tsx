@@ -54,7 +54,7 @@ describe("monthly summary route", () => {
     expect(screen.getByText("週次サマリーを読み込んでいます…")).toBeInTheDocument();
     expect(screen.getByText("月次サマリーを読み込んでいます…")).toBeInTheDocument();
     expect(screen.getByText("年次サマリーを読み込んでいます…")).toBeInTheDocument();
-    expect(screen.getByText("支出検索を読み込んでいます…")).toBeInTheDocument();
+    expect(screen.getByText("履歴検索を読み込んでいます…")).toBeInTheDocument();
   });
 
   it("月次lazy遷移中は実ルーターのpending UIを表示する", async () => {
