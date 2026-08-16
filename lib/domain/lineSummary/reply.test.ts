@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LINE_HELP_MESSAGE,
   LINE_NO_GROUP_MESSAGE,
+  LINE_SUMMARY_UNAVAILABLE_MESSAGE,
   formatCategoryReply,
   formatNoDataReply,
   formatWeekCategoriesReply,
@@ -110,5 +111,8 @@ describe("LINE summary reply formatting", () => {
   it("グループ未設定メッセージに家計金額を含めない", () => {
     expect(LINE_NO_GROUP_MESSAGE).not.toContain("円");
     expect(LINE_HELP_MESSAGE).not.toContain("円");
+    expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toContain("円");
+    expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toBe(LINE_HELP_MESSAGE);
+    expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toBe(LINE_NO_GROUP_MESSAGE);
   });
 });

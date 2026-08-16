@@ -4,6 +4,7 @@ import { internal } from "../_generated/api";
 import { internalMutation, internalQuery } from "../_generated/server";
 import type { QueryCtx } from "../_generated/server";
 import { MAX_CATEGORIES_PER_GROUP } from "../../lib/domain/categories/defaults";
+import { resolveLineEventCommandText } from "../../lib/domain/lineSummary/commands";
 import { resolveActiveGroupForUserId } from "../groups/membership";
 import {
   lineImageJobStatusValidator,
@@ -74,11 +75,12 @@ export const claimEvents = internalMutation({
           ...(event.eventTimestamp === undefined ? {} : { eventTimestamp: event.eventTimestamp }),
           createdAt: now,
         });
-        if (event.eventType === "text" && event.replyToken) {
+        const commandText = resolveLineEventCommandText(event);
+        if (commandText !== undefined && event.replyToken) {
           await ctx.scheduler.runAfter(0, internal.lineWebhook.actions.sendSummaryReply, {
             replyToken: event.replyToken,
             userId: activeUserId,
-            messageText: event.messageText ?? "",
+            messageText: commandText,
             nowMs: event.eventTimestamp ?? now,
           });
           scheduledSummaryCount += 1;

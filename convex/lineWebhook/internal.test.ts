@@ -197,7 +197,7 @@ describe("LINE webhook event claim", () => {
     expect(event?.userId).toBeUndefined();
   });
 
-  it("連携済みのtextだけサマリー返信を予約し、followや再送では予約しない", async () => {
+  it("連携済みのtextとpostbackはサマリー返信を予約し、followや再送では予約しない", async () => {
     const t = convexTest(schema, convexTestModules);
     await t.run(async (ctx) => {
       await ctx.db.insert("lineAccountLinks", {
@@ -226,6 +226,60 @@ describe("LINE webhook event claim", () => {
     const replayText = await t.mutation(internal.lineWebhook.internal.claimEvents, {
       events: [linkedEvent],
     });
+    const weekSummaryPostback = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-postback-week-summary",
+          eventType: "postback",
+          lineUserId: "line-user-linked",
+          replyToken: "reply-token-postback",
+          postbackData: "week_summary",
+        },
+      ],
+    });
+    const weekTextPostback = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-postback-week-text",
+          eventType: "postback",
+          lineUserId: "line-user-linked",
+          replyToken: "reply-token-postback-text",
+          postbackData: "今週",
+        },
+      ],
+    });
+    const unknownPostback = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-postback-unknown",
+          eventType: "postback",
+          lineUserId: "line-user-linked",
+          replyToken: "reply-token-postback-unknown",
+          postbackData: "action=summary",
+        },
+      ],
+    });
+    const postbackWithoutToken = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-postback-no-token",
+          eventType: "postback",
+          lineUserId: "line-user-linked",
+          postbackData: "week_summary",
+        },
+      ],
+    });
+    const replayPostback = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-postback-week-summary",
+          eventType: "postback",
+          lineUserId: "line-user-linked",
+          replyToken: "reply-token-postback",
+          postbackData: "week_summary",
+        },
+      ],
+    });
 
     expect(follow).toMatchObject({
       scheduledSummaryCount: 0,
@@ -240,6 +294,43 @@ describe("LINE webhook event claim", () => {
     expect(replayText).toMatchObject({
       claimedCount: 0,
       duplicateCount: 1,
+      scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
+    });
+    expect(weekSummaryPostback).toMatchObject({
+      scheduledSummaryCount: 1,
+      scheduledGuideCount: 0,
+      scheduledImageCount: 0,
+    });
+    expect(weekTextPostback).toMatchObject({ scheduledSummaryCount: 1 });
+    expect(unknownPostback).toMatchObject({ scheduledSummaryCount: 1 });
+    expect(postbackWithoutToken).toMatchObject({ scheduledSummaryCount: 0 });
+    expect(replayPostback).toMatchObject({
+      claimedCount: 0,
+      duplicateCount: 1,
+      scheduledSummaryCount: 0,
+    });
+  });
+
+  it("未連携postbackは案内だけを予約し家計サマリーは予約しない", async () => {
+    const t = convexTest(schema, convexTestModules);
+
+    await expect(
+      t.mutation(internal.lineWebhook.internal.claimEvents, {
+        events: [
+          {
+            webhookEventId: "event-postback-unlinked",
+            eventType: "postback",
+            lineUserId: "line-user-unlinked",
+            replyToken: "reply-token-unlinked",
+            postbackData: "week_summary",
+          },
+        ],
+      }),
+    ).resolves.toEqual({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 1,
       scheduledSummaryCount: 0,
       scheduledImageCount: 0,
     });

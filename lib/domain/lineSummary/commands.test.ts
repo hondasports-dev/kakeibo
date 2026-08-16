@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { parseLineSummaryCommand } from "./commands";
+import {
+  parseLineSummaryCommand,
+  resolveLineEventCommandText,
+  resolveLinePostbackToCommandText,
+} from "./commands";
+import { lineRichMenuCells } from "./richMenu";
 
 describe("parseLineSummaryCommand", () => {
   it.each([
@@ -44,5 +49,40 @@ describe("parseLineSummaryCommand", () => {
       type: "category_lookup",
       name: "削除して",
     });
+  });
+});
+
+describe("resolveLinePostbackToCommandText", () => {
+  it("リッチメニューのセルidと送信テキストを既存コマンドへ写像する", () => {
+    for (const cell of lineRichMenuCells) {
+      expect(resolveLinePostbackToCommandText(cell.id)).toBe(cell.messageText);
+      expect(resolveLinePostbackToCommandText(cell.messageText)).toBe(cell.messageText);
+      expect(parseLineSummaryCommand(resolveLinePostbackToCommandText(cell.id)).type).not.toBe(
+        "category_lookup",
+      );
+    }
+  });
+
+  it("未知のpostbackはカテゴリ検索へ流さず使い方にする", () => {
+    expect(resolveLinePostbackToCommandText("week_summary")).toBe("今週");
+    expect(resolveLinePostbackToCommandText("action=summary")).toBe("使い方");
+    expect(resolveLinePostbackToCommandText("食費")).toBe("使い方");
+    expect(resolveLinePostbackToCommandText("")).toBe("使い方");
+    expect(parseLineSummaryCommand(resolveLinePostbackToCommandText("unknown"))).toEqual({
+      type: "help",
+    });
+  });
+});
+
+describe("resolveLineEventCommandText", () => {
+  it("textはそのまま、postbackは正規化し、他イベントは送らない", () => {
+    expect(
+      resolveLineEventCommandText({ eventType: "text", messageText: "今週" }),
+    ).toBe("今週");
+    expect(
+      resolveLineEventCommandText({ eventType: "postback", postbackData: "week_summary" }),
+    ).toBe("今週");
+    expect(resolveLineEventCommandText({ eventType: "follow" })).toBeUndefined();
+    expect(resolveLineEventCommandText({ eventType: "image" })).toBeUndefined();
   });
 });
