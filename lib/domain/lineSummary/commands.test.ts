@@ -76,9 +76,7 @@ describe("resolveLinePostbackToCommandText", () => {
 
 describe("resolveLineEventCommandText", () => {
   it("textはそのまま、postbackは正規化し、他イベントは送らない", () => {
-    expect(
-      resolveLineEventCommandText({ eventType: "text", messageText: "今週" }),
-    ).toBe("今週");
+    expect(resolveLineEventCommandText({ eventType: "text", messageText: "今週" })).toBe("今週");
     expect(
       resolveLineEventCommandText({ eventType: "postback", postbackData: "week_summary" }),
     ).toBe("今週");

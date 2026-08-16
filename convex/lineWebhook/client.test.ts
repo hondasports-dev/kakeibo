@@ -215,12 +215,12 @@ describe("LINE messaging client", () => {
         }),
       ).resolves.toBeNull();
       expect(runAfter).not.toHaveBeenCalled();
-      expect(JSON.parse(String((fetchImpl.mock.calls[0] as [string, RequestInit])[1].body))).toEqual(
-        {
-          replyToken: "reply-token",
-          messages: [{ type: "text", text: LINE_SUMMARY_UNAVAILABLE_MESSAGE }],
-        },
-      );
+      expect(
+        JSON.parse(String((fetchImpl.mock.calls[0] as [string, RequestInit])[1].body)),
+      ).toEqual({
+        replyToken: "reply-token",
+        messages: [{ type: "text", text: LINE_SUMMARY_UNAVAILABLE_MESSAGE }],
+      });
       expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toContain("円");
     } finally {
       vi.unstubAllGlobals();
