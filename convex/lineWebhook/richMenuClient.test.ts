@@ -161,6 +161,10 @@ describe("LINE rich menu client", () => {
           "Content-Type": "image/png",
         }),
       );
+      expect(uploadCall?.[1].body).toBeInstanceOf(ArrayBuffer);
+      expect(new Uint8Array(uploadCall?.[1].body as ArrayBuffer)).toEqual(
+        new Uint8Array(readMenuImage()),
+      );
       expect(defaultCall?.[0]).toBe("https://api.line.me/v2/bot/user/all/richmenu/richmenu-new");
       expect(deleteCall?.[0]).toBe("https://api.line.me/v2/bot/richmenu/richmenu-old");
       expect(deleteCall?.[1].method).toBe("DELETE");
