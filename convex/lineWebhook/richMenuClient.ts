@@ -28,6 +28,12 @@ export type ApplyLineRichMenuOptions = {
   fetchImpl?: LineFetch;
 };
 
+function toRequestBody(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
 function providerRejected(): Error {
   return new Error("LINE messaging provider rejected the rich menu");
 }
@@ -139,7 +145,7 @@ export async function applyLineDefaultRichMenu(
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "image/png",
       },
-      body: options.imageBytes,
+      body: toRequestBody(options.imageBytes),
     },
   );
   if (!uploaded.ok) throw providerRejected();
