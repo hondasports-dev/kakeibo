@@ -192,8 +192,8 @@ export function filterReceiptGroups(
   return filterHistoryGroups(
     groups.map((group) => ({ ...group, type: "expense" as const })),
     {
-      entryType: "expense",
       ...filters,
+      entryType: "expense",
     },
   ).filter((group): group is SearchableReceiptGroup => group.type === "expense");
 }

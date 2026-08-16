@@ -26,6 +26,7 @@ function Metric({
     <Stack
       aria-label={label}
       data-metric={label}
+      role="group"
       spacing={0.5}
       sx={{ minWidth: 0, textAlign: "center" }}
     >
@@ -78,7 +79,11 @@ export function HistoryMetricsPanel({
             },
           }}
         >
-          <Metric detail={`${totalCount}件`} label="該当件数" value={`${totalCount}件`} />
+          <Metric
+            detail={`支出${expenseCount}・収入${incomeCount}`}
+            label="該当件数"
+            value={`${totalCount}件`}
+          />
           <Metric
             detail={`${expenseCount}グループ`}
             label="支出"

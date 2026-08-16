@@ -89,6 +89,11 @@ describe("filterReceiptGroups", () => {
     expect(filtered.map((group) => group.shopName)).toEqual(["セブンイレブン"]);
   });
 
+  it("互換ラッパーでは入力の種別を上書きして支出だけを扱う", () => {
+    const filtered = filterReceiptGroups(groups, { entryType: "income" });
+    expect(filtered).toHaveLength(3);
+  });
+
   it("明細の商品名でも店名クエリにヒットする", () => {
     const filtered = filterReceiptGroups(groups, { shopQuery: "牛乳" });
     expect(filtered.map((group) => group.id)).toEqual(["sourceDocument:doc-1"]);

@@ -162,7 +162,6 @@ export function ExpenseSearchPage() {
     setHasLoadedPage(false);
     setLoadedItems([]);
     setLastSearchResult(null);
-    setSearchRequestId(0);
   }, [appliedKey, loadedKey]);
 
   useEffect(() => {
@@ -290,6 +289,11 @@ export function ExpenseSearchPage() {
                 件数が多いため、先頭の一部だけを集計しています。期間やキーワードで絞り込んでください。
               </Alert>
             ) : null}
+            {displayResult.comparisonTruncated ? (
+              <Alert severity="info" variant="outlined">
+                前期間比較はデータ量が多いため、一部の履歴をもとに計算しています。
+              </Alert>
+            ) : null}
             <HistoryMetricsPanel
               expenseCount={displayResult.expenseCount}
               incomeCount={displayResult.incomeCount}
@@ -310,7 +314,7 @@ export function ExpenseSearchPage() {
               comparison={displayResult.comparison}
               onCategorySelect={handleCategorySelect}
             />
-            {displayResult.totalCount === 0 ? (
+            {expenseItems.length === 0 && incomeItems.length === 0 ? (
               <Typography color="text.secondary" variant="body2">
                 条件に合う履歴はありません
               </Typography>
@@ -339,21 +343,21 @@ export function ExpenseSearchPage() {
               </>
             )}
             {!displayResult.isDone && searchError === null ? (
-              isLoadingMore ? (
-                <Alert severity="info" variant="outlined">
-                  追加の履歴を読み込み中…
-                </Alert>
-              ) : null
-            ) : null}
-            {!displayResult.isDone && searchError === null ? (
-              <Button
-                disabled={isLoadingMore}
-                onClick={() => setPaginationCursor(displayResult.continueCursor)}
-                sx={{ alignSelf: "center", minHeight: 44 }}
-                variant="outlined"
-              >
-                {isLoadingMore ? "読み込み中…" : "さらに読み込む"}
-              </Button>
+              <>
+                {isLoadingMore ? (
+                  <Alert severity="info" variant="outlined">
+                    追加の履歴を読み込み中…
+                  </Alert>
+                ) : null}
+                <Button
+                  disabled={isLoadingMore}
+                  onClick={() => setPaginationCursor(displayResult.continueCursor)}
+                  sx={{ alignSelf: "center", minHeight: 44 }}
+                  variant="outlined"
+                >
+                  {isLoadingMore ? "読み込み中…" : "さらに読み込む"}
+                </Button>
+              </>
             ) : null}
           </>
         )}

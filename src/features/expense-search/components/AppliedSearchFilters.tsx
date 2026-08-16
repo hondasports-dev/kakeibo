@@ -15,7 +15,7 @@ export function AppliedSearchFilters({
     chips.push({
       key: "entryType",
       label: state.entryType === "expense" ? "支出" : "収入",
-      remove: () => onChange({ ...state, entryType: "all", categoryId: "" }),
+      remove: () => onChange({ ...state, entryType: "all" }),
     });
   }
   if (state.shopQuery) {

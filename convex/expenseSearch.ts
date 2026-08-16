@@ -37,6 +37,7 @@ export const searchExpenses = query({
     continueCursor: v.string(),
     isDone: v.boolean(),
     truncated: v.boolean(),
+    comparisonTruncated: v.boolean(),
     matchedGroupCount: v.number(),
     totalCount: v.number(),
     expenseCount: v.number(),
