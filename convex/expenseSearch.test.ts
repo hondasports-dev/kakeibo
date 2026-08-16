@@ -459,6 +459,45 @@ describe("searchExpenses", () => {
     expect(untilOnly.page).toHaveLength(1);
   });
 
+  it("新形式がある月と旧形式だけの月をまたいで履歴を欠落させない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const ids = await seed(t);
+    const legacyIds = await t.run(async (ctx) => {
+      const expenseId = await ctx.db.insert("receipts", {
+        groupId: ids.groupId,
+        date: "2026-04-02",
+        type: "expense",
+        shopName: "旧スーパー",
+        amountYen: 880,
+        categoryId: ids.foodId,
+        weekStartDate: "2026-03-30",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const incomeId = await ctx.db.insert("receipts", {
+        groupId: ids.groupId,
+        date: "2026-03-03",
+        type: "income",
+        bankName: "旧給与",
+        amountYen: 250000,
+        categoryId: ids.foodId,
+        weekStartDate: "2026-03-02",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      return { expenseId, incomeId };
+    });
+
+    const result = await t
+      .withIdentity(identity("search-user"))
+      .query(api.expenseSearch.searchExpenses, {
+        paginationOpts: { numItems: 20, cursor: null },
+      });
+
+    expect(result.page.some((item) => item._id === legacyIds.expenseId)).toBe(true);
+    expect(result.page.some((item) => item._id === legacyIds.incomeId)).toBe(true);
+  });
+
   it("支出と収入を統合し、種別フィルターで切り替えられる", async () => {
     const t = convexTest(schema, convexTestModules);
     await t.run(async (ctx) => {
