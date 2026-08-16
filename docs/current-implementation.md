@@ -250,6 +250,7 @@ LINEはClerk認証を置き換えるログイン方式ではなく、認証済�
 - `webhookEventId` による冪等処理
 - 未連携ユーザーへの案内返信
 - 連携済みtextメッセージからの読み取り専用サマリー返信（今週の支出・収入・カテゴリ別・週別推移。未知テキストは使い方案内のみ）
+- Messaging API channel 向け default Rich Menu のセル定義（`lib/domain/lineSummary/richMenu.ts`）と設置用画像（`docs/line/rich-menu-readonly-summary.png`）。実行時の自動適用はしない
 
 関連テーブル:
 
