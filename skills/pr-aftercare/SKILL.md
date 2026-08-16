@@ -37,6 +37,27 @@ Delivery target
 
 head SHAが変わったら旧headのsuccessを流用しない。
 
+Draft状態が変わったら、同じheadでも新しいobservation epochを開く。特に Draft → ready のあと、ready前のreview観測を流用しない。
+
+## Draft / ready review epoch
+
+Draft中のbot skipを、actionable findingsなしのEvidenceにしてはいけない。
+
+次は `Review findings: none` の根拠にならない。
+
+- `Review skipped: draft pull request`
+- Draft中に完了した skip / "review available on request"
+- ready前に取得した空のreview comment一覧
+
+Draftを外したあと、post-ready epochで次を再取得する。
+
+- issue comments
+- review comments / threads
+- review state（`COMMENTED` / `CHANGES_REQUESTED` / `APPROVED`）
+- review関連のchecks
+
+このepochが終わるまで `merge_ready` にしない。review checkが `pending` / `in_progress` なら従来どおりPASSではない。ready後にbotが本レビューを出したら、その指摘をfindingsとしてclosureする。
+
 ## 監視対象
 
 - required CI / checks
@@ -110,8 +131,9 @@ PASS条件:
 
 - current taskの唯一のDelivery PR
 - non-draft（明示Draft運用を除く）
+- post-ready review epochを観測済み（Draftからreadyにした場合）
 - latest headのrequired checks success
-- actionable blocking findingsなし
+- actionable blocking findingsなし。Draft skipをnone扱いしていない
 - requested changesなし
 - required approval satisfied
 - conflictなし
@@ -144,6 +166,7 @@ Risk / profile:
 Target:
 PR:
 Observed head SHA:
+Draft / ready epoch:
 Checks:
 Review findings:
 Requested changes:

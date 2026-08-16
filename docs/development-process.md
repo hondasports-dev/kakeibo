@@ -338,17 +338,15 @@ Pull Request には次の内容を書きます。
 - [ ] 関連 Issue がリンクされている
 - [ ] 要件定義結果が Issue に記録されている
 - [ ] 実装タスクがすべて完了している
-- [ ] TDD のテスト追加または更新が含まれている
-- [ ] `pnpm test --run` がローカルで成功している
-- [ ] `pnpm run lint` がローカルで成功している
-- [ ] `pnpm run format:check` がローカルで成功している
-- [ ] `pnpm run build` がローカルで成功している
-- [ ] `pnpm run e2e -- --project=chromium` がローカルで成功している
-- [ ] GitHub Actions の全チェックが成功している
-- [ ] Reviewer の指摘がすべて解決済み
-- [ ] QA Agent の E2E 結果確認が `success`
-- [ ] 未解決の conversation がない
-- [ ] マージ後の Issue 完了報告内容が準備済み
+- [ ] TDD のテスト追加または更新が含まれている（振る舞い変更の場合）
+- [ ] 対象のローカル検証（lint / format / 必要なtest / 必要なbuild）が成功している
+- [ ] 機能E2Eがrequiredなら `pnpm run e2e -- --project=chromium` がローカルで成功している。不要ならPR本文に `E2E: NOT_REQUIRED` と理由がある
+- [ ] GitHub Actions の required checks が最新headで成功している
+- [ ] `skills/pr-aftercare/SKILL.md` の merge-ready を満たしている（post-ready review epochを含む）
+- [ ] actionableなreview findingsが fixed / rejected with reason / resolved になっている
+- [ ] merged_cleaned を依頼された場合だけ、マージ後の Issue 完了報告内容が準備済み
+
+機能E2E / 回帰E2E / 実行場所の分け方は `skills/verification/SKILL.md` を正とする。回帰E2Eの正本はCI Aftercareであり、全PRでローカルE2Eを必須にしない。
 
 Markdown のみを変更する Pull Request では、ローカル検証と GitHub Actions / E2E の
 終了条件を `git diff --check` などの Markdown 差分確認に置き換えてよいです。
@@ -361,16 +359,20 @@ Pull Request は短時間でレビューできる大きさに保ちます。目�
 
 ## レビュー方針
 
-原則として、マージ前に 1 approval を必須とします。
+必須のapprovalは GitHub の ruleset / branch protection / CODEOWNERS が要求するものに従う。
+エージェントの Delivery 完了条件は `AGENTS.md` と `skills/pr-aftercare/SKILL.md` を正とする。
+preview の ruleset が approval を要求しない場合、ループは 1 approval を追加しない。
+`main` は Pull Request 必須で、protect main の required review に従う。
 
-次の条件をすべて満たす小さく低リスクな変更は、自己マージしてもかまいません。
+次の条件をすべて満たす小さく低リスクな変更は、ruleset が許す範囲で自己マージしてもかまいません。
 
 - ドキュメント、typo、formatting、小さな設定修正である。
 - CI が通っている、または Markdown のみの変更で CI 対象外である。
 - Convex、Clerk、認可、データ構造、デプロイ挙動に影響しない。
 
-ただし、`convex/`、`.github/`、`CODEOWNERS` 配下の変更は、小さな変更であっても
-自己マージしません。
+`convex/`、`.github/`、`CODEOWNERS` 配下を `main` へ入れる変更は、小さな変更であっても
+owner / Tech Lead のレビューを受ける。preview へのエージェント統合は Aftercare と
+GitHub ruleset を正とする。
 
 レビューでは次の観点を確認します。
 
@@ -385,9 +387,10 @@ Pull Request は短時間でレビューできる大きさに保ちます。目�
 レビューコメントでは、懸念の理由を書きます。可能であれば、具体的な代替案も
 提示します。
 
-Pull Request に付いたレビュー指摘は、マージ前にすべて対応します。対応とは、
-指摘内容を反映して修正すること、または修正しない理由を明記して reviewer と合意することを
-指します。未対応の指摘や未解決の conversation が残っている状態ではマージしません。
+Pull Request に付いたレビュー指摘は、マージ前に Aftercare の closure を行う。対応とは、
+指摘内容を反映して修正すること、または修正しない理由を明記すること。
+`CHANGES_REQUESTED` と actionable な blocking findings が残っている状態ではマージしない。
+任意botの未解決threadだけでブロックしない。Draft中の review skip を指摘なしとみなさない。
 
 ## CODEOWNERS
 
@@ -396,7 +399,7 @@ CODEOWNERS は最小構成から始めます。最初の保護対象は次の範
 - `convex/`
 - `.github/`
 
-これらの範囲の変更は、マージ前に Tech Lead または owner のレビューを受けます。
+これらの範囲を `main` へ入れる変更は、マージ前に Tech Lead または owner のレビューを受ける。
 
 CODEOWNERS の範囲は、責任範囲が明確になってから拡大します。
 
