@@ -1,5 +1,5 @@
 import { BarChart } from "@mui/x-charts/BarChart";
-import { Box, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { Box, Paper, Skeleton, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import type { HistoryTrendPoint } from "../../../../lib/domain/expenseSearch/analytics";
 import { formatYenCompact } from "../../../utils/currency";
@@ -25,10 +25,7 @@ export function HistoryTrendChart({
   onPointSelect?: (point: HistoryTrendPoint) => void;
 }) {
   const theme = useTheme();
-  const isCompact =
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia(theme.breakpoints.down("sm")).matches
-      : false;
+  const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
   const chartHeight = isCompact ? 220 : 260;
   const chartMargin = isCompact
     ? { bottom: 48, left: 60, right: 8, top: 16 }
@@ -113,9 +110,41 @@ export function HistoryTrendChart({
               </Typography>
             </Stack>
             {onPointSelect ? (
-              <Typography color="text.secondary" variant="caption">
-                グラフをクリックすると、その期間で絞り込めます
-              </Typography>
+              <Stack spacing={0.75} sx={{ mt: 1 }}>
+                <Typography color="text.secondary" variant="caption">
+                  グラフをクリックするか、期間選択から選ぶと、その期間で絞り込めます
+                </Typography>
+                <Box
+                  aria-label="期間推移の期間選択"
+                  component="select"
+                  defaultValue=""
+                  id="history-trend-period-select"
+                  key={points.map((point) => point.key).join(",")}
+                  onChange={(event) => {
+                    const point = points.find((candidate) => candidate.key === event.target.value);
+                    if (point !== undefined) {
+                      onPointSelect(point);
+                    }
+                  }}
+                  sx={{
+                    alignSelf: "flex-start",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    color: "text.primary",
+                    minHeight: 40,
+                    minWidth: 180,
+                    px: 1,
+                  }}
+                >
+                  <option value="">期間を選択</option>
+                  {points.map((point) => (
+                    <option key={point.key} value={point.key}>
+                      {pointLabel(point)}
+                    </option>
+                  ))}
+                </Box>
+              </Stack>
             ) : null}
           </>
         )}

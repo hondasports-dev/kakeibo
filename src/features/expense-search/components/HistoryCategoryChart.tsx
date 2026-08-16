@@ -1,5 +1,5 @@
 import { BarChart } from "@mui/x-charts/BarChart";
-import { Box, Paper, Stack, Typography } from "@mui/material";
+import { Box, Paper, Stack, Typography, useMediaQuery } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import {
   buildHistoryCategoryBreakdown,
@@ -16,10 +16,7 @@ export function HistoryCategoryChart({
   onCategorySelect?: (categoryId: string) => void;
 }) {
   const theme = useTheme();
-  const isCompact =
-    typeof window !== "undefined" && typeof window.matchMedia === "function"
-      ? window.matchMedia(theme.breakpoints.down("sm")).matches
-      : false;
+  const isCompact = useMediaQuery(theme.breakpoints.down("sm"));
   const topCategories = buildHistoryCategoryBreakdown(categories);
   const hasOtherCategory = topCategories.some(
     (category) => category.categoryId === HISTORY_OTHER_CATEGORY_ID,

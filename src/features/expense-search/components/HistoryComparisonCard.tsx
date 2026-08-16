@@ -1,14 +1,7 @@
 import { Box, Button, Paper, Stack, Typography } from "@mui/material";
 import type { HistoryComparison } from "../../../../lib/domain/expenseSearch/analytics";
-import { formatYen, formatYenAbs } from "../../../utils/currency";
 import { formatDateForDisplay } from "../../../utils/date";
-
-function formatDiff(value: number): string {
-  if (value === 0) {
-    return formatYen(0);
-  }
-  return `${value < 0 ? "−" : "+"}${formatYenAbs(value)}`;
-}
+import { formatSignedPercent, formatSignedYen } from "./historyFormat";
 
 function formatRange(startDate: string, endDate: string): string {
   return `${formatDateForDisplay(startDate)}〜${formatDateForDisplay(endDate)}`;
@@ -52,9 +45,9 @@ export function HistoryComparisonCard({
                   gridTemplateColumns: { xs: "1fr", sm: "repeat(3, minmax(0, 1fr))" },
                 }}
               >
-                <Metric label="支出の増減" value={formatDiff(comparison.diffExpenseYen)} />
-                <Metric label="収入の増減" value={formatDiff(comparison.diffIncomeYen)} />
-                <Metric label="差引の増減" value={formatDiff(comparison.diffNetYen)} />
+                <Metric label="支出の増減" value={formatSignedYen(comparison.diffExpenseYen)} />
+                <Metric label="収入の増減" value={formatSignedYen(comparison.diffIncomeYen)} />
+                <Metric label="差引の増減" value={formatSignedYen(comparison.diffNetYen)} />
               </Box>
               {comparison.categoryChanges.length > 0 ? (
                 <Stack spacing={0.75}>
@@ -64,11 +57,8 @@ export function HistoryComparisonCard({
                       <>
                         <span>{category.categoryName}</span>
                         <span>
-                          {formatDiff(category.diffAmountYen)}（
-                          {category.diffRatePercent === null
-                            ? "—"
-                            : `${category.diffRatePercent > 0 ? "+" : category.diffRatePercent < 0 ? "−" : ""}${Math.abs(category.diffRatePercent)}%`}
-                          ）
+                          {formatSignedYen(category.diffAmountYen)}（
+                          {formatSignedPercent(category.diffRatePercent)}）
                         </span>
                       </>
                     );

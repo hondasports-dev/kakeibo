@@ -34,8 +34,9 @@ import {
 const PAGE_SIZE = 100;
 
 function mergeSearchPage(current: ExpenseSearchReceipt[], next: ExpenseSearchReceipt[]) {
-  const items = new Map(current.map((item) => [item._id, item]));
-  next.forEach((item) => items.set(item._id, item));
+  const itemKey = (item: ExpenseSearchReceipt) => `${item.recordType}:${item._id}`;
+  const items = new Map(current.map((item) => [itemKey(item), item]));
+  next.forEach((item) => items.set(itemKey(item), item));
   return Array.from(items.values());
 }
 
@@ -84,6 +85,7 @@ export function ExpenseSearchPage() {
   const [hasLoadedPage, setHasLoadedPage] = useState(false);
   const [loadedItems, setLoadedItems] = useState<ExpenseSearchReceipt[]>([]);
   const [lastSearchResult, setLastSearchResult] = useState<ExpenseSearchResult | null>(null);
+  const [initialSearchResult, setInitialSearchResult] = useState<ExpenseSearchResult | null>(null);
   const [searchRequestId, setSearchRequestId] = useState(0);
   const userProfile = useQuery(getUserProfileApi());
   const categoriesQuery = useQuery(listActiveApi());
@@ -162,6 +164,7 @@ export function ExpenseSearchPage() {
     setHasLoadedPage(false);
     setLoadedItems([]);
     setLastSearchResult(null);
+    setInitialSearchResult(null);
   }, [appliedKey, loadedKey]);
 
   useEffect(() => {
@@ -180,13 +183,26 @@ export function ExpenseSearchPage() {
     );
     setLoadedCursor(activeCursor);
     setLastSearchResult(searchResult);
+    if (activeCursor === null) {
+      setInitialSearchResult(searchResult);
+    }
   }, [activeCursor, appliedKey, hasLoadedPage, loadedCursor, loadedKey, searchResult]);
 
   const currentSearchPath = `${location.pathname}${location.search}`;
   const categoryName = categories.find((category) => category._id === applied.categoryId)?.name;
   const expenseItems = loadedItems.filter((item) => item.type === "expense").map(toReceiptItem);
   const incomeItems = loadedItems.filter((item) => item.type === "income").map(toIncomeItem);
-  const displayResult = loadedKey === appliedKey ? (searchResult ?? lastSearchResult) : null;
+  const currentDisplayResult = searchResult ?? lastSearchResult;
+  const displayResult =
+    loadedKey !== appliedKey || currentDisplayResult === null
+      ? null
+      : activeCursor !== null && initialSearchResult !== null
+        ? {
+            ...currentDisplayResult,
+            comparison: initialSearchResult.comparison,
+            comparisonTruncated: initialSearchResult.comparisonTruncated,
+          }
+        : currentDisplayResult;
   const isLoadingMore =
     loadedKey === appliedKey &&
     paginationCursor !== null &&

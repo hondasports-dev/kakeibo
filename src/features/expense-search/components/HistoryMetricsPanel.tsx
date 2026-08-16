@@ -1,12 +1,6 @@
 import { Box, Paper, Stack, Typography } from "@mui/material";
-import { formatYen, formatYenAbs } from "../../../utils/currency";
-
-function formatNetAmount(value: number): string {
-  if (value === 0) {
-    return formatYen(0);
-  }
-  return `${value < 0 ? "−" : "+"}${formatYenAbs(value)}`;
-}
+import { formatYen } from "../../../utils/currency";
+import { formatSignedYen } from "./historyFormat";
 
 function Metric({
   label,
@@ -99,7 +93,7 @@ export function HistoryMetricsPanel({
             detail="収入 − 支出"
             label="差引"
             tone={netAmountYen < 0 ? "warning" : "good"}
-            value={formatNetAmount(netAmountYen)}
+            value={formatSignedYen(netAmountYen)}
           />
         </Box>
       </Box>
