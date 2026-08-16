@@ -222,9 +222,8 @@ jobs:
             exit 1
           fi
           if [ -z "$CONVEX_DEPLOY_KEY" ]; then
-            echo "::warning::DEV_CONVEX_DEPLOY_KEY is not set. Skipping Convex env sync."
-            echo "Ensure Convex dev APP_ENV=development, E2E_CLERK_USER_ID, and E2E_CLEANUP_SECRET already match the CI secrets. LINE_INTEGRATION_MODE is left unchanged if already set."
-            exit 0
+            echo "::error::DEV_CONVEX_DEPLOY_KEY is not set."
+            exit 1
           fi
           pnpm exec convex env set APP_ENV development
           pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
