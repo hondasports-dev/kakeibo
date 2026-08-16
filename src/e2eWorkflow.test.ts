@@ -10,6 +10,10 @@ describe("e2e workflow", () => {
     expect(yaml).toContain("Configure local Vite E2E");
     expect(yaml).toContain("VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}");
     expect(yaml).toContain("VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}");
+    expect(yaml).toContain("node scripts/ensure-line-integration-mode.mjs");
+    expect(yaml).not.toContain("pnpm exec convex env set LINE_INTEGRATION_MODE mock");
+    expect(yaml).toContain("::error::DEV_CONVEX_DEPLOY_KEY is not set.");
+    expect(yaml).not.toContain("Skipping Convex env sync");
     expect(yaml).not.toContain("E2E_BASE_URL: ${{ github.event.deployment_status.target_url }}");
     expect(yaml).not.toContain("PLAYWRIGHT_BYPASS_SECRET:");
   });

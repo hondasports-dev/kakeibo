@@ -329,10 +329,10 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     await page
       .getByRole("navigation", { name: "履歴メニュー" })
-      .getByRole("link", { name: "支出検索" })
+      .getByRole("link", { name: "履歴検索" })
       .click();
     await expect(page).toHaveURL("/search");
-    await expect(page.getByRole("heading", { name: "支出検索", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "履歴検索", level: 1 })).toBeVisible();
 
     await page
       .getByRole("navigation", { name: "履歴メニュー" })
@@ -343,10 +343,10 @@ test.describe("ナビゲーション（Issue #49）", () => {
 
     await page
       .getByRole("navigation", { name: "履歴メニュー" })
-      .getByRole("link", { name: "支出検索" })
+      .getByRole("link", { name: "履歴検索" })
       .click();
     await expect(page).toHaveURL("/search");
-    await expect(page.getByRole("heading", { name: "支出検索", level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "履歴検索", level: 1 })).toBeVisible();
 
     await page
       .getByRole("navigation", { name: "履歴メニュー" })
@@ -362,11 +362,11 @@ test.describe("ナビゲーション（Issue #49）", () => {
     );
 
     await page.goto(`/search?q=${encodeURIComponent("店")}&from=${currentMonth}-01`);
-    await expect(historyMenu.getByRole("link", { name: "支出検索" })).toHaveAttribute(
+    await expect(historyMenu.getByRole("link", { name: "履歴検索" })).toHaveAttribute(
       "href",
       `/search?q=${encodeURIComponent("店")}&from=${currentMonth}-01`,
     );
-    await expect(historyMenu.getByRole("link", { name: "支出検索" })).toHaveAttribute(
+    await expect(historyMenu.getByRole("link", { name: "履歴検索" })).toHaveAttribute(
       "aria-current",
       "page",
     );
@@ -375,7 +375,7 @@ test.describe("ナビゲーション（Issue #49）", () => {
     await expect
       .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
       .toBe(true);
-    const searchLink = historyMenu.getByRole("link", { name: "支出検索" });
+    const searchLink = historyMenu.getByRole("link", { name: "履歴検索" });
     await searchLink.focus();
     await expect(searchLink).toBeFocused();
     await searchLink.press("Enter");

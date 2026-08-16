@@ -81,8 +81,8 @@ export function SummaryRouteFallback() {
 export function ExpenseSearchRouteFallback() {
   return (
     <SuzumemoLoadingState
-      label="支出検索を読み込み中"
-      message="支出検索を読み込んでいます…"
+      label="履歴検索を読み込み中"
+      message="履歴検索を読み込んでいます…"
       variant="page"
     />
   );

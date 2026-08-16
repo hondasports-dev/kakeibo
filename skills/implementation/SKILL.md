@@ -1,114 +1,93 @@
 ---
 name: implementation
-description: RequirementsとImpact AnalysisがPASSした後、確定したscope内で最小差分を実装し、RED/GREENと差分整合性を確認する。振る舞い変更やバグ修正を実装するときに使う。
+description: Spec ConfidenceとRisk Profileが確定した後、profileで要求されたRequirements/Impact Evidenceに従って最小差分を実装する。振る舞い変更やバグ修正の実装に使う。
 license: Apache-2.0
 ---
 
 # Implementation
 
-## 目的
-
-確定仕様と影響範囲に従い、必要最小限の変更でAcceptance Criteriaを満たす。
-
 ## 前提
 
-- `REQUIREMENTS: PASS`
-- `IMPACT_ANALYSIS: PASS`
-- 常時必須Skillを適用済み
-- 作業branch / worktreeが対象タスク用に分離されている
-- Convex変更前はリポジトリ内の `convex/_generated/ai/guidelines.md` を確認済み
+- Spec Confidenceが `C1` または `C2`
+- Risk Level / selected profileが記録済み
+- RequirementsがPASS
+- profileがseparate Impact Gateを要求する場合だけ `IMPACT_ANALYSIS: PASS`
+- R0/R1ではRequirements packetの`impact_summary`が存在
+- Workspace Preflightと常時安全Skillを適用済み
 
 ## 実装契約
 
-実装開始前に最低限これを固定する。
+開始前に最低限:
 
 ```text
 Goal:
-Design decisions:
-Editable / expected paths:
+Spec confidence:
+Risk / profile:
+Editable scope:
 Out of scope:
 Acceptance Criteria:
-Constraints / prohibited operations:
-Test plan:
+Impact summary / Impact Analysis:
+Constraints:
 Verification plan:
 ```
 
-Issue本文は判断材料であって、そのまま実装契約とはみなさない。RequirementsとImpact Analysisを統合した契約を使う。
-
-実装中に契約を変える必要が出た場合、勝手にscopeを拡大せず `requirements` または `impact-analysis` へ戻す。
+Issue本文だけを実装契約にしない。
 
 ## Writer境界
 
-- 同一差分のwriterは原則1つにする
-- 複数に分ける場合は編集pathを明確に分離する
-- branch / worktree / stage / commit / pushの対象を混同しない
-- 他タスクの未commit変更を取り込まない
+- 同一差分のwriterは原則1体
+- 複数writerはpathを完全分離できる場合だけ
+- 他taskの差分を混ぜない
+- secret / `.env.local` / local artifactをcommitしない
 
 ## TDD
 
-振る舞い変更・バグ修正では原則として次を使う。
+振る舞い変更・bug fixでは、適切ならRED/GREENを使う。
 
-1. 望ましい振る舞いを証明する最小テストを追加・更新する
-2. 対象テストを実行し、期待した理由で失敗することを確認する（RED）
-3. 最小の本体変更を入れる
-4. 対象テストを再実行して成功を確認する（GREEN）
-5. 必要に応じてリファクタし、再度GREENを確認する
+1. 仕様を証明する最小testを追加/更新
+2. 期待した理由でRED
+3. 最小実装
+4. GREEN
+5. 必要なrefactor後もGREEN
 
-テスト追加が不適切な変更（docsのみ、振る舞い不変の機械的変更など）は理由を記録する。
+R0 docs/format等でtest不要なら理由を記録する。
 
-REDは「何か失敗した」では不十分。**追加・変更した仕様をまだ満たしていない理由で失敗していること**を確認する。
+## Risk / Specの再評価
 
-## 実装中のルール
+実装中に次を発見したら、その場で実装範囲だけ広げない。
 
-- 無関係なリファクタを混ぜない。
-- 依存追加は必要性を説明できる場合だけ行う。
-- caller/calleeやauth境界に新たな影響を発見したらImpact Analysisを更新する。
-- Issue本文にない設計でも既存規約から一意なら自律判断してよいが、ユーザー価値や認可等を変える判断はRequirementsへ戻す。
-- secret、`.env.local`、認証情報をコミット・ログ出力しない。
-- E2Eや全体検証を「実装できた証拠」と混同しない。最終判定はVerificationで行う。
-- 実装契約外の設計変更を発見したら、先に契約を更新する。
+- material spec ambiguity → Requirementsへ戻る
+- shared caller / provider影響 → Risk再評価
+- auth/data/schema/external trigger → R3+へ昇格
+- production/irreversible trigger → R4へ昇格
 
-## 失敗の初期切り分け
+Implementation開始後はtask中のmax observed Riskがcompletion floor。
 
-- 実装コード
-- テスト自体 / assertion / locator
-- test data / fixture
-- auth / authorization
-- env / secret
-- network / external service
-- browser / tool / dependency
-- 既存flaky / base側失敗
+## Integrity Check
 
-正確なエラー、失敗test名、行、再現条件を確認してから修正する。
+終了時にtracked/untrackedを含む差分を確認する。
 
-同じ失敗を2回繰り返したら `incident` を使う。
-
-## Implementation Integrity Check
-
-実装終了時にtracked / untrackedを含む差分全体を見て次を確認する。
-
-- scope外ファイルの変更がない
-- untrackedファイルを見落としていない
-- Design Decisionsと矛盾しない
-- Acceptance Criteriaと実装が対応している
-- 無関係な依存・リファクタがない
-- Impact Analysisで想定した回帰対策が実装またはVerification計画へ反映されている
-- secret / local-only file / generated artifactを誤って含めていない
-
-違反があればVerificationへ進まず修正する。
+- scope外変更なし
+- Acceptance Criteriaと対応
+- unexplained design deviationなし
+- required impact対策がVerification planへ反映
+- unrelated dependency/refactorなし
+- secret/local-only/generated artifactなし
 
 ## 出力
 
 ```text
 IMPLEMENTATION
 Status: PASS | FAIL | BLOCKED
+Spec confidence:
+Risk / profile:
 Changed files:
 RED evidence:
 GREEN evidence:
 Design deviations:
 Impact changes discovered:
+Risk escalation:
 Unresolved items:
 Integrity check:
+Evidence:
 ```
-
-PASS後 `verification` へ進む。

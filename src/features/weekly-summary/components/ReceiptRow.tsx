@@ -1,9 +1,15 @@
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { Box, Button, Checkbox, Chip, Stack, Typography } from "@mui/material";
 import { formatDateForDisplay } from "../../week";
 import { MemoExpandableText } from "./MemoExpandableText";
 import type { ReceiptItem } from "../types/types";
+
+export type CategoryPreview = {
+  _id: string;
+  name: string;
+  color?: string;
+};
 
 export function ReceiptRow({
   receipt,
@@ -11,16 +17,27 @@ export function ReceiptRow({
   onEdit,
   showCategory = true,
   isDetail = false,
+  selectionEnabled = false,
+  selected = false,
+  previewCategory = null,
+  onToggleSelection,
 }: {
   receipt: ReceiptItem;
   onDelete?: (receipt: ReceiptItem) => void;
   onEdit?: (receipt: ReceiptItem) => void;
   showCategory?: boolean;
   isDetail?: boolean;
+  selectionEnabled?: boolean;
+  selected?: boolean;
+  previewCategory?: CategoryPreview | null;
+  onToggleSelection?: (receipt: ReceiptItem, checked: boolean) => void;
 }) {
   const displayName =
     receipt.type === "income" ? (receipt.bankName ?? "不明") : (receipt.shopName ?? "不明");
   const actionLabelSuffix = `${displayName}（${formatDateForDisplay(receipt.date)}）`;
+  const categoryName = selected && previewCategory ? previewCategory.name : receipt.categoryName;
+  const categoryColor =
+    selected && previewCategory?.color ? previewCategory.color : receipt.categoryColor;
 
   return (
     <Box
@@ -29,6 +46,20 @@ export function ReceiptRow({
       key={receipt._id}
       role="row"
     >
+      {selectionEnabled && (
+        <Box className="receipt-row-select" role="cell">
+          <Checkbox
+            checked={selected}
+            disabled={!onToggleSelection}
+            onChange={(event) => onToggleSelection?.(receipt, event.target.checked)}
+            size="small"
+            slotProps={{
+              input: { "aria-label": `${actionLabelSuffix}を選択` },
+            }}
+            sx={{ minHeight: 44, minWidth: 44 }}
+          />
+        </Box>
+      )}
       <Typography className="receipt-row-date" color="text.secondary" role="cell" variant="body2">
         {isDetail ? "" : formatDateForDisplay(receipt.date)}
       </Typography>
@@ -60,12 +91,12 @@ export function ReceiptRow({
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                backgroundColor: receipt.categoryColor,
+                backgroundColor: categoryColor,
                 flexShrink: 0,
               }}
             />
             <Typography color="text.secondary" variant="body2">
-              {receipt.categoryName}
+              {categoryName}
             </Typography>
           </Stack>
         )}

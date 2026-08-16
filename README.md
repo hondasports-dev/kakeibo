@@ -8,6 +8,8 @@ Suzumemoは、思いついた時に支出や収入を軽く記録し、あとか
 
 UI ブランド名は **Suzumemo**、リポジトリ名は **kakeibo** です。
 
+現在コード上で実装されている画面・ルート・データモデル・外部連携の状態は [`docs/current-implementation.md`](docs/current-implementation.md) を参照してください。要件・設計ドキュメントに将来方針が含まれる場合、実装済みかどうかの確認は現行コードとこのスナップショットを基準にします。
+
 ## ローカル起動
 
 ### 1. 依存関係と環境変数
@@ -71,6 +73,7 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 
 | 用途                                 | 参照先                          |
 | ------------------------------------ | ------------------------------- |
+| 現行コードの実装スナップショット     | `docs/current-implementation.md` |
 | プロダクト要件                       | `docs/requirements.md`          |
 | 技術設計、認証、環境分離             | `docs/technical-design.md`      |
 | UI/UX、MUI方針、入力フロー           | `docs/ui-ux-design.md`          |

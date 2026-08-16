@@ -1,6 +1,6 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
 import type { ReceiptItem } from "../types/types";
 import { ReceiptListCard } from "./ReceiptListCard";
@@ -104,6 +104,36 @@ describe("ReceiptListCard", () => {
     expect(screen.queryByTestId("receipt-group")).not.toBeInTheDocument();
     expect(screen.getByText("食費")).toBeInTheDocument();
     expect(screen.getByText("店舗1")).toBeInTheDocument();
+  });
+
+  it("選択UIはopt-inで、選択中だけ一括操作を出す", async () => {
+    const user = userEvent.setup();
+    const onToggleSelection = vi.fn();
+    const onBulkChangeCategory = vi.fn();
+
+    const { rerender } = renderWithProviders(
+      <ReceiptListCard count={1} isLoading={false} receipts={receipts.slice(0, 1)} />,
+    );
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "カテゴリを変更" })).not.toBeInTheDocument();
+
+    rerender(
+      <ReceiptListCard
+        count={1}
+        isLoading={false}
+        receipts={receipts.slice(0, 1)}
+        selectedCount={1}
+        selectionEnabled
+        isSelected={() => true}
+        onBulkChangeCategory={onBulkChangeCategory}
+        onToggleSelection={onToggleSelection}
+      />,
+    );
+
+    expect(screen.getByRole("checkbox", { name: /店舗1.*を選択/ })).toBeInTheDocument();
+    expect(screen.getByText("明細1件を選択中")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "カテゴリを変更" }));
+    expect(onBulkChangeCategory).toHaveBeenCalledTimes(1);
   });
 
   it("同じ日付では後から取得した支出を先に表示する", () => {

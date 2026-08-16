@@ -30,7 +30,7 @@ export function HistoryNavigation({ weeklyPath, monthlyPath, searchPath }: Histo
   const items: HistoryNavigationItem[] = [
     { label: "週次サマリー", path: weeklyPath, active: isWeeklyHistoryPath(pathname) },
     { label: "月次サマリー", path: monthlyPath, active: isMonthlyHistoryPath(pathname) },
-    { label: "支出検索", path: searchPath, active: isSearchHistoryPath(pathname) },
+    { label: "履歴検索", path: searchPath, active: isSearchHistoryPath(pathname) },
   ];
 
   return (

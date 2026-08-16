@@ -24,7 +24,7 @@ describe("ExpenseSearchBox", () => {
       </MemoryRouter>,
     );
 
-    await user.type(screen.getByLabelText("支出を検索"), "セブン");
+    await user.type(screen.getByLabelText("履歴を検索"), "セブン");
     await user.click(screen.getByRole("button", { name: "検索する" }));
 
     expect(screen.getByText("/search?q=%E3%82%BB%E3%83%96%E3%83%B3")).toBeInTheDocument();
@@ -43,8 +43,8 @@ describe("ExpenseSearchBox", () => {
       </MemoryRouter>,
     );
 
-    await user.clear(screen.getByLabelText("支出を検索"));
-    await user.type(screen.getByLabelText("支出を検索"), "イオン");
+    await user.clear(screen.getByLabelText("履歴を検索"));
+    await user.type(screen.getByLabelText("履歴を検索"), "イオン");
     await user.click(screen.getByRole("button", { name: "検索する" }));
 
     expect(screen.getByText("/search?q=%E3%82%A4%E3%82%AA%E3%83%B3&min=100")).toBeInTheDocument();

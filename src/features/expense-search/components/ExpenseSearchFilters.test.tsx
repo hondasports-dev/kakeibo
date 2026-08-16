@@ -30,7 +30,7 @@ describe("ExpenseSearchFilters", () => {
 
     renderWithDatePickers(<StatefulFilters onClear={onClear} onSubmit={onSubmit} />);
 
-    await user.type(screen.getByLabelText("店名"), "北浜");
+    await user.type(screen.getByLabelText("キーワード"), "北浜");
     await user.type(screen.getByLabelText("金額の下限"), "12ab34");
     await user.type(screen.getByLabelText("金額の上限"), "5,000円");
     expect(screen.getByLabelText("金額の下限")).toHaveValue("1234");
@@ -55,7 +55,7 @@ describe("ExpenseSearchFilters", () => {
     await user.click(screen.getByRole("button", { name: "絞り込む" }));
     expect(onSubmit).toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: "条件をクリア" }));
+    await user.click(screen.getByRole("button", { name: "すべてクリア" }));
     expect(onClear).toHaveBeenCalled();
   }, 15_000);
 

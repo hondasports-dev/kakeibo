@@ -89,6 +89,11 @@ describe("filterReceiptGroups", () => {
     expect(filtered.map((group) => group.shopName)).toEqual(["セブンイレブン"]);
   });
 
+  it("互換ラッパーでは入力の種別を上書きして支出だけを扱う", () => {
+    const filtered = filterReceiptGroups(groups, { entryType: "income" });
+    expect(filtered).toHaveLength(3);
+  });
+
   it("明細の商品名でも店名クエリにヒットする", () => {
     const filtered = filterReceiptGroups(groups, { shopQuery: "牛乳" });
     expect(filtered.map((group) => group.id)).toEqual(["sourceDocument:doc-1"]);
@@ -187,6 +192,7 @@ describe("parseExpenseSearchFilters", () => {
     ).toEqual({
       ok: true,
       filters: {
+        entryType: "all",
         shopQuery: "北浜",
         minAmountYen: 100,
         maxAmountYen: 200,
@@ -231,10 +237,10 @@ describe("parseExpenseSearchFilters", () => {
     });
   });
 
-  it("長すぎる店名クエリを拒否する", () => {
+  it("長すぎる検索語を拒否する", () => {
     expect(parseExpenseSearchFilters({ shopQuery: "あ".repeat(81) })).toEqual({
       ok: false,
-      error: "店名は80文字以内で指定してください",
+      error: "検索語は80文字以内で指定してください",
     });
   });
 

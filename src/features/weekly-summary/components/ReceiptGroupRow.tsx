@@ -1,16 +1,24 @@
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { formatDateForDisplay } from "../../week";
-import { ReceiptRow } from "./ReceiptRow";
+import { ReceiptRow, type CategoryPreview } from "./ReceiptRow";
 import type { ReceiptGroup, ReceiptItem } from "../types/types";
 
 export function ReceiptGroupRow({
   group,
   onDelete,
   onEdit,
+  selectionEnabled = false,
+  previewCategory = null,
+  isSelected,
+  onToggleSelection,
 }: {
   group: ReceiptGroup;
   onDelete?: (receipt: ReceiptItem) => void;
   onEdit?: (receipt: ReceiptItem) => void;
+  selectionEnabled?: boolean;
+  previewCategory?: CategoryPreview | null;
+  isSelected?: (receipt: ReceiptItem) => boolean;
+  onToggleSelection?: (receipt: ReceiptItem, checked: boolean) => void;
 }) {
   const singleItem = group.items[0];
   const hasBreakdown =
@@ -20,7 +28,17 @@ export function ReceiptGroupRow({
     .filter((itemName): itemName is string => Boolean(itemName));
 
   if (singleItem && !hasBreakdown) {
-    return <ReceiptRow receipt={singleItem} onDelete={onDelete} onEdit={onEdit} />;
+    return (
+      <ReceiptRow
+        receipt={singleItem}
+        onDelete={onDelete}
+        onEdit={onEdit}
+        previewCategory={previewCategory}
+        selected={isSelected?.(singleItem) ?? false}
+        selectionEnabled={selectionEnabled}
+        onToggleSelection={onToggleSelection}
+      />
+    );
   }
 
   return (
@@ -31,6 +49,7 @@ export function ReceiptGroupRow({
       role="rowgroup"
     >
       <Box className="receipt-row receipt-group-header" role="row">
+        {selectionEnabled && <Box aria-hidden className="receipt-row-select" role="cell" />}
         <Typography className="receipt-row-date" color="text.secondary" role="cell" variant="body2">
           {formatDateForDisplay(group.date)}
         </Typography>
@@ -66,6 +85,10 @@ export function ReceiptGroupRow({
             showCategory={item.itemName !== undefined}
             onDelete={onDelete}
             onEdit={onEdit}
+            previewCategory={previewCategory}
+            selected={isSelected?.(item) ?? false}
+            selectionEnabled={selectionEnabled}
+            onToggleSelection={onToggleSelection}
           />
         ))}
       </Box>

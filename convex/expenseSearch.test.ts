@@ -155,6 +155,7 @@ describe("searchExpenses", () => {
     const result = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         shopQuery: "北浜",
         paginationOpts: { numItems: 20, cursor: null },
       });
@@ -171,6 +172,7 @@ describe("searchExpenses", () => {
     const result = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         categoryId: ids.dailyId,
         paginationOpts: { numItems: 20, cursor: null },
       });
@@ -186,6 +188,7 @@ describe("searchExpenses", () => {
     const result = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         minAmountYen: 500,
         maxAmountYen: 600,
         startDate: "2026-06-01",
@@ -230,6 +233,7 @@ describe("searchExpenses", () => {
     const first = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         paginationOpts: { numItems: 1, cursor: null },
       });
     expect(first.page[0]?.receiptShopName ?? first.page[0]?.shopName).toBe("スーパー北浜");
@@ -238,9 +242,52 @@ describe("searchExpenses", () => {
     const second = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         paginationOpts: { numItems: 1, cursor: first.continueCursor },
       });
     expect(second.page[0]?.shopName).toBe("セブンイレブン");
+    expect(second.isDone).toBe(true);
+  });
+
+  it("100件を超える結果でも安定したカーソルで重複なく続きが取れる", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const ids = await seed(t);
+    await t.run(async (ctx) => {
+      for (let index = 0; index < 101; index += 1) {
+        await ctx.db.insert("expenseEntries", {
+          groupId: ids.groupId,
+          date: "2026-01-01",
+          amount: index + 1,
+          categoryId: ids.foodId,
+          title: `大量データ${index}`,
+          entryType: "expense",
+          source: "manual",
+          createdAt: index + 1,
+          updatedAt: index + 1,
+        });
+      }
+    });
+
+    const first = await t
+      .withIdentity(identity("search-user"))
+      .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
+        paginationOpts: { numItems: 100, cursor: null },
+      });
+    const second = await t
+      .withIdentity(identity("search-user"))
+      .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
+        paginationOpts: { numItems: 100, cursor: first.continueCursor },
+      });
+
+    const idsFromPages = [...first.page, ...second.page].map((item) => item._id);
+    expect(first.matchedGroupCount).toBe(103);
+    expect(first.page.length).toBeGreaterThanOrEqual(100);
+    expect(second.page.length).toBeGreaterThan(0);
+    expect(new Set(idsFromPages).size).toBe(idsFromPages.length);
+    expect(first.totalCount).toBe(103);
+    expect(idsFromPages.length).toBe(104);
     expect(second.isDone).toBe(true);
   });
 
@@ -313,6 +360,7 @@ describe("searchExpenses", () => {
     const fromJuly = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         startDate: "2026-07-01",
         paginationOpts: { numItems: 20, cursor: null },
       });
@@ -321,6 +369,7 @@ describe("searchExpenses", () => {
     const untilJune = await t
       .withIdentity(identity("search-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         endDate: "2026-06-30",
         paginationOpts: { numItems: 20, cursor: null },
       });
@@ -376,6 +425,7 @@ describe("searchExpenses", () => {
     const result = await t
       .withIdentity(identity("legacy-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         shopQuery: "旧スーパー",
         paginationOpts: { numItems: 20, cursor: null },
       });
@@ -385,6 +435,7 @@ describe("searchExpenses", () => {
     const ranged = await t
       .withIdentity(identity("legacy-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         startDate: "2026-04-01",
         endDate: "2026-04-30",
         paginationOpts: { numItems: 20, cursor: null },
@@ -394,6 +445,7 @@ describe("searchExpenses", () => {
     const fromOnly = await t
       .withIdentity(identity("legacy-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         startDate: "2026-04-01",
         paginationOpts: { numItems: 20, cursor: null },
       });
@@ -402,13 +454,65 @@ describe("searchExpenses", () => {
     const untilOnly = await t
       .withIdentity(identity("legacy-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         endDate: "2026-04-30",
         paginationOpts: { numItems: 20, cursor: null },
       });
     expect(untilOnly.page).toHaveLength(1);
   });
 
-  it("支出がなく収入だけなら検索結果は空になる", async () => {
+  it("新形式がある月と旧形式だけの月をまたいで履歴を欠落させない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    const ids = await seed(t);
+    const legacyIds = await t.run(async (ctx) => {
+      const sameMonthExpenseId = await ctx.db.insert("receipts", {
+        groupId: ids.groupId,
+        date: "2026-07-17",
+        type: "expense",
+        shopName: "旧同月スーパー",
+        amountYen: 700,
+        categoryId: ids.foodId,
+        weekStartDate: "2026-07-13",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const expenseId = await ctx.db.insert("receipts", {
+        groupId: ids.groupId,
+        date: "2026-04-02",
+        type: "expense",
+        shopName: "旧スーパー",
+        amountYen: 880,
+        categoryId: ids.foodId,
+        weekStartDate: "2026-03-30",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      const incomeId = await ctx.db.insert("receipts", {
+        groupId: ids.groupId,
+        date: "2026-03-03",
+        type: "income",
+        bankName: "旧給与",
+        amountYen: 250000,
+        categoryId: ids.foodId,
+        weekStartDate: "2026-03-02",
+        createdAt: 1,
+        updatedAt: 1,
+      });
+      return { sameMonthExpenseId, expenseId, incomeId };
+    });
+
+    const result = await t
+      .withIdentity(identity("search-user"))
+      .query(api.expenseSearch.searchExpenses, {
+        paginationOpts: { numItems: 20, cursor: null },
+      });
+
+    expect(result.page.some((item) => item._id === legacyIds.sameMonthExpenseId)).toBe(true);
+    expect(result.page.some((item) => item._id === legacyIds.expenseId)).toBe(true);
+    expect(result.page.some((item) => item._id === legacyIds.incomeId)).toBe(true);
+  });
+
+  it("支出と収入を統合し、種別フィルターで切り替えられる", async () => {
     const t = convexTest(schema, convexTestModules);
     await t.run(async (ctx) => {
       const groupId = await ctx.db.insert("groups", {
@@ -448,7 +552,25 @@ describe("searchExpenses", () => {
       .query(api.expenseSearch.searchExpenses, {
         paginationOpts: { numItems: 20, cursor: null },
       });
-    expect(result.page).toEqual([]);
+    expect(result.page).toHaveLength(1);
+    expect(result.page[0]).toMatchObject({ type: "income", amountYen: 200000 });
+    expect(result.totalIncomeYen).toBe(200000);
+
+    const expensesOnly = await t
+      .withIdentity(identity("income-user"))
+      .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
+        paginationOpts: { numItems: 20, cursor: null },
+      });
+    expect(expensesOnly.page).toEqual([]);
+
+    const incomesOnly = await t
+      .withIdentity(identity("income-user"))
+      .query(api.expenseSearch.searchExpenses, {
+        entryType: "income",
+        paginationOpts: { numItems: 20, cursor: null },
+      });
+    expect(incomesOnly.page).toHaveLength(1);
   });
 
   it("カテゴリマスタが無い明細は不明として返す", async () => {
@@ -500,6 +622,7 @@ describe("searchExpenses", () => {
     const result = await t
       .withIdentity(identity("orphan-cat-user"))
       .query(api.expenseSearch.searchExpenses, {
+        entryType: "expense",
         paginationOpts: { numItems: 20, cursor: null },
       });
     expect(result.page[0]).toMatchObject({

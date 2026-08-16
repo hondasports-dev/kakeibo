@@ -15,6 +15,10 @@ import {
   validateExpenseMemo,
   validateExpenseTitle,
 } from "../../lib/domain/expenseEntries/expenseEntryItem";
+import {
+  bulkDeleteSpendingRecordsHandler,
+  bulkUpdateSpendingCategoriesHandler,
+} from "../../lib/convex/spending/bulkOpsHandlers";
 
 type ExpenseEntryItemArg = {
   categoryId: Id<"categories">;
@@ -289,5 +293,30 @@ export const deleteExpenseEntry = mutation({
   handler: async (ctx, args) => {
     await deleteExpenseEntryHandler(ctx, args);
     return null;
+  },
+});
+
+export { bulkUpdateSpendingCategoriesHandler, bulkDeleteSpendingRecordsHandler };
+
+export const bulkUpdateSpendingCategories = mutation({
+  args: {
+    expenseEntryIds: v.array(v.id("expenseEntries")),
+    receiptIds: v.array(v.id("receipts")),
+    categoryId: v.id("categories"),
+  },
+  returns: v.object({ updatedCount: v.number() }),
+  handler: async (ctx, args) => {
+    return await bulkUpdateSpendingCategoriesHandler(ctx, args);
+  },
+});
+
+export const bulkDeleteSpendingRecords = mutation({
+  args: {
+    expenseEntryIds: v.array(v.id("expenseEntries")),
+    receiptIds: v.array(v.id("receipts")),
+  },
+  returns: v.object({ deletedCount: v.number() }),
+  handler: async (ctx, args) => {
+    return await bulkDeleteSpendingRecordsHandler(ctx, args);
   },
 });

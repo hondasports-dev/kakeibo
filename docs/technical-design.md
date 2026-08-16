@@ -657,6 +657,12 @@ Convex API は `api.<module>.<queries|mutations|actions>.<functionName>` 形式�
 - `expenseEntries.mutations.createExpenseEntries(input)`
 - `expenseEntries.mutations.updateExpenseEntry(id, input)`
 - `expenseEntries.mutations.deleteExpenseEntry(id)`
+- `expenseEntries.mutations.bulkUpdateSpendingCategories({ expenseEntryIds, receiptIds, categoryId })`
+- `expenseEntries.mutations.bulkDeleteSpendingRecords({ expenseEntryIds, receiptIds })`
+- 上記2つの成功時は同一mutationで `managementAuditLogs` に
+  `spending_bulk_category_changed` / `spending_bulk_deleted` を1件記録する。
+  `afterValue` には件数・対象ID・日付・カテゴリID/名前だけを入れ、金額・店名・メモは保存しない。
+  閲覧は既存の `groups.auditLogs.listManagementAuditLogs`（ownerのみ）を使う。
 
 ### 10.2 receipts（互換層）
 
@@ -1215,6 +1221,37 @@ LINE連携はClerkのWeb認証を置き換えず、Clerkの`identity.tokenIdenti
 
 Convex HTTP Actionの`/webhooks/line`で、JSON変換前のraw bodyと`x-line-signature`をHMAC-SHA256で検証する。署名不一致、署名欠落、payload不正は処理せず、検証済みイベントだけを内部mutationでclaimする。
 
-`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携だけを後続dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。重いサマリー生成、画像取得、AI解析は後続Issueの責務とする。
+`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携のtextイベントは読み取り専用サマリーdispatcherへ、imageイベントは画像intake dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。画像本体はWebhook行にも下書きにも保存しない。
 
-payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。Development、Preview、CIではmock clientと疑似Webhookを使い、実LINE APIに依存しない。
+payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。テストコードと CI ジョブ内の疑似Webhookは mock client を使い、実 LINE API に依存しない。共有する DEV / Preview Convex で人間が `LINE_INTEGRATION_MODE=real` を入れた場合、CI はその値を維持するため、その deployment からは実 LINE API を呼びうる。
+
+### 22.4 LINE読み取り専用サマリー
+
+連携済みユーザーのtextメッセージは、claimと原子的に内部actionを予約し、`replyToken`はジョブ引数としてだけ渡す。サマリー生成はClerk公開queryを使わず、activeな`lineAccountLinks`から解決したkakeibo `userId`と、Webと同じactiveグループ解決で内部queryする。
+
+返信は読み取り専用で、今週の支出合計、今週の収入合計、カテゴリ別支出、直近3週間の支出推移をテキストで返す。グループ内のカテゴリ名と一致するメッセージ、または文中から抽出したカテゴリ候補がそのカテゴリの今週支出だけを返す。完全一致コマンドに加え、代表的な言い回しはルールベースで同じintentへ正規化する。未知のテキストはカテゴリ検索へ落とさず使い方案内のみ返す。グループ文書が無い所属、または削除済みグループでは家計金額を返さない。データがない場合は専用の空メッセージを返す。支出・収入の登録、更新、削除、個別レシート全文は返さない。
+
+### 22.5 LINE channel default Rich Menu とクイックリプライ
+
+Messaging API channel の default Rich Menu は、既存の読み取り専用テキストコマンドをタップで送るための channel 設置物である。セル定義の正本は `lib/domain/lineSummary/richMenu.ts` とし、画像は `docs/line/rich-menu-readonly-summary.png` を使う。
+
+- サイズは full size の 2500x1686、2行3列、chat bar は「家計簿」
+- セルは「今週の家計」「支出」「収入」「カテゴリ別」「週別推移」「使い方」の6つ。各セルの action は `message` のみとし、送信テキストは現行の `parseLineSummaryCommand` が解釈できる語句に固定する
+- リッチメニューセルに postback、URI、per-user Rich Menu、画像送信・登録操作は置かない
+- レシート送信案内と Web 導線は、ヘルプ文面とサマリー返信のクイックリプライで出す。Web URI は `APP_BASE_URL` の `/weeks/current/input` に限定する
+- 未連携ユーザーの返信には家計操作のクイックリプライを付けない。channel default メニューは見えるが、返信は連携案内だけとし家計金額は出さない
+- 連携済みユーザーのタップは現行どおり text イベントとしてサマリー dispatcher へ入る
+- 実行時アプリは Rich Menu を自動作成・自動適用しない。設置は `pnpm run line:rich-menu -- --apply` を人間が非Productionで実行する。Production への適用は別途人間承認とする。CI と mock mode では LINE API を呼ばない。
+- リッチメニュー画像と rich menu ID は secret ではない。channel access token は secret のまま扱う。
+
+### 22.6 LINE画像intakeとAI下書き
+
+連携済みユーザーが1:1で送ったレシート画像は、`messageId` をキーに Messaging API の content 取得を内部actionで行う。取得バイナリはaction内の一時値だけとし、`lineWebhookEvents` / `lineImageJobs` / `aiExpenseDrafts` / Convex Storage へ画像本体を保存しない。`lineImageJobs` は `webhookEventId`、kakeibo `userId`、`messageId`、処理状態、任意の `skipReason` / `draftId` だけを持つ。
+
+- 認可は unique な active `lineAccountLinks` から解決した kakeibo `userId` を使い、LINE userId を認可キーにしない。Clerk は webhook HTTP action に載せない。
+- 未連携、複数active linkの不整合、グループ未所属、activeグループ未解決では下書きを作らず、家計金額も返さない。未所属・未解決の返信文は読み取り専用サマリーと同じ文言を使う。
+- OpenAI へ送る前に、既存Webと同じ `users.receiptImageExternalApiConsentAcceptedAt` を確認する。LINE画像送信そのものを同意とは扱わない。同意UIはLINE側に作らない。
+- 抽出と下書き作成は Web と同じ `extractReceiptFieldsFromImage` と `classifyCreatedDraft()` を使う。画像作成直後は `user_confirmation_required` により常に `needs_review` とする。`expenseEntries` / `receipts` への自動登録はしない。
+- 返信は Messaging API の reply のみとし、Push は使わない。確認導線は `APP_BASE_URL` の `/weeks/current/input` へ誘導する。返信文に家計金額を含めない。
+- 過大または非対応画像はリサイズせずスキップして失敗返信する。解析失敗時は Web と同じ failed 下書きを残す。
+- Development / Preview / CI の未設定時は `LINE_INTEGRATION_MODE=mock` と `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を既定にする。preview-deploy と e2e は既存の `LINE_INTEGRATION_MODE=real` を上書きしない。`real` のときは共有 DEV / Preview deployment から実 LINE API を呼びうる。テストコード自体は mock client のまま実 LINE に依存しない。

@@ -32,12 +32,12 @@ export function ExpenseSearchBox() {
   };
 
   return (
-    <form aria-label="支出検索" className="app-header-search" onSubmit={handleSubmit}>
+    <form aria-label="履歴検索" className="app-header-search" onSubmit={handleSubmit}>
       <TextField
         fullWidth
-        label="支出を検索"
+        label="履歴を検索"
         name="q"
-        placeholder="店名で検索"
+        placeholder="店名・内容で検索"
         size="small"
         type="search"
         value={shopQuery}

@@ -764,3 +764,39 @@ LINE Login channel secret、Messaging API channel secret、Messaging API channel
 - Production: 今回は設定変更・疎通確認を行わない。実施時はRelease Managerと人間承認を経て、Production用手順を別途記録する。
 
 手動疎通を未実施のまま完了する場合は、対象環境、未実施理由、必要なsecret設定、再確認条件をIssueまたはPRへ記録する。secret、署名、LINE userId、家計データをログやIssue本文へ貼り付けない。
+
+### 13.4 Messaging API channel の default Rich Menu
+
+読み取り専用サマリーのコマンドを、手入力せずに選べるようにする。セル定義の正本は `lib/domain/lineSummary/richMenu.ts`、画像は `docs/line/rich-menu-readonly-summary.png`、設置処理は `convex/lineWebhook/richMenuClient.ts` である。画像を作り直す場合は Pillow を入れたうえで `python3 scripts/generate-line-rich-menu-image.py` を使う。
+
+対象は Messaging API channel だけである。LINE Login channel には置かない。実行時アプリやCIから Rich Menu API を呼ばない。Development / Preview の専用channelへ人間が設置し、Production への適用は Release Manager と人間承認を経て別途行う。
+
+コードでの設置:
+
+1. 対象環境の `LINE_INTEGRATION_MODE=real` と Messaging API channel access token を、スクリプト実行プロセスへだけ渡す。値はログへ出さない。
+2. 先に dry-run でペイロードを確認する。
+
+```bash
+pnpm run line:rich-menu
+```
+
+3. 問題なければ apply する。`APP_ENV=production` では拒否される。
+
+```bash
+APP_ENV=development LINE_INTEGRATION_MODE=real pnpm run line:rich-menu -- --apply
+```
+
+4. スクリプトは Rich Menu を作成し、画像を付け、default に設定し、同じ名前の旧メニューを削除する。各セルの action は `message` で、送信テキストは仕様どおり次の対応になる。
+
+| 表示 | 送信テキスト |
+| --- | --- |
+| 今週の家計 | 今週 |
+| 支出 | 今週の支出 |
+| 収入 | 今週の収入 |
+| カテゴリ別 | カテゴリ別 |
+| 週別推移 | 週別推移 |
+| 使い方 | 使い方 |
+
+5. 連携済みアカウントで各セルを押し、既存のサマリー返信が返ることを確認する。未連携アカウントでは連携案内だけが返り、金額が無いことを確認する。サマリー返信と使い方には、家計操作のクイックリプライと Web 導線（`/weeks/current/input`）が付く。レシート送信と Web 起動はリッチメニューセルではなく、このクイックリプライとヘルプ文面で案内する。
+
+OA Manager での手作業設置は、API を使えない場合の代替に留める。リッチメニューセルに postback、URI、ユーザー別メニュー、画像送信や登録用のセルは置かない。secret、channel access token、LINE userId、家計金額は手順記録へ貼らない。リッチメニュー画像と rich menu ID は secret ではない。

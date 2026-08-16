@@ -6,13 +6,13 @@ import { searchExpensesHandler } from "../lib/convex/expenseSearch/searchExpense
 const expenseSearchReceiptValidator = v.object({
   _id: v.string(),
   date: v.string(),
-  type: v.optional(v.union(v.literal("expense"), v.literal("income"))),
+  type: v.union(v.literal("expense"), v.literal("income")),
   shopName: v.optional(v.string()),
   bankName: v.optional(v.string()),
   amountYen: v.number(),
-  categoryId: v.string(),
-  categoryName: v.string(),
-  categoryColor: v.string(),
+  categoryId: v.optional(v.string()),
+  categoryName: v.optional(v.string()),
+  categoryColor: v.optional(v.string()),
   memo: v.optional(v.string()),
   recordType: v.union(v.literal("expenseEntry"), v.literal("receipt")),
   itemName: v.optional(v.string()),
@@ -21,8 +21,54 @@ const expenseSearchReceiptValidator = v.object({
   receiptTotalAmountYen: v.optional(v.number()),
 });
 
+const historyCategorySummaryValidator = v.object({
+  categoryId: v.string(),
+  categoryName: v.string(),
+  categoryColor: v.string(),
+  totalAmountYen: v.number(),
+  count: v.number(),
+});
+
+const historyAggregateValidator = v.object({
+  count: v.number(),
+  expenseCount: v.number(),
+  incomeCount: v.number(),
+  totalExpenseYen: v.number(),
+  totalIncomeYen: v.number(),
+  netAmountYen: v.number(),
+  byCategory: v.array(historyCategorySummaryValidator),
+});
+
+const historyComparisonValidator = v.union(
+  v.object({
+    currentStartDate: v.string(),
+    currentEndDate: v.string(),
+    previousStartDate: v.string(),
+    previousEndDate: v.string(),
+    current: historyAggregateValidator,
+    previous: historyAggregateValidator,
+    diffExpenseYen: v.number(),
+    diffIncomeYen: v.number(),
+    diffNetYen: v.number(),
+    categoryChanges: v.array(
+      v.object({
+        categoryId: v.string(),
+        categoryName: v.string(),
+        categoryColor: v.string(),
+        currentAmountYen: v.number(),
+        previousAmountYen: v.number(),
+        diffAmountYen: v.number(),
+        diffRatePercent: v.union(v.number(), v.null()),
+      }),
+    ),
+    hasPreviousData: v.boolean(),
+  }),
+  v.null(),
+);
+
 export const searchExpenses = query({
   args: {
+    entryType: v.optional(v.union(v.literal("all"), v.literal("expense"), v.literal("income"))),
     shopQuery: v.optional(v.string()),
     categoryId: v.optional(v.id("categories")),
     minAmountYen: v.optional(v.number()),
@@ -36,7 +82,27 @@ export const searchExpenses = query({
     continueCursor: v.string(),
     isDone: v.boolean(),
     truncated: v.boolean(),
+    comparisonTruncated: v.boolean(),
     matchedGroupCount: v.number(),
+    totalCount: v.number(),
+    expenseCount: v.number(),
+    incomeCount: v.number(),
+    totalExpenseYen: v.number(),
+    totalIncomeYen: v.number(),
+    netAmountYen: v.number(),
+    byCategory: v.array(historyCategorySummaryValidator),
+    trend: v.array(
+      v.object({
+        key: v.string(),
+        startDate: v.string(),
+        endDate: v.string(),
+        granularity: v.union(v.literal("day"), v.literal("week"), v.literal("month")),
+        totalExpenseYen: v.number(),
+        totalIncomeYen: v.number(),
+        netAmountYen: v.number(),
+      }),
+    ),
+    comparison: historyComparisonValidator,
   }),
   handler: searchExpensesHandler,
 });

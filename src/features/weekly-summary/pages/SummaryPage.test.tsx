@@ -1,4 +1,5 @@
 import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "../../../test/render";
@@ -135,12 +136,15 @@ describe("SummaryPage", () => {
   });
 
   it("週次サマリーの取得に失敗した場合はエラーを表示する", () => {
-    useQueryMock
-      .mockReset()
-      .mockReturnValueOnce({ weeklyStartDay: 1 })
-      .mockReturnValueOnce([])
-      .mockReturnValueOnce(null)
-      .mockReturnValueOnce({ weeks: [] });
+    let queryCall = 0;
+    useQueryMock.mockReset().mockImplementation(() => {
+      const index = queryCall % 4;
+      queryCall += 1;
+      if (index === 0) return { weeklyStartDay: 1 };
+      if (index === 1) return [];
+      if (index === 2) return null;
+      return { weeks: [] };
+    });
 
     renderSummaryPage();
 
@@ -239,6 +243,48 @@ describe("SummaryPage", () => {
     fireEvent.click(screen.getByRole("button", { name: /コンビニ南.*削除/ }));
     fireEvent.click(screen.getByRole("button", { name: "削除する" }));
     await waitFor(() => expect(mutationMock).toHaveBeenCalledTimes(3));
+  });
+
+  it("選択した明細のカテゴリ変更と一括削除を処理する", async () => {
+    let queryCall = 0;
+    useQueryMock.mockImplementation(() => {
+      const index = queryCall % 4;
+      queryCall += 1;
+      if (index === 0) return { weeklyStartDay: 1 };
+      if (index === 1) {
+        return [
+          { _id: "cat-food", name: "食費", color: "#f97316" },
+          { _id: "cat-daily", name: "日用品", color: "#22c55e" },
+        ];
+      }
+      if (index === 2) return summaryResult;
+      return { weeks: [] };
+    });
+    mutationMock
+      .mockResolvedValueOnce({ updatedCount: 2 })
+      .mockResolvedValueOnce({ deletedCount: 2 });
+
+    renderSummaryPage();
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /スーパー北浜.*を選択/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /コンビニ南.*を選択/ }));
+    expect(screen.getByText("明細2件を選択中")).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    fireEvent.click(screen.getByRole("button", { name: "カテゴリを変更" }));
+    await user.click(screen.getByLabelText("変更後のカテゴリ"));
+    await user.click(screen.getByRole("option", { name: "日用品" }));
+    await user.click(screen.getByRole("button", { name: "変更する" }));
+    await waitFor(() => expect(mutationMock).toHaveBeenCalled());
+    expect(await screen.findByText("明細2件のカテゴリを変更しました。")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+
+    fireEvent.click(screen.getByRole("checkbox", { name: /スーパー北浜.*を選択/ }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /コンビニ南.*を選択/ }));
+    fireEvent.click(screen.getByRole("button", { name: "削除" }));
+    expect(screen.getByRole("heading", { name: "明細2件を削除しますか？" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "削除する" }));
+    expect(await screen.findByText("明細2件を削除しました。")).toBeInTheDocument();
   });
 
   it("削除に失敗した場合はエラーを表示する", async () => {

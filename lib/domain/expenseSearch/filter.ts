@@ -1,5 +1,7 @@
-import type { SpendingEntry } from "../receipt/spendingEntry";
+import type { IncomeListEntry, SpendingEntry } from "../receipt/spendingEntry";
 import { isValidIsoDateString } from "../week/weekDates";
+
+export type HistoryEntryType = "all" | "expense" | "income";
 
 export type SearchableReceiptGroup = {
   id: string;
@@ -7,9 +9,23 @@ export type SearchableReceiptGroup = {
   shopName: string;
   amountYen: number;
   items: SpendingEntry[];
+  type?: "expense";
 };
 
+export type SearchableHistoryGroup =
+  | SearchableReceiptGroup
+  | {
+      id: string;
+      date: string;
+      type: "income";
+      bankName?: string;
+      amountYen: number;
+      items: [];
+      income: IncomeListEntry;
+    };
+
 export type ExpenseSearchFilters = {
+  entryType: HistoryEntryType;
   shopQuery?: string;
   categoryId?: string;
   minAmountYen?: number;
@@ -19,6 +35,7 @@ export type ExpenseSearchFilters = {
 };
 
 export type ExpenseSearchFilterInput = {
+  entryType?: string;
   shopQuery?: string;
   categoryId?: string;
   minAmountYen?: number;
@@ -33,7 +50,7 @@ export type ParsedExpenseSearchFilters =
 
 const SHOP_QUERY_MAX_LENGTH = 80;
 
-function normalizeShopText(value: string | undefined): string {
+function normalizeSearchText(value: string | undefined): string {
   return (value ?? "").normalize("NFKC").trim().toLocaleLowerCase("ja");
 }
 
@@ -57,6 +74,7 @@ export function groupSpendingEntries(entries: SpendingEntry[]): SearchableReceip
       shopName: item.receiptShopName ?? item.shopName ?? "不明",
       amountYen: item.receiptTotalAmountYen ?? item.amountYen,
       items: [item],
+      type: "expense",
     });
   }
 
@@ -66,32 +84,83 @@ export function groupSpendingEntries(entries: SpendingEntry[]): SearchableReceip
   }));
 }
 
-function matchesShopQuery(group: SearchableReceiptGroup, shopQuery: string): boolean {
-  const query = normalizeShopText(shopQuery);
-  if (query.length === 0) {
+export function groupHistoryEntries(
+  entries: SpendingEntry[],
+  incomes: IncomeListEntry[],
+): SearchableHistoryGroup[] {
+  const expenseGroups = groupSpendingEntries(entries).map((group) => ({
+    ...group,
+    type: "expense" as const,
+  }));
+  const incomeGroups: SearchableHistoryGroup[] = incomes.map((income) => ({
+    id: `income:${income.recordType}:${income._id}`,
+    date: income.date,
+    type: "income",
+    bankName: income.bankName,
+    amountYen: income.amountYen,
+    items: [],
+    income,
+  }));
+
+  return [...expenseGroups, ...incomeGroups];
+}
+
+function matchesExpenseQuery(group: SearchableReceiptGroup, query: string): boolean {
+  const normalizedQuery = normalizeSearchText(query);
+  if (normalizedQuery.length === 0) {
     return true;
   }
 
   const haystacks = [
     group.shopName,
-    ...group.items.flatMap((item) => [item.shopName, item.itemName, item.receiptShopName]),
+    ...group.items.flatMap((item) => [
+      item.shopName,
+      item.itemName,
+      item.receiptShopName,
+      item.memo,
+    ]),
   ];
 
-  return haystacks.some((value) => normalizeShopText(value).includes(query));
+  return haystacks.some((value) => normalizeSearchText(value).includes(normalizedQuery));
 }
 
-export function filterReceiptGroups(
-  groups: SearchableReceiptGroup[],
+function matchesIncomeQuery(
+  group: Extract<SearchableHistoryGroup, { type: "income" }>,
+  query: string,
+): boolean {
+  const normalizedQuery = normalizeSearchText(query);
+  if (normalizedQuery.length === 0) {
+    return true;
+  }
+
+  return [group.bankName, group.income.memo].some((value) =>
+    normalizeSearchText(value).includes(normalizedQuery),
+  );
+}
+
+function matchesSearchQuery(group: SearchableHistoryGroup, query: string): boolean {
+  return group.type === "income"
+    ? matchesIncomeQuery(group, query)
+    : matchesExpenseQuery(group, query);
+}
+
+export function filterHistoryGroups(
+  groups: SearchableHistoryGroup[],
   filters: ExpenseSearchFilters,
-): SearchableReceiptGroup[] {
+): SearchableHistoryGroup[] {
   return groups.filter((group) => {
-    if (filters.shopQuery !== undefined && !matchesShopQuery(group, filters.shopQuery)) {
+    if (filters.entryType !== "all" && group.type !== filters.entryType) {
+      return false;
+    }
+
+    if (filters.shopQuery !== undefined && !matchesSearchQuery(group, filters.shopQuery)) {
       return false;
     }
 
     if (
       filters.categoryId !== undefined &&
-      !group.items.some((item) => item.categoryId === filters.categoryId)
+      (group.type === "income" ||
+        !group.items.some((item) => item.categoryId === filters.categoryId))
     ) {
       return false;
     }
@@ -116,12 +185,99 @@ export function filterReceiptGroups(
   });
 }
 
-function compareReceiptGroups(left: SearchableReceiptGroup, right: SearchableReceiptGroup): number {
+export function filterReceiptGroups(
+  groups: SearchableReceiptGroup[],
+  filters: Omit<ExpenseSearchFilters, "entryType"> | ExpenseSearchFilters,
+): SearchableReceiptGroup[] {
+  return filterHistoryGroups(
+    groups.map((group) => ({ ...group, type: "expense" as const })),
+    {
+      ...filters,
+      entryType: "expense",
+    },
+  ).filter((group): group is SearchableReceiptGroup => group.type === "expense");
+}
+
+function compareHistoryGroups(left: SearchableHistoryGroup, right: SearchableHistoryGroup): number {
   const dateOrder = right.date.localeCompare(left.date);
   if (dateOrder !== 0) {
     return dateOrder;
   }
   return right.id.localeCompare(left.id);
+}
+
+type SearchCursor = {
+  version: 1;
+  date: string;
+  id: string;
+};
+
+function encodeSearchCursor(group: SearchableHistoryGroup): string {
+  const cursor: SearchCursor = { version: 1, date: group.date, id: group.id };
+  return `v1.${encodeURIComponent(JSON.stringify(cursor))}`;
+}
+
+function decodeSearchCursor(cursor: string): SearchCursor | null {
+  if (!cursor.startsWith("v1.")) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(decodeURIComponent(cursor.slice(3))) as Partial<SearchCursor>;
+    if (parsed.version !== 1 || typeof parsed.date !== "string" || typeof parsed.id !== "string") {
+      return null;
+    }
+    return { version: 1, date: parsed.date, id: parsed.id };
+  } catch {
+    return null;
+  }
+}
+
+export function paginateHistoryGroups(
+  groups: SearchableHistoryGroup[],
+  paginationOpts: { numItems: number; cursor: string | null },
+): {
+  page: SearchableHistoryGroup[];
+  continueCursor: string;
+  isDone: boolean;
+} {
+  const ordered = [...groups].sort(compareHistoryGroups);
+  const requestedSize = Number.isFinite(paginationOpts.numItems)
+    ? Math.floor(paginationOpts.numItems)
+    : 1;
+  const pageSize = Math.min(Math.max(requestedSize, 1), 100);
+  let startIndex = 0;
+
+  if (paginationOpts.cursor) {
+    const keysetCursor = decodeSearchCursor(paginationOpts.cursor);
+    if (keysetCursor !== null) {
+      startIndex = ordered.findIndex(
+        (group) =>
+          group.date < keysetCursor.date ||
+          (group.date === keysetCursor.date && group.id < keysetCursor.id),
+      );
+      if (startIndex < 0) {
+        startIndex = ordered.length;
+      }
+    } else {
+      // Keep cursors issued by the previous release readable during rollout.
+      const legacyOffset = Number.parseInt(paginationOpts.cursor, 10);
+      startIndex = Number.isFinite(legacyOffset) && legacyOffset > 0 ? legacyOffset : 0;
+    }
+  }
+
+  const page = ordered.slice(startIndex, startIndex + pageSize);
+  const nextIndex = startIndex + page.length;
+  const isDone = nextIndex >= ordered.length;
+
+  return {
+    page,
+    continueCursor:
+      page.length > 0
+        ? encodeSearchCursor(page[page.length - 1]!)
+        : (paginationOpts.cursor ?? "v1.empty"),
+    isDone,
+  };
 }
 
 export function paginateReceiptGroups(
@@ -132,17 +288,13 @@ export function paginateReceiptGroups(
   continueCursor: string;
   isDone: boolean;
 } {
-  const ordered = [...groups].sort(compareReceiptGroups);
-  const startIndex = paginationOpts.cursor ? Number.parseInt(paginationOpts.cursor, 10) : 0;
-  const safeStart = Number.isFinite(startIndex) && startIndex > 0 ? startIndex : 0;
-  const page = ordered.slice(safeStart, safeStart + paginationOpts.numItems);
-  const nextIndex = safeStart + page.length;
-  const isDone = nextIndex >= ordered.length;
-
-  return {
-    page,
-    continueCursor: String(nextIndex),
-    isDone,
+  return paginateHistoryGroups(
+    groups.map((group) => ({ ...group, type: "expense" as const })),
+    paginationOpts,
+  ) as {
+    page: SearchableReceiptGroup[];
+    continueCursor: string;
+    isDone: boolean;
   };
 }
 
@@ -150,19 +302,35 @@ function isNonNegativeInteger(value: number): boolean {
   return Number.isInteger(value) && value >= 0;
 }
 
+function parseEntryType(value: string | undefined): HistoryEntryType | null {
+  if (value === undefined || value === "all") {
+    return "all";
+  }
+  if (value === "expense" || value === "income") {
+    return value;
+  }
+  return null;
+}
+
 export function parseExpenseSearchFilters(
   input: ExpenseSearchFilterInput,
 ): ParsedExpenseSearchFilters {
-  const filters: ExpenseSearchFilters = {};
+  const filters: ExpenseSearchFilters = { entryType: "all" };
+  const entryType = parseEntryType(input.entryType);
+  if (entryType === null) {
+    return { ok: false, error: "種別はすべて・支出・収入のいずれかで指定してください" };
+  }
+  filters.entryType = entryType;
+
   const shopQuery = input.shopQuery?.trim();
   if (shopQuery) {
     if (shopQuery.length > SHOP_QUERY_MAX_LENGTH) {
-      return { ok: false, error: `店名は${SHOP_QUERY_MAX_LENGTH}文字以内で指定してください` };
+      return { ok: false, error: `検索語は${SHOP_QUERY_MAX_LENGTH}文字以内で指定してください` };
     }
     filters.shopQuery = shopQuery;
   }
 
-  if (input.categoryId !== undefined && input.categoryId.length > 0) {
+  if (input.categoryId !== undefined && input.categoryId.length > 0 && entryType !== "income") {
     filters.categoryId = input.categoryId;
   }
 
