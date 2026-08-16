@@ -1221,7 +1221,7 @@ LINE連携はClerkのWeb認証を置き換えず、Clerkの`identity.tokenIdenti
 
 Convex HTTP Actionの`/webhooks/line`で、JSON変換前のraw bodyと`x-line-signature`をHMAC-SHA256で検証する。署名不一致、署名欠落、payload不正は処理せず、検証済みイベントだけを内部mutationでclaimする。
 
-`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携のtextイベントだけを読み取り専用サマリーdispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。画像取得とAI解析は後続Issueの責務とする。
+`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携のtextイベントは読み取り専用サマリーdispatcherへ、imageイベントは画像intake dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。画像本体はWebhook行にも下書きにも保存しない。
 
 payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。Development、Preview、CIではmock clientと疑似Webhookを使い、実LINE APIに依存しない。
 
@@ -1241,3 +1241,15 @@ Messaging API channel の default Rich Menu は、既存の読み取り専用テ
 - 連携済みユーザーのタップは現行どおり text イベントとしてサマリー dispatcher へ入る
 - 未連携ユーザーのタップは現行どおり連携案内だけを返し、家計金額は出さない
 - 実行時アプリは Rich Menu を自動作成・自動適用しない。設置は `pnpm run line:rich-menu -- --apply` を人間が非Productionで実行する。Production への適用は別途人間承認とする。CI と mock mode では LINE API を呼ばない。
+
+### 22.6 LINE画像intakeとAI下書き
+
+連携済みユーザーが1:1で送ったレシート画像は、`messageId` をキーに Messaging API の content 取得を内部actionで行う。取得バイナリはaction内の一時値だけとし、`lineWebhookEvents` / `lineImageJobs` / `aiExpenseDrafts` / Convex Storage へ画像本体を保存しない。`lineImageJobs` は `webhookEventId`、kakeibo `userId`、`messageId`、処理状態、任意の `skipReason` / `draftId` だけを持つ。
+
+- 認可は unique な active `lineAccountLinks` から解決した kakeibo `userId` を使い、LINE userId を認可キーにしない。Clerk は webhook HTTP action に載せない。
+- 未連携、複数active linkの不整合、グループ未所属、activeグループ未解決では下書きを作らず、家計金額も返さない。未所属・未解決の返信文は読み取り専用サマリーと同じ文言を使う。
+- OpenAI へ送る前に、既存Webと同じ `users.receiptImageExternalApiConsentAcceptedAt` を確認する。LINE画像送信そのものを同意とは扱わない。同意UIはLINE側に作らない。
+- 抽出と下書き作成は Web と同じ `extractReceiptFieldsFromImage` と `classifyCreatedDraft()` を使う。画像作成直後は `user_confirmation_required` により常に `needs_review` とする。`expenseEntries` / `receipts` への自動登録はしない。
+- 返信は Messaging API の reply のみとし、Push は使わない。確認導線は `APP_BASE_URL` の `/weeks/current/input` へ誘導する。返信文に家計金額を含めない。
+- 過大または非対応画像はリサイズせずスキップして失敗返信する。解析失敗時は Web と同じ failed 下書きを残す。
+- Development / Preview / CI では `LINE_INTEGRATION_MODE=mock` と `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、実LINE content API と OpenAI を呼ばない。

@@ -36,6 +36,7 @@ describe("LINE webhook event claim", () => {
       duplicateCount: 0,
       scheduledGuideCount: 0,
       scheduledSummaryCount: 1,
+      scheduledImageCount: 0,
     });
 
     const events = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
@@ -70,6 +71,7 @@ describe("LINE webhook event claim", () => {
       duplicateCount: 0,
       scheduledGuideCount: 1,
       scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
     });
 
     const events = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
@@ -97,12 +99,14 @@ describe("LINE webhook event claim", () => {
       duplicateCount: 0,
       scheduledGuideCount: 1,
       scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
     });
     expect(second).toEqual({
       claimedCount: 0,
       duplicateCount: 1,
       scheduledGuideCount: 0,
       scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
     });
     await expect(
       t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect()),
@@ -132,6 +136,7 @@ describe("LINE webhook event claim", () => {
       duplicateCount: 1,
       scheduledGuideCount: 1,
       scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
     });
 
     await expect(
@@ -222,12 +227,107 @@ describe("LINE webhook event claim", () => {
       events: [linkedEvent],
     });
 
-    expect(follow).toMatchObject({ scheduledSummaryCount: 0, scheduledGuideCount: 0 });
-    expect(firstText).toMatchObject({ scheduledSummaryCount: 1, scheduledGuideCount: 0 });
+    expect(follow).toMatchObject({
+      scheduledSummaryCount: 0,
+      scheduledGuideCount: 0,
+      scheduledImageCount: 0,
+    });
+    expect(firstText).toMatchObject({
+      scheduledSummaryCount: 1,
+      scheduledGuideCount: 0,
+      scheduledImageCount: 0,
+    });
     expect(replayText).toMatchObject({
       claimedCount: 0,
       duplicateCount: 1,
       scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
     });
+  });
+
+  it("連携済みimageはサマリーではなく画像ジョブを予約し、未連携imageは取得も保存もしない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "kakeibo-user",
+        lineUserId: "line-user-linked",
+        status: "active",
+        linkedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    const linkedImage = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-image-linked",
+          eventType: "image",
+          lineUserId: "line-user-linked",
+          messageId: "message-image-linked",
+          replyToken: "reply-token-image",
+        },
+      ],
+    });
+    const unlinkedImage = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-image-unlinked",
+          eventType: "image",
+          lineUserId: "line-user-unlinked",
+          messageId: "message-image-unlinked",
+          replyToken: "reply-token-unlinked",
+        },
+      ],
+    });
+    const replayLinked = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-image-linked",
+          eventType: "image",
+          lineUserId: "line-user-linked",
+          messageId: "message-image-linked",
+          replyToken: "reply-token-image",
+        },
+      ],
+    });
+
+    expect(linkedImage).toEqual({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 0,
+      scheduledSummaryCount: 0,
+      scheduledImageCount: 1,
+    });
+    expect(unlinkedImage).toMatchObject({
+      scheduledGuideCount: 1,
+      scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
+    });
+    expect(replayLinked).toMatchObject({
+      claimedCount: 0,
+      duplicateCount: 1,
+      scheduledImageCount: 0,
+    });
+
+    const state = await t.run(async (ctx) => ({
+      events: await ctx.db.query("lineWebhookEvents").collect(),
+      jobs: await ctx.db.query("lineImageJobs").collect(),
+    }));
+    expect(state.jobs).toHaveLength(1);
+    expect(state.jobs[0]).toMatchObject({
+      webhookEventId: "event-image-linked",
+      userId: "kakeibo-user",
+      messageId: "message-image-linked",
+      status: "pending",
+    });
+    expect(
+      state.events.find((event) => event.webhookEventId === "event-image-unlinked"),
+    ).toMatchObject({
+      delivery: "unlinked",
+    });
+    expect(JSON.stringify(state)).not.toContain("line-user-");
+    expect(JSON.stringify(state)).not.toContain("reply-token");
+    expect(JSON.stringify(state)).not.toContain("data:image");
   });
 });

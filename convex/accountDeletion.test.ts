@@ -248,9 +248,18 @@ describe("account deletion group purge orchestration", () => {
         messageText: "退会対象",
         createdAt: 1,
       });
+      await ctx.db.insert("lineImageJobs", {
+        webhookEventId: "account-delete-line-image-job",
+        userId,
+        messageId: "account-delete-message",
+        status: "pending",
+        createdAt: 1,
+        updatedAt: 1,
+      });
       return { requestId, userDbId };
     });
 
+    await t.mutation(internal.accountDeletion.finalizeAccountDeletion, { requestId });
     await t.mutation(internal.accountDeletion.finalizeAccountDeletion, { requestId });
     await t.mutation(internal.accountDeletion.finalizeAccountDeletion, { requestId });
 
@@ -261,10 +270,15 @@ describe("account deletion group purge orchestration", () => {
         .query("lineWebhookEvents")
         .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", userId))
         .collect(),
+      jobs: await ctx.db
+        .query("lineImageJobs")
+        .withIndex("by_user_id_and_created_at", (q) => q.eq("userId", userId))
+        .collect(),
     }));
     expect(state.request?.status).toBe("completed");
     expect(state.user).toBeNull();
     expect(state.events).toHaveLength(0);
+    expect(state.jobs).toHaveLength(0);
   });
 
   it("25件を超える共有membershipもページングで取りこぼさず離脱する", async () => {

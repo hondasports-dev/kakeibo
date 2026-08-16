@@ -36,7 +36,12 @@ import {
   lineLinkRequestStatusValidator,
   lineLinkStatusValidator,
 } from "./lineLink/model";
-import { lineWebhookDeliveryValidator, lineWebhookEventTypeValidator } from "./lineWebhook/model";
+import {
+  lineImageJobStatusValidator,
+  lineImageSkipReasonValidator,
+  lineWebhookDeliveryValidator,
+  lineWebhookEventTypeValidator,
+} from "./lineWebhook/model";
 
 export default defineSchema({
   users: defineTable({
@@ -120,6 +125,21 @@ export default defineSchema({
     .index("by_webhook_event_id", ["webhookEventId"])
     .index("by_user_id_and_created_at", ["userId", "createdAt"])
     .index("by_delivery_and_created_at", ["delivery", "createdAt"])
+    .index("by_created_at", ["createdAt"]),
+
+  // 画像本体は保存しない。messageId と処理状態だけを保持し、取得バイナリは action 内の一時値とする。
+  lineImageJobs: defineTable({
+    webhookEventId: v.string(),
+    userId: v.string(),
+    messageId: v.string(),
+    status: lineImageJobStatusValidator,
+    skipReason: v.optional(lineImageSkipReasonValidator),
+    draftId: v.optional(v.id("aiExpenseDrafts")),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_webhook_event_id", ["webhookEventId"])
+    .index("by_user_id_and_created_at", ["userId", "createdAt"])
     .index("by_created_at", ["createdAt"]),
 
   // ---------------------------------------------------------------------------

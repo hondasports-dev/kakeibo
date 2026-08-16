@@ -14,7 +14,13 @@ class MockResponse {
 }
 
 function createActionCtx(
-  mutationResult = { claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 0 },
+  mutationResult = {
+    claimedCount: 1,
+    duplicateCount: 0,
+    scheduledGuideCount: 0,
+    scheduledSummaryCount: 0,
+    scheduledImageCount: 0,
+  },
 ) {
   return {
     runMutation: vi.fn().mockResolvedValue(mutationResult),
@@ -58,6 +64,8 @@ describe("LINE webhook HTTP handler", () => {
       claimedCount: 1,
       duplicateCount: 0,
       scheduledGuideCount: 1,
+      scheduledSummaryCount: 0,
+      scheduledImageCount: 0,
     });
     const rawBody = JSON.stringify({
       events: [
@@ -174,6 +182,7 @@ describe("LINE webhook HTTP handler", () => {
       duplicateCount: 0,
       scheduledGuideCount: 0,
       scheduledSummaryCount: 1,
+      scheduledImageCount: 0,
     });
     const handler = createLineWebhookHandler(vi.fn().mockResolvedValue(true));
 
@@ -193,5 +202,46 @@ describe("LINE webhook HTTP handler", () => {
         ],
       }),
     );
+  });
+
+  it("image fixtureを正規化してclaimへ渡す", async () => {
+    const rawBody = JSON.stringify({
+      events: [
+        {
+          type: "message",
+          webhookEventId: "event-image-receipt",
+          timestamp: 1_700_000_000_000,
+          source: { type: "user", userId: "line-user-private" },
+          replyToken: "reply-token-private",
+          message: { type: "image", id: "message-image-1" },
+        },
+      ],
+    });
+    const ctx = createActionCtx({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 0,
+      scheduledSummaryCount: 0,
+      scheduledImageCount: 1,
+    });
+    const handler = createLineWebhookHandler(vi.fn().mockResolvedValue(true));
+
+    const response = (await asAny(handler)(ctx, createRequest(rawBody))) as MockResponse;
+
+    expect(response.status).toBe(200);
+    expect(ctx.runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        events: [
+          expect.objectContaining({
+            webhookEventId: "event-image-receipt",
+            eventType: "image",
+            messageId: "message-image-1",
+            lineUserId: "line-user-private",
+          }),
+        ],
+      }),
+    );
+    expect(JSON.stringify(ctx.runMutation.mock.calls[0]?.[1])).not.toContain("image/");
   });
 });
