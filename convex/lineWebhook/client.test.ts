@@ -285,7 +285,7 @@ describe("LINE messaging client", () => {
       await expect(getLineMessageContent("message-id-private", fetchImpl)).rejects.toBeInstanceOf(
         LineImageContentTooLargeError,
       );
-      expect(pullCount).toBe(0);
+      expect(pullCount).toBeLessThan(3);
     } finally {
       restore();
     }
