@@ -1,8 +1,9 @@
 // @vitest-environment edge-runtime
 
 import { convexTest } from "convex-test";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ActionCtx } from "../_generated/server";
+import { internal } from "../_generated/api";
 import schema from "../schema";
 import { convexTestModules } from "../test.setup";
 import { MOCK_LINE_IMAGE_BYTES } from "./client";
@@ -16,7 +17,10 @@ import {
   formatLineImageDraftCreatedReply,
   buildLineImageReviewUrl,
 } from "../../lib/domain/lineImage/reply";
-import { LINE_NO_GROUP_MESSAGE } from "../../lib/domain/lineSummary/reply";
+import {
+  LINE_NO_GROUP_MESSAGE,
+  LINE_UNRESOLVED_GROUP_MESSAGE,
+} from "../../lib/domain/lineSummary/reply";
 import { MAX_IMAGE_DATA_URL_LENGTH } from "../../lib/domain/common/imageDataUrl";
 
 const USER_A = "kakeibo-user-a";
@@ -44,6 +48,7 @@ async function seedHousehold(
     consent?: boolean;
     withGroup?: boolean;
     extraGroup?: boolean;
+    activeGroup?: boolean;
     webhookEventId?: string;
     messageId?: string;
   },
@@ -66,7 +71,9 @@ async function seedHousehold(
       displayName: options.userId,
       createdAt: 1,
       updatedAt: 1,
-      ...(options.withGroup === false ? {} : { activeGroupId: groupId }),
+      ...(options.withGroup === false || options.activeGroup === false
+        ? {}
+        : { activeGroupId: groupId }),
       ...(options.consent ? { receiptImageExternalApiConsentAcceptedAt: 1 } : {}),
     });
     if (options.withGroup !== false) {
@@ -127,6 +134,9 @@ async function seedHousehold(
 }
 
 describe("LINE linked image processing", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
   it("同意とグループがある連携ユーザーの画像はneeds_review下書きになり、自動登録しない", async () => {
     const t = convexTest(schema, convexTestModules);
     process.env.APP_ENV = "development";
@@ -257,6 +267,35 @@ describe("LINE linked image processing", () => {
     ).resolves.toHaveLength(0);
   });
 
+  it("activeグループ未解決では下書きを作らず既存の案内文を返す", async () => {
+    const t = convexTest(schema, convexTestModules);
+    process.env.APP_ENV = "development";
+    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
+    await seedHousehold(t, {
+      userId: USER_A,
+      lineUserId: LINE_USER_A,
+      consent: true,
+      extraGroup: true,
+      activeGroup: false,
+    });
+
+    const reply = await buildLinkedImageReply(
+      asActionCtx(t),
+      {
+        replyToken: "reply-token-private",
+        userId: USER_A,
+        webhookEventId: WEBHOOK_EVENT_ID,
+        messageId: MESSAGE_ID,
+      },
+      async () => jpegContent(),
+    );
+
+    expect(reply).toBe(LINE_UNRESOLVED_GROUP_MESSAGE);
+    await expect(
+      t.run(async (ctx) => ctx.db.query("aiExpenseDrafts").collect()),
+    ).resolves.toHaveLength(0);
+  });
+
   it.each([
     [
       "fetch_failed",
@@ -333,5 +372,47 @@ describe("LINE linked image processing", () => {
       status: "failed",
     });
     expect(drafts[0]?.groupId).not.toBe(userBGroupId);
+  });
+
+  it("claimから予約されたimage actionはmock modeで下書きを作り外部APIを呼ばない", async () => {
+    vi.useFakeTimers();
+    const t = convexTest(schema, convexTestModules);
+    process.env.APP_ENV = "development";
+    process.env.LINE_INTEGRATION_MODE = "mock";
+    process.env.RECEIPT_IMAGE_EXTRACTOR_MODE = "mock";
+    await seedHousehold(t, { userId: USER_A, lineUserId: LINE_USER_A, consent: true });
+    await t.run(async (ctx) => {
+      const jobs = await ctx.db.query("lineImageJobs").collect();
+      const events = await ctx.db.query("lineWebhookEvents").collect();
+      for (const job of jobs) await ctx.db.delete(job._id);
+      for (const event of events) await ctx.db.delete(event._id);
+    });
+
+    const claimed = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-image-scheduled",
+          eventType: "image",
+          lineUserId: LINE_USER_A,
+          messageId: "message-image-scheduled",
+          replyToken: "reply-token-private",
+        },
+      ],
+    });
+    expect(claimed.scheduledImageCount).toBe(1);
+    await t.finishAllScheduledFunctions(vi.runAllTimers);
+
+    const state = await t.run(async (ctx) => ({
+      drafts: await ctx.db.query("aiExpenseDrafts").collect(),
+      jobs: await ctx.db.query("lineImageJobs").collect(),
+      entries: await ctx.db.query("expenseEntries").collect(),
+    }));
+    expect(state.drafts).toHaveLength(1);
+    expect(state.drafts[0]).toMatchObject({
+      createdByUserId: USER_A,
+      status: "needs_review",
+    });
+    expect(state.jobs[0]).toMatchObject({ status: "drafted" });
+    expect(state.entries).toHaveLength(0);
   });
 });
