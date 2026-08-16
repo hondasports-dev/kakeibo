@@ -1230,3 +1230,14 @@ payload全文、署名、reply token、LINE userId、家計データをログや
 連携済みユーザーのtextメッセージは、claimと原子的に内部actionを予約し、`replyToken`はジョブ引数としてだけ渡す。サマリー生成はClerk公開queryを使わず、activeな`lineAccountLinks`から解決したkakeibo `userId`と、Webと同じactiveグループ解決で内部queryする。
 
 返信は読み取り専用で、今週の支出合計、今週の収入合計、カテゴリ別支出、直近3週間の支出推移をテキストで返す。グループ内のカテゴリ名と一致するメッセージはそのカテゴリの今週支出だけを返す。未知のテキストは使い方案内のみ返す。グループ文書が無い所属、または削除済みグループでは家計金額を返さない。データがない場合は専用の空メッセージを返す。支出・収入の登録、更新、削除、個別レシート全文は返さない。
+
+### 22.5 LINE channel default Rich Menu
+
+Messaging API channel の default Rich Menu は、既存の読み取り専用テキストコマンドをタップで送るための channel 設置物である。セル定義の正本は `lib/domain/lineSummary/richMenu.ts` とし、画像は `docs/line/rich-menu-readonly-summary.png` を使う。
+
+- サイズは full size の 2500x1686、2行3列、chat bar は「家計簿」
+- 各セルの action は `message` のみとし、送信テキストは現行の `parseLineSummaryCommand` が解釈できる語句に固定する
+- postback、URI、per-user Rich Menu、Quick Reply はこの基盤では使わない
+- 連携済みユーザーのタップは現行どおり text イベントとしてサマリー dispatcher へ入る
+- 未連携ユーザーのタップは現行どおり連携案内だけを返し、家計金額は出さない
+- 実行時アプリは Rich Menu を自動作成・自動適用しない。Development / Preview への設置手順は `docs/service-tooling-setup.md` を正とし、Production への適用は別途人間承認とする
