@@ -31,21 +31,13 @@ async function loadRegisteredPaths(appEnv: string | undefined) {
   return registeredPaths;
 }
 
-describe("HTTP router environment boundary", () => {
-  it.each([undefined, "production", "preview", "unknown"])(
-    "%sではE2Eルートを登録しない",
+describe("HTTP router route registration", () => {
+  it.each([undefined, "development", "production", "preview", "unknown"])(
+    "%sでもE2Eルートを登録する",
     async (appEnv) => {
       const paths = await loadRegisteredPaths(appEnv);
 
-      expect(paths).toEqual(["/webhooks/resend", "/webhooks/line"]);
-    },
-  );
-
-  it("developmentではE2EルートとWebhookルートを登録する", async () => {
-    const paths = await loadRegisteredPaths("development");
-
-    expect(paths).toEqual(
-      expect.arrayContaining([
+      expect(paths).toEqual([
         "/e2e/cleanup-auth-check",
         "/e2e/cleanup",
         "/e2e/seed-system-admin-membership",
@@ -58,8 +50,7 @@ describe("HTTP router environment boundary", () => {
         "/e2e/seed-pending-group-invitation",
         "/webhooks/resend",
         "/webhooks/line",
-      ]),
-    );
-    expect(paths).toHaveLength(12);
-  });
+      ]);
+    },
+  );
 });

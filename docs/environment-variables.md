@@ -82,11 +82,11 @@ Local / DEV / Preview / CI では未設定時の既定を `LINE_INTEGRATION_MODE
 | `E2E_CLERK_USER_ID`  | E2E操作を許可する固定テストユーザーの Clerk tokenIdentifier | ✅    | 生成 | ✅         | .env.local / Convex Dashboard |
 
 Convex の E2E 専用 HTTP エンドポイント（`convex/http.ts` / `convex/e2eHttp/`）は、
-`APP_ENV=development` のときだけルート登録される。登録後も
+Convex のデプロイ時に環境変数を評価してルート登録を切り替えず、常時登録される。各handlerが
 `E2E_CLEANUP_SECRET`、`E2E_CLERK_USER_ID` の設定とヘッダ
 `X-E2E-Cleanup-Secret` が必要で、対象ユーザーとグループは固定テストユーザーの範囲に限定される。
-secret または user ID が未設定の場合は handler が503を返す。`APP_ENV=preview`、`APP_ENV=production`、未設定、未知の値では
-ルート自体が登録されず404になる。
+`APP_ENV=development` 以外、secret または user ID が未設定の場合は handler が503を返す。
+これにより、環境変数変更時にConvexのルートテーブルが古いままになることを防ぎつつ、実行時の認証・環境境界は維持する。
 
 GitHub Actionsでは、`preview-deploy.yml`、`e2e.yml`、`production-release.yml`が
 `CLERK_SECRET_KEY`で`E2E_CLERK_USER_EMAIL`に対応するClerkユーザーを解決し、
