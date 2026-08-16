@@ -1221,6 +1221,12 @@ LINE連携はClerkのWeb認証を置き換えず、Clerkの`identity.tokenIdenti
 
 Convex HTTP Actionの`/webhooks/line`で、JSON変換前のraw bodyと`x-line-signature`をHMAC-SHA256で検証する。署名不一致、署名欠落、payload不正は処理せず、検証済みイベントだけを内部mutationでclaimする。
 
-`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携だけを後続dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。重いサマリー生成、画像取得、AI解析は後続Issueの責務とする。
+`webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携のtextイベントだけを読み取り専用サマリーdispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。画像取得とAI解析は後続Issueの責務とする。
 
 payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。Development、Preview、CIではmock clientと疑似Webhookを使い、実LINE APIに依存しない。
+
+### 22.4 LINE読み取り専用サマリー
+
+連携済みユーザーのtextメッセージは、claimと原子的に内部actionを予約し、`replyToken`はジョブ引数としてだけ渡す。サマリー生成はClerk公開queryを使わず、activeな`lineAccountLinks`から解決したkakeibo `userId`と、Webと同じactiveグループ解決で内部queryする。
+
+返信は読み取り専用で、今週の支出合計、今週の収入合計、カテゴリ別支出、直近3週間の支出推移をテキストで返す。グループ内のカテゴリ名と一致するメッセージはそのカテゴリの今週支出だけを返す。データがない場合は専用の空メッセージを返す。支出・収入の登録、更新、削除、個別レシート全文は返さない。

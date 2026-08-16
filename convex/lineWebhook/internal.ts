@@ -11,6 +11,7 @@ export const claimEvents = internalMutation({
     claimedCount: v.number(),
     duplicateCount: v.number(),
     scheduledGuideCount: v.number(),
+    scheduledSummaryCount: v.number(),
   }),
   handler: async (ctx, args) => {
     if (args.events.length > MAX_EVENTS_PER_REQUEST) {
@@ -20,6 +21,7 @@ export const claimEvents = internalMutation({
     let claimedCount = 0;
     let duplicateCount = 0;
     let scheduledGuideCount = 0;
+    let scheduledSummaryCount = 0;
     const seenEventIds = new Set<string>();
 
     for (const event of args.events) {
@@ -61,6 +63,15 @@ export const claimEvents = internalMutation({
           ...(event.eventTimestamp === undefined ? {} : { eventTimestamp: event.eventTimestamp }),
           createdAt: now,
         });
+        if (event.eventType === "text" && event.replyToken) {
+          await ctx.scheduler.runAfter(0, internal.lineWebhook.actions.sendSummaryReply, {
+            replyToken: event.replyToken,
+            userId: activeUserId,
+            messageText: event.messageText ?? "",
+            nowMs: event.eventTimestamp ?? now,
+          });
+          scheduledSummaryCount += 1;
+        }
       } else {
         await ctx.db.insert("lineWebhookEvents", {
           webhookEventId: event.webhookEventId,
@@ -80,6 +91,6 @@ export const claimEvents = internalMutation({
       claimedCount += 1;
     }
 
-    return { claimedCount, duplicateCount, scheduledGuideCount };
+    return { claimedCount, duplicateCount, scheduledGuideCount, scheduledSummaryCount };
   },
 });

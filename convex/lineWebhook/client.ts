@@ -2,6 +2,7 @@ import { getLineIntegrationMode } from "../lineLink/model";
 
 const LINE_REPLY_ENDPOINT = "https://api.line.me/v2/bot/message/reply";
 const PROVIDER_TIMEOUT_MS = 10_000;
+const MAX_REPLY_TEXT_LENGTH = 5_000;
 
 export const LINE_UNLINKED_GUIDANCE_MESSAGE =
   "LINE連携が必要です。kakeiboのWeb設定からLINE連携を完了してください。";
@@ -10,10 +11,14 @@ export type LineFetch = typeof fetch;
 
 export async function sendLineTextReply(
   replyToken: string,
+  text: string,
   fetchImpl: LineFetch = fetch,
 ): Promise<void> {
   if (!replyToken || replyToken.length > 2048) {
     throw new Error("LINE reply token is invalid");
+  }
+  if (!text || text.length > MAX_REPLY_TEXT_LENGTH) {
+    throw new Error("LINE reply text is invalid");
   }
 
   const mode = getLineIntegrationMode();
@@ -33,7 +38,7 @@ export async function sendLineTextReply(
       signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       body: JSON.stringify({
         replyToken,
-        messages: [{ type: "text", text: LINE_UNLINKED_GUIDANCE_MESSAGE }],
+        messages: [{ type: "text", text }],
       }),
     });
   } catch {

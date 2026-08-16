@@ -155,4 +155,43 @@ describe("LINE webhook HTTP handler", () => {
     expect(verifySignature).not.toHaveBeenCalled();
     expect(ctx.runMutation).not.toHaveBeenCalled();
   });
+
+  it("text fixtureの今週の支出メッセージを正規化してclaimへ渡す", async () => {
+    const rawBody = JSON.stringify({
+      events: [
+        {
+          type: "message",
+          webhookEventId: "event-text-summary",
+          timestamp: 1_700_000_000_000,
+          source: { type: "user", userId: "line-user-private" },
+          replyToken: "reply-token-private",
+          message: { type: "text", id: "message-1", text: "今週の支出" },
+        },
+      ],
+    });
+    const ctx = createActionCtx({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 0,
+      scheduledSummaryCount: 1,
+    });
+    const handler = createLineWebhookHandler(vi.fn().mockResolvedValue(true));
+
+    const response = (await asAny(handler)(ctx, createRequest(rawBody))) as MockResponse;
+
+    expect(response.status).toBe(200);
+    expect(ctx.runMutation).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        events: [
+          expect.objectContaining({
+            webhookEventId: "event-text-summary",
+            eventType: "text",
+            messageText: "今週の支出",
+            lineUserId: "line-user-private",
+          }),
+        ],
+      }),
+    );
+  });
 });

@@ -90,6 +90,7 @@ import type * as lineWebhook_client from "../lineWebhook/client.js";
 import type * as lineWebhook_internal from "../lineWebhook/internal.js";
 import type * as lineWebhook_model from "../lineWebhook/model.js";
 import type * as lineWebhook_signature from "../lineWebhook/signature.js";
+import type * as lineWebhook_summary from "../lineWebhook/summary.js";
 import type * as lineWebhook_webhook from "../lineWebhook/webhook.js";
 import type * as receiptAnalysisJobs_actions from "../receiptAnalysisJobs/actions.js";
 import type * as receiptAnalysisJobs_internal from "../receiptAnalysisJobs/internal.js";
@@ -206,6 +207,7 @@ declare const fullApi: ApiFromModules<{
   "lineWebhook/internal": typeof lineWebhook_internal;
   "lineWebhook/model": typeof lineWebhook_model;
   "lineWebhook/signature": typeof lineWebhook_signature;
+  "lineWebhook/summary": typeof lineWebhook_summary;
   "lineWebhook/webhook": typeof lineWebhook_webhook;
   "receiptAnalysisJobs/actions": typeof receiptAnalysisJobs_actions;
   "receiptAnalysisJobs/internal": typeof receiptAnalysisJobs_internal;

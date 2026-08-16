@@ -12,6 +12,55 @@ export type { GroupMembership } from "./lib/groupTypes";
 
 export { MAX_GROUP_NAME_LENGTH, normalizeGroupName } from "./lib/groupName";
 
+export type ActiveGroupResolution =
+  | { status: "resolved"; membership: GroupMembership }
+  | { status: "no_group" }
+  | { status: "unresolved" };
+
+/**
+ * Clerk認証を使わず、既に解決済みのuserIdからactiveグループを決める。
+ * LINE Webhookなど、外部連携から内部的に呼ぶためのヘルパー。
+ */
+export async function resolveActiveGroupForUserId(
+  ctx: Pick<QueryCtx, "db">,
+  userId: string,
+): Promise<ActiveGroupResolution> {
+  const membershipQuery = ctx.db
+    .query("groupMembers")
+    .withIndex("by_user_id", (q) => q.eq("userId", userId));
+  const memberships = await readQueryDocs(membershipQuery);
+
+  const activeMemberships: typeof memberships = [];
+  for (const membership of memberships) {
+    const group = (await ctx.db.get(membership.groupId)) as GroupDoc | null;
+    if (group !== null && !isGroupDeleted(group)) {
+      activeMemberships.push(membership);
+    }
+  }
+
+  if (activeMemberships.length === 0) {
+    return { status: "no_group" };
+  }
+
+  const user = await readQueryDoc(
+    ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
+  );
+  const activeMembership = resolveActiveMembership(activeMemberships, user?.activeGroupId);
+  if (activeMembership === null) {
+    return { status: "unresolved" };
+  }
+
+  return {
+    status: "resolved",
+    membership: {
+      membershipId: activeMembership._id,
+      groupId: activeMembership.groupId,
+      userId,
+      role: activeMembership.role,
+    },
+  };
+}
+
 /**
  * 認証済みユーザーのグループメンバーシップ一覧を取得する。
  * データファイルから共通利用するため export する。
@@ -20,38 +69,8 @@ export async function getGroupMembership(
   ctx: Pick<QueryCtx, "auth" | "db">,
 ): Promise<GroupMembership | null> {
   const userId = await requireAuthenticatedUserId(ctx);
-  const membershipQuery = ctx.db
-    .query("groupMembers")
-    .withIndex("by_user_id", (q) => q.eq("userId", userId));
-  const memberships = await readQueryDocs(membershipQuery);
-
-  if (memberships.length === 0) return null;
-
-  const activeMemberships: typeof memberships = [];
-  for (const membership of memberships) {
-    const group = (await ctx.db.get(membership.groupId)) as GroupDoc | null;
-    if (group !== null && isGroupDeleted(group)) {
-      continue;
-    }
-    activeMemberships.push(membership);
-  }
-
-  if (activeMemberships.length === 0) return null;
-
-  const user = await readQueryDoc(
-    ctx.db.query("users").withIndex("by_token_identifier", (q) => q.eq("userId", userId)),
-  );
-
-  const activeMembership = resolveActiveMembership(activeMemberships, user?.activeGroupId);
-
-  if (activeMembership === null) return null;
-
-  return {
-    membershipId: activeMembership._id,
-    groupId: activeMembership.groupId,
-    userId,
-    role: activeMembership.role,
-  };
+  const resolved = await resolveActiveGroupForUserId(ctx, userId);
+  return resolved.status === "resolved" ? resolved.membership : null;
 }
 
 async function getAllGroupMemberships(ctx: Pick<QueryCtx, "auth" | "db">) {

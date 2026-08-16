@@ -1,7 +1,7 @@
 import type { ActionCtx } from "../_generated/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LINE_UNLINKED_GUIDANCE_MESSAGE, sendLineTextReply } from "./client";
-import { sendUnlinkedGuideHandler } from "./actions";
+import { sendSummaryReplyHandler, sendUnlinkedGuideHandler } from "./actions";
 
 function setEnvironment(values: Record<string, string | undefined>) {
   const original = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
@@ -26,7 +26,9 @@ describe("LINE messaging client", () => {
     const restore = setEnvironment({ LINE_INTEGRATION_MODE: "mock" });
     const fetchImpl = vi.fn();
     try {
-      await expect(sendLineTextReply("reply-token", fetchImpl)).resolves.toBeUndefined();
+      await expect(
+        sendLineTextReply("reply-token", LINE_UNLINKED_GUIDANCE_MESSAGE, fetchImpl),
+      ).resolves.toBeUndefined();
       expect(fetchImpl).not.toHaveBeenCalled();
     } finally {
       restore();
@@ -75,7 +77,7 @@ describe("LINE messaging client", () => {
     });
     const fetchImpl = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
     try {
-      await sendLineTextReply("reply-token-private", fetchImpl);
+      await sendLineTextReply("reply-token-private", LINE_UNLINKED_GUIDANCE_MESSAGE, fetchImpl);
       const [, request] = fetchImpl.mock.calls[0] as [string, RequestInit];
       expect(fetchImpl).toHaveBeenCalledWith(
         "https://api.line.me/v2/bot/message/reply",
@@ -93,26 +95,94 @@ describe("LINE messaging client", () => {
     }
   });
 
+  it("real modeでは指定したサマリー本文を返信する", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    try {
+      await sendLineTextReply("reply-token-private", "今週の支出: 1,000円", fetchImpl);
+      const [, request] = fetchImpl.mock.calls[0] as [string, RequestInit];
+      expect(JSON.parse(String(request.body))).toEqual({
+        replyToken: "reply-token-private",
+        messages: [{ type: "text", text: "今週の支出: 1,000円" }],
+      });
+    } finally {
+      restore();
+    }
+  });
+
   it("real modeのsecret不足とprovider errorを公開処理へ通さない", async () => {
     const restore = setEnvironment({
       LINE_INTEGRATION_MODE: "real",
       LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: undefined,
     });
     try {
-      await expect(sendLineTextReply("reply-token", vi.fn())).rejects.toThrow(
-        "LINE messaging integration is unavailable",
-      );
+      await expect(
+        sendLineTextReply("reply-token", LINE_UNLINKED_GUIDANCE_MESSAGE, vi.fn()),
+      ).rejects.toThrow("LINE messaging integration is unavailable");
       const fetchImpl = vi.fn().mockResolvedValue(new Response("failure", { status: 500 }));
       const withToken = setEnvironment({ LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "token" });
       try {
-        await expect(sendLineTextReply("reply-token", fetchImpl)).rejects.toThrow(
-          "LINE messaging provider rejected the reply",
-        );
+        await expect(
+          sendLineTextReply("reply-token", LINE_UNLINKED_GUIDANCE_MESSAGE, fetchImpl),
+        ).rejects.toThrow("LINE messaging provider rejected the reply");
       } finally {
         withToken();
       }
     } finally {
       restore();
+    }
+  });
+
+  it("summary actionはqueryの返信文を使い、失敗時はbounded retryする", async () => {
+    const restore = setEnvironment({ LINE_INTEGRATION_MODE: "mock" });
+    const runQuery = vi.fn().mockResolvedValue({ replyText: "今週の支出: 1,000円" });
+    try {
+      await expect(
+        sendSummaryReplyHandler({ runQuery } as unknown as ActionCtx, {
+          replyToken: "reply-token",
+          userId: "user-a",
+          messageText: "今週の支出",
+          nowMs: 1,
+        }),
+      ).resolves.toBeNull();
+      expect(runQuery).toHaveBeenCalledWith(expect.anything(), {
+        userId: "user-a",
+        messageText: "今週の支出",
+        nowMs: 1,
+      });
+    } finally {
+      restore();
+    }
+
+    const realRestore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token",
+    });
+    const fetchImpl = vi.fn().mockRejectedValue(new Error("provider unavailable"));
+    const runAfter = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      await expect(
+        sendSummaryReplyHandler({ runQuery, scheduler: { runAfter } } as unknown as ActionCtx, {
+          replyToken: "reply-token",
+          userId: "user-a",
+          messageText: "今週の支出",
+          nowMs: 1,
+        }),
+      ).resolves.toBeNull();
+      expect(runAfter).toHaveBeenCalledWith(1_000, expect.anything(), {
+        replyToken: "reply-token",
+        userId: "user-a",
+        messageText: "今週の支出",
+        nowMs: 1,
+        attempt: 1,
+      });
+    } finally {
+      vi.unstubAllGlobals();
+      realRestore();
     }
   });
 });

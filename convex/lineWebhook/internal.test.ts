@@ -31,7 +31,12 @@ describe("LINE webhook event claim", () => {
 
     await expect(
       t.mutation(internal.lineWebhook.internal.claimEvents, { events: [linkedEvent] }),
-    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 0 });
+    ).resolves.toEqual({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 0,
+      scheduledSummaryCount: 1,
+    });
 
     const events = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
     expect(events).toHaveLength(1);
@@ -60,7 +65,12 @@ describe("LINE webhook event claim", () => {
           },
         ],
       }),
-    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 1 });
+    ).resolves.toEqual({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 1,
+      scheduledSummaryCount: 0,
+    });
 
     const events = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
     expect(events).toHaveLength(1);
@@ -82,8 +92,18 @@ describe("LINE webhook event claim", () => {
       events: [{ ...linkedEvent, lineUserId: "line-user-unlinked" }],
     });
 
-    expect(first).toEqual({ claimedCount: 1, duplicateCount: 0, scheduledGuideCount: 1 });
-    expect(second).toEqual({ claimedCount: 0, duplicateCount: 1, scheduledGuideCount: 0 });
+    expect(first).toEqual({
+      claimedCount: 1,
+      duplicateCount: 0,
+      scheduledGuideCount: 1,
+      scheduledSummaryCount: 0,
+    });
+    expect(second).toEqual({
+      claimedCount: 0,
+      duplicateCount: 1,
+      scheduledGuideCount: 0,
+      scheduledSummaryCount: 0,
+    });
     await expect(
       t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect()),
     ).resolves.toHaveLength(1);
@@ -107,7 +127,12 @@ describe("LINE webhook event claim", () => {
           },
         ],
       }),
-    ).resolves.toEqual({ claimedCount: 1, duplicateCount: 1, scheduledGuideCount: 1 });
+    ).resolves.toEqual({
+      claimedCount: 1,
+      duplicateCount: 1,
+      scheduledGuideCount: 1,
+      scheduledSummaryCount: 0,
+    });
 
     await expect(
       t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect()),
@@ -165,5 +190,44 @@ describe("LINE webhook event claim", () => {
     ).resolves.toMatchObject({ claimedCount: 1, scheduledGuideCount: 1 });
     const [event] = await t.run(async (ctx) => ctx.db.query("lineWebhookEvents").collect());
     expect(event?.userId).toBeUndefined();
+  });
+
+  it("連携済みのtextだけサマリー返信を予約し、followや再送では予約しない", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await t.run(async (ctx) => {
+      await ctx.db.insert("lineAccountLinks", {
+        userId: "kakeibo-user",
+        lineUserId: "line-user-linked",
+        status: "active",
+        linkedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+    });
+
+    const follow = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [
+        {
+          webhookEventId: "event-follow-linked",
+          eventType: "follow",
+          lineUserId: "line-user-linked",
+          replyToken: "reply-token-follow",
+        },
+      ],
+    });
+    const firstText = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [linkedEvent],
+    });
+    const replayText = await t.mutation(internal.lineWebhook.internal.claimEvents, {
+      events: [linkedEvent],
+    });
+
+    expect(follow).toMatchObject({ scheduledSummaryCount: 0, scheduledGuideCount: 0 });
+    expect(firstText).toMatchObject({ scheduledSummaryCount: 1, scheduledGuideCount: 0 });
+    expect(replayText).toMatchObject({
+      claimedCount: 0,
+      duplicateCount: 1,
+      scheduledSummaryCount: 0,
+    });
   });
 });
