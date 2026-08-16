@@ -11,9 +11,8 @@ import { fileURLToPath } from "node:url";
 const MODE_NAME = "LINE_INTEGRATION_MODE";
 const VALID_MODES = new Set(["mock", "real"]);
 
-export function parseConvexEnvGetResult({ status, stdout, stderr }) {
+export function parseConvexEnvGetResult({ status, stdout }) {
   const value = String(stdout ?? "").trim();
-  const errorText = `${stderr ?? ""}\n${stdout ?? ""}`;
 
   if (status === 0) {
     if (VALID_MODES.has(value)) {
@@ -23,10 +22,6 @@ export function parseConvexEnvGetResult({ status, stdout, stderr }) {
       return { kind: "missing" };
     }
     return { kind: "invalid" };
-  }
-
-  if (/not found/i.test(errorText)) {
-    return { kind: "missing" };
   }
 
   return { kind: "error" };

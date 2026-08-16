@@ -18,14 +18,24 @@ describe("parseConvexEnvGetResult", () => {
     });
   });
 
-  it("treats Convex not-found as missing", () => {
+  it("treats Convex not-found as missing when env get exits 0", () => {
     expect(
       parseConvexEnvGetResult({
-        status: 1,
+        status: 0,
         stdout: "",
         stderr: 'Environment variable "LINE_INTEGRATION_MODE" not found',
       }),
     ).toEqual({ kind: "missing" });
+  });
+
+  it("treats nonzero env get as error even if stderr says not found", () => {
+    expect(
+      parseConvexEnvGetResult({
+        status: 1,
+        stdout: "",
+        stderr: "deployment not found",
+      }),
+    ).toEqual({ kind: "error" });
   });
 
   it("treats empty or invalid values as needing a default", () => {
@@ -100,7 +110,7 @@ describe("ensureLineIntegrationMode", () => {
         calls.push(args);
         if (args[1] === "get") {
           return {
-            status: 1,
+            status: 0,
             stdout: "",
             stderr: 'Environment variable "LINE_INTEGRATION_MODE" not found',
           };
@@ -124,5 +134,21 @@ describe("ensureLineIntegrationMode", () => {
         log: () => {},
       }),
     ).toThrow("Failed to read LINE_INTEGRATION_MODE from Convex.");
+  });
+
+  it("does not set mock when Convex reports deployment not found", () => {
+    const calls = [];
+
+    expect(() =>
+      ensureLineIntegrationMode({
+        runConvexEnv: (args) => {
+          calls.push(args);
+          return { status: 1, stdout: "", stderr: "deployment not found" };
+        },
+        log: () => {},
+      }),
+    ).toThrow("Failed to read LINE_INTEGRATION_MODE from Convex.");
+
+    expect(calls).toEqual([["env", "get", "LINE_INTEGRATION_MODE"]]);
   });
 });

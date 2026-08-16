@@ -1223,7 +1223,7 @@ Convex HTTP Actionの`/webhooks/line`で、JSON変換前のraw bodyと`x-line-si
 
 `webhookEventId`を冪等キーとして保存し、再送イベントは返信・後続処理を重複させない。text、image、postback、follow、unfollowを型付きイベントとして分類し、activeな連携のtextイベントは読み取り専用サマリーdispatcherへ、imageイベントは画像intake dispatcherへ渡す。未連携ユーザーへは家計データを返さず、必要な案内返信だけをLINE clientへ渡す。画像本体はWebhook行にも下書きにも保存しない。
 
-payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。Development、Preview、CIではmock clientと疑似Webhookを使い、実LINE APIに依存しない。
+payload全文、署名、reply token、LINE userId、家計データをログや監査記録へ保存しない。テストコードと CI ジョブ内の疑似Webhookは mock client を使い、実 LINE API に依存しない。共有する DEV / Preview Convex で人間が `LINE_INTEGRATION_MODE=real` を入れた場合、CI はその値を維持するため、その deployment からは実 LINE API を呼びうる。
 
 ### 22.4 LINE読み取り専用サマリー
 
@@ -1252,4 +1252,4 @@ Messaging API channel の default Rich Menu は、既存の読み取り専用テ
 - 抽出と下書き作成は Web と同じ `extractReceiptFieldsFromImage` と `classifyCreatedDraft()` を使う。画像作成直後は `user_confirmation_required` により常に `needs_review` とする。`expenseEntries` / `receipts` への自動登録はしない。
 - 返信は Messaging API の reply のみとし、Push は使わない。確認導線は `APP_BASE_URL` の `/weeks/current/input` へ誘導する。返信文に家計金額を含めない。
 - 過大または非対応画像はリサイズせずスキップして失敗返信する。解析失敗時は Web と同じ failed 下書きを残す。
-- Development / Preview / CI の未設定時は `LINE_INTEGRATION_MODE=mock` と `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を使い、実LINE content API と OpenAI を呼ばない。CI は既存の `LINE_INTEGRATION_MODE=real` を mock で上書きしない。
+- Development / Preview / CI の未設定時は `LINE_INTEGRATION_MODE=mock` と `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` を既定にする。preview-deploy と e2e は既存の `LINE_INTEGRATION_MODE=real` を上書きしない。`real` のときは共有 DEV / Preview deployment から実 LINE API を呼びうる。テストコード自体は mock client のまま実 LINE に依存しない。
