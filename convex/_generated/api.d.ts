@@ -87,6 +87,7 @@ import type * as lineLink_queries from "../lineLink/queries.js";
 import type * as lineWebhook_actions from "../lineWebhook/actions.js";
 import type * as lineWebhook_cleanup from "../lineWebhook/cleanup.js";
 import type * as lineWebhook_client from "../lineWebhook/client.js";
+import type * as lineWebhook_image from "../lineWebhook/image.js";
 import type * as lineWebhook_internal from "../lineWebhook/internal.js";
 import type * as lineWebhook_model from "../lineWebhook/model.js";
 import type * as lineWebhook_signature from "../lineWebhook/signature.js";
@@ -204,6 +205,7 @@ declare const fullApi: ApiFromModules<{
   "lineWebhook/actions": typeof lineWebhook_actions;
   "lineWebhook/cleanup": typeof lineWebhook_cleanup;
   "lineWebhook/client": typeof lineWebhook_client;
+  "lineWebhook/image": typeof lineWebhook_image;
   "lineWebhook/internal": typeof lineWebhook_internal;
   "lineWebhook/model": typeof lineWebhook_model;
   "lineWebhook/signature": typeof lineWebhook_signature;

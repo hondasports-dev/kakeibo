@@ -135,7 +135,7 @@ export async function buildLinkedImageReply(
   }
 
   const context = await ctx.runQuery(internal.lineWebhook.internal.loadImageProcessingContext, {
-    userId: args.userId,
+    userId: job.userId,
   });
   if (!context.hasUniqueActiveLink) {
     return await skipJob(ctx, args.webhookEventId, "unlinked");
@@ -143,7 +143,7 @@ export async function buildLinkedImageReply(
 
   let content;
   try {
-    content = await getContent(args.messageId);
+    content = await getContent(job.messageId);
   } catch {
     return await skipJob(ctx, args.webhookEventId, "fetch_failed");
   }
@@ -168,7 +168,7 @@ export async function buildLinkedImageReply(
   }
 
   const draft = await createDraftFromImage(ctx, {
-    userId: args.userId,
+    userId: job.userId,
     imageDataUrl: dataUrl.dataUrl,
     categories: context.categories,
   });
