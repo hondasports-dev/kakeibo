@@ -250,13 +250,15 @@ LINEはClerk認証を置き換えるログイン方式ではなく、認証済�
 - `webhookEventId` による冪等処理
 - 未連携ユーザーへの案内返信
 - 連携済みtextメッセージからの読み取り専用サマリー返信（今週の支出・収入・カテゴリ別・週別推移。未知テキストは使い方案内のみ）
+- 連携済みimageメッセージの一時取得とAI支出下書き作成（Web確認必須。LINE側での登録・編集・削除はしない）
 - Messaging API channel 向け default Rich Menu のセル定義（`lib/domain/lineSummary/richMenu.ts`）、設置用画像、および mock-safe な apply client（`convex/lineWebhook/richMenuClient.ts`）。実行時の自動適用はしない。人間が `pnpm run line:rich-menu -- --apply` で非Production channelへ設置する
 
 関連テーブル:
 
 - `lineWebhookEvents`
+- `lineImageJobs`
 
-LINEからの家計データ登録・更新・削除や画像AI登録は「実装済み」とは扱わない。Webhook基盤とアカウント連携の上に、参照系サマリーだけを載せる。
+LINEからの家計データ登録・更新・削除は「実装済み」とは扱わない。画像intakeの登録面は既存のWeb AI支出下書きキューである。
 
 ### 8.3 LINE環境変数
 
@@ -291,7 +293,6 @@ E2E専用HTTPエンドポイントは `APP_ENV=development` の場合だけ登�
 - 月収入設定UI（schema互換の `monthlyIncome` は残る）
 - `sourceDocuments` を中心にした一般利用向け公開CRUDフロー
 - LINEからの支出・収入登録、更新、削除
-- LINE画像受信からAI下書き登録までの完成フロー
 - オフラインファースト/PWAの完成フロー
 
 ## 11. 開発・検証コマンド

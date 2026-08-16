@@ -594,3 +594,13 @@ LINE連携は、既存のWeb家計簿MVPやClerkによる認証を置き換え�
 4. #185 / #186 / #187: サマリー参照、画像受信、画像AI下書き化
 
 各環境ではLINE Login channelとMessaging API channelを同一LINE Provider配下に置く。Development、Preview、Productionの環境間ではProvider、channel、callback URL、Webhook URL、secretを混在させない。
+
+### 19.3 N5 画像受信とAI下書き
+
+N2の初期読み取り専用MVPに加え、後続のN5では連携済みユーザーが1:1で送ったレシート画像をintakeできる。
+
+- 画像本体は長期保存せず、Messaging APIから一時取得して解析する。Convex Storage へ保存しない。
+- OpenAI送信前に、既存Webの `receiptImageExternalApiConsentAcceptedAt` を要求する。LINE画像送信を同意とは扱わない。
+- 作成した下書きは Web の画像作成と同じく確認必須（`needs_review`）とし、LINE側での登録・編集・削除は行わない。
+- 未連携ユーザーの画像は取得・解析・保存しない。
+

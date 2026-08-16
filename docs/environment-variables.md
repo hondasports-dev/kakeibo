@@ -28,7 +28,7 @@ PROD 反映は `.github/workflows/production-release.yml` を正規ルートと�
 
 LINE Login channelとMessaging API channelは同一環境内で同一Providerに所属させる。環境間ではProvider、channel、callback URL、Webhook URL、secretを共有しない。今回のIssue #591ではchannel作成、secret設定、rotation、Production変更を行わず、変数名・責務・設定場所だけを定義する。
 
-Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth token交換、Messaging API返信、実LINE疎通を発生させない。secret値、channel IDの実値、callbackの実URLはGitへ保存しない。
+Local / DEV / Preview / CIでは`LINE_INTEGRATION_MODE=mock`を使い、OAuth token交換、Messaging API返信、画像content取得、実LINE疎通を発生させない。secret値、channel IDの実値、callbackの実URLはGitへ保存しない。
 
 ### Clerk認証関連
 

@@ -10,7 +10,10 @@ import {
   classifyCreatedDraft,
   type CreatedDraftClassificationInput,
 } from "../../../lib/domain/aiExpenseDrafts/classification";
-import { requireGroupMembership } from "../../../convex/groups/membership";
+import {
+  requireGroupMembership,
+  resolveActiveGroupForUserId,
+} from "../../../convex/groups/membership";
 import { deleteDraftAndItems } from "./draftRepository";
 import type {
   AmountBasis,
@@ -69,6 +72,20 @@ export type CreateFailedDraftFromImageAnalysisArgs = {
   imageFileName?: string;
 };
 
+export type CreateFromExtractionForUserArgs = CreateFromExtractionArgs & {
+  userId: string;
+};
+
+export type CreateFailedDraftFromImageAnalysisForUserArgs =
+  CreateFailedDraftFromImageAnalysisArgs & {
+    userId: string;
+  };
+
+type ResolvedActor = {
+  userId: string;
+  groupId: Id<"groups">;
+};
+
 async function assertCategoryBelongsToGroup(
   ctx: Pick<MutationCtx, "db">,
   categoryId: Id<"categories"> | undefined,
@@ -119,18 +136,18 @@ async function insertDraftItems(
   }
 }
 
-export async function createFromExtractionHandler(
+async function persistExtractedDraft(
   ctx: MutationCtx,
+  actor: ResolvedActor,
   args: CreateFromExtractionArgs,
 ) {
-  const { groupId, userId } = await requireGroupMembership(ctx);
-  await assertCategoryBelongsToGroup(ctx, args.categoryId, groupId);
+  await assertCategoryBelongsToGroup(ctx, args.categoryId, actor.groupId);
 
   const now = Date.now();
   const classification = classifyCreatedDraft(args as CreatedDraftClassificationInput);
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
-    groupId,
-    createdByUserId: userId,
+    groupId: actor.groupId,
+    createdByUserId: actor.userId,
     sourceType: "image_upload",
     status: classification.status,
     documentType: args.documentType,
@@ -151,7 +168,7 @@ export async function createFromExtractionHandler(
     updatedAt: now,
   });
 
-  await insertDraftItems(ctx, groupId, draftId, args.items ?? [], now);
+  await insertDraftItems(ctx, actor.groupId, draftId, args.items ?? [], now);
 
   const draft = await ctx.db.get(draftId);
   if (draft === null) {
@@ -160,15 +177,15 @@ export async function createFromExtractionHandler(
   return draft;
 }
 
-export async function createFailedDraftFromImageAnalysisHandler(
+async function persistFailedDraft(
   ctx: MutationCtx,
+  actor: ResolvedActor,
   args: CreateFailedDraftFromImageAnalysisArgs,
 ) {
-  const { groupId, userId } = await requireGroupMembership(ctx);
   const now = Date.now();
   const draftId = await ctx.db.insert("aiExpenseDrafts", {
-    groupId,
-    createdByUserId: userId,
+    groupId: actor.groupId,
+    createdByUserId: actor.userId,
     sourceType: "image_upload",
     status: "failed",
     documentType: "unknown",
@@ -185,6 +202,49 @@ export async function createFailedDraftFromImageAnalysisHandler(
     throw new ConvexError("AI expense draft was not found after creation");
   }
   return draft;
+}
+
+async function requireResolvedActorForUser(
+  ctx: MutationCtx,
+  userId: string,
+): Promise<ResolvedActor> {
+  const resolved = await resolveActiveGroupForUserId(ctx, userId);
+  if (resolved.status !== "resolved") {
+    throw new ConvexError("Active group is required");
+  }
+  return { userId, groupId: resolved.membership.groupId };
+}
+
+export async function createFromExtractionHandler(
+  ctx: MutationCtx,
+  args: CreateFromExtractionArgs,
+) {
+  const { groupId, userId } = await requireGroupMembership(ctx);
+  return persistExtractedDraft(ctx, { userId, groupId }, args);
+}
+
+export async function createFromExtractionForUserHandler(
+  ctx: MutationCtx,
+  args: CreateFromExtractionForUserArgs,
+) {
+  const actor = await requireResolvedActorForUser(ctx, args.userId);
+  return persistExtractedDraft(ctx, actor, args);
+}
+
+export async function createFailedDraftFromImageAnalysisHandler(
+  ctx: MutationCtx,
+  args: CreateFailedDraftFromImageAnalysisArgs,
+) {
+  const { groupId, userId } = await requireGroupMembership(ctx);
+  return persistFailedDraft(ctx, { userId, groupId }, args);
+}
+
+export async function createFailedDraftFromImageAnalysisForUserHandler(
+  ctx: MutationCtx,
+  args: CreateFailedDraftFromImageAnalysisForUserArgs,
+) {
+  const actor = await requireResolvedActorForUser(ctx, args.userId);
+  return persistFailedDraft(ctx, actor, args);
 }
 
 export async function deleteOrphanedDraftHandler(

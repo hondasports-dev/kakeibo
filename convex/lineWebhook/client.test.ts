@@ -1,6 +1,15 @@
 import type { ActionCtx } from "../_generated/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { LINE_UNLINKED_GUIDANCE_MESSAGE, sendLineTextReply } from "./client";
+import {
+  LINE_UNLINKED_GUIDANCE_MESSAGE,
+  MOCK_LINE_IMAGE_BYTES,
+  getLineMessageContent,
+  sendLineTextReply,
+} from "./client";
+import {
+  LineImageContentTooLargeError,
+  MAX_LINE_IMAGE_RAW_BYTES,
+} from "../../lib/domain/lineImage/content";
 import { sendSummaryReplyHandler, sendUnlinkedGuideHandler } from "./actions";
 
 function setEnvironment(values: Record<string, string | undefined>) {
@@ -183,6 +192,132 @@ describe("LINE messaging client", () => {
     } finally {
       vi.unstubAllGlobals();
       realRestore();
+    }
+  });
+
+  it("mock modeの画像取得は実LINE content APIを呼ばず固定バイナリを返す", async () => {
+    const restore = setEnvironment({ LINE_INTEGRATION_MODE: "mock" });
+    const fetchImpl = vi.fn();
+    try {
+      await expect(getLineMessageContent("message-id-private", fetchImpl)).resolves.toEqual({
+        bytes: MOCK_LINE_IMAGE_BYTES,
+        contentType: "image/jpeg",
+      });
+      expect(fetchImpl).not.toHaveBeenCalled();
+    } finally {
+      restore();
+    }
+  });
+
+  it("real modeの画像取得はserver-side access tokenでcontent APIだけを呼ぶ", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(Uint8Array.from([0xff, 0xd8, 0xff, 0xd9]), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    try {
+      const content = await getLineMessageContent("message-id-private", fetchImpl);
+      expect(fetchImpl).toHaveBeenCalledWith(
+        "https://api-data.line.me/v2/bot/message/message-id-private/content",
+        expect.objectContaining({ method: "GET" }),
+      );
+      const [, request] = fetchImpl.mock.calls[0] as [string, RequestInit];
+      expect(request.headers).toEqual(
+        expect.objectContaining({ Authorization: "Bearer access-token-private" }),
+      );
+      expect(content.contentType).toBe("image/jpeg");
+      expect(Array.from(content.bytes)).toEqual([0xff, 0xd8, 0xff, 0xd9]);
+    } finally {
+      restore();
+    }
+  });
+
+  it("real modeの画像取得はsecret不足とprovider errorを公開処理へ通さない", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: undefined,
+    });
+    try {
+      await expect(getLineMessageContent("message-id", vi.fn())).rejects.toThrow(
+        "LINE messaging integration is unavailable",
+      );
+      const fetchImpl = vi.fn().mockResolvedValue(new Response("failure", { status: 500 }));
+      const withToken = setEnvironment({ LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "token" });
+      try {
+        await expect(getLineMessageContent("message-id", fetchImpl)).rejects.toThrow(
+          "LINE messaging provider rejected the content request",
+        );
+      } finally {
+        withToken();
+      }
+    } finally {
+      restore();
+    }
+  });
+
+  it("real modeの画像取得はContent-Length超過なら本文を読まず失敗する", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+    });
+    let pullCount = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        controller.enqueue(new Uint8Array(1024).fill(1));
+      },
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: {
+          "content-type": "image/jpeg",
+          "content-length": String(MAX_LINE_IMAGE_RAW_BYTES + 1),
+        },
+      }),
+    );
+    try {
+      await expect(getLineMessageContent("message-id-private", fetchImpl)).rejects.toBeInstanceOf(
+        LineImageContentTooLargeError,
+      );
+      expect(pullCount).toBeLessThan(3);
+    } finally {
+      restore();
+    }
+  });
+
+  it("real modeの画像取得はストリーム読取中に生バイト上限を超えたら中断する", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+    });
+    let pullCount = 0;
+    const chunk = new Uint8Array(100_000).fill(1);
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pullCount += 1;
+        controller.enqueue(chunk);
+      },
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(
+      new Response(stream, {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    try {
+      await expect(getLineMessageContent("message-id-private", fetchImpl)).rejects.toBeInstanceOf(
+        LineImageContentTooLargeError,
+      );
+      expect(pullCount).toBeGreaterThan(0);
+      expect(pullCount).toBeLessThan(20);
+    } finally {
+      restore();
     }
   });
 });

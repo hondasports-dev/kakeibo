@@ -27,13 +27,9 @@ export { parseOpenAIResponse } from "../../lib/convex/receiptImageExtraction/par
 export { getMockResult } from "../../lib/convex/receiptImageExtraction/mock";
 export { getExtractorMode } from "../../lib/convex/receiptImageExtraction/mode";
 
-export async function extractReceiptFieldsHandler(
-  ctx: ActionCtx,
+export async function extractReceiptFieldsFromImage(
   args: ExtractReceiptFieldsArgs,
 ): Promise<ExtractReceiptFieldsResult> {
-  // 解析処理自体は認証のみ確認する。公開 action 側で所属グループの有効カテゴリと同意を解決する。
-  await requireAuthenticatedUserId(ctx);
-
   const { imageDataUrl } = args;
 
   // imageDataUrl バリデーション
@@ -68,6 +64,15 @@ export async function extractReceiptFieldsHandler(
     categoryNames: args.categoryNames ?? [],
     categories: args.categories,
   });
+}
+
+export async function extractReceiptFieldsHandler(
+  ctx: ActionCtx,
+  args: ExtractReceiptFieldsArgs,
+): Promise<ExtractReceiptFieldsResult> {
+  // 解析処理自体は認証のみ確認する。公開 action 側で所属グループの有効カテゴリと同意を解決する。
+  await requireAuthenticatedUserId(ctx);
+  return extractReceiptFieldsFromImage(args);
 }
 
 export const extractReceiptFields = action({
