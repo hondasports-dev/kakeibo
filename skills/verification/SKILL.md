@@ -44,7 +44,7 @@ license: Apache-2.0
 
 - 影響範囲の正常 / 境界 / error / auth拒否 / partial failure
 - coverage
-- 必要なE2E
+- 必要なE2E（下記の3分類に従う。R1の「CIに寄せる」をR3の省略理由に使わない）
 - build / runtime / browser
 - schema / external service等のreflection or compatibility check
 
@@ -58,18 +58,32 @@ R3に加え:
 
 ## E2E
 
-E2Eは「毎回」ではなくAcceptance Criteriaが複数層を跨ぐ時に使う。
+E2Eは次の3つに分けて扱う。混ぜない。
 
-代表的required:
+| 種類 | 目的 | いつrequiredか | 既定の実行場所 |
+| --- | --- | --- | --- |
+| 機能E2E | このtaskのAcceptance Criteriaをブラウザで証明する | ACがnavigation / 画面状態 / 認証UI / 保存・削除などブラウザ層を跨ぐとき | ローカル（push前） |
+| 回帰E2E | 触っていないWebが壊れていないことを確認する | `src/**` / `e2e/**` を変更したとき、または機能E2Eがrequiredのとき | CI Aftercareを正本にしてよい |
+| 実行場所 | ローカルpush前かCI Aftercareか | 機能E2Eはローカル、回帰E2EはCI | 上表 |
+
+代表的な機能E2E required:
 
 - navigation / major user flow
-- authentication / authorization
+- authentication / authorizationの画面経路
 - save / delete
 - browserでしか証明できない状態
 
-unit / component / Convexで十分ならNOT_REQUIREDにできる。
+unit / component / ConvexでACを証明でき、ブラウザ層を跨がないなら機能E2Eは `NOT_REQUIRED` にできる。その場合もEvidenceの `E2E:` 行に `NOT_REQUIRED` と理由を書く。理由なしのskipはVerification未完了であり、PASSにしない。
+
+`src/**` / `e2e/**` を変更したら、危険信号どおりpush前ローカルE2Eを省略しない。
 
 環境不足や失敗は、省略理由にはしない。requiredなら復旧またはBLOCKED。
+
+## Shared membership / authz helper
+
+`getGroupMembership`、`resolveActiveGroupForUserId`、`getResolvedMemberships` など、共有のmembership / 認可helperのskip / continue / null扱いを変えたら、そのhelperのcallerテストも回す。feature向けのtargetedテストだけでは足りない。
+
+例: LINEサマリー用にmembership解決を切り出しても、Clerk認証前提のcategories / receipts / expenseEntries / weekSessions等が同じhelperを使うなら、それらもVerification対象に含める。
 
 ## Suzumemo E2E environment
 
