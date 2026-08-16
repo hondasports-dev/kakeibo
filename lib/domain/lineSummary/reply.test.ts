@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   LINE_HELP_MESSAGE,
   LINE_NO_GROUP_MESSAGE,
+  LINE_RECEIPT_GUIDE_MESSAGE,
   LINE_SUMMARY_UNAVAILABLE_MESSAGE,
   formatCategoryReply,
   formatNoDataReply,
@@ -111,6 +112,10 @@ describe("LINE summary reply formatting", () => {
   it("グループ未設定メッセージに家計金額を含めない", () => {
     expect(LINE_NO_GROUP_MESSAGE).not.toContain("円");
     expect(LINE_HELP_MESSAGE).not.toContain("円");
+    expect(LINE_RECEIPT_GUIDE_MESSAGE).not.toContain("円");
+    expect(LINE_RECEIPT_GUIDE_MESSAGE).toContain("レシート画像");
+    expect(LINE_HELP_MESSAGE).toContain("レシート画像をこのトークに送る");
+    expect(LINE_HELP_MESSAGE).toContain("Webの入力画面で確認する");
     expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toContain("円");
     expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toBe(LINE_HELP_MESSAGE);
     expect(LINE_SUMMARY_UNAVAILABLE_MESSAGE).not.toBe(LINE_NO_GROUP_MESSAGE);

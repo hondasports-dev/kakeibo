@@ -12,6 +12,7 @@ import {
 } from "../../lib/domain/lineImage/content";
 import { sendSummaryReplyHandler, sendUnlinkedGuideHandler } from "./actions";
 import { LINE_SUMMARY_UNAVAILABLE_MESSAGE } from "../../lib/domain/lineSummary/reply";
+import { buildLineQuickReplyActions } from "../../lib/domain/lineSummary/quickReply";
 
 function setEnvironment(values: Record<string, string | undefined>) {
   const original = Object.fromEntries(Object.keys(values).map((key) => [key, process.env[key]]));
@@ -119,6 +120,55 @@ describe("LINE messaging client", () => {
         messages: [{ type: "text", text: "今週の支出: 1,000円" }],
       });
     } finally {
+      restore();
+    }
+  });
+
+  it("real modeのサマリー返信は許可したクイックリプライだけを付ける", async () => {
+    const restore = setEnvironment({
+      LINE_INTEGRATION_MODE: "real",
+      LINE_MESSAGING_CHANNEL_ACCESS_TOKEN: "access-token-private",
+      APP_BASE_URL: "https://suzumemo.test/",
+    });
+    const fetchImpl = vi.fn().mockResolvedValue(new Response("", { status: 200 }));
+    const runQuery = vi.fn().mockResolvedValue({
+      replyText: "今週の支出: 1,000円",
+      replyKind: "week_expense",
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+    try {
+      await sendSummaryReplyHandler({ runQuery } as unknown as ActionCtx, {
+        replyToken: "reply-token-private",
+        userId: "user-a",
+        messageText: "今週の支出",
+        nowMs: 1,
+      });
+      const [, request] = fetchImpl.mock.calls[0] as [string, RequestInit];
+      const webUrl = "https://suzumemo.test/weeks/current/input";
+      expect(JSON.parse(String(request.body))).toEqual({
+        replyToken: "reply-token-private",
+        messages: [
+          {
+            type: "text",
+            text: "今週の支出: 1,000円",
+            quickReply: {
+              items: buildLineQuickReplyActions("week_expense", webUrl).map((action) =>
+                action.type === "message"
+                  ? {
+                      type: "action",
+                      action: { type: "message", label: action.label, text: action.text },
+                    }
+                  : {
+                      type: "action",
+                      action: { type: "uri", label: action.label, uri: action.uri },
+                    },
+              ),
+            },
+          },
+        ],
+      });
+    } finally {
+      vi.unstubAllGlobals();
       restore();
     }
   });

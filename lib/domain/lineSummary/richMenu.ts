@@ -1,6 +1,7 @@
 /**
  * LINE Messaging API channel の default Rich Menu 仕様。
  * タップは既存の読み取り専用テキストコマンドを送る。設置正本は message action。
+ * レシート送信案内と Web 導線はセルに置かず、クイックリプライ側で出す。
  * inbound postback はセル id / 送信テキストへ正規化して同じ dispatcher へ乗せる。
  */
 
@@ -35,11 +36,16 @@ function cellBounds(column: 0 | 1 | 2, row: 0 | 1): LineRichMenuBounds {
 }
 
 export const lineRichMenuCells: readonly LineRichMenuCell[] = [
-  { id: "week_summary", label: "今週", messageText: "今週", bounds: cellBounds(0, 0) },
+  { id: "week_summary", label: "今週の家計", messageText: "今週", bounds: cellBounds(0, 0) },
   { id: "week_expense", label: "支出", messageText: "今週の支出", bounds: cellBounds(1, 0) },
   { id: "week_income", label: "収入", messageText: "今週の収入", bounds: cellBounds(2, 0) },
-  { id: "week_categories", label: "内訳", messageText: "カテゴリ別", bounds: cellBounds(0, 1) },
-  { id: "week_trend", label: "推移", messageText: "週別推移", bounds: cellBounds(1, 1) },
+  {
+    id: "week_categories",
+    label: "カテゴリ別",
+    messageText: "カテゴリ別",
+    bounds: cellBounds(0, 1),
+  },
+  { id: "week_trend", label: "週別推移", messageText: "週別推移", bounds: cellBounds(1, 1) },
   { id: "help", label: "使い方", messageText: "使い方", bounds: cellBounds(2, 1) },
 ];
 

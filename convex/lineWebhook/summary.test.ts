@@ -9,6 +9,7 @@ import { LINE_UNLINKED_GUIDANCE_MESSAGE } from "./client";
 import {
   LINE_HELP_MESSAGE,
   LINE_NO_GROUP_MESSAGE,
+  LINE_RECEIPT_GUIDE_MESSAGE,
   LINE_UNRESOLVED_GROUP_MESSAGE,
 } from "../../lib/domain/lineSummary/reply";
 
@@ -246,6 +247,47 @@ describe("LINE readonly summary", () => {
     expect(trend.replyText).toContain("500円");
     expect(trend.replyText).toContain("3,000円");
     expect(trend.replyText).not.toContain("99,999");
+  });
+
+  it("自然文とレシート案内は既存の読み取り専用ロジックへ乗る", async () => {
+    const t = convexTest(schema, convexTestModules);
+    await seedLinkedHousehold(t, {
+      userId: "user-a",
+      lineUserId: "line-a",
+      groupName: "A家",
+    });
+
+    const expense = await t.query(internal.lineWebhook.summary.buildReply, {
+      userId: "user-a",
+      messageText: "今週いくら使った？",
+      nowMs: NOW_MS,
+    });
+    const food = await t.query(internal.lineWebhook.summary.buildReply, {
+      userId: "user-a",
+      messageText: "食費どれくらい？",
+      nowMs: NOW_MS,
+    });
+    const hello = await t.query(internal.lineWebhook.summary.buildReply, {
+      userId: "user-a",
+      messageText: "こんにちは",
+      nowMs: NOW_MS,
+    });
+    const receipt = await t.query(internal.lineWebhook.summary.buildReply, {
+      userId: "user-a",
+      messageText: "レシートを送る",
+      nowMs: NOW_MS,
+    });
+
+    expect(expense.replyKind).toBe("week_expense");
+    expect(expense.replyText).toContain("支出: 3,000円");
+    expect(food.replyKind).toBe("category_lookup");
+    expect(food.replyText).toContain("食費: 2,000円");
+    expect(hello).toEqual({ replyKind: "help", replyText: LINE_HELP_MESSAGE });
+    expect(receipt).toEqual({
+      replyKind: "receipt_guide",
+      replyText: LINE_RECEIPT_GUIDE_MESSAGE,
+    });
+    expect(receipt.replyText).not.toMatch(/\d+円/);
   });
 
   it("未知コマンドとグループ未設定・未選択は金額を返さない", async () => {

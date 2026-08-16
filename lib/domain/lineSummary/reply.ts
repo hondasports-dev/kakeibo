@@ -4,13 +4,20 @@ import type { CategorySummary } from "../receipt/summary";
 export const LINE_REPLY_MAX_LENGTH = 5_000;
 
 export const LINE_HELP_MESSAGE = [
-  "家計簿の読み取り専用サマリーです。次のメッセージを送ってください。",
+  "家計簿の読み取り専用サマリーです。次から選ぶか、メッセージを送ってください。",
   "・今週 / サマリー",
   "・今週の支出",
   "・今週の収入",
   "・カテゴリ別",
   "・週別推移",
   "・カテゴリ名（例: 食費）",
+  "・レシート画像をこのトークに送る",
+  "・Webの入力画面で確認する",
+].join("\n");
+
+export const LINE_RECEIPT_GUIDE_MESSAGE = [
+  "レシート画像をこのトークに送ってください。",
+  "確認と登録はWebの入力画面で行います。LINE上では登録・編集・削除できません。",
 ].join("\n");
 
 export const LINE_NO_GROUP_MESSAGE =
