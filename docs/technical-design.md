@@ -1240,4 +1240,4 @@ Messaging API channel の default Rich Menu は、既存の読み取り専用テ
 - postback、URI、per-user Rich Menu、Quick Reply はこの基盤では使わない
 - 連携済みユーザーのタップは現行どおり text イベントとしてサマリー dispatcher へ入る
 - 未連携ユーザーのタップは現行どおり連携案内だけを返し、家計金額は出さない
-- 実行時アプリは Rich Menu を自動作成・自動適用しない。Development / Preview への設置手順は `docs/service-tooling-setup.md` を正とし、Production への適用は別途人間承認とする
+- 実行時アプリは Rich Menu を自動作成・自動適用しない。設置は `pnpm run line:rich-menu -- --apply` を人間が非Productionで実行する。Production への適用は別途人間承認とする。CI と mock mode では LINE API を呼ばない。

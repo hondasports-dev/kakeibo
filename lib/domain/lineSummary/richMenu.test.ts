@@ -9,6 +9,7 @@ import {
   LINE_RICH_MENU_SIZE,
   buildLineRichMenuObject,
   lineRichMenuCells,
+  validateLineRichMenuImage,
 } from "./richMenu";
 
 const EXPECTED_COMMANDS = [
@@ -100,5 +101,15 @@ describe("LINE channel rich menu spec", () => {
     expect(bytes.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
     expect(bytes.readUInt32BE(16)).toBe(LINE_RICH_MENU_SIZE.width);
     expect(bytes.readUInt32BE(20)).toBe(LINE_RICH_MENU_SIZE.height);
+    expect(() => validateLineRichMenuImage(bytes)).not.toThrow();
+  });
+
+  it("不正な画像は拒否する", () => {
+    expect(() => validateLineRichMenuImage(new Uint8Array())).toThrow(
+      "LINE rich menu image is invalid",
+    );
+    expect(() => validateLineRichMenuImage(new Uint8Array([0x00, 0x01, 0x02]))).toThrow(
+      "LINE rich menu image is invalid",
+    );
   });
 });
