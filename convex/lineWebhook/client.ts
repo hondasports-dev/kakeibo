@@ -4,6 +4,12 @@ import {
   type LineImageContent,
 } from "../../lib/domain/lineImage/content";
 import { getLineIntegrationMode } from "../lineLink/model";
+import { getAppBaseUrl } from "../../lib/email/url";
+import {
+  LINE_WEB_APP_PATH,
+  toLineQuickReplyPayload,
+  type LineQuickReplyAction,
+} from "../../lib/domain/lineSummary/quickReply";
 
 const LINE_REPLY_ENDPOINT = "https://api.line.me/v2/bot/message/reply";
 const LINE_CONTENT_ENDPOINT_PREFIX = "https://api-data.line.me/v2/bot/message/";
@@ -22,6 +28,7 @@ export async function sendLineTextReply(
   replyToken: string,
   text: string,
   fetchImpl: LineFetch = fetch,
+  quickReplyActions: LineQuickReplyAction[] = [],
 ): Promise<void> {
   if (!replyToken || replyToken.length > 2048) {
     throw new Error("LINE reply token is invalid");
@@ -36,6 +43,13 @@ export async function sendLineTextReply(
   const accessToken = process.env.LINE_MESSAGING_CHANNEL_ACCESS_TOKEN;
   if (!accessToken) throw new Error("LINE messaging integration is unavailable");
 
+  const webUrl = `${getAppBaseUrl()}${LINE_WEB_APP_PATH}`;
+  const quickReply = toLineQuickReplyPayload(quickReplyActions, webUrl);
+  const message: Record<string, unknown> = { type: "text", text };
+  if (quickReply !== undefined) {
+    message.quickReply = quickReply;
+  }
+
   let response: Response;
   try {
     response = await fetchImpl(LINE_REPLY_ENDPOINT, {
@@ -47,7 +61,7 @@ export async function sendLineTextReply(
       signal: AbortSignal.timeout(PROVIDER_TIMEOUT_MS),
       body: JSON.stringify({
         replyToken,
-        messages: [{ type: "text", text }],
+        messages: [message],
       }),
     });
   } catch {

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   parseLineSummaryCommand,
+  resolveCategoryLookup,
   resolveLineEventCommandText,
   resolveLinePostbackToCommandText,
 } from "./commands";
@@ -19,11 +20,14 @@ describe("parseLineSummaryCommand", () => {
     ["今週", { type: "week_summary" }],
     ["サマリー", { type: "week_summary" }],
     ["家計簿", { type: "week_summary" }],
+    ["今週の家計", { type: "week_summary" }],
     ["ヘルプ", { type: "help" }],
     ["使い方", { type: "help" }],
     ["?", { type: "help" }],
     ["", { type: "help" }],
     ["   ", { type: "help" }],
+    ["レシートを送る", { type: "receipt_guide" }],
+    ["レシート", { type: "receipt_guide" }],
   ])("%s を解釈する", (text, expected) => {
     expect(parseLineSummaryCommand(text)).toEqual(expected);
   });
@@ -32,23 +36,59 @@ describe("parseLineSummaryCommand", () => {
     expect(parseLineSummaryCommand(" 　今週の支出  ")).toEqual({ type: "week_expense" });
   });
 
-  it("食費など未知の語句はカテゴリ名候補にする", () => {
+  it("代表的な自然文を既存intentへ解決する", () => {
+    expect(parseLineSummaryCommand("今週いくら使った？")).toEqual({ type: "week_expense" });
+    expect(parseLineSummaryCommand("今月じゃなくて今週の支出教えて")).toEqual({
+      type: "week_expense",
+    });
+    expect(parseLineSummaryCommand("収入はいくら？")).toEqual({ type: "week_income" });
+    expect(parseLineSummaryCommand("最近の推移見せて")).toEqual({ type: "week_trend" });
+    expect(parseLineSummaryCommand("食費どれくらい？")).toEqual({
+      type: "category_lookup",
+      name: "食費",
+    });
+    expect(parseLineSummaryCommand("こんにちは")).toEqual({ type: "help" });
+    expect(parseLineSummaryCommand("何ができる？")).toEqual({ type: "help" });
+  });
+
+  it("記号・空白・語尾の違いで判定が壊れない", () => {
+    expect(parseLineSummaryCommand("今週の支出！！")).toEqual({ type: "week_expense" });
+    expect(parseLineSummaryCommand("収入　は　いくら")).toEqual({ type: "week_income" });
+    expect(parseLineSummaryCommand("週別推移。")).toEqual({ type: "week_trend" });
+  });
+
+  it("食費などカテゴリとして解釈できる語句だけを候補にする", () => {
     expect(parseLineSummaryCommand("食費")).toEqual({ type: "category_lookup", name: "食費" });
     expect(parseLineSummaryCommand(" 日用品 ")).toEqual({
       type: "category_lookup",
       name: "日用品",
     });
+    expect(parseLineSummaryCommand("今週の食費")).toEqual({
+      type: "category_lookup",
+      name: "食費",
+    });
   });
 
-  it("登録・削除などの書き込み依頼はサマリーコマンドにしない", () => {
-    expect(parseLineSummaryCommand("支出を登録")).toEqual({
-      type: "category_lookup",
-      name: "支出を登録",
-    });
-    expect(parseLineSummaryCommand("削除して")).toEqual({
-      type: "category_lookup",
-      name: "削除して",
-    });
+  it("登録・削除などの書き込み依頼と未知入力はヘルプにする", () => {
+    expect(parseLineSummaryCommand("支出を登録")).toEqual({ type: "help" });
+    expect(parseLineSummaryCommand("削除して")).toEqual({ type: "help" });
+    expect(parseLineSummaryCommand("おはよう")).toEqual({ type: "help" });
+    expect(parseLineSummaryCommand("abcxyz")).toEqual({ type: "help" });
+  });
+
+  it("推移などより具体的なintentはカテゴリ抽出より優先する", () => {
+    expect(parseLineSummaryCommand("食費の推移見せて")).toEqual({ type: "week_trend" });
+  });
+});
+
+describe("resolveCategoryLookup", () => {
+  const categories = [{ name: "食費" }, { name: "日用品" }, { name: "交通費" }];
+
+  it("完全一致を優先し、文中に一意な最長名が含まれるときだけ解決する", () => {
+    expect(resolveCategoryLookup("食費", categories)?.name).toBe("食費");
+    expect(resolveCategoryLookup("食費どれくらい", categories)?.name).toBe("食費");
+    expect(resolveCategoryLookup("旅行", categories)).toBeUndefined();
+    expect(resolveCategoryLookup("食費と日用品", categories)).toBeUndefined();
   });
 });
 

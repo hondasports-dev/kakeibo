@@ -13,11 +13,11 @@ HEIGHT = 1686
 COLUMN_WIDTHS = (833, 834, 833)
 ROW_HEIGHTS = (843, 843)
 CELLS = (
-    ("今週", "サマリー"),
+    ("今週の家計", "サマリー"),
     ("支出", "今週の支出"),
     ("収入", "今週の収入"),
-    ("内訳", "カテゴリ別"),
-    ("推移", "週別推移"),
+    ("カテゴリ別", "カテゴリ別"),
+    ("週別推移", "週別推移"),
     ("使い方", "案内"),
 )
 
@@ -66,8 +66,8 @@ def draw_centered(
 def generate(output: Path) -> None:
     image = Image.new("RGB", (WIDTH, HEIGHT), PAPER)
     draw = ImageDraw.Draw(image)
-    title_font = load_font(96)
-    caption_font = load_font(42)
+    title_font = load_font(72)
+    caption_font = load_font(40)
 
     for index, (label, caption) in enumerate(CELLS):
         column = index % 3
