@@ -28,7 +28,7 @@
     "test:email-integration": "vitest run -c vitest.integration.config.ts"
   },
   "dependencies": {
-    "@clerk/backend": "^3.11.3",
+    "@clerk/backend": "^3.16.6",
     "@clerk/react": "^6.12.3",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
