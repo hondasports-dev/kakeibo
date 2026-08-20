@@ -1,0 +1,4 @@
+{
+  "name": "Suzumemo (kakeibo)",
+  "install": "export NVM_DIR=\"$HOME/.nvm\"; [ -s \"$NVM_DIR/nvm.sh\" ] && . \"$NVM_DIR/nvm.sh\"; nvm install >/dev/null; nvm use >/dev/null; nvm alias default \"$(cat .nvmrc)\" >/dev/null; corepack enable; corepack prepare pnpm@11.1.2 --activate; pnpm install --frozen-lockfile"
+}
