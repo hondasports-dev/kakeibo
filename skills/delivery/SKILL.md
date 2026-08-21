@@ -1,104 +1,90 @@
 ---
 name: delivery
-description: 選択されたRisk Profileで必要なVerification/ReviewがPASSしたheadをcommit/pushし、現在taskのPRを作成または更新してPR identityを固定する。PR公開checkpointに使う。
+description: Verification/required Review済みcontentを現在taskの唯一のPRへpublishし、preview向けPR identityを固定する。PR作成はcheckpointでありcompletionではない。
 license: Apache-2.0
 ---
 
-# Delivery Publish
-
-## 目的
-
-検証済みheadをGitHubへ公開し、現在taskの唯一のDelivery PRへ束縛する。
-
-**PR作成はcheckpointでありcompletionではない。** PASS後は `PR_AFTERCARE`。
+# Delivery
 
 ## 前提
 
-- Spec Confidence: C1/C2
-- Risk Level / selected profile記録済み
-- profile-required Verification: PASS
-- profile-required Code Review: PASSまたはNOT_REQUIRED
-- profile-required Security Review: PASSまたはNOT_REQUIRED
+- Spec Confidence C1/C2
+- Workspace Preflight PASS / documented exception
+- max observed Risk floorを満たすVerification
+- required Controls実施済み
+- required REVIEW PASS / NOT_REQUIRED
+- blocking findingsなし
+- required Human Gate承認済み
 - scope integrity確認済み
 
-「Security Reviewが無いからDelivery不可」ではなく、**profile上requiredなのに未実施なら不可**とする。
+## Suzumemo delivery
 
-## Review Evidence checker
+default base:
 
-`check-loop-evidence.mjs --require-review` は、separate review evidenceを要求するprofileで使う補助checkerである。
+```text
+preview
+```
 
-- R3/R4: 使用
-- R1/R2: profileのreview evidence形式がcheckerと一致する場合のみ使用
-- R0: separate review自体がNOT_REQUIREDなので、このcheckerを必須化しない
+default target:
 
-checkerの存在をRisk Profileより強い隠れGateにしない。
+```text
+merge_ready
+```
 
-## Delivery target
+`pr_created` はcheckpoint。
 
-- `merge_ready`: default
-- `merged_cleaned`: ユーザーがmergeまで依頼した場合
-
-`pr_created` はtargetではなくcheckpoint。
-
-「PRを投げて」は通常 `merge_ready`。明示的に「PR作成までで止めて」の場合だけAftercare例外候補。
-
-## Session / Task invariant
+## PR invariant
 
 - current taskにつきDelivery PRは最大1
 - 既存PRがあれば同じbranch / PRを更新
-- Aftercare terminal前に別task PRを作らない
+- 他task差分を混ぜない
 
-## Publish前確認
+## Publish前
 
 - intended diffのみ
-- untracked / local-only / secretなし
-- baseとの差分に他task変更なし
-- published headがprofile-required Verification/Review済みheadと一致
-- Risk escalation後に旧profileのEvidenceを流用していない
+- secret / `.env.local` / local artifactなし
+- base `preview` との差分確認
+- published contentがVerification/Review対象contentと対応
+- open/fix_now findingなし
 
-## Commit / Push
+## PR body
 
-- task branch
-- intended filesのみ
-- push後にremote head SHAを確認
-
-## PR create / update
-
-PRには最低限:
+最低限:
 
 - 変更内容 / 理由
-- Spec Confidence / Risk / Profile
-- Verification evidence
-- required Review evidence
-- residual risk / follow-up
-- Issueまたはtask source
+- Spec Confidence / Risk / Required Controls
+- Verification
+- required Review
+- Findings / follow-up
+- task source
 
-## Gate
+Gate名を埋めるためだけの長いEvidence転記はしない。
 
-PASS条件:
+## Revision evidence
 
-- intended changes committed / pushed
+commit SHAを記録し、可能ならtree SHAも記録する。
+
+same tree/contentなら既存Verification/Reviewを再利用できる。
+
+## PASS
+
+- intended changes published
 - current taskのDelivery PRが1つ
-- PR metadata確認済み
-- PR head == published verified head
-- profile-required gatesが満たされている
+- base/headが正しい
+- blocking findingsなし
+- Aftercareへ進める
 
-CI / external reviewのterminal判定は `PR_AFTERCARE` が所有する。
+CI / review / mergeabilityのterminal判定はPR Aftercareが所有する。
 
 ## 出力
 
 ```text
 DELIVERY
-Status: PASS | FAIL | BLOCKED
-Spec confidence:
-Risk / profile:
-Checkpoint: pr_created
-Mode: create | update_existing
+Status: PASS | BLOCKED
 Branch:
-Commit:
+Commit / tree:
 PR:
-Head SHA:
+Base: preview
 Delivery target:
-Required review evidence:
 Evidence:
 ```

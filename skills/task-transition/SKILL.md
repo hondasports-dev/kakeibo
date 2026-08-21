@@ -1,75 +1,52 @@
 ---
 name: task-transition
-description: PR AftercareとProcess Learningの完了後、現在taskを閉じ、sessionを解放するか次taskへ必要な情報だけを明示的に再束縛する。別taskへ移る前の境界管理に使う。
+description: 次taskへcontextを持ち越す必要がある時だけ使う軽量session cleanup helper。通常taskのcompletion Gateにはしない。
 license: Apache-2.0
 ---
 
-# Task Transition
+# Task Transition Helper
 
-## 目的
+## 方針
 
-前taskを未完了のまま次taskへ持ち込まない。
+Task Transitionは通常のDONE条件ではない。
 
-## 前提
+単発taskを閉じるためだけに独立reasoning phaseを追加しない。
 
-- PR AftercareがPASS、またはユーザー明示の例外がある
-- Process LearningがPASS
-- 必須BLOCKEDが残っていない
+## 使う時
 
-## Current task closure
+- 同じsessionで次taskへ進む
+- 前taskの一部contextだけを安全にcarryする必要がある
+- branch / PR / Issue identityを切り替える必要がある
 
-次を記録する。
+## Closure packet
 
-```text
-Task ID / source
-Objective
-Branch / worktree
-Delivery PR
-Delivery target / result
-Final head SHA
-PR Aftercare result
-Process Learning result
-```
-
-`pr_created` checkpointだけではterminalとみなさない。
-
-## 次taskなし
-
-current task bindingをreleaseし、Evidenceを残してDONEへ進む。
-
-## 次taskあり
-
-新しいtask packetを作り、`WORKSPACE_PREFLIGHT` へ戻る。
+必要最小限:
 
 ```text
-Next task ID / source
-Objective
-Relevant carried context
-Explicitly excluded prior context
+Closing task:
+Delivery result:
+Branch / PR:
+Relevant unresolved follow-up:
 ```
 
-前taskのIssue、review、CI結果、branch、PRを暗黙に引き継がない。新taskに必要なcontextだけを明示的にcarryする。
+## Next task packet
 
-## Session invariant
+```text
+Next task ID / source:
+Objective:
+Carry:
+Do not carry:
+```
 
-通常は1 sessionにつきcurrent taskは1つ、1 taskにつきDelivery PRは最大1つとする。並行taskはユーザーが明示的に許可した場合だけ例外。
+前taskのreview/CI/branch/PRを暗黙に新taskへ流用しない。
 
-## FAIL / BLOCKED
-
-- Aftercare未完了 → PR_AFTERCARE
-- Process Learning未完了 → PROCESS_LEARNING
-- 振り返り保留中 → DONEにせず、Aftercareが非terminalならPR_AFTERCARE、terminalならPROCESS_LEARNING
-- task identity / sourceが不明 → 新taskを開始せずBLOCKED
-- 前taskの未完了を発見 → 対応Gateへ戻る
+新taskのrepository changeは改めてWorkspace Preflightを行う。
 
 ## 出力
 
 ```text
-TASK_TRANSITION
-Status: PASS | BLOCKED
+TASK TRANSITION
 Closing task:
 Next task: none | bound
-Next task packet:
-Session released: yes | no
-Evidence:
+Carried context:
 ```
