@@ -219,7 +219,8 @@ verification_policy:
   suzumemo_environment:
     e2e_env_sync: pnpm run e2e:env-sync
     convex_reflection_when_required: pnpm exec convex dev --once
-    secret_values_must_not_be_logged: true
+    secret_values_must_not_be_exposed_sent_committed_or_persisted: true
+    secret_output_must_be_masked_or_verification_blocks: true
   ci_aftercare_default:
     - full_repository_required_checks
     - regression_e2e_configured_by_repository
@@ -254,6 +255,8 @@ finding_ledger:
   fields:
     - id
     - source
+    - observed_revision
+    - status
     - category
     - finding
     - failure_scenario
@@ -265,6 +268,9 @@ finding_ledger:
     - disposition
     - resolution
     - verified_revision
+  statuses:
+    - open
+    - resolved
   dispositions:
     - open
     - fix_now
@@ -273,13 +279,15 @@ finding_ledger:
     - not_applicable
     - resolved
   rules:
+    - same_finding_id_is_updated_across_review_ci_and_aftercare_cycles
     - open_or_fix_now_blocks_delivery
     - test_gap_allows_only_fix_now_or_requirements_reassessment
     - protected_domain_cannot_be_agent_deferred
     - unclassified_other_is_protected_until_classified
     - defer_requires_non_protected_domain_mitigation_follow_up_and_evidence
-    - accept_with_human_gate_requires_recorded_approval
+    - accept_with_human_gate_requires_status_approved_and_approver_approved_at_scope_and_evidence
     - not_applicable_requires_proof
+    - resolved_requires_resolution_verified_revision_and_evidence
   protected_risk_domains:
     - invariant
     - auth
@@ -301,7 +309,7 @@ finding_ledger:
 revision_policy:
   canonical_identity:
     commit_sha: required
-    tree_sha: recommended
+    tree_sha: required_for_evidence_reuse
   snapshots:
     - verified
     - reviewed
@@ -310,6 +318,10 @@ revision_policy:
   invalidation:
     same_tree_new_commit:
       reuse_previous_evidence: true
+      proof_requires_matching_non_empty_tree_sha: true
+    identity_not_proven:
+      treat_as_content_changed: true
+      require_delta_or_full_revalidation: true
     content_changed:
       require_delta_verification: true
       require_delta_review_when_review_was_required: true
@@ -362,6 +374,8 @@ delivery_contract:
   pre_publish_required:
     - spec_confidence_c1_or_c2
     - workspace_preflight_pass_or_documented_exception
+    - acceptance_criteria_verified
+    - verification_evidence_recorded
     - required_verification_pass
     - required_review_pass
     - no_blocking_findings
@@ -371,6 +385,8 @@ delivery_contract:
     - required_ci_success
     - no_actionable_blocking_review
     - no_requested_changes
+    - required_approvals_satisfied
+    - all_terminal_evidence_bound_to_observed_revision
     - no_conflict
     - mergeable
 

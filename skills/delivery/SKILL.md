@@ -11,6 +11,8 @@ license: Apache-2.0
 - Spec Confidence C1/C2
 - Workspace Preflight PASS / documented exception
 - max observed Risk floorを満たすVerification
+- current taskのAcceptance CriteriaがPASS
+- Acceptance Criteriaに対応するVerification Evidence記録済み
 - required Controls実施済み
 - required REVIEW PASS / NOT_REQUIRED
 - blocking findingsなし
@@ -62,19 +64,28 @@ Gate名を埋めるためだけの長いEvidence転記はしない。
 
 ## Revision evidence
 
-commit SHAを記録し、可能ならtree SHAも記録する。
+Verification / Review / Deliveryの各Evidenceはcommit SHAを必須とし、再利用判定ではtree SHAも必須とする。
 
-same tree/contentなら既存Verification/Reviewを再利用できる。
+previous Verification / Reviewを再利用できるのは、次をすべて満たす場合だけ。
+
+- current contentのtree SHAが取得できる
+- previous verified/reviewed tree SHAが取得できる
+- 両tree SHAが一致する
+
+commit SHAだけが変わりtree SHAが一致する場合はsame contentとして再利用できる。
+
+tree SHAが欠落している、またはidentityを証明できない場合はsame contentとみなさず、delta Verification / Review、必要ならaffected-scope full rerunへ進む。
 
 ## PASS
 
 - intended changes published
 - current taskのDelivery PRが1つ
 - base/headが正しい
+- Acceptance Criteria PASSとVerification Evidenceがpublished contentに束縛されている
 - blocking findingsなし
 - Aftercareへ進める
 
-CI / review / mergeabilityのterminal判定はPR Aftercareが所有する。
+CI / review / approval / mergeabilityのterminal判定はPR Aftercareが所有する。
 
 ## 出力
 
@@ -86,5 +97,6 @@ Commit / tree:
 PR:
 Base: preview
 Delivery target:
+Acceptance Criteria verification:
 Evidence:
 ```

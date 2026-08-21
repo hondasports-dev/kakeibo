@@ -1,6 +1,6 @@
 ---
 name: pr-aftercare
-description: PR公開後、latest contentのCI・review・requested changes・conflict・mergeabilityを追跡し、必要なdeltaだけ再検証してmerge-readyまで収束させる。
+description: PR公開後、latest contentのCI・review・requested changes・approval・conflict・mergeabilityを追跡し、必要なdeltaだけ再検証してmerge-readyまで収束させる。
 license: Apache-2.0
 ---
 
@@ -14,15 +14,19 @@ Aftercareは主にGitHub state確認であり、multi-agent reviewを増やす�
 
 ## 毎cycle
 
+観測対象を1つのrevisionへ束縛する。
+
 - PR / base / head
-- latest commit SHA
-- 可能ならtree/content identity
+- observed commit SHA
+- observed tree SHA
 - required checks
 - human/bot actionable findings
 - requested changes
 - approval
 - conflict / mergeability
 - Draft / ready state
+
+checks / review / approval / conflict / mergeabilityのEvidenceは、どのobserved revisionに対するものか分かる形で記録する。
 
 `pending / queued / in_progress` はPASSではない。
 
@@ -34,29 +38,51 @@ Draft → ready後はreview state / comments / threads / review checksを再観�
 
 ## Head change
 
-SHAが変わっただけで全工程を再実行しない。
+SHAが変わっただけで全工程を再実行しない。ただしsame contentの再利用にはtree identityの証明が必要。
 
 ### same tree/content
 
-- previous Verification / Review reuse可
-- GitHub側のlatest observationだけ更新
+次をすべて満たす時だけprevious Verification / Reviewを再利用できる。
 
-### content changed
+- previous tree SHAが非空
+- current tree SHAが非空
+- previous tree SHA == current tree SHA
 
+この場合はGitHub側のlatest observationだけ更新する。
+
+### identityを証明できない / content changed
+
+- tree SHAが欠落、または一致を証明できない → content changedとして扱う
 - delta Verification
 - REVIEWがrequiredだったtaskはdelta Review
 - protected behavior / AC / Risk / Controlsが変わる、またはdeltaをboundできない → affected scope full rerun
 
 その後、同じPRへpublishして最新contentのCIを確認する。
 
-## Finding
+## Finding Ledger
 
-review/CI findingは共通 `findings[]` に追加する。
+review / CI / human findingは共通 `findings[]` の同じrecordを更新する。
 
-- fixed → implementation + required delta verification/review
-- rejected / not_applicable → evidence
-- protected accept → Human Gate
-- test gap → fix or Requirements reassessment
+各recordに最低限:
+
+- stable `id`
+- `source`
+- `observed_revision`（commit SHA + tree SHA）
+- `status` / `disposition`
+- `evidence`
+
+を保持する。
+
+同じfindingが次cycleでも残る場合、新しいduplicate recordを作らず同じstable IDを更新する。
+
+遷移例:
+
+- fixed → 同じrecordへresolution / verified_revision / evidenceを追記し、検証後にresolved
+- rejected / not_applicable → 同じrecordへrationale / evidenceを追記
+- protected accept → 同じrecordへHuman Gate approvalを記録
+- test gap → 同じrecordをfixまたはRequirements reassessmentまでopenのまま保持
+
+旧revisionのfindingを単に削除せず、現revisionでoutdated / not_applicableになった根拠を同recordへ残す。
 
 Reviewer同士を討論させない。
 
@@ -66,14 +92,21 @@ Aftercareで新しいauth/data/financial/shared/external impactが判明した�
 
 ## Merge-ready
 
-- current taskの唯一のPR
-- non-draft（明示Draft運用を除く）
+PASS直前にrevision consistencyを再確認する。
+
+- GitHubのcurrent PR head commit SHA == recorded observed commit SHA
+- current tree SHA == recorded observed tree SHA
 - latest contentのrequired checks success
+- required review / requested changes / approval / conflict / mergeabilityが同じobserved revisionに対するEvidence
 - blocking findingsなし
 - requested changesなし
-- required approval satisfied
+- required approvalがある場合 `approval_status: pass`
+- required approvalがない場合 `approval_status: not_required` 可
 - conflictなし
 - mergeable
+- non-draft（明示Draft運用を除く）
+
+revision不一致、tree identity不明、approval pending/block、またはEvidenceのrevisionを特定できない場合はPASSにせず、BLOCKEDまたはdelta/full再検証へ戻る。
 
 ## Explicit publish-only
 
@@ -87,11 +120,13 @@ Aftercareで新しいauth/data/financial/shared/external impactが判明した�
 PR AFTERCARE
 Status: PASS | BLOCKED | NOT_REQUIRED
 PR:
-Observed revision:
+Observed commit / tree:
+Revision consistency:
 Checks:
 Review findings:
 Requested changes:
-Approval:
+Approval required:
+Approval status:
 Conflict:
 Mergeable:
 Delta revalidation:
