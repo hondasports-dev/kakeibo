@@ -87,7 +87,7 @@ finding_record_schema:
   observed_revision:
     commit_sha: ""
     tree_sha: ""
-  status: open # open | resolved
+  status: open # open | resolved; resolved iff disposition is resolved
   category: "" # correctness | security | test_gap | scope | reliability | maintainability | financial | other
   finding: ""
   failure_scenario: ""
@@ -125,7 +125,6 @@ delivery:
 pr_aftercare:
   status: pending
   checks: []
-  review_findings: []
   requested_changes: []
   approval_required: false
   approval_status: pending # pending | pass | not_required | blocked
