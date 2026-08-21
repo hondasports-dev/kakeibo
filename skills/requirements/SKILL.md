@@ -1,91 +1,80 @@
 ---
 name: requirements
-description: ユーザー要求、Issue、docs、tests、既存実装を統合し、Spec Confidenceを確定したうえでRisk LevelとLoop Profileを選ぶ。実装前の仕様確定とrisk-based routingに使う。
+description: PREPAREを所有し、Spec Confidence、scope、Acceptance Criteria、Risk、Required Controls、Verification planを一度だけ確定する。Riskの高さだけでRequirements reviewerを増やさない。
 license: Apache-2.0
 ---
 
-# Requirements / Specification / Risk Routing
+# PREPARE / Requirements
 
 ## 目的
 
-このSkillは「何を作るか」と「どれだけ重いループを使うか」を決める。
+実装前に「何を作るか」「何を守るか」「何を検証するか」を決める。
 
-**仕様不明と変更リスクを混同しない。**
+このSkillは次を所有する。
 
-1. Spec Confidenceを確定する
-2. Acceptance Criteriaとscopeを作る
-3. Riskを判定する
-4. Loop Profileを選ぶ
+- Goal / In scope / Out of scope / Preserve
+- Acceptance Criteria
+- Spec Confidence
+- Risk / max observed Risk
+- Required Controls
+- Verification plan
+- 必要十分な Impact summary
 
 `C0` のままImplementationへ進まない。
 
-## 1. Spec Confidence
+## Workspace Preflight
+
+repository fileを変更するtaskでは、最初の編集前に `skills/workspace-preflight/SKILL.md` を適用する。
+
+これは独立した長いreasoning Gateではなく、PREPARE内のcheap deterministic control。
+
+## Spec Confidence
 
 ### C2 confirmed
 
-- 目的・期待結果・主要Acceptance Criteriaが明確
-- materialな仕様sourceが矛盾しない
+目的・期待結果・主要ACが明確でmaterial conflictなし。
 
 ### C1 reconstructed
 
-Issue等に不足はあるが、canonical docs、tests、既存pattern等から成果物をほぼ一意に補完できる。
-
-局所的な命名や既存patternの踏襲はMainが補完してよい。
+不足はあるが、authoritative docs / tests / existing patternからmaterial product choiceなしに復元できる。
 
 ### C0 unclear
 
-複数の妥当な仕様があり、選択でユーザー体験・data意味・権限・完了条件が変わる。
+複数の妥当な成果物があり、選択でUX・data意味・権限・課金・完了条件等がmaterially変わる。
 
-→ Requirements Discoveryを続ける。解消しなければHuman Gate。
+→ Requirements Discovery。解消しなければHuman Gate。
 
 ### C0 conflicted
 
-望ましい最終状態について有力なsource同士が矛盾する。
+desired stateについてauthoritative source同士が矛盾する。
 
 → Source reconciliation。解消しなければHuman Gate。
 
-## 2. Source reconciliation
+## Source priority
 
-Evidenceは次の順で確認する。
-
-1. 現在のユーザー指示
-2. 最新の明示承認仕様 / ADR / decision
-3. 現在taskのIssue・コメント
+1. current user instruction
+2. latest explicitly approved spec / ADR / decision
+3. current task Issue / comments
 4. canonical docs
 5. tests
-6. implementation / existing pattern
+6. current implementation / existing pattern
 
-ただし、Issueが「現在BをAへ変更する」と明示しているなら、既存実装Bとの差はConflictではなくexpected delta。
+Issueが「現在BをAへ変える」と明示している場合、Bとの差はexpected deltaでありconflictではない。
 
-次のような場合は自動でどちらかを選ばない。
+## Independent Spec Review
 
-- Issue A / approved spec B
-- Issue A / docs・tests・implementation B だがIssueがintentional changeかstaleか不明
-- data保持、認可、課金、削除等で複数の妥当な最終状態がある
+RiskがR3/R4という理由だけで複数reviewerを起動しない。
 
-Human Gateへ渡す時は、各source、更新時点、差分、成果物への影響を示す。
+最大1 reviewerを使うのは次だけ。
 
-## 3. Scope / Acceptance Criteria
+- C1復元後もmaterial choiceが残る
+- 復元した仕様がauth/data/financial等のprotected behaviorを変える
 
-最低限:
+Reviewer同士を討論させない。rootが1回統合する。
 
-- Goal
-- Current behavior
-- Expected behavior
-- In scope
-- Out of scope
-- Preserve
-- Acceptance Criteria
-- edge / error state
-- Test Strategy
+## Risk
 
-R0/R1では必要十分な短いpacketでよい。テンプレを埋めるためだけに不要な項目を増やさない。
-
-## 4. Risk判定
-
-Spec ConfidenceがC1/C2になってから確定する。
-
-4軸を `0..2` で記録する。
+4軸 `0..2`。
 
 - Blast Radius
 - Data / Security
@@ -94,115 +83,71 @@ Spec ConfidenceがC1/C2になってから確定する。
 
 目安:
 
-- `0..2` → R1
-- `3..4` → R2
-- `5..8` → R3
+- 0..2 → R1
+- 3..4 → R2
+- 5..8 → R3
 
 R0 / R4は明示条件。
 
-### R3 floor
+R4代表:
 
-- authn / authz
-- tenant / group / data boundary
-- schema / migration
-- data deletion / retention
-- billing / payment
-- privileged secret / env
-- webhook / external service write
-- production behavior config
-
-### R4 critical
-
-- production DB migration
-- bulk / irreversible data mutation
+- production DB/data migration
+- bulk / irreversible mutation
 - account deletion semantics
 - authorization model overhaul
 - financial settlement integrity
 - production secret rotation
-- production DNS / domain cutover
+- production DNS/domain cutover
 
-process policyは一律Highにしない。通常R2、safety / Delivery completion / production-destructive policy変更はR3+。
+Risk上昇は発見時点で即時。Implementation開始後はmax observed Riskをcompletion floorにする。
 
-## 5. Profile選択
+## Required Controls
 
-### R0 trivial
+Riskとは別に選ぶ。
 
-- independent review: 0
-- separate Impact: no
-- separate Code Review: no
-- separate Security Review: no
+- `workspace_preflight`
+- `security_review`
+- `data_model`
+- `financial_integrity`
+- `destructive_or_stateful`
+- `service_ops`
+- `human_gate`
+- `prompt_injection_guard`
 
-### R1 fast
+authやschemaに触れたという理由だけで全High ceremonyを起動せず、必要なControlを追加する。
 
-- independent review: 0
-- Impactはこのpacketの`impact_summary`へ統合
-- Code Reviewでsecurity quick scan
+## Impact
 
-### R2 standard
+通常はこのpacketの `impact_summary` で十分。
 
-- independent review: 0が既定
-- 次の時だけ1 review:
-  - C1
-  - material uncertainty
-  - cross-cutting change
-  - Mainがmaterial ambiguityを検出
-- post-synthesis review: 0
-- separate Impact: yes
+`skills/impact-analysis/SKILL.md` を別途読むのは:
 
-### R3 high
-
-- independent review: 2
-- separate Impact / Code Review / Security Review
-
-### R4 critical
-
-- independent review: 3
-- post-synthesis review: 1
-- implementation前Human Gate
-- production / irreversible operation前Human Gate
-
-## 6. Independent Review契約
-
-R2-R4でreviewが必要な時だけ使う。
-
-- 同じimmutable input snapshotを使う
-- reviewerはread-only
-- Mainの結論や他reviewerの結果を提出前に見せない
-- Mainはreview人数に数えない
-- revisionが変わったら影響するreviewをinvalidにする
-
-**R0/R1へmulti-agent reviewを追加して安全性を水増ししない。** 新しい不確実性を見つけたならRiskまたはSpec Confidenceを再判定する。
-
-## 7. Risk再評価
-
-Riskは最初の分類で固定しない。
-
-- 新しいcaller / shared state / auth / data / external impact発見 → 即時昇格
-- 低下 → 実装前にEvidence付きのみ
-- 実装開始後 → task中の最大Riskをcompletion floorにする
+- cross-cutting
+- shared state / callersが多い
+- auth/data/schema/financial/external writeの影響が不明
+- rollback/deploy impactが不明
 
 ## 出力
 
 ```text
-REQUIREMENTS
+PREPARE
 Status: PASS | BLOCKED
-Spec confidence: C0 | C1 | C2
-Expected delta:
+Workspace preflight:
+Spec confidence:
 Authoritative sources:
 Conflicts:
 Goal:
 In scope:
 Out of scope:
-Acceptance criteria:
+Preserve:
+Acceptance Criteria:
 Impact summary:
 Risk axes:
-Risk score:
-Risk floor triggers:
-Risk level: R0 | R1 | R2 | R3 | R4
-Selected profile: trivial | fast | standard | high | critical
-Independent reviews required/completed:
+Risk level:
+Max observed risk:
+Required controls:
+Verification plan:
+Independent spec review:
 Human Gate:
 Evidence:
 ```
-
-PASS条件はSpec ConfidenceがC1/C2で、Risk/Profileが記録されていること。
