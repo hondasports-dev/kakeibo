@@ -20,15 +20,15 @@ task worktree rootで:
 node scripts/check-task-worktree.mjs --require-clean
 ```
 
-PASS条件:
+このscriptが機械的に証明するPASS条件:
 
 - exit code 0
 - `WORKSPACE_PREFLIGHT status: PASS`
 - `main` / `preview` ではないtask branch
 - canonical worktreeとは別の登録済みworktree
 - clean baseline
-- task identityがbranchと一致
-- 他task差分なし
+
+`task identity == branch` や「差分が他task由来ではない」ことは、このscript単体では判定しない。これらはPREPAREのtask/session bindingとDeliveryのscope integrityで確認し、scriptのPASS証跡として水増ししない。
 
 ## FAIL
 

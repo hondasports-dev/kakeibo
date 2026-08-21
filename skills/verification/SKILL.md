@@ -78,7 +78,16 @@ Convex反映が必要なら:
 pnpm exec convex dev --once
 ```
 
-`.env.local` やsecret値をlogへ出さない。
+secret / `.env.local` の値は、次のどこにも表示・送信・保存・commitしない。
+
+- shell command / test commandの引数・標準出力
+- local / CI log
+- CI artifact / trace / screenshot / HAR
+- PR / Issue / chat
+- 外部サービスへの不要なrequest
+- tracked file / commit
+
+secretを含む可能性がある出力はmaskして扱う。必要な検証を安全にmaskできない場合はskipせずBLOCKEDとし、別の検証方法または環境復旧を選ぶ。
 
 required environment unavailable / env sync failure / Convex reflection failureはskip理由ではない。復旧またはBLOCKED / Incident。
 
@@ -92,10 +101,21 @@ localで同じfull suiteを重ねる場合は理由を記録する。
 
 ## Test Gap
 
-ACやrequired invariantを証明できない場合は `findings[]` に1 recordだけ追加する。
+ACやrequired invariantを証明できない場合は `findings[]` にrecordを追加する。
 
-- category: `test_gap`
-- disposition: `open` または `fix_now`
+新しいtest gapにはstable IDを払い出し、最低限:
+
+- `id`
+- `source: verification`
+- `observed_revision`（commit SHA + tree SHA）
+- `category: test_gap`
+- `status: open`
+- `disposition: open` または `fix_now`
+- `evidence`
+
+を保持する。
+
+Verification再実行で同じgapが残る場合はduplicate recordを作らず、同じstable IDのentryへ最新revision / evidenceを追記する。
 
 別のmaterial_test_gap表やresidual recordへ転記しない。
 
@@ -103,7 +123,10 @@ test gapが残る間VerificationはPASS不可。Human Gateで迂回しない。
 
 ## Revision change
 
-- same tree/content → previous evidence reuse可
+previous evidenceをsame contentとして再利用するには、previous/current双方の非空tree SHA一致を必須とする。
+
+- matching tree SHA → previous evidence reuse可
+- tree identity不明 → content changedとしてdelta/full再検証
 - content changed → delta verification
 - protected behavior / AC coverage / Risk / Controls changed、またはdeltaをboundできない → affected scopeをfull rerun
 
@@ -112,12 +135,12 @@ test gapが残る間VerificationはPASS不可。Human Gateで迂回しない。
 ```text
 VERIFICATION
 Status: PASS | FAIL | BLOCKED
-Revision:
+Revision commit / tree:
 Affected scope:
 Acceptance Criteria results:
 Checks:
 Skipped + reason:
 Reruns + reason:
-Findings added:
+Finding IDs added/updated:
 Evidence:
 ```

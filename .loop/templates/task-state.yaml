@@ -84,6 +84,10 @@ review:
 finding_record_schema:
   id: ""
   source: "" # verification | review | security_review | ci | human_review
+  observed_revision:
+    commit_sha: ""
+    tree_sha: ""
+  status: open # open | resolved
   category: "" # correctness | security | test_gap | scope | reliability | maintainability | financial | other
   finding: ""
   failure_scenario: ""
@@ -123,7 +127,10 @@ pr_aftercare:
   checks: []
   review_findings: []
   requested_changes: []
-  approval_status: pending
+  approval_required: false
+  approval_status: pending # pending | pass | not_required | blocked
+  approval_evidence: []
+  revision_consistency: pending # pending | pass | blocked
   conflict_status: pending
   mergeable: pending
   evidence: []

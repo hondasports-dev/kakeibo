@@ -54,9 +54,19 @@ Risk R3/R4という理由だけで自動起動しない。逆にRisk R1/R2でも
 - duplicate execution
 - Human Gate
 
-## Findings
+## Finding Ledger
 
 所見は共通 `findings[]` へ直接追加する。`security_review.residual_risks` 等の別recordを作らない。
+
+新しいsecurity findingにはstable IDを払い出し、最低限次を保持する。
+
+- `id`
+- `source: security_review`
+- `observed_revision`（commit SHA + tree SHA）
+- `status` / `disposition`
+- `evidence`
+
+再レビューで同じfindingを確認した場合はduplicate recordを作らず、同じstable IDのentryへ最新revision / evidence / dispositionを追記する。
 
 protected findingはagent単独defer不可。
 
@@ -67,7 +77,7 @@ SECURITY REVIEW
 Status: PASS | BLOCKED
 Revision:
 Coverage:
-Findings added:
+Finding IDs added/updated:
 Human Gate:
 Evidence:
 ```

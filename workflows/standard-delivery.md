@@ -1,187 +1,242 @@
-# 標準デリバリーフロー v8
+# 標準デリバリーフロー v9
 
 ## 目的
 
 品質を維持しつつ、低リスク変更へ不要なmulti-agent reviewやfull verificationを課さない。
 
-実行契約の正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md`。
+実行契約の正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md`。この文書は運用の要約であり、正本と矛盾する場合は正本を優先する。
 
-## 1. Intake: Spec Confidence
+## 1. PREPARE
 
-実装前に `C0 / C1 / C2` を判定する。
+最初にSpec Confidenceを `C0 / C1 / C2` で判定する。
 
-- C2: 明確でmaterial conflictなし
-- C1: 不足を正本からほぼ一意に復元可能
+- C2: 目的・期待結果・Acceptance Criteriaが明確でmaterial conflictなし
+- C1: 不足をauthoritative sourceからほぼ一意に復元可能
 - C0: 不明またはConflict。実装禁止
 
-Issueが曖昧ならdocs/tests/既存patternを調べる。成果物を変える選択が残るならHuman Gate。
+C0はRequirements Discovery / Source Reconciliationを行い、解消できないmaterial choiceはHuman Gateへ送る。
 
-Issueと既存実装が違っても、Issueが明示的なB→A変更ならexpected deltaでありConflictではない。
+repository変更では、最初の編集前にWorkspace Preflightを実行する。
 
-## 2. Risk Classification
+```bash
+node scripts/check-task-worktree.mjs --require-clean
+```
 
-4軸:
+PREPAREは最低限次を確定する。
+
+- Goal / In scope / Out of scope
+- Acceptance Criteria
+- Spec Confidence
+- Risk
+- Required Controls
+- Verification plan
+
+## 2. Risk + Required Controls
+
+Riskは4軸で評価する。
 
 - Blast Radius
 - Data / Security
 - Reversibility
 - Uncertainty
 
-0..2点ずつで、0..2=R1、3..4=R2、5..8=R3。
-R0/R4は明示condition。
+目安は `0..2=R1`、`3..4=R2`、`5..8=R3`。R0/R4は明示条件。
 
-Auth/authz、tenant/data boundary、schema/migration、delete/retention、billing、secret、external write等はR3 floor。
-Production不可逆data操作、account deletion、secret rotation、DNS cutover等はR4。
+ただし、**Riskの高さと必要な専門Controlを分離する**。
 
-## 3. Profile
+代表Control:
 
-### R0 TRIVIAL
+- Security Review: auth/authz、tenant/group/user data boundary、secret、user-controlled URL/HTML、webhook/external write
+- Data Model: Convex schema/data contract、shared membership/auth helper、migration/data shape
+- Financial Integrity: billing/payment/settlement
+- Destructive/Stateful: deletion/retention、rollback、idempotency/state transition
+- Service Ops: Clerk/Convex/Vercel/GitHub/OAuth/webhook/env/deploy/DNS等のwrite
+- Human Gate: R4、production/irreversible write、protected finding acceptance
 
-```text
-PREFLIGHT → MINIMAL PLAN → CHANGE → TARGETED CHECK → DELIVERY → AFTERCARE
-```
+Risk R3/R4という理由だけでRequirements reviewerやSecurity reviewerの人数を増やさない。
 
-独立Requirements / Code / Security Reviewは原則起動しない。
-
-### R1 FAST
-
-```text
-PREFLIGHT
-→ PLAN (Requirements + Impact summary)
-→ IMPLEMENT
-→ TARGETED VERIFY
-→ REVIEW (Code + Security quick scan)
-→ DELIVERY
-→ PR_AFTERCARE
-```
-
-通常の局所変更はこれをデフォルトとする。
-
-### R2 STANDARD
+## 3. Default path
 
 ```text
-PREFLIGHT
-→ REQUIREMENTS
-→ IMPACT
+PREPARE
 → IMPLEMENT
 → VERIFY
-→ CODE REVIEW + Security quick scan
-→ DELIVERY
+→ REVIEW?          # Risk / Controlが要求する時だけ
+→ DELIVER
 → PR_AFTERCARE
+→ DONE
 ```
 
-Requirements independent reviewは0が既定。C1、material uncertainty、cross-cutting等の場合だけ1 review。
-
-### R3 HIGH
-
-```text
-PREFLIGHT
-→ REQUIREMENTS + independent review x2
-→ IMPACT
-→ IMPLEMENT
-→ FULL VERIFY
-→ CODE REVIEW
-→ SECURITY REVIEW
-→ DELIVERY
-→ PR_AFTERCARE
-→ PROCESS LEARNING
-```
-
-### R4 CRITICAL
-
-R3に加えて:
-
-- independent review x3
-- post-synthesis review x1
-- implementation前Human Gate
-- production/irreversible operation直前Human Gate
-- rollback/recovery Evidence
+Human Gate、Incident、Process Learning、Impact Analysis、Security specialist、Finding Dispositionはconditional side path / helper。
 
 ## 4. Implementation
 
-writerは原則1体。Implementation Handoffには次を含める。
+writerは原則1体。
 
-- Spec Confidence
-- Risk Level / selected profile
+Implementationへ渡すpacketは必要十分にする。
+
+- Goal
 - Acceptance Criteria
 - editable scope
 - relevant impact
-- required verification
+- Risk / Required Controls
+- Verification plan
 
-Issue本文だけをwriterへ渡して実装させない。
+Issue本文や前工程の長い議論をそのまま再転記しない。
+
+実装中にmaterial spec ambiguity、新しいshared/auth/data/financial/external impact、production/irreversible triggerを発見したらPREPAREへ戻る。
+
+Implementation開始後はtask中のmax observed Riskをcompletion floorとする。
 
 ## 5. Verification
 
-`skills/verification/SKILL.md` に従いprofile別に実行する。
+品質は「Gate数」ではなくAcceptance CriteriaとRequired ControlsのEvidenceで証明する。
 
-- R0: targeted static check
-- R1: changed tests +必要なlint/build/E2E
-- R2: affected scopeのtests/coverage/E2E
-- R3: full affected-scope verification
+- R0: targeted static / behavior-preserving check
+- R1: changed/directly affected tests + scopeable static checks +必要なfunctional E2E
+- R2: affected scope + shared caller regression
+- R3: affected scopeのnormal/boundary/error/auth denial/partial failure等
 - R4: R3 + recovery evidence
 
-全test/coverageをローカルとCIで毎回二重実行しない。
+repo-wide full checks / regression E2Eはlatest contentのCI Aftercareを正本にできる。同じfull suiteをlocal/CIで理由なく重複しない。
 
-## 6. Review
+test gapは共通 `findings[]` にstable IDで記録し、解消するまでVerification PASS不可。
 
-- R0: separate review原則不要
-- R1/R2: Code Review内でSecurity quick scan
-- R3/R4: Code ReviewとSecurity Reviewを独立Gate化
+## 6. REVIEW
 
-quick scanでauth/data/secret/external/destructive triggerを発見したらRiskをR3+へ昇格する。
+independent Reviewは次の場合だけ起動する。
 
-## 7. Delivery / PR Aftercare
+- profileが要求
+- Required Controlが要求
+- implementation/verificationでmaterial new riskを発見
+
+既定は最大1 reviewer。reviewer同士を討論させず、rootが1回だけ統合する。
+
+Security specialistはSecurity Review Controlが起動した時だけ同じREVIEW stageへ追加する。
+
+findingはすべて共通 `findings[]` にstable IDで記録する。
+
+## 7. Revision binding
+
+Verification / Review / Delivery / AftercareのEvidenceはrevisionへ束縛する。
+
+- commit SHA: revision観測に必須
+- tree SHA: previous Evidenceをsame contentとして再利用する時に必須
+
+previous/current双方の非空tree SHAが一致する場合だけsame contentとしてEvidenceを再利用できる。
+
+tree identityを証明できない、またはcontentが変わった場合はdelta Verification / Reviewを行い、protected behavior / AC / Risk / Controlsが変わるかdeltaをboundできない場合はaffected-scope full rerunへ戻る。
+
+## 8. Delivery / PR Aftercare
 
 PR作成はcheckpoint。
+
+Delivery前に:
+
+- C1/C2
+- Workspace Preflight PASS / documented exception
+- Acceptance Criteria PASS
+- corresponding Verification Evidence
+- required Controls / Review
+- blocking findingなし
+- required Human Gate approval
+
+を確認する。
 
 ```text
 DELIVERY
 → PR_AFTERCARE
-   latest head
+   latest commit/tree
    required CI
    actionable findings
    requested changes
-   approval
+   required approval
    conflict / mergeability
 → merge_ready
 ```
 
-修正は同じPRへ積む。headが変わったらprofileで必要なVerification / ReviewとAftercareを最新headでやり直す。
+merge-ready PASS直前に、PR current headとobserved revision、checks/review/approval/conflict/mergeabilityが同じrevisionに束縛されていることを確認する。
 
-## 8. Process Learning
+required approvalがある場合はapproval PASSまで完了扱いにしない。pending / queued / in_progressはPASSではない。
 
-R0-R2はevent-driven。
+## 9. Finding Ledger
+
+review / verification / CI / human findingは `task-state.findings[]` だけを正本にする。
+
+各findingはstable IDを持ち、cycleごとに同じentryを更新する。
+
+最低限:
+
+- id
+- source
+- observed revision
+- status / disposition
+- evidence
+
+を保持する。
+
+`resolved` はresolution、verified revision、Verification Evidenceが揃ってPASSした場合だけ。
+
+protected findingを `accept_with_human_gate` にする場合はapprover / approved_at / scope / evidenceを含む完全なapproval recordが必要。test gapはHuman Gateで迂回できない。
+
+## 10. Process Learning
+
+Process Learningは**完全event-driven**。
+
+定義済みLearning Eventが1つ以上ある場合だけ起動する。
+
+例:
+
+- human correction
+- unexpected Gate / CI / E2E failure
+- actionable review finding
+- repeated retry / Incident
+- scope / impact miss
+- delivery / aftercare miss
+- process enforcement不足の発見
+
+Risk R3/R4という理由だけでは起動しない。
 
 Eventなしなら:
 
 ```text
-Events: none
-Candidates: none
+Learning event: none
+Status: NOT_REQUIRED
 ```
 
-で終了。
+で終了する。
 
-R3/R4またはhuman correction、CI failure、review finding、retry、Incident、scope/impact/delivery missがあればfull analysis。
+DONE条件ではLearning Eventの判定だけを必須とし、full Process Learning自体は必須にしない。
 
-## 9. Task Transition
+## 11. Task Transition
 
-Aftercareと必要なLearningが終わったらtask identityを閉じる。次taskへ前taskのIssue/PR/CI contextを暗黙に持ち越さない。
+Task Transitionは通常のDONE条件ではない。
+
+次の場合だけ軽量helperとして使う。
+
+- 同じsessionで次taskへ進む
+- 前taskの一部contextだけをcarryする
+- branch / PR / Issue identityを切り替える
+
+単発task終了のためだけに独立reasoning phaseを追加しない。
 
 ## Failure routing
 
-- Spec ambiguity / conflict → Requirements / Human Gate
-- Impact拡大 → Risk再分類
-- code/test defect → Implementation → profile-required Verification/Review
-- security floor trigger → R3+へ昇格
+- Spec ambiguity / conflict → PREPARE / Human Gate
+- Impact拡大 → PREPAREでRisk / Controls更新
+- code/test defect → Implementation → required Verification/Review
 - unknown/repeated failure → Incident
 - human-only production/irreversible step → Human Gate
 
 ## 完了条件
 
-- C1/C2
-- Risk/Profile記録済み
-- profile必須Gate PASS
+- Spec Confidence C1/C2
+- Risk / Required Controls記録済み
+- Acceptance Criteria verified
+- required Review完了
+- blocking findingなし
 - Delivery target到達
 - PR Aftercare terminal
-- Learning Event分類済み
-- Task Transition完了
+- Learning Event判定済み（`none` 可）
+
+Task Transitionは通常のDONE条件に含めない。
