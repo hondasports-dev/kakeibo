@@ -5,9 +5,21 @@ Suzumemo の Agent Loop v9 は、Re:Me で洗練した Loop v2 の原則を取�
 正本:
 
 - `AGENTS.md` — 実行契約の入口
-- `.loop/process.yaml` — machine-readable Risk / Controls / state
+- `.loop/process.yaml` — Risk / Controls / state の機械可読な正本
 - `.loop/templates/task-state.yaml` — task state / Finding Ledger
 - `skills/*/SKILL.md` — current state と条件付き helper
+
+## 表記ルール
+
+`.loop/process.yaml` は Agent が読む実行契約である一方、`task-state.yaml` や各 Skill から参照される安定した識別子も持つ。
+
+そのため、以下のルールで記述する。
+
+- YAML の key は英語のまま維持する。
+- `prepare` / `verification` / `r2_medium` / `c0_unclear` / `fix_now` / `merge_ready` などの state ID・Risk ID・Spec Confidence ID・enum・action ID は英語のまま維持する。
+- Skill path、file path、field name、command など機械的に参照される値は変更しない。
+- 原則、trigger、required condition、blocking rule、完了条件など Agent が意味として読む自然言語は日本語で記述する。
+- 既存の機械識別子を日本語へ置き換えて、`task-state.yaml` や Skill との対応関係を壊さない。
 
 ## Design principle
 
