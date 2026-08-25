@@ -219,7 +219,8 @@ Convex 関数のデプロイは、ローカル開発者が `npx convex dev --onc
 
 **Vercel Preview / PREVIEW 環境の Convex 接続先**
 
-通常の PR Preview は、既存の Vercel Git Integration と E2E 方針に従い dev deployment を向く。
+通常の PR E2E は GitHub Actions の `pull_request` イベントで直接起動し、CI 内の Vite dev server から dev deployment を向く。
+Vercel Preview Deployment の生成有無は、PR E2E の起動条件にしない。
 `preview` branch の統合確認は、固定 Convex staging deployment を向く。
 `preview-deploy.yml` は `convex deploy --cmd-url-env-var-name VITE_CONVEX_URL` で staging URL を Vercel build に渡す。
 
