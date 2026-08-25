@@ -4,6 +4,23 @@ import { describe, expect, test } from "vitest";
 const workflow = () => readFileSync(".github/workflows/e2e.yml", "utf8");
 
 describe("e2e workflow", () => {
+  test("runs for same-repository pull request creation and updates", () => {
+    const yaml = workflow();
+
+    expect(yaml).toContain("pull_request:");
+    expect(yaml).toContain("- opened");
+    expect(yaml).toContain("- synchronize");
+    expect(yaml).toContain("- reopened");
+    expect(yaml).toContain("- ready_for_review");
+    expect(yaml).toContain("github.event.pull_request.head.repo.full_name == github.repository");
+    expect(yaml).toContain("github.actor != 'dependabot[bot]'");
+    expect(yaml).toContain("ref: ${{ github.event.pull_request.head.sha }}");
+    expect(yaml).toContain(
+      "group: e2e-${{ matrix.name }}-${{ matrix.name == 'authenticated' && 'shared-dev' || github.event.pull_request.number }}",
+    );
+    expect(yaml).not.toContain("deployment_status:");
+  });
+
   test("runs pull request smoke tests against the local Vite server", () => {
     const yaml = workflow();
 
