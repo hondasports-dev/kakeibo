@@ -4,6 +4,7 @@ import type {
   ExtractedReceiptItem,
   ExtractedTaxSummary,
   ReceiptMarkerDefinition,
+  ReceiptTotalResolution,
   ReceiptTaxInput,
   TaxRatePercent,
   TaxResolutionSource,
@@ -15,6 +16,7 @@ import {
   interpretedItemToDraftFields,
 } from "../receipt/tax/draftTaxMapping";
 import { interpretReceiptTax } from "../receipt/tax/interpretReceiptTax";
+import { resolveReceiptTotal } from "../receipt/tax/resolveReceiptTotal";
 import { isTaxSummaryItem } from "./extraction";
 import type {
   AiExpenseDraftConfidence,
@@ -57,6 +59,7 @@ export type DraftArgs<TId = string> = {
   date?: string;
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
+  receiptTotalResolution?: ReceiptTotalResolution;
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: TId;
   imageFileName?: string;
@@ -106,6 +109,8 @@ export function mapExtractionToDraftArgs<TId>(
     extractedItems && extractedItems.length > 0 && extracted.taxSummaries
       ? {
           amountYen: extracted.amountYen,
+          receiptTotalSource: "explicit_label",
+          receiptTotalConfidence: extracted.confidence.amountYen,
           items: extractedItems.map(normalizeExtractedItemForTax),
           taxSummaries: extracted.taxSummaries as ExtractedTaxSummary[],
           markerDefinitions: extracted.markerDefinitions,
@@ -113,6 +118,14 @@ export function mapExtractionToDraftArgs<TId>(
       : undefined;
 
   const interpretation = taxInput ? interpretReceiptTax(taxInput) : undefined;
+  const receiptTotalResolution =
+    interpretation?.receiptTotalResolution ??
+    resolveReceiptTotal({
+      amountYen: extracted.amountYen,
+      source: "explicit_label",
+      confidence: extracted.confidence.amountYen,
+      taxSummaries: (extracted.taxSummaries ?? []) as ExtractedTaxSummary[],
+    });
 
   const items = extractedItems?.map((item, index) => {
     const normalized = interpretation?.items[index];
@@ -168,6 +181,7 @@ export function mapExtractionToDraftArgs<TId>(
     date: extracted.date || undefined,
     amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
     taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
+    receiptTotalResolution,
     markerDefinitions: extracted.markerDefinitions,
     categoryId,
     imageFileName,

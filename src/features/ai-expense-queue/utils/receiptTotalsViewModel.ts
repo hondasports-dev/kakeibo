@@ -3,6 +3,7 @@ import { buildTaxContextFromReviewItem } from "./receiptItemTaxViewModel";
 import { formatYenLabel } from "./receiptTaxLabels";
 import { getTaxModeLabel } from "./receiptItemTaxViewModel";
 import { formatYenAbs } from "../../../utils/currency";
+import { isVerifiedTaxSummaryStatus } from "../../../../lib/domain/receipt/tax/taxSummaryConsistency";
 
 export type ReceiptTotalsStatus = "matched" | "mismatch" | "subtotalUnavailable";
 
@@ -98,6 +99,17 @@ function resolveReceiptSubtotal(taxSummaries: AiExpenseDraft["taxSummaries"]): {
   if (!taxSummaries || taxSummaries.length === 0) {
     return {};
   }
+  if (
+    taxSummaries.some(
+      (summary) => summary.status !== undefined && !isVerifiedTaxSummaryStatus(summary.status),
+    )
+  ) {
+    return {};
+  }
+  const bases = new Set(taxSummaries.map((summary) => summary.taxableAmountBasis));
+  if (bases.size !== 1 || bases.has("unknown")) {
+    return {};
+  }
   if (taxSummaries.length === 1) {
     const summary = taxSummaries[0];
     return {
@@ -190,6 +202,8 @@ export function toReceiptTotalsViewModel(args: {
   const canBulkApplyTax =
     (taxSummaries?.length ?? 0) === 1 &&
     unresolvedCount > 0 &&
+    (taxSummaries![0].status === undefined ||
+      isVerifiedTaxSummaryStatus(taxSummaries![0].status)) &&
     taxSummaries![0].taxMode !== "unknown" &&
     taxSummaries![0].taxMode !== "mixed";
 

@@ -463,7 +463,107 @@ describe("updateForReviewHandler tax reinterpretation", () => {
 
     const items = getItems();
     expect(items[0]?.printedAmountYen).toBe(99);
-    expect(items[0]?.taxResolutionStatus).toBe("resolved");
+    expect(items[0]?.taxResolutionStatus).toBe("unresolved");
+  });
+
+  it("ユーザーが7,803円へ修正した合計を743円+60円の税算術で上書きしない", async () => {
+    const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        shopName: "テスト店",
+        date: "2026-07-04",
+        amountYen: 803,
+        categoryId: CAT_ID,
+        confidence: { shopName: 1, date: 1, amountYen: 0.5, categoryId: 1 },
+        warnings: [],
+        reviewReasons: ["amount_mismatch"],
+        receiptTotalResolution: {
+          status: "ambiguous",
+          protectedAmountYen: 803,
+          candidates: [
+            {
+              amountYen: 803,
+              source: "explicit_label",
+              evidence: "extraction.amountYen",
+            },
+            {
+              amountYen: 7803,
+              source: "payment_change",
+              evidence: "cash_received:10000 - change:2197",
+            },
+          ],
+          reasons: ["multiple_receipt_total_candidates"],
+        },
+        taxSummaries: [
+          {
+            ...externalTaxSummaries[0],
+            taxableAmountYen: 743,
+            taxYen: 60,
+            taxIncludedAmountYen: 803,
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [
+        {
+          _id: "item-1",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "商品A",
+          amountYen: 743,
+          printedAmountYen: 743,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    const result = await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-07-04",
+      amountYen: 7803,
+      categoryId: CAT_ID,
+      items: [
+        {
+          itemName: "商品A",
+          amountYen: 743,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+        },
+      ],
+    });
+
+    expect(result.amountYen).toBe(7803);
+    expect(result.status).toBe("needs_review");
+    expect(getDraft().amountYen).toBe(7803);
+    expect(getDraft().confidence.amountYen).toBe(1);
+    expect(getDraft().receiptTotalResolution).toMatchObject({
+      status: "verified",
+      protectedAmountYen: 7803,
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ amountYen: 7803, source: "user_confirmed" }),
+        expect.objectContaining({
+          amountYen: 7803,
+          source: "payment_change",
+          evidence: "cash_received:10000 - change:2197",
+        }),
+        expect.objectContaining({ amountYen: 803, source: "tax_arithmetic" }),
+      ]),
+    });
+    expect(getItems()[0]).toMatchObject({
+      printedAmountYen: 743,
+      normalizedAmountYen: 743,
+      allocatedTaxYen: 0,
+      taxResolutionStatus: "unresolved",
+    });
   });
 
   it("外税一括適用後に印字金額を変えず保存すると ready になり得る", async () => {

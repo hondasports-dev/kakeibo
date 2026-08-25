@@ -9,6 +9,7 @@ import type {
   DraftSummaryOverride,
   ExtractedTaxSummary,
   ReceiptMarkerDefinition,
+  ReceiptTaxInput,
   ReceiptTaxInterpretation,
   TaxRatePercent,
 } from "./types";
@@ -28,6 +29,9 @@ export type BulkUnresolvedTaxOverride = {
 
 export type ReinterpretDraftTaxInput = {
   amountYen: number;
+  receiptTotalSource?: "explicit_label" | "user_confirmed" | "ai_estimate";
+  receiptTotalConfidence?: number;
+  receiptTotalSupportingCandidates?: ReceiptTaxInput["receiptTotalSupportingCandidates"];
   items: DraftItemTaxFields[];
   taxSummaries: ExtractedTaxSummary[];
   markerDefinitions?: ReceiptMarkerDefinition[];
@@ -90,6 +94,9 @@ export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): Reinterpre
 
   const interpretation = interpretReceiptTax({
     amountYen: input.amountYen,
+    receiptTotalSource: input.receiptTotalSource,
+    receiptTotalConfidence: input.receiptTotalConfidence,
+    receiptTotalSupportingCandidates: input.receiptTotalSupportingCandidates,
     items,
     taxSummaries,
     markerDefinitions: input.markerDefinitions,

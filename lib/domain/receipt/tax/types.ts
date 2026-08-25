@@ -4,7 +4,12 @@ export type ResolvedAmountBasis = Exclude<AmountBasis, "unknown">;
 export type TaxMode = "external" | "included" | "mixed" | "unknown";
 export type RoundingMethod = "floor" | "round" | "ceil" | "unknown";
 
-export type TaxSummaryConsistencyStatus = "coherent" | "reconcilable" | "conflicting";
+export type TaxSummaryDecisionStatus = "verified" | "ambiguous" | "contradictory";
+export type LegacyTaxSummaryConsistencyStatus = "coherent" | "reconcilable" | "conflicting";
+/** Legacy values remain readable until the observation contract migration in #667. */
+export type TaxSummaryConsistencyStatus =
+  | TaxSummaryDecisionStatus
+  | LegacyTaxSummaryConsistencyStatus;
 
 export type TaxSummaryConsistencyReason =
   | "included_mode_with_tax_excluded_basis"
@@ -17,7 +22,7 @@ export type TaxSummaryConsistencyReason =
   | "unresolved_tax_summary";
 
 export type TaxSummaryConsistency = {
-  status: TaxSummaryConsistencyStatus;
+  status: TaxSummaryDecisionStatus;
   reasons: TaxSummaryConsistencyReason[];
 };
 
@@ -96,6 +101,9 @@ export type InterpretedReceiptItem = ExtractedReceiptItem & {
 
 export type ReceiptTaxInput = {
   amountYen: number;
+  receiptTotalSource?: "explicit_label" | "user_confirmed" | "ai_estimate";
+  receiptTotalConfidence?: number;
+  receiptTotalSupportingCandidates?: ReceiptTotalCandidate[];
   items: ExtractedReceiptItem[];
   taxSummaries: ExtractedTaxSummary[];
   markerDefinitions?: ReceiptMarkerDefinition[];
@@ -104,7 +112,27 @@ export type ReceiptTaxInput = {
 export type ReceiptTaxInterpretation = {
   items: InterpretedReceiptItem[];
   taxSummaries: ExtractedTaxSummary[];
+  receiptTotalResolution: ReceiptTotalResolution;
   warnings: string[];
+};
+
+export type ReceiptTotalCandidate = {
+  amountYen: number;
+  source:
+    | "explicit_label"
+    | "user_confirmed"
+    | "ai_estimate"
+    | "payment_change"
+    | "tax_summary_total"
+    | "tax_arithmetic";
+  evidence: string;
+};
+
+export type ReceiptTotalResolution = {
+  status: TaxSummaryDecisionStatus;
+  protectedAmountYen: number;
+  candidates: ReceiptTotalCandidate[];
+  reasons: string[];
 };
 
 export type TaxEvidence =

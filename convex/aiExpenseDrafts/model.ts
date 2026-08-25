@@ -14,6 +14,7 @@ export {
   markerDefinitionsValidator,
   receiptItemTaxRatePercentValidator,
   receiptMarkersValidator,
+  receiptTotalResolutionValidator,
   taxModeValidator,
   taxResolutionSourceValidator,
   taxResolutionStatusValidator,

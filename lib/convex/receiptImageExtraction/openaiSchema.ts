@@ -11,6 +11,8 @@ export const RECEIPT_EXTRACTION_PROMPT_LINES = [
   "この画像はレシートまたはコンビニ払込票です。書類種別を判定し、以下の情報を日本語で抽出してください。",
   "コンビニ払込票の場合は、shopName（店舗名）ではなく paymentPlace（支払場所）・payeeName（支払先）・paymentPurpose（支払内容）を優先して読み取ってください。",
   "カテゴリ推定は、レシートなら shopName、払込票なら payeeName と paymentPurpose を重視してください。",
+  "amountYen は『合計』『お支払い』『現計』など支払総額を示す明示ラベルの印字値だけを設定してください。小計・税額・税率別対象額から計算または推測してはいけません。",
+  "お預り・現金・釣銭・お釣り・支払方法別の金額は amountYen に使わず、支払総額の明示ラベルが判別できない場合は amountYen を0、confidence.amountYen を低くしてください。",
   "結果は以下の JSON スキーマに従って返してください：",
   "items には itemName、printedAmountYen、amountBasis、taxRatePercent、markers、categoryName、quantity、unitPriceYen、confidence、warnings を入れてください。",
   "商品明細の金額は税込と決め打ちせず、レシートの印字値を printedAmountYen に、税込・税抜・不明を amountBasis に入れてください。",

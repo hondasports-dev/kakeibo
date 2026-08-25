@@ -1,9 +1,9 @@
 import type {
-  AmountBasis,
   ExtractedTaxSummary,
   TaxMode,
   TaxSummaryConsistency,
   TaxSummaryConsistencyReason,
+  TaxSummaryConsistencyStatus,
 } from "./types";
 
 type ReconcileTaxSummaryArgs = {
@@ -17,191 +17,108 @@ function resolveReason(reason: ResolvedMode): TaxSummaryConsistencyReason {
   return reason === "included" ? "reconciled_to_included" : "reconciled_to_external";
 }
 
-function detectTargetMode(
-  A: number,
-  T: number,
+function matchingModes(
+  taxableAmountYen: number,
+  taxYen: number,
   expectedAmount: number | undefined,
-):
-  | { mode: "included"; basis: "tax_included" }
-  | { mode: "external"; basis: "tax_excluded" }
-  | undefined {
-  if (expectedAmount === undefined) return undefined;
-  if (A === expectedAmount) {
-    return { mode: "included", basis: "tax_included" };
-  }
-  if (A + T === expectedAmount) {
-    return { mode: "external", basis: "tax_excluded" };
-  }
-  return undefined;
+): ResolvedMode[] {
+  if (expectedAmount === undefined) return [];
+  const modes: ResolvedMode[] = [];
+  if (taxableAmountYen === expectedAmount) modes.push("included");
+  if (taxableAmountYen + taxYen === expectedAmount) modes.push("external");
+  return modes;
+}
+
+export function canonicalTaxSummaryStatus(
+  status: TaxSummaryConsistencyStatus | undefined,
+): "verified" | "ambiguous" | "contradictory" | undefined {
+  if (status === undefined) return undefined;
+  if (status === "coherent") return "verified";
+  if (status === "reconcilable") return "ambiguous";
+  if (status === "conflicting") return "contradictory";
+  return status;
+}
+
+export function isVerifiedTaxSummaryStatus(
+  status: TaxSummaryConsistencyStatus | undefined,
+): boolean {
+  return canonicalTaxSummaryStatus(status) === "verified";
 }
 
 export function reconcileTaxSummary({
   amountYen,
   summary,
 }: ReconcileTaxSummaryArgs): TaxSummaryConsistency {
-  const A = summary.taxableAmountYen;
-  const T = summary.taxYen;
-  const I = summary.taxIncludedAmountYen;
-  const totalAmount = amountYen;
-  const expectedAmount = totalAmount ?? I;
-
   const { taxMode, taxableAmountBasis } = summary;
+  const expectedAmount = amountYen ?? summary.taxIncludedAmountYen;
+  const modes = matchingModes(summary.taxableAmountYen, summary.taxYen, expectedAmount);
 
-  // 1. mode / basis contradiction
   if (taxMode === "included" && taxableAmountBasis === "tax_excluded") {
-    const reasons: TaxSummaryConsistencyReason[] = ["included_mode_with_tax_excluded_basis"];
-    if (expectedAmount !== undefined && A !== expectedAmount && A + T !== expectedAmount) {
-      reasons.push("tax_summary_amount_mismatch");
-    }
-    if (I !== undefined && totalAmount !== undefined && I !== totalAmount) {
-      reasons.push("tax_included_amount_mismatch");
-    }
-    return { status: "conflicting", reasons };
+    return {
+      status: "contradictory",
+      reasons: ["included_mode_with_tax_excluded_basis", "tax_summary_amount_mismatch"],
+    };
   }
-
   if (taxMode === "external" && taxableAmountBasis === "tax_included") {
-    const reasons: TaxSummaryConsistencyReason[] = ["external_mode_with_tax_included_basis"];
-    if (expectedAmount !== undefined && A !== expectedAmount && A + T !== expectedAmount) {
-      reasons.push("tax_summary_amount_mismatch");
-    }
-    if (I !== undefined && totalAmount !== undefined && I !== totalAmount) {
-      reasons.push("tax_included_amount_mismatch");
-    }
-    return { status: "conflicting", reasons };
+    return {
+      status: "contradictory",
+      reasons: ["external_mode_with_tax_included_basis", "tax_summary_amount_mismatch"],
+    };
   }
-
   if (taxMode === "mixed") {
-    return { status: "conflicting", reasons: ["mixed_tax_mode"] };
+    return { status: "ambiguous", reasons: ["mixed_tax_mode"] };
   }
 
-  const targetFromAmount = detectTargetMode(A, T, expectedAmount);
+  const declaredMode: ResolvedMode | undefined =
+    taxMode === "included" || taxMode === "external" ? taxMode : undefined;
+  const basisMode: ResolvedMode | undefined =
+    taxableAmountBasis === "tax_included"
+      ? "included"
+      : taxableAmountBasis === "tax_excluded"
+        ? "external"
+        : undefined;
 
-  // 2. both unknown
-  if (taxMode === "unknown" && taxableAmountBasis === "unknown") {
-    if (targetFromAmount) {
-      return { status: "reconcilable", reasons: [resolveReason(targetFromAmount.mode)] };
-    }
-    return { status: "conflicting", reasons: ["unresolved_tax_summary"] };
+  if (declaredMode === undefined || basisMode === undefined) {
+    const suggestedMode = modes.length === 1 ? modes[0] : undefined;
+    return {
+      status: "ambiguous",
+      reasons: suggestedMode ? [resolveReason(suggestedMode)] : ["unresolved_tax_summary"],
+    };
   }
 
-  // 3. mode unknown, basis known
-  if (taxMode === "unknown") {
-    if (taxableAmountBasis === "tax_included") {
-      if (targetFromAmount?.mode === "included") {
-        return { status: "reconcilable", reasons: ["reconciled_to_included"] };
-      }
-      if (targetFromAmount?.mode === "external" && A + T === expectedAmount) {
-        // basis says tax_included but the amount relation indicates external
-        return { status: "reconcilable", reasons: ["reconciled_to_external"] };
-      }
-      const reasons: TaxSummaryConsistencyReason[] = [];
-      if (expectedAmount !== undefined && A !== expectedAmount) {
-        reasons.push("tax_summary_amount_mismatch");
-      }
-      if (I !== undefined && totalAmount !== undefined && I !== totalAmount) {
-        reasons.push("tax_included_amount_mismatch");
-      }
-      return reasons.length > 0
-        ? { status: "conflicting", reasons }
-        : { status: "conflicting", reasons: ["unresolved_tax_summary"] };
-    }
-
-    if (taxableAmountBasis === "tax_excluded") {
-      if (targetFromAmount?.mode === "external") {
-        return { status: "reconcilable", reasons: ["reconciled_to_external"] };
-      }
-      if (targetFromAmount?.mode === "included" && A === expectedAmount) {
-        // basis says tax_excluded but the amount relation indicates included
-        return { status: "reconcilable", reasons: ["reconciled_to_included"] };
-      }
-      const reasons: TaxSummaryConsistencyReason[] = [];
-      if (expectedAmount !== undefined && A + T !== expectedAmount) {
-        reasons.push("tax_summary_amount_mismatch");
-      }
-      if (I !== undefined && totalAmount !== undefined && I !== totalAmount) {
-        reasons.push("tax_included_amount_mismatch");
-      }
-      return reasons.length > 0
-        ? { status: "conflicting", reasons }
-        : { status: "conflicting", reasons: ["unresolved_tax_summary"] };
-    }
-
-    return { status: "conflicting", reasons: ["unresolved_tax_summary"] };
+  if (declaredMode !== basisMode) {
+    return {
+      status: "contradictory",
+      reasons: [
+        declaredMode === "included"
+          ? "included_mode_with_tax_excluded_basis"
+          : "external_mode_with_tax_included_basis",
+      ],
+    };
   }
 
-  // 4. basis unknown, mode known
-  if (taxableAmountBasis === "unknown") {
-    let targetMode: ResolvedMode = taxMode === "included" ? "included" : "external";
-
-    if (targetFromAmount && targetFromAmount.mode !== targetMode) {
-      // amount relation contradicts the declared mode; prefer the amount relation
-      targetMode = targetFromAmount.mode;
-    }
-
-    return { status: "reconcilable", reasons: [resolveReason(targetMode)] };
+  if (
+    amountYen !== undefined &&
+    summary.taxIncludedAmountYen !== undefined &&
+    summary.taxIncludedAmountYen !== amountYen
+  ) {
+    return { status: "contradictory", reasons: ["tax_included_amount_mismatch"] };
   }
 
-  // 5. both known and consistent
-  const targetMode: ResolvedMode =
-    targetFromAmount?.mode ?? (taxMode === "included" ? "included" : "external");
-  const targetBasis: AmountBasis =
-    targetFromAmount?.basis ?? (taxMode === "included" ? "tax_included" : "tax_excluded");
-
-  if (targetMode === taxMode && targetBasis === taxableAmountBasis) {
-    if (I !== undefined && expectedAmount !== undefined && I !== expectedAmount) {
-      const reasons: TaxSummaryConsistencyReason[] = ["tax_included_amount_mismatch"];
-      if (targetFromAmount === undefined) {
-        if (taxMode === "included" && A !== expectedAmount) {
-          reasons.push("tax_summary_amount_mismatch");
-        }
-        if (taxMode === "external" && A + T !== expectedAmount) {
-          reasons.push("tax_summary_amount_mismatch");
-        }
-      }
-      return { status: "conflicting", reasons };
-    }
-    if (targetFromAmount === undefined && I !== undefined && expectedAmount !== undefined) {
-      // I is present but neither A nor A+T matches it; the declared mode/basis is contradicted by amounts
-      const reasons: TaxSummaryConsistencyReason[] = [];
-      if (taxMode === "included" && A !== expectedAmount) {
-        reasons.push("tax_summary_amount_mismatch");
-      }
-      if (taxMode === "external" && A + T !== expectedAmount) {
-        reasons.push("tax_summary_amount_mismatch");
-      }
-      return reasons.length > 0
-        ? { status: "conflicting", reasons }
-        : { status: "coherent", reasons: [] };
-    }
-    // I undefined: we cannot fully verify from amountYen alone, so trust the declared mode/basis
-    return { status: "coherent", reasons: [] };
+  if (expectedAmount === undefined || modes.includes(declaredMode)) {
+    return { status: "verified", reasons: [] };
   }
 
-  // 6. both known but inconsistent with amount relation
-  if (targetFromAmount) {
-    if (I === undefined || I === expectedAmount) {
-      return { status: "reconcilable", reasons: [resolveReason(targetFromAmount.mode)] };
-    }
-    return { status: "conflicting", reasons: ["tax_included_amount_mismatch"] };
+  const reasons: TaxSummaryConsistencyReason[] = ["tax_summary_amount_mismatch"];
+  if (modes.length === 1 && modes[0] !== declaredMode) {
+    reasons.push(resolveReason(modes[0]));
+    return { status: "contradictory", reasons };
   }
 
-  // 7. both known, no amount relation, and I present
-  if (I !== undefined && expectedAmount !== undefined) {
-    const reasons: TaxSummaryConsistencyReason[] = [];
-    if (taxMode === "included" && A !== expectedAmount) {
-      reasons.push("tax_summary_amount_mismatch");
-    }
-    if (taxMode === "external" && A + T !== expectedAmount) {
-      reasons.push("tax_summary_amount_mismatch");
-    }
-    if (I !== expectedAmount) {
-      reasons.push("tax_included_amount_mismatch");
-    }
-    return { status: "conflicting", reasons };
-  }
-
-  // 8. both known, no amount relation, I undefined
-  return { status: "coherent", reasons: [] };
+  return {
+    status: summary.taxIncludedAmountYen === undefined ? "ambiguous" : "contradictory",
+    reasons,
+  };
 }
 
 export function normalizeTaxSummary(
@@ -209,25 +126,6 @@ export function normalizeTaxSummary(
   amountYen?: number,
 ): ExtractedTaxSummary {
   const consistency = reconcileTaxSummary({ amountYen, summary });
-
-  if (consistency.status === "reconcilable") {
-    const normalized: ExtractedTaxSummary = { ...summary };
-    if (consistency.reasons.includes("reconciled_to_included")) {
-      normalized.taxMode = "included";
-      normalized.taxableAmountBasis = "tax_included";
-    } else if (consistency.reasons.includes("reconciled_to_external")) {
-      normalized.taxMode = "external";
-      normalized.taxableAmountBasis = "tax_excluded";
-    }
-    const finalConsistency = reconcileTaxSummary({
-      amountYen,
-      summary: normalized,
-    });
-    normalized.status = finalConsistency.status;
-    normalized.reasons = finalConsistency.reasons;
-    return normalized;
-  }
-
   return {
     ...summary,
     status: consistency.status,
@@ -246,10 +144,14 @@ export function validateTaxSummaryConsistency({
 }): ExtractedTaxSummary[] {
   const resolvableSet = new Set(resolvableTaxSummaries ?? taxSummaries);
   const singleResolvable = resolvableSet.size === 1;
-  return taxSummaries.map((summary) =>
-    normalizeTaxSummary(
-      summary,
-      singleResolvable && resolvableSet.has(summary) ? amountYen : undefined,
-    ),
-  );
+  return taxSummaries.map((summary) => {
+    if (!resolvableSet.has(summary)) {
+      return {
+        ...summary,
+        status: "contradictory" as const,
+        reasons: [...new Set([...(summary.reasons ?? []), "unresolved_tax_summary" as const])],
+      };
+    }
+    return normalizeTaxSummary(summary, singleResolvable ? amountYen : undefined);
+  });
 }

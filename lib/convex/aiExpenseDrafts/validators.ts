@@ -95,7 +95,14 @@ export const taxSummaryValidator = v.object({
   }),
   warnings: v.array(v.string()),
   status: v.optional(
-    v.union(v.literal("coherent"), v.literal("reconcilable"), v.literal("conflicting")),
+    v.union(
+      v.literal("verified"),
+      v.literal("ambiguous"),
+      v.literal("contradictory"),
+      v.literal("coherent"),
+      v.literal("reconcilable"),
+      v.literal("conflicting"),
+    ),
   ),
   reasons: v.optional(
     v.array(
@@ -111,6 +118,27 @@ export const taxSummaryValidator = v.object({
       ),
     ),
   ),
+});
+
+export const receiptTotalCandidateSourceValidator = v.union(
+  v.literal("explicit_label"),
+  v.literal("user_confirmed"),
+  v.literal("ai_estimate"),
+  v.literal("payment_change"),
+  v.literal("tax_summary_total"),
+  v.literal("tax_arithmetic"),
+);
+export const receiptTotalResolutionValidator = v.object({
+  status: v.union(v.literal("verified"), v.literal("ambiguous"), v.literal("contradictory")),
+  protectedAmountYen: v.number(),
+  candidates: v.array(
+    v.object({
+      amountYen: v.number(),
+      source: receiptTotalCandidateSourceValidator,
+      evidence: v.string(),
+    }),
+  ),
+  reasons: v.array(v.string()),
 });
 
 export const aiExpenseDraftConfidenceValidator = v.object({

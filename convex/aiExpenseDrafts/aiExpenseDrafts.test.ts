@@ -477,6 +477,18 @@ describe("aiExpenseDrafts", () => {
       shopName: "TRIAL",
       date: "2026-07-03",
       amountYen: 1683,
+      receiptTotalResolution: {
+        status: "verified",
+        protectedAmountYen: 1683,
+        candidates: [
+          {
+            amountYen: 1683,
+            source: "explicit_label",
+            evidence: "extraction.amountYen",
+          },
+        ],
+        reasons: [],
+      },
       taxSummaries: [
         {
           taxRatePercent: 8,
@@ -514,7 +526,17 @@ describe("aiExpenseDrafts", () => {
     const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDrafts",
-      expect.objectContaining({ amountYen: 1683, taxSummaries: expect.any(Array) }),
+      expect.objectContaining({
+        amountYen: 1683,
+        taxSummaries: expect.any(Array),
+        receiptTotalResolution: expect.objectContaining({
+          status: "verified",
+          protectedAmountYen: 1683,
+          candidates: expect.arrayContaining([
+            expect.objectContaining({ source: "explicit_label", evidence: "extraction.amountYen" }),
+          ]),
+        }),
+      }),
     );
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDraftItems",

@@ -186,29 +186,132 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.warnings).toContain("unresolved_tax_rate:items[0]");
   });
 
-  it("フレッシュ石守相当のOCR内税誤判定を外税として正規化する", () => {
+  it("フレッシュ石守相当のOCR内税誤判定を算術一致だけで外税化しない", () => {
     const mapped = mapExtractionToDraftArgs(ishimoriExternalMisreadFixture, [foodCategory]);
 
     expect(mapped.amountYen).toBe(8562);
     expect(mapped.taxSummaries?.[0]).toMatchObject({
       taxRatePercent: 8,
-      taxMode: "external",
-      taxableAmountBasis: "tax_excluded",
+      taxMode: "included",
+      taxableAmountBasis: "tax_included",
+      status: "contradictory",
     });
     expect(mapped.items?.reduce((sum, item) => sum + (item.printedAmountYen ?? 0), 0)).toBe(7958);
-    expect(mapped.items?.reduce((sum, item) => sum + (item.allocatedTaxYen ?? 0), 0)).toBe(604);
+    expect(mapped.items?.reduce((sum, item) => sum + (item.allocatedTaxYen ?? 0), 0)).toBe(0);
     expect(mapped.items?.reduce((sum, item) => sum + (item.normalizedAmountYen ?? 0), 0)).toBe(
-      8562,
+      7958,
     );
     expect(
       mapped.items
         ?.filter((item) => item.printedAmountYen !== undefined && item.printedAmountYen >= 0)
-        .every((item) => item.taxResolutionStatus === "resolved"),
+        .every((item) => item.taxResolutionStatus === "unresolved"),
     ).toBe(true);
-    expect(mapped.warnings).toContain("taxable_amount_mismatch:8");
+    expect(mapped.warnings).toContain("ambiguous_receipt_total");
     expect(mapped.reviewReasons).toContain("amount_mismatch");
     expect(mapped.reviewReasons).toContain("user_confirmation_required");
     expect(mapped.items?.[2]?.taxResolutionStatus).toBe("unresolved");
     expect(mapped.items?.[2]?.taxRatePercent).toBeNull();
+  });
+
+  it("7,803円の支払総額を743円+60円の税算術候補で置換しない", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 7803,
+        items: [
+          {
+            ...product,
+            itemName: "商品",
+            amountYen: 743,
+            printedAmountYen: 743,
+            amountBasis: "unknown",
+            taxRatePercent: null,
+            markers: [],
+          },
+        ],
+        taxSummaries: [
+          {
+            ...trialExternal8Fixture.taxSummaries![0],
+            taxableAmountYen: 743,
+            taxYen: 60,
+            taxIncludedAmountYen: 803,
+            taxMode: "external",
+            taxableAmountBasis: "tax_excluded",
+          },
+        ],
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.amountYen).toBe(7803);
+    expect(mapped.receiptTotalResolution).toMatchObject({
+      status: "ambiguous",
+      protectedAmountYen: 7803,
+      candidates: expect.arrayContaining([
+        expect.objectContaining({
+          amountYen: 7803,
+          source: "explicit_label",
+          evidence: "extraction.amountYen",
+        }),
+        expect.objectContaining({ amountYen: 803, source: "tax_arithmetic" }),
+      ]),
+    });
+    expect(mapped.items?.[0]).toMatchObject({
+      printedAmountYen: 743,
+      normalizedAmountYen: 743,
+      allocatedTaxYen: 0,
+      taxResolutionStatus: "unresolved",
+    });
+    expect(mapped.warnings).toContain("ambiguous_receipt_total");
+    expect(mapped.reviewReasons).toEqual(
+      expect.arrayContaining(["amount_mismatch", "user_confirmation_required"]),
+    );
+  });
+
+  it("明細0件でも支払総額と抽出根拠を下書きへ渡す", () => {
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 7803,
+        items: [],
+        taxSummaries: [],
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.amountYen).toBe(7803);
+    expect(mapped.receiptTotalResolution).toEqual({
+      status: "verified",
+      protectedAmountYen: 7803,
+      candidates: [
+        {
+          amountYen: 7803,
+          source: "explicit_label",
+          evidence: "extraction.amountYen",
+        },
+      ],
+      reasons: [],
+    });
+  });
+
+  it("支払総額不明の0円は金額を保存せず、確認待ちの根拠だけ保持する", () => {
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 0,
+        items: [],
+        taxSummaries: [],
+        confidence: { ...trialExternal8Fixture.confidence, amountYen: 0.1 },
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.amountYen).toBeUndefined();
+    expect(mapped.receiptTotalResolution).toMatchObject({
+      status: "ambiguous",
+      protectedAmountYen: 0,
+      reasons: ["receipt_total_missing_or_invalid"],
+    });
   });
 });

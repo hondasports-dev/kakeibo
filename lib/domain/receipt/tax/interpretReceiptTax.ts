@@ -3,6 +3,7 @@ import { normalizeAmounts } from "./normalizeAmounts";
 import { normalizeTaxSummaries } from "./normalizeTaxSummaries";
 import { reconcileTaxSummaries } from "./reconcileTaxSummaries";
 import { resolveTaxContext } from "./resolveTaxContext";
+import { resolveReceiptTotal } from "./resolveReceiptTotal";
 import type { ExtractedTaxSummary, ReceiptTaxInput, ReceiptTaxInterpretation } from "./types";
 import { validateConsistency } from "./validateConsistency";
 
@@ -15,6 +16,13 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
     })),
   };
   const reconciliation = reconcileTaxSummaries(normalizedInput);
+  const receiptTotalResolution = resolveReceiptTotal({
+    amountYen: input.amountYen,
+    source: input.receiptTotalSource,
+    confidence: input.receiptTotalConfidence,
+    supportingCandidates: input.receiptTotalSupportingCandidates,
+    taxSummaries: reconciliation.taxSummaries,
+  });
   const normalizedAllSummaries = normalizeTaxSummaries({
     amountYen: input.amountYen,
     taxSummaries: reconciliation.taxSummaries,
@@ -26,8 +34,8 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
     resolvableTaxSummaries: reconciliation.resolvableTaxSummaries,
   });
   const processableSummaries = normalizedResolvableSummaries.filter(
-    (summary): summary is ExtractedTaxSummary & { status: "coherent" | "reconcilable" } =>
-      summary.status !== "conflicting",
+    (summary): summary is ExtractedTaxSummary & { status: "verified" } =>
+      summary.status === "verified",
   );
   const evidence = collectTaxEvidence({
     ...normalizedInput,
@@ -53,10 +61,12 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
   return {
     items,
     taxSummaries: normalizedAllSummaries,
+    receiptTotalResolution,
     warnings: [
       ...new Set([
         ...reconciliation.duplicateWarnings,
         ...reconciliation.conflictingWarnings,
+        ...(receiptTotalResolution.status === "ambiguous" ? ["ambiguous_receipt_total"] : []),
         ...validationWarnings,
       ]),
     ],

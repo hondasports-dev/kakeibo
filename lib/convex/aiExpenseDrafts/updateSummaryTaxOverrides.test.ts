@@ -123,7 +123,7 @@ describe("updateSummaryTaxOverridesHandler", () => {
     const updatedSummary = result.draft.taxSummaries![0];
     expect(updatedSummary.taxableAmountYen).toBe(1060);
     expect(updatedSummary.taxableAmountBasis).toBe("tax_included");
-    expect(updatedSummary.status).toBe("coherent");
+    expect(updatedSummary.status).toBe("verified");
     expect(result.items[0].taxResolutionStatus).toBe("resolved");
   });
 

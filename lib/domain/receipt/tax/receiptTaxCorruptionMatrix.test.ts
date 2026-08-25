@@ -62,12 +62,12 @@ describe("receiptTax corruption matrix", () => {
       }),
     );
     const s = result.taxSummaries[0];
-    expect(s.status).toBe("conflicting");
+    expect(s.status).toBe("contradictory");
     expect(s.reasons).toContain("included_mode_with_tax_excluded_basis");
     expect(s.reasons).toContain("tax_summary_amount_mismatch");
   });
 
-  it("AI誤読：included だけど taxableAmountYen が内税額を A+T として解釈された場合を外税に修復", () => {
+  it("AI誤読：算術一致しても included を external へ自動変更しない", () => {
     const normalized = normalizeTaxSummary(
       summary({
         taxMode: "included",
@@ -78,9 +78,9 @@ describe("receiptTax corruption matrix", () => {
       }),
       8562,
     );
-    expect(normalized.taxMode).toBe("external");
-    expect(normalized.taxableAmountBasis).toBe("tax_excluded");
-    expect(normalized.status).toBe("coherent");
+    expect(normalized.taxMode).toBe("included");
+    expect(normalized.taxableAmountBasis).toBe("tax_included");
+    expect(normalized.status).toBe("contradictory");
   });
 
   it("AI誤読：taxIncludedAmountYen だけ誤読（A = P だが I != P）", () => {
@@ -94,7 +94,7 @@ describe("receiptTax corruption matrix", () => {
       }),
       1060,
     );
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("contradictory");
     expect(result.reasons).toContain("tax_included_amount_mismatch");
   });
 
@@ -109,7 +109,7 @@ describe("receiptTax corruption matrix", () => {
       }),
       1060,
     );
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("contradictory");
     expect(result.reasons).toContain("tax_summary_amount_mismatch");
   });
 
@@ -135,7 +135,7 @@ describe("receiptTax corruption matrix", () => {
     expect(interpreted.normalizedAmountYen).toBe(1060);
   });
 
-  it("mixed tax mode は常に conflicting", () => {
+  it("mixed tax mode は ambiguous として金額処理から除外する", () => {
     const result = normalizeTaxSummary(
       summary({
         taxMode: "mixed",
@@ -146,7 +146,7 @@ describe("receiptTax corruption matrix", () => {
       }),
       1000,
     );
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("ambiguous");
     expect(result.reasons).toContain("mixed_tax_mode");
   });
 });

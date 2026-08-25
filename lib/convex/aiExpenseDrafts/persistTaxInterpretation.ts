@@ -23,6 +23,7 @@ export type PersistDraftTaxInterpretationArgs = {
   override?: DraftTaxOverride;
   bulkUnresolvedOverride?: BulkUnresolvedTaxOverride;
   summaryOverride?: DraftSummaryOverride;
+  receiptTotalSource?: "explicit_label" | "user_confirmed" | "ai_estimate";
 };
 
 export type PersistDraftTaxInterpretationResult = {
@@ -53,8 +54,25 @@ export async function persistDraftTaxInterpretation(
     .order("asc")
     .collect();
 
+  const persistedReceiptTotalSource = draft.receiptTotalResolution?.candidates.find(
+    (candidate) => candidate.amountYen === draft.amountYen,
+  )?.source;
+  const receiptTotalSource =
+    persistedReceiptTotalSource === "explicit_label" ||
+    persistedReceiptTotalSource === "user_confirmed" ||
+    persistedReceiptTotalSource === "ai_estimate"
+      ? persistedReceiptTotalSource
+      : "ai_estimate";
+  const receiptTotalSupportingCandidates = draft.receiptTotalResolution?.candidates.filter(
+    (candidate) =>
+      candidate.source !== "tax_summary_total" && candidate.source !== "tax_arithmetic",
+  );
+
   const { interpretation, itemFields } = reinterpretDraftTax({
     amountYen: draft.amountYen,
+    receiptTotalSource: args.receiptTotalSource ?? receiptTotalSource,
+    receiptTotalConfidence: draft.confidence.amountYen,
+    receiptTotalSupportingCandidates,
     taxSummaries: draft.taxSummaries,
     markerDefinitions: draft.markerDefinitions,
     items: items.map(mapDraftItemToTaxFields),
@@ -113,6 +131,7 @@ export async function persistDraftTaxInterpretation(
   await ctx.db.patch(args.draftId, {
     status,
     taxSummaries: interpretation.taxSummaries,
+    receiptTotalResolution: interpretation.receiptTotalResolution,
     warnings: [...new Set([...nonInterpretationWarnings, ...interpretation.warnings])],
     reviewReasons,
     updatedAt: now,

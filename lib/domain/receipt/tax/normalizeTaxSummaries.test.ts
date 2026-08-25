@@ -18,14 +18,15 @@ const summary = (
 });
 
 describe("normalizeTaxSummaries", () => {
-  it("小計+税=支払合計かつ小計≠支払合計のとき外税に補正する", () => {
+  it("小計+税=支払合計でも税区分を自動補正しない", () => {
     const result = normalizeTaxSummaries({
       amountYen: 8562,
       taxSummaries: [summary(7928, 634)],
     });
     expect(result[0]).toMatchObject({
-      taxMode: "external",
-      taxableAmountBasis: "tax_excluded",
+      taxMode: "included",
+      taxableAmountBasis: "tax_included",
+      status: "contradictory",
     });
   });
 
@@ -43,7 +44,7 @@ describe("normalizeTaxSummaries", () => {
   it("複数summaryはそのまま返す", () => {
     const summaries = [summary(100, 8), summary(200, 20)];
     expect(normalizeTaxSummaries({ amountYen: 328, taxSummaries: summaries })).toEqual(
-      summaries.map((s) => ({ ...s, status: "coherent", reasons: [] })),
+      summaries.map((s) => ({ ...s, status: "verified", reasons: [] })),
     );
   });
 
@@ -57,9 +58,9 @@ describe("normalizeTaxSummaries", () => {
     });
     const normalizedResolvable = result.find((s) => s.taxableAmountYen === 7928);
     expect(normalizedResolvable).toMatchObject({
-      taxMode: "external",
-      taxableAmountBasis: "tax_excluded",
-      status: "coherent",
+      taxMode: "included",
+      taxableAmountBasis: "tax_included",
+      status: "contradictory",
     });
   });
 });
