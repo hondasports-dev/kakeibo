@@ -130,7 +130,7 @@ export const receiptTotalCandidateSourceValidator = v.union(
 );
 export const receiptTotalResolutionValidator = v.object({
   status: v.union(v.literal("verified"), v.literal("ambiguous"), v.literal("contradictory")),
-  protectedAmountYen: v.number(),
+  protectedAmountYen: v.union(v.number(), v.null()),
   candidates: v.array(
     v.object({
       amountYen: v.number(),
@@ -160,4 +160,101 @@ export const aiExpenseDraftItemConfidenceValidator = v.object({
   taxRatePercent: v.optional(v.number()),
   categoryName: v.optional(v.number()),
   categoryId: v.optional(v.number()),
+});
+
+export const receiptLineRoleValidator = v.union(
+  v.literal("item"),
+  v.literal("discount"),
+  v.literal("tax"),
+  v.literal("subtotal"),
+  v.literal("total"),
+  v.literal("payment"),
+  v.literal("change"),
+  v.literal("unknown"),
+);
+
+export const receiptObservationBoundingBoxValidator = v.object({
+  left: v.number(),
+  top: v.number(),
+  width: v.number(),
+  height: v.number(),
+});
+
+export const receiptRawObservationLineValidator = v.object({
+  rawText: v.string(),
+  amountText: v.union(v.string(), v.null()),
+  amountYen: v.union(v.number(), v.null()),
+  lineRoleCandidates: v.array(receiptLineRoleValidator),
+  roleConfidence: v.number(),
+  explicitlyPrinted: v.boolean(),
+  sourceLineIndex: v.number(),
+  boundingBox: v.optional(receiptObservationBoundingBoxValidator),
+});
+
+export const receiptRawObservationValidator = v.object({
+  source: v.union(v.literal("ai_ocr"), v.literal("legacy_projection")),
+  observedAt: v.number(),
+  lines: v.array(receiptRawObservationLineValidator),
+});
+
+export const receiptDraftItemSnapshotValidator = v.object({
+  itemName: v.string(),
+  amountYen: v.number(),
+  printedAmountYen: v.optional(v.number()),
+  amountBasis: v.optional(amountBasisValidator),
+  taxRatePercent: v.optional(receiptItemTaxRatePercentValidator),
+  markers: v.optional(receiptMarkersValidator),
+  taxMarker: v.optional(v.string()),
+  allocatedTaxYen: v.optional(v.number()),
+  normalizedAmountYen: v.optional(v.number()),
+  taxResolutionStatus: v.optional(taxResolutionStatusValidator),
+  taxResolutionSource: v.optional(taxResolutionSourceValidator),
+  taxReviewReasons: v.optional(v.array(v.string())),
+  quantity: v.optional(v.number()),
+  unitPriceYen: v.optional(v.number()),
+  categoryName: v.optional(v.string()),
+  categoryId: v.optional(v.id("categories")),
+  confidence: aiExpenseDraftItemConfidenceValidator,
+  warnings: v.optional(v.array(v.string())),
+});
+
+export const receiptDraftValueSnapshotValidator = v.object({
+  status: aiExpenseDraftStatusValidator,
+  documentType: aiExpenseDraftDocumentTypeValidator,
+  shopName: v.optional(v.string()),
+  paymentPlace: v.optional(v.string()),
+  payeeName: v.optional(v.string()),
+  paymentPurpose: v.optional(v.string()),
+  date: v.optional(v.string()),
+  amountYen: v.optional(v.number()),
+  taxSummaries: v.optional(v.array(taxSummaryValidator)),
+  receiptTotalResolution: v.optional(receiptTotalResolutionValidator),
+  markerDefinitions: v.optional(markerDefinitionsValidator),
+  categoryId: v.optional(v.id("categories")),
+  confidence: aiExpenseDraftConfidenceValidator,
+  warnings: v.array(v.string()),
+  reviewReasons: v.array(aiExpenseDraftReviewReasonValidator),
+  items: v.array(receiptDraftItemSnapshotValidator),
+});
+
+export const receiptInterpretationSnapshotValidator = v.object({
+  source: v.literal("ai"),
+  interpretedAt: v.number(),
+  values: receiptDraftValueSnapshotValidator,
+});
+
+export const receiptUserOverrideSnapshotValidator = v.object({
+  source: v.literal("user"),
+  updatedAt: v.number(),
+  fields: v.array(v.string()),
+  values: receiptDraftValueSnapshotValidator,
+});
+
+export const derivedRegistrationSnapshotValidator = v.object({
+  source: v.literal("derived"),
+  destination: v.union(v.literal("receipt"), v.literal("expense_entries")),
+  amountYen: v.number(),
+  date: v.string(),
+  categoryIds: v.array(v.id("categories")),
+  registeredAt: v.number(),
 });

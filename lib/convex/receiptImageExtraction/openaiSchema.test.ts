@@ -26,7 +26,33 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(prompt).toContain("支払総額を示す明示ラベル");
     expect(prompt).toContain("計算または推測してはいけません");
     expect(prompt).toContain("お預り・現金・釣銭・お釣り・支払方法別の金額");
-    expect(prompt).toContain("amountYen を0");
+    expect(prompt).toContain("amountYen を null");
+  });
+
+  it("原文観測とnullable金額を意味解釈から分離する", () => {
+    const prompt = RECEIPT_EXTRACTION_PROMPT_LINES.join("\n");
+    const schema = buildReceiptExtractionJsonSchema([]);
+    const observation = schema.properties.rawObservations.items;
+
+    expect(prompt).toContain("rawText と amountText は補正・要約せず");
+    expect(prompt).toContain("lineRoleCandidates は候補であり確定値ではありません");
+    expect(schema.properties.amountYen.type).toEqual(["integer", "null"]);
+    expect(schema.required).toContain("rawObservations");
+    expect(observation.required).toEqual(
+      expect.arrayContaining([
+        "rawText",
+        "amountText",
+        "amountYen",
+        "lineRoleCandidates",
+        "roleConfidence",
+        "explicitlyPrinted",
+        "sourceLineIndex",
+        "boundingBox",
+      ]),
+    );
+    expect(observation.properties.lineRoleCandidates.items.enum).toEqual(
+      expect.arrayContaining(["item", "tax", "subtotal", "total", "payment", "change", "unknown"]),
+    );
   });
 
   it("割引は印字位置を考慮して対象商品カテゴリへ帰属させ、不明時は推測しない", () => {

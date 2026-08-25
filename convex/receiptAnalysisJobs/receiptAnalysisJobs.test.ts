@@ -7,6 +7,7 @@ import { analyzeImageJobHandler, checkAiReviewRequiredHandler } from "./actions"
 import {
   countNeedsReviewJobsByBatchIdHandler,
   deleteReceiptAnalysisDataByUserBatchHandler,
+  finalizeAnalysisAttemptHandler,
   finalizeBatchStatusHandler,
   getBatchByIdHandler,
   getJobByIdHandler,
@@ -523,6 +524,90 @@ describe("updateJobStatusHandler", () => {
 
     expect(ctx.scheduler.runAfter).not.toHaveBeenCalled();
   });
+
+  it("期待した旧draftから既に切り替わっていれば遅延startを拒否する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": {
+          _id: "job-1",
+          groupId: GROUP_ID,
+          batchId: "batch-1",
+          status: "ready",
+          draftId: "draft-new",
+        },
+      },
+    });
+
+    const result = await updateJobStatusHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      status: "running",
+      expectedDraftId: "draft-old" as Id<"aiExpenseDrafts">,
+    });
+
+    expect(result).toEqual({ applied: false });
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+});
+
+describe("finalizeAnalysisAttemptHandler", () => {
+  it("成功attemptだけがjobを切り替え、後着の失敗attemptは自分のdraftだけ片付ける", async () => {
+    const docs = new Map<string, Record<string, unknown>>([
+      [
+        "job-1",
+        {
+          _id: "job-1",
+          groupId: GROUP_ID,
+          batchId: "batch-1",
+          status: "running",
+          draftId: "draft-old",
+        },
+      ],
+      ["batch-1", { _id: "batch-1", processedCount: 0, totalCount: 1 }],
+      ["draft-old", { _id: "draft-old", groupId: GROUP_ID }],
+      ["draft-success", { _id: "draft-success", groupId: GROUP_ID }],
+      ["draft-failed", { _id: "draft-failed", groupId: GROUP_ID }],
+    ]);
+    const removed: string[] = [];
+    const ctx = {
+      db: {
+        get: vi.fn(async (id: string) => docs.get(id) ?? null),
+        patch: vi.fn(async (id: string, values: Record<string, unknown>) => {
+          docs.set(id, { ...(docs.get(id) ?? {}), ...values });
+        }),
+        delete: vi.fn(async (id: string) => {
+          removed.push(id);
+          docs.delete(id);
+        }),
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({
+            collect: vi.fn(async () => []),
+            order: vi.fn(() => ({ take: vi.fn(async () => []) })),
+          })),
+        })),
+      },
+      scheduler: { runAfter: vi.fn() },
+    } as unknown as MutationCtx;
+
+    const success = await finalizeAnalysisAttemptHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      expectedDraftId: "draft-old" as Id<"aiExpenseDrafts">,
+      newDraftId: "draft-success" as Id<"aiExpenseDrafts">,
+      status: "ready",
+    });
+    const staleFailure = await finalizeAnalysisAttemptHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      expectedDraftId: "draft-old" as Id<"aiExpenseDrafts">,
+      newDraftId: "draft-failed" as Id<"aiExpenseDrafts">,
+      status: "failed",
+      error: "遅延失敗",
+    });
+
+    expect(success).toEqual({ applied: true });
+    expect(staleFailure).toEqual({ applied: false });
+    expect(docs.get("job-1")).toMatchObject({ status: "ready", draftId: "draft-success" });
+    expect(removed).toEqual(expect.arrayContaining(["draft-old", "draft-failed"]));
+    expect(removed).not.toContain("draft-success");
+  });
 });
 
 describe("receipt analysis internal handlers", () => {
@@ -727,6 +812,192 @@ describe("analyzeImageJobHandler", () => {
           ],
         }),
       );
+    });
+  });
+
+  it("再解析成功時はuser overrideを新draftへ継承してから旧draftを削除する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const receiptUserOverride = {
+        source: "user" as const,
+        updatedAt: 10,
+        fields: ["amountYen"],
+        values: {
+          status: "needs_review" as const,
+          documentType: "receipt" as const,
+          shopName: "ユーザー店舗",
+          date: "2026-07-03",
+          amountYen: 7803,
+          categoryId: "cat-food",
+          confidence: { amountYen: 1 },
+          warnings: [],
+          reviewReasons: ["amount_mismatch" as const],
+          items: [],
+        },
+      };
+      const jobDoc = {
+        _id: "job-retry",
+        groupId: GROUP_ID,
+        batchId: "batch-1",
+        status: "failed",
+        draftId: "draft-old",
+      } as Doc<"receiptAnalysisImageJobs">;
+      const oldDraft = {
+        _id: "draft-old",
+        groupId: GROUP_ID,
+        receiptUserOverride,
+      } as Doc<"aiExpenseDrafts">;
+      const newDraft = { _id: "draft-new", status: "needs_review" } as Doc<"aiExpenseDrafts">;
+      const ctx = createActionCtx(createIdentity());
+      ctx.runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
+        .mockResolvedValueOnce({ _id: GROUP_ID })
+        .mockResolvedValueOnce(jobDoc)
+        .mockResolvedValueOnce({ draft: oldDraft, items: [] })
+        .mockResolvedValueOnce([
+          { _id: "cat-food", name: "食費", color: "#fff", isActive: true, sortOrder: 1 },
+        ]);
+      ctx.runMutation = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(newDraft)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      await analyzeImageJobHandler(ctx, {
+        jobId: "job-retry" as Id<"receiptAnalysisImageJobs">,
+        imageDataUrl: VALID_IMAGE_DATA_URL,
+      });
+
+      expect((ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]).toEqual(
+        expect.objectContaining({ preservedUserOverride: receiptUserOverride }),
+      );
+      expect((ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls[2]?.[1]).toMatchObject({
+        expectedDraftId: "draft-old",
+        newDraftId: "draft-new",
+        status: "needs_review",
+      });
+      expect(
+        (ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls.some(
+          (call) => call[1]?.draftId === "draft-old" && Object.keys(call[1]).length === 1,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  it("旧契約でもuser_confirmed合計は再解析時に遅延変換して維持する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const jobDoc = {
+        _id: "job-retry",
+        groupId: GROUP_ID,
+        batchId: "batch-1",
+        status: "failed",
+        draftId: "draft-old",
+      } as Doc<"receiptAnalysisImageJobs">;
+      const oldDraft = {
+        _id: "draft-old",
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        amountYen: 7803,
+        receiptTotalResolution: {
+          status: "resolved",
+          protectedAmountYen: 7803,
+          candidates: [
+            { amountYen: 7803, source: "user_confirmed", evidence: "legacy confirmation" },
+          ],
+          reasons: [],
+        },
+        confidence: { amountYen: 1 },
+        reviewReasons: [],
+        updatedAt: 10,
+      } as Doc<"aiExpenseDrafts">;
+      const newDraft = { _id: "draft-new", status: "ready" } as Doc<"aiExpenseDrafts">;
+      const ctx = createActionCtx(createIdentity());
+      ctx.runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
+        .mockResolvedValueOnce({ _id: GROUP_ID })
+        .mockResolvedValueOnce(jobDoc)
+        .mockResolvedValueOnce({ draft: oldDraft, items: [] })
+        .mockResolvedValueOnce([]);
+      ctx.runMutation = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(newDraft)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      await analyzeImageJobHandler(ctx, {
+        jobId: "job-retry" as Id<"receiptAnalysisImageJobs">,
+        imageDataUrl: VALID_IMAGE_DATA_URL,
+      });
+
+      expect((ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls[1]?.[1]).toEqual(
+        expect.objectContaining({
+          preservedUserOverride: expect.objectContaining({
+            source: "user",
+            fields: ["amountYen", "receiptTotalResolution"],
+            values: expect.objectContaining({ amountYen: 7803 }),
+          }),
+        }),
+      );
+    });
+  });
+
+  it("再解析失敗時は旧draftを残して失敗draftだけを削除する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const jobDoc = {
+        _id: "job-retry",
+        groupId: GROUP_ID,
+        batchId: "batch-1",
+        status: "failed",
+        draftId: "draft-old",
+      } as Doc<"receiptAnalysisImageJobs">;
+      const oldDraft = {
+        _id: "draft-old",
+        groupId: GROUP_ID,
+        receiptUserOverride: { source: "user", updatedAt: 1, fields: [], values: {} },
+      } as unknown as Doc<"aiExpenseDrafts">;
+      const failedDraft = {
+        _id: "draft-failed-new",
+        status: "failed",
+        warnings: ["解析失敗"],
+      } as Doc<"aiExpenseDrafts">;
+      const ctx = createActionCtx(createIdentity());
+      ctx.runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
+        .mockResolvedValueOnce({ _id: GROUP_ID })
+        .mockResolvedValueOnce(jobDoc)
+        .mockResolvedValueOnce({ draft: oldDraft, items: [] })
+        .mockResolvedValueOnce([]);
+      ctx.runMutation = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(failedDraft)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      await analyzeImageJobHandler(ctx, {
+        jobId: "job-retry" as Id<"receiptAnalysisImageJobs">,
+        imageDataUrl: VALID_IMAGE_DATA_URL,
+      });
+
+      expect((ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls[2]?.[1]).toMatchObject({
+        expectedDraftId: "draft-old",
+        newDraftId: "draft-failed-new",
+        status: "failed",
+        error: "解析失敗",
+      });
+      expect(
+        (ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls.some(
+          (call) => call[1]?.draftId === "draft-old" && Object.keys(call[1]).length === 1,
+        ),
+      ).toBe(false);
     });
   });
 

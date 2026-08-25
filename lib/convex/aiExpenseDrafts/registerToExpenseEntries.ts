@@ -62,6 +62,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
   }
 
   const createdExpenseEntryIds: Id<"expenseEntries">[] = [];
+  const registeredCategoryIds = new Map<Id<"aiExpenseDrafts">, Id<"categories">[]>();
 
   for (const draft of draftsToRegister) {
     const items = await ctx.db
@@ -73,6 +74,9 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
       .take(100);
 
     const itemsToRegister = aggregateDraftItemsByCategory(draft, items);
+    registeredCategoryIds.set(draft._id, [
+      ...new Set(itemsToRegister.map((item) => item.categoryId)),
+    ]);
 
     const entryIds = await createExpenseEntriesFromDraftHandler(ctx, {
       draftId: draft._id,
@@ -86,6 +90,14 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
     draftsToRegister.map((draft) =>
       ctx.db.patch(draft._id, {
         status: "registered",
+        derivedRegistration: {
+          source: "derived",
+          destination: "expense_entries",
+          amountYen: draft.amountYen!,
+          date: draft.date!,
+          categoryIds: registeredCategoryIds.get(draft._id) ?? [],
+          registeredAt: now,
+        },
         updatedAt: now,
       }),
     ),

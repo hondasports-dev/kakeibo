@@ -2,12 +2,14 @@ import { ConvexError } from "convex/values";
 import { api, internal } from "../../../convex/_generated/api";
 import type { ActionCtx } from "../../../convex/_generated/server";
 import type { Doc } from "../../../convex/_generated/dataModel";
+import type { ReceiptUserOverrideSnapshot } from "../../domain/aiExpenseDrafts/receiptDataContract";
 import { mapExtractionToDraftArgs } from "../../../lib/domain/aiExpenseDrafts/extractionMapping";
 import { extractReceiptFieldsHandler } from "../../../convex/receiptImageExtraction/extraction";
 
 export type AnalyzeReceiptImageCoreArgs = {
   imageDataUrl: string;
   imageFileName?: string;
+  preservedUserOverride?: ReceiptUserOverrideSnapshot<Doc<"categories">["_id"]>;
 };
 
 export function getSafeFailureWarning(err: unknown) {
@@ -55,8 +57,8 @@ export async function analyzeReceiptImageToDraftCore(
     );
   }
 
-  return await ctx.runMutation(
-    internal.aiExpenseDrafts.internal.createFromExtraction,
-    mapExtractionToDraftArgs(extracted, categories, args.imageFileName),
-  );
+  return await ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
+    ...mapExtractionToDraftArgs(extracted, categories, args.imageFileName),
+    preservedUserOverride: args.preservedUserOverride,
+  });
 }

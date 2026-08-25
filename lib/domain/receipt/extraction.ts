@@ -13,6 +13,7 @@ import type {
   OpenAIResponsesApiResponse,
   ReceiptItemTaxRatePercent,
   ReceiptMarkerDefinition,
+  ReceiptRawObservationLine,
   RoundingMethod,
   TaxMode,
   TaxRatePercent,
@@ -60,13 +61,16 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
     if (!dateResult.success) {
       throw new Error("OpenAI レスポンスの date が実在する YYYY-MM-DD 形式ではありません");
     }
-    if (typeof obj.amountYen !== "number") {
-      throw new Error("OpenAI レスポンスの amountYen が数値ではありません");
+    if (typeof obj.amountYen !== "number" && obj.amountYen !== null) {
+      throw new Error("OpenAI レスポンスの amountYen が数値またはnullではありません");
     }
-    const amountResult = validateReceiptTotalAmount(obj.amountYen);
-    if (!amountResult.success) {
+    if (
+      typeof obj.amountYen === "number" &&
+      (obj.amountYen !== 0 || !Number.isInteger(obj.amountYen)) &&
+      !validateReceiptTotalAmount(obj.amountYen).success
+    ) {
       throw new Error(
-        "OpenAI レスポンスの amountYen は 1 円以上 9,999,999 円以下の整数である必要があります",
+        "OpenAI レスポンスの amountYen は 0 円以上 9,999,999 円以下の整数である必要があります",
       );
     }
     const confidence = parseConfidence(obj.confidence);
@@ -79,6 +83,7 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
     const items = parseOptionalItems(obj.items);
     const taxSummaries = parseOptionalTaxSummaries(obj.taxSummaries);
     const markerDefinitions = parseOptionalMarkerDefinitions(obj.markerDefinitions);
+    const rawObservations = parseOptionalRawObservations(obj.rawObservations);
 
     return {
       success: true,
@@ -94,6 +99,7 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
         items,
         taxSummaries,
         markerDefinitions,
+        rawObservations,
         confidence,
         warnings: Array.isArray(obj.warnings)
           ? (obj.warnings as string[]).filter((w) => typeof w === "string")
@@ -103,6 +109,113 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+function parseOptionalRawObservations(value: unknown): ReceiptRawObservationLine[] | undefined {
+  if (value === undefined || value === null) return undefined;
+  if (!Array.isArray(value)) {
+    throw new Error("OpenAI レスポンスの rawObservations が配列ではありません");
+  }
+  if (value.length > MAX_EXTRACTED_LINE_ITEMS) {
+    throw new Error(
+      `OpenAI レスポンスの rawObservations は ${MAX_EXTRACTED_LINE_ITEMS} 件以下である必要があります`,
+    );
+  }
+  return value.map((line, index) => parseRawObservation(line, index));
+}
+
+function parseRawObservation(value: unknown, index: number): ReceiptRawObservationLine {
+  const field = `rawObservations[${index}]`;
+  if (typeof value !== "object" || value === null) {
+    throw new Error(`OpenAI レスポンスの ${field} がオブジェクトではありません`);
+  }
+  const line = value as Record<string, unknown>;
+  if (typeof line.rawText !== "string" || line.rawText.length > 500) {
+    throw new Error(`OpenAI レスポンスの ${field}.rawText が不正です`);
+  }
+  if (
+    line.amountText !== null &&
+    (typeof line.amountText !== "string" || line.amountText.length > 100)
+  ) {
+    throw new Error(`OpenAI レスポンスの ${field}.amountText が不正です`);
+  }
+  if (
+    line.amountYen !== null &&
+    (typeof line.amountYen !== "number" ||
+      !Number.isInteger(line.amountYen) ||
+      Math.abs(line.amountYen) > 9_999_999)
+  ) {
+    throw new Error(`OpenAI レスポンスの ${field}.amountYen が不正です`);
+  }
+  if (
+    !Array.isArray(line.lineRoleCandidates) ||
+    line.lineRoleCandidates.some(
+      (role) =>
+        role !== "item" &&
+        role !== "discount" &&
+        role !== "tax" &&
+        role !== "subtotal" &&
+        role !== "total" &&
+        role !== "payment" &&
+        role !== "change" &&
+        role !== "unknown",
+    )
+  ) {
+    throw new Error(`OpenAI レスポンスの ${field}.lineRoleCandidates が不正です`);
+  }
+  const roleConfidence = parseOptionalConfidenceScore(
+    line.roleConfidence,
+    `${field}.roleConfidence`,
+  );
+  if (roleConfidence === undefined) {
+    throw new Error(`OpenAI レスポンスの ${field}.roleConfidence が不正です`);
+  }
+  if (typeof line.explicitlyPrinted !== "boolean") {
+    throw new Error(`OpenAI レスポンスの ${field}.explicitlyPrinted が不正です`);
+  }
+  if (
+    typeof line.sourceLineIndex !== "number" ||
+    !Number.isInteger(line.sourceLineIndex) ||
+    line.sourceLineIndex < 0
+  ) {
+    throw new Error(`OpenAI レスポンスの ${field}.sourceLineIndex が不正です`);
+  }
+
+  return {
+    rawText: line.rawText,
+    amountText: line.amountText,
+    amountYen: line.amountYen,
+    lineRoleCandidates: [...new Set(line.lineRoleCandidates)],
+    roleConfidence,
+    explicitlyPrinted: line.explicitlyPrinted,
+    sourceLineIndex: line.sourceLineIndex,
+    boundingBox: parseObservationBoundingBox(line.boundingBox, `${field}.boundingBox`),
+  } as ReceiptRawObservationLine;
+}
+
+function parseObservationBoundingBox(
+  value: unknown,
+  field: string,
+): ReceiptRawObservationLine["boundingBox"] {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value !== "object") {
+    throw new Error(`OpenAI レスポンスの ${field} が不正です`);
+  }
+  const box = value as Record<string, unknown>;
+  const coordinates = [box.left, box.top, box.width, box.height];
+  if (
+    coordinates.some(
+      (coordinate) => typeof coordinate !== "number" || coordinate < 0 || coordinate > 1,
+    )
+  ) {
+    throw new Error(`OpenAI レスポンスの ${field} が不正です`);
+  }
+  return {
+    left: box.left as number,
+    top: box.top as number,
+    width: box.width as number,
+    height: box.height as number,
+  };
 }
 
 function parseOptionalItems(value: unknown): ExtractReceiptItemResult[] | undefined {

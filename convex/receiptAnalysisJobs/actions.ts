@@ -9,6 +9,8 @@ import {
   getSafeFailureWarning,
 } from "../../lib/convex/receiptImageExtraction/analyzeReceiptImageCore";
 import { getExtractorMode } from "../../lib/convex/receiptImageExtraction/mode";
+import { snapshotReceiptDraftValues } from "../../lib/convex/aiExpenseDrafts/receiptDataContract";
+import type { ReceiptUserOverrideSnapshot } from "../../lib/domain/aiExpenseDrafts/receiptDataContract";
 
 export type CheckAiReviewRequiredArgs = {
   batchId: Id<"receiptAnalysisBatches">;
@@ -33,10 +35,14 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     throw new ConvexError("Job not found");
   }
 
-  await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
+  const startResult = await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
     jobId: args.jobId,
     status: "running",
+    expectedDraftId: job.draftId ?? null,
   });
+  if (startResult?.applied === false) {
+    return;
+  }
 
   const appEnv = process.env.APP_ENV ?? "development";
   if (getExtractorMode(appEnv) === "mock") {
@@ -44,12 +50,26 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   }
 
   const isRetry = job.draftId !== undefined;
-
-  if (isRetry && job.draftId) {
-    await ctx.runMutation(internal.aiExpenseDrafts.internal.deleteOrphanedDraft, {
-      draftId: job.draftId,
-    });
-  }
+  const existingDraftBundle =
+    isRetry && job.draftId
+      ? await ctx.runQuery(internal.aiExpenseDrafts.internal.getForReanalysis, {
+          draftId: job.draftId,
+          groupId: group._id,
+        })
+      : null;
+  const existingDraft = existingDraftBundle?.draft ?? null;
+  const preservedUserOverride: ReceiptUserOverrideSnapshot<Id<"categories">> | undefined =
+    existingDraft?.receiptUserOverride ??
+    (existingDraft?.receiptTotalResolution?.candidates.some(
+      (candidate) => candidate.source === "user_confirmed",
+    )
+      ? {
+          source: "user",
+          updatedAt: existingDraft.updatedAt,
+          fields: ["amountYen", "receiptTotalResolution"],
+          values: snapshotReceiptDraftValues(existingDraft, existingDraftBundle?.items ?? []),
+        }
+      : undefined);
 
   let draft: Doc<"aiExpenseDrafts">;
   let jobFailed = false;
@@ -57,16 +77,10 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     draft = await analyzeReceiptImageToDraftCore(ctx, {
       imageDataUrl: args.imageDataUrl,
       imageFileName: job.fileName,
+      preservedUserOverride,
     });
     if (draft.status === "failed") {
       jobFailed = true;
-      const safeError = draft.warnings?.[0] ?? "画像解析に失敗しました";
-      await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
-        jobId: args.jobId,
-        status: "failed",
-        draftId: draft._id,
-        error: safeError,
-      });
     }
   } catch (err) {
     jobFailed = true;
@@ -78,20 +92,20 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
         imageFileName: job.fileName,
       },
     );
-    await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
-      jobId: args.jobId,
-      status: "failed",
-      draftId: draft._id,
-      error: safeError,
-    });
   }
 
-  if (!jobFailed) {
-    await ctx.runMutation(internal.receiptAnalysisJobs.internal.updateJobStatus, {
+  const finalization = await ctx.runMutation(
+    internal.receiptAnalysisJobs.internal.finalizeAnalysisAttempt,
+    {
       jobId: args.jobId,
-      status: draft.status as "ready" | "needs_review",
-      draftId: draft._id,
-    });
+      expectedDraftId: job.draftId ?? null,
+      newDraftId: draft._id,
+      status: jobFailed ? "failed" : (draft.status as "ready" | "needs_review"),
+      error: jobFailed ? (draft.warnings?.[0] ?? "画像解析に失敗しました") : undefined,
+    },
+  );
+  if (finalization?.applied === false) {
+    return;
   }
 
   if (!isRetry) {

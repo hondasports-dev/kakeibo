@@ -4,17 +4,21 @@ export function ReviewDialogActions({
   showSummaryView,
   reviewSubmitting,
   isSubmitDisabled,
+  canResetToAiInterpretation = false,
   onClose,
   onEnterEditMode,
   onExitEditMode,
+  onResetToAiInterpretation,
   onSubmit,
 }: {
   showSummaryView: boolean;
   reviewSubmitting: boolean;
   isSubmitDisabled: boolean;
+  canResetToAiInterpretation?: boolean;
   onClose: () => void;
   onEnterEditMode: () => void;
   onExitEditMode: () => void;
+  onResetToAiInterpretation?: () => void;
   onSubmit: (registerAfterUpdate: boolean) => void;
 }) {
   return (
@@ -22,6 +26,17 @@ export function ReviewDialogActions({
       <Button disabled={reviewSubmitting} onClick={onClose} type="button">
         閉じる
       </Button>
+      {canResetToAiInterpretation && onResetToAiInterpretation ? (
+        <Button
+          color="warning"
+          disabled={reviewSubmitting}
+          onClick={onResetToAiInterpretation}
+          type="button"
+          variant="text"
+        >
+          AI判定へ戻す
+        </Button>
+      ) : null}
       {showSummaryView ? (
         <>
           <Button

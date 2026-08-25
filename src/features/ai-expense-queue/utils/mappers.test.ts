@@ -1,5 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { mapDraftItemsToReviewItems, mapDraftToQueueItem } from "./mappers";
+import {
+  mapConvexDraftToAiExpenseDraft,
+  mapDraftItemsToReviewItems,
+  mapDraftToQueueItem,
+} from "./mappers";
+
+describe("mapConvexDraftToAiExpenseDraft", () => {
+  it("新契約の4層とversionをUI callerへ欠落なく渡す", () => {
+    const rawObservation = { source: "ai_ocr", observedAt: 1, lines: [] } as const;
+    const receiptInterpretation = { source: "ai", interpretedAt: 1, values: {} } as const;
+    const receiptUserOverride = {
+      source: "user",
+      updatedAt: 2,
+      fields: ["amountYen"],
+      values: {},
+    } as const;
+    const derivedRegistration = {
+      source: "derived",
+      registeredAt: 3,
+      destination: "receipts",
+      values: { amountYen: 803, date: "2026-08-25", categoryIds: [] },
+    } as const;
+
+    const mapped = mapConvexDraftToAiExpenseDraft({
+      _id: "draft-1",
+      _creationTime: 1,
+      groupId: "group-1",
+      createdByUserId: "user-1",
+      sourceType: "image_upload",
+      status: "ready",
+      documentType: "receipt",
+      confidence: { documentType: 1 },
+      reviewReasons: [],
+      receiptDataContractVersion: 1,
+      rawObservation,
+      receiptInterpretation,
+      receiptUserOverride,
+      derivedRegistration,
+      createdAt: 1,
+      updatedAt: 1,
+    } as never);
+
+    expect(mapped).toMatchObject({
+      receiptDataContractVersion: 1,
+      rawObservation,
+      receiptInterpretation,
+      receiptUserOverride,
+      derivedRegistration,
+    });
+  });
+});
 
 describe("mapDraftToQueueItem", () => {
   it("統合済みの払込票は店名・内容を一覧タイトルに使う", () => {

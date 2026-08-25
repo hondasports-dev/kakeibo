@@ -106,6 +106,7 @@ export function useReviewDialog({
     handleAssignCategoryToItems: formState.handleAssignCategoryToItems,
     handleDiscountTargetChange: formState.handleDiscountTargetChange,
     handleSubmitReview: submit.handleSubmitReview,
+    handleResetToAiInterpretation: submit.handleResetToAiInterpretation,
     taxUpdatingItemId: taxOverrides.taxUpdatingItemId,
     isApplyingReceiptTax: taxOverrides.isApplyingReceiptTax,
     handleTaxRateChange: taxOverrides.handleTaxRateChange,

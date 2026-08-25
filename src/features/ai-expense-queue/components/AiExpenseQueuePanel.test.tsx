@@ -11,6 +11,7 @@ const {
   registerReadyDraftsAsExpenseEntriesMock,
   legacyRegisterReadyDraftsMock,
   updateForReviewMock,
+  resetReceiptToAiInterpretationMock,
   createBatchMock,
   analyzeImageJobMock,
   retryImageJobMock,
@@ -22,6 +23,7 @@ const {
   registerReadyDraftsAsExpenseEntriesMock: vi.fn(),
   legacyRegisterReadyDraftsMock: vi.fn(),
   updateForReviewMock: vi.fn(),
+  resetReceiptToAiInterpretationMock: vi.fn(),
   createBatchMock: vi.fn(),
   analyzeImageJobMock: vi.fn(),
   retryImageJobMock: vi.fn(),
@@ -43,6 +45,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
         registerReadyDraftsAsExpenseEntries:
           "aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries",
         updateForReview: "aiExpenseDrafts.mutations.updateForReview",
+        resetReceiptToAiInterpretation: "aiExpenseDrafts.mutations.resetReceiptToAiInterpretation",
         deleteDraft: "aiExpenseDrafts.mutations.deleteDraft",
       },
     },
@@ -74,6 +77,9 @@ vi.mock("../../../../convex/_generated/api", () => ({
 vi.mock("convex/react", () => ({
   useMutation: (reference: string) => {
     if (reference === "aiExpenseDrafts.mutations.updateForReview") return updateForReviewMock;
+    if (reference === "aiExpenseDrafts.mutations.resetReceiptToAiInterpretation") {
+      return resetReceiptToAiInterpretationMock;
+    }
     if (reference === "aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries") {
       return registerReadyDraftsAsExpenseEntriesMock;
     }
@@ -116,6 +122,8 @@ describe("AiExpenseQueuePanel", () => {
     legacyRegisterReadyDraftsMock.mockResolvedValue(undefined);
     updateForReviewMock.mockReset();
     updateForReviewMock.mockResolvedValue({ status: "ready", reviewReasons: [] });
+    resetReceiptToAiInterpretationMock.mockReset();
+    resetReceiptToAiInterpretationMock.mockResolvedValue(undefined);
     createBatchMock.mockReset();
     createBatchMock.mockResolvedValue({
       batch: { _id: "batch-1" },
@@ -969,6 +977,63 @@ describe("AiExpenseQueuePanel", () => {
       items: [],
     });
     expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
+  });
+
+  it("OCR原文を確認し、ユーザー補正を明示操作でAI判定へ戻せる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "ユーザー補正店舗",
+          date: "2026-06-01",
+          amountYen: 803,
+          categoryId: "cat-daily",
+          reviewReasons: [],
+          rawObservation: {
+            source: "ai_ocr",
+            observedAt: 1,
+            lines: [
+              {
+                rawText: "合計 ￥８０３",
+                amountText: "￥８０３",
+                amountYen: 803,
+                lineRoleCandidates: ["total"],
+                roleConfidence: 0.98,
+                explicitlyPrinted: true,
+                sourceLineIndex: 0,
+              },
+            ],
+          },
+          receiptInterpretation: { source: "ai", interpretedAt: 1, values: {} },
+          receiptUserOverride: {
+            source: "user",
+            updatedAt: 2,
+            fields: ["amountYen"],
+            values: {},
+          },
+        },
+        items: [],
+      };
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+
+    const dialog = screen.getByRole("dialog", { name: "下書き確認" });
+    expect(within(dialog).getByRole("region", { name: "OCR原文" })).toHaveTextContent(
+      "合計 ￥８０３（金額文字列: ￥８０３）",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "AI判定へ戻す" }));
+
+    expect(resetReceiptToAiInterpretationMock).toHaveBeenCalledWith({ draftId: "draft-review" });
   });
 
   it("明細あり下書きは状態を簡潔に表示し、明細は折りたたみで確認できる", async () => {

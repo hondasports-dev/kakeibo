@@ -7,6 +7,7 @@ import {
 } from "./persistTaxInterpretation";
 import type { AmountBasis } from "../../receiptTax/types";
 import type { ReceiptItemTaxRatePercent } from "../receiptImageExtraction/types";
+import { persistReceiptUserOverrideSnapshot } from "./receiptDataContract";
 
 export type UpdateDraftItemTaxOverridesArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -52,7 +53,7 @@ export async function updateDraftItemTaxOverridesHandler(
     throw new ConvexError("AI expense draft item not found");
   }
 
-  return await persistDraftTaxInterpretation(ctx, {
+  const result = await persistDraftTaxInterpretation(ctx, {
     draftId: args.draftId,
     groupId,
     override: {
@@ -61,4 +62,10 @@ export async function updateDraftItemTaxOverridesHandler(
       amountBasis: args.amountBasis,
     },
   });
+  const updatedDraft = await persistReceiptUserOverrideSnapshot(ctx, {
+    draftId: args.draftId,
+    groupId,
+    fields: ["items", "receiptTotalResolution"],
+  });
+  return { ...result, draft: updatedDraft };
 }

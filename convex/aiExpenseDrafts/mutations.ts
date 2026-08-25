@@ -19,6 +19,7 @@ import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiE
 import { applyReceiptTaxSettingsHandler } from "../../lib/convex/aiExpenseDrafts/applyReceiptTaxSettings";
 import { updateForReviewHandler } from "../../lib/convex/aiExpenseDrafts/updateForReview";
 import type { TaxMode, TaxRatePercent } from "../../lib/receiptTax/types";
+import { resetReceiptToAiInterpretationHandler } from "../../lib/convex/aiExpenseDrafts/receiptDataContract";
 
 type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -81,6 +82,14 @@ export async function applyReceiptTaxSettingsMutationHandler(
 ) {
   const { groupId } = await requireGroupMembership(ctx);
   return await applyReceiptTaxSettingsHandler(ctx, args, groupId);
+}
+
+export async function resetReceiptToAiInterpretationMutationHandler(
+  ctx: MutationCtx,
+  args: { draftId: Id<"aiExpenseDrafts"> },
+) {
+  const { groupId } = await requireGroupMembership(ctx);
+  return await resetReceiptToAiInterpretationHandler(ctx, args, groupId);
 }
 
 export const deleteDraft = mutation({
@@ -148,6 +157,13 @@ export const applyReceiptTaxSettings = mutation({
     amountBasis: v.optional(amountBasisValidator),
   },
   handler: applyReceiptTaxSettingsMutationHandler,
+});
+
+export const resetReceiptToAiInterpretation = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: resetReceiptToAiInterpretationMutationHandler,
 });
 
 export const registerReadyDrafts = mutation({

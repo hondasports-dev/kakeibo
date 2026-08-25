@@ -22,6 +22,12 @@ import type {
 } from "../receiptImageExtraction/types";
 import type { ReceiptMarkerDefinition, ReceiptTotalResolution } from "../../receiptTax/types";
 import type { TaxResolutionSource } from "../../receiptTax/types";
+import type { ReceiptRawObservationLine } from "../../domain/receipt/observations";
+import type {
+  ReceiptDraftValueSnapshot,
+  ReceiptUserOverrideSnapshot,
+} from "../../domain/aiExpenseDrafts/receiptDataContract";
+import { applyReceiptUserOverride } from "../../domain/aiExpenseDrafts/receiptDataContract";
 
 type AiExpenseDraftItemInput = {
   itemName: string;
@@ -59,6 +65,8 @@ export type CreateFromExtractionArgs = {
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
+  rawObservationLines?: ReceiptRawObservationLine[];
+  preservedUserOverride?: ReceiptUserOverrideSnapshot<Id<"categories">>;
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: Id<"categories">;
   imageFileName?: string;
@@ -146,13 +154,9 @@ async function persistExtractedDraft(
 
   const now = Date.now();
   const classification = classifyCreatedDraft(args as CreatedDraftClassificationInput);
-  const draftId = await ctx.db.insert("aiExpenseDrafts", {
-    groupId: actor.groupId,
-    createdByUserId: actor.userId,
-    sourceType: "image_upload",
+  const aiValues: ReceiptDraftValueSnapshot<Id<"categories">> = {
     status: classification.status,
     documentType: args.documentType,
-    imageFileName: args.imageFileName,
     shopName: args.shopName,
     paymentPlace: args.paymentPlace,
     payeeName: args.payeeName,
@@ -166,11 +170,42 @@ async function persistExtractedDraft(
     confidence: args.confidence,
     warnings: args.warnings,
     reviewReasons: classification.reviewReasons,
+    items: args.items ?? [],
+  };
+  const values = applyReceiptUserOverride(aiValues, args.preservedUserOverride);
+  await assertCategoryBelongsToGroup(ctx, values.categoryId, actor.groupId);
+  const draftId = await ctx.db.insert("aiExpenseDrafts", {
+    groupId: actor.groupId,
+    createdByUserId: actor.userId,
+    sourceType: "image_upload",
+    status: values.status,
+    documentType: values.documentType,
+    imageFileName: args.imageFileName,
+    shopName: values.shopName,
+    paymentPlace: values.paymentPlace,
+    payeeName: values.payeeName,
+    paymentPurpose: values.paymentPurpose,
+    date: values.date,
+    amountYen: values.amountYen,
+    taxSummaries: values.taxSummaries,
+    receiptTotalResolution: values.receiptTotalResolution,
+    receiptDataContractVersion: 1,
+    markerDefinitions: values.markerDefinitions,
+    categoryId: values.categoryId,
+    confidence: values.confidence,
+    warnings: values.warnings,
+    reviewReasons: values.reviewReasons,
+    rawObservation:
+      args.rawObservationLines === undefined
+        ? undefined
+        : { source: "ai_ocr", observedAt: now, lines: args.rawObservationLines },
+    receiptInterpretation: { source: "ai", interpretedAt: now, values: aiValues },
+    receiptUserOverride: args.preservedUserOverride,
     createdAt: now,
     updatedAt: now,
   });
 
-  await insertDraftItems(ctx, actor.groupId, draftId, args.items ?? [], now);
+  await insertDraftItems(ctx, actor.groupId, draftId, values.items, now);
 
   const draft = await ctx.db.get(draftId);
   if (draft === null) {
