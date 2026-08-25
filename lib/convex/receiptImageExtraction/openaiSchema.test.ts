@@ -20,6 +20,15 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(prompt).toContain("markerDefinitions");
   });
 
+  it("支払総額は明示ラベルだけを使い、預り・釣銭・税算術を除外する", () => {
+    const prompt = RECEIPT_EXTRACTION_PROMPT_LINES.join("\n");
+
+    expect(prompt).toContain("支払総額を示す明示ラベル");
+    expect(prompt).toContain("計算または推測してはいけません");
+    expect(prompt).toContain("お預り・現金・釣銭・お釣り・支払方法別の金額");
+    expect(prompt).toContain("amountYen を0");
+  });
+
   it("割引は印字位置を考慮して対象商品カテゴリへ帰属させ、不明時は推測しない", () => {
     const prompt = RECEIPT_EXTRACTION_PROMPT_LINES.join("\n");
 

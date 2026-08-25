@@ -32,16 +32,15 @@ describe("applyReviewItemsTaxPreview", () => {
     },
   ];
 
-  it("外税明細の印字額変更後も登録額を再計算する", () => {
+  it("外税明細の手修正が税サマリーと不一致なら差額から税額を推定しない", () => {
     const items = [externalTaxItem({ amountYen: "300", printedAmountYen: 300 })];
     const previewed = applyReviewItemsTaxPreview(items, {
       paidTotalYen: 324,
       taxSummaries,
     });
 
-    expect(previewed[0]?.normalizedAmountYen).toBeGreaterThan(300);
-    expect(previewed[0]?.normalizedAmountYen).not.toBeUndefined();
-    expect(previewed[0]?.allocatedTaxYen).toBeGreaterThan(0);
+    expect(previewed[0]?.normalizedAmountYen).toBe(300);
+    expect(previewed[0]?.allocatedTaxYen).toBe(0);
   });
 
   it("税サマリが無い場合はそのまま返す", () => {

@@ -57,4 +57,19 @@ describe("ReceiptTotalsPanel", () => {
     expect(screen.getByText("お支払い（レシート合計）")).toBeVisible();
     expect(screen.getByRole("button", { name: "内訳を閉じる" })).toBeInTheDocument();
   });
+
+  it("レシート合計の手修正後に登録合計との差額を再計算する", () => {
+    const reviewItems = [
+      item({ amountYen: "743", printedAmountYen: 743, normalizedAmountYen: 743 }),
+    ];
+    const { rerender } = render(
+      <ReceiptTotalsPanel paidTotalYen={803} reviewItems={reviewItems} />,
+    );
+
+    expect(screen.getByLabelText("金額の照合")).toHaveTextContent("60円");
+
+    rerender(<ReceiptTotalsPanel paidTotalYen={7803} reviewItems={reviewItems} />);
+
+    expect(screen.getByLabelText("金額の照合")).toHaveTextContent("7,060円");
+  });
 });

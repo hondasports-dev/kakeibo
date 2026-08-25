@@ -82,6 +82,7 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     const { draft: updated } = await persistDraftTaxInterpretation(ctx, {
       draftId: args.draftId,
       groupId,
+      receiptTotalSource: "user_confirmed",
       preservedNonTaxReasons: nonTaxReviewReasons(classification.reviewReasons),
     });
     return updated;

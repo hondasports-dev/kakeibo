@@ -20,7 +20,7 @@ import type {
   ExtractedTaxSummary,
   ReceiptItemTaxRatePercent,
 } from "../receiptImageExtraction/types";
-import type { ReceiptMarkerDefinition } from "../../receiptTax/types";
+import type { ReceiptMarkerDefinition, ReceiptTotalResolution } from "../../receiptTax/types";
 import type { TaxResolutionSource } from "../../receiptTax/types";
 
 type AiExpenseDraftItemInput = {
@@ -58,6 +58,7 @@ export type CreateFromExtractionArgs = {
   date?: string;
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
+  receiptTotalResolution?: ReceiptTotalResolution;
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: Id<"categories">;
   imageFileName?: string;
@@ -159,6 +160,7 @@ async function persistExtractedDraft(
     date: args.date,
     amountYen: args.amountYen,
     taxSummaries: args.taxSummaries,
+    receiptTotalResolution: args.receiptTotalResolution,
     markerDefinitions: args.markerDefinitions,
     categoryId: args.categoryId,
     confidence: args.confidence,

@@ -44,6 +44,9 @@ export const TAX_SUMMARY_CONFLICT_LABELS: Record<TaxSummaryConsistencyReason, st
 };
 
 export const TAX_SUMMARY_STATUS_LABELS: Record<TaxSummaryConsistencyStatus, string> = {
+  verified: "確認済み",
+  ambiguous: "確認が必要",
+  contradictory: "矛盾あり",
   coherent: "確認済み",
   reconcilable: "再解釈可能",
   conflicting: "確認が必要",

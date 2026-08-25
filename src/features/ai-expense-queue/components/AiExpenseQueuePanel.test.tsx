@@ -1516,12 +1516,16 @@ describe("AiExpenseQueuePanel", () => {
 
       await user.click(screen.getByRole("button", { name: "確認する" }));
       const nameInput = screen.getByLabelText("店名・内容");
+      const amountInput = screen.getByLabelText("合計金額");
       await user.clear(nameInput);
       await user.type(nameInput, "保存前の入力");
+      await user.clear(amountInput);
+      await user.type(amountInput, "7803");
       await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
 
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       expect(nameInput).toHaveValue("保存前の入力");
+      expect(amountInput).toHaveValue("7803");
       expect(
         screen
           .getAllByRole("alert")

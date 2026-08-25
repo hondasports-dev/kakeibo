@@ -23,7 +23,11 @@ export function ReceiptTaxSummarySection({
         税率別集計
       </Typography>
       {summaries.map((summary, index) => {
-        const isEditable = summary.status === "reconcilable" || summary.status === "conflicting";
+        const isEditable =
+          summary.status === "ambiguous" ||
+          summary.status === "contradictory" ||
+          summary.status === "reconcilable" ||
+          summary.status === "conflicting";
         const key = `${summary.taxRatePercent}-${summary.taxableAmountYen}-${summary.taxMode}-${index}`;
 
         return (

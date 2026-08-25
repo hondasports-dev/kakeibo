@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { reconcileTaxSummary, normalizeTaxSummary } from "./taxSummaryConsistency";
+import {
+  isVerifiedTaxSummaryStatus,
+  reconcileTaxSummary,
+  normalizeTaxSummary,
+} from "./taxSummaryConsistency";
 import type { ExtractedTaxSummary } from "./types";
 
 function baseSummary(overrides: Partial<ExtractedTaxSummary> = {}): ExtractedTaxSummary {
@@ -18,16 +22,22 @@ function baseSummary(overrides: Partial<ExtractedTaxSummary> = {}): ExtractedTax
 }
 
 describe("taxSummaryConsistency matrix", () => {
-  it("included / tax_included / A = P => coherent", () => {
+  it("legacy status は安全側のcanonical statusとして読む", () => {
+    expect(isVerifiedTaxSummaryStatus("coherent")).toBe(true);
+    expect(isVerifiedTaxSummaryStatus("reconcilable")).toBe(false);
+    expect(isVerifiedTaxSummaryStatus("conflicting")).toBe(false);
+  });
+
+  it("included / tax_included / A = P => verified", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({ taxableAmountYen: 1060, taxYen: 96, taxIncludedAmountYen: 1060 }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("coherent");
+    expect(result.status).toBe("verified");
     expect(result.reasons).toEqual([]);
   });
 
-  it("external / tax_excluded / A + T = P => coherent", () => {
+  it("external / tax_excluded / A + T = P => verified", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "external",
@@ -38,11 +48,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("coherent");
+    expect(result.status).toBe("verified");
     expect(result.reasons).toEqual([]);
   });
 
-  it("included / tax_excluded => conflicting", () => {
+  it("included / tax_excluded => contradictory", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "included",
@@ -53,12 +63,12 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("contradictory");
     expect(result.reasons).toContain("included_mode_with_tax_excluded_basis");
     expect(result.reasons).toContain("tax_summary_amount_mismatch");
   });
 
-  it("external / tax_included => conflicting", () => {
+  it("external / tax_included => contradictory", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "external",
@@ -69,11 +79,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("contradictory");
     expect(result.reasons).toContain("external_mode_with_tax_included_basis");
   });
 
-  it("unknown / tax_included / A = P => reconcilable to included", () => {
+  it("unknown / tax_included / A = P => ambiguous without overwriting", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "unknown",
@@ -82,11 +92,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("reconcilable");
+    expect(result.status).toBe("ambiguous");
     expect(result.reasons).toContain("reconciled_to_included");
   });
 
-  it("unknown / tax_excluded / A + T = P => reconcilable to external", () => {
+  it("unknown / tax_excluded / A + T = P => ambiguous without overwriting", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "unknown",
@@ -97,11 +107,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("reconcilable");
+    expect(result.status).toBe("ambiguous");
     expect(result.reasons).toContain("reconciled_to_external");
   });
 
-  it("unknown / unknown / A + T = P => reconcilable to external", () => {
+  it("unknown / unknown / A + T = P => ambiguous without overwriting", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "unknown",
@@ -111,11 +121,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("reconcilable");
+    expect(result.status).toBe("ambiguous");
     expect(result.reasons).toContain("reconciled_to_external");
   });
 
-  it("included / tax_included / A + T = P and A != P => reconcilable to external (OCR misread)", () => {
+  it("included / tax_included / A + T = P and A != P does not overwrite the declared meaning", () => {
     const result = normalizeTaxSummary(
       baseSummary({
         taxMode: "included",
@@ -126,12 +136,13 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       8562,
     );
-    expect(result.taxMode).toBe("external");
-    expect(result.taxableAmountBasis).toBe("tax_excluded");
-    expect(result.status).toBe("coherent");
+    expect(result.taxMode).toBe("included");
+    expect(result.taxableAmountBasis).toBe("tax_included");
+    expect(result.status).toBe("contradictory");
+    expect(result.reasons).toContain("reconciled_to_external");
   });
 
-  it("included / tax_included / A != P and A + T != P => coherent (I undefined, trust declared mode)", () => {
+  it("included / tax_included / A != P and A + T != P => ambiguous", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "included",
@@ -142,10 +153,10 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("coherent");
+    expect(result.status).toBe("ambiguous");
   });
 
-  it("external / tax_excluded / A + T != P and I undefined => coherent (do not conflict on stale amount)", () => {
+  it("external / tax_excluded / A + T != P and I undefined => ambiguous", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "external",
@@ -156,10 +167,10 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 324,
     });
-    expect(result.status).toBe("coherent");
+    expect(result.status).toBe("ambiguous");
   });
 
-  it("I = P but A inconsistent => conflicting", () => {
+  it("I = P but A inconsistent => contradictory", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "included",
@@ -170,11 +181,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("contradictory");
     expect(result.reasons).toContain("tax_summary_amount_mismatch");
   });
 
-  it("A = P but I inconsistent => conflicting", () => {
+  it("A = P but I inconsistent => contradictory", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "included",
@@ -185,11 +196,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1060,
     });
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("contradictory");
     expect(result.reasons).toContain("tax_included_amount_mismatch");
   });
 
-  it("taxYen 0 with included / A = P => coherent", () => {
+  it("taxYen 0 with included / A = P => verified", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "included",
@@ -199,10 +210,10 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1000,
     });
-    expect(result.status).toBe("coherent");
+    expect(result.status).toBe("verified");
   });
 
-  it("mixed tax mode => conflicting", () => {
+  it("mixed tax mode => ambiguous", () => {
     const result = reconcileTaxSummary({
       summary: baseSummary({
         taxMode: "mixed",
@@ -213,11 +224,11 @@ describe("taxSummaryConsistency matrix", () => {
       }),
       amountYen: 1000,
     });
-    expect(result.status).toBe("conflicting");
+    expect(result.status).toBe("ambiguous");
     expect(result.reasons).toContain("mixed_tax_mode");
   });
 
-  it("multiple summaries keep coherent with I undefined", () => {
+  it("multiple summaries keep verified with I undefined", () => {
     const base = baseSummary({
       taxableAmountYen: 100,
       taxYen: 8,
@@ -225,6 +236,6 @@ describe("taxSummaryConsistency matrix", () => {
       taxRatePercent: 8,
     });
     const result = normalizeTaxSummary(base, undefined);
-    expect(result.status).toBe("coherent");
+    expect(result.status).toBe("verified");
   });
 });
