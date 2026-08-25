@@ -4,6 +4,12 @@ import type {
   ReceiptTotalResolution,
   TaxResolutionSource,
 } from "../../../../lib/receiptTax/types";
+import type { ReceiptRawObservation } from "../../../../lib/domain/receipt/observations";
+import type {
+  DerivedRegistrationSnapshot,
+  ReceiptInterpretationSnapshot,
+  ReceiptUserOverrideSnapshot,
+} from "../../../../lib/domain/aiExpenseDrafts/receiptDataContract";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -118,6 +124,11 @@ export type AiExpenseDraft = {
   warnings?: string[];
   taxSummaries?: Array<Omit<ExtractedTaxSummary, "confidence">>;
   receiptTotalResolution?: ReceiptTotalResolution;
+  receiptDataContractVersion?: 1;
+  rawObservation?: ReceiptRawObservation;
+  receiptInterpretation?: ReceiptInterpretationSnapshot;
+  receiptUserOverride?: ReceiptUserOverrideSnapshot;
+  derivedRegistration?: DerivedRegistrationSnapshot;
   markerDefinitions?: Array<{ marker: string; description: string }>;
   itemSummary?: {
     itemTotalYen: number;

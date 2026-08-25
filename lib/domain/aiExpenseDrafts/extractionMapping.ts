@@ -10,6 +10,7 @@ import type {
   TaxResolutionSource,
 } from "../receipt/tax/types";
 import type { ExtractReceiptFieldsResult } from "../../convex/receiptImageExtraction/types";
+import type { ReceiptRawObservationLine } from "../receipt/observations";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categories/candidate";
 import {
   deriveTaxReviewReasons,
@@ -60,6 +61,7 @@ export type DraftArgs<TId = string> = {
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
+  rawObservationLines?: ReceiptRawObservationLine[];
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: TId;
   imageFileName?: string;
@@ -106,7 +108,10 @@ export function mapExtractionToDraftArgs<TId>(
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
 
   const taxInput: ReceiptTaxInput | undefined =
-    extractedItems && extractedItems.length > 0 && extracted.taxSummaries
+    extracted.amountYen !== null &&
+    extractedItems &&
+    extractedItems.length > 0 &&
+    extracted.taxSummaries
       ? {
           amountYen: extracted.amountYen,
           receiptTotalSource: "explicit_label",
@@ -179,9 +184,11 @@ export function mapExtractionToDraftArgs<TId>(
     payeeName: extracted.payeeName || undefined,
     paymentPurpose: extracted.paymentPurpose || undefined,
     date: extracted.date || undefined,
-    amountYen: extracted.amountYen > 0 ? extracted.amountYen : undefined,
+    amountYen:
+      extracted.amountYen !== null && extracted.amountYen > 0 ? extracted.amountYen : undefined,
     taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
     receiptTotalResolution,
+    rawObservationLines: extracted.rawObservations,
     markerDefinitions: extracted.markerDefinitions,
     categoryId,
     imageFileName,

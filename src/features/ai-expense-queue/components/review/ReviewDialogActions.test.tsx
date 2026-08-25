@@ -47,4 +47,25 @@ describe("ReviewDialogActions", () => {
     await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
     expect(onSubmit).toHaveBeenCalledWith(false);
   });
+
+  it("ユーザー補正がある場合だけ明示的にAI判定へ戻せる", async () => {
+    const user = userEvent.setup();
+    const onResetToAiInterpretation = vi.fn();
+    render(
+      <ReviewDialogActions
+        canResetToAiInterpretation
+        isSubmitDisabled={false}
+        onClose={vi.fn()}
+        onEnterEditMode={vi.fn()}
+        onExitEditMode={vi.fn()}
+        onResetToAiInterpretation={onResetToAiInterpretation}
+        onSubmit={vi.fn()}
+        reviewSubmitting={false}
+        showSummaryView
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "AI判定へ戻す" }));
+    expect(onResetToAiInterpretation).toHaveBeenCalledOnce();
+  });
 });

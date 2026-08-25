@@ -83,6 +83,14 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
       ctx.db.patch(draft._id, {
         status: "registered",
         registeredReceiptId: registeredReceiptIds[index],
+        derivedRegistration: {
+          source: "derived",
+          destination: "receipt",
+          amountYen: draft.amountYen!,
+          date: draft.date!,
+          categoryIds: [draft.categoryId!],
+          registeredAt: now,
+        },
         updatedAt: now,
       }),
     ),

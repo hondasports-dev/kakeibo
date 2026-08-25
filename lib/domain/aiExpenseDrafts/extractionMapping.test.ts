@@ -314,4 +314,46 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
       reasons: ["receipt_total_missing_or_invalid"],
     });
   });
+
+  it("支払総額nullは0円候補を作らず、raw observationをそのまま渡す", () => {
+    const rawObservations = [
+      {
+        rawText: "合計 読取不能",
+        amountText: null,
+        amountYen: null,
+        lineRoleCandidates: ["total" as const, "unknown" as const],
+        roleConfidence: 0.4,
+        explicitlyPrinted: true,
+        sourceLineIndex: 9,
+      },
+      {
+        rawText: "消費税 0円",
+        amountText: "0円",
+        amountYen: 0,
+        lineRoleCandidates: ["tax" as const],
+        roleConfidence: 0.9,
+        explicitlyPrinted: true,
+        sourceLineIndex: 10,
+      },
+    ];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: null,
+        items: [],
+        taxSummaries: [],
+        rawObservations,
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.amountYen).toBeUndefined();
+    expect(mapped.receiptTotalResolution).toEqual({
+      status: "ambiguous",
+      protectedAmountYen: null,
+      candidates: [],
+      reasons: ["receipt_total_missing_or_invalid"],
+    });
+    expect(mapped.rawObservationLines).toEqual(rawObservations);
+  });
 });

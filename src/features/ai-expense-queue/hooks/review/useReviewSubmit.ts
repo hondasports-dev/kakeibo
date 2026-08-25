@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import {
   registerReadyDraftsAsExpenseEntriesApi,
+  resetReceiptToAiInterpretationApi,
   updateForReviewApi,
 } from "../../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -42,7 +43,34 @@ export function useReviewSubmit({
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const updateForReview = useMutation(updateForReviewApi());
+  const resetReceiptToAiInterpretation = useMutation(resetReceiptToAiInterpretationApi());
   const registerReadyDraftsAsExpenseEntries = useMutation(registerReadyDraftsAsExpenseEntriesApi());
+
+  const handleResetToAiInterpretation = async () => {
+    if (!selectedReviewDraftId) {
+      return;
+    }
+
+    setReviewSubmitting(true);
+    setReviewError("");
+    try {
+      await resetReceiptToAiInterpretation({
+        draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
+      });
+      setReviewSaveFeedback({
+        message: "ユーザー補正を解除し、AI判定へ戻しました。",
+        severity: "success",
+      });
+      clearSelection();
+      resetForm();
+    } catch (error) {
+      const message = toUserFacingReviewError(error);
+      setReviewError(message);
+      setReviewSaveFeedback({ message, severity: "error" });
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
 
   const handleSubmitReview = async (registerAfterUpdate: boolean) => {
     if (!selectedReviewDraftId) {
@@ -158,6 +186,7 @@ export function useReviewSubmit({
     setReviewError,
     setReviewSubmitting,
     handleSubmitReview,
+    handleResetToAiInterpretation,
     clearReviewError,
     clearReviewSaveFeedback,
   };

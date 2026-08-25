@@ -68,6 +68,7 @@ export async function updateJobStatusHandler(
     status: "running" | "ready" | "needs_review" | "failed";
     draftId?: Id<"aiExpenseDrafts">;
     error?: string;
+    expectedDraftId?: Id<"aiExpenseDrafts"> | null;
   },
 ) {
   const job = await ctx.db.get(args.jobId);
@@ -75,11 +76,15 @@ export async function updateJobStatusHandler(
     throw new ConvexError("Job not found");
   }
 
+  if (args.expectedDraftId !== undefined && (job.draftId ?? null) !== args.expectedDraftId) {
+    return { applied: false };
+  }
+
   if (job.status === "cancelled") {
     if (args.draftId !== undefined) {
       await deleteDraftAndItems(ctx, args.draftId, job.groupId);
     }
-    return;
+    return { applied: false };
   }
 
   const patch: Partial<Doc<"receiptAnalysisImageJobs">> = {
@@ -92,6 +97,53 @@ export async function updateJobStatusHandler(
   await ctx.db.patch(args.jobId, patch);
 
   await scheduleAiReviewNotificationIfNeeded(ctx, { batchId: job.batchId, status: args.status });
+  return { applied: true };
+}
+
+export async function finalizeAnalysisAttemptHandler(
+  ctx: MutationCtx,
+  args: {
+    jobId: Id<"receiptAnalysisImageJobs">;
+    expectedDraftId: Id<"aiExpenseDrafts"> | null;
+    newDraftId: Id<"aiExpenseDrafts">;
+    status: "ready" | "needs_review" | "failed";
+    error?: string;
+  },
+) {
+  const job = await ctx.db.get(args.jobId);
+  if (!job) {
+    throw new ConvexError("Job not found");
+  }
+
+  const isStale = (job.draftId ?? null) !== args.expectedDraftId;
+  if (job.status === "cancelled" || isStale) {
+    if (job.draftId !== args.newDraftId) {
+      await deleteDraftAndItems(ctx, args.newDraftId, job.groupId);
+    }
+    return { applied: false };
+  }
+
+  const patch: Partial<Doc<"receiptAnalysisImageJobs">> = {
+    status: args.status,
+    error: args.error,
+    updatedAt: Date.now(),
+  };
+  if (args.status === "failed" && args.expectedDraftId !== null) {
+    await deleteDraftAndItems(ctx, args.newDraftId, job.groupId);
+  } else {
+    patch.draftId = args.newDraftId;
+  }
+  await ctx.db.patch(args.jobId, patch);
+
+  if (
+    args.status !== "failed" &&
+    args.expectedDraftId !== null &&
+    args.expectedDraftId !== args.newDraftId
+  ) {
+    await deleteDraftAndItems(ctx, args.expectedDraftId, job.groupId);
+  }
+  await scheduleAiReviewNotificationIfNeeded(ctx, { batchId: job.batchId, status: args.status });
+  return { applied: true };
 }
 
 export async function incrementBatchProcessedCountHandler(
@@ -200,8 +252,20 @@ export const updateJobStatus = internalMutation({
     status: jobStatusValidator,
     draftId: v.optional(v.id("aiExpenseDrafts")),
     error: v.optional(v.string()),
+    expectedDraftId: v.optional(v.union(v.id("aiExpenseDrafts"), v.null())),
   },
   handler: updateJobStatusHandler,
+});
+
+export const finalizeAnalysisAttempt = internalMutation({
+  args: {
+    jobId: v.id("receiptAnalysisImageJobs"),
+    expectedDraftId: v.union(v.id("aiExpenseDrafts"), v.null()),
+    newDraftId: v.id("aiExpenseDrafts"),
+    status: v.union(v.literal("ready"), v.literal("needs_review"), v.literal("failed")),
+    error: v.optional(v.string()),
+  },
+  handler: finalizeAnalysisAttemptHandler,
 });
 
 export const incrementBatchProcessedCount = internalMutation({

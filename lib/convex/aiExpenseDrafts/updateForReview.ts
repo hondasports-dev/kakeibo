@@ -13,6 +13,19 @@ import { buildReviewConfidence } from "../../../lib/domain/aiExpenseDrafts/revie
 import { trimOptional } from "../../../lib/domain/common/string";
 import { persistDraftTaxInterpretation } from "./persistTaxInterpretation";
 import { nonTaxReviewReasons } from "../../domain/aiExpenseDrafts/reviewReasons";
+import { persistReceiptUserOverrideSnapshot } from "./receiptDataContract";
+import { resolveReceiptTotal } from "../../domain/receipt/tax/resolveReceiptTotal";
+
+const REVIEW_OVERRIDE_FIELDS = [
+  "documentType",
+  "shopName",
+  "paymentPlace",
+  "payeeName",
+  "paymentPurpose",
+  "date",
+  "amountYen",
+  "categoryId",
+] as const;
 
 export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForReviewArgs) {
   const { groupId } = await requireGroupMembership(ctx);
@@ -79,24 +92,47 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   });
 
   if (draft.taxSummaries && draft.taxSummaries.length > 0) {
-    const { draft: updated } = await persistDraftTaxInterpretation(ctx, {
+    await persistDraftTaxInterpretation(ctx, {
       draftId: args.draftId,
       groupId,
       receiptTotalSource: "user_confirmed",
       preservedNonTaxReasons: nonTaxReviewReasons(classification.reviewReasons),
     });
-    return updated;
+    return await persistReceiptUserOverrideSnapshot(ctx, {
+      draftId: args.draftId,
+      groupId,
+      fields: [
+        ...REVIEW_OVERRIDE_FIELDS,
+        "receiptTotalResolution",
+        ...(args.items === undefined ? [] : ["items"]),
+      ],
+      updatedAt: now,
+    });
   }
 
   await ctx.db.patch(args.draftId, {
     status: classification.status,
+    receiptTotalResolution: resolveReceiptTotal({
+      amountYen: args.amountYen,
+      source: "user_confirmed",
+      confidence: reviewConfidence.amountYen,
+      supportingCandidates: draft.receiptTotalResolution?.candidates.filter(
+        (candidate) => candidate.source !== "user_confirmed",
+      ),
+      taxSummaries: [],
+    }),
     reviewReasons: classification.reviewReasons,
     updatedAt: now,
   });
 
-  const updated = await ctx.db.get(args.draftId);
-  if (updated === null) {
-    throw new ConvexError("Failed to retrieve updated AI expense draft");
-  }
-  return updated;
+  return await persistReceiptUserOverrideSnapshot(ctx, {
+    draftId: args.draftId,
+    groupId,
+    fields: [
+      ...REVIEW_OVERRIDE_FIELDS,
+      "receiptTotalResolution",
+      ...(args.items === undefined ? [] : ["items"]),
+    ],
+    updatedAt: now,
+  });
 }

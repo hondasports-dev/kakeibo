@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Alert,
+  Box,
   Chip,
   Dialog,
   DialogContent,
@@ -44,6 +45,7 @@ export function ReviewDialog({
   onAssignCategoryToItems,
   onDiscountTargetChange,
   onSubmit,
+  onResetToAiInterpretation,
   taxUpdatingItemId,
   onTaxRateChange,
   onApplyReceiptTaxSettings,
@@ -74,6 +76,7 @@ export function ReviewDialog({
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
   onSubmit: (registerAfterUpdate: boolean) => void;
+  onResetToAiInterpretation: () => void;
   taxUpdatingItemId?: string | null;
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
   onApplyReceiptTaxSettings?: () => void;
@@ -139,6 +142,30 @@ export function ReviewDialog({
                   {reviewError}
                 </Alert>
               )}
+
+              {selectedReviewDraft?.rawObservation?.lines.length ? (
+                <Box aria-label="OCR原文" component="section">
+                  <Typography gutterBottom sx={{ fontWeight: 600 }} variant="body2">
+                    OCR原文
+                  </Typography>
+                  <Stack
+                    component="ol"
+                    spacing={0.5}
+                    sx={{ m: 0, maxHeight: 160, overflow: "auto", pl: 3 }}
+                  >
+                    {selectedReviewDraft.rawObservation.lines.map((line, index) => (
+                      <Typography
+                        component="li"
+                        key={`${line.sourceLineIndex}-${index}`}
+                        variant="body2"
+                      >
+                        {line.rawText}
+                        {line.amountText ? `（金額文字列: ${line.amountText}）` : ""}
+                      </Typography>
+                    ))}
+                  </Stack>
+                </Box>
+              ) : null}
 
               {showSummaryView ? (
                 <ReviewSummaryView
@@ -211,10 +238,15 @@ export function ReviewDialog({
         </Stack>
       </DialogContent>
       <ReviewDialogActions
+        canResetToAiInterpretation={
+          selectedReviewDraft?.receiptInterpretation !== undefined &&
+          selectedReviewDraft.receiptUserOverride !== undefined
+        }
         isSubmitDisabled={isSubmitDisabled}
         onClose={onClose}
         onEnterEditMode={() => setIsEditMode(true)}
         onExitEditMode={() => setIsEditMode(false)}
+        onResetToAiInterpretation={onResetToAiInterpretation}
         onSubmit={onSubmit}
         reviewSubmitting={reviewSubmitting}
         showSummaryView={showSummaryView}

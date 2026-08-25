@@ -150,6 +150,7 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onAssignCategoryToItems={queue.handleAssignCategoryToItems}
         onDiscountTargetChange={queue.handleDiscountTargetChange}
         onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
+        onResetToAiInterpretation={() => void queue.handleResetToAiInterpretation()}
         taxUpdatingItemId={queue.taxUpdatingItemId}
         onTaxRateChange={queue.handleTaxRateChange}
         onApplyReceiptTaxSettings={queue.handleApplyReceiptTaxSettings}

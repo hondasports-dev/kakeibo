@@ -47,27 +47,33 @@ function collectTaxCandidates(
 }
 
 export function resolveReceiptTotal(args: {
-  amountYen: number;
+  amountYen: number | null;
   source?: "explicit_label" | "user_confirmed" | "ai_estimate";
   confidence?: number;
   supportingCandidates?: ReceiptTotalCandidate[];
   taxSummaries: ExtractedTaxSummary[];
 }): ReceiptTotalResolution {
   const source = args.source ?? "ai_estimate";
-  const candidates: ReceiptTotalCandidate[] = [
-    {
+  const candidates: ReceiptTotalCandidate[] = [];
+  if (args.amountYen !== null) {
+    candidates.push({
       amountYen: args.amountYen,
       source,
       evidence: source === "user_confirmed" ? "review.amountYen" : "extraction.amountYen",
-    },
-  ];
+    });
+  }
   for (const candidate of args.supportingCandidates ?? []) {
     addCandidate(candidates, candidate);
   }
   collectTaxCandidates(candidates, args.taxSummaries);
 
   const distinctAmounts = new Set(candidates.map((candidate) => candidate.amountYen));
-  if (!Number.isInteger(args.amountYen) || args.amountYen < 1 || args.amountYen > 9_999_999) {
+  if (
+    args.amountYen === null ||
+    !Number.isInteger(args.amountYen) ||
+    args.amountYen < 1 ||
+    args.amountYen > 9_999_999
+  ) {
     return {
       status: "ambiguous",
       protectedAmountYen: args.amountYen,

@@ -3,6 +3,8 @@ import {
   JAPAN_TIME_ZONE as _JAPAN_TIME_ZONE,
   MAX_EXTRACTED_LINE_ITEMS as _MAX_EXTRACTED_LINE_ITEMS,
 } from "../../../lib/domain/receipt/extraction";
+import type { ReceiptRawObservationLine } from "../../../lib/domain/receipt/observations";
+export type { ReceiptRawObservationLine } from "../../../lib/domain/receipt/observations";
 
 export type ExtractionConfidence = {
   shopName: number;
@@ -72,7 +74,7 @@ export type ExtractedTaxSummary = {
 export type ExtractReceiptFieldsResult = {
   shopName: string;
   date: string;
-  amountYen: number;
+  amountYen: number | null;
   documentType: "receipt" | "convenience_payment" | "unknown";
   paymentPlace?: string;
   payeeName?: string;
@@ -81,6 +83,7 @@ export type ExtractReceiptFieldsResult = {
   items?: ExtractReceiptItemResult[];
   taxSummaries?: ExtractedTaxSummary[];
   markerDefinitions?: ReceiptMarkerDefinition[];
+  rawObservations?: ReceiptRawObservationLine[];
   confidence: ExtractionConfidence;
   warnings: string[];
 };

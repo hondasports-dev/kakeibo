@@ -293,6 +293,9 @@ test.describe("Issue #148 確認が必要なAI支出下書きの編集導線", (
     await expect(dialog).toBeVisible();
     await expect(dialog.getByText("読み取り内容の信頼度が低い")).toBeVisible();
     await expect(dialog.getByText("必須項目不足")).toBeVisible();
+    await expect(dialog.getByRole("region", { name: "OCR原文" })).toContainText(
+      "大阪市水道局 水道料金（金額文字列: 9,120円）",
+    );
     await expect(dialog.getByLabel("支出日（レシート記載日）")).toHaveValue("2026-06-01");
     await expect(dialog.getByLabel("合計金額")).toHaveValue("9120");
     await expect(dialog.getByLabel("店名・内容")).toHaveValue("大阪市水道局");

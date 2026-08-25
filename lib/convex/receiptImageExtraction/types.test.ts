@@ -4,6 +4,7 @@ import type {
   ExtractedTaxSummary,
   ExtractReceiptFieldsResult,
   ExtractReceiptItemResult,
+  ReceiptRawObservationLine,
   ReceiptItemTaxRatePercent,
   RoundingMethod,
   TaxMode,
@@ -20,6 +21,10 @@ describe("receipt extraction tax types", () => {
   });
 
   it("抽出明細と税率別集計に税情報を保持できる", () => {
+    expectTypeOf<ExtractReceiptFieldsResult["amountYen"]>().toEqualTypeOf<number | null>();
+    expectTypeOf<ExtractReceiptFieldsResult["rawObservations"]>().toEqualTypeOf<
+      ReceiptRawObservationLine[] | undefined
+    >();
     expectTypeOf<ExtractReceiptItemResult["printedAmountYen"]>().toEqualTypeOf<
       number | undefined
     >();

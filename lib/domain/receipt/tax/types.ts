@@ -130,7 +130,7 @@ export type ReceiptTotalCandidate = {
 
 export type ReceiptTotalResolution = {
   status: TaxSummaryDecisionStatus;
-  protectedAmountYen: number;
+  protectedAmountYen: number | null;
   candidates: ReceiptTotalCandidate[];
   reasons: string[];
 };
