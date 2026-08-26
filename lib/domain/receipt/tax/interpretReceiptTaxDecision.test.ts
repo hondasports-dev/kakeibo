@@ -296,7 +296,7 @@ describe("interpretReceiptTaxDecision decision table", () => {
         items: [item("unknown", null)],
         taxSummaries: [summary({ status: "ambiguous", taxableAmountBasis: "unknown" })],
         rawObservationLines: [line("カード決済 税抜 10%", 1100, 12, "payment")],
-        receiptLineClassifications: [classification(12, "paymentMethodAmount")],
+        receiptLineClassifications: undefined,
       }),
     );
 
@@ -306,6 +306,21 @@ describe("interpretReceiptTaxDecision decision table", () => {
       resolutionStatus: "ambiguous",
     });
     expect(decision.evidence).not.toContain("explicit_label:excluded");
+    expect(decision.reasons).toContain("non_tax_adjustment_lines_excluded");
+  });
+
+  it("分類なし決済行の税額ラベルを印字税額として扱わない", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        items: [item("unknown", null)],
+        taxSummaries: [],
+        rawObservationLines: [line("カード決済 消費税額100円", 100, 12, "payment")],
+        receiptLineClassifications: undefined,
+      }),
+    );
+
+    expect(decision.taxAmount).toEqual({ roundingMethod: "unknown", source: "unknown" });
+    expect(decision.reasons).toContain("non_tax_adjustment_lines_excluded");
   });
 
   it("itemとsummaryのbasis不一致をperItem商品混在にしない", () => {

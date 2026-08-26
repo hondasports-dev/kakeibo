@@ -12,6 +12,7 @@ import type {
   TaxRateComposition,
   TaxRatePercent,
 } from "./types";
+import type { ReceiptLineClassification, ReceiptRawObservationLine } from "../observations";
 import { canonicalTaxSummaryStatus } from "./taxSummaryConsistency";
 
 type AxisEvidence<TValue> = {
@@ -34,6 +35,27 @@ const BUSINESS_ATTRIBUTE_PATTERN =
 const INCLUDED_LABEL_PATTERN = /(?:税込|内税|税を含む)/;
 const EXCLUDED_LABEL_PATTERN = /(?:税抜|外税|税別)/;
 const TAX_AMOUNT_LABEL_PATTERN = /(?:消費税(?!\s*率)(?:額|計)?|税額|内税額|外税額|税合計)/;
+const EXCLUDED_STRUCTURAL_ROLES = new Set([
+  "itemDiscount",
+  "receiptDiscount",
+  "coupon",
+  "pointsUsed",
+  "fee",
+  "paymentMethodAmount",
+  "cashReceived",
+  "change",
+]);
+const EXCLUDED_RAW_ROLES = new Set(["discount", "payment", "change"]);
+
+function isNonTaxEvidenceLine(
+  line: ReceiptRawObservationLine,
+  classification: ReceiptLineClassification | undefined,
+) {
+  const classifiedRole = classification?.candidates[0]?.role;
+  return classifiedRole === undefined
+    ? line.lineRoleCandidates.some((role) => EXCLUDED_RAW_ROLES.has(role))
+    : EXCLUDED_STRUCTURAL_ROLES.has(classifiedRole);
+}
 
 function sourceRank(source: ReceiptTaxDecisionSource) {
   return SOURCE_PRIORITY.indexOf(source);
@@ -68,20 +90,9 @@ function explicitLabelEvidence(input: ReceiptTaxInput) {
       classification,
     ]),
   );
-  const excludedRoles = new Set([
-    "itemDiscount",
-    "receiptDiscount",
-    "coupon",
-    "pointsUsed",
-    "fee",
-    "paymentMethodAmount",
-    "cashReceived",
-    "change",
-  ]);
   const usableLines = (input.rawObservationLines ?? []).filter((line) => {
     if (BUSINESS_ATTRIBUTE_PATTERN.test(line.rawText)) return false;
-    const role = classificationByIndex.get(line.sourceLineIndex)?.candidates[0]?.role;
-    return role === undefined || !excludedRoles.has(role);
+    return !isNonTaxEvidenceLine(line, classificationByIndex.get(line.sourceLineIndex));
   });
   const text = usableLines.map((line) => line.rawText.normalize("NFKC")).join("\n");
   const included = INCLUDED_LABEL_PATTERN.test(text);
@@ -290,6 +301,7 @@ function taxAmountDecision(input: ReceiptTaxInput): {
     const normalized = line.rawText.normalize("NFKC");
     const classifiedRole = classification?.candidates[0]?.role;
     const isTaxAmount =
+      !isNonTaxEvidenceLine(line, classification) &&
       (classifiedRole === undefined || classifiedRole === "tax") &&
       TAX_AMOUNT_LABEL_PATTERN.test(normalized) &&
       !/(?:対象|小計)/.test(normalized);
@@ -523,16 +535,15 @@ export function interpretReceiptTaxDecision(input: ReceiptTaxInput): ReceiptTaxD
     ...(estimatedWithUnknownRounding ? ["estimated_tax_with_unknown_rounding"] : []),
     ...(position ? ["tax_line_in_receipt_footer"] : []),
     ...((input.receiptLineClassifications ?? []).some((classification) =>
-      [
-        "itemDiscount",
-        "receiptDiscount",
-        "coupon",
-        "pointsUsed",
-        "fee",
-        "paymentMethodAmount",
-        "cashReceived",
-        "change",
-      ].includes(classification.candidates[0]?.role ?? "unknown"),
+      EXCLUDED_STRUCTURAL_ROLES.has(classification.candidates[0]?.role ?? "unknown"),
+    ) ||
+    (input.rawObservationLines ?? []).some((line) =>
+      isNonTaxEvidenceLine(
+        line,
+        (input.receiptLineClassifications ?? []).find(
+          (classification) => classification.sourceLineIndex === line.sourceLineIndex,
+        ),
+      ),
     )
       ? ["non_tax_adjustment_lines_excluded"]
       : []),
