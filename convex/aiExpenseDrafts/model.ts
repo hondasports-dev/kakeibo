@@ -21,6 +21,7 @@ export {
   receiptRawObservationValidator,
   receiptStructuralLineRoleValidator,
   receiptTotalResolutionValidator,
+  receiptTaxDecisionValidator,
   receiptUserOverrideSnapshotValidator,
   taxModeValidator,
   taxResolutionSourceValidator,

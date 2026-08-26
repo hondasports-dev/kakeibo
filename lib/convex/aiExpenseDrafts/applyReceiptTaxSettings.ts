@@ -70,7 +70,7 @@ export async function applyReceiptTaxSettingsHandler(
   const updatedDraft = await persistReceiptUserOverrideSnapshot(ctx, {
     draftId: args.draftId,
     groupId,
-    fields: ["items", "receiptTotalResolution"],
+    fields: ["items", "receiptTotalResolution", "receiptTaxDecision"],
   });
   return { ...result, draft: updatedDraft };
 }

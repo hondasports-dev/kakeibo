@@ -1,4 +1,5 @@
 import { collectTaxEvidence } from "./collectTaxEvidence";
+import { interpretReceiptTaxDecision } from "./interpretReceiptTaxDecision";
 import { normalizeAmounts } from "./normalizeAmounts";
 import { normalizeTaxSummaries } from "./normalizeTaxSummaries";
 import { reconcileTaxSummaries } from "./reconcileTaxSummaries";
@@ -58,10 +59,15 @@ export function interpretReceiptTax(input: ReceiptTaxInput): ReceiptTaxInterpret
     items,
     taxSummaries: processableSummaries,
   });
+  const decision = interpretReceiptTaxDecision({
+    ...normalizedInput,
+    taxSummaries: normalizedAllSummaries,
+  });
   return {
     items,
     taxSummaries: normalizedAllSummaries,
     receiptTotalResolution,
+    decision,
     warnings: [
       ...new Set([
         ...reconciliation.duplicateWarnings,

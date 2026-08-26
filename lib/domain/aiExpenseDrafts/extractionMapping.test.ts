@@ -26,6 +26,11 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.items?.every((item) => item.categoryId === foodCategory._id)).toBe(true);
     expect(mapped.items?.every((item) => item.taxResolutionStatus === "resolved")).toBe(true);
     expect(mapped.items?.every((item) => item.taxResolutionSource !== undefined)).toBe(true);
+    expect(mapped.receiptTaxDecision).toMatchObject({
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate8",
+      candidates: expect.any(Array),
+    });
     expect(mapped.reviewReasons).toBeUndefined();
   });
 

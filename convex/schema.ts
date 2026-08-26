@@ -15,6 +15,7 @@ import {
   receiptInterpretationSnapshotValidator,
   receiptRawObservationValidator,
   receiptTotalResolutionValidator,
+  receiptTaxDecisionValidator,
   receiptUserOverrideSnapshotValidator,
   taxResolutionSourceValidator,
   taxResolutionStatusValidator,
@@ -527,6 +528,7 @@ export default defineSchema({
     amountYen: v.optional(v.number()),
     taxSummaries: v.optional(v.array(taxSummaryValidator)),
     receiptTotalResolution: v.optional(receiptTotalResolutionValidator),
+    receiptTaxDecision: v.optional(receiptTaxDecisionValidator),
     // v1以前の下書きを読み続けるためoptional。新規解析だけがv1をdual-writeする。
     receiptDataContractVersion: v.optional(v.literal(1)),
     rawObservation: v.optional(receiptRawObservationValidator),

@@ -20,7 +20,11 @@ import type {
   ExtractedTaxSummary,
   ReceiptItemTaxRatePercent,
 } from "../receiptImageExtraction/types";
-import type { ReceiptMarkerDefinition, ReceiptTotalResolution } from "../../receiptTax/types";
+import type {
+  ReceiptMarkerDefinition,
+  ReceiptTaxDecision,
+  ReceiptTotalResolution,
+} from "../../receiptTax/types";
 import type { TaxResolutionSource } from "../../receiptTax/types";
 import type {
   ReceiptLineClassification,
@@ -68,6 +72,7 @@ export type CreateFromExtractionArgs = {
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
+  receiptTaxDecision?: ReceiptTaxDecision;
   rawObservationLines?: ReceiptRawObservationLine[];
   receiptLineClassifications?: ReceiptLineClassification[];
   preservedUserOverride?: ReceiptUserOverrideSnapshot<Id<"categories">>;
@@ -169,6 +174,7 @@ async function persistExtractedDraft(
     amountYen: args.amountYen,
     taxSummaries: args.taxSummaries,
     receiptTotalResolution: args.receiptTotalResolution,
+    receiptTaxDecision: args.receiptTaxDecision,
     receiptLineClassifications: args.receiptLineClassifications,
     markerDefinitions: args.markerDefinitions,
     categoryId: args.categoryId,
@@ -194,6 +200,7 @@ async function persistExtractedDraft(
     amountYen: values.amountYen,
     taxSummaries: values.taxSummaries,
     receiptTotalResolution: values.receiptTotalResolution,
+    receiptTaxDecision: values.receiptTaxDecision,
     receiptDataContractVersion: 1,
     markerDefinitions: values.markerDefinitions,
     categoryId: values.categoryId,

@@ -21,6 +21,16 @@ describe("mapConvexDraftToAiExpenseDraft", () => {
       destination: "receipts",
       values: { amountYen: 803, date: "2026-08-25", categoryIds: [] },
     } as const;
+    const receiptTaxDecision = {
+      priceTaxTreatment: "included",
+      taxRateComposition: "rate10",
+      resolutionStatus: "verified",
+      resolutionSource: "explicitLabel",
+      evidence: ["explicit_label:included", "explicit_label:rate_10"],
+      reasons: [],
+      candidates: [],
+      taxAmount: { printedTaxYen: 100, roundingMethod: "round", source: "printed" },
+    } as const;
 
     const mapped = mapConvexDraftToAiExpenseDraft({
       _id: "draft-1",
@@ -36,6 +46,7 @@ describe("mapConvexDraftToAiExpenseDraft", () => {
       rawObservation,
       receiptInterpretation,
       receiptUserOverride,
+      receiptTaxDecision,
       derivedRegistration,
       createdAt: 1,
       updatedAt: 1,
@@ -46,6 +57,7 @@ describe("mapConvexDraftToAiExpenseDraft", () => {
       rawObservation,
       receiptInterpretation,
       receiptUserOverride,
+      receiptTaxDecision,
       derivedRegistration,
     });
   });
