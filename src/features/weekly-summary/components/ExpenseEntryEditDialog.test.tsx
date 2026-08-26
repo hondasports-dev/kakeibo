@@ -144,4 +144,108 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
       ),
     );
   });
+
+  it("detailedの明細金額が負数なら保存しない", async () => {
+    render(
+      <ExpenseEntryEditDialog
+        categories={[{ _id: "cat-food", name: "食費" }]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+        open
+        receipt={{
+          _id: "entry-1",
+          date: "2026-08-26",
+          type: "expense",
+          shopName: "スーパー青葉",
+          amountYen: 1500,
+          categoryId: "cat-food",
+          categoryName: "食費",
+          categoryColor: "#f97316",
+          recordType: "expenseEntry",
+          receiptShopName: "スーパー青葉",
+          receiptTotalAmountYen: 1500,
+          aiExpenseDraftId: "draft-1",
+          registrationMode: "detailed",
+        }}
+      />,
+    );
+
+    await screen.findByLabelText("明細金額 1");
+    fireEvent.change(screen.getByLabelText("明細金額 1"), {
+      target: { value: "-100" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    expect(screen.getByText("明細名、明細金額、カテゴリを確認してください。")).toBeInTheDocument();
+    expect(updateRegisteredDraftMock).not.toHaveBeenCalled();
+  });
+
+  it("detailedの値引き明細は負数でも保存できる", async () => {
+    useQueryMock.mockReturnValue({
+      draft: { _id: "draft-1" },
+      items: [
+        {
+          _id: "item-1",
+          itemName: "商品",
+          amountYen: 1200,
+          categoryId: "cat-food",
+        },
+        {
+          _id: "item-2",
+          itemName: "値引き",
+          amountYen: -100,
+          categoryId: "cat-food",
+        },
+      ],
+    });
+
+    render(
+      <ExpenseEntryEditDialog
+        categories={[{ _id: "cat-food", name: "食費" }]}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+        open
+        receipt={{
+          _id: "entry-1",
+          date: "2026-08-26",
+          type: "expense",
+          shopName: "スーパー青葉",
+          amountYen: 1100,
+          categoryId: "cat-food",
+          categoryName: "食費",
+          categoryColor: "#f97316",
+          recordType: "expenseEntry",
+          receiptShopName: "スーパー青葉",
+          receiptTotalAmountYen: 1100,
+          aiExpenseDraftId: "draft-1",
+          registrationMode: "detailed",
+        }}
+      />,
+    );
+
+    await screen.findByLabelText("明細金額 2");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() =>
+      expect(updateRegisteredDraftMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          registrationMode: "detailed",
+          items: [
+            {
+              itemId: "item-1",
+              itemName: "商品",
+              amountYen: 1200,
+              categoryId: "cat-food",
+            },
+            {
+              itemId: "item-2",
+              itemName: "値引き",
+              amountYen: -100,
+              categoryId: "cat-food",
+            },
+          ],
+        }),
+      ),
+    );
+  });
 });

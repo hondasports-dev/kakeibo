@@ -256,6 +256,6 @@ describe("registrationMode persistence and aggregation", () => {
           shopName: "スーパー青葉",
           registrationMode: "totalOnly",
         }),
-    ).rejects.toThrow();
+    ).rejects.toThrow("グループに所属していません");
   });
 });

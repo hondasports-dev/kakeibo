@@ -19,6 +19,7 @@ import {
   updateRegisteredDraftApi,
 } from "../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { isValidSignedLineItemAmount } from "../../../../lib/domain/receipt/discountItems";
 import type { ReceiptItem } from "../types/types";
 
 type CategoryOption = {
@@ -151,8 +152,7 @@ export function ExpenseEntryEditDialog({
       submittedItems.some(
         (item) =>
           !item.itemName ||
-          !Number.isInteger(item.amountYen) ||
-          item.amountYen === 0 ||
+          !isValidSignedLineItemAmount(item.itemName, item.amountYen) ||
           !item.categoryId,
       )
     ) {

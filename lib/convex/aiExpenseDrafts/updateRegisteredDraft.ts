@@ -9,8 +9,8 @@ import {
 } from "../../domain/expenseEntries/expenseEntryItem";
 import type { AiExpenseRegistrationMode } from "../../domain/aiExpenseDrafts/receiptDataContract";
 import { resolveReceiptTotal } from "../../domain/receipt/tax/resolveReceiptTotal";
-import { assertActiveCategoryBelongsToGroup } from "./reviewValidation";
 import {
+  assertActiveCategoryBelongsToGroup,
   assertPositiveCategoryTotals,
   replaceDraftItemsForReview,
   type UpdateForReviewItem,
