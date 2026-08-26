@@ -41,7 +41,7 @@
     "framer-motion": "^12.42.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-email": "6.9.1",
+    "react-email": "6.9.2",
     "react-router-dom": "^7.18.2",
     "resend": "6.18.1",
     "valibot": "^1.4.2"
