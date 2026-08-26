@@ -566,6 +566,31 @@ test.describe("Issue #397 登録準備OK状態で再編集できる", () => {
   });
 });
 
+test.describe("Issue #673 レシート合計だけの登録契約", () => {
+  test("保存前に登録金額と明細非集計を確認し、保存状態を判別できる", async ({ page }) => {
+    await gotoAuthenticated(page, "/__e2e__/ai-expense-queue?withItems=1");
+    const queue = page.getByRole("region", { name: "レシート入力" });
+    await queue
+      .getByRole("region", { name: "確認待ち" })
+      .getByRole("button", { name: "確認する" })
+      .click();
+
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await dialog.getByRole("button", { name: "修正する" }).click();
+    await dialog.getByRole("combobox", { name: "登録方法" }).click();
+    await page.getByRole("option", { name: "レシート合計だけで保存" }).click();
+    await expect(dialog.getByText(/登録される金額は9,120円/)).toBeVisible();
+    await expect(dialog.getByText(/履歴・予算・カテゴリ集計には使われません/)).toBeVisible();
+    await dialog.getByRole("button", { name: "保存して閉じる" }).click();
+
+    const readyItem = queue
+      .getByRole("region", { name: "登録できます" })
+      .locator(".ai-expense-queue-item")
+      .filter({ hasText: "大阪市水道局" });
+    await expect(readyItem.getByText("合計だけで保存")).toBeVisible();
+  });
+});
+
 test.describe("Issue #435 税率別集計の conflict 修正", () => {
   test.beforeEach(async () => {
     await cleanupAiExpenseQueue();

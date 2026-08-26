@@ -69,6 +69,8 @@ export type MonthlySummaryWithCategories = {
     receiptGroupId?: string;
     receiptShopName?: string;
     receiptTotalAmountYen?: number;
+    aiExpenseDraftId?: string;
+    registrationMode?: "detailed" | "totalOnly";
   }>;
   incomes: Array<{
     _id: string;
@@ -120,6 +122,8 @@ export async function getMonthSummaryWithCategoriesHandler(
       receiptGroupId: receipt.receiptGroupId,
       receiptShopName: receipt.receiptShopName,
       receiptTotalAmountYen: receipt.receiptTotalAmountYen,
+      aiExpenseDraftId: receipt.aiExpenseDraftId,
+      registrationMode: receipt.registrationMode,
     };
   });
 

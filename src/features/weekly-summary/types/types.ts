@@ -24,6 +24,8 @@ export type ReceiptItem = {
   receiptGroupId?: string;
   receiptShopName?: string;
   receiptTotalAmountYen?: number;
+  aiExpenseDraftId?: string;
+  registrationMode?: "detailed" | "totalOnly";
 };
 
 export type ReceiptGroup = {

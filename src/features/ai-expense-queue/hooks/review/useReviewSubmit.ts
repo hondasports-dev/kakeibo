@@ -96,6 +96,7 @@ export function useReviewSubmit({
             date: reviewForm.date,
             amountYen,
             categoryId: reviewForm.categoryId,
+            registrationMode: reviewForm.registrationMode,
             items: submittedItems.map((item) => ({
               itemName: item.itemName.trim(),
               amountYen: Number(item.amountYen),
@@ -124,6 +125,7 @@ export function useReviewSubmit({
           date: reviewForm.date,
           amountYen,
           categoryId: reviewForm.categoryId as Id<"categories">,
+          registrationMode: reviewForm.registrationMode,
           items: submittedItems.map((item) => ({
             ...(item.persistedItemId
               ? { itemId: item.persistedItemId as Id<"aiExpenseDraftItems"> }

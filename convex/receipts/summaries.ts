@@ -74,6 +74,8 @@ const receiptWithCategoryValidator = v.object({
   receiptGroupId: v.optional(v.string()),
   receiptShopName: v.optional(v.string()),
   receiptTotalAmountYen: v.optional(v.number()),
+  aiExpenseDraftId: v.optional(v.string()),
+  registrationMode: v.optional(v.union(v.literal("detailed"), v.literal("totalOnly"))),
 });
 
 const categorySummaryValidator = v.object({

@@ -5,6 +5,7 @@ import type { Id } from "../_generated/dataModel";
 import {
   aiExpenseDraftDocumentTypeValidator,
   aiExpenseDraftItemConfidenceValidator,
+  aiExpenseRegistrationModeValidator,
   amountBasisValidator,
   receiptItemTaxRatePercentValidator,
   taxModeValidator,
@@ -20,6 +21,7 @@ import { applyReceiptTaxSettingsHandler } from "../../lib/convex/aiExpenseDrafts
 import { updateForReviewHandler } from "../../lib/convex/aiExpenseDrafts/updateForReview";
 import type { TaxMode, TaxRatePercent } from "../../lib/receiptTax/types";
 import { resetReceiptToAiInterpretationHandler } from "../../lib/convex/aiExpenseDrafts/receiptDataContract";
+import { updateRegisteredDraftHandler } from "../../lib/convex/aiExpenseDrafts/updateRegisteredDraft";
 
 type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -109,6 +111,7 @@ export const updateForReview = mutation({
     paymentPurpose: v.optional(v.string()),
     date: v.string(),
     amountYen: v.number(),
+    registrationMode: v.optional(aiExpenseRegistrationModeValidator),
     categoryId: v.id("categories"),
     items: v.optional(
       v.array(
@@ -180,8 +183,33 @@ export const registerReadyDraftsAsExpenseEntries = mutation({
   handler: registerReadyDraftsAsExpenseEntriesHandler,
 });
 
+export const updateRegisteredDraft = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    date: v.string(),
+    amountYen: v.number(),
+    categoryId: v.id("categories"),
+    shopName: v.string(),
+    registrationMode: aiExpenseRegistrationModeValidator,
+    items: v.optional(
+      v.array(
+        v.object({
+          itemId: v.optional(v.id("aiExpenseDraftItems")),
+          itemName: v.string(),
+          amountYen: v.number(),
+          categoryId: v.id("categories"),
+          confidence: v.optional(aiExpenseDraftItemConfidenceValidator),
+          warnings: v.optional(v.array(v.string())),
+        }),
+      ),
+    ),
+  },
+  handler: updateRegisteredDraftHandler,
+});
+
 export {
   registerReadyDraftsAsExpenseEntriesHandler,
   registerReadyDraftsHandler,
   updateForReviewHandler,
+  updateRegisteredDraftHandler,
 };

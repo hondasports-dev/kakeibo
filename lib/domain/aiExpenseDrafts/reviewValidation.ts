@@ -2,6 +2,7 @@ import { parseExpenseAmountString } from "../expenseEntries/expenseEntryItem";
 import { isDiscountItemName, isValidSignedLineItemAmount } from "../receipt/discountItems";
 import { isValidIsoDateString } from "../week/weekDates";
 import type { AiExpenseDraftDocumentType } from "./constants";
+import type { AiExpenseRegistrationMode } from "./receiptDataContract";
 
 export type ReviewFormInput = {
   documentType: AiExpenseDraftDocumentType;
@@ -9,6 +10,7 @@ export type ReviewFormInput = {
   date: string;
   amountYen: string;
   categoryId: string;
+  registrationMode?: AiExpenseRegistrationMode;
 };
 
 export type ReviewItemInput = {
@@ -97,10 +99,13 @@ export function getReviewSubmitErrorMessage(
   reviewForm: ReviewFormInput,
   reviewItems: ReviewItemInput[],
 ): string | null {
-  return (
+  const formError =
     getReviewDocumentTypeErrorMessage(reviewForm.documentType) ??
-    getReviewFormErrorMessage(reviewForm) ??
-    getReviewItemsErrorMessage(reviewItems) ??
-    getReviewCategoryAggregateErrorMessage(reviewItems)
+    getReviewFormErrorMessage(reviewForm);
+  if (formError || reviewForm.registrationMode === "totalOnly") {
+    return formError;
+  }
+  return (
+    getReviewItemsErrorMessage(reviewItems) ?? getReviewCategoryAggregateErrorMessage(reviewItems)
   );
 }

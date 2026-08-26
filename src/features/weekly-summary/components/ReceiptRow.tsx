@@ -73,6 +73,9 @@ export function ReceiptRow({
               variant="outlined"
             />
           )}
+          {!isDetail && receipt.registrationMode === "totalOnly" ? (
+            <Chip label="合計だけで保存" size="small" variant="outlined" />
+          ) : null}
           <Typography sx={{ fontWeight: 700 }} noWrap>
             {isDetail ? (receipt.itemName ?? "内訳情報なし") : displayName}
           </Typography>

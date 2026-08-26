@@ -9,10 +9,15 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Typography,
 } from "@mui/material";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { updateExpenseEntryApi } from "../../../lib/repositories/expenseEntries";
 import { updateReceiptApi } from "../../../lib/repositories/receipts";
+import {
+  getWithItemsApi,
+  updateRegisteredDraftApi,
+} from "../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type { ReceiptItem } from "../types/types";
 
@@ -21,11 +26,46 @@ type CategoryOption = {
   name: string;
 };
 
+type EditableDraftItem = {
+  itemId?: Id<"aiExpenseDraftItems">;
+  itemName: string;
+  amountYen: string;
+  categoryId: string;
+};
+
+function DraftItemsLoader({
+  draftId,
+  setDraftItems,
+  setDraftItemsLoading,
+}: {
+  draftId: Id<"aiExpenseDrafts">;
+  setDraftItems: (items: EditableDraftItem[]) => void;
+  setDraftItemsLoading: (loading: boolean) => void;
+}) {
+  const draftDetails = useQuery(getWithItemsApi(), { draftId });
+  useEffect(() => {
+    if (draftDetails === undefined) return;
+    setDraftItems(
+      (draftDetails?.items ?? []).map((item) => ({
+        itemId: item._id,
+        itemName: item.itemName,
+        amountYen: String(item.printedAmountYen ?? item.normalizedAmountYen ?? item.amountYen),
+        categoryId: item.categoryId ?? "",
+      })),
+    );
+    setDraftItemsLoading(false);
+  }, [draftDetails, setDraftItems, setDraftItemsLoading]);
+  return null;
+}
+
 export function getEditableReceiptTitle(receipt: ReceiptItem): string {
   if (receipt.type === "income") {
     return receipt.bankName ?? "";
   }
   if (receipt.recordType === "expenseEntry") {
+    if (receipt.aiExpenseDraftId) {
+      return receipt.receiptShopName ?? receipt.shopName ?? "";
+    }
     return receipt.itemName ?? receipt.shopName ?? "";
   }
   return receipt.receiptShopName ?? receipt.shopName ?? "";
@@ -46,11 +86,15 @@ export function ExpenseEntryEditDialog({
 }) {
   const updateExpenseEntry = useMutation(updateExpenseEntryApi());
   const updateReceipt = useMutation(updateReceiptApi());
+  const updateRegisteredDraft = useMutation(updateRegisteredDraftApi());
   const [date, setDate] = useState("");
   const [amountYen, setAmountYen] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [title, setTitle] = useState("");
   const [memo, setMemo] = useState("");
+  const [registrationMode, setRegistrationMode] = useState<"detailed" | "totalOnly">("detailed");
+  const [draftItems, setDraftItems] = useState<EditableDraftItem[]>([]);
+  const [draftItemsLoading, setDraftItemsLoading] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -59,15 +103,27 @@ export function ExpenseEntryEditDialog({
       return;
     }
     setDate(receipt.date);
-    setAmountYen(String(receipt.amountYen));
+    setAmountYen(
+      String(
+        receipt.aiExpenseDraftId
+          ? (receipt.receiptTotalAmountYen ?? receipt.amountYen)
+          : receipt.amountYen,
+      ),
+    );
     setCategoryId(receipt.categoryId);
     setTitle(getEditableReceiptTitle(receipt));
     setMemo(receipt.memo ?? "");
+    setRegistrationMode(receipt.registrationMode ?? "detailed");
+    setDraftItems([]);
+    setDraftItemsLoading(Boolean(receipt.aiExpenseDraftId));
     setError("");
   }, [receipt]);
 
   const handleSave = async () => {
     if (!receipt) {
+      return;
+    }
+    if (receipt.aiExpenseDraftId && registrationMode === "detailed" && draftItemsLoading) {
       return;
     }
     const parsedAmount = Number(amountYen.replace(/[^\d]/g, ""));
@@ -83,12 +139,42 @@ export function ExpenseEntryEditDialog({
       setError("日付を入力してください。");
       return;
     }
+    const submittedItems = draftItems.map((item) => ({
+      itemId: item.itemId,
+      itemName: item.itemName.trim(),
+      amountYen: Number(item.amountYen),
+      categoryId: item.categoryId as Id<"categories">,
+    }));
+    if (
+      receipt.aiExpenseDraftId &&
+      registrationMode === "detailed" &&
+      submittedItems.some(
+        (item) =>
+          !item.itemName ||
+          !Number.isInteger(item.amountYen) ||
+          item.amountYen === 0 ||
+          !item.categoryId,
+      )
+    ) {
+      setError("明細名、明細金額、カテゴリを確認してください。");
+      return;
+    }
 
     setSaving(true);
     setError("");
     try {
       if (receipt.recordType === "expenseEntry") {
-        if (receipt.type === "income") {
+        if (receipt.aiExpenseDraftId && receipt.type !== "income") {
+          await updateRegisteredDraft({
+            draftId: receipt.aiExpenseDraftId as Id<"aiExpenseDrafts">,
+            date,
+            amountYen: parsedAmount,
+            categoryId: categoryId as Id<"categories">,
+            shopName: title.trim(),
+            registrationMode,
+            items: registrationMode === "detailed" ? submittedItems : undefined,
+          });
+        } else if (receipt.type === "income") {
           await updateExpenseEntry({
             expenseEntryId: receipt._id as Id<"expenseEntries">,
             date,
@@ -135,9 +221,19 @@ export function ExpenseEntryEditDialog({
 
   const entryLabel = receipt?.type === "income" ? "収入" : "支出";
   const isIncome = receipt?.type === "income";
+  const isDraftItemsLoading = Boolean(
+    receipt?.aiExpenseDraftId && registrationMode === "detailed" && draftItemsLoading,
+  );
 
   return (
     <Dialog fullWidth maxWidth="sm" onClose={onClose} open={open}>
+      {receipt?.aiExpenseDraftId ? (
+        <DraftItemsLoader
+          draftId={receipt.aiExpenseDraftId as Id<"aiExpenseDrafts">}
+          setDraftItems={setDraftItems}
+          setDraftItemsLoading={setDraftItemsLoading}
+        />
+      ) : null}
       <DialogTitle>{entryLabel}を編集</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ pt: 1 }}>
@@ -161,6 +257,124 @@ export function ExpenseEntryEditDialog({
             slotProps={{ htmlInput: { inputMode: "numeric" } }}
             value={amountYen}
           />
+          {receipt?.aiExpenseDraftId && !isIncome ? (
+            <TextField
+              fullWidth
+              label="登録方法"
+              onChange={(event) =>
+                setRegistrationMode(event.target.value as "detailed" | "totalOnly")
+              }
+              select
+              value={registrationMode}
+            >
+              <MenuItem value="detailed">明細ごとに保存</MenuItem>
+              <MenuItem value="totalOnly">レシート合計だけで保存</MenuItem>
+            </TextField>
+          ) : null}
+          {receipt?.aiExpenseDraftId && registrationMode === "totalOnly" ? (
+            <Alert severity="info" variant="outlined">
+              この金額だけを集計します。OCRの商品明細と税内訳は集計に使われません。
+            </Alert>
+          ) : null}
+          {receipt?.aiExpenseDraftId && registrationMode === "detailed" ? (
+            <Stack aria-label="登録明細" spacing={1.5}>
+              <Typography sx={{ fontWeight: 700 }} variant="subtitle2">
+                登録明細
+              </Typography>
+              {draftItemsLoading ? (
+                <Typography color="text.secondary" variant="body2">
+                  明細を読み込んでいます。
+                </Typography>
+              ) : draftItems.length === 0 ? (
+                <Typography color="text.secondary" variant="body2">
+                  保存済みの明細はありません。レシート合計を1件の支出として登録します。
+                </Typography>
+              ) : (
+                draftItems.map((item, index) => (
+                  <Stack key={item.itemId ?? index} spacing={1}>
+                    <TextField
+                      fullWidth
+                      label={`明細名 ${index + 1}`}
+                      onChange={(event) =>
+                        setDraftItems((current) =>
+                          current.map((currentItem, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentItem, itemName: event.target.value }
+                              : currentItem,
+                          ),
+                        )
+                      }
+                      value={item.itemName}
+                    />
+                    <TextField
+                      fullWidth
+                      label={`明細金額 ${index + 1}`}
+                      onChange={(event) =>
+                        setDraftItems((current) =>
+                          current.map((currentItem, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentItem, amountYen: event.target.value }
+                              : currentItem,
+                          ),
+                        )
+                      }
+                      slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                      value={item.amountYen}
+                    />
+                    <TextField
+                      fullWidth
+                      label={`明細カテゴリ ${index + 1}`}
+                      onChange={(event) =>
+                        setDraftItems((current) =>
+                          current.map((currentItem, currentIndex) =>
+                            currentIndex === index
+                              ? { ...currentItem, categoryId: event.target.value }
+                              : currentItem,
+                          ),
+                        )
+                      }
+                      select
+                      value={item.categoryId}
+                    >
+                      {categories.map((category) => (
+                        <MenuItem key={category._id} value={category._id}>
+                          {category.name}
+                        </MenuItem>
+                      ))}
+                    </TextField>
+                    <Button
+                      color="error"
+                      onClick={() =>
+                        setDraftItems((current) =>
+                          current.filter((_, currentIndex) => currentIndex !== index),
+                        )
+                      }
+                      type="button"
+                      variant="text"
+                    >
+                      明細{index + 1}を削除
+                    </Button>
+                  </Stack>
+                ))
+              )}
+              <Button
+                onClick={() =>
+                  setDraftItems((current) => [
+                    ...current,
+                    {
+                      itemName: "",
+                      amountYen: "",
+                      categoryId,
+                    },
+                  ])
+                }
+                type="button"
+                variant="outlined"
+              >
+                明細を追加
+              </Button>
+            </Stack>
+          ) : null}
           {!isIncome && (
             <TextField
               fullWidth
@@ -197,7 +411,7 @@ export function ExpenseEntryEditDialog({
           キャンセル
         </Button>
         <Button
-          disabled={saving}
+          disabled={saving || isDraftItemsLoading}
           onClick={() => void handleSave()}
           type="button"
           variant="contained"
