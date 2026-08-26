@@ -200,9 +200,12 @@ function reconciliationAxisEvidence(input: ReceiptTaxInput) {
       evidence: [],
       mismatch:
         summariesAreVerified &&
-        (summaryTotal !== input.amountYen ||
+        ((Number.isFinite(summaryTotal) && summaryTotal !== input.amountYen) ||
           (input.items.length > 0 && Number.isFinite(itemTotal) && itemTotal !== input.amountYen) ||
-          (input.items.length > 0 && itemTreatment !== summaryTreatment)),
+          (input.items.length > 0 &&
+            itemTreatment !== "unknown" &&
+            summaryTreatment !== "unknown" &&
+            itemTreatment !== summaryTreatment)),
     };
   }
   const treatment = summaryTreatment;

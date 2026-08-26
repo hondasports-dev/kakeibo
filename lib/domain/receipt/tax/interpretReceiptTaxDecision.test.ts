@@ -346,6 +346,24 @@ describe("interpretReceiptTaxDecision decision table", () => {
     expect(decision.resolutionSource).not.toBe("reconciliation");
   });
 
+  it("summary basis不明を金額矛盾へ格上げしない", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        items: [{ ...item("tax_included", 10), printedAmountYen: 1100 }],
+        taxSummaries: [
+          summary({
+            taxMode: "unknown",
+            taxableAmountBasis: "unknown",
+            status: "verified",
+          }),
+        ],
+      }),
+    );
+
+    expect(decision.resolutionStatus).toBe("ambiguous");
+    expect(decision.reasons).not.toContain("receipt_reconciliation_mismatch");
+  });
+
   it("税率別明細と税合計の併記を二重加算しない", () => {
     const decision = interpretReceiptTaxDecision(
       baseInput({
