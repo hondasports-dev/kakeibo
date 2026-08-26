@@ -60,7 +60,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "chrome-devtools-mcp": "^1.7.0",
     "clerk": "^2.2.0",
-    "convex-test": "0.0.54",
+    "convex-test": "0.0.56",
     "dotenv": "^17.4.2",
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
