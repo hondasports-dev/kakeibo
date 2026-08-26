@@ -10,7 +10,12 @@ import type {
   TaxResolutionSource,
 } from "../receipt/tax/types";
 import type { ExtractReceiptFieldsResult } from "../../convex/receiptImageExtraction/types";
-import type { ReceiptRawObservationLine } from "../receipt/observations";
+import type {
+  ReceiptLineClassification,
+  ReceiptRawObservationLine,
+  ReceiptStructuralLineRole,
+} from "../receipt/observations";
+import { classifyReceiptLines, normalizeReceiptLineMatchText } from "../receipt/lineClassification";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categories/candidate";
 import {
   deriveTaxReviewReasons,
@@ -18,7 +23,6 @@ import {
 } from "../receipt/tax/draftTaxMapping";
 import { interpretReceiptTax } from "../receipt/tax/interpretReceiptTax";
 import { resolveReceiptTotal } from "../receipt/tax/resolveReceiptTotal";
-import { isTaxSummaryItem } from "./extraction";
 import type {
   AiExpenseDraftConfidence,
   AiExpenseDraftDocumentType,
@@ -62,6 +66,7 @@ export type DraftArgs<TId = string> = {
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
   rawObservationLines?: ReceiptRawObservationLine[];
+  receiptLineClassifications?: ReceiptLineClassification[];
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: TId;
   imageFileName?: string;
@@ -70,6 +75,53 @@ export type DraftArgs<TId = string> = {
   reviewReasons?: AiExpenseDraftReviewReason[];
   items?: DraftItem<TId>[];
 };
+
+const STRUCTURAL_NON_ITEM_ROLES = new Set<ReceiptStructuralLineRole>([
+  "tax",
+  "subtotal",
+  "totalCandidate",
+  "paymentMethodAmount",
+  "cashReceived",
+  "change",
+  "unknown",
+]);
+
+function receiptTaxAmounts(taxSummaries: ExtractedTaxSummary[]) {
+  return [
+    ...taxSummaries.flatMap((summary) => [
+      summary.taxYen,
+      summary.taxableAmountYen,
+      ...(summary.taxIncludedAmountYen === undefined ? [] : [summary.taxIncludedAmountYen]),
+    ]),
+    taxSummaries.reduce((sum, summary) => sum + summary.taxYen, 0),
+  ];
+}
+
+function classificationForExtractedItem(
+  item: NonNullable<ExtractReceiptFieldsResult["items"]>[number],
+  rawLines: ReceiptRawObservationLine[],
+  classifications: ReceiptLineClassification[],
+) {
+  const itemText = normalizeReceiptLineMatchText(item.itemName);
+  const printedAmountYen = item.printedAmountYen ?? item.amountYen;
+  return classifications
+    .flatMap((classification) => {
+      const line = rawLines.find(
+        (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
+      );
+      if (!line) return [];
+      const lineText = normalizeReceiptLineMatchText(line.rawText);
+      const textMatches =
+        itemText.length > 0 &&
+        lineText.length > 0 &&
+        (lineText.includes(itemText) || itemText.includes(lineText));
+      return textMatches
+        ? [{ classification, amountMatches: line.amountYen === printedAmountYen }]
+        : [];
+    })
+    .sort((left, right) => Number(right.amountMatches) - Number(left.amountMatches))[0]
+    ?.classification;
+}
 
 function normalizeExtractedItemForTax(
   item: NonNullable<ExtractReceiptFieldsResult["items"]>[number],
@@ -93,9 +145,40 @@ export function mapExtractionToDraftArgs<TId>(
   categories: CategoryLike<TId>[],
   imageFileName?: string,
 ): DraftArgs<TId> {
-  const extractedItems = extracted.items?.filter(
-    (item) => !isTaxSummaryItem(item, extracted.taxSummaries ?? []),
-  );
+  const rawObservationLines = extracted.rawObservations ?? [];
+  const receiptLineClassifications = classifyReceiptLines(rawObservationLines, {
+    receiptTotalYen: extracted.amountYen,
+    taxAmountsYen: receiptTaxAmounts((extracted.taxSummaries ?? []) as ExtractedTaxSummary[]),
+  });
+  const ambiguousExtractedItemIndexes: number[] = [];
+  const extractedItems = extracted.items?.filter((item, index) => {
+    const fromRaw = classificationForExtractedItem(
+      item,
+      rawObservationLines,
+      receiptLineClassifications,
+    );
+    const [fallback] = classifyReceiptLines(
+      [
+        {
+          rawText: item.itemName,
+          amountText: String(item.printedAmountYen ?? item.amountYen),
+          amountYen: item.printedAmountYen ?? item.amountYen,
+          lineRoleCandidates: ["item"],
+          roleConfidence: item.confidence.itemName ?? 0.5,
+          explicitlyPrinted: true,
+          sourceLineIndex: 0,
+        },
+      ],
+      { taxAmountsYen: receiptTaxAmounts((extracted.taxSummaries ?? []) as ExtractedTaxSummary[]) },
+    );
+    const classification = fromRaw ?? fallback;
+    if (classification?.status === "ambiguous") {
+      ambiguousExtractedItemIndexes.push(index);
+      return false;
+    }
+    const role = classification?.candidates[0]?.role ?? "unknown";
+    return !STRUCTURAL_NON_ITEM_ROLES.has(role);
+  });
 
   const candidates = buildCategoryCandidates({
     documentType: extracted.documentType,
@@ -176,6 +259,20 @@ export function mapExtractionToDraftArgs<TId>(
   });
 
   const taxReviewReasons = deriveTaxReviewReasons(interpretation);
+  const ambiguousStructuralLines = receiptLineClassifications.filter(
+    (classification) =>
+      classification.status === "ambiguous" &&
+      rawObservationLines.some(
+        (line) =>
+          line.sourceLineIndex === classification.sourceLineIndex && line.amountYen !== null,
+      ),
+  );
+  const reviewReasons = [
+    ...taxReviewReasons,
+    ...(ambiguousStructuralLines.length > 0 || ambiguousExtractedItemIndexes.length > 0
+      ? (["user_confirmation_required"] as const)
+      : []),
+  ];
 
   return {
     documentType: extracted.documentType,
@@ -189,6 +286,7 @@ export function mapExtractionToDraftArgs<TId>(
     taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
     receiptTotalResolution,
     rawObservationLines: extracted.rawObservations,
+    receiptLineClassifications,
     markerDefinitions: extracted.markerDefinitions,
     categoryId,
     imageFileName,
@@ -202,8 +300,17 @@ export function mapExtractionToDraftArgs<TId>(
       amountYen: extracted.confidence.amountYen,
       categoryId: extracted.confidence.categoryName,
     },
-    warnings: [...new Set([...extracted.warnings, ...(interpretation?.warnings ?? [])])],
-    reviewReasons: taxReviewReasons.length > 0 ? taxReviewReasons : undefined,
+    warnings: [
+      ...new Set([
+        ...extracted.warnings,
+        ...(interpretation?.warnings ?? []),
+        ...ambiguousStructuralLines.map(
+          (classification) => `ambiguous_receipt_line:${classification.sourceLineIndex}`,
+        ),
+        ...ambiguousExtractedItemIndexes.map((index) => `ambiguous_extracted_item:${index}`),
+      ]),
+    ],
+    reviewReasons: reviewReasons.length > 0 ? [...new Set(reviewReasons)] : undefined,
     items,
   };
 }

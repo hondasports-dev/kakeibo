@@ -138,6 +138,136 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.items?.[0]?.itemName).toBe("内税対応商品");
   });
 
+  it("内税額のOCR誤読を金額一致なしで明細から除外する", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 1080,
+        items: [
+          { ...product, itemName: "商品", amountYen: 1080, printedAmountYen: 1080 },
+          { ...product, itemName: "内税", amountYen: 56, printedAmountYen: 56 },
+        ],
+        taxSummaries: [
+          {
+            ...trialExternal8Fixture.taxSummaries![0],
+            taxableAmountYen: 1080,
+            taxYen: 58,
+            taxIncludedAmountYen: 1080,
+            taxMode: "included",
+            taxableAmountBasis: "tax_included",
+          },
+        ],
+        rawObservations: [
+          {
+            rawText: "商品 1,080円",
+            amountText: "1,080円",
+            amountYen: 1080,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+          {
+            rawText: "内税 58円",
+            amountText: "56円",
+            amountYen: 56,
+            lineRoleCandidates: ["item", "unknown"],
+            roleConfidence: 0.45,
+            explicitlyPrinted: true,
+            sourceLineIndex: 8,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.items?.map((item) => item.itemName)).toEqual(["商品"]);
+    expect(mapped.receiptLineClassifications?.[1]?.candidates[0]).toMatchObject({ role: "tax" });
+  });
+
+  it("支払方法金額は明細から外し、袋代はfeeとして残す", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 1005,
+        items: [
+          { ...product, itemName: "商品", amountYen: 1000, printedAmountYen: 1000 },
+          { ...product, itemName: "レジ袋", amountYen: 5, printedAmountYen: 5 },
+          { ...product, itemName: "VISA", amountYen: 1005, printedAmountYen: 1005 },
+        ],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "商品 1,000円",
+            amountText: "1,000円",
+            amountYen: 1000,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+          {
+            rawText: "レジ袋 5円",
+            amountText: "5円",
+            amountYen: 5,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 2,
+          },
+          {
+            rawText: "VISA 1,005円",
+            amountText: "1,005円",
+            amountYen: 1005,
+            lineRoleCandidates: ["payment"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 9,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.items?.map((item) => item.itemName)).toEqual(["商品", "レジ袋"]);
+    expect(mapped.receiptLineClassifications?.map((line) => line.candidates[0]?.role)).toEqual([
+      "item",
+      "fee",
+      "paymentMethodAmount",
+    ]);
+  });
+
+  it("分類不能な金額行をunknownのまま確認対象へ送る", () => {
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "読取不能",
+            amountText: "777円",
+            amountYen: 777,
+            lineRoleCandidates: ["unknown"],
+            roleConfidence: 0.2,
+            explicitlyPrinted: true,
+            sourceLineIndex: 4,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.receiptLineClassifications?.[0]).toMatchObject({
+      status: "ambiguous",
+      candidates: [expect.objectContaining({ role: "unknown" })],
+    });
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+    expect(mapped.warnings).toContain("ambiguous_receipt_line:4");
+  });
+
   it("明細のない払込票には金額不整合を付与しない", () => {
     const mapped = mapExtractionToDraftArgs(conveniencePaymentFixture, [foodCategory]);
 

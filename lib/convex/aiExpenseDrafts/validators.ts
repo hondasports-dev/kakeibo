@@ -197,6 +197,34 @@ export const receiptRawObservationValidator = v.object({
   lines: v.array(receiptRawObservationLineValidator),
 });
 
+export const receiptStructuralLineRoleValidator = v.union(
+  v.literal("item"),
+  v.literal("itemDiscount"),
+  v.literal("receiptDiscount"),
+  v.literal("coupon"),
+  v.literal("pointsUsed"),
+  v.literal("fee"),
+  v.literal("tax"),
+  v.literal("subtotal"),
+  v.literal("totalCandidate"),
+  v.literal("paymentMethodAmount"),
+  v.literal("cashReceived"),
+  v.literal("change"),
+  v.literal("unknown"),
+);
+
+export const receiptLineClassificationValidator = v.object({
+  sourceLineIndex: v.number(),
+  status: v.union(v.literal("classified"), v.literal("ambiguous")),
+  candidates: v.array(
+    v.object({
+      role: receiptStructuralLineRoleValidator,
+      score: v.number(),
+      evidence: v.array(v.string()),
+    }),
+  ),
+});
+
 export const receiptDraftItemSnapshotValidator = v.object({
   itemName: v.string(),
   amountYen: v.number(),
@@ -229,6 +257,7 @@ export const receiptDraftValueSnapshotValidator = v.object({
   amountYen: v.optional(v.number()),
   taxSummaries: v.optional(v.array(taxSummaryValidator)),
   receiptTotalResolution: v.optional(receiptTotalResolutionValidator),
+  receiptLineClassifications: v.optional(v.array(receiptLineClassificationValidator)),
   markerDefinitions: v.optional(markerDefinitionsValidator),
   categoryId: v.optional(v.id("categories")),
   confidence: aiExpenseDraftConfidenceValidator,
