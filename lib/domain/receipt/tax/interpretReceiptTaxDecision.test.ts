@@ -72,6 +72,8 @@ describe("interpretReceiptTaxDecision decision table", () => {
         userOverride: { priceTaxTreatment: "perItem", taxRateComposition: "mixed" },
         items: [item("tax_excluded", 8), item("tax_included", 10)],
         taxSummaries: [summary({ roundingMethod: "round", status: "ambiguous" })],
+        rawObservationLines: [line("消費税額 100円", 100, 8)],
+        receiptLineClassifications: [classification(8, "tax")],
       }),
     );
 
@@ -244,8 +246,9 @@ describe("interpretReceiptTaxDecision decision table", () => {
   it("印字税額がなければ推定税額として分離し、丸め不明ならambiguousにする", () => {
     const decision = interpretReceiptTaxDecision(
       baseInput({
+        items: [{ ...item("tax_included", 10), printedAmountYen: 1100 }],
         rawObservationLines: [line("税込 10%", 1100, 8)],
-        taxSummaries: [summary({ status: "ambiguous" })],
+        taxSummaries: [summary()],
       }),
     );
 
@@ -256,6 +259,19 @@ describe("interpretReceiptTaxDecision decision table", () => {
     });
     expect(decision.resolutionStatus).toBe("ambiguous");
     expect(decision.reasons).toContain("estimated_tax_with_unknown_rounding");
+  });
+
+  it("未検証summaryの税額を推定してverifiedにしない", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        rawObservationLines: [line("税込 10%", null, 8)],
+        taxSummaries: [summary({ status: "ambiguous", roundingMethod: "floor" })],
+      }),
+    );
+
+    expect(decision.taxAmount).toEqual({ roundingMethod: "floor", source: "unknown" });
+    expect(decision.resolutionStatus).toBe("ambiguous");
+    expect(decision.reasons).toContain("unverified_tax_summary_for_estimate");
   });
 
   it("矛盾summaryがあれば明示ラベルがあってもcontradictoryにする", () => {
@@ -320,6 +336,52 @@ describe("interpretReceiptTaxDecision decision table", () => {
     );
 
     expect(decision.taxAmount).toEqual({ roundingMethod: "unknown", source: "unknown" });
+    expect(decision.reasons).toContain("non_tax_adjustment_lines_excluded");
+  });
+
+  it("ambiguousなtax/payment分類を税証拠から除外する", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        items: [item("unknown", null)],
+        taxSummaries: [],
+        rawObservationLines: [line("カード決済 税込 10% 消費税額100円", 100, 12, "tax")],
+        receiptLineClassifications: [
+          {
+            sourceLineIndex: 12,
+            status: "ambiguous",
+            candidates: [
+              { role: "tax", score: 0.5, evidence: [] },
+              { role: "paymentMethodAmount", score: 0.5, evidence: [] },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(decision.taxAmount).toEqual({ roundingMethod: "unknown", source: "unknown" });
+    expect(decision.evidence).not.toContain("explicit_label:included");
+    expect(decision.reasons).toContain("non_tax_adjustment_lines_excluded");
+  });
+
+  it("raw行がなくてもambiguous分類のnon-tax候補を除外理由に残す", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        items: [item("unknown", null)],
+        taxSummaries: [],
+        rawObservationLines: undefined,
+        receiptLineClassifications: [
+          {
+            sourceLineIndex: 12,
+            status: "ambiguous",
+            candidates: [
+              { role: "tax", score: 0.5, evidence: [] },
+              { role: "paymentMethodAmount", score: 0.5, evidence: [] },
+            ],
+          },
+        ],
+      }),
+    );
+
     expect(decision.reasons).toContain("non_tax_adjustment_lines_excluded");
   });
 
@@ -508,6 +570,20 @@ describe("interpretReceiptTaxDecision decision table", () => {
     );
 
     expect(decision.taxAmount.printedTaxYen).toBe(100);
+    expect(decision.resolutionStatus).toBe("contradictory");
+    expect(decision.reasons).toContain("conflicting_printed_tax_lines");
+  });
+
+  it("消費税計をgrand totalとして扱い税率別明細との不一致を残す", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        taxSummaries: [summary({ status: "ambiguous" })],
+        rawObservationLines: [line("10% 消費税額 100円", 100, 8), line("消費税計 200円", 200, 9)],
+        receiptLineClassifications: [classification(8, "tax"), classification(9, "tax")],
+      }),
+    );
+
+    expect(decision.taxAmount.printedTaxYen).toBe(200);
     expect(decision.resolutionStatus).toBe("contradictory");
     expect(decision.reasons).toContain("conflicting_printed_tax_lines");
   });

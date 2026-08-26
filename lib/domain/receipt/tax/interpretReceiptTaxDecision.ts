@@ -47,11 +47,25 @@ const EXCLUDED_STRUCTURAL_ROLES = new Set([
 ]);
 const EXCLUDED_RAW_ROLES = new Set(["discount", "payment", "change"]);
 
+function hasExcludedClassificationRole(classification: ReceiptLineClassification) {
+  const candidates =
+    classification.status === "ambiguous"
+      ? classification.candidates
+      : classification.candidates.slice(0, 1);
+  return candidates.some((candidate) => EXCLUDED_STRUCTURAL_ROLES.has(candidate.role));
+}
+
 function isNonTaxEvidenceLine(
   line: ReceiptRawObservationLine,
   classification: ReceiptLineClassification | undefined,
 ) {
   const classifiedRole = classification?.candidates[0]?.role;
+  if (classification?.status === "ambiguous") {
+    return (
+      line.lineRoleCandidates.some((role) => EXCLUDED_RAW_ROLES.has(role)) ||
+      hasExcludedClassificationRole(classification)
+    );
+  }
   return classifiedRole === undefined
     ? line.lineRoleCandidates.some((role) => EXCLUDED_RAW_ROLES.has(role))
     : EXCLUDED_STRUCTURAL_ROLES.has(classifiedRole);
@@ -289,6 +303,7 @@ function resolveRoundingMethod(summaries: ExtractedTaxSummary[]): RoundingMethod
 function taxAmountDecision(input: ReceiptTaxInput): {
   decision: ReceiptTaxAmountDecision;
   conflictingPrintedLines: boolean;
+  dependsOnUnverifiedSummary: boolean;
 } {
   const classificationByIndex = new Map(
     (input.receiptLineClassifications ?? []).map((classification) => [
@@ -312,7 +327,7 @@ function taxAmountDecision(input: ReceiptTaxInput): {
   const roundingMethod = resolveRoundingMethod(input.taxSummaries);
   if (printedLines.length > 0) {
     const grandTotals = printedLines.filter((line) =>
-      /(?:税額?合計|消費税合計)/.test(line.normalized),
+      /(?:税額?合計|消費税(?:合計|計))/.test(line.normalized),
     );
     const rateDetails = printedLines.filter(
       (line) =>
@@ -343,14 +358,21 @@ function taxAmountDecision(input: ReceiptTaxInput): {
     return {
       decision: { printedTaxYen, roundingMethod, source: "printed" },
       conflictingPrintedLines,
+      dependsOnUnverifiedSummary: false,
     };
   }
+  const dependsOnUnverifiedSummary = input.taxSummaries.some(
+    (summary) =>
+      canonicalTaxSummaryStatus(summary.status) !== "verified" &&
+      estimateTax(summary) !== undefined,
+  );
   const estimates = input.taxSummaries
+    .filter((summary) => canonicalTaxSummaryStatus(summary.status) === "verified")
     .map(estimateTax)
     .filter((value): value is number => value !== undefined);
   return {
     decision:
-      estimates.length > 0
+      estimates.length > 0 && !dependsOnUnverifiedSummary
         ? {
             estimatedTaxYen: estimates.reduce((sum, amount) => sum + amount, 0),
             roundingMethod,
@@ -358,6 +380,7 @@ function taxAmountDecision(input: ReceiptTaxInput): {
           }
         : { roundingMethod, source: "unknown" },
     conflictingPrintedLines: false,
+    dependsOnUnverifiedSummary,
   };
 }
 
@@ -533,10 +556,11 @@ export function interpretReceiptTaxDecision(input: ReceiptTaxInput): ReceiptTaxD
     ...(missingAxis ? ["unresolved_tax_axis"] : []),
     ...(!axesHavePrimaryEvidence ? ["insufficient_primary_evidence"] : []),
     ...(estimatedWithUnknownRounding ? ["estimated_tax_with_unknown_rounding"] : []),
+    ...(taxAmountResolution.dependsOnUnverifiedSummary
+      ? ["unverified_tax_summary_for_estimate"]
+      : []),
     ...(position ? ["tax_line_in_receipt_footer"] : []),
-    ...((input.receiptLineClassifications ?? []).some((classification) =>
-      EXCLUDED_STRUCTURAL_ROLES.has(classification.candidates[0]?.role ?? "unknown"),
-    ) ||
+    ...((input.receiptLineClassifications ?? []).some(hasExcludedClassificationRole) ||
     (input.rawObservationLines ?? []).some((line) =>
       isNonTaxEvidenceLine(
         line,
@@ -553,6 +577,7 @@ export function interpretReceiptTaxDecision(input: ReceiptTaxInput): ReceiptTaxD
     : missingAxis ||
         !axesHavePrimaryEvidence ||
         estimatedWithUnknownRounding ||
+        taxAmountResolution.dependsOnUnverifiedSummary ||
         selectedPriceConflicts ||
         selectedRateConflicts
       ? "ambiguous"
