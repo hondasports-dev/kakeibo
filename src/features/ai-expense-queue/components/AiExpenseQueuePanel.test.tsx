@@ -1053,6 +1053,37 @@ describe("AiExpenseQueuePanel", () => {
           categoryId: "cat-daily",
           reviewReasons: ["ambiguous_category", "amount_mismatch"],
           warnings: [],
+          rawObservation: {
+            source: "ai_ocr",
+            observedAt: 1,
+            lines: [
+              {
+                rawText: "読取不能 250円",
+                amountText: "250円",
+                amountYen: 250,
+                lineRoleCandidates: ["item", "unknown"],
+                roleConfidence: 0.4,
+                explicitlyPrinted: true,
+                sourceLineIndex: 4,
+              },
+            ],
+          },
+          receiptInterpretation: {
+            source: "ai",
+            interpretedAt: 1,
+            values: {
+              receiptLineClassifications: [
+                {
+                  sourceLineIndex: 4,
+                  status: "ambiguous",
+                  candidates: [
+                    { role: "item", score: 0.51, evidence: ["ai_candidate:item"] },
+                    { role: "unknown", score: 0.4, evidence: ["classification_ambiguous"] },
+                  ],
+                },
+              ],
+            },
+          },
         },
         items: [
           {
@@ -1083,6 +1114,10 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("heading", { name: "ドラッグストアA" })).toBeInTheDocument();
     expect(within(dialog).getByText("2026/06/21 ・ 1,380円")).toBeInTheDocument();
+    expect(within(dialog).getByText(/判定が曖昧なOCR行が1件/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("要確認 OCR行 4")).toHaveTextContent(
+      "候補: 商品 / 不明・明細へ未反映の可能性",
+    );
     expect(within(dialog).queryByRole("heading", { name: "登録候補" })).not.toBeInTheDocument();
     expect(within(dialog).queryByText("食費 150円")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("日用品 980円")).not.toBeInTheDocument();

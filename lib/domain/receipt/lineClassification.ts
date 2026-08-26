@@ -92,6 +92,8 @@ function addLabelCandidates(
     )
   ) {
     addCandidate(candidates, "tax", 0.94, "explicit_or_partial_label:tax");
+  } else if (/(?:\d+[%％](?:課税)?対象(?:額)?|課税対象(?:額)?|税率別対象(?:額)?)/.test(text)) {
+    addCandidate(candidates, "tax", 0.88, "structural_label:taxable_amount");
   } else if (
     /(?:[0-9０-９]+[%％].*(?:内|外)[税説悦稅]|(?:内|外)[税説悦稅].*[0-9０-９]+[%％])/.test(
       line.rawText,
@@ -164,6 +166,13 @@ function addContextEvidence(
     if (tax) {
       tax.score = Math.min(1, tax.score + 0.04);
       tax.evidence.add("amount_relation:tax_summary");
+    } else if (position >= 0.6) {
+      addCandidate(
+        candidates,
+        "unknown",
+        0.7,
+        "structural_context:footer_tax_amount_without_label",
+      );
     }
   }
   if (line.amountYen !== null && line.amountYen === context.receiptTotalYen) {
@@ -273,6 +282,64 @@ function addPaymentChangeVerification(
   }
 }
 
+function resolveCompetingTotalCandidates(
+  lines: ReceiptRawObservationLine[],
+  results: ReceiptLineClassification[],
+) {
+  const groups = new Map<number, Array<{ index: number; position: number; specificity: number }>>();
+  results.forEach((result, index) => {
+    if (result.candidates[0]?.role !== "totalCandidate") return;
+    const line = lines[index];
+    if (!line || line.amountYen === null) return;
+    const text = normalizeText(line.rawText);
+    const specificity = /(?:お支払合計|ご請求額|今回支払額|総計)/.test(text) ? 2 : 1;
+    const position =
+      line.boundingBox?.top ?? (lines.length <= 1 ? 0.5 : index / (lines.length - 1));
+    const group = groups.get(line.amountYen) ?? [];
+    group.push({ index, position, specificity });
+    groups.set(line.amountYen, group);
+  });
+
+  for (const group of groups.values()) {
+    if (group.length < 2) continue;
+    group.sort(
+      (left, right) => right.specificity - left.specificity || right.position - left.position,
+    );
+    const best = group[0]!;
+    const runnerUp = group[1]!;
+    const hasClearWinner =
+      best.specificity > runnerUp.specificity || best.position - runnerUp.position >= 0.05;
+
+    group.forEach((entry, rank) => {
+      const result = results[entry.index]!;
+      const candidate = result.candidates.find((value) => value.role === "totalCandidate")!;
+      candidate.evidence.push(`cross_line_rank:${rank + 1}`);
+      if (rank > 0) {
+        candidate.score = Number(
+          Math.min(candidate.score, Math.max(0, 0.94 - rank * 0.04)).toFixed(2),
+        );
+        result.status = "ambiguous";
+        if (!result.candidates.some((value) => value.role === "unknown")) {
+          result.candidates.push({
+            role: "unknown",
+            score: 0.4,
+            evidence: ["competing_total_candidate"],
+          });
+        }
+      } else if (!hasClearWinner) {
+        result.status = "ambiguous";
+        if (!result.candidates.some((value) => value.role === "unknown")) {
+          result.candidates.push({
+            role: "unknown",
+            score: 0.4,
+            evidence: ["competing_total_candidate"],
+          });
+        }
+      }
+    });
+  }
+}
+
 export function classifyReceiptLines(
   lines: ReceiptRawObservationLine[],
   context: ClassificationContext = {},
@@ -287,6 +354,7 @@ export function classifyReceiptLines(
   });
   addAdjacentPaymentEvidence(ordered, results);
   addPaymentChangeVerification(ordered, results);
+  resolveCompetingTotalCandidates(ordered, results);
   return results;
 }
 

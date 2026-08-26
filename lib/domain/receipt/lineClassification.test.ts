@@ -112,14 +112,48 @@ describe("classifyReceiptLines", () => {
 
     expect(results[0]?.candidates[0]).toMatchObject({
       role: "totalCandidate",
-      score: 0.98,
+      score: 0.9,
+      evidence: expect.arrayContaining(["cross_line_rank:2"]),
     });
+    expect(results[0]?.status).toBe("ambiguous");
     expect(results[1]?.candidates[0]?.role).toBe("tax");
     expect(results[2]?.candidates[0]).toMatchObject({
       role: "totalCandidate",
       score: 1,
-      evidence: expect.arrayContaining(["position:receipt_footer"]),
+      evidence: expect.arrayContaining(["position:receipt_footer", "cross_line_rank:1"]),
     });
+    expect(results[2]?.status).toBe("classified");
+  });
+
+  it("同ラベル・同額・同位置の合計候補は両方ambiguousにする", () => {
+    const first = {
+      ...line("合計", 800, 8, ["total"]),
+      boundingBox: { left: 0, top: 0.8, width: 1, height: 0.05 },
+    };
+    const second = {
+      ...line("合計", 800, 9, ["total"]),
+      boundingBox: { left: 0, top: 0.8, width: 1, height: 0.05 },
+    };
+    const results = classifyReceiptLines([first, second], { receiptTotalYen: 800 });
+
+    expect(results.map((result) => result.status)).toEqual(["ambiguous", "ambiguous"]);
+  });
+
+  it("税集計の構造ラベルとfooter税額一致をitem確定にしない", () => {
+    const results = classifyReceiptLines(
+      [
+        line("商品", 1000, 1, ["item"]),
+        line("8%対象 927円", 927, 8, ["item"]),
+        line("読取不能 73円", 73, 9, ["item"]),
+      ],
+      { taxAmountsYen: [927, 73] },
+    );
+
+    expect(results[1]?.candidates[0]?.role).toBe("tax");
+    expect(results[2]).toMatchObject({ status: "ambiguous" });
+    expect(results[2]?.candidates.map((candidate) => candidate.role)).toEqual(
+      expect.arrayContaining(["item", "unknown"]),
+    );
   });
 
   it("内税という文字を含む商品名は税行にしない", () => {

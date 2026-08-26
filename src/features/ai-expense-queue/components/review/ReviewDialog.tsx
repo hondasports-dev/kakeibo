@@ -25,6 +25,22 @@ import { ReviewItemsEditor } from "./ReviewItemsEditor";
 import { ReviewSummaryView } from "./ReviewSummaryView";
 import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 
+const RECEIPT_LINE_ROLE_LABELS = {
+  item: "商品",
+  itemDiscount: "商品値引き",
+  receiptDiscount: "全体値引き",
+  coupon: "クーポン",
+  pointsUsed: "ポイント利用",
+  fee: "手数料・袋代",
+  tax: "税",
+  subtotal: "小計",
+  totalCandidate: "合計候補",
+  paymentMethodAmount: "支払方法別金額",
+  cashReceived: "預り金",
+  change: "釣銭",
+  unknown: "不明",
+} as const;
+
 export function ReviewDialog({
   open,
   categories,
@@ -89,6 +105,11 @@ export function ReviewDialog({
   const hasLineItems = reviewItems.length > 0;
   const showSummaryView = hasLineItems && !isEditMode;
   const receiptAmount = Number(reviewForm.amountYen) || 0;
+  const lineClassifications =
+    selectedReviewDraft?.receiptInterpretation?.values.receiptLineClassifications ?? [];
+  const ambiguousLineCount = lineClassifications.filter(
+    (classification) => classification.status === "ambiguous",
+  ).length;
   const isSubmitDisabled =
     reviewSubmitting || isReviewDraftLoading || isReviewDraftNotFound || categories.length === 0;
 
@@ -148,21 +169,51 @@ export function ReviewDialog({
                   <Typography gutterBottom sx={{ fontWeight: 600 }} variant="body2">
                     OCR原文
                   </Typography>
+                  {ambiguousLineCount > 0 ? (
+                    <Alert severity="warning" sx={{ mb: 1 }} variant="outlined">
+                      判定が曖昧なOCR行が{ambiguousLineCount}
+                      件あります。明細へ未反映の可能性があります。
+                    </Alert>
+                  ) : null}
                   <Stack
                     component="ol"
                     spacing={0.5}
                     sx={{ m: 0, maxHeight: 160, overflow: "auto", pl: 3 }}
                   >
-                    {selectedReviewDraft.rawObservation.lines.map((line, index) => (
-                      <Typography
-                        component="li"
-                        key={`${line.sourceLineIndex}-${index}`}
-                        variant="body2"
-                      >
-                        {line.rawText}
-                        {line.amountText ? `（金額文字列: ${line.amountText}）` : ""}
-                      </Typography>
-                    ))}
+                    {selectedReviewDraft.rawObservation.lines.map((line, index) => {
+                      const classification = lineClassifications.find(
+                        (value) => value.sourceLineIndex === line.sourceLineIndex,
+                      );
+                      const isAmbiguous = classification?.status === "ambiguous";
+                      const candidateLabels = classification?.candidates
+                        .slice(0, 3)
+                        .map((candidate) => RECEIPT_LINE_ROLE_LABELS[candidate.role])
+                        .join(" / ");
+                      return (
+                        <Box
+                          aria-label={
+                            isAmbiguous ? `要確認 OCR行 ${line.sourceLineIndex}` : undefined
+                          }
+                          component="li"
+                          key={`${line.sourceLineIndex}-${index}`}
+                        >
+                          <Stack direction="row" spacing={0.75} sx={{ alignItems: "center" }}>
+                            <Typography variant="body2">
+                              {line.rawText}
+                              {line.amountText ? `（金額文字列: ${line.amountText}）` : ""}
+                            </Typography>
+                            {isAmbiguous ? (
+                              <Chip color="warning" label="要確認" size="small" />
+                            ) : null}
+                          </Stack>
+                          {isAmbiguous && candidateLabels ? (
+                            <Typography color="text.secondary" variant="caption">
+                              候補: {candidateLabels}・明細へ未反映の可能性
+                            </Typography>
+                          ) : null}
+                        </Box>
+                      );
+                    })}
                   </Stack>
                 </Box>
               ) : null}

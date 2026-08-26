@@ -186,6 +186,43 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.receiptLineClassifications?.[1]?.candidates[0]).toMatchObject({ role: "tax" });
   });
 
+  it("税率別対象額がAI item候補でも構造ラベルで明細から除外する", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [
+          { ...product, itemName: "商品", amountYen: 1000, printedAmountYen: 1000 },
+          { ...product, itemName: "8%対象", amountYen: 927, printedAmountYen: 927 },
+        ],
+        rawObservations: [
+          {
+            rawText: "商品 1,000円",
+            amountText: "1,000円",
+            amountYen: 1000,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+          {
+            rawText: "8%対象 927円",
+            amountText: "927円",
+            amountYen: 927,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 8,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+
+    expect(mapped.items?.map((item) => item.itemName)).toEqual(["商品"]);
+    expect(mapped.receiptLineClassifications?.[1]?.candidates[0]?.role).toBe("tax");
+  });
+
   it("支払方法金額は明細から外し、袋代はfeeとして残す", () => {
     const product = trialExternal8Fixture.items![0];
     const mapped = mapExtractionToDraftArgs(
