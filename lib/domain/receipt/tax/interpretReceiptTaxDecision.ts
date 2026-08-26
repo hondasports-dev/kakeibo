@@ -33,7 +33,7 @@ const BUSINESS_ATTRIBUTE_PATTERN =
   /(?:免税事業者|適格請求書発行事業者ではない|インボイス(?:未登録|非登録)|登録番号なし)/;
 const INCLUDED_LABEL_PATTERN = /(?:税込|内税|税を含む)/;
 const EXCLUDED_LABEL_PATTERN = /(?:税抜|外税|税別)/;
-const TAX_AMOUNT_LABEL_PATTERN = /(?:消費税(?:額|計)?|税額|内税額|外税額|税合計)/;
+const TAX_AMOUNT_LABEL_PATTERN = /(?:消費税(?!\s*率)(?:額|計)?|税額|内税額|外税額|税合計)/;
 
 function sourceRank(source: ReceiptTaxDecisionSource) {
   return SOURCE_PRIORITY.indexOf(source);
@@ -44,6 +44,7 @@ function knownBases(items: ExtractedReceiptItem[]) {
 }
 
 function treatmentFromBases(bases: Set<AmountBasis>): PriceTaxTreatment {
+  if (bases.has("unknown")) return "unknown";
   const included = bases.has("tax_included");
   const excluded = bases.has("tax_excluded");
   if (included && excluded) return "perItem";
@@ -224,6 +225,8 @@ function reconciliationAxisEvidence(input: ReceiptTaxInput) {
 }
 
 function arithmeticTreatment(input: ReceiptTaxInput): PriceTaxTreatment {
+  const itemBases = knownBases(input.items);
+  if (itemBases.has("unknown") && itemBases.size > 1) return "unknown";
   const modes = new Set<PriceTaxTreatment>();
   for (const summary of input.taxSummaries) {
     if (summary.taxableAmountYen === input.amountYen) modes.add("included");
@@ -285,8 +288,9 @@ function taxAmountDecision(input: ReceiptTaxInput): {
   const printedLines = (input.rawObservationLines ?? []).flatMap((line) => {
     const classification = classificationByIndex.get(line.sourceLineIndex);
     const normalized = line.rawText.normalize("NFKC");
+    const classifiedRole = classification?.candidates[0]?.role;
     const isTaxAmount =
-      classification?.candidates[0]?.role === "tax" &&
+      (classifiedRole === undefined || classifiedRole === "tax") &&
       TAX_AMOUNT_LABEL_PATTERN.test(normalized) &&
       !/(?:対象|小計)/.test(normalized);
     return isTaxAmount && line.amountYen !== null
@@ -303,6 +307,9 @@ function taxAmountDecision(input: ReceiptTaxInput): {
         !grandTotals.includes(line) &&
         /(?:^|\D)(?:8|10)\s*%|軽減(?:税率|税)|標準(?:税率|税)/.test(line.normalized),
     );
+    const genericDetails = printedLines.filter(
+      (line) => !grandTotals.includes(line) && !rateDetails.includes(line),
+    );
     const uniqueGrandTotals = [...new Set(grandTotals.map((line) => line.amountYen))];
     const rateDetailTotal = rateDetails.reduce((sum, line) => sum + line.amountYen, 0);
     const printedTaxYen =
@@ -318,6 +325,8 @@ function taxAmountDecision(input: ReceiptTaxInput): {
       (uniqueGrandTotals.length === 1 &&
         rateDetails.length > 0 &&
         uniqueGrandTotals[0] !== rateDetailTotal) ||
+      (uniqueGrandTotals.length === 1 &&
+        genericDetails.some((line) => line.amountYen !== uniqueGrandTotals[0])) ||
       printedTaxYen === undefined;
     return {
       decision: { printedTaxYen, roundingMethod, source: "printed" },

@@ -175,6 +175,18 @@ describe("interpretReceiptTaxDecision decision table", () => {
     );
   });
 
+  it("既知basisにunknownが混ざる場合は価格扱いを確定しない", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        items: [item("tax_included", 10), item("unknown", 10)],
+        taxSummaries: [summary({ status: "ambiguous" })],
+      }),
+    );
+
+    expect(decision.priceTaxTreatment).toBe("unknown");
+    expect(decision.resolutionStatus).toBe("ambiguous");
+  });
+
   it("完全照合済み集計をAI・算術より優先する", () => {
     const decision = interpretReceiptTaxDecision(
       baseInput({
@@ -377,6 +389,30 @@ describe("interpretReceiptTaxDecision decision table", () => {
     expect(decision.reasons).not.toContain("conflicting_printed_tax_lines");
   });
 
+  it("分類情報がなくても明示的な印字税額を認識する", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        taxSummaries: [summary({ status: "ambiguous" })],
+        rawObservationLines: [line("消費税額 100円", 100, 9)],
+        receiptLineClassifications: undefined,
+      }),
+    );
+
+    expect(decision.taxAmount).toMatchObject({ printedTaxYen: 100, source: "printed" });
+  });
+
+  it("税率ラベルの数値を印字税額として扱わない", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        taxSummaries: [],
+        rawObservationLines: [line("消費税 率 10%", 10, 9)],
+        receiptLineClassifications: [classification(9, "tax")],
+      }),
+    );
+
+    expect(decision.taxAmount).toEqual({ roundingMethod: "unknown", source: "unknown" });
+  });
+
   it("税率表記つきgrand totalをrate detailへ二重所属させない", () => {
     const decision = interpretReceiptTaxDecision(
       baseInput({
@@ -453,6 +489,20 @@ describe("interpretReceiptTaxDecision decision table", () => {
           classification(9, "tax"),
           classification(10, "tax"),
         ],
+      }),
+    );
+
+    expect(decision.taxAmount.printedTaxYen).toBe(100);
+    expect(decision.resolutionStatus).toBe("contradictory");
+    expect(decision.reasons).toContain("conflicting_printed_tax_lines");
+  });
+
+  it("generic税額とgrand totalの不一致を矛盾として残す", () => {
+    const decision = interpretReceiptTaxDecision(
+      baseInput({
+        taxSummaries: [summary({ status: "ambiguous" })],
+        rawObservationLines: [line("消費税額 80円", 80, 8), line("税合計 100円", 100, 9)],
+        receiptLineClassifications: [classification(8, "tax"), classification(9, "tax")],
       }),
     );
 
