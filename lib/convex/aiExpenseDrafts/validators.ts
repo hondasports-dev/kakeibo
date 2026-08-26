@@ -141,6 +141,63 @@ export const receiptTotalResolutionValidator = v.object({
   reasons: v.array(v.string()),
 });
 
+export const priceTaxTreatmentValidator = v.union(
+  v.literal("included"),
+  v.literal("excluded"),
+  v.literal("perItem"),
+  v.literal("unknown"),
+);
+export const taxRateCompositionValidator = v.union(
+  v.literal("rate8"),
+  v.literal("rate10"),
+  v.literal("mixed"),
+  v.literal("unknown"),
+);
+export const receiptTaxDecisionSourceValidator = v.union(
+  v.literal("user"),
+  v.literal("explicitLabel"),
+  v.literal("marker"),
+  v.literal("position"),
+  v.literal("reconciliation"),
+  v.literal("ai"),
+);
+const receiptTaxDecisionCandidateValidator = v.object({
+  priceTaxTreatment: priceTaxTreatmentValidator,
+  taxRateComposition: taxRateCompositionValidator,
+  resolutionStatus: v.union(
+    v.literal("verified"),
+    v.literal("ambiguous"),
+    v.literal("contradictory"),
+  ),
+  resolutionSource: receiptTaxDecisionSourceValidator,
+  evidence: v.array(v.string()),
+  reasons: v.array(v.string()),
+});
+export const receiptTaxDecisionValidator = v.object({
+  priceTaxTreatment: priceTaxTreatmentValidator,
+  taxRateComposition: taxRateCompositionValidator,
+  resolutionStatus: v.union(
+    v.literal("verified"),
+    v.literal("ambiguous"),
+    v.literal("contradictory"),
+  ),
+  resolutionSource: receiptTaxDecisionSourceValidator,
+  evidence: v.array(v.string()),
+  reasons: v.array(v.string()),
+  candidates: v.array(receiptTaxDecisionCandidateValidator),
+  taxAmount: v.object({
+    printedTaxYen: v.optional(v.number()),
+    estimatedTaxYen: v.optional(v.number()),
+    roundingMethod: v.union(
+      v.literal("floor"),
+      v.literal("round"),
+      v.literal("ceil"),
+      v.literal("unknown"),
+    ),
+    source: v.union(v.literal("printed"), v.literal("estimated"), v.literal("unknown")),
+  }),
+});
+
 export const aiExpenseDraftConfidenceValidator = v.object({
   documentType: v.optional(v.number()),
   shopName: v.optional(v.number()),
@@ -257,6 +314,7 @@ export const receiptDraftValueSnapshotValidator = v.object({
   amountYen: v.optional(v.number()),
   taxSummaries: v.optional(v.array(taxSummaryValidator)),
   receiptTotalResolution: v.optional(receiptTotalResolutionValidator),
+  receiptTaxDecision: v.optional(receiptTaxDecisionValidator),
   receiptLineClassifications: v.optional(v.array(receiptLineClassificationValidator)),
   markerDefinitions: v.optional(markerDefinitionsValidator),
   categoryId: v.optional(v.id("categories")),

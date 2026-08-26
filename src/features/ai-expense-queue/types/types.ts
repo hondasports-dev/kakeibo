@@ -1,6 +1,7 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type {
   ExtractedTaxSummary,
+  ReceiptTaxDecision,
   ReceiptTotalResolution,
   TaxResolutionSource,
 } from "../../../../lib/receiptTax/types";
@@ -124,6 +125,7 @@ export type AiExpenseDraft = {
   warnings?: string[];
   taxSummaries?: Array<Omit<ExtractedTaxSummary, "confidence">>;
   receiptTotalResolution?: ReceiptTotalResolution;
+  receiptTaxDecision?: ReceiptTaxDecision;
   receiptDataContractVersion?: 1;
   rawObservation?: ReceiptRawObservation;
   receiptInterpretation?: ReceiptInterpretationSnapshot;

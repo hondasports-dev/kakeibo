@@ -1,4 +1,5 @@
 export { interpretReceiptTax } from "./interpretReceiptTax";
+export { interpretReceiptTaxDecision } from "./interpretReceiptTaxDecision";
 export { calculateTaxYen } from "./calculateTax";
 export {
   buildReceiptTaxInput,
@@ -27,6 +28,11 @@ export type {
   ReceiptMarkerDefinition,
   ReceiptTaxInput,
   ReceiptTaxInterpretation,
+  ReceiptTaxDecision,
+  ReceiptTaxDecisionCandidate,
+  ReceiptTaxDecisionSource,
+  PriceTaxTreatment,
+  TaxRateComposition,
   ReceiptTotalCandidate,
   ReceiptTotalResolution,
   TaxContextResolution,

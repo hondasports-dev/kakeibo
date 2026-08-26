@@ -65,7 +65,7 @@ export async function updateDraftItemTaxOverridesHandler(
   const updatedDraft = await persistReceiptUserOverrideSnapshot(ctx, {
     draftId: args.draftId,
     groupId,
-    fields: ["items", "receiptTotalResolution"],
+    fields: ["items", "receiptTotalResolution", "receiptTaxDecision"],
   });
   return { ...result, draft: updatedDraft };
 }

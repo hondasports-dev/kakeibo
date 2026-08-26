@@ -48,7 +48,10 @@ jobs:
       # authenticated は共有Dev DB・固定ユーザーをcleanupするため、PRをまたいで直列化する。
       # public は共有fixtureを変更しないため、同じPRの古い実行だけをキャンセルする。
       group: e2e-${{ matrix.name }}-${{ matrix.name == 'authenticated' && 'shared-dev' || github.event.pull_request.number }}
-      cancel-in-progress: true
+      # authenticated は共有Dev DBを使うため先行runをcancelせず、同じgroup内でqueueする。
+      # public はPR単位のgroupなので、同一PRの古いrunだけをcancelする。
+      queue: ${{ matrix.queue }}
+      cancel-in-progress: ${{ matrix.cancel_in_progress }}
     strategy:
       fail-fast: false
       matrix:
@@ -56,9 +59,13 @@ jobs:
           - name: public
             e2e_command: pnpm run e2e:public -- --project=chromium --workers=3
             timeout: 10
+            queue: single
+            cancel_in_progress: true
           - name: authenticated
             e2e_command: pnpm run e2e:smoke -- --project=chromium --grep-invert @public --workers=1
             timeout: 20
+            queue: max
+            cancel_in_progress: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

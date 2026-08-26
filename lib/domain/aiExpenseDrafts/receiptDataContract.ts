@@ -8,6 +8,7 @@ import type {
   AmountBasis,
   ExtractedTaxSummary,
   ReceiptMarkerDefinition,
+  ReceiptTaxDecision,
   ReceiptTotalResolution,
   TaxRatePercent,
   TaxResolutionSource,
@@ -51,6 +52,7 @@ export type ReceiptDraftValueSnapshot<TCategoryId = string> = {
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
+  receiptTaxDecision?: ReceiptTaxDecision;
   receiptLineClassifications?: ReceiptLineClassification[];
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: TCategoryId;
@@ -91,6 +93,7 @@ const TOP_LEVEL_OVERRIDE_FIELDS = [
   "date",
   "amountYen",
   "receiptTotalResolution",
+  "receiptTaxDecision",
   "markerDefinitions",
   "categoryId",
 ] as const;

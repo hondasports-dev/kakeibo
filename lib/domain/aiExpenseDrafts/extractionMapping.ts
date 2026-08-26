@@ -4,6 +4,7 @@ import type {
   ExtractedReceiptItem,
   ExtractedTaxSummary,
   ReceiptMarkerDefinition,
+  ReceiptTaxDecision,
   ReceiptTotalResolution,
   ReceiptTaxInput,
   TaxRatePercent,
@@ -22,6 +23,7 @@ import {
   interpretedItemToDraftFields,
 } from "../receipt/tax/draftTaxMapping";
 import { interpretReceiptTax } from "../receipt/tax/interpretReceiptTax";
+import { interpretReceiptTaxDecision } from "../receipt/tax/interpretReceiptTaxDecision";
 import { resolveReceiptTotal } from "../receipt/tax/resolveReceiptTotal";
 import type {
   AiExpenseDraftConfidence,
@@ -65,6 +67,7 @@ export type DraftArgs<TId = string> = {
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
+  receiptTaxDecision?: ReceiptTaxDecision;
   rawObservationLines?: ReceiptRawObservationLine[];
   receiptLineClassifications?: ReceiptLineClassification[];
   markerDefinitions?: ReceiptMarkerDefinition[];
@@ -191,21 +194,24 @@ export function mapExtractionToDraftArgs<TId>(
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
 
   const taxInput: ReceiptTaxInput | undefined =
-    extracted.amountYen !== null &&
-    extractedItems &&
-    extractedItems.length > 0 &&
-    extracted.taxSummaries
+    extracted.amountYen !== null && extracted.taxSummaries
       ? {
           amountYen: extracted.amountYen,
           receiptTotalSource: "explicit_label",
           receiptTotalConfidence: extracted.confidence.amountYen,
-          items: extractedItems.map(normalizeExtractedItemForTax),
+          items: (extractedItems ?? []).map(normalizeExtractedItemForTax),
           taxSummaries: extracted.taxSummaries as ExtractedTaxSummary[],
           markerDefinitions: extracted.markerDefinitions,
+          rawObservationLines,
+          receiptLineClassifications,
         }
       : undefined;
 
-  const interpretation = taxInput ? interpretReceiptTax(taxInput) : undefined;
+  const interpretation =
+    taxInput && taxInput.items.length > 0 ? interpretReceiptTax(taxInput) : undefined;
+  const receiptTaxDecision = taxInput
+    ? (interpretation?.decision ?? interpretReceiptTaxDecision(taxInput))
+    : undefined;
   const receiptTotalResolution =
     interpretation?.receiptTotalResolution ??
     resolveReceiptTotal({
@@ -285,6 +291,7 @@ export function mapExtractionToDraftArgs<TId>(
       extracted.amountYen !== null && extracted.amountYen > 0 ? extracted.amountYen : undefined,
     taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
     receiptTotalResolution,
+    receiptTaxDecision,
     rawObservationLines: extracted.rawObservations,
     receiptLineClassifications,
     markerDefinitions: extracted.markerDefinitions,

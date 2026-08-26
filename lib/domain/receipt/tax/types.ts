@@ -4,6 +4,37 @@ export type ResolvedAmountBasis = Exclude<AmountBasis, "unknown">;
 export type TaxMode = "external" | "included" | "mixed" | "unknown";
 export type RoundingMethod = "floor" | "round" | "ceil" | "unknown";
 
+export type PriceTaxTreatment = "included" | "excluded" | "perItem" | "unknown";
+export type TaxRateComposition = "rate8" | "rate10" | "mixed" | "unknown";
+export type ReceiptTaxDecisionSource =
+  | "user"
+  | "explicitLabel"
+  | "marker"
+  | "position"
+  | "reconciliation"
+  | "ai";
+
+export type ReceiptTaxDecisionCandidate = {
+  priceTaxTreatment: PriceTaxTreatment;
+  taxRateComposition: TaxRateComposition;
+  resolutionStatus: TaxSummaryDecisionStatus;
+  resolutionSource: ReceiptTaxDecisionSource;
+  evidence: string[];
+  reasons: string[];
+};
+
+export type ReceiptTaxAmountDecision = {
+  printedTaxYen?: number;
+  estimatedTaxYen?: number;
+  roundingMethod: RoundingMethod;
+  source: "printed" | "estimated" | "unknown";
+};
+
+export type ReceiptTaxDecision = ReceiptTaxDecisionCandidate & {
+  candidates: ReceiptTaxDecisionCandidate[];
+  taxAmount: ReceiptTaxAmountDecision;
+};
+
 export type TaxSummaryDecisionStatus = "verified" | "ambiguous" | "contradictory";
 export type LegacyTaxSummaryConsistencyStatus = "coherent" | "reconcilable" | "conflicting";
 /** Legacy values remain readable until the observation contract migration in #667. */
@@ -107,12 +138,19 @@ export type ReceiptTaxInput = {
   items: ExtractedReceiptItem[];
   taxSummaries: ExtractedTaxSummary[];
   markerDefinitions?: ReceiptMarkerDefinition[];
+  rawObservationLines?: import("../observations").ReceiptRawObservationLine[];
+  receiptLineClassifications?: import("../observations").ReceiptLineClassification[];
+  userOverride?: {
+    priceTaxTreatment?: PriceTaxTreatment;
+    taxRateComposition?: TaxRateComposition;
+  };
 };
 
 export type ReceiptTaxInterpretation = {
   items: InterpretedReceiptItem[];
   taxSummaries: ExtractedTaxSummary[];
   receiptTotalResolution: ReceiptTotalResolution;
+  decision: ReceiptTaxDecision;
   warnings: string[];
 };
 

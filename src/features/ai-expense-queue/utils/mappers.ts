@@ -64,6 +64,7 @@ export function mapConvexDraftToAiExpenseDraft(draft: Doc<"aiExpenseDrafts">): A
     date: draft.date,
     amountYen: draft.amountYen,
     receiptTotalResolution: draft.receiptTotalResolution,
+    receiptTaxDecision: draft.receiptTaxDecision,
     receiptDataContractVersion: draft.receiptDataContractVersion,
     rawObservation: draft.rawObservation,
     receiptInterpretation: draft.receiptInterpretation,

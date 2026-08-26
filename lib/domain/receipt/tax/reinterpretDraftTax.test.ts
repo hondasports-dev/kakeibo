@@ -103,6 +103,98 @@ describe("reinterpretDraftTax", () => {
     expect(after.itemFields[0]?.printedAmountYen).toBe(300);
     expect(after.itemFields[1]?.taxResolutionStatus).toBe("unresolved");
     expect(after.itemFields[2]?.taxResolutionStatus).toBe("unresolved");
+    expect(after.interpretation.decision).toMatchObject({
+      resolutionSource: "user",
+      resolutionStatus: "ambiguous",
+    });
+  });
+
+  it("税率だけの上書きでは明示された価格軸をuser根拠へ昇格しない", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 1100,
+      items: [
+        {
+          itemName: "商品",
+          printedAmountYen: 1000,
+          amountBasis: "tax_excluded",
+          taxRatePercent: 10,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [
+        {
+          taxRatePercent: 10,
+          taxMode: "included",
+          taxableAmountYen: 1100,
+          taxableAmountBasis: "tax_included",
+          taxYen: 100,
+          roundingMethod: "unknown",
+          confidence: {},
+          warnings: [],
+          status: "ambiguous",
+        },
+      ],
+      rawObservationLines: [
+        {
+          rawText: "税込",
+          amountText: "1,100円",
+          amountYen: 1100,
+          lineRoleCandidates: ["item"],
+          roleConfidence: 0.9,
+          explicitlyPrinted: true,
+          sourceLineIndex: 1,
+        },
+      ],
+      override: { itemIndex: 0, taxRatePercent: 8 },
+    });
+
+    expect(result.interpretation.decision).toMatchObject({
+      priceTaxTreatment: "included",
+      taxRateComposition: "mixed",
+      resolutionSource: "explicitLabel",
+    });
+    expect(result.interpretation.decision.evidence).toContain("user_override:composition");
+    expect(result.interpretation.decision.evidence).not.toContain("user_override:treatment");
+  });
+
+  it("summaryだけの価格上書きはsummaryの値をuser根拠にする", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 1100,
+      items: [
+        {
+          itemName: "商品",
+          printedAmountYen: 1100,
+          amountBasis: "tax_included",
+          taxRatePercent: 10,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [
+        {
+          taxRatePercent: 10,
+          taxMode: "included",
+          taxableAmountYen: 1000,
+          taxableAmountBasis: "tax_included",
+          taxYen: 100,
+          roundingMethod: "round",
+          confidence: {},
+          warnings: [],
+          status: "ambiguous",
+        },
+      ],
+      summaryOverride: {
+        index: 0,
+        summary: { taxMode: "external", taxableAmountBasis: "tax_excluded" },
+      },
+    });
+
+    expect(result.interpretation.decision).toMatchObject({
+      priceTaxTreatment: "excluded",
+      resolutionSource: "ai",
+    });
+    expect(result.interpretation.decision.evidence).toContain("user_override:treatment");
   });
 
   it("bulkUnresolvedOverride は未解決行すべてに税率とamountBasisを適用する", () => {
