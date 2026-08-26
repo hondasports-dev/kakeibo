@@ -12,6 +12,7 @@ import type {
   TaxRatePercent,
   TaxResolutionSource,
 } from "../receipt/tax/types";
+import type { ReceiptLineClassification } from "../receipt/observations";
 
 export type ReceiptDraftItemSnapshot<TCategoryId = string> = {
   itemName: string;
@@ -50,6 +51,7 @@ export type ReceiptDraftValueSnapshot<TCategoryId = string> = {
   amountYen?: number;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
+  receiptLineClassifications?: ReceiptLineClassification[];
   markerDefinitions?: ReceiptMarkerDefinition[];
   categoryId?: TCategoryId;
   confidence: AiExpenseDraftConfidence;

@@ -21,6 +21,7 @@ export function snapshotReceiptDraftValues(
     amountYen: draft.amountYen,
     taxSummaries: draft.taxSummaries,
     receiptTotalResolution: draft.receiptTotalResolution,
+    receiptLineClassifications: draft.receiptInterpretation?.values.receiptLineClassifications,
     markerDefinitions: draft.markerDefinitions,
     categoryId: draft.categoryId,
     confidence: draft.confidence,

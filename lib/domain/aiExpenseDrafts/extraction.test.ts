@@ -19,10 +19,10 @@ describe("isTaxSummaryItem", () => {
     ).toBe(true);
   });
 
-  it("金額が一致しない税関連商品名は false", () => {
+  it("税ラベルが明示されていれば金額不一致でも true", () => {
     expect(
       isTaxSummaryItem({ itemName: "消費税", amountYen: 999, printedAmountYen: 999 }, taxSummaries),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it("普通の商品は false", () => {

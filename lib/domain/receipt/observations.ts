@@ -34,3 +34,33 @@ export type ReceiptRawObservation = {
   observedAt: number;
   lines: ReceiptRawObservationLine[];
 };
+
+export const RECEIPT_STRUCTURAL_LINE_ROLES = [
+  "item",
+  "itemDiscount",
+  "receiptDiscount",
+  "coupon",
+  "pointsUsed",
+  "fee",
+  "tax",
+  "subtotal",
+  "totalCandidate",
+  "paymentMethodAmount",
+  "cashReceived",
+  "change",
+  "unknown",
+] as const;
+
+export type ReceiptStructuralLineRole = (typeof RECEIPT_STRUCTURAL_LINE_ROLES)[number];
+
+export type ReceiptLineClassificationCandidate = {
+  role: ReceiptStructuralLineRole;
+  score: number;
+  evidence: string[];
+};
+
+export type ReceiptLineClassification = {
+  sourceLineIndex: number;
+  status: "classified" | "ambiguous";
+  candidates: ReceiptLineClassificationCandidate[];
+};

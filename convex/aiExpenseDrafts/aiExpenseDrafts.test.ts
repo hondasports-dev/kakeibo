@@ -445,6 +445,19 @@ describe("aiExpenseDrafts", () => {
           sourceLineIndex: 4,
         },
       ],
+      receiptLineClassifications: [
+        {
+          sourceLineIndex: 4,
+          status: "classified",
+          candidates: [
+            {
+              role: "totalCandidate",
+              score: 0.98,
+              evidence: ["explicit_label:total", "position:receipt_footer"],
+            },
+          ],
+        },
+      ],
       confidence: {
         shopName: 0.92,
         date: 0.88,
@@ -477,7 +490,16 @@ describe("aiExpenseDrafts", () => {
         }),
         receiptInterpretation: expect.objectContaining({
           source: "ai",
-          values: expect.objectContaining({ amountYen: 1200, shopName: "スーパー青葉" }),
+          values: expect.objectContaining({
+            amountYen: 1200,
+            shopName: "スーパー青葉",
+            receiptLineClassifications: [
+              expect.objectContaining({
+                sourceLineIndex: 4,
+                candidates: [expect.objectContaining({ role: "totalCandidate" })],
+              }),
+            ],
+          }),
         }),
       }),
     );
