@@ -60,6 +60,24 @@ describe("ReceiptTaxCorrectionPanel", () => {
     expect(screen.getByText(/「レシート合計だけ保存」を選ぶ場合：1,100円/)).toBeVisible();
   });
 
+  it("ユーザーが税区分と税率を明示しても推定税額であることを表示する", () => {
+    render(
+      <ReceiptTaxCorrectionPanel
+        draft={draft}
+        onFieldChange={vi.fn()}
+        onOpenItemEditing={vi.fn()}
+        reviewForm={{
+          ...form,
+          priceTaxTreatment: "excluded",
+          taxRateComposition: "rate10",
+        }}
+        reviewItems={items}
+      />,
+    );
+
+    expect(screen.getByText(/保存予定：/)).toHaveTextContent("推定を含む");
+  });
+
   it("分からないを選ぶとレシート合計だけの保存へ切り替える", () => {
     const onFieldChange = vi.fn();
     render(

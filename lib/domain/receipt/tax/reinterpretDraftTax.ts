@@ -16,6 +16,7 @@ import type {
   TaxRatePercent,
 } from "./types";
 import type { ReceiptLineClassification, ReceiptRawObservationLine } from "../observations";
+import { allocateTax } from "./normalizeAmounts";
 
 export type { DraftSummaryOverride } from "./types";
 
@@ -233,29 +234,37 @@ export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): Reinterpre
   });
   const interpretedItems =
     selectedRate !== undefined && selectedBasis !== undefined
-      ? interpretation.items.map((item) => {
-          const allocatedTaxYen = Math.round(
-            selectedBasis === "tax_excluded"
-              ? (item.printedAmountYen * selectedRate) / 100
-              : (item.printedAmountYen * selectedRate) / (100 + selectedRate),
+      ? (() => {
+          const summaryTaxYen = taxSummaries[0]?.taxYen ?? 0;
+          const printedTotalYen = interpretation.items.reduce(
+            (sum, item) => sum + item.printedAmountYen,
+            0,
           );
-          return {
-            ...item,
-            amountBasis: selectedBasis,
-            taxRatePercent: selectedRate,
-            allocatedTaxYen,
-            normalizedAmountYen:
-              selectedBasis === "tax_excluded"
-                ? item.printedAmountYen + allocatedTaxYen
-                : item.printedAmountYen,
-            taxContext: {
-              status: "resolved" as const,
-              taxRatePercent: selectedRate,
+          const allocations = allocateTax(
+            summaryTaxYen,
+            printedTotalYen,
+            interpretation.items.map((item) => item.printedAmountYen),
+          );
+          return interpretation.items.map((item, index) => {
+            const allocatedTaxYen = allocations[index] ?? 0;
+            return {
+              ...item,
               amountBasis: selectedBasis,
-              source: "item_explicit" as const,
-            },
-          };
-        })
+              taxRatePercent: selectedRate,
+              allocatedTaxYen,
+              normalizedAmountYen:
+                selectedBasis === "tax_excluded"
+                  ? item.printedAmountYen + allocatedTaxYen
+                  : item.printedAmountYen,
+              taxContext: {
+                status: "resolved" as const,
+                taxRatePercent: selectedRate,
+                amountBasis: selectedBasis,
+                source: "item_explicit" as const,
+              },
+            };
+          });
+        })()
       : interpretation.items;
   const resolvedInterpretation = { ...interpretation, items: interpretedItems };
 

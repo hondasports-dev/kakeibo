@@ -276,6 +276,25 @@ describe("updateForReviewHandler tax reinterpretation", () => {
         resolutionSource: "user",
       },
     });
+
+    const detailed = await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-08-27",
+      amountYen: 1100,
+      categoryId: CAT_ID,
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate10",
+    });
+    expect(detailed).toMatchObject({
+      registrationMode: "detailed",
+      receiptTaxDecision: {
+        priceTaxTreatment: "excluded",
+        taxRateComposition: "rate10",
+        resolutionSource: "user",
+      },
+    });
   });
 
   it("削除・並べ替え・追加後も税情報を元の itemId にだけ引き継ぐ", async () => {

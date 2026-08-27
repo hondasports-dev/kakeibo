@@ -51,10 +51,13 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   ) {
     throw new ConvexError("Legacy receipt registrations cannot be edited from the AI queue");
   }
+  const hasTaxDecisionUpdate =
+    args.priceTaxTreatment !== undefined || args.taxRateComposition !== undefined;
   const registrationMode =
     args.priceTaxTreatment === "unknown" || args.taxRateComposition === "unknown"
       ? "totalOnly"
-      : (args.registrationMode ?? draft.registrationMode ?? "detailed");
+      : (args.registrationMode ??
+        (hasTaxDecisionUpdate ? "detailed" : (draft.registrationMode ?? "detailed")));
   if (!wasRegistered && draft.status !== "needs_review" && draft.status !== "ready") {
     throw new ConvexError("Only needs_review or ready AI expense drafts can be edited");
   }

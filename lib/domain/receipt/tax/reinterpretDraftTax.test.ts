@@ -75,6 +75,39 @@ describe("reinterpretDraftTax", () => {
     expect(result.interpretation.decision).toMatchObject({ resolutionSource: "user" });
   });
 
+  it("端数を明細へ配分し、明細税額の合計を丸め済み集計税額へ一致させる", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 11,
+      items: [
+        {
+          itemName: "商品A",
+          printedAmountYen: 5,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+        {
+          itemName: "商品B",
+          printedAmountYen: 5,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [],
+      decisionOverride: { priceTaxTreatment: "excluded", taxRateComposition: "rate10" },
+    });
+
+    expect(result.interpretation.taxSummaries[0]?.taxYen).toBe(1);
+    expect(result.itemFields.map((item) => item.allocatedTaxYen)).toEqual([1, 0]);
+    expect(result.itemFields.reduce((sum, item) => sum + (item.allocatedTaxYen ?? 0), 0)).toBe(1);
+    expect(result.itemFields.reduce((sum, item) => sum + (item.normalizedAmountYen ?? 0), 0)).toBe(
+      11,
+    );
+  });
+
   it("分からないというユーザー判断をAI推測で上書きしない", () => {
     const result = reinterpretDraftTax({
       amountYen: 108,
