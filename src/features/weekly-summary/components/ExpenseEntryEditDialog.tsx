@@ -19,7 +19,10 @@ import {
   updateRegisteredDraftApi,
 } from "../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { isValidSignedLineItemAmount } from "../../../../lib/domain/receipt/discountItems";
+import {
+  isValidSignedLineItemAmount,
+  sanitizeSignedYenInput,
+} from "../../../../lib/domain/receipt/discountItems";
 import type { ReceiptItem } from "../types/types";
 
 type CategoryOption = {
@@ -313,12 +316,18 @@ export function ExpenseEntryEditDialog({
                         setDraftItems((current) =>
                           current.map((currentItem, currentIndex) =>
                             currentIndex === index
-                              ? { ...currentItem, amountYen: event.target.value }
+                              ? {
+                                  ...currentItem,
+                                  amountYen: sanitizeSignedYenInput(
+                                    currentItem.itemName,
+                                    event.target.value,
+                                  ),
+                                }
                               : currentItem,
                           ),
                         )
                       }
-                      slotProps={{ htmlInput: { inputMode: "numeric" } }}
+                      slotProps={{ htmlInput: { inputMode: "text" } }}
                       value={item.amountYen}
                     />
                     <TextField

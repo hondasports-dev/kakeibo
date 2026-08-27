@@ -145,7 +145,7 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
     );
   });
 
-  it("detailedの明細金額が負数なら保存しない", async () => {
+  it("detailedの通常明細では負号を保持しない", async () => {
     render(
       <ExpenseEntryEditDialog
         categories={[{ _id: "cat-food", name: "食費" }]}
@@ -170,13 +170,11 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
       />,
     );
 
-    await screen.findByLabelText("明細金額 1");
-    fireEvent.change(screen.getByLabelText("明細金額 1"), {
+    const amountInput = await screen.findByLabelText("明細金額 1");
+    fireEvent.change(amountInput, {
       target: { value: "-100" },
     });
-    fireEvent.click(screen.getByRole("button", { name: "保存" }));
-
-    expect(screen.getByText("明細名、明細金額、カテゴリを確認してください。")).toBeInTheDocument();
+    expect(amountInput).toHaveValue("100");
     expect(updateRegisteredDraftMock).not.toHaveBeenCalled();
   });
 
@@ -223,7 +221,9 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
       />,
     );
 
-    await screen.findByLabelText("明細金額 2");
+    const discountAmountInput = await screen.findByLabelText("明細金額 2");
+    expect(discountAmountInput).toHaveAttribute("inputmode", "text");
+    fireEvent.change(discountAmountInput, { target: { value: "-150" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() =>
@@ -240,7 +240,7 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
             {
               itemId: "item-2",
               itemName: "値引き",
-              amountYen: -100,
+              amountYen: -150,
               categoryId: "cat-food",
             },
           ],
