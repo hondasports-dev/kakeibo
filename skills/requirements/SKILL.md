@@ -1,6 +1,6 @@
 ---
 name: requirements
-description: PREPAREを所有し、Spec Confidence、scope、Acceptance Criteria、Risk、Required Controls、Verification planを一度だけ確定する。Riskの高さだけでRequirements reviewerを増やさない。
+description: PREPAREを所有し、Spec Confidence、scope、ID付きAcceptance Criteria/Invariant、Risk、Required Controls、Coverage Mapを一度だけ確定する。長文再読を避けつつ仕様・要件・test case漏れを早期検出する。
 license: Apache-2.0
 ---
 
@@ -8,19 +8,42 @@ license: Apache-2.0
 
 ## 目的
 
-実装前に「何を作るか」「何を守るか」「何を検証するか」を決める。
+実装前に「何を作るか」「何を守るか」「何を証明するか」を一度だけ決める。
 
 このSkillは次を所有する。
 
-- Goal / In scope / Out of scope / Preserve
-- Acceptance Criteria
+- Goal / In scope / Out of scope
+- ID付き Acceptance Criteria（`ACxx`）
+- ID付き Preserve / Invariant（`IVxx`）
+- relevant requirement dimensions
+- material assumptions
 - Spec Confidence
 - Risk / max observed Risk
 - Required Controls
-- Verification plan
+- compact Coverage Map
+- Verification plan / Test Case（`TCxx`）
 - 必要十分な Impact summary
 
 `C0` のままImplementationへ進まない。
+
+## Context discipline
+
+PREPAREでsourceを読んだ後、後工程へ長文を再コピーしない。
+
+保持するのは短いcontractと参照だけ。
+
+- authoritative sourceはURL / path / Issue comment等の参照を残す
+- 同じsource本文をtask-stateや各stage outputへ複製しない
+- AC / IV / TCはIDで参照する
+- unchangedなGoal / scope / Risk / Controlsを後stageで再要約しない
+
+探索はまずcheapに絞る。
+
+1. code search / symbol / filenameでdefinition・direct caller・direct test候補を出す
+2. 直接関係する箇所だけ読む
+3. material assumption、shared impact、source conflictを解消できない時だけ範囲を広げる
+
+「漏れが怖いから全repoを読む」はdefaultにしない。
 
 ## Workspace Preflight
 
@@ -61,6 +84,103 @@ desired stateについてauthoritative source同士が矛盾する。
 
 Issueが「現在BをAへ変える」と明示している場合、Bとの差はexpected deltaでありconflictではない。
 
+既存testは重要なEvidenceやが、現在の明示仕様と矛盾する場合にtestを仕様へ昇格させない。
+
+## Material assumptions
+
+記録するのは、間違うと実装結果がmaterially変わる推測だけ。
+
+- cheapに確認できる → Implementation前に確認
+- sourceから一意に復元できる → C1として根拠を残す
+- 複数の妥当な選択肢が残る → C0
+
+細かい実装推測を大量にledger化せず、product behavior / data / auth / caller / completion条件に効くものだけ残す。
+
+## Requirement completeness scan
+
+runtime behaviorを変えるtaskでは、次を**一度だけ** `relevant` / `not_applicable` に分類する。
+
+- happy path
+- boundary
+- error / failure
+- empty / loading
+- auth / ownership
+- persistence / state transition
+- caller compatibility
+- concurrency / idempotency
+- navigation / accessibility
+
+`relevant` な観点はACまたはIVとTCへ反映する。
+
+`not_applicable` は短い理由だけ残し、観点ごとの長い定型文を作らない。
+
+### AC
+
+ACは1件1意味で、外から観測できる期待結果を書く。
+
+```text
+AC01: 条件Xで操作すると結果Yになる
+AC02: 権限なしでは操作できず状態も変わらない
+```
+
+### Invariant / Preserve
+
+今回壊してはいけない既存behaviorだけをID化する。
+
+```text
+IV01: 既存caller Aの戻り値契約を維持する
+```
+
+全部の既存behaviorを列挙しない。
+
+## Coverage Map
+
+runtime behavior変更、Required Controlあり、またはR2以上ではcompact Coverage Mapを作る。
+
+```text
+AC01 → implementation: src/a.ts → TC01
+AC02 → implementation: convex/b.ts → TC02, TC03
+IV01 → implementation: shared/c.ts → TC04
+```
+
+AC本文を何度もコピーせずIDだけで繋ぐ。
+
+### Forward coverage
+
+すべてのACとrelevant IVに:
+
+- 1つ以上のVerification case、または
+- behavior不変等の明示NOT_REQUIRED理由
+
+があること。
+
+### Reverse coverage
+
+想定するbehavior-changing surfaceが:
+
+- AC
+- IV
+- 明示したdesign deviation
+
+のどれかへ対応すること。
+
+この段階では実際のdiffはまだ無いので、Implementation終了時にreverse coverageを確定する。
+
+## Test Case derivation
+
+TCはAC/IVから導出する。
+
+- positive
+- boundary
+- negative / denial
+- failure
+- regression
+- functional E2E
+
+を全部機械的に作るのではなく、`relevant` と判定したdimensionだけ作る。
+
+「test fileが存在する」ではなく、何を証明するかをTC IDで短く定義する。
+
 ## Independent Spec Review
 
 RiskがR3/R4という理由だけで複数reviewerを起動しない。
@@ -69,6 +189,8 @@ RiskがR3/R4という理由だけで複数reviewerを起動しない。
 
 - C1復元後もmaterial choiceが残る
 - 復元した仕様がauth/data/financial等のprotected behaviorを変える
+
+Reviewerには長い会話履歴ではなく、source参照 + Goal/scope + AC/IV + material assumptions + relevance dimensions + TC案を渡す。
 
 Reviewer同士を討論させない。rootが1回統合する。
 
@@ -127,26 +249,37 @@ authやschemaに触れたという理由だけで全High ceremonyを起動せず
 - auth/data/schema/financial/external writeの影響が不明
 - rollback/deploy impactが不明
 
+## PREPARE PASS条件
+
+- C1 / C2
+- unresolved material choiceなし
+- material assumptionが解消済み、またはC1根拠あり
+- AC / relevant IVがID付き
+- runtime behavior変更ならrelevance dimensions分類済み
+- required taskではCoverage Map作成済み
+- AC / relevant IVごとにVerification caseまたは明示NOT_REQUIRED理由あり
+- Risk / Controls / Verification plan確定
+
 ## 出力
+
+長文sourceの再要約は不要。
 
 ```text
 PREPARE
 Status: PASS | BLOCKED
 Workspace preflight:
 Spec confidence:
-Authoritative sources:
-Conflicts:
+Source refs:
+Material assumptions:
 Goal:
-In scope:
-Out of scope:
-Preserve:
-Acceptance Criteria:
-Impact summary:
-Risk axes:
-Risk level:
-Max observed risk:
-Required controls:
-Verification plan:
+In / Out:
+AC IDs:
+IV IDs:
+Relevant dimensions:
+Coverage Map:
+Risk / max observed:
+Controls:
+Verification TC IDs:
 Independent spec review:
 Human Gate:
 Evidence:
