@@ -6,7 +6,7 @@ requirements_review:
     snapshot_id: ""
     repository_revision: ""
     packet_version: ""
-    sources_manifest: []
+    sources_manifest: [] # references only; do not duplicate long source text
     digest: ""
     matches_task_snapshot: false
   execution:
@@ -17,14 +17,21 @@ requirements_review:
     other_review_outputs_seen_before_submission: false
     independence_attested: false
   facts: []
-  assumptions: []
+  material_assumptions: []
   omissions_or_ambiguities: []
   in_scope: []
   out_of_scope: []
-  preserve: []
-  acceptance_criteria: []
-  edge_error_loading_empty_authorization_states: []
-  test_strategy: []
+  preserve_invariants: [] # { id: IV01, preserve: "..." }
+  acceptance_criteria: [] # { id: AC01, expectation: "..." }
+  relevance_dimensions:
+    relevant: []
+    not_applicable_with_reason: []
+  coverage_challenges: []
+  # compact challenge entries:
+  # - contract_id: AC01 | IV01
+  #   missing_dimension: boundary | error_failure | auth_ownership | ...
+  #   reason: "why material"
+  test_strategy: [] # TC IDs / methods, not repeated AC prose
   findings: []
   resolution: ""
   rerun:
