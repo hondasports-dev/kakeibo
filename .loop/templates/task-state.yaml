@@ -169,14 +169,70 @@ telemetry:
   enabled: true
   measurement_source: wall_clock
   stages:
-    prepare: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    implementation: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    verification: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    review: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    delivery: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    pr_aftercare: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    incident: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
-    process_learning: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    prepare:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    implementation:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    verification:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    review:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    delivery:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    pr_aftercare:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    incident:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    process_learning:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
   counters:
     source_reads: 0
     skill_loads: 0
