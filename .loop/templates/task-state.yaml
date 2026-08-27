@@ -165,6 +165,42 @@ pr_aftercare:
   mergeable: pending
   evidence: []
 
+telemetry:
+  enabled: true
+  measurement_source: wall_clock
+  stages:
+    prepare: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    implementation: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    verification: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    review: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    delivery: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    pr_aftercare: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    incident: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+    process_learning: { started_at: "", finished_at: "", elapsed_seconds: null, external_wait_seconds: 0, wait_reasons: [] }
+  counters:
+    source_reads: 0
+    skill_loads: 0
+    changed_files: 0
+    acceptance_criteria_count: 0
+    invariant_count: 0
+    test_case_count: 0
+    required_control_count: 0
+    findings_added: 0
+    retries: 0
+    full_suite_runs: 0
+    review_cycles: 0
+  summary:
+    total_elapsed_seconds: null
+    total_external_wait_seconds: 0
+    active_elapsed_seconds: null
+    spec_confidence: ""
+    risk_level: ""
+    max_observed_risk: ""
+    task_size: "" # tiny | small | medium | large; observed from changed files / AC / surfaces, not effort guess
+    notes: []
+  optional_metrics:
+    token_usage: null # runtimeが正確に提供する場合だけ記録する
+
 learning:
   event: none
   status: not_required
