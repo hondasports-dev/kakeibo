@@ -1,6 +1,6 @@
 ---
 name: process-learning
-description: Learning Eventが実際に発生したtaskだけ、成果物の問題とループ中の無駄・誤判断を振り返り、再利用可能な改善候補へ変換する。Risk R3/R4だけを理由に起動しない。
+description: Learning Eventが実際に発生したtaskだけ、成果物の問題とループ中の無駄・誤判断を振り返り、telemetryを再利用可能な改善Evidenceとして使う。Risk R3/R4だけを理由に起動しない。
 license: Apache-2.0
 ---
 
@@ -40,6 +40,33 @@ Earlier detection / prevention:
 Reusable rule:
 ```
 
+## TelemetryをEvidenceに使う
+
+`task-state.telemetry` がある場合、全ログを読み直す前にまずstage summaryを見る。
+
+見るもの:
+
+- PREPARE / IMPLEMENT / VERIFY / REVIEW / DELIVER / AFTERCARE の elapsed
+- external wait（CI / Human Gate / external service等）
+- source reads / skill loads
+- retries / full suite runs / review cycles
+- changed files / AC / IV / TC / Controls / findings数
+- Spec Confidence / Risk / max observed Risk / task size
+
+比較の目的は「何分かかったから悪い」と決めることではない。同程度の規模・Risk・Spec Confidenceに対し、どのstageへ時間・retry・再読込が偏ったかを見る。
+
+例:
+
+- PREPAREが長い + source_readsが多い → source discovery / compact contract化を改善候補にする
+- VERIFYが長い + full_suite_runsが複数 → fail-fast順やCI evidence reuseを確認する
+- REVIEWが長い + review_cyclesが多い → omission scan不足、contract曖昧、review input過多を疑う
+- AFTERCAREが長いがexternal_waitの比率が高い → Agent loop自体の遅さと混同しない
+- Implementationが長い + requirements_gap → PREPAREで漏れを早期検出できたか確認する
+
+wall-clockにはtool/API/CI待ちが含まれる。external waitを分離できない場合は推測せず「未分離」として扱う。
+
+Token usageはruntimeが正確な値を提供する場合だけ補助Evidenceにする。推測token数を記録しない。
+
 ## ループ効率・判断品質の振り返り
 
 Learning Event が発生したtaskでは、成果物の原因分析に加えて、実行したループ自体を短く振り返る。目的は次の3点だけとする。
@@ -48,7 +75,7 @@ Learning Event が発生したtaskでは、成果物の原因分析に加えて�
 - 必須品質を維持したloop所要時間の短縮
 - 判断・scope・verification・delivery精度の向上
 
-新たに全ログや会話を読み直さない。task-state、Finding、Verification evidence、既に得たtool結果など、現在contextにある証跡だけを使う。
+新たに全ログや会話を読み直さない。task-state、telemetry、Finding、Verification evidence、既に得たtool結果など、現在contextにある証跡だけを使う。
 
 原則として影響の大きいものを最大3件まで抽出する。
 
@@ -64,7 +91,7 @@ Learning Event が発生したtaskでは、成果物の原因分析に加えて�
 
 - `context`: 読み込む情報・保持する状態・重複説明を減らす
 - `speed`: tool round-trip、待機、重複実行、手戻りを減らす
-- `precision`: 誤判定、scope miss、test gap、false completionを減らす
+- `precision`: 誤判定、scope miss、requirements gap、test gap、false completionを減らす
 
 細かな試行錯誤、既に自動テストで閉じたtask固有の修正、再利用性のない好みは候補にしない。改善候補がなければ `none` とする。
 
@@ -111,6 +138,7 @@ Learningで見つけた改善がcurrent task scope外なら同じPRへ混ぜな�
 PROCESS LEARNING
 Status: PASS | NOT_REQUIRED
 Events:
+Telemetry signal:
 Loop retrospective:
   Unnecessary decisions/actions:
   Incorrect decisions:
