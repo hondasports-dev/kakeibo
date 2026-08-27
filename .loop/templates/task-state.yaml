@@ -150,7 +150,9 @@ learning:
     proposed_target: ""
     disposition: pending # pending | applied | follow_up | no_change
     location: ""
-    persistent_follow_up: ""
+    persistent_follow_up:
+      type: "" # issue | task | pr
+      reference: ""
     rationale: ""
     evidence: []
     verification_evidence: []

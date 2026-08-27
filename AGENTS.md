@@ -370,10 +370,12 @@ R3 / R4 という理由だけでは full learning を起動しない。
 再利用可能な Learning candidate は、会話上の報告だけで完了させない。各候補について改善軸、再利用可能な rule、反映 target、evidence と次の disposition を記録する。
 
 - `applied`: script / CI / Skill / policy / docs のいずれかへ反映し、location と verification evidence を記録する
-- `follow_up`: 現在task scope外として、永続的な Issue / task / PR と target を記録する
+- `follow_up`: 現在task scope外として、永続的な Issue / task / PR のtype・referenceと target を記録する
 - `no_change`: 既存 enforcement で充足済み、または再利用不能である根拠を記録する
 
 Learning candidate が現在task scope外なら同じPRへ勝手に混ぜない。ユーザーが同一PRへの反映を明示した場合は `applied` まで行い、変更deltaの Verification / Review / Aftercare を実施する。
+
+Learning Event が `none` の場合だけ `NOT_REQUIRED` と空のcandidatesを許可する。Eventがある場合は `PASS` と候補配列をtask-stateへ明示し、未記録・未知shape・空白evidenceをPASS扱いしない。
 
 ---
 

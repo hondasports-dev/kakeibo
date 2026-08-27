@@ -92,10 +92,12 @@ Learning Event が発生したtaskでは、成果物の原因分析に加えて�
 dispositionは次のいずれかとする。
 
 - `applied`: loop artifactへ反映済み。locationとverification evidenceを必須とする
-- `follow_up`: current task scope外。永続的なIssue / task / PR、target、rationaleを必須とする
+- `follow_up`: current task scope外。永続的なIssue / task / PRのtype・reference、target、rationaleを必須とする
 - `no_change`: 既存enforcementで充足済み、または再利用不能。rationaleとevidenceを必須とする
 
 候補があるのにdispositionが`pending`、または会話上の提案だけで永続的な反映先が無い場合、Process LearningはPASSではない。
+
+task-stateの`learning` record全体を判定する。`event: none`の場合だけ`status: not_required`と空の`candidates`を許可する。Eventがある場合は`status: pass`と`candidates`配列を明示し、欠落・未知shape・空白だけのevidenceをfail-closedに扱う。
 
 ## Scope
 

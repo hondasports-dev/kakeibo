@@ -233,10 +233,12 @@ R3 / R4 という理由だけでは full learning を起動しない。
 Learning Event があった場合、再利用可能な候補を最も影響の大きい3件まで抽出し、`context` / `speed` / `precision` の改善軸を付ける。候補は会話上の報告だけで完了させず、次のいずれかへ必ず disposition する。
 
 - `applied`: 優先順位に従って script / code、CI、Skill、`AGENTS.md`、runbook/docs へ反映し、location と verification evidence を残す
-- `follow_up`: current task のscope外なら永続的な Issue / task / PR と proposed target を残す
+- `follow_up`: current task のscope外なら永続的な Issue / task / PR のtype・referenceと proposed targetを残す
 - `no_change`: 既存enforcementで充足済み、または再利用可能な変更でないことをevidence付きで残す
 
 ユーザーがcurrent PRへの反映を明示した場合は、候補を `applied` にしてdelta Verification / Review / Aftercareを行う。scope外の候補を暗黙に同じPRへ混ぜない。
+
+task-stateの`learning` record全体を判定対象とする。Eventが`none`の時だけ`NOT_REQUIRED`と空候補を許可し、Eventがある時は`PASS`と候補配列を必須にする。欠落・未知shape・空白だけのevidenceはfail-closedに扱う。
 
 ### Issue #673 loopから昇格した運用ルール
 

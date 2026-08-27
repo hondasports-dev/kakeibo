@@ -130,6 +130,7 @@ export function evaluateReviewEvidence({ evidence, headSha, changedPaths }) {
 
 const LEARNING_IMPROVEMENT_AXES = new Set(["context", "speed", "precision"]);
 const LEARNING_DISPOSITIONS = new Set(["applied", "follow_up", "no_change"]);
+const LEARNING_FOLLOW_UP_TYPES = new Set(["issue", "task", "pr"]);
 
 function candidateValue(candidate, camelCaseKey, snakeCaseKey) {
   return candidate?.[snakeCaseKey] ?? candidate?.[camelCaseKey];
@@ -137,6 +138,26 @@ function candidateValue(candidate, camelCaseKey, snakeCaseKey) {
 
 function isNonEmptyList(value) {
   return Array.isArray(value) && value.length > 0;
+}
+
+function isNonEmptyTextList(value) {
+  return isNonEmptyList(value) && value.every((item) => !isEmptyText(item));
+}
+
+function isPersistentFollowUp(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    LEARNING_FOLLOW_UP_TYPES.has(value.type) &&
+    !isEmptyText(value.reference)
+  );
+}
+
+export function extractLearningRecord(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return undefined;
+  }
+  return "learning" in input ? input.learning : input;
 }
 
 function validateLearningCandidate(candidate, index) {
@@ -159,8 +180,8 @@ function validateLearningCandidate(candidate, index) {
     errors.push(`candidate[${index}].improvement_axes must contain context, speed, or precision`);
   }
 
-  if (!isNonEmptyList(candidate?.evidence)) {
-    errors.push(`candidate[${index}].evidence is required`);
+  if (!isNonEmptyTextList(candidate?.evidence)) {
+    errors.push(`candidate[${index}].evidence requires non-empty text entries`);
   }
 
   const disposition = candidate?.disposition ?? candidate?.applicationStatus;
@@ -178,8 +199,10 @@ function validateLearningCandidate(candidate, index) {
       "verificationEvidence",
       "verification_evidence",
     );
-    if (!isNonEmptyList(verificationEvidence)) {
-      errors.push(`candidate[${index}].verification_evidence is required for applied`);
+    if (!isNonEmptyTextList(verificationEvidence)) {
+      errors.push(
+        `candidate[${index}].verification_evidence requires non-empty text entries for applied`,
+      );
     }
   }
 
@@ -189,8 +212,10 @@ function validateLearningCandidate(candidate, index) {
       "persistentFollowUp",
       "persistent_follow_up",
     );
-    if (isEmptyText(persistentFollowUp)) {
-      errors.push(`candidate[${index}].persistent_follow_up is required for follow_up`);
+    if (!isPersistentFollowUp(persistentFollowUp)) {
+      errors.push(
+        `candidate[${index}].persistent_follow_up requires type issue/task/pr and reference`,
+      );
     }
     if (isEmptyText(candidate?.rationale)) {
       errors.push(`candidate[${index}].rationale is required for follow_up`);
@@ -204,10 +229,42 @@ function validateLearningCandidate(candidate, index) {
   return errors;
 }
 
-export function evaluateLearningApplication({ userRequestedCurrentPrApply, candidates }) {
+export function evaluateLearningApplication({ userRequestedCurrentPrApply, learning }) {
   const errors = [];
-  const list = Array.isArray(candidates) ? candidates : [];
   const requested = userRequestedCurrentPrApply === true;
+
+  if (learning === null || typeof learning !== "object" || Array.isArray(learning)) {
+    return { ok: false, errors: ["learning record is missing or invalid"] };
+  }
+
+  const event = learning.event;
+  const normalizedStatus = typeof learning.status === "string" ? learning.status.toLowerCase() : "";
+  const candidatesAreArray = Array.isArray(learning.candidates);
+  const list = candidatesAreArray ? learning.candidates : [];
+
+  if (isEmptyText(event)) {
+    errors.push("learning.event is required");
+  }
+  if (!candidatesAreArray) {
+    errors.push("learning.candidates must be an array");
+  }
+
+  if (event === "none") {
+    if (normalizedStatus !== "not_required") {
+      errors.push("learning.status must be NOT_REQUIRED when event is none");
+    }
+    if (list.length > 0) {
+      errors.push("learning.candidates must be empty when event is none");
+    }
+    if (requested) {
+      errors.push("current-PR apply cannot be requested when learning.event is none");
+    }
+    return { ok: errors.length === 0, errors };
+  }
+
+  if (normalizedStatus !== "pass") {
+    errors.push("learning.status must be PASS when a learning event occurred");
+  }
 
   if (list.length > 3) {
     errors.push("learning candidates must be limited to the 3 highest-impact items");
@@ -420,14 +477,21 @@ function loadEvidence(options) {
 
 export function runLoopEvidenceCheck(options) {
   if (options.mode === "learning") {
-    const candidates = options.candidatesJson
-      ? JSON.parse(options.candidatesJson)
-      : options.file
-        ? readJsonFile(options.file)
-        : [];
+    let input;
+    try {
+      input = options.candidatesJson
+        ? JSON.parse(options.candidatesJson)
+        : options.file
+          ? readJsonFile(options.file)
+          : undefined;
+    } catch (error) {
+      console.log("LOOP_EVIDENCE learning: FAIL");
+      console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
     const result = evaluateLearningApplication({
       userRequestedCurrentPrApply: options.userRequestedCurrentPrApply,
-      candidates: Array.isArray(candidates) ? candidates : candidates.candidates,
+      learning: extractLearningRecord(input),
     });
     console.log(`LOOP_EVIDENCE learning: ${result.ok ? "PASS" : "FAIL"}`);
     for (const error of result.errors) console.error(`error: ${error}`);

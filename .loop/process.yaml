@@ -346,7 +346,8 @@ process_learning_policy:
         - verification_evidence
     follow_up:
       requires:
-        - persistent_follow_up
+        - persistent_follow_up.type が issue / task / pr のいずれかである
+        - persistent_follow_up.reference が空でない
         - proposed_target
         - rationale
     no_change:
@@ -355,6 +356,8 @@ process_learning_policy:
         - evidence
   rules:
     - 再利用可能な候補を会話上の報告だけで完了させない
+    - eventがnoneの時だけNOT_REQUIREDと空のcandidatesを許可する
+    - eventがある時はPASSとcandidates配列を明示し、未知shapeまたは空白evidenceをFAILにする
     - current task scope外の候補を同じPRへ暗黙に混ぜない
     - ユーザーがcurrent PRへの反映を明示した場合、全候補をappliedにしてdeltaを再検証する
   target_priority:
