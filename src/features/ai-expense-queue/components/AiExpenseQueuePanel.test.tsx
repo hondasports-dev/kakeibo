@@ -974,9 +974,48 @@ describe("AiExpenseQueuePanel", () => {
       date: "2026-06-01",
       amountYen: 1680,
       categoryId: "cat-daily",
+      registrationMode: "detailed",
       items: [],
     });
     expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
+  });
+
+  it("合計だけで保存を選ぶと登録金額と明細を集計しない説明を表示してmodeを保存する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") return [];
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "スーパー青葉",
+          date: "2026-06-01",
+          amountYen: 1680,
+          categoryId: "cat-daily",
+          reviewReasons: ["amount_mismatch"],
+        },
+        items: [{ itemName: "OCR商品", amountYen: 1200, categoryId: undefined, confidence: {} }],
+      };
+    });
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "修正する" }));
+    await user.click(within(dialog).getByRole("combobox", { name: "登録方法" }));
+    await user.click(screen.getByRole("option", { name: "レシート合計だけで保存" }));
+
+    expect(within(dialog).getByText(/登録される金額は1,680円/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/履歴・予算・カテゴリ集計には使われません/),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    expect(updateForReviewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ amountYen: 1680, registrationMode: "totalOnly" }),
+    );
   });
 
   it("OCR原文を確認し、ユーザー補正を明示操作でAI判定へ戻せる", async () => {
@@ -1266,6 +1305,7 @@ describe("AiExpenseQueuePanel", () => {
       date: "2026-06-21",
       amountYen: 1380,
       categoryId: "cat-daily",
+      registrationMode: "detailed",
       items: [
         expect.objectContaining({
           itemName: "パン",

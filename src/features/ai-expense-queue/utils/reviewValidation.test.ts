@@ -10,6 +10,7 @@ describe("getReviewFormError", () => {
         date: "2026-06-01",
         amountYen: "9120",
         categoryId: "cat-daily",
+        registrationMode: "detailed",
       }),
     ).toBe("店名・内容、支出日、金額、カテゴリを確認してください。");
   });
@@ -20,6 +21,7 @@ describe("getReviewFormError", () => {
       shopName: "スーパー青葉",
       amountYen: "9120",
       categoryId: "cat-daily",
+      registrationMode: "detailed" as const,
     };
     expect(getReviewFormError({ ...base, date: "2026-02-30" })).not.toBeNull();
     expect(getReviewFormError({ ...base, date: "2026/06/01" })).not.toBeNull();

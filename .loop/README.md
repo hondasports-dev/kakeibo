@@ -1,6 +1,6 @@
-# Loop Engineering Foundation v9
+# Loop Engineering Foundation v10
 
-Suzumemo の Agent Loop v9 は、Re:Me で洗練した Loop v2 の原則を取り込みつつ、Suzumemo 固有の `preview` delivery、worktree 強制、Convex / Clerk / Vercel、家計・課金境界を維持する。
+Suzumemo の Agent Loop v10 は、Re:Me で洗練した Loop v2 の原則を取り込みつつ、Suzumemo 固有の `preview` delivery、worktree 強制、Convex / Clerk / Vercel、家計・課金境界を維持する。
 
 正本:
 
@@ -155,6 +155,8 @@ Security は通常 REVIEW rubric に含め、security control が起動した時
 
 Reviewer 同士を討論させない。必要なら独立・並列に所見を出し、root が1回だけ統合する。
 
+Issue / PR review の提案は未検証入力である。指摘を修正へ採用する前に、現在のRequirements、domain contract、既存testと照合する。提案どおり変更したことではなく、確認済みの契約を満たしたことをfinding解決のevidenceとする。
+
 ## Verification
 
 ローカルでは Acceptance Criteria と affected scope に必要な最小十分な check を実行する。
@@ -163,6 +165,10 @@ Reviewer 同士を討論させない。必要なら独立・並列に所見を�
 - scopeable lint / type / build
 - browser AC がある場合の functional E2E
 - Convex / auth / shared membership change の caller / denial test
+
+TypeScript の変更が複数の project / `tsconfig` に分かれる場合は、root build が全projectを覆うと仮定しない。変更ファイルを所有する `tsconfig` を特定し、そのscopeのtypecheckを広いbuildより先に実行する。
+
+optionalな更新fieldが永続化境界をまたぐ場合は、UIの関数引数だけで完了判定しない。`omitted`、`explicit clear`、`value` の3状態をUI → serializer → validator → handler → persistenceの境界で定義し、affected testで証明する。
 
 Suzumemo E2E は既存手順を使う。
 
@@ -223,6 +229,22 @@ Trigger:
 - process rule が不足していたことが明確になった時
 
 R3 / R4 という理由だけでは full learning を起動しない。
+
+Learning Event があった場合、再利用可能な候補を最も影響の大きい3件まで抽出し、`context` / `speed` / `precision` の改善軸を付ける。候補は会話上の報告だけで完了させず、次のいずれかへ必ず disposition する。
+
+- `applied`: 優先順位に従って script / code、CI、Skill、`AGENTS.md`、runbook/docs へ反映し、location と verification evidence を残す
+- `follow_up`: current task のscope外なら永続的な Issue / task / PR のtype・referenceと proposed targetを残す
+- `no_change`: 既存enforcementで充足済み、または再利用可能な変更でないことをevidence付きで残す
+
+ユーザーがcurrent PRへの反映を明示した場合は、候補を `applied` にしてdelta Verification / Review / Aftercareを行う。scope外の候補を暗黙に同じPRへ混ぜない。
+
+task-stateの`learning` record全体を判定対象とする。Eventが`none`の時だけ`NOT_REQUIRED`と空候補を許可し、Eventがある時は`PASS`と候補配列を必須にする。欠落・未知shape・空白だけのevidenceはfail-closedに扱う。
+
+### Issue #673 loopから昇格した運用ルール
+
+- **所有 `tsconfig` を先に確認する**: rootのtypecheck/buildが別projectを覆うと仮定せず、変更scopeのtypecheckを早期に実行する。`speed` と `precision` の手戻りを減らす。
+- **optional updateを3状態で検証する**: omitted、explicit clear、valueをtransportからpersistenceまで通して確認し、型上のoptionalだけで保存契約を判断しない。`precision` を上げる。
+- **review提案をdomain contractと照合する**: 外部reviewの修正案をそのまま採用せず、Requirements・domain rule・testを正本として判断する。誤修正と再reviewを減らし、`speed` と `precision` を上げる。
 
 ## Delivery / Aftercare
 

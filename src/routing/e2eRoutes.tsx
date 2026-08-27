@@ -49,6 +49,7 @@ function E2eAiExpenseQueuePage() {
                   documentType: values.documentType,
                   title: values.shopName,
                   amountYen: values.amountYen,
+                  registrationMode: values.registrationMode,
                   reviewReasons: [],
                 }
               : item,

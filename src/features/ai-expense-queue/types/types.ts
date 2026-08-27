@@ -7,6 +7,7 @@ import type {
 } from "../../../../lib/receiptTax/types";
 import type { ReceiptRawObservation } from "../../../../lib/domain/receipt/observations";
 import type {
+  AiExpenseRegistrationMode,
   DerivedRegistrationSnapshot,
   ReceiptInterpretationSnapshot,
   ReceiptUserOverrideSnapshot,
@@ -49,6 +50,7 @@ export type AiExpenseQueueItem = {
     categoryName?: string;
     amountYen: number;
   }>;
+  registrationMode?: AiExpenseRegistrationMode;
 };
 
 export type AiExpenseUploadBatch = {
@@ -102,6 +104,7 @@ export type AiExpenseQueuePanelProps = {
         amountYen: number;
         categoryId: string;
       }>;
+      registrationMode?: AiExpenseRegistrationMode;
     },
     registerAfterUpdate: boolean,
   ) => Promise<AiExpenseReviewSubmitResult> | AiExpenseReviewSubmitResult;
@@ -130,6 +133,7 @@ export type AiExpenseDraft = {
   rawObservation?: ReceiptRawObservation;
   receiptInterpretation?: ReceiptInterpretationSnapshot;
   receiptUserOverride?: ReceiptUserOverrideSnapshot;
+  registrationMode?: AiExpenseRegistrationMode;
   derivedRegistration?: DerivedRegistrationSnapshot;
   markerDefinitions?: Array<{ marker: string; description: string }>;
   itemSummary?: {
@@ -185,6 +189,7 @@ export type ReviewFormValues = {
   date: string;
   amountYen: string;
   categoryId: string;
+  registrationMode: AiExpenseRegistrationMode;
 };
 
 export type ReviewItemValues = AiExpenseItemTaxDetails & {

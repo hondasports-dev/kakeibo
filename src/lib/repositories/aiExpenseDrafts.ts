@@ -12,5 +12,6 @@ export const resetReceiptToAiInterpretationApi = () =>
 export const updateDraftItemTaxOverridesApi = () =>
   api.aiExpenseDrafts.mutations.updateDraftItemTaxOverrides;
 export const updateForReviewApi = () => api.aiExpenseDrafts.mutations.updateForReview;
+export const updateRegisteredDraftApi = () => api.aiExpenseDrafts.mutations.updateRegisteredDraft;
 export const updateSummaryTaxOverridesApi = () =>
   api.aiExpenseDrafts.mutations.updateSummaryTaxOverrides;

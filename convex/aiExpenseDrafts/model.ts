@@ -10,6 +10,7 @@ export {
   aiExpenseDraftReviewReasonValidator,
   aiExpenseDraftConfidenceValidator,
   aiExpenseDraftItemConfidenceValidator,
+  aiExpenseRegistrationModeValidator,
   amountBasisValidator,
   derivedRegistrationSnapshotValidator,
   markerDefinitionsValidator,

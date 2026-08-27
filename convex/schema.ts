@@ -534,6 +534,8 @@ export default defineSchema({
     rawObservation: v.optional(receiptRawObservationValidator),
     receiptInterpretation: v.optional(receiptInterpretationSnapshotValidator),
     receiptUserOverride: v.optional(receiptUserOverrideSnapshotValidator),
+    // 未設定の既存下書きは detailed として扱う。
+    registrationMode: v.optional(v.union(v.literal("detailed"), v.literal("totalOnly"))),
     derivedRegistration: v.optional(derivedRegistrationSnapshotValidator),
     markerDefinitions: v.optional(markerDefinitionsValidator),
     categoryId: v.optional(v.id("categories")),

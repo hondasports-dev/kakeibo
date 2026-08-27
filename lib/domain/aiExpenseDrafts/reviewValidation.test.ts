@@ -143,4 +143,12 @@ describe("getReviewSubmitErrorMessage", () => {
   it("有効な入力はエラーなし", () => {
     expect(getReviewSubmitErrorMessage(baseForm, [validItem])).toBeNull();
   });
+
+  it("totalOnlyはOCR明細が不完全でも合計フォームだけで保存できる", () => {
+    expect(
+      getReviewSubmitErrorMessage({ ...baseForm, registrationMode: "totalOnly" }, [
+        { itemName: "", amountYen: "", categoryId: "" },
+      ]),
+    ).toBeNull();
+  });
 });

@@ -8,6 +8,7 @@ import {
   validateReviewUpdateCanBecomeReady,
 } from "../../../lib/domain/aiExpenseDrafts/review";
 import { type AiExpenseDraftDocumentType } from "./validators";
+import type { AiExpenseRegistrationMode } from "../../../lib/domain/aiExpenseDrafts/receiptDataContract";
 import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
 import {
   aggregateDraftItemsByCategory as aggregateDraftItemsByCategoryDomain,
@@ -44,6 +45,7 @@ export type UpdateForReviewArgs = {
   paymentPurpose?: string;
   date: string;
   amountYen: number;
+  registrationMode?: AiExpenseRegistrationMode;
   categoryId: Id<"categories">;
   items?: UpdateForReviewItem[];
 };

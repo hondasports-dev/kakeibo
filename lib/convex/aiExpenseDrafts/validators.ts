@@ -312,6 +312,7 @@ export const receiptDraftValueSnapshotValidator = v.object({
   paymentPurpose: v.optional(v.string()),
   date: v.optional(v.string()),
   amountYen: v.optional(v.number()),
+  registrationMode: v.optional(v.union(v.literal("detailed"), v.literal("totalOnly"))),
   taxSummaries: v.optional(v.array(taxSummaryValidator)),
   receiptTotalResolution: v.optional(receiptTotalResolutionValidator),
   receiptTaxDecision: v.optional(receiptTaxDecisionValidator),
@@ -340,8 +341,17 @@ export const receiptUserOverrideSnapshotValidator = v.object({
 export const derivedRegistrationSnapshotValidator = v.object({
   source: v.literal("derived"),
   destination: v.union(v.literal("receipt"), v.literal("expense_entries")),
+  registrationMode: v.optional(v.union(v.literal("detailed"), v.literal("totalOnly"))),
+  taxRatePercent: v.optional(v.union(v.literal(0), v.literal(8), v.literal(10), v.null())),
+  taxableAmountYen: v.optional(v.union(v.number(), v.null())),
+  taxYen: v.optional(v.union(v.number(), v.null())),
   amountYen: v.number(),
   date: v.string(),
   categoryIds: v.array(v.id("categories")),
   registeredAt: v.number(),
 });
+
+export const aiExpenseRegistrationModeValidator = v.union(
+  v.literal("detailed"),
+  v.literal("totalOnly"),
+);

@@ -12,6 +12,8 @@ export type SpendingEntry = {
   receiptGroupId?: string;
   receiptShopName?: string;
   receiptTotalAmountYen?: number;
+  aiExpenseDraftId?: string;
+  registrationMode?: "detailed" | "totalOnly";
 };
 
 export type IncomeListEntry = {
@@ -83,6 +85,7 @@ export function mapExpenseEntryToSpendingEntry(
       categoryId: expenseEntry.categoryId,
       memo: expenseEntry.memo,
       recordType: "expenseEntry",
+      aiExpenseDraftId: expenseEntry.aiExpenseDraftId,
     },
   };
 }
@@ -149,6 +152,7 @@ export type EnrichSpendingEntryAiExpenseDraft = {
   shopName?: string;
   payeeName?: string;
   amountYen?: number;
+  registrationMode?: "detailed" | "totalOnly";
 };
 
 export type EnrichSpendingEntryAiExpenseDraftItem = {
@@ -188,7 +192,14 @@ export function enrichSpendingEntry(
       receiptShopName:
         aiExpenseDraft.shopName ?? aiExpenseDraft.payeeName ?? entry.shopName ?? "不明",
       receiptTotalAmountYen: aiExpenseDraft.amountYen ?? entry.amountYen,
-      itemName: itemNames.length > 0 ? itemNames.join("、") : entry.shopName,
+      aiExpenseDraftId: aiExpenseDraft._id,
+      registrationMode: aiExpenseDraft.registrationMode ?? "detailed",
+      itemName:
+        aiExpenseDraft.registrationMode === "totalOnly"
+          ? undefined
+          : itemNames.length > 0
+            ? itemNames.join("、")
+            : entry.shopName,
     };
   }
 

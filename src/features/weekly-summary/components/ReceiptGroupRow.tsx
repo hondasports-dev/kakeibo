@@ -56,6 +56,9 @@ export function ReceiptGroupRow({
         <Box className="receipt-row-name" role="cell">
           <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
             <Chip label="支出" size="small" variant="outlined" />
+            {singleItem?.registrationMode === "totalOnly" ? (
+              <Chip label="合計だけで保存" size="small" variant="outlined" />
+            ) : null}
             <Typography sx={{ fontWeight: 700 }} noWrap>
               {group.shopName}
             </Typography>

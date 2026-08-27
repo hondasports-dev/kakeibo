@@ -50,6 +50,7 @@ export type ReceiptDraftValueSnapshot<TCategoryId = string> = {
   paymentPurpose?: string;
   date?: string;
   amountYen?: number;
+  registrationMode?: AiExpenseRegistrationMode;
   taxSummaries?: ExtractedTaxSummary[];
   receiptTotalResolution?: ReceiptTotalResolution;
   receiptTaxDecision?: ReceiptTaxDecision;
@@ -75,9 +76,15 @@ export type ReceiptUserOverrideSnapshot<TCategoryId = string> = {
   values: ReceiptDraftValueSnapshot<TCategoryId>;
 };
 
+export type AiExpenseRegistrationMode = "detailed" | "totalOnly";
+
 export type DerivedRegistrationSnapshot<TCategoryId = string> = {
   source: "derived";
   destination: "receipt" | "expense_entries";
+  registrationMode?: AiExpenseRegistrationMode;
+  taxRatePercent?: 0 | 8 | 10 | null;
+  taxableAmountYen?: number | null;
+  taxYen?: number | null;
   amountYen: number;
   date: string;
   categoryIds: TCategoryId[];
@@ -92,6 +99,7 @@ const TOP_LEVEL_OVERRIDE_FIELDS = [
   "paymentPurpose",
   "date",
   "amountYen",
+  "registrationMode",
   "receiptTotalResolution",
   "receiptTaxDecision",
   "markerDefinitions",

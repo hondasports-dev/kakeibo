@@ -128,31 +128,168 @@ export function evaluateReviewEvidence({ evidence, headSha, changedPaths }) {
   return { ok: errors.length === 0, errors };
 }
 
-function isAppliedCandidate(candidate) {
-  return candidate?.applicationStatus === "applied" && !isEmptyText(candidate?.location);
+const LEARNING_IMPROVEMENT_AXES = new Set(["context", "speed", "precision"]);
+const LEARNING_DISPOSITIONS = new Set(["applied", "follow_up", "no_change"]);
+const LEARNING_FOLLOW_UP_TYPES = new Set(["issue", "task", "pr"]);
+
+function candidateValue(candidate, camelCaseKey, snakeCaseKey) {
+  return candidate?.[snakeCaseKey] ?? candidate?.[camelCaseKey];
 }
 
-export function evaluateLearningApplication({ userRequestedCurrentPrApply, candidates }) {
+function isNonEmptyList(value) {
+  return Array.isArray(value) && value.length > 0;
+}
+
+function isNonEmptyTextList(value) {
+  return isNonEmptyList(value) && value.every((item) => !isEmptyText(item));
+}
+
+function isPersistentFollowUp(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    LEARNING_FOLLOW_UP_TYPES.has(value.type) &&
+    !isEmptyText(value.reference)
+  );
+}
+
+export function extractLearningRecord(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return undefined;
+  }
+  return "learning" in input ? input.learning : input;
+}
+
+function validateLearningCandidate(candidate, index) {
   const errors = [];
-  const list = Array.isArray(candidates) ? candidates : [];
+  const requiredText = [
+    ["observedProblem", "observed_problem"],
+    ["processCause", "process_cause"],
+    ["reusableRule", "reusable_rule"],
+    ["proposedTarget", "proposed_target"],
+  ];
+
+  for (const [camelCaseKey, snakeCaseKey] of requiredText) {
+    if (isEmptyText(candidateValue(candidate, camelCaseKey, snakeCaseKey))) {
+      errors.push(`candidate[${index}].${snakeCaseKey} is required`);
+    }
+  }
+
+  const axes = candidateValue(candidate, "improvementAxes", "improvement_axes");
+  if (!isNonEmptyList(axes) || axes.some((axis) => !LEARNING_IMPROVEMENT_AXES.has(axis))) {
+    errors.push(`candidate[${index}].improvement_axes must contain context, speed, or precision`);
+  }
+
+  if (!isNonEmptyTextList(candidate?.evidence)) {
+    errors.push(`candidate[${index}].evidence requires non-empty text entries`);
+  }
+
+  const disposition = candidate?.disposition ?? candidate?.applicationStatus;
+  if (!LEARNING_DISPOSITIONS.has(disposition)) {
+    errors.push(`candidate[${index}].disposition must be applied, follow_up, or no_change`);
+    return errors;
+  }
+
+  if (disposition === "applied") {
+    if (isEmptyText(candidate?.location)) {
+      errors.push(`candidate[${index}].location is required for applied`);
+    }
+    const verificationEvidence = candidateValue(
+      candidate,
+      "verificationEvidence",
+      "verification_evidence",
+    );
+    if (!isNonEmptyTextList(verificationEvidence)) {
+      errors.push(
+        `candidate[${index}].verification_evidence requires non-empty text entries for applied`,
+      );
+    }
+  }
+
+  if (disposition === "follow_up") {
+    const persistentFollowUp = candidateValue(
+      candidate,
+      "persistentFollowUp",
+      "persistent_follow_up",
+    );
+    if (!isPersistentFollowUp(persistentFollowUp)) {
+      errors.push(
+        `candidate[${index}].persistent_follow_up requires type issue/task/pr and reference`,
+      );
+    }
+    if (isEmptyText(candidate?.rationale)) {
+      errors.push(`candidate[${index}].rationale is required for follow_up`);
+    }
+  }
+
+  if (disposition === "no_change" && isEmptyText(candidate?.rationale)) {
+    errors.push(`candidate[${index}].rationale is required for no_change`);
+  }
+
+  return errors;
+}
+
+export function evaluateLearningApplication({ userRequestedCurrentPrApply, learning }) {
+  const errors = [];
   const requested = userRequestedCurrentPrApply === true;
+
+  if (learning === null || typeof learning !== "object" || Array.isArray(learning)) {
+    return { ok: false, errors: ["learning record is missing or invalid"] };
+  }
+
+  const event = learning.event;
+  const normalizedStatus = typeof learning.status === "string" ? learning.status.toLowerCase() : "";
+  const candidatesAreArray = Array.isArray(learning.candidates);
+  const list = candidatesAreArray ? learning.candidates : [];
+
+  if (isEmptyText(event)) {
+    errors.push("learning.event is required");
+  }
+  if (!candidatesAreArray) {
+    errors.push("learning.candidates must be an array");
+  }
+
+  if (event === "none") {
+    if (normalizedStatus !== "not_required") {
+      errors.push("learning.status must be NOT_REQUIRED when event is none");
+    }
+    if (list.length > 0) {
+      errors.push("learning.candidates must be empty when event is none");
+    }
+    if (requested) {
+      errors.push("current-PR apply cannot be requested when learning.event is none");
+    }
+    return { ok: errors.length === 0, errors };
+  }
+
+  if (normalizedStatus !== "pass") {
+    errors.push("learning.status must be PASS when a learning event occurred");
+  }
+
+  if (list.length > 3) {
+    errors.push("learning candidates must be limited to the 3 highest-impact items");
+  }
+
+  for (const [index, candidate] of list.entries()) {
+    errors.push(...validateLearningCandidate(candidate, index));
+  }
 
   if (requested) {
     if (list.length === 0) {
       errors.push("user requested current-PR apply but no candidates were recorded");
     }
     for (const [index, candidate] of list.entries()) {
-      if (!isAppliedCandidate(candidate)) {
-        errors.push(`candidate[${index}] is not applied with a non-empty location`);
+      const disposition = candidate?.disposition ?? candidate?.applicationStatus;
+      if (disposition !== "applied") {
+        errors.push(`candidate[${index}] must be applied when current-PR apply was requested`);
       }
     }
     return { ok: errors.length === 0, errors };
   }
 
   for (const [index, candidate] of list.entries()) {
-    const status = candidate?.applicationStatus;
-    const treatedAsNotApplied = status !== "applied";
-    if (!treatedAsNotApplied) {
+    const disposition = candidate?.disposition ?? candidate?.applicationStatus;
+    if (disposition === "applied") {
       errors.push(`candidate[${index}] is applied without a current-PR apply request`);
     }
   }
@@ -340,14 +477,21 @@ function loadEvidence(options) {
 
 export function runLoopEvidenceCheck(options) {
   if (options.mode === "learning") {
-    const candidates = options.candidatesJson
-      ? JSON.parse(options.candidatesJson)
-      : options.file
-        ? readJsonFile(options.file)
-        : [];
+    let input;
+    try {
+      input = options.candidatesJson
+        ? JSON.parse(options.candidatesJson)
+        : options.file
+          ? readJsonFile(options.file)
+          : undefined;
+    } catch (error) {
+      console.log("LOOP_EVIDENCE learning: FAIL");
+      console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
+      return 1;
+    }
     const result = evaluateLearningApplication({
       userRequestedCurrentPrApply: options.userRequestedCurrentPrApply,
-      candidates: Array.isArray(candidates) ? candidates : candidates.candidates,
+      learning: extractLearningRecord(input),
     });
     console.log(`LOOP_EVIDENCE learning: ${result.ok ? "PASS" : "FAIL"}`);
     for (const error of result.errors) console.error(`error: ${error}`);
