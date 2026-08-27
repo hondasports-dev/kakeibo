@@ -64,8 +64,7 @@ telemetry_policy:
       incident,
       process_learning,
     ]
-  stage_fields:
-    [started_at, finished_at, elapsed_seconds, external_wait_seconds, wait_reasons]
+  stage_fields: [started_at, finished_at, elapsed_seconds, external_wait_seconds, wait_reasons]
   counters:
     [
       source_reads,
