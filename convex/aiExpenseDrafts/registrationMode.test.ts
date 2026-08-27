@@ -168,6 +168,18 @@ describe("registrationMode persistence and aggregation", () => {
       taxYen: null,
     });
 
+    const { memo: _memo, ...updateWithoutMemo } = updateTotalOnly;
+    await authed.mutation(api.aiExpenseDrafts.mutations.updateRegisteredDraft, updateWithoutMemo);
+    const preservedMemoEntries = await t.run(async (ctx) =>
+      ctx.db
+        .query("expenseEntries")
+        .withIndex("by_group_id_and_ai_expense_draft_id", (q) =>
+          q.eq("groupId", ids.groupId).eq("aiExpenseDraftId", ids.draftId),
+        )
+        .collect(),
+    );
+    expect(preservedMemoEntries[0]?.memo).toBe("家計用");
+
     await authed.mutation(api.aiExpenseDrafts.mutations.updateRegisteredDraft, {
       ...updateTotalOnly,
       memo: "",

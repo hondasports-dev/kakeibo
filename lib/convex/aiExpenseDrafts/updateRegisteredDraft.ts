@@ -111,7 +111,7 @@ export async function updateRegisteredDraftHandler(
     groupId,
     userId,
     items: registrationItems,
-    memoUpdate: { value: memo.memo },
+    ...(args.memo === undefined ? {} : { memoUpdate: { value: memo.memo } }),
     now,
   });
   await ctx.db.patch(args.draftId, {

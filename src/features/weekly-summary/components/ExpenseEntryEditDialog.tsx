@@ -174,7 +174,7 @@ export function ExpenseEntryEditDialog({
             amountYen: parsedAmount,
             categoryId: categoryId as Id<"categories">,
             shopName: title.trim(),
-            memo: memo.trim() || undefined,
+            memo: memo.trim(),
             registrationMode,
             items: registrationMode === "detailed" ? submittedItems : undefined,
           });
