@@ -92,7 +92,13 @@ describe("totalOnly registration contract", () => {
 
   it("detailedからtotalOnlyへ切り替えても既存行を再利用し余分な行を削除する", async () => {
     const { db, entries } = createDb([
-      { _id: "entry-food", groupId, aiExpenseDraftId: draftId, categoryId: catFood },
+      {
+        _id: "entry-food",
+        groupId,
+        aiExpenseDraftId: draftId,
+        categoryId: catFood,
+        memo: "保持するメモ",
+      },
       { _id: "entry-daily", groupId, aiExpenseDraftId: draftId, categoryId: catDaily },
     ]);
     const ids = await reconcileDraftExpenseEntries({ db } as never, {
@@ -105,7 +111,11 @@ describe("totalOnly registration contract", () => {
 
     expect(ids).toEqual(["entry-food"]);
     expect([...entries.values()]).toHaveLength(1);
-    expect(entries.get("entry-food")).toMatchObject({ amount: 1200, categoryId: catFood });
+    expect(entries.get("entry-food")).toMatchObject({
+      amount: 1200,
+      categoryId: catFood,
+      memo: "保持するメモ",
+    });
     expect(db.insert).not.toHaveBeenCalled();
   });
 

@@ -190,6 +190,7 @@ export const updateRegisteredDraft = mutation({
     amountYen: v.number(),
     categoryId: v.id("categories"),
     shopName: v.string(),
+    memo: v.optional(v.string()),
     registrationMode: aiExpenseRegistrationModeValidator,
     items: v.optional(
       v.array(

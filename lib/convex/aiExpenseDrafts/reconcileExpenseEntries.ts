@@ -55,6 +55,7 @@ export async function reconcileDraftExpenseEntries(
     groupId: Id<"groups">;
     userId: string;
     items: RegistrationItem[];
+    memoUpdate?: { value?: string };
     now: number;
   },
 ): Promise<Id<"expenseEntries">[]> {
@@ -83,6 +84,7 @@ export async function reconcileDraftExpenseEntries(
         amount: item.amountYen,
         categoryId: item.categoryId,
         title: item.itemName,
+        ...(args.memoUpdate === undefined ? {} : { memo: args.memoUpdate.value }),
         entryType: "expense",
         source: "ai_suggested",
         updatedAt: args.now,
@@ -99,6 +101,7 @@ export async function reconcileDraftExpenseEntries(
         amount: item.amountYen,
         categoryId: item.categoryId,
         title: item.itemName,
+        ...(args.memoUpdate?.value === undefined ? {} : { memo: args.memoUpdate.value }),
         entryType: "expense",
         source: "ai_suggested",
         createdAt: args.now,

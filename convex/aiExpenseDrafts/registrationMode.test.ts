@@ -132,6 +132,7 @@ describe("registrationMode persistence and aggregation", () => {
       amountYen: 1500,
       categoryId: ids.foodId,
       shopName: "スーパー青葉",
+      memo: "家計用",
       registrationMode: "totalOnly" as const,
     };
     await authed.mutation(api.aiExpenseDrafts.mutations.updateRegisteredDraft, updateTotalOnly);
@@ -154,7 +155,11 @@ describe("registrationMode persistence and aggregation", () => {
     }));
     expect(totalOnlyState.items).toHaveLength(2);
     expect(totalOnlyState.entries).toHaveLength(1);
-    expect(totalOnlyState.entries[0]).toMatchObject({ amount: 1500, categoryId: ids.foodId });
+    expect(totalOnlyState.entries[0]).toMatchObject({
+      amount: 1500,
+      categoryId: ids.foodId,
+      memo: "家計用",
+    });
     expect(totalOnlyState.draft?.derivedRegistration).toMatchObject({
       registrationMode: "totalOnly",
       amountYen: 1500,
@@ -162,6 +167,21 @@ describe("registrationMode persistence and aggregation", () => {
       taxableAmountYen: null,
       taxYen: null,
     });
+
+    await authed.mutation(api.aiExpenseDrafts.mutations.updateRegisteredDraft, {
+      ...updateTotalOnly,
+      memo: "",
+    });
+    const clearedMemoEntries = await t.run(async (ctx) =>
+      ctx.db
+        .query("expenseEntries")
+        .withIndex("by_group_id_and_ai_expense_draft_id", (q) =>
+          q.eq("groupId", ids.groupId).eq("aiExpenseDraftId", ids.draftId),
+        )
+        .collect(),
+    );
+    expect(clearedMemoEntries).toHaveLength(1);
+    expect(clearedMemoEntries[0]).not.toHaveProperty("memo");
 
     const week = await authed.query(api.receipts.summaries.getWeekSummaryWithCategories, {
       weekStartDate: "2026-08-24",
@@ -235,6 +255,7 @@ describe("registrationMode persistence and aggregation", () => {
     );
     expect(detailedEntries).toHaveLength(2);
     expect(detailedEntries.reduce((sum, entry) => sum + entry.amount, 0)).toBe(1200);
+    expect(detailedEntries.every((entry) => entry.memo === "家計用")).toBe(true);
     const detailedDraft = await t.run(async (ctx) => ctx.db.get(ids.draftId));
     expect(detailedDraft?.receiptUserOverride).toMatchObject({
       fields: expect.arrayContaining(["items"]),

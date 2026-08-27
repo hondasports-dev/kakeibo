@@ -69,6 +69,7 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
           recordType: "expenseEntry",
           receiptShopName: "スーパー青葉",
           receiptTotalAmountYen: 1500,
+          memo: "旧メモ",
           aiExpenseDraftId: "draft-1",
           registrationMode: "totalOnly",
         }}
@@ -80,6 +81,7 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
     );
     expect(screen.getByText(/OCRの商品明細と税内訳は集計に使われません/)).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("金額"), { target: { value: "1600" } });
+    fireEvent.change(screen.getByLabelText("メモ"), { target: { value: "更新メモ" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await waitFor(() =>
@@ -89,6 +91,7 @@ describe("ExpenseEntryEditDialog AI draft history", () => {
         amountYen: 1600,
         categoryId: "cat-food",
         shopName: "スーパー青葉",
+        memo: "更新メモ",
         registrationMode: "totalOnly",
       }),
     );

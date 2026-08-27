@@ -5,6 +5,7 @@ import { requireGroupMembership } from "../../../convex/groups/membership";
 import { isValidIsoDateString } from "../../../convex/lib/weekDates";
 import {
   validateExpenseAmount,
+  validateExpenseMemo,
   validateExpenseTitle,
 } from "../../domain/expenseEntries/expenseEntryItem";
 import type { AiExpenseRegistrationMode } from "../../domain/aiExpenseDrafts/receiptDataContract";
@@ -27,6 +28,7 @@ export type UpdateRegisteredDraftArgs = {
   amountYen: number;
   categoryId: Id<"categories">;
   shopName: string;
+  memo?: string;
   registrationMode: AiExpenseRegistrationMode;
   items?: UpdateForReviewItem[];
 };
@@ -56,6 +58,8 @@ export async function updateRegisteredDraftHandler(
   }
   const title = validateExpenseTitle(args.shopName);
   if (!title.success) throw new ConvexError("Shop name is required");
+  const memo = validateExpenseMemo(args.memo);
+  if (!memo.success) throw new ConvexError("Memo must be 500 characters or less");
   await assertActiveCategoryBelongsToGroup(ctx, args.categoryId, groupId);
 
   const now = Date.now();
@@ -107,6 +111,7 @@ export async function updateRegisteredDraftHandler(
     groupId,
     userId,
     items: registrationItems,
+    memoUpdate: { value: memo.memo },
     now,
   });
   await ctx.db.patch(args.draftId, {
