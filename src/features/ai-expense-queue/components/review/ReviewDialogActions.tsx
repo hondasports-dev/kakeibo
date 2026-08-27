@@ -1,4 +1,5 @@
 import { Button, DialogActions } from "@mui/material";
+import type { ReviewFormValues } from "../../types/types";
 
 export function ReviewDialogActions({
   showSummaryView,
@@ -19,7 +20,10 @@ export function ReviewDialogActions({
   onEnterEditMode: () => void;
   onExitEditMode: () => void;
   onResetToAiInterpretation?: () => void;
-  onSubmit: (registerAfterUpdate: boolean) => void;
+  onSubmit: (
+    registerAfterUpdate: boolean,
+    registrationModeOverride?: ReviewFormValues["registrationMode"],
+  ) => void;
 }) {
   return (
     <DialogActions sx={{ px: 3, pb: 2, flexWrap: "wrap", gap: 1 }}>
@@ -49,11 +53,19 @@ export function ReviewDialogActions({
           </Button>
           <Button
             disabled={isSubmitDisabled}
+            onClick={() => onSubmit(false, "totalOnly")}
+            type="button"
+            variant="outlined"
+          >
+            レシート合計だけ保存
+          </Button>
+          <Button
+            disabled={isSubmitDisabled}
             onClick={() => onSubmit(false)}
             type="button"
             variant="contained"
           >
-            保存して閉じる
+            この内容で保存
           </Button>
         </>
       ) : (
@@ -63,11 +75,19 @@ export function ReviewDialogActions({
           </Button>
           <Button
             disabled={isSubmitDisabled}
+            onClick={() => onSubmit(false, "totalOnly")}
+            type="button"
+            variant="outlined"
+          >
+            レシート合計だけ保存
+          </Button>
+          <Button
+            disabled={isSubmitDisabled}
             onClick={() => onSubmit(false)}
             type="button"
             variant="contained"
           >
-            保存して閉じる
+            この内容で保存
           </Button>
         </>
       )}

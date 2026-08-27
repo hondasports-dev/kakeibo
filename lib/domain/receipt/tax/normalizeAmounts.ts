@@ -6,7 +6,7 @@ import type {
 } from "./types";
 import { resolveAmountBasis } from "./resolveAmountBasis";
 
-function allocateTax(taxYen: number, taxableAmountYen: number, amounts: number[]) {
+export function allocateTax(taxYen: number, taxableAmountYen: number, amounts: number[]) {
   if (amounts.length === 0 || taxableAmountYen === 0) return amounts.map(() => 0);
   const shares = amounts.map((amount, index) => {
     const exact = (amount * taxYen) / taxableAmountYen;

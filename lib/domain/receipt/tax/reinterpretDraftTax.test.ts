@@ -3,6 +3,148 @@ import { trialExternal8Fixture } from "../../../convex/receiptImageExtraction/fi
 import { reinterpretDraftTax } from "./reinterpretDraftTax";
 
 describe("reinterpretDraftTax", () => {
+  it("初心者向けの2軸選択を全明細へ適用し、ユーザー判断を最優先にする", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 1100,
+      items: [
+        {
+          itemName: "商品",
+          printedAmountYen: 1000,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 1000,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 80,
+          roundingMethod: "unknown",
+          confidence: {},
+          warnings: [],
+          status: "verified",
+        },
+      ],
+      decisionOverride: { priceTaxTreatment: "excluded", taxRateComposition: "rate10" },
+    });
+
+    expect(result.interpretation.decision).toMatchObject({
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate10",
+      resolutionSource: "user",
+    });
+    expect(result.itemFields[0]).toMatchObject({
+      amountBasis: "tax_excluded",
+      taxRatePercent: 10,
+      normalizedAmountYen: 1100,
+    });
+    expect(result.interpretation.taxSummaries[0]).toMatchObject({
+      taxRatePercent: 10,
+      taxYen: 100,
+      taxIncludedAmountYen: 1100,
+    });
+  });
+
+  it("税集計がなくても2軸選択から税額と登録額を計算する", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 1100,
+      items: [
+        {
+          itemName: "商品",
+          printedAmountYen: 1000,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [],
+      decisionOverride: { priceTaxTreatment: "excluded", taxRateComposition: "rate10" },
+    });
+
+    expect(result.itemFields[0]).toMatchObject({
+      amountBasis: "tax_excluded",
+      taxRatePercent: 10,
+      allocatedTaxYen: 100,
+      normalizedAmountYen: 1100,
+    });
+    expect(result.interpretation.decision).toMatchObject({ resolutionSource: "user" });
+  });
+
+  it("端数を明細へ配分し、明細税額の合計を丸め済み集計税額へ一致させる", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 11,
+      items: [
+        {
+          itemName: "商品A",
+          printedAmountYen: 5,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+        {
+          itemName: "商品B",
+          printedAmountYen: 5,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [],
+      decisionOverride: { priceTaxTreatment: "excluded", taxRateComposition: "rate10" },
+    });
+
+    expect(result.interpretation.taxSummaries[0]?.taxYen).toBe(1);
+    expect(result.itemFields.map((item) => item.allocatedTaxYen)).toEqual([1, 0]);
+    expect(result.itemFields.reduce((sum, item) => sum + (item.allocatedTaxYen ?? 0), 0)).toBe(1);
+    expect(result.itemFields.reduce((sum, item) => sum + (item.normalizedAmountYen ?? 0), 0)).toBe(
+      11,
+    );
+  });
+
+  it("分からないというユーザー判断をAI推測で上書きしない", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 108,
+      items: [
+        {
+          itemName: "商品",
+          printedAmountYen: 100,
+          amountBasis: "tax_excluded",
+          taxRatePercent: 8,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [
+        {
+          taxRatePercent: 8,
+          taxMode: "external",
+          taxableAmountYen: 100,
+          taxableAmountBasis: "tax_excluded",
+          taxYen: 8,
+          roundingMethod: "unknown",
+          confidence: {},
+          warnings: [],
+          status: "verified",
+        },
+      ],
+      decisionOverride: { priceTaxTreatment: "unknown", taxRateComposition: "unknown" },
+    });
+
+    expect(result.interpretation.decision).toMatchObject({
+      priceTaxTreatment: "unknown",
+      taxRateComposition: "unknown",
+      resolutionSource: "user",
+      resolutionStatus: "ambiguous",
+    });
+  });
+
   it("reinterprets draft items without changing printed amounts", () => {
     const items = trialExternal8Fixture.items!.map((item) => ({
       itemName: item.itemName,

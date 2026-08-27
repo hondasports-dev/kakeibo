@@ -965,7 +965,7 @@ describe("AiExpenseQueuePanel", () => {
     await user.type(screen.getByLabelText("店名・内容"), "スーパー青葉");
     await user.clear(screen.getByLabelText("合計金額"));
     await user.type(screen.getByLabelText("合計金額"), "1680");
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith({
       draftId: "draft-review",
@@ -1012,7 +1012,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(
       within(dialog).getByText(/履歴・予算・カテゴリ集計には使われません/),
     ).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
     expect(updateForReviewMock).toHaveBeenCalledWith(
       expect.objectContaining({ amountYen: 1680, registrationMode: "totalOnly" }),
     );
@@ -1171,7 +1171,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(dialog).getByText("パン")).toBeInTheDocument();
     expect(within(dialog).getByText("胃薬")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "修正する" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
   });
 
   it("複数カテゴリの編集後は登録前の確認画面へ戻る", async () => {
@@ -1209,13 +1209,13 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(within(dialog).getByRole("button", { name: "修正する" }));
     expect(within(dialog).getByLabelText("金額の照合")).toBeInTheDocument();
     expect(within(dialog).queryByText(/unknown_amount_basis/)).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "修正して登録" })).not.toBeInTheDocument();
     expect(
       within(dialog).queryByRole("button", { name: "登録準備OKに戻す" }),
     ).not.toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(updateForReviewMock).toHaveBeenCalled();
     expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
@@ -1296,7 +1296,7 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(screen.getByRole("option", { name: "食費" }));
     await user.click(categoryInputs[1]);
     await user.click(screen.getByRole("option", { name: "食費" }));
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith({
       draftId: "draft-review",
@@ -1379,7 +1379,7 @@ describe("AiExpenseQueuePanel", () => {
     const totalsPanel = within(dialog).getByLabelText("金額の照合");
     expect(within(totalsPanel).getAllByText("990円").length).toBeGreaterThanOrEqual(2);
 
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1441,7 +1441,7 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(within(dialog).getByRole("button", { name: "修正する" }));
 
     expect(within(dialog).queryByText("対象商品のカテゴリから減額します")).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1473,7 +1473,7 @@ describe("AiExpenseQueuePanel", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("下書きを読み込んでいます。")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeDisabled();
     expect(within(dialog).queryByLabelText("合計金額")).not.toBeInTheDocument();
   });
 
@@ -1497,7 +1497,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(
       within(dialog).getByText("下書きが見つかりません。一覧を更新してもう一度確認してください。"),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeDisabled();
   });
 
   it("未判定の書類種別は選択肢に表示せず送信前に止める", async () => {
@@ -1532,7 +1532,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(listbox).queryByRole("option", { name: "種別未判定" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     expect(within(dialog).getByText("書類種別を選択してください。")).toBeInTheDocument();
     expect(updateForReviewMock).not.toHaveBeenCalled();
@@ -1570,7 +1570,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(nameInput).toHaveValue("大阪市水道局");
     await user.clear(nameInput);
     await user.type(nameInput, "大阪市水道局 水道料金");
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     expect(onReviewSubmit).toHaveBeenCalledWith(
       "draft-review",
@@ -1620,7 +1620,7 @@ describe("AiExpenseQueuePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "確認する" }));
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -1661,11 +1661,14 @@ describe("AiExpenseQueuePanel", () => {
       await user.type(nameInput, "保存前の入力");
       await user.clear(amountInput);
       await user.type(amountInput, "7803");
-      await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+      await user.click(screen.getByRole("button", { name: "レシート合計だけ保存" }));
 
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       expect(nameInput).toHaveValue("保存前の入力");
       expect(amountInput).toHaveValue("7803");
+      expect(screen.getByRole("combobox", { name: "登録方法" })).toHaveTextContent(
+        "レシート合計だけで保存",
+      );
       expect(
         screen
           .getAllByRole("alert")
@@ -1703,7 +1706,7 @@ describe("AiExpenseQueuePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "確認する" }));
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -1792,7 +1795,7 @@ describe("AiExpenseQueuePanel", () => {
       expect(within(dialog).queryByRole("heading", { name: "登録候補" })).not.toBeInTheDocument();
       expect(within(dialog).queryByText("食費 150円")).not.toBeInTheDocument();
       expect(within(dialog).getByRole("button", { name: "修正する" })).toBeEnabled();
-      expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeEnabled();
+      expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeEnabled();
     });
   });
 });

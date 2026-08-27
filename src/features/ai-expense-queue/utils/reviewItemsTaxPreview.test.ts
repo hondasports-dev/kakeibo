@@ -47,4 +47,18 @@ describe("applyReviewItemsTaxPreview", () => {
     const items = [externalTaxItem()];
     expect(applyReviewItemsTaxPreview(items, { paidTotalYen: 322 })).toEqual(items);
   });
+
+  it("2段階のユーザー選択がAI税サマリーより優先される", () => {
+    const previewed = applyReviewItemsTaxPreview(
+      [externalTaxItem({ amountYen: "99", printedAmountYen: 99 })],
+      {
+        paidTotalYen: 108,
+        taxSummaries,
+        priceTaxTreatment: "excluded",
+        taxRateComposition: "rate8",
+      },
+    );
+
+    expect(previewed[0]).toMatchObject({ normalizedAmountYen: 107, allocatedTaxYen: 8 });
+  });
 });

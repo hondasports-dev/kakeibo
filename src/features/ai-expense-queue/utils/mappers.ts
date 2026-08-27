@@ -82,6 +82,7 @@ export function mapConvexDraftToAiExpenseDraft(draft: Doc<"aiExpenseDrafts">): A
 }
 
 export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
+  const hasSavedTaxDecision = draft.receiptUserOverride?.fields.includes("receiptTaxDecision");
   return {
     documentType: draft.documentType,
     shopName: getDraftTitle(draft, ""),
@@ -89,6 +90,12 @@ export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
     amountYen: draft.amountYen?.toString() ?? "",
     categoryId: draft.categoryId ?? "",
     registrationMode: draft.registrationMode ?? "detailed",
+    priceTaxTreatment: hasSavedTaxDecision
+      ? draft.receiptTaxDecision?.priceTaxTreatment
+      : undefined,
+    taxRateComposition: hasSavedTaxDecision
+      ? draft.receiptTaxDecision?.taxRateComposition
+      : undefined,
   };
 }
 

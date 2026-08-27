@@ -9,6 +9,7 @@ import {
 } from "../../../lib/domain/aiExpenseDrafts/review";
 import { type AiExpenseDraftDocumentType } from "./validators";
 import type { AiExpenseRegistrationMode } from "../../../lib/domain/aiExpenseDrafts/receiptDataContract";
+import type { PriceTaxTreatment, TaxRateComposition } from "../../receiptTax/types";
 import { resolveReviewItemAmountsForReplace } from "../../../lib/domain/aiExpenseDrafts/reviewItemAmounts";
 import {
   aggregateDraftItemsByCategory as aggregateDraftItemsByCategoryDomain,
@@ -46,6 +47,8 @@ export type UpdateForReviewArgs = {
   date: string;
   amountYen: number;
   registrationMode?: AiExpenseRegistrationMode;
+  priceTaxTreatment?: PriceTaxTreatment;
+  taxRateComposition?: TaxRateComposition;
   categoryId: Id<"categories">;
   items?: UpdateForReviewItem[];
 };
