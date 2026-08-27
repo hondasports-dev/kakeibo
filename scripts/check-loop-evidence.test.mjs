@@ -302,6 +302,21 @@ describe("evaluateVerificationEvidence", () => {
   });
 });
 
+function learningCandidate(overrides = {}) {
+  return {
+    observed_problem: "A reusable loop problem was observed",
+    process_cause: "The existing enforcement did not cover it",
+    reusable_rule: "Enforce the reusable behavior deterministically",
+    improvement_axes: ["precision"],
+    proposed_target: "scripts/check-loop-evidence.mjs",
+    disposition: "applied",
+    location: "scripts/check-loop-evidence.mjs",
+    evidence: ["task-state finding F001"],
+    verification_evidence: ["targeted test PASS"],
+    ...overrides,
+  };
+}
+
 describe("evaluateLearningApplication", () => {
   it("fails a current-PR apply request with no candidates", () => {
     expect(
@@ -309,28 +324,29 @@ describe("evaluateLearningApplication", () => {
     ).toMatchObject({ ok: false });
   });
 
-  it("fails a current-PR apply request unless every candidate is applied with a location", () => {
+  it("fails a current-PR apply request unless every candidate is applied with evidence", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
         candidates: [
-          { applicationStatus: "not_applied", location: "scripts/check-loop-evidence.mjs" },
+          learningCandidate({
+            disposition: "follow_up",
+            persistent_follow_up: "#700",
+            rationale: "outside current scope",
+          }),
         ],
       }),
     ).toMatchObject({ ok: false });
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [{ applicationStatus: "applied", location: "  " }],
+        candidates: [learningCandidate({ location: "  " })],
       }),
     ).toMatchObject({ ok: false });
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [
-          { applicationStatus: "applied", location: "scripts/check-loop-evidence.mjs" },
-          { applicationStatus: "not_applied", location: "skills/delivery/SKILL.md" },
-        ],
+        candidates: [learningCandidate({ verification_evidence: [] })],
       }),
     ).toMatchObject({ ok: false });
   });
@@ -339,16 +355,30 @@ describe("evaluateLearningApplication", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [{ applicationStatus: "applied", location: "scripts/check-loop-evidence.mjs" }],
+        candidates: [learningCandidate()],
       }),
     ).toMatchObject({ ok: true, errors: [] });
   });
 
-  it("passes deferred not_applied candidates when apply was not requested", () => {
+  it("passes persistent follow_up and evidenced no_change candidates", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: false,
-        candidates: [{ applicationStatus: "not_applied", location: "" }],
+        candidates: [
+          learningCandidate({
+            disposition: "follow_up",
+            location: "",
+            persistent_follow_up: "https://github.com/example/repo/issues/1",
+            rationale: "outside current scope",
+            verification_evidence: [],
+          }),
+          learningCandidate({
+            disposition: "no_change",
+            location: "",
+            rationale: "existing enforcement already covers the rule",
+            verification_evidence: [],
+          }),
+        ],
       }),
     ).toMatchObject({ ok: true, errors: [] });
     expect(
@@ -360,7 +390,45 @@ describe("evaluateLearningApplication", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: false,
-        candidates: [{ applicationStatus: "applied", location: "scripts/check-loop-evidence.mjs" }],
+        candidates: [learningCandidate()],
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("fails candidates without reusable content, valid axes, evidence, or disposition details", () => {
+    const result = evaluateLearningApplication({
+      userRequestedCurrentPrApply: false,
+      candidates: [
+        learningCandidate({
+          observed_problem: " ",
+          improvement_axes: ["cost"],
+          evidence: [],
+          disposition: "follow_up",
+          persistent_follow_up: "",
+          rationale: "",
+        }),
+      ],
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("candidate[0].observed_problem is required");
+    expect(result.errors).toContain(
+      "candidate[0].improvement_axes must contain context, speed, or precision",
+    );
+    expect(result.errors).toContain("candidate[0].evidence is required");
+    expect(result.errors).toContain("candidate[0].persistent_follow_up is required for follow_up");
+  });
+
+  it("limits reusable candidates to the 3 highest-impact items", () => {
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: true,
+        candidates: [
+          learningCandidate(),
+          learningCandidate(),
+          learningCandidate(),
+          learningCandidate(),
+        ],
       }),
     ).toMatchObject({ ok: false });
   });
@@ -378,18 +446,18 @@ describe("evaluateLearningApplication", () => {
     expect(production).toContain("convex deploy");
   });
 
-  it("treats unknown applicationStatus as not_applied", () => {
+  it("fails unknown dispositions", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [{ applicationStatus: "pending", location: "scripts/check-loop-evidence.mjs" }],
+        candidates: [learningCandidate({ disposition: "pending" })],
       }),
     ).toMatchObject({ ok: false });
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: false,
-        candidates: [{ applicationStatus: "pending", location: "" }],
+        candidates: [learningCandidate({ disposition: "pending" })],
       }),
-    ).toMatchObject({ ok: true, errors: [] });
+    ).toMatchObject({ ok: false });
   });
 });

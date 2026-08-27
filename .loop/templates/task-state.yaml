@@ -137,6 +137,23 @@ pr_aftercare:
 learning:
   event: none
   status: not_required
+  retrospective:
+    unnecessary_decisions_or_actions: []
+    incorrect_decisions: []
+    decisions_to_retain: []
+    next_loop_adjustments: []
+  candidate_schema:
+    observed_problem: ""
+    process_cause: ""
+    reusable_rule: ""
+    improvement_axes: [] # context | speed | precision
+    proposed_target: ""
+    disposition: pending # pending | applied | follow_up | no_change
+    location: ""
+    persistent_follow_up: ""
+    rationale: ""
+    evidence: []
+    verification_evidence: []
   candidates: []
 
 completion:

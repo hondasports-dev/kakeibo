@@ -37,6 +37,7 @@ PREPARE → IMPLEMENT → VERIFY → REVIEW? → DELIVER → PR AFTERCARE → DO
 - Risk と Required Controls を分ける。auth / data / schema / billing に触れたという理由だけで全工程を R3 ceremony にしない。
 - Implementation 開始後は、その task で観測した最大 Risk を completion floor とする。
 - Process Learning は完全 event-driven。R3/R4 という理由だけでは起動しない。
+- Learning Event がある task は、再利用可能な候補を会話上の報告だけで終わらせず、loop artifact への反映、永続 follow-up、または evidence 付き no-change のいずれかへ disposition する。
 - scope 外の改善を勝手に同じ PR へ混ぜない。
 
 ### Safety invariants
@@ -366,7 +367,13 @@ Trigger:
 
 R3 / R4 という理由だけでは full learning を起動しない。
 
-Learning candidate が現在task scope外なら同じPRへ混ぜない。
+再利用可能な Learning candidate は、会話上の報告だけで完了させない。各候補について改善軸、再利用可能な rule、反映 target、evidence と次の disposition を記録する。
+
+- `applied`: script / CI / Skill / policy / docs のいずれかへ反映し、location と verification evidence を記録する
+- `follow_up`: 現在task scope外として、永続的な Issue / task / PR と target を記録する
+- `no_change`: 既存 enforcement で充足済み、または再利用不能である根拠を記録する
+
+Learning candidate が現在task scope外なら同じPRへ勝手に混ぜない。ユーザーが同一PRへの反映を明示した場合は `applied` まで行い、変更deltaの Verification / Review / Aftercare を実施する。
 
 ---
 

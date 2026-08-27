@@ -128,8 +128,80 @@ export function evaluateReviewEvidence({ evidence, headSha, changedPaths }) {
   return { ok: errors.length === 0, errors };
 }
 
-function isAppliedCandidate(candidate) {
-  return candidate?.applicationStatus === "applied" && !isEmptyText(candidate?.location);
+const LEARNING_IMPROVEMENT_AXES = new Set(["context", "speed", "precision"]);
+const LEARNING_DISPOSITIONS = new Set(["applied", "follow_up", "no_change"]);
+
+function candidateValue(candidate, camelCaseKey, snakeCaseKey) {
+  return candidate?.[snakeCaseKey] ?? candidate?.[camelCaseKey];
+}
+
+function isNonEmptyList(value) {
+  return Array.isArray(value) && value.length > 0;
+}
+
+function validateLearningCandidate(candidate, index) {
+  const errors = [];
+  const requiredText = [
+    ["observedProblem", "observed_problem"],
+    ["processCause", "process_cause"],
+    ["reusableRule", "reusable_rule"],
+    ["proposedTarget", "proposed_target"],
+  ];
+
+  for (const [camelCaseKey, snakeCaseKey] of requiredText) {
+    if (isEmptyText(candidateValue(candidate, camelCaseKey, snakeCaseKey))) {
+      errors.push(`candidate[${index}].${snakeCaseKey} is required`);
+    }
+  }
+
+  const axes = candidateValue(candidate, "improvementAxes", "improvement_axes");
+  if (!isNonEmptyList(axes) || axes.some((axis) => !LEARNING_IMPROVEMENT_AXES.has(axis))) {
+    errors.push(`candidate[${index}].improvement_axes must contain context, speed, or precision`);
+  }
+
+  if (!isNonEmptyList(candidate?.evidence)) {
+    errors.push(`candidate[${index}].evidence is required`);
+  }
+
+  const disposition = candidate?.disposition ?? candidate?.applicationStatus;
+  if (!LEARNING_DISPOSITIONS.has(disposition)) {
+    errors.push(`candidate[${index}].disposition must be applied, follow_up, or no_change`);
+    return errors;
+  }
+
+  if (disposition === "applied") {
+    if (isEmptyText(candidate?.location)) {
+      errors.push(`candidate[${index}].location is required for applied`);
+    }
+    const verificationEvidence = candidateValue(
+      candidate,
+      "verificationEvidence",
+      "verification_evidence",
+    );
+    if (!isNonEmptyList(verificationEvidence)) {
+      errors.push(`candidate[${index}].verification_evidence is required for applied`);
+    }
+  }
+
+  if (disposition === "follow_up") {
+    const persistentFollowUp = candidateValue(
+      candidate,
+      "persistentFollowUp",
+      "persistent_follow_up",
+    );
+    if (isEmptyText(persistentFollowUp)) {
+      errors.push(`candidate[${index}].persistent_follow_up is required for follow_up`);
+    }
+    if (isEmptyText(candidate?.rationale)) {
+      errors.push(`candidate[${index}].rationale is required for follow_up`);
+    }
+  }
+
+  if (disposition === "no_change" && isEmptyText(candidate?.rationale)) {
+    errors.push(`candidate[${index}].rationale is required for no_change`);
+  }
+
+  return errors;
 }
 
 export function evaluateLearningApplication({ userRequestedCurrentPrApply, candidates }) {
@@ -137,22 +209,30 @@ export function evaluateLearningApplication({ userRequestedCurrentPrApply, candi
   const list = Array.isArray(candidates) ? candidates : [];
   const requested = userRequestedCurrentPrApply === true;
 
+  if (list.length > 3) {
+    errors.push("learning candidates must be limited to the 3 highest-impact items");
+  }
+
+  for (const [index, candidate] of list.entries()) {
+    errors.push(...validateLearningCandidate(candidate, index));
+  }
+
   if (requested) {
     if (list.length === 0) {
       errors.push("user requested current-PR apply but no candidates were recorded");
     }
     for (const [index, candidate] of list.entries()) {
-      if (!isAppliedCandidate(candidate)) {
-        errors.push(`candidate[${index}] is not applied with a non-empty location`);
+      const disposition = candidate?.disposition ?? candidate?.applicationStatus;
+      if (disposition !== "applied") {
+        errors.push(`candidate[${index}] must be applied when current-PR apply was requested`);
       }
     }
     return { ok: errors.length === 0, errors };
   }
 
   for (const [index, candidate] of list.entries()) {
-    const status = candidate?.applicationStatus;
-    const treatedAsNotApplied = status !== "applied";
-    if (!treatedAsNotApplied) {
+    const disposition = candidate?.disposition ?? candidate?.applicationStatus;
+    if (disposition === "applied") {
       errors.push(`candidate[${index}] is applied without a current-PR apply request`);
     }
   }

@@ -78,11 +78,30 @@ Learning Event が発生したtaskでは、成果物の原因分析に加えて�
 
 既存ruleを破っただけなら、文章追加よりenforcement改善を優先する。
 
+## Result persistence
+
+再利用可能な候補を会話上の報告だけで完了させない。候補ごとに次を記録する。
+
+- observed problem / process cause
+- reusable rule
+- `context` / `speed` / `precision` の改善軸
+- proposed target
+- disposition
+- evidence
+
+dispositionは次のいずれかとする。
+
+- `applied`: loop artifactへ反映済み。locationとverification evidenceを必須とする
+- `follow_up`: current task scope外。永続的なIssue / task / PR、target、rationaleを必須とする
+- `no_change`: 既存enforcementで充足済み、または再利用不能。rationaleとevidenceを必須とする
+
+候補があるのにdispositionが`pending`、または会話上の提案だけで永続的な反映先が無い場合、Process LearningはPASSではない。
+
 ## Scope
 
 Learningで見つけた改善がcurrent task scope外なら同じPRへ混ぜない。
 
-ユーザーが同PRへの反映を明示した場合のみ実装し、変更deltaに必要なVerification/Review/Aftercareを行う。
+ユーザーが同PRへの反映を明示した場合のみ実装し、全候補を`applied`にして変更deltaに必要なVerification/Review/Aftercareを行う。
 
 ## 出力
 
@@ -96,6 +115,13 @@ Loop retrospective:
   Decisions to retain:
   Next-loop adjustments:
 Candidates:
-Proposed target:
+  Observed problem:
+  Process cause:
+  Reusable rule:
+  Improvement axes:
+  Proposed target:
+  Disposition:
+  Location / persistent follow-up:
+  Verification evidence:
 Evidence:
 ```
