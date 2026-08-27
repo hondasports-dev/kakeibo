@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "format": "oxfmt",
-    "format:check": "oxfmt .loop/process.yaml .loop/templates/task-state.yaml && git diff -- .loop/process.yaml .loop/templates/task-state.yaml && exit 1",
+    "format:check": "oxfmt --check",
     "preview": "vite preview",
     "pretest": "node scripts/check-test-environment.mjs",
     "test": "vitest --maxWorkers=4",
