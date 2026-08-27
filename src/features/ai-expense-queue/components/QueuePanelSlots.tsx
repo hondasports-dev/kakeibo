@@ -149,12 +149,12 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onCategorySplitChange={queue.handleCategorySplitChange}
         onAssignCategoryToItems={queue.handleAssignCategoryToItems}
         onDiscountTargetChange={queue.handleDiscountTargetChange}
-        onSubmit={(registerAfterUpdate) => void queue.handleSubmitReview(registerAfterUpdate)}
+        onSubmit={(registerAfterUpdate, registrationModeOverride) =>
+          void queue.handleSubmitReview(registerAfterUpdate, registrationModeOverride)
+        }
         onResetToAiInterpretation={() => void queue.handleResetToAiInterpretation()}
         taxUpdatingItemId={queue.taxUpdatingItemId}
         onTaxRateChange={queue.handleTaxRateChange}
-        onApplyReceiptTaxSettings={queue.handleApplyReceiptTaxSettings}
-        isApplyingReceiptTax={queue.isApplyingReceiptTax}
         taxSummaryUpdatingIndex={queue.taxSummaryUpdatingIndex}
         onTaxSummaryChange={queue.handleTaxSummaryChange}
       />

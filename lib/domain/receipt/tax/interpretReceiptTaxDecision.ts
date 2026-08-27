@@ -265,6 +265,8 @@ function chooseAxis<TValue extends string>(
   evidence: AxisEvidence<TValue>[],
   unknown: TValue,
 ): AxisEvidence<TValue> {
+  const userSelection = evidence.find((entry) => entry.source === "user");
+  if (userSelection) return userSelection;
   const known = evidence.filter((entry) => entry.value !== unknown);
   if (known.length === 0) return { value: unknown, source: "ai", evidence: [] };
   return [...known].sort((left, right) => sourceRank(left.source) - sourceRank(right.source))[0]!;
@@ -411,8 +413,7 @@ export function interpretReceiptTaxDecision(input: ReceiptTaxInput): ReceiptTaxD
   const position = positionEvidence(input);
 
   const priceEvidence: AxisEvidence<PriceTaxTreatment>[] = [
-    ...(input.userOverride?.priceTaxTreatment !== undefined &&
-    input.userOverride.priceTaxTreatment !== "unknown"
+    ...(input.userOverride?.priceTaxTreatment !== undefined
       ? [
           {
             value: input.userOverride.priceTaxTreatment,
@@ -462,8 +463,7 @@ export function interpretReceiptTaxDecision(input: ReceiptTaxInput): ReceiptTaxD
       : []),
   ];
   const rateEvidence: AxisEvidence<TaxRateComposition>[] = [
-    ...(input.userOverride?.taxRateComposition !== undefined &&
-    input.userOverride.taxRateComposition !== "unknown"
+    ...(input.userOverride?.taxRateComposition !== undefined
       ? [
           {
             value: input.userOverride.taxRateComposition,

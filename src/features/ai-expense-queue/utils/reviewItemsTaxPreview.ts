@@ -1,6 +1,10 @@
 import { reinterpretDraftTax } from "../../../../lib/receiptTax/reinterpretDraftTax";
 import type { DraftItemTaxFields } from "../../../../lib/receiptTax/draftTaxMapping";
-import type { ExtractedTaxSummary } from "../../../../lib/receiptTax/types";
+import type {
+  ExtractedTaxSummary,
+  PriceTaxTreatment,
+  TaxRateComposition,
+} from "../../../../lib/receiptTax/types";
 import type { AiExpenseDraft, ReviewItemValues } from "../types/types";
 
 function toExtractedTaxSummaries(
@@ -41,24 +45,38 @@ export function applyReviewItemsTaxPreview(
     paidTotalYen?: number;
     taxSummaries?: AiExpenseDraft["taxSummaries"];
     markerDefinitions?: AiExpenseDraft["markerDefinitions"];
+    priceTaxTreatment?: PriceTaxTreatment;
+    taxRateComposition?: TaxRateComposition;
   },
 ): ReviewItemValues[] {
   const paidTotalYen = args.paidTotalYen;
   if (paidTotalYen === undefined || !Number.isFinite(paidTotalYen) || paidTotalYen < 1) {
     return items;
   }
-  if (!args.taxSummaries || args.taxSummaries.length === 0) {
+  if (
+    (!args.taxSummaries || args.taxSummaries.length === 0) &&
+    args.priceTaxTreatment === undefined &&
+    args.taxRateComposition === undefined
+  ) {
     return items;
   }
-  if (!items.some((item) => item.taxResolutionStatus === "resolved")) {
+  if (
+    !items.some((item) => item.taxResolutionStatus === "resolved") &&
+    args.priceTaxTreatment === undefined &&
+    args.taxRateComposition === undefined
+  ) {
     return items;
   }
 
   const { itemFields } = reinterpretDraftTax({
     amountYen: paidTotalYen,
     items: items.map(reviewItemToDraftFields),
-    taxSummaries: toExtractedTaxSummaries(args.taxSummaries),
+    taxSummaries: args.taxSummaries ? toExtractedTaxSummaries(args.taxSummaries) : [],
     markerDefinitions: args.markerDefinitions,
+    decisionOverride: {
+      priceTaxTreatment: args.priceTaxTreatment,
+      taxRateComposition: args.taxRateComposition,
+    },
   });
 
   return items.map((item, index) => {

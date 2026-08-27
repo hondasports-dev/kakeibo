@@ -45,6 +45,7 @@ export function useReviewDialog({
     onRegister,
     clearSelection: draftSelection.clearSelection,
     resetForm: formState.resetForm,
+    setReviewForm: formState.setReviewForm,
   });
 
   const taxOverrides = useReviewTaxOverrides({

@@ -1,8 +1,10 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
 import type {
   ExtractedTaxSummary,
+  PriceTaxTreatment,
   ReceiptTaxDecision,
   ReceiptTotalResolution,
+  TaxRateComposition,
   TaxResolutionSource,
 } from "../../../../lib/receiptTax/types";
 import type { ReceiptRawObservation } from "../../../../lib/domain/receipt/observations";
@@ -105,6 +107,8 @@ export type AiExpenseQueuePanelProps = {
         categoryId: string;
       }>;
       registrationMode?: AiExpenseRegistrationMode;
+      priceTaxTreatment?: PriceTaxTreatment;
+      taxRateComposition?: TaxRateComposition;
     },
     registerAfterUpdate: boolean,
   ) => Promise<AiExpenseReviewSubmitResult> | AiExpenseReviewSubmitResult;
@@ -190,6 +194,8 @@ export type ReviewFormValues = {
   amountYen: string;
   categoryId: string;
   registrationMode: AiExpenseRegistrationMode;
+  priceTaxTreatment?: PriceTaxTreatment;
+  taxRateComposition?: TaxRateComposition;
 };
 
 export type ReviewItemValues = AiExpenseItemTaxDetails & {

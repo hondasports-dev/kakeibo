@@ -12,11 +12,8 @@ import type {
 } from "../../types/types";
 import { formatReviewDraftHeader, resolveReviewShopName } from "../../utils/reviewDialogUtils";
 import { getPrimaryReviewReason } from "../../utils/reviewFeedback";
-import { ReceiptBulkTaxApply } from "./ReceiptBulkTaxApply";
-import { ReceiptTaxSummary } from "./ReceiptTaxSummary";
 import { ReceiptTotalsPanel } from "./ReceiptTotalsPanel";
 import { ReviewItemsReadOnly } from "./ReviewItemsReadOnly";
-import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 
 export function ReviewSummaryView({
   categories,
@@ -25,10 +22,6 @@ export function ReviewSummaryView({
   reviewItems,
   itemsExpanded,
   onToggleItemsExpanded,
-  onApplyReceiptTaxSettings,
-  isApplyingReceiptTax,
-  taxSummaryUpdatingIndex,
-  onTaxSummaryChange,
 }: {
   categories: AiExpenseQueueCategory[];
   selectedReviewDraft: AiExpenseDraft | null;
@@ -36,17 +29,11 @@ export function ReviewSummaryView({
   reviewItems: ReviewItemValues[];
   itemsExpanded: boolean;
   onToggleItemsExpanded: () => void;
-  onApplyReceiptTaxSettings?: () => void;
-  isApplyingReceiptTax?: boolean;
-  taxSummaryUpdatingIndex?: number | null;
-  onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
 }) {
   const [expandedItemId, setExpandedItemId] = useState<string | null>(null);
-  const [taxDetailsExpanded, setTaxDetailsExpanded] = useState(false);
 
   useEffect(() => {
     setExpandedItemId(null);
-    setTaxDetailsExpanded(false);
   }, [selectedReviewDraft?._id]);
 
   const shopName = resolveReviewShopName(
@@ -78,16 +65,6 @@ export function ReviewSummaryView({
       </Box>
 
       <ReceiptTotalsPanel
-        bulkTaxAction={
-          onApplyReceiptTaxSettings ? (
-            <ReceiptBulkTaxApply
-              isApplying={isApplyingReceiptTax}
-              onApply={onApplyReceiptTaxSettings}
-              reviewItems={reviewItems}
-              taxSummaries={selectedReviewDraft?.taxSummaries}
-            />
-          ) : undefined
-        }
         paidTotalYen={selectedReviewDraft?.amountYen}
         reviewItems={reviewItems}
         taxSummaries={selectedReviewDraft?.taxSummaries}
@@ -105,27 +82,6 @@ export function ReviewSummaryView({
             </Typography>
           )}
         </Stack>
-      )}
-
-      {selectedReviewDraft?.taxSummaries && selectedReviewDraft.taxSummaries.length > 0 && (
-        <>
-          <Button
-            onClick={() => setTaxDetailsExpanded((current) => !current)}
-            size="small"
-            type="button"
-            variant="text"
-            sx={{ alignSelf: "flex-start" }}
-          >
-            {taxDetailsExpanded ? "税情報を閉じる" : "税情報を確認"}
-          </Button>
-          <Collapse in={taxDetailsExpanded}>
-            <ReceiptTaxSummary
-              draft={selectedReviewDraft}
-              onSummaryChange={onTaxSummaryChange}
-              updatingIndex={taxSummaryUpdatingIndex}
-            />
-          </Collapse>
-        </>
       )}
 
       <Button

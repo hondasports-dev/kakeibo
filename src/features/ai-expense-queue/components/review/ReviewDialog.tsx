@@ -17,8 +17,8 @@ import type {
   ReviewFormValues,
   ReviewItemValues,
 } from "../../types/types";
-import { ReceiptBulkTaxApply } from "./ReceiptBulkTaxApply";
 import { ReceiptTotalsPanel } from "./ReceiptTotalsPanel";
+import { ReceiptTaxCorrectionPanel } from "./ReceiptTaxCorrectionPanel";
 import { ReviewDialogActions } from "./ReviewDialogActions";
 import { ReviewFormFields } from "./ReviewFormFields";
 import { ReviewItemsEditor } from "./ReviewItemsEditor";
@@ -64,8 +64,6 @@ export function ReviewDialog({
   onResetToAiInterpretation,
   taxUpdatingItemId,
   onTaxRateChange,
-  onApplyReceiptTaxSettings,
-  isApplyingReceiptTax,
   taxSummaryUpdatingIndex,
   onTaxSummaryChange,
 }: {
@@ -91,12 +89,13 @@ export function ReviewDialog({
   onCategorySplitChange: (split: boolean) => void;
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
-  onSubmit: (registerAfterUpdate: boolean) => void;
+  onSubmit: (
+    registerAfterUpdate: boolean,
+    registrationModeOverride?: ReviewFormValues["registrationMode"],
+  ) => void;
   onResetToAiInterpretation: () => void;
   taxUpdatingItemId?: string | null;
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
-  onApplyReceiptTaxSettings?: () => void;
-  isApplyingReceiptTax?: boolean;
   taxSummaryUpdatingIndex?: number | null;
   onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
 }) {
@@ -124,16 +123,6 @@ export function ReviewDialog({
     setIsEditMode(false);
     setItemsExpanded(false);
   }, [selectedReviewDraft?._id]);
-
-  const bulkTaxAction =
-    onApplyReceiptTaxSettings && hasLineItems ? (
-      <ReceiptBulkTaxApply
-        isApplying={isApplyingReceiptTax}
-        onApply={onApplyReceiptTaxSettings}
-        reviewItems={reviewItems}
-        taxSummaries={selectedReviewDraft?.taxSummaries}
-      />
-    ) : undefined;
 
   return (
     <Dialog
@@ -221,15 +210,11 @@ export function ReviewDialog({
               {showSummaryView ? (
                 <ReviewSummaryView
                   categories={categories}
-                  isApplyingReceiptTax={isApplyingReceiptTax}
                   itemsExpanded={itemsExpanded}
-                  onApplyReceiptTaxSettings={onApplyReceiptTaxSettings}
                   onToggleItemsExpanded={() => setItemsExpanded((current) => !current)}
-                  onTaxSummaryChange={onTaxSummaryChange}
                   reviewForm={reviewForm}
                   reviewItems={reviewItems}
                   selectedReviewDraft={selectedReviewDraft}
-                  taxSummaryUpdatingIndex={taxSummaryUpdatingIndex}
                 />
               ) : (
                 <>
@@ -249,7 +234,6 @@ export function ReviewDialog({
 
                   {hasLineItems && (
                     <ReceiptTotalsPanel
-                      bulkTaxAction={bulkTaxAction}
                       paidTotalYen={receiptAmount || selectedReviewDraft?.amountYen}
                       reviewItems={reviewItems}
                       taxSummaries={selectedReviewDraft?.taxSummaries}
@@ -284,6 +268,21 @@ export function ReviewDialog({
                   )}
                 </>
               )}
+
+              {hasLineItems ? (
+                <ReceiptTaxCorrectionPanel
+                  draft={selectedReviewDraft}
+                  onFieldChange={onFieldChange}
+                  onOpenItemEditing={() => {
+                    setIsEditMode(true);
+                    setItemsExpanded(true);
+                  }}
+                  onTaxSummaryChange={onTaxSummaryChange}
+                  reviewForm={reviewForm}
+                  reviewItems={reviewItems}
+                  taxSummaryUpdatingIndex={taxSummaryUpdatingIndex}
+                />
+              ) : null}
             </>
           )}
         </Stack>

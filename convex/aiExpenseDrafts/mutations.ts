@@ -20,6 +20,10 @@ import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiE
 import { applyReceiptTaxSettingsHandler } from "../../lib/convex/aiExpenseDrafts/applyReceiptTaxSettings";
 import { updateForReviewHandler } from "../../lib/convex/aiExpenseDrafts/updateForReview";
 import type { TaxMode, TaxRatePercent } from "../../lib/receiptTax/types";
+import {
+  priceTaxTreatmentValidator,
+  taxRateCompositionValidator,
+} from "../../lib/convex/aiExpenseDrafts/validators";
 import { resetReceiptToAiInterpretationHandler } from "../../lib/convex/aiExpenseDrafts/receiptDataContract";
 import { updateRegisteredDraftHandler } from "../../lib/convex/aiExpenseDrafts/updateRegisteredDraft";
 
@@ -112,6 +116,8 @@ export const updateForReview = mutation({
     date: v.string(),
     amountYen: v.number(),
     registrationMode: v.optional(aiExpenseRegistrationModeValidator),
+    priceTaxTreatment: v.optional(priceTaxTreatmentValidator),
+    taxRateComposition: v.optional(taxRateCompositionValidator),
     categoryId: v.id("categories"),
     items: v.optional(
       v.array(

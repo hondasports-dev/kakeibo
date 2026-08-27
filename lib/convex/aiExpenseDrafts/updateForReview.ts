@@ -51,7 +51,10 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   ) {
     throw new ConvexError("Legacy receipt registrations cannot be edited from the AI queue");
   }
-  const registrationMode = args.registrationMode ?? draft.registrationMode ?? "detailed";
+  const registrationMode =
+    args.priceTaxTreatment === "unknown" || args.taxRateComposition === "unknown"
+      ? "totalOnly"
+      : (args.registrationMode ?? draft.registrationMode ?? "detailed");
   if (!wasRegistered && draft.status !== "needs_review" && draft.status !== "ready") {
     throw new ConvexError("Only needs_review or ready AI expense drafts can be edited");
   }
@@ -110,11 +113,22 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     updatedAt: now,
   });
 
-  if (draft.taxSummaries && draft.taxSummaries.length > 0) {
+  if (
+    (draft.taxSummaries && draft.taxSummaries.length > 0) ||
+    args.priceTaxTreatment !== undefined ||
+    args.taxRateComposition !== undefined
+  ) {
     await persistDraftTaxInterpretation(ctx, {
       draftId: args.draftId,
       groupId,
       receiptTotalSource: "user_confirmed",
+      decisionOverride:
+        args.priceTaxTreatment !== undefined || args.taxRateComposition !== undefined
+          ? {
+              priceTaxTreatment: args.priceTaxTreatment,
+              taxRateComposition: args.taxRateComposition,
+            }
+          : undefined,
       preservedNonTaxReasons: nonTaxReviewReasons(classification.reviewReasons),
     });
     const updated = await persistReceiptUserOverrideSnapshot(ctx, {
@@ -123,6 +137,9 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
       fields: [
         ...REVIEW_OVERRIDE_FIELDS,
         "receiptTotalResolution",
+        ...(args.priceTaxTreatment !== undefined || args.taxRateComposition !== undefined
+          ? ["receiptTaxDecision", "taxSummaries"]
+          : []),
         ...(args.items === undefined ? [] : ["items"]),
       ],
       updatedAt: now,
