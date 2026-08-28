@@ -21,7 +21,7 @@ cp .env.example .env.local
 
 `.env.local` に Clerk と Convex の値を設定します。詳細は [`docs/environment-variables.md`](docs/environment-variables.md) を参照してください。
 
-`.env.example` の Convex 値は既存projectへ接続するための初期値です。worktreeでは、まず `pnpm run e2e:env-sync -- --copy-only` で正本をコピーします。この段階ではConvexの環境変数を変更しません。次の `convex:dev` 実行時に、Git管理外の `.env.local` がlocal deployment用の値へ更新されます。
+`.env.example` の Convex 値は既存projectへ接続するための初期値です。通常のローカル開発では `pnpm run dev` がlocal deploymentを自動作成・選択し、Git管理外の `.env.local` をlocal URLへ更新します。worktreeの初回bootstrapだけ、必要なら `pnpm run e2e:env-sync -- --copy-only` で正本をコピーしてください。
 
 最低限必要な変数:
 
@@ -30,13 +30,13 @@ cp .env.example .env.local
 - `VITE_CONVEX_URL`
 - `VITE_CONVEX_SITE_URL`（E2E / HTTP エンドポイント用）
 
-### 2. Convex バックエンド
+### 2. Convex バックエンドとフロントエンド
 
 ```bash
-pnpm run convex:dev
+pnpm run dev
 ```
 
-このコマンドはlocal deploymentを選択してからConvexのwatchを開始します。ローカルのFunction callsやDatabase I/OはConvexプランの利用枠に加算されません。別ターミナルでフロントエンドを起動してください。
+このコマンドはlocal deploymentが無ければ作成し、local deploymentを選択してからConvexのwatchとViteを同時に開始します。ローカルのFunction callsやDatabase I/OはConvexプランの利用枠に加算されません。Convexだけを起動する場合は `pnpm run convex:dev` を使ってください。
 
 外部サービスから受けるWebhookの確認や、PR E2E向けにクラウドのdev deploymentへ関数を反映する場合だけ、明示的に次を使います。このコマンドはクラウド利用枠を消費します。
 
@@ -46,22 +46,21 @@ pnpm run convex:dev:cloud
 
 Cursor Cloud等で匿名dev deploymentが必要な場合は `CONVEX_AGENT_MODE=anonymous npx convex dev` を使います（`AGENTS.md` 参照）。
 
-初回はlocal deploymentの作成確認に同意します。Clerk issuerとE2E用設定は、local watcherを起動したまま別ターミナルで同期できます。`KAKEIBO_E2E_ENV_CANONICAL` にはlocal URLへ更新済みの現在の `.env.local` を指定してください。
+初回はlocal deploymentの作成確認に同意します。Clerk issuerとE2E用設定は、local watcherを起動したまま別ターミナルで同期できます。
 
 ```powershell
-$env:KAKEIBO_E2E_ENV_CANONICAL = (Resolve-Path .env.local).Path
 pnpm run e2e:env-sync
 ```
 
-これにより `CLERK_JWT_ISSUER_DOMAIN`、E2Eガード、固定テストユーザー、mockレシート抽出設定が選択中のlocal deploymentへ入ります。詳しい2ターミナル手順とseed方針は [`docs/development-process.md`](docs/development-process.md) を参照してください。
+local deploymentを選択した `.env.local` はcloudの正本で上書きされず、`CLERK_JWT_ISSUER_DOMAIN`、E2Eガード、固定テストユーザー、mockレシート抽出設定だけがlocal deploymentへ入ります。cloud dev deploymentへ同期する場合だけ `pnpm run e2e:env-sync:cloud` を明示してください。詳しい手順とseed方針は [`docs/development-process.md`](docs/development-process.md) を参照してください。
 
-### 3. フロントエンド
+### 3. フロントエンドだけを起動する場合
 
 ```bash
-pnpm run dev -- --host 127.0.0.1
+pnpm run dev:frontend -- --host 127.0.0.1
 ```
 
-ブラウザで `http://localhost:5173` を開きます。
+Convex watcherを別ターミナルで起動済みの場合に使います。通常は `pnpm run dev` を使い、ブラウザで `http://localhost:5173` を開いてください。
 
 ### 4. Convex関数の自動テスト
 

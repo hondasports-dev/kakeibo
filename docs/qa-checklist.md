@@ -26,6 +26,11 @@ pnpm run e2e -- --project=chromium
 `E2E_CLERK_USER_ID`・`E2E_CLEANUP_SECRET` 反映、
 cleanup 認証確認まで成功させます。正本が無い場合は `docs/development-process.md` の bootstrap 手順で復旧します。
 
+通常のローカル開発・ローカルE2Eは `pnpm run dev` でlocal ConvexとViteを起動します。
+`e2e:env-sync` はlocal deploymentを選択した `.env.local` をcloud正本で上書きしません。
+cloud dev deploymentへ同期する必要がある場合だけ、`pnpm run convex:dev:cloud` と
+`pnpm run e2e:env-sync:cloud` を明示的に実行します。
+
 環境変数不足、Convex CLI 認証不足、Clerk/Convex/Vercel の一時的な問題で必要なローカル E2E が
 実行できない場合は、**その状態を理由として PR 作成や次フェーズへ進みません**。
 不足や障害を解消して同期・Convex 反映・E2E を再実行し、成功してから納品を続行します。

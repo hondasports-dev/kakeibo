@@ -297,26 +297,25 @@ repo-wide regression checkはlatest contentのCI Aftercareを正本にできる�
 
 browser層のAcceptance Criteriaがある変更では、push前に対象specをlocal Convexで実行する。ローカルE2Eは実DB、Clerk認証、Convex HTTP／mutation、画面の状態遷移をまとめて確認する層とし、関数単位の分岐は `convex-test`、外部公開URLが必要な確認だけcloud deploymentへ分ける。レシート抽出は `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` とし、OpenAI APIは呼ばない。
 
-初回または新しいtask worktreeでは、次の順に準備する。
+初回または新しいtask worktreeでは、次の順に準備する。通常の `pnpm run dev` はlocal Convex watcherとViteを同時に起動する。
 
 ターミナル1:
 
 ```bash
 pnpm run e2e:env-sync -- --copy-only
-pnpm run convex:dev
+pnpm run dev
 ```
 
-初回にlocal deployment作成を確認された場合は作成する。起動直後に `CLERK_JWT_ISSUER_DOMAIN` 不足でFunction準備が待機しても、watcherは止めずにターミナル2の同期を実行する。
+`--copy-only` は初回bootstrap時だけ実行する。`pnpm run dev` はlocal deploymentが無ければ作成する。起動直後に `CLERK_JWT_ISSUER_DOMAIN` 不足でFunction準備が待機しても、watcherは止めずにターミナル2の同期を実行する。
 
 ターミナル2（PowerShell）:
 
 ```powershell
-$env:KAKEIBO_E2E_ENV_CANONICAL = (Resolve-Path .env.local).Path
 pnpm run e2e:env-sync
 pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 ```
 
-`KAKEIBO_E2E_ENV_CANONICAL` を現在の `.env.local` に固定するのは、`convex:dev` が書き換えたlocal URLをpreview worktreeのcloud URLで上書きしないためである。同期処理はClerk publishable keyからissuerを復元し、選択中のlocal deploymentへ `CLERK_JWT_ISSUER_DOMAIN`、`APP_ENV=development`、mock抽出、E2Eユーザー／cleanup設定を反映して疎通確認する。secretやissuerの実値はログへ出さない。
+同期処理はlocal deploymentを選択した `.env.local` をcloudの正本で上書きせず、Clerk publishable keyからissuerを復元して選択中のlocal deploymentへ `CLERK_JWT_ISSUER_DOMAIN`、`APP_ENV=development`、mock抽出、E2Eユーザー／cleanup設定を反映する。cloud dev deploymentへ同期する場合だけ `pnpm run e2e:env-sync:cloud` を明示する。secretやissuerの実値はログへ出さない。
 
 WindowsでConvex CLIが設定成功後の終了処理だけassertする既知パターンは、成功メッセージだけでPASSにせず、最後のcleanup認証HTTPが200になることまで同期処理が確認する。
 
