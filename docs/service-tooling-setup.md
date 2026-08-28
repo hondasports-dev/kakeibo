@@ -79,10 +79,10 @@ pnpm exec clerk doctor
 
 既存applicationを使う場合は、`pnpm exec clerk apps list` でIDを確認してから `pnpm exec clerk link --app <app_id>` を使う。
 
-1. Convex projectとdev deploymentを作成する。
+1. Convex projectとlocal deploymentを作成する。
 
 ```bash
-pnpm exec convex dev --once --configure new
+pnpm exec convex dev --once --configure new --dev-deployment local
 pnpm exec convex function-spec
 pnpm exec convex data
 pnpm exec convex ai-files install
@@ -243,7 +243,7 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 
 | 用途       | Vercel                               | Clerk                            | Convex                                   |
 | ---------- | ------------------------------------ | -------------------------------- | ---------------------------------------- |
-| local dev  | local `.env.local`                   | Development instance `pk_test_*` | dev deployment                           |
+| local dev  | local `.env.local`                   | Development instance `pk_test_*` | local deployment                         |
 | preview PR | Vercel Preview `*.vercel.app` URL    | 原則Development instance         | dev deployment                           |
 | preview branch / RC | Vercel Preview `*.vercel.app` URL | Development instance             | fixed staging deployment                 |
 | production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*`  | production deployment                    |

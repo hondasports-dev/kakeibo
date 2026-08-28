@@ -21,6 +21,8 @@ cp .env.example .env.local
 
 `.env.local` に Clerk と Convex の値を設定します。詳細は [`docs/environment-variables.md`](docs/environment-variables.md) を参照してください。
 
+`.env.example` の Convex 値は既存projectへ接続するための初期値です。次の `convex:dev` 実行時に、Git管理外の `.env.local` がlocal deployment用の値へ更新されます。
+
 最低限必要な変数:
 
 - `VITE_CLERK_PUBLISHABLE_KEY`
@@ -34,7 +36,15 @@ cp .env.example .env.local
 pnpm run convex:dev
 ```
 
-または Cursor Cloud 等では `CONVEX_AGENT_MODE=anonymous npx convex dev` で匿名 dev deployment を起動できます（`AGENTS.md` 参照）。
+このコマンドはlocal deploymentを選択してからConvexのwatchを開始します。ローカルのFunction callsやDatabase I/OはConvexプランの利用枠に加算されません。別ターミナルでフロントエンドを起動してください。
+
+外部サービスから受けるWebhookの確認や、PR E2E向けにクラウドのdev deploymentへ関数を反映する場合だけ、明示的に次を使います。このコマンドはクラウド利用枠を消費します。
+
+```bash
+pnpm run convex:dev:cloud
+```
+
+Cursor Cloud等で匿名dev deploymentが必要な場合は `CONVEX_AGENT_MODE=anonymous npx convex dev` を使います（`AGENTS.md` 参照）。
 
 Convex 側には最低限 `CLERK_JWT_ISSUER_DOMAIN` を設定してください:
 
@@ -51,6 +61,12 @@ pnpm run dev -- --host 127.0.0.1
 ```
 
 ブラウザで `http://localhost:5173` を開きます。
+
+### 4. Convex関数の自動テスト
+
+Convex関数の自動テストにはJavaScript上のモックバックエンドである `convex-test` を使います。Vitest実行時はlocal／cloud deploymentを起動する必要がなく、Convexの利用枠も消費しません。
+
+`convex-test` は実バックエンドの制限やRuntimeを完全には再現しないため、実バックエンドとの結合確認はlocal deployment、公開URLが必要な確認だけcloud deploymentを使います。
 
 ## 検証コマンド
 
