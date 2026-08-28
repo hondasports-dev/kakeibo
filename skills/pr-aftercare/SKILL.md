@@ -30,6 +30,12 @@ checks / review / approval / conflict / mergeabilityのEvidenceは、どのobser
 
 `pending / queued / in_progress` はPASSではない。
 
+レビュー結果は、利用するレビューサービス名に依存しないsnapshotへ正規化する。
+`reviewed_head_sha`、`collection_status: complete`、stableな`findings[].id`と
+`findings[].actionable`を記録し、current headとの一致を確認する。snapshotが欠落・未完了・
+古い場合、またはactionable findingがFinding Ledger / Process Learningへstable IDで紐付かない場合は
+AftercareをPASSにしない。
+
 ## Draft / ready
 
 Draft中のbot skipを「findingなし」のEvidenceにしない。
@@ -83,6 +89,8 @@ review / CI / human findingは共通 `findings[]` の同じrecordを更新する
 - test gap → 同じrecordをfixまたはRequirements reassessmentまでopenのまま保持
 
 旧revisionのfindingを単に削除せず、現revisionでoutdated / not_applicableになった根拠を同recordへ残す。
+
+レビュー結果を再利用できない場合も、Process Learningへ`no_change`とrationale / evidenceを残す。
 
 Reviewer同士を討論させない。
 

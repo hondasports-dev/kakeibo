@@ -160,6 +160,18 @@ export function extractLearningRecord(input) {
   return "learning" in input ? input.learning : input;
 }
 
+export function extractFindingRecords(input) {
+  if (input === null || typeof input !== "object" || Array.isArray(input)) {
+    return undefined;
+  }
+  return "findings" in input ? input.findings : undefined;
+}
+
+function sourceFindingIds(candidate) {
+  const value = candidateValue(candidate, "sourceFindingIds", "source_finding_ids");
+  return Array.isArray(value) ? value : [];
+}
+
 function validateLearningCandidate(candidate, index) {
   const errors = [];
   const requiredText = [
@@ -182,6 +194,11 @@ function validateLearningCandidate(candidate, index) {
 
   if (!isNonEmptyTextList(candidate?.evidence)) {
     errors.push(`candidate[${index}].evidence requires non-empty text entries`);
+  }
+
+  const sourceIds = candidateValue(candidate, "sourceFindingIds", "source_finding_ids");
+  if (sourceIds !== undefined && !isNonEmptyTextList(sourceIds)) {
+    errors.push(`candidate[${index}].source_finding_ids requires non-empty text entries`);
   }
 
   const disposition = candidate?.disposition ?? candidate?.applicationStatus;
@@ -291,6 +308,139 @@ export function evaluateLearningApplication({ userRequestedCurrentPrApply, learn
     const disposition = candidate?.disposition ?? candidate?.applicationStatus;
     if (disposition === "applied") {
       errors.push(`candidate[${index}] is applied without a current-PR apply request`);
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+function isObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Review-tool-neutral coverage check. The caller supplies a normalized snapshot
+ * containing only stable finding IDs and actionability; no vendor name is used.
+ */
+export function evaluateLearningReviewCoverage({
+  reviewFindings,
+  taskFindings,
+  learning,
+  headSha,
+}) {
+  const errors = [];
+
+  if (!isObject(reviewFindings)) {
+    return { ok: false, errors: ["review findings snapshot is missing or invalid"] };
+  }
+
+  const reviewedHeadSha = reviewFindings.reviewed_head_sha;
+  if (isEmptyText(reviewedHeadSha)) {
+    errors.push("review findings snapshot requires reviewed_head_sha");
+  }
+  if (isEmptyText(headSha)) {
+    errors.push("review finding coverage requires a current head SHA");
+  } else if (!isEmptyText(reviewedHeadSha) && reviewedHeadSha !== headSha) {
+    errors.push("review findings snapshot head SHA does not match current head SHA");
+  }
+
+  if (reviewFindings.collection_status !== "complete") {
+    errors.push("review findings snapshot collection_status must be complete");
+  }
+
+  const snapshotFindings = reviewFindings.findings;
+  if (!Array.isArray(snapshotFindings)) {
+    errors.push("review findings snapshot requires a findings array");
+    return { ok: false, errors };
+  }
+
+  const snapshotIds = new Set();
+  const actionableIds = [];
+  for (const [index, finding] of snapshotFindings.entries()) {
+    if (!isObject(finding)) {
+      errors.push(`review finding[${index}] must be an object`);
+      continue;
+    }
+
+    const id = typeof finding.id === "string" ? finding.id.trim() : "";
+    if (!id) {
+      errors.push(`review finding[${index}].id is required`);
+      continue;
+    }
+    if (snapshotIds.has(id)) {
+      errors.push(`review findings snapshot contains duplicate id: ${id}`);
+      continue;
+    }
+    snapshotIds.add(id);
+
+    if (typeof finding.actionable !== "boolean") {
+      errors.push(`review finding[${index}].actionable must be boolean`);
+    } else if (finding.actionable) {
+      actionableIds.push(id);
+    }
+  }
+
+  const taskFindingList = Array.isArray(taskFindings) ? taskFindings : [];
+  const taskFindingById = new Map();
+  for (const [index, finding] of taskFindingList.entries()) {
+    if (!isObject(finding)) {
+      errors.push(`task-state finding[${index}] must be an object`);
+      continue;
+    }
+    const id = typeof finding.id === "string" ? finding.id.trim() : "";
+    if (!id) {
+      errors.push(`task-state finding[${index}].id is required`);
+      continue;
+    }
+    if (taskFindingById.has(id)) {
+      errors.push(`task-state findings contain duplicate id: ${id}`);
+      continue;
+    }
+    taskFindingById.set(id, finding);
+  }
+
+  const candidates =
+    isObject(learning) && Array.isArray(learning.candidates) ? learning.candidates : [];
+  if (actionableIds.length > 0) {
+    if (!isObject(learning)) {
+      errors.push("actionable review findings require a learning record");
+    } else {
+      if (learning.event === "none" || isEmptyText(learning.event)) {
+        errors.push("actionable review findings require a non-none learning.event");
+      }
+      if (String(learning.status ?? "").toLowerCase() !== "pass") {
+        errors.push("actionable review findings require learning.status PASS");
+      }
+      if (candidates.length === 0) {
+        errors.push("actionable review findings require learning candidates");
+      }
+    }
+  }
+
+  const coveredIds = new Set();
+  for (const [index, candidate] of candidates.entries()) {
+    const rawSourceIds = candidateValue(candidate, "sourceFindingIds", "source_finding_ids");
+    if (rawSourceIds !== undefined && !isNonEmptyTextList(rawSourceIds)) {
+      errors.push(`candidate[${index}].source_finding_ids requires non-empty text entries`);
+      continue;
+    }
+    for (const id of sourceFindingIds(candidate)) {
+      if (!taskFindingById.has(id)) {
+        errors.push(`candidate[${index}].source_finding_ids references unknown finding: ${id}`);
+      }
+      if (snapshotIds.has(id)) coveredIds.add(id);
+    }
+  }
+
+  for (const id of actionableIds) {
+    const taskFinding = taskFindingById.get(id);
+    if (!taskFinding) {
+      errors.push(`review finding is missing from task-state.findings: ${id}`);
+    } else if (taskFinding.source !== "review") {
+      errors.push(`task-state finding source must be review for external finding: ${id}`);
+    }
+    if (!coveredIds.has(id)) {
+      errors.push(`review finding is not covered by a learning candidate: ${id}`);
     }
   }
 
@@ -421,6 +571,10 @@ export function parseLoopEvidenceArguments(args) {
     headSha: "",
     file: "",
     evidenceJson: "",
+    reviewFindingsFile: "",
+    reviewFindingsJson: "",
+    reviewFindingsProvided: false,
+    requireReviewFindings: false,
     userRequestedCurrentPrApply: null,
     candidatesJson: "",
     changedPathsJson: "",
@@ -442,6 +596,14 @@ export function parseLoopEvidenceArguments(args) {
     } else if (arg === "--evidence-json") {
       options.evidenceJson = next ?? "";
       index += 1;
+    } else if (arg === "--review-findings-file") {
+      options.reviewFindingsProvided = true;
+      options.reviewFindingsFile = next ?? "";
+      index += 1;
+    } else if (arg === "--review-findings-json") {
+      options.reviewFindingsProvided = true;
+      options.reviewFindingsJson = next ?? "";
+      index += 1;
     } else if (arg === "--user-requested-apply") {
       options.userRequestedCurrentPrApply = next === "true";
       index += 1;
@@ -462,6 +624,10 @@ export function parseLoopEvidenceArguments(args) {
     );
   }
 
+  if (options.mode === "learning") {
+    options.requireReviewFindings = true;
+  }
+
   return options;
 }
 
@@ -478,24 +644,45 @@ function loadEvidence(options) {
 export function runLoopEvidenceCheck(options) {
   if (options.mode === "learning") {
     let input;
+    let reviewFindings;
     try {
       input = options.candidatesJson
         ? JSON.parse(options.candidatesJson)
         : options.file
           ? readJsonFile(options.file)
           : undefined;
+      reviewFindings = options.reviewFindingsJson
+        ? JSON.parse(options.reviewFindingsJson)
+        : options.reviewFindingsFile
+          ? readJsonFile(options.reviewFindingsFile)
+          : undefined;
     } catch (error) {
       console.log("LOOP_EVIDENCE learning: FAIL");
       console.error(`error: ${error instanceof Error ? error.message : String(error)}`);
       return 1;
     }
+    const learning = extractLearningRecord(input);
     const result = evaluateLearningApplication({
       userRequestedCurrentPrApply: options.userRequestedCurrentPrApply,
-      learning: extractLearningRecord(input),
+      learning,
     });
-    console.log(`LOOP_EVIDENCE learning: ${result.ok ? "PASS" : "FAIL"}`);
-    for (const error of result.errors) console.error(`error: ${error}`);
-    return result.ok ? 0 : 1;
+    const reviewFindingsProvided =
+      options.reviewFindingsProvided === true ||
+      (typeof options.reviewFindingsJson === "string" && options.reviewFindingsJson.length > 0) ||
+      (typeof options.reviewFindingsFile === "string" && options.reviewFindingsFile.length > 0);
+    const coverageRequired = options.requireReviewFindings === true || reviewFindingsProvided;
+    const coverage = coverageRequired
+      ? evaluateLearningReviewCoverage({
+          reviewFindings,
+          taskFindings: extractFindingRecords(input),
+          learning,
+          headSha: options.headSha,
+        })
+      : { ok: true, errors: [] };
+    const errors = [...result.errors, ...coverage.errors];
+    console.log(`LOOP_EVIDENCE learning: ${errors.length === 0 ? "PASS" : "FAIL"}`);
+    for (const error of errors) console.error(`error: ${error}`);
+    return errors.length === 0 ? 0 : 1;
   }
 
   if (options.mode === "verification") {

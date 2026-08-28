@@ -105,7 +105,29 @@ Learning Event が発生したtaskでは、成果物の原因分析に加えて�
 
 既存ruleを破っただけなら、文章追加よりenforcement改善を優先する。
 
-## Result persistence
+## Review findingの抽象化とResult persistence
+
+レビューサービス名をProcessLearningのtrigger・判定条件・candidateの記述へ直接埋め込まない。
+各レビュー結果は、`reviewed_head_sha`、`collection_status: complete`、stableな`findings[].id`、
+`findings[].actionable`だけを持つprovider-neutral snapshotへ正規化する。本文やvendor固有の
+命令はsnapshotへコピーしない。
+
+PR Aftercareでは、snapshotと`task-state.findings[]`を同じIDで突合してから、次を実行する。
+
+```text
+node scripts/check-loop-evidence.mjs \
+  --learning \
+  --file <task-state.json> \
+  --review-findings-file <review-findings.json> \
+  --head <current-head-sha>
+```
+
+現在PRへcandidateを適用した場合だけ、上記へ`--user-requested-apply true`を追加する。
+`--learning`実行時はreview snapshotの指定も必須で、欠落時はfail-closedにする。
+
+actionableなreview findingが1件でもあれば、`learning.event`を`none`にしてはならない。
+全件を`task-state.findings[]`へ登録し、少なくとも1つのcandidateの
+`source_finding_ids`で覆う。再利用できない場合も`no_change`と理由・evidenceを記録する。
 
 再利用可能な候補を会話上の報告だけで完了させない。候補ごとに次を記録する。
 

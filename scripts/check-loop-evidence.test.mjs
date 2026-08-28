@@ -3,13 +3,16 @@ import { describe, expect, it } from "vitest";
 
 import {
   evaluateLearningApplication,
+  evaluateLearningReviewCoverage,
   evaluateReviewEvidence,
   evaluateSkipIfMissingReview,
   evaluateVerificationEvidence,
+  extractFindingRecords,
   extractLearningRecord,
   hasProcessPolicyChange,
   isProcessPolicyPath,
   normalizeChangedPath,
+  parseLoopEvidenceArguments,
   runLoopEvidenceCheck,
 } from "./check-loop-evidence.mjs";
 
@@ -328,6 +331,25 @@ function learningRecord(overrides = {}) {
   };
 }
 
+function reviewFindingsSnapshot(overrides = {}) {
+  return {
+    reviewed_head_sha: HEAD,
+    collection_status: "complete",
+    findings: [{ id: "RF001", actionable: true }],
+    ...overrides,
+  };
+}
+
+function taskFinding(id, overrides = {}) {
+  return {
+    id,
+    source: "review",
+    status: "resolved",
+    disposition: "resolved",
+    ...overrides,
+  };
+}
+
 describe("evaluateLearningApplication", () => {
   it("fails missing or malformed learning records", () => {
     expect(
@@ -576,5 +598,175 @@ describe("evaluateLearningApplication", () => {
         }),
       }),
     ).toBe(0);
+  });
+});
+
+describe("evaluateLearningReviewCoverage", () => {
+  it("requires every actionable finding to be linked to the task ledger and learning", () => {
+    const result = evaluateLearningReviewCoverage({
+      reviewFindings: reviewFindingsSnapshot(),
+      taskFindings: [],
+      learning: learningRecord({ candidates: [learningCandidate({ source_finding_ids: [] })] }),
+      headSha: HEAD,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("review finding is missing from task-state.findings: RF001");
+    expect(result.errors).toContain("review finding is not covered by a learning candidate: RF001");
+  });
+
+  it("passes a complete provider-neutral snapshot with stable ID coverage", () => {
+    const result = evaluateLearningReviewCoverage({
+      reviewFindings: reviewFindingsSnapshot({
+        findings: [
+          { id: "RF001", actionable: true },
+          { id: "RF002", actionable: true },
+          { id: "RF003", actionable: false },
+        ],
+      }),
+      taskFindings: [taskFinding("RF001"), taskFinding("RF002")],
+      learning: learningRecord({
+        candidates: [learningCandidate({ source_finding_ids: ["RF001", "RF002"] })],
+      }),
+      headSha: HEAD,
+    });
+
+    expect(result).toMatchObject({ ok: true, errors: [] });
+  });
+
+  it("fails stale, incomplete, duplicate, and malformed snapshots", () => {
+    expect(
+      evaluateLearningReviewCoverage({
+        reviewFindings: reviewFindingsSnapshot({ reviewed_head_sha: "other" }),
+        taskFindings: [],
+        learning: { event: "none", status: "not_required", candidates: [] },
+        headSha: HEAD,
+      }).errors,
+    ).toContain("review findings snapshot head SHA does not match current head SHA");
+
+    expect(
+      evaluateLearningReviewCoverage({
+        reviewFindings: reviewFindingsSnapshot({ collection_status: "partial" }),
+        taskFindings: [],
+        learning: { event: "none", status: "not_required", candidates: [] },
+        headSha: HEAD,
+      }).errors,
+    ).toContain("review findings snapshot collection_status must be complete");
+
+    const malformed = evaluateLearningReviewCoverage({
+      reviewFindings: reviewFindingsSnapshot({
+        findings: [
+          { id: "RF001", actionable: true },
+          { id: "RF001", actionable: false },
+          { id: "RF002", actionable: "yes" },
+        ],
+      }),
+      taskFindings: [],
+      learning: { event: "none", status: "not_required", candidates: [] },
+      headSha: HEAD,
+    });
+    expect(malformed.errors).toContain("review findings snapshot contains duplicate id: RF001");
+    expect(malformed.errors).toContain("review finding[2].actionable must be boolean");
+  });
+
+  it("allows a complete snapshot containing only non-actionable findings", () => {
+    expect(
+      evaluateLearningReviewCoverage({
+        reviewFindings: reviewFindingsSnapshot({
+          findings: [{ id: "RF001", actionable: false }],
+        }),
+        taskFindings: [],
+        learning: { event: "none", status: "not_required", candidates: [] },
+        headSha: HEAD,
+      }),
+    ).toMatchObject({ ok: true, errors: [] });
+  });
+});
+
+describe("review finding input wiring", () => {
+  it("extracts findings and parses the snapshot options", () => {
+    const findings = [taskFinding("RF001")];
+    expect(extractFindingRecords({ findings })).toEqual(findings);
+    expect(extractFindingRecords({ learning: learningRecord() })).toBeUndefined();
+
+    expect(
+      parseLoopEvidenceArguments([
+        "--learning",
+        "--file",
+        "task-state.json",
+        "--review-findings-file",
+        "review-findings.json",
+        "--head",
+        HEAD,
+      ]),
+    ).toMatchObject({
+      mode: "learning",
+      file: "task-state.json",
+      reviewFindingsFile: "review-findings.json",
+      reviewFindingsProvided: true,
+      requireReviewFindings: true,
+      headSha: HEAD,
+    });
+
+    expect(parseLoopEvidenceArguments(["--learning", "--review-findings-file"])).toMatchObject({
+      reviewFindingsProvided: true,
+      requireReviewFindings: true,
+    });
+  });
+
+  it("enforces provider-neutral coverage through the CLI runner", () => {
+    const input = {
+      learning: learningRecord({
+        candidates: [learningCandidate({ source_finding_ids: ["RF001"] })],
+      }),
+      findings: [taskFinding("RF001")],
+    };
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify(input),
+        reviewFindingsJson: JSON.stringify(reviewFindingsSnapshot()),
+        headSha: HEAD,
+      }),
+    ).toBe(0);
+
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        requireReviewFindings: true,
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify(input),
+        headSha: HEAD,
+      }),
+    ).toBe(1);
+
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify({
+          learning: learningRecord(),
+          findings: [taskFinding("RF001")],
+        }),
+        reviewFindingsJson: JSON.stringify(reviewFindingsSnapshot()),
+        headSha: HEAD,
+      }),
+    ).toBe(1);
+
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify({
+          learning: learningRecord({
+            candidates: [learningCandidate({ source_finding_ids: ["RF001"] })],
+          }),
+          findings: [taskFinding("RF001")],
+        }),
+        reviewFindingsJson: "null",
+        headSha: HEAD,
+      }),
+    ).toBe(1);
   });
 });

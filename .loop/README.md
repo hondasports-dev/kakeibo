@@ -279,6 +279,13 @@ Learning Eventが発生した時だけ、同程度のRisk / Spec / sizeに対し
 
 全ログ・全会話を読み返さず、telemetry + task-state + findings + verification evidenceから改善候補を出す。
 
+レビューサービスは固有名詞で判定しない。レビュー結果をstable IDと`actionable`だけの
+provider-neutral snapshot（`.loop/templates/review-findings.json`）へ正規化し、PR Aftercareで
+`scripts/check-loop-evidence.mjs --learning` に渡す。actionableな指摘があるのに
+`task-state.findings[]`または`learning.candidates[].source_finding_ids`が不足していれば、
+Process Learning / DONEをFAILにする。snapshot自体が欠落・未完了・current head不一致でも
+FAILにする。再利用できない指摘も`no_change`と理由・Evidenceを残す。
+
 ---
 
 ## 9. Quality invariants kept

@@ -61,3 +61,4 @@ playwright/.clerk/
 
 # Agent loop local review evidence (Delivery reads this; humans do not need it)
 .loop/review-evidence.json
+.loop/review-findings.json

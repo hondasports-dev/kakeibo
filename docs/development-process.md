@@ -428,7 +428,11 @@ commit SHAが変わっただけで全Evidenceを破棄しない。
 
 その後latest contentのCIを確認する。
 
-PR指摘はFinding Ledgerへ入れ、fixed / not-applicable / Human Gate / follow-upを同じrecordで管理する。
+レビューサービスからの指摘はFinding Ledgerへ入れ、fixed / not-applicable / Human Gate / follow-upを同じrecordで管理する。
+サービス名に依存しないsnapshot（`reviewed_head_sha`、`collection_status: complete`、
+stableな`findings[].id` / `actionable`）をcurrent headへ束縛し、actionableな指摘が
+Finding LedgerとProcess Learningへ同じstable IDで紐付かない限りAftercareをPASSにしない。
+再利用できない指摘も`no_change`とrationale / evidenceを記録する。
 
 ---
 
