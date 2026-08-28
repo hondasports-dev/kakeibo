@@ -27,6 +27,7 @@ import {
 } from "../../lib/convex/aiExpenseDrafts/createFromExtraction";
 import {
   createE2eReadyDraftForUserHandler,
+  createE2eMixedTaxReviewDraftForUserHandler,
   createE2eTaxReviewDraftForUserHandler,
   createE2eTaxSummaryConflictDraftForUserHandler,
   deleteDraftsByUserBatchHandler,
@@ -43,6 +44,7 @@ export {
 export {
   deleteDraftsByUserBatchHandler,
   createE2eReadyDraftForUserHandler,
+  createE2eMixedTaxReviewDraftForUserHandler,
   createE2eTaxReviewDraftForUserHandler,
   createE2eTaxSummaryConflictDraftForUserHandler,
 } from "../../lib/convex/aiExpenseDrafts/e2eDraftFixtures";
@@ -186,6 +188,16 @@ export const createE2eTaxReviewDraftForUser = internalMutation({
     secondaryCategoryId: v.optional(v.id("categories")),
   },
   handler: createE2eTaxReviewDraftForUserHandler,
+});
+
+export const createE2eMixedTaxReviewDraftForUser = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    createdByUserId: v.string(),
+    categoryId: v.id("categories"),
+    secondaryCategoryId: v.optional(v.id("categories")),
+  },
+  handler: createE2eMixedTaxReviewDraftForUserHandler,
 });
 
 export const createE2eTaxSummaryConflictDraftForUser = internalMutation({

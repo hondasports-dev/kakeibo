@@ -103,6 +103,7 @@ describe("ReviewItemCard", () => {
         amountBasis: "unknown",
       }),
       isExpanded: true,
+      enableItemTaxEditing: true,
     });
     expect(screen.getByRole("combobox", { name: "税率" })).toBeInTheDocument();
   });
@@ -117,6 +118,7 @@ describe("ReviewItemCard", () => {
         amountBasis: "unknown",
       }),
       isExpanded: true,
+      enableItemTaxEditing: true,
       onTaxRateChange,
     });
     await user.click(screen.getByRole("combobox", { name: "税率" }));
@@ -136,6 +138,19 @@ describe("ReviewItemCard", () => {
     });
     expect(screen.getByText("登録額: 110円（税込）")).toBeInTheDocument();
     expect(screen.getAllByText("税率 10%").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("混在税率を選んでいない場合は未解決でも税率選択を表示しない", () => {
+    renderCard({
+      item: makeItem({
+        taxResolutionStatus: "unresolved",
+        taxRatePercent: null,
+        amountBasis: "unknown",
+      }),
+      isExpanded: true,
+      enableItemTaxEditing: false,
+    });
+    expect(screen.queryByRole("combobox", { name: "税率" })).not.toBeInTheDocument();
   });
 
   it("警告があれば表示する", () => {

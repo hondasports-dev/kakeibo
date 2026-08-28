@@ -199,4 +199,35 @@ describe("ReceiptTaxCorrectionPanel", () => {
     fireEvent.click(screen.getByRole("radio", { name: "8%と10%が混ざっている" }));
     expect(onOpenItemEditing).toHaveBeenCalledOnce();
   });
+
+  it("商品単位の税修正は混在を選んだ時だけ表示する", () => {
+    const { rerender } = render(
+      <ReceiptTaxCorrectionPanel
+        draft={draft}
+        onFieldChange={vi.fn()}
+        onOpenItemEditing={vi.fn()}
+        reviewForm={{ ...form, priceTaxTreatment: "included", taxRateComposition: "rate8" }}
+        reviewItems={items}
+      />,
+    );
+    expect(screen.queryByRole("heading", { name: "商品ごとの税率を確認" })).not.toBeInTheDocument();
+
+    rerender(
+      <ReceiptTaxCorrectionPanel
+        draft={draft}
+        onFieldChange={vi.fn()}
+        onOpenItemEditing={vi.fn()}
+        reviewForm={{ ...form, priceTaxTreatment: "perItem", taxRateComposition: "mixed" }}
+        reviewItems={[
+          {
+            ...items[0]!,
+            taxResolutionStatus: "unresolved",
+            taxRatePercent: null,
+            amountBasis: "unknown",
+          },
+        ]}
+      />,
+    );
+    expect(screen.getByRole("heading", { name: "商品ごとの税率を確認" })).toBeVisible();
+  });
 });

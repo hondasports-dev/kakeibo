@@ -188,6 +188,22 @@ export async function createE2eTaxReviewDraftForUserHandler(
         warnings: [],
       },
     ],
+    rawObservation: {
+      source: "ai_ocr",
+      observedAt: now,
+      lines: [
+        {
+          rawText: "E2E税テスト商品 100円",
+          amountText: "100円",
+          amountYen: 100,
+          lineRoleCandidates: ["item"],
+          roleConfidence: 0.99,
+          explicitlyPrinted: true,
+          sourceLineIndex: 0,
+          boundingBox: { left: 0.08, top: 0.24, width: 0.84, height: 0.08 },
+        },
+      ],
+    },
     warnings: ["unresolved_tax_rate:items[0]"],
     reviewReasons: ["user_confirmation_required", "amount_mismatch"],
     createdAt: now,
@@ -210,6 +226,161 @@ export async function createE2eTaxReviewDraftForUserHandler(
     taxReviewReasons: ["unresolved_tax_rate"],
     createdAt: now,
     updatedAt: now,
+  });
+
+  return draftId;
+}
+
+export async function createE2eMixedTaxReviewDraftForUserHandler(
+  ctx: MutationCtx,
+  args: CreateE2eReadyDraftForUserArgs,
+) {
+  const now = Date.now();
+  const draftId = await ctx.db.insert("aiExpenseDrafts", {
+    groupId: args.groupId,
+    createdByUserId: args.createdByUserId,
+    sourceType: "image_upload",
+    status: "needs_review",
+    documentType: "receipt",
+    imageFileName: "e2e-mixed-tax-review.png",
+    shopName: "E2E混在税レビュー店",
+    date: "2026-07-06",
+    amountYen: 438,
+    categoryId: args.categoryId,
+    confidence: {
+      documentType: 1,
+      shopName: 1,
+      date: 1,
+      amountYen: 1,
+      categoryId: 1,
+    },
+    taxSummaries: [
+      {
+        taxRatePercent: 8,
+        taxMode: "included",
+        taxableAmountYen: 218,
+        taxableAmountBasis: "tax_included",
+        taxYen: 16,
+        taxIncludedAmountYen: 218,
+        roundingMethod: "unknown",
+        confidence: {},
+        warnings: [],
+      },
+      {
+        taxRatePercent: 10,
+        taxMode: "included",
+        taxableAmountYen: 220,
+        taxableAmountBasis: "tax_included",
+        taxYen: 20,
+        taxIncludedAmountYen: 220,
+        roundingMethod: "unknown",
+        confidence: {},
+        warnings: [],
+      },
+    ],
+    rawObservation: {
+      source: "ai_ocr",
+      observedAt: now,
+      lines: [
+        {
+          rawText: "パン 108円 ※",
+          amountText: "108円",
+          amountYen: 108,
+          lineRoleCandidates: ["item"],
+          roleConfidence: 0.99,
+          explicitlyPrinted: true,
+          sourceLineIndex: 0,
+          boundingBox: { left: 0.08, top: 0.18, width: 0.84, height: 0.08 },
+        },
+        {
+          rawText: "洗剤 110円",
+          amountText: "110円",
+          amountYen: 110,
+          lineRoleCandidates: ["item"],
+          roleConfidence: 0.99,
+          explicitlyPrinted: true,
+          sourceLineIndex: 1,
+          boundingBox: { left: 0.08, top: 0.28, width: 0.84, height: 0.08 },
+        },
+        {
+          rawText: "牛乳 110円",
+          amountText: "110円",
+          amountYen: 110,
+          lineRoleCandidates: ["item"],
+          roleConfidence: 0.7,
+          explicitlyPrinted: true,
+          sourceLineIndex: 2,
+          boundingBox: { left: 0.08, top: 0.38, width: 0.84, height: 0.08 },
+        },
+        {
+          rawText: "ラップ 110円",
+          amountText: "110円",
+          amountYen: 110,
+          lineRoleCandidates: ["item"],
+          roleConfidence: 0.7,
+          explicitlyPrinted: true,
+          sourceLineIndex: 3,
+          boundingBox: { left: 0.08, top: 0.48, width: 0.84, height: 0.08 },
+        },
+      ],
+    },
+    warnings: ["unresolved_tax_rate:items[2]", "unresolved_tax_rate:items[3]"],
+    reviewReasons: ["user_confirmation_required"],
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const common = {
+    groupId: args.groupId,
+    draftId,
+    categoryId: args.categoryId,
+    confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+    createdAt: now,
+    updatedAt: now,
+  };
+  await ctx.db.insert("aiExpenseDraftItems", {
+    ...common,
+    itemName: "パン",
+    amountYen: 108,
+    printedAmountYen: 108,
+    amountBasis: "tax_included",
+    taxRatePercent: 8,
+    allocatedTaxYen: 8,
+    normalizedAmountYen: 108,
+    taxResolutionStatus: "resolved",
+    taxResolutionSource: "marker_reconciled",
+  });
+  await ctx.db.insert("aiExpenseDraftItems", {
+    ...common,
+    itemName: "洗剤",
+    amountYen: 110,
+    printedAmountYen: 110,
+    amountBasis: "tax_included",
+    taxRatePercent: 10,
+    allocatedTaxYen: 10,
+    normalizedAmountYen: 110,
+    taxResolutionStatus: "resolved",
+    taxResolutionSource: "summary_reconciliation",
+  });
+  await ctx.db.insert("aiExpenseDraftItems", {
+    ...common,
+    itemName: "牛乳",
+    amountYen: 110,
+    printedAmountYen: 110,
+    amountBasis: "unknown",
+    taxRatePercent: null,
+    taxResolutionStatus: "unresolved",
+    taxReviewReasons: ["unresolved_tax_rate"],
+  });
+  await ctx.db.insert("aiExpenseDraftItems", {
+    ...common,
+    itemName: "ラップ",
+    amountYen: 110,
+    printedAmountYen: 110,
+    amountBasis: "unknown",
+    taxRatePercent: null,
+    taxResolutionStatus: "unresolved",
+    taxReviewReasons: ["unresolved_tax_rate"],
   });
 
   return draftId;

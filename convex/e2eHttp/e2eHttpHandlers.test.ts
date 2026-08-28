@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { e2eCleanupHandler } from "./e2eCleanup";
 import {
   e2eSeedAiExpenseDraftHandler,
+  e2eSeedMixedTaxReviewDraftHandler,
   e2eSeedPendingGroupInvitationHandler,
   e2eSeedTaxReviewDraftHandler,
   e2eSeedTaxSummaryConflictDraftHandler,
@@ -276,6 +277,9 @@ describe("e2e seed handlers", () => {
       status: 401,
     });
     await expect(
+      e2eSeedMixedTaxReviewDraftHandler(ctx, request({}, "wrong-secret")),
+    ).resolves.toMatchObject({ status: 401 });
+    await expect(
       e2eSeedTaxSummaryConflictDraftHandler(ctx, request({}, "wrong-secret")),
     ).resolves.toMatchObject({ status: 401 });
     await expect(
@@ -320,10 +324,11 @@ describe("e2e seed handlers", () => {
     ).resolves.toMatchObject({ status: 400 });
   });
 
-  it("4種類のseed処理を成功させる", async () => {
+  it("5種類のseed処理を成功させる", async () => {
     const ctx = createActionCtx();
     const ready = await e2eSeedAiExpenseDraftHandler(ctx, request({ userId: E2E_USER_ID }));
     const tax = await e2eSeedTaxReviewDraftHandler(ctx, request({ userId: E2E_USER_ID }));
+    const mixedTax = await e2eSeedMixedTaxReviewDraftHandler(ctx, request({ userId: E2E_USER_ID }));
     const conflict = await e2eSeedTaxSummaryConflictDraftHandler(
       createActionCtx({
         runQuery: vi.fn().mockResolvedValueOnce(E2E_USER_ID).mockResolvedValue(GROUP_ID),
@@ -337,6 +342,7 @@ describe("e2e seed handlers", () => {
 
     expect(ready.status).toBe(200);
     expect(tax.status).toBe(200);
+    expect(mixedTax.status).toBe(200);
     expect(conflict.status).toBe(200);
     expect(invitation.status).toBe(200);
     await expect(responseJson(invitation)).resolves.toEqual({ invitationId: "fixture-id" });

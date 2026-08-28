@@ -13,6 +13,7 @@ import {
 } from "./e2eHttp/e2eSystemAdminSearch";
 import {
   e2eSeedAiExpenseDraftHandler,
+  e2eSeedMixedTaxReviewDraftHandler,
   e2eSeedPendingGroupInvitationHandler,
   e2eSeedTaxReviewDraftHandler,
   e2eSeedTaxSummaryConflictDraftHandler,
@@ -63,6 +64,11 @@ http.route({
   path: "/e2e/seed-tax-review-draft",
   method: "POST",
   handler: e2eSeedTaxReviewDraftHandler,
+});
+http.route({
+  path: "/e2e/seed-mixed-tax-review-draft",
+  method: "POST",
+  handler: e2eSeedMixedTaxReviewDraftHandler,
 });
 http.route({
   path: "/e2e/seed-tax-summary-conflict-draft",

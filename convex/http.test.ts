@@ -46,6 +46,7 @@ describe("HTTP router route registration", () => {
         "/e2e/cleanup-system-admin-search",
         "/e2e/seed-ai-expense-draft",
         "/e2e/seed-tax-review-draft",
+        "/e2e/seed-mixed-tax-review-draft",
         "/e2e/seed-tax-summary-conflict-draft",
         "/e2e/seed-pending-group-invitation",
         "/webhooks/resend",

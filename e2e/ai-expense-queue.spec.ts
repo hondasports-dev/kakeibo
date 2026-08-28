@@ -11,6 +11,7 @@ import {
 } from "./helpers/cleanup";
 import {
   seedAiExpenseDraftForExpenseEntriesByUser,
+  seedMixedTaxReviewDraftByUser,
   seedTaxReviewDraftByUser,
   seedTaxSummaryConflictDraftByUser,
 } from "./helpers/seed";
@@ -589,6 +590,77 @@ test.describe("Issue #669 初心者向け税修正", () => {
       .locator(".ai-expense-queue-item")
       .filter({ hasText: "大阪市水道局" });
     await expect(readyItem.getByText("合計だけで保存")).toBeVisible();
+  });
+});
+
+test.describe("Issue #670 混在レシートの商品単位修正", () => {
+  test.beforeEach(async () => {
+    await cleanupAiExpenseQueue();
+  });
+
+  test("PCで要確認商品だけを順番に修正し税率別集計を更新できる", async ({ page }) => {
+    const userId = process.env.E2E_CLERK_USER_ID?.trim();
+    if (!userId) {
+      test.skip();
+      return;
+    }
+    await gotoAuthenticated(page, INPUT_PATH);
+    await waitForReceiptInputQueue(page);
+    await seedMixedTaxReviewDraftByUser(userId);
+    await page.reload();
+
+    const queue = await waitForReceiptInputQueue(page);
+    const item = queue.locator(".ai-expense-queue-item").filter({ hasText: "E2E混在税レビュー店" });
+    await item.getByRole("button", { name: "確認する" }).click();
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await dialog.getByRole("radio", { name: "商品によって異なる" }).check();
+    await dialog.getByRole("radio", { name: "8%と10%が混ざっている" }).check();
+
+    await expect(dialog.getByRole("heading", { name: "商品ごとの税率を確認" })).toBeVisible();
+    await expect.poll(async () => (await dialog.boundingBox())?.width ?? 0).toBeGreaterThan(800);
+    await expect(
+      dialog.getByText("AIで確定できた2件はそのまま使います。", { exact: false }),
+    ).toBeVisible();
+    await dialog.getByRole("combobox", { name: "牛乳の税率" }).click();
+    await page.getByRole("option", { name: "8%" }).click();
+    await expect(dialog.getByText("商品ごとの税率はすべて確認できました。")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(dialog.getByText("8% 218円")).toBeVisible();
+    await expect(dialog.getByText(/保存予定：.*438円/)).toBeVisible();
+  });
+
+  test("SPでレシート参照を開き、未解決のまま合計だけ保存できる", async ({ page }) => {
+    const userId = process.env.E2E_CLERK_USER_ID?.trim();
+    if (!userId) {
+      test.skip();
+      return;
+    }
+    await page.setViewportSize({ width: 390, height: 844 });
+    await gotoAuthenticated(page, INPUT_PATH);
+    await waitForReceiptInputQueue(page);
+    await seedMixedTaxReviewDraftByUser(userId);
+    await page.reload();
+
+    const queue = await waitForReceiptInputQueue(page);
+    const item = queue.locator(".ai-expense-queue-item").filter({ hasText: "E2E混在税レビュー店" });
+    await item.getByRole("button", { name: "確認する" }).click();
+    const dialog = page.getByRole("dialog", { name: "下書き確認" });
+    await dialog.getByRole("radio", { name: "商品によって異なる" }).check();
+    await dialog.getByRole("radio", { name: "8%と10%が混ざっている" }).check();
+    await dialog.getByRole("button", { name: "レシートを見る" }).click();
+
+    await expect(dialog.getByLabel("レシートOCR参照").first()).toContainText("牛乳 110円");
+    await expectLocatorInsideViewport(dialog);
+    await dialog.getByRole("button", { name: "レシート合計だけ保存" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(
+      queue
+        .getByRole("region", { name: "登録できます" })
+        .locator(".ai-expense-queue-item")
+        .filter({ hasText: "E2E混在税レビュー店" })
+        .getByText("合計だけで保存"),
+    ).toBeVisible({ timeout: 15_000 });
   });
 });
 

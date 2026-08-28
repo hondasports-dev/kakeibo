@@ -32,7 +32,7 @@ export function TaxRateSelect({
     >
       <MenuItem value="8">8%</MenuItem>
       <MenuItem value="10">10%</MenuItem>
-      <MenuItem value="0">0%</MenuItem>
+      <MenuItem value="0">非課税</MenuItem>
       <MenuItem value="unset">未設定</MenuItem>
     </TextField>
   );
