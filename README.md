@@ -21,7 +21,7 @@ cp .env.example .env.local
 
 `.env.local` に Clerk と Convex の値を設定します。詳細は [`docs/environment-variables.md`](docs/environment-variables.md) を参照してください。
 
-`.env.example` の Convex 値は既存projectへ接続するための初期値です。次の `convex:dev` 実行時に、Git管理外の `.env.local` がlocal deployment用の値へ更新されます。
+`.env.example` の Convex 値は既存projectへ接続するための初期値です。worktreeでは、まず `pnpm run e2e:env-sync -- --copy-only` で正本をコピーします。この段階ではConvexの環境変数を変更しません。次の `convex:dev` 実行時に、Git管理外の `.env.local` がlocal deployment用の値へ更新されます。
 
 最低限必要な変数:
 
@@ -46,13 +46,14 @@ pnpm run convex:dev:cloud
 
 Cursor Cloud等で匿名dev deploymentが必要な場合は `CONVEX_AGENT_MODE=anonymous npx convex dev` を使います（`AGENTS.md` 参照）。
 
-Convex 側には最低限 `CLERK_JWT_ISSUER_DOMAIN` を設定してください:
+初回はlocal deploymentの作成確認に同意します。Clerk issuerとE2E用設定は、local watcherを起動したまま別ターミナルで同期できます。`KAKEIBO_E2E_ENV_CANONICAL` にはlocal URLへ更新済みの現在の `.env.local` を指定してください。
 
-```bash
-pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
-pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
-pnpm exec convex env set APP_ENV development
+```powershell
+$env:KAKEIBO_E2E_ENV_CANONICAL = (Resolve-Path .env.local).Path
+pnpm run e2e:env-sync
 ```
+
+これにより `CLERK_JWT_ISSUER_DOMAIN`、E2Eガード、固定テストユーザー、mockレシート抽出設定が選択中のlocal deploymentへ入ります。詳しい2ターミナル手順とseed方針は [`docs/development-process.md`](docs/development-process.md) を参照してください。
 
 ### 3. フロントエンド
 
@@ -81,7 +82,7 @@ pnpm run e2e:public -- --project=chromium
 pnpm run test:email-integration
 ```
 
-E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同期が必要です（[`docs/development-process.md`](docs/development-process.md) 参照）。
+E2E 実行前は `pnpm exec playwright install chromium` とlocal Convexの起動・環境同期が必要です。ローカルE2Eは実DB／認証／HTTP境界の確認、`convex-test` は関数単位の高速テストに使い分けます（[`docs/development-process.md`](docs/development-process.md) 参照）。
 
 ## 主要ドキュメント
 

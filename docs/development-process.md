@@ -125,11 +125,13 @@ if [ ! -f ../kakeibo-worktrees/preview/.env.local ]; then
 fi
 ```
 
-task worktree作成後は正本をコピーする。
+task worktree作成後は、同期コマンドのcopy-only modeで正本をコピーする。
 
 ```bash
-cp ../preview/.env.local .env.local
+pnpm run e2e:env-sync -- --copy-only
 ```
+
+`--copy-only` は `.env.local` のコピーだけを行い、コピー元がcloud devを向いていてもConvex deploymentの環境変数を書き換えない。手動コピーよりこちらを既定とする。
 
 秘密値はchat、Issue、PR、log、commitへ出さない。
 
@@ -293,12 +295,41 @@ repo-wide regression checkはlatest contentのCI Aftercareを正本にできる�
 
 ### Functional E2E
 
-browser層のAcceptance Criteriaがある変更では、push前に対象specをローカル実行する。
+browser層のAcceptance Criteriaがある変更では、push前に対象specをlocal Convexで実行する。ローカルE2Eは実DB、Clerk認証、Convex HTTP／mutation、画面の状態遷移をまとめて確認する層とし、関数単位の分岐は `convex-test`、外部公開URLが必要な確認だけcloud deploymentへ分ける。レシート抽出は `RECEIPT_IMAGE_EXTRACTOR_MODE=mock` とし、OpenAI APIは呼ばない。
+
+初回または新しいtask worktreeでは、次の順に準備する。
+
+ターミナル1:
 
 ```bash
+pnpm run e2e:env-sync -- --copy-only
+pnpm run convex:dev
+```
+
+初回にlocal deployment作成を確認された場合は作成する。起動直後に `CLERK_JWT_ISSUER_DOMAIN` 不足でFunction準備が待機しても、watcherは止めずにターミナル2の同期を実行する。
+
+ターミナル2（PowerShell）:
+
+```powershell
+$env:KAKEIBO_E2E_ENV_CANONICAL = (Resolve-Path .env.local).Path
 pnpm run e2e:env-sync
 pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 ```
+
+`KAKEIBO_E2E_ENV_CANONICAL` を現在の `.env.local` に固定するのは、`convex:dev` が書き換えたlocal URLをpreview worktreeのcloud URLで上書きしないためである。同期処理はClerk publishable keyからissuerを復元し、選択中のlocal deploymentへ `CLERK_JWT_ISSUER_DOMAIN`、`APP_ENV=development`、mock抽出、E2Eユーザー／cleanup設定を反映して疎通確認する。secretやissuerの実値はログへ出さない。
+
+WindowsでConvex CLIが設定成功後の終了処理だけassertする既知パターンは、成功メッセージだけでPASSにせず、最後のcleanup認証HTTPが200になることまで同期処理が確認する。
+
+E2E終了後はターミナル1のwatcherを `Ctrl+C` で停止する。
+
+### E2E seed
+
+再現性が必要なデータは、specから `e2e/helpers/seed.ts` の専用helperを呼び出して作る。手動でlocal DBへ共通seedを流し込む運用にはしない。
+
+- seed HTTP routeは `APP_ENV=development`、cleanup secret、固定E2Eユーザー／所属groupで保護する
+- まっさらなlocal DBでは、先に認証済みページを1回表示してユーザーとgroupを作成し、その後seedしてreloadする
+- specが作ったデータはcleanup helperで後始末し、spec間で状態を共有しない
+- Issue固有の状態は必要最小限のfixtureにする。Issue #670の混在税率レビューも専用seedを同じPRに含める
 
 広い主要導線を変更した場合のみ、必要に応じて範囲を広げる。
 
@@ -306,10 +337,9 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 
 ### Convex reflection
 
-`convex/**` の新規/変更関数をローカルE2Eで使う場合:
+`convex/**` の新規/変更関数をローカルE2Eで使う場合、上記のwatcherが変更をlocal deploymentへ自動反映する。1回だけ反映したい場合はlocal環境同期後に次を使う。
 
 ```bash
-pnpm run e2e:env-sync
 pnpm run convex:dev -- --once
 ```
 

@@ -34,4 +34,16 @@ describe("local Convex development workflow", () => {
       "| local dev  | local `.env.local`                   | Development instance `pk_test_*` | local deployment",
     );
   });
+
+  test("keeps initial env copying separate from deployment writes", () => {
+    const syncScript = readDocument("scripts/sync-e2e-env.mjs");
+    const developmentProcess = readDocument("docs/development-process.md");
+
+    expect(syncScript).toContain('includes("--copy-only")');
+    expect(syncScript).toContain('startsWith("local:")');
+    expect(syncScript).toContain('syncConvexEnv("CLERK_JWT_ISSUER_DOMAIN"');
+    expect(syncScript).toContain("windowsExitAssertionAfterSuccess");
+    expect(developmentProcess).toContain("pnpm run e2e:env-sync -- --copy-only");
+    expect(developmentProcess).toContain("KAKEIBO_E2E_ENV_CANONICAL");
+  });
 });
