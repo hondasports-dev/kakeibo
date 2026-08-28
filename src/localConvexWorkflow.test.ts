@@ -62,6 +62,7 @@ describe("local Convex development workflow", () => {
     expect(syncScript).toContain('includes("--copy-only")');
     expect(syncScript).toContain('includes("--allow-cloud")');
     expect(syncScript).toContain('startsWith("local:")');
+    expect(syncScript).toContain('"[::1]"');
     expect(syncScript).toContain("isLocalConvexEnvironment");
     expect(syncScript).toContain("cloud Convex deploymentへのE2E環境変数反映を拒否しました");
     expect(syncScript).toContain('syncConvexEnv("CLERK_JWT_ISSUER_DOMAIN"');

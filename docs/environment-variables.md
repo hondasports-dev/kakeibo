@@ -226,7 +226,7 @@ Vercel のビルドコマンドは **`pnpm run build`（`tsc -b && vite build`�
 `npx convex deploy` は実行されていない。そのため `CONVEX_DEPLOY_KEY` は
 Vercel に設定されておらず、Vercel ビルドから Convex への関数デプロイは行われない。
 
-通常のローカル開発では `pnpm run convex:dev` がlocal deploymentを選択し、Convex関数を同期する。
+通常のローカル開発では `pnpm run dev` がlocal deploymentを選択し、Convex watcherとViteを起動する。Convexだけを起動する場合は `pnpm run convex:dev` を使う。
 PR E2E用のcloud dev deploymentへ反映する場合だけ、ローカル開発者が
 `pnpm run convex:dev:cloud -- --once` を明示的に実行する。
 

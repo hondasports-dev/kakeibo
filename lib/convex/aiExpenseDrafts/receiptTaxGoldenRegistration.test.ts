@@ -52,23 +52,27 @@ function draftFor(testCase: ReturnType<typeof getCase>): Doc<"aiExpenseDrafts"> 
 }
 
 function itemsFor(testCase: ReturnType<typeof getCase>): Doc<"aiExpenseDraftItems">[] {
-  return testCase.input.items.map((sourceItem, index) => ({
-    _id: ("golden-item-" + index) as Id<"aiExpenseDraftItems">,
-    _creationTime: 1,
-    groupId,
-    draftId,
-    itemName: sourceItem.itemName,
-    amountYen: sourceItem.printedAmountYen,
-    printedAmountYen: sourceItem.printedAmountYen,
-    normalizedAmountYen:
-      sourceItem.amountBasis === "tax_excluded"
-        ? Math.round(sourceItem.printedAmountYen * (1 + (sourceItem.taxRatePercent ?? 0) / 100))
-        : sourceItem.printedAmountYen,
-    categoryId,
-    confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
-    createdAt: 1,
-    updatedAt: 1,
-  })) as Doc<"aiExpenseDraftItems">[];
+  const interpretation = interpretReceiptTax(testCase.input);
+  return testCase.input.items.map((sourceItem, index) => {
+    const interpretedItem = interpretation.items[index];
+    if (!interpretedItem) {
+      throw new Error(`${testCase.id} item ${index} is missing from the interpretation`);
+    }
+    return {
+      _id: ("golden-item-" + index) as Id<"aiExpenseDraftItems">,
+      _creationTime: 1,
+      groupId,
+      draftId,
+      itemName: sourceItem.itemName,
+      amountYen: sourceItem.printedAmountYen,
+      printedAmountYen: sourceItem.printedAmountYen,
+      normalizedAmountYen: interpretedItem.normalizedAmountYen,
+      categoryId,
+      confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+      createdAt: 1,
+      updatedAt: 1,
+    };
+  }) as Doc<"aiExpenseDraftItems">[];
 }
 
 function createDb() {
