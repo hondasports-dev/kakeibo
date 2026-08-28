@@ -43,34 +43,39 @@ function ReceiptReference({
   const [mobileOpen, setMobileOpen] = useState(false);
   const highlightedLines = matchingLines(draft, activeItem);
   const reference = imageDataUrl ? (
-    <Box sx={{ position: "relative", width: "100%" }}>
+    <Box sx={{ textAlign: "center" }}>
       <Box
-        alt={`${draft?.imageFileName ?? "レシート"}の確認画像`}
-        component="img"
-        src={imageDataUrl}
-        sx={{ display: "block", maxHeight: 520, objectFit: "contain", width: "100%" }}
-      />
-      {highlightedLines.flatMap((line) =>
-        line.boundingBox
-          ? [
-              <Box
-                aria-label={`${activeItem?.itemName ?? "対象商品"}の印字位置`}
-                key={line.sourceLineIndex}
-                sx={{
-                  border: "3px solid",
-                  borderColor: "warning.main",
-                  bgcolor: "rgba(255, 193, 7, 0.18)",
-                  left: `${line.boundingBox.left * 100}%`,
-                  top: `${line.boundingBox.top * 100}%`,
-                  width: `${line.boundingBox.width * 100}%`,
-                  height: `${line.boundingBox.height * 100}%`,
-                  pointerEvents: "none",
-                  position: "absolute",
-                }}
-              />,
-            ]
-          : [],
-      )}
+        data-testid="receipt-image-coordinate-system"
+        sx={{ display: "inline-flex", lineHeight: 0, maxWidth: "100%", position: "relative" }}
+      >
+        <Box
+          alt={`${draft?.imageFileName ?? "レシート"}の確認画像`}
+          component="img"
+          src={imageDataUrl}
+          sx={{ display: "block", maxHeight: 520, maxWidth: "100%", objectFit: "contain" }}
+        />
+        {highlightedLines.flatMap((line) =>
+          line.boundingBox
+            ? [
+                <Box
+                  aria-label={`${activeItem?.itemName ?? "対象商品"}の印字位置`}
+                  key={line.sourceLineIndex}
+                  sx={{
+                    border: "3px solid",
+                    borderColor: "warning.main",
+                    bgcolor: "rgba(255, 193, 7, 0.18)",
+                    left: `${line.boundingBox.left * 100}%`,
+                    top: `${line.boundingBox.top * 100}%`,
+                    width: `${line.boundingBox.width * 100}%`,
+                    height: `${line.boundingBox.height * 100}%`,
+                    pointerEvents: "none",
+                    position: "absolute",
+                  }}
+                />,
+              ]
+            : [],
+        )}
+      </Box>
     </Box>
   ) : (
     <Stack aria-label="レシートOCR参照" component="ol" spacing={0.5} sx={{ m: 0, pl: 3 }}>
