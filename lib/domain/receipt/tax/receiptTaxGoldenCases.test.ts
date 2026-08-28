@@ -150,11 +150,14 @@ describe("Issue #672 receipt tax golden case ledger", () => {
               excludedLine.rawText.includes(item.itemName),
           );
           expect(itemWithExcludedLine).toBeUndefined();
-          if (
-            excludedLine.amountYen !== null &&
-            !testCase.input.items.some((item) => item.printedAmountYen === excludedLine.amountYen)
-          ) {
-            expect(itemAmounts).not.toContain(excludedLine.amountYen);
+          if (excludedLine.amountYen !== null) {
+            const inputAmountCount = testCase.input.items.filter(
+              (item) => item.printedAmountYen === excludedLine.amountYen,
+            ).length;
+            const resultAmountCount = itemAmounts.filter(
+              (amount) => amount === excludedLine.amountYen,
+            ).length;
+            expect(resultAmountCount).toBeLessThanOrEqual(inputAmountCount);
           }
         }
       }

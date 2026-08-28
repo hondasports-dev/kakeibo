@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
+import { isLocalConvexEnvironment } from "../scripts/sync-e2e-env.mjs";
 
 const readPackageJson = () =>
   JSON.parse(readFileSync("package.json", "utf8")) as {
@@ -70,5 +71,15 @@ describe("local Convex development workflow", () => {
     expect(developmentProcess).toContain("pnpm run e2e:env-sync -- --copy-only");
     expect(developmentProcess).toContain("pnpm run e2e:env-sync");
     expect(developmentProcess).toContain("pnpm run e2e:env-sync:cloud");
+  });
+
+  test("recognizes the bracketed IPv6 loopback as a local Convex endpoint", () => {
+    const env = new Map([
+      ["CONVEX_DEPLOYMENT", "local:local-test"],
+      ["VITE_CONVEX_URL", "http://127.0.0.1:3210"],
+      ["VITE_CONVEX_SITE_URL", "http://[::1]:3211"],
+    ]);
+
+    expect(isLocalConvexEnvironment(env)).toBe(true);
   });
 });

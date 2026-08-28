@@ -149,7 +149,7 @@ function loadLocalEnv() {
   return parseEnvFile(readFileSync(envPath, "utf8"));
 }
 
-function isLocalEndpoint(value) {
+export function isLocalEndpoint(value) {
   if (!value) return false;
   try {
     const url = new URL(value);
@@ -165,7 +165,7 @@ function hasLocalDeploymentSelection(env) {
   return env?.get("CONVEX_DEPLOYMENT")?.trim().startsWith("local:") ?? false;
 }
 
-function isLocalConvexEnvironment(env) {
+export function isLocalConvexEnvironment(env) {
   return (
     hasLocalDeploymentSelection(env) &&
     isLocalEndpoint(env?.get("VITE_CONVEX_URL")) &&
@@ -347,7 +347,9 @@ async function main() {
   await verifyCleanupAuth(env);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}
