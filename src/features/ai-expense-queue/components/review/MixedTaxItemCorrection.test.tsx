@@ -96,5 +96,10 @@ describe("MixedTaxItemCorrection", () => {
     await user.click(screen.getByRole("button", { name: "レシートを見る" }));
     expect(screen.getAllByRole("img", { name: "receipt.jpgの確認画像" }).length).toBeGreaterThan(0);
     expect(screen.getAllByLabelText("牛乳の印字位置").length).toBeGreaterThan(0);
+    expect(screen.getAllByTestId("receipt-image-coordinate-system")[0]).toHaveStyle({
+      display: "inline-flex",
+      maxWidth: "100%",
+      position: "relative",
+    });
   });
 });
