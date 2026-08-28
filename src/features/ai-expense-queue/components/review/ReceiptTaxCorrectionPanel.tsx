@@ -14,6 +14,8 @@ import {
   Typography,
 } from "@mui/material";
 import type { AiExpenseDraft, ReviewFormValues, ReviewItemValues } from "../../types/types";
+import type { AmountBasis } from "../../../../../lib/receiptTax/types";
+import { MixedTaxItemCorrection } from "./MixedTaxItemCorrection";
 import { ReceiptTaxSummary } from "./ReceiptTaxSummary";
 import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 
@@ -43,6 +45,10 @@ export function ReceiptTaxCorrectionPanel({
   onOpenItemEditing,
   taxSummaryUpdatingIndex,
   onTaxSummaryChange,
+  imageDataUrl,
+  taxUpdatingItemId,
+  onTaxRateChange,
+  onAmountBasisChange,
 }: {
   draft: AiExpenseDraft | null;
   reviewForm: ReviewFormValues;
@@ -51,6 +57,10 @@ export function ReceiptTaxCorrectionPanel({
   onOpenItemEditing: () => void;
   taxSummaryUpdatingIndex?: number | null;
   onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
+  imageDataUrl?: string;
+  taxUpdatingItemId?: string | null;
+  onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
+  onAmountBasisChange?: (itemId: string, amountBasis: AmountBasis) => void;
 }) {
   const receiptTotal = Number(reviewForm.amountYen || 0);
   const itemsTotal = useMemo(
@@ -162,6 +172,18 @@ export function ReceiptTaxCorrectionPanel({
             </Alert>
           ) : null}
 
+          {reviewForm.taxRateComposition === "mixed" ? (
+            <MixedTaxItemCorrection
+              draft={draft}
+              imageDataUrl={imageDataUrl}
+              items={reviewItems}
+              onAmountBasisChange={onAmountBasisChange}
+              onTaxRateChange={onTaxRateChange}
+              priceTaxTreatment={reviewForm.priceTaxTreatment}
+              updatingItemId={taxUpdatingItemId}
+            />
+          ) : null}
+
           <Alert
             aria-live="polite"
             severity={difference === 0 ? "success" : "warning"}
@@ -175,6 +197,15 @@ export function ReceiptTaxCorrectionPanel({
               <Typography variant="body2">
                 差額：{Math.abs(difference).toLocaleString()}円{difference === 0 ? "（一致）" : ""}
               </Typography>
+              {difference !== 0 ? (
+                <Typography variant="body2">
+                  {reviewItems.some((item) => item.taxResolutionStatus === "unresolved")
+                    ? "未確認商品の税率または表示価格区分が原因の可能性があります。商品ごとに確認するか、レシート合計だけで保存できます。"
+                    : difference > 0
+                      ? "商品合計に不足があります。明細・値引き・外税を確認するか、レシート合計だけで保存できます。"
+                      : "商品合計が超過しています。重複明細・値引き・税の二重加算を確認するか、レシート合計だけで保存できます。"}
+                </Typography>
+              ) : null}
               <Typography sx={{ fontWeight: 600 }} variant="body2">
                 保存予定：小計{subtotal.toLocaleString()}円 + 税{allocatedTax.toLocaleString()}円 ={" "}
                 {plannedTotal.toLocaleString()}円{usesEstimate ? "（推定を含む）" : ""}

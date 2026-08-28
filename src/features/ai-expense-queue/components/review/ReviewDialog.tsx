@@ -24,6 +24,7 @@ import { ReviewFormFields } from "./ReviewFormFields";
 import { ReviewItemsEditor } from "./ReviewItemsEditor";
 import { ReviewSummaryView } from "./ReviewSummaryView";
 import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
+import type { AmountBasis } from "../../../../../lib/receiptTax/types";
 
 const RECEIPT_LINE_ROLE_LABELS = {
   item: "商品",
@@ -66,6 +67,8 @@ export function ReviewDialog({
   onTaxRateChange,
   taxSummaryUpdatingIndex,
   onTaxSummaryChange,
+  imageDataUrl,
+  onAmountBasisChange,
 }: {
   open: boolean;
   categories: AiExpenseQueueCategory[];
@@ -98,6 +101,8 @@ export function ReviewDialog({
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
   taxSummaryUpdatingIndex?: number | null;
   onTaxSummaryChange?: (index: number, change: TaxSummaryChange) => void;
+  imageDataUrl?: string;
+  onAmountBasisChange?: (itemId: string, amountBasis: AmountBasis) => void;
 }) {
   const [isEditMode, setIsEditMode] = useState(false);
   const [itemsExpanded, setItemsExpanded] = useState(false);
@@ -127,7 +132,7 @@ export function ReviewDialog({
   return (
     <Dialog
       fullWidth
-      maxWidth="sm"
+      maxWidth={reviewForm.taxRateComposition === "mixed" ? "lg" : "sm"}
       onClose={onClose}
       open={open}
       slotProps={{ paper: { sx: { overscrollBehavior: "contain" } } }}
@@ -251,6 +256,7 @@ export function ReviewDialog({
                       <Divider />
                       <ReviewItemsEditor
                         categories={categories}
+                        enableItemTaxEditing={reviewForm.taxRateComposition === "mixed"}
                         onAddItem={onAddItem}
                         onItemChange={onItemChange}
                         onRemoveItem={onRemoveItem}
@@ -272,15 +278,19 @@ export function ReviewDialog({
               {hasLineItems ? (
                 <ReceiptTaxCorrectionPanel
                   draft={selectedReviewDraft}
+                  imageDataUrl={imageDataUrl}
+                  onAmountBasisChange={onAmountBasisChange}
                   onFieldChange={onFieldChange}
                   onOpenItemEditing={() => {
                     setIsEditMode(true);
                     setItemsExpanded(true);
                   }}
                   onTaxSummaryChange={onTaxSummaryChange}
+                  onTaxRateChange={onTaxRateChange}
                   reviewForm={reviewForm}
                   reviewItems={reviewItems}
                   taxSummaryUpdatingIndex={taxSummaryUpdatingIndex}
+                  taxUpdatingItemId={taxUpdatingItemId}
                 />
               ) : null}
             </>

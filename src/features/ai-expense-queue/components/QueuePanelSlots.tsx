@@ -136,6 +136,9 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         isReviewDraftLoading={queue.isReviewDraftLoading}
         isReviewDraftNotFound={queue.isReviewDraftNotFound}
         selectedReviewDraft={queue.selectedReviewDraft}
+        imageDataUrl={
+          queue.items.find((item) => item.id === queue.selectedReviewDraftId)?.previewImageDataUrl
+        }
         reviewError={queue.reviewError}
         reviewForm={queue.reviewForm}
         reviewItems={queue.reviewItems}
@@ -155,6 +158,7 @@ export function QueuePanelDialogs({ categories = [] }: { categories?: AiExpenseQ
         onResetToAiInterpretation={() => void queue.handleResetToAiInterpretation()}
         taxUpdatingItemId={queue.taxUpdatingItemId}
         onTaxRateChange={queue.handleTaxRateChange}
+        onAmountBasisChange={queue.handleAmountBasisChange}
         taxSummaryUpdatingIndex={queue.taxSummaryUpdatingIndex}
         onTaxSummaryChange={queue.handleTaxSummaryChange}
       />
