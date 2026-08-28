@@ -310,8 +310,10 @@ pnpm exec playwright test e2e/<spec>.spec.ts --project=chromium
 
 ```bash
 pnpm run e2e:env-sync
-pnpm exec convex dev --once
+pnpm run convex:dev -- --once
 ```
+
+この手順はlocal deploymentへ反映する。GitHub Actions E2Eが使うcloud dev deploymentへ反映する必要がある場合だけ、`pnpm run convex:dev:cloud -- --once` を明示的に使う。
 
 required environment不足、env sync失敗、Convex CLI未反映を「未実行理由」として先へ進まない。復旧できなければBLOCKED / Incident。
 

@@ -23,7 +23,8 @@
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
     "clerk:login": "clerk auth login",
-    "convex:dev": "convex dev",
+    "convex:dev": "convex deployment select local && convex dev",
+    "convex:dev:cloud": "convex deployment select dev && convex dev",
     "line:rich-menu": "tsx scripts/apply-line-rich-menu.ts",
     "test:email-integration": "vitest run -c vitest.integration.config.ts"
   },

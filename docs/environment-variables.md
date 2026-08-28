@@ -49,6 +49,15 @@ Local / DEV / Preview / CI では未設定時の既定を `LINE_INTEGRATION_MODE
 | `VITE_CONVEX_SITE_URL` | Convex HTTP エンドポイントのベース URL   | ✅    | ✅             | ✅         | ✅   | ❌         | .env.local / GitHub Actions Secret / GitHub Actions Variable / Vercel Env |
 | `CONVEX_DEPLOY_KEY`    | Convex deploy key                        | ❌    | ❌             | ✅         | ✅   | ✅         | GitHub Actions Secret / Vercel Env |
 
+| 環境                   | Convex接続先              | 主な用途                                      |
+| ---------------------- | ------------------------- | --------------------------------------------- |
+| Local                  | local deployment          | 通常の画面開発、local E2E、実バックエンド確認 |
+| DEV/PR Preview         | cloud dev deployment      | GitHub Actions E2E、公開Webhook確認            |
+| PREVIEW RC             | fixed staging deployment  | `preview` branchの統合確認                    |
+| Production             | production deployment     | 本番トラフィック                              |
+
+通常のローカル開発は `pnpm run convex:dev` でlocal deploymentを選択する。クラウドのdev deploymentを使う必要がある場合だけ `pnpm run convex:dev:cloud` を明示的に実行する。
+
 ### OpenAI / レシート画像抽出関連
 
 | 変数名                         | 用途                                         | Local | DEV/PR Preview | PREVIEW RC | PROD | Secret扱い | 設定場所               |
@@ -116,17 +125,20 @@ E2E_CLERK_USER_ID=https://your-clerk-frontend-api-url.clerk.accounts.dev|user_..
 E2E_CLEANUP_SECRET=...
 # E2E_CLERK_USER_PASSWORD は .env.example に残存するが、現行 auth helper では未使用
 
-# Convex
+# Convex projectへの初期リンク。`pnpm run convex:dev` の実行後は
+# local deployment用の値へ自動更新される。
 CONVEX_DEPLOYMENT=dev:your-deployment
 VITE_CONVEX_URL=https://your-deployment.convex.cloud
 VITE_CONVEX_SITE_URL=https://your-deployment.convex.site
 ```
 
+local deploymentの識別子とURLはConvex CLIが `.env.local` に生成するため、固定値をリポジトリへ記録しない。
+
 E2E 認証は `@clerk/testing` の Testing Token + `email_code` 方式（`e2e/helpers/auth.ts`）。
 `CLERK_SECRET_KEY` と `E2E_CLERK_USER_EMAIL` が必須。Playwright は `CLERK_PUBLISHABLE_KEY`
 （`VITE_` なし）も参照する（`playwright.config.ts` が `VITE_CLERK_PUBLISHABLE_KEY` から設定）。
 
-`CLERK_JWT_ISSUER_DOMAIN` と `CLERK_SECRET_KEY` は Convex バックエンド（dev deployment）にも CLI で別途設定が必要。
+`CLERK_JWT_ISSUER_DOMAIN` と `CLERK_SECRET_KEY` は、通常のローカル開発ではlocal deploymentにCLIで別途設定が必要。
 特にグループ招待メール送信は Convex Action から Clerk Backend API を呼ぶため、
 `CLERK_SECRET_KEY` が Convex 側に未設定だと `groupInvitations:inviteMember` が失敗する。
 
@@ -214,8 +226,9 @@ Vercel のビルドコマンドは **`pnpm run build`（`tsc -b && vite build`�
 `npx convex deploy` は実行されていない。そのため `CONVEX_DEPLOY_KEY` は
 Vercel に設定されておらず、Vercel ビルドから Convex への関数デプロイは行われない。
 
-Convex 関数のデプロイは、ローカル開発者が `npx convex dev --once` または
-`npx convex dev` を手動で実行することで dev deployment に反映する。
+通常のローカル開発では `pnpm run convex:dev` がlocal deploymentを選択し、Convex関数を同期する。
+PR E2E用のcloud dev deploymentへ反映する場合だけ、ローカル開発者が
+`pnpm run convex:dev:cloud -- --once` を明示的に実行する。
 
 **Vercel Preview / PREVIEW 環境の Convex 接続先**
 
@@ -226,7 +239,7 @@ Vercel Preview Deployment の生成有無は、PR E2E の起動条件にしな�
 
 この構成の含意:
 
-- Convex 関数を追加・変更した PR では、E2E 実行前に `npx convex dev --once` で
+- Convex 関数を追加・変更した PR では、E2E 実行前に `pnpm run convex:dev:cloud -- --once` で
   dev deployment に反映する必要がある。反映前に E2E を実行すると `FunctionNotFound`
   エラーが発生する。
 - PREVIEW は dev deployment ではなく固定 Convex staging deployment を使うため、DEVデータは共有しない。
@@ -241,7 +254,7 @@ Production には `production-release.yml` から `pnpm exec convex deploy --cmd
 ## GitHub Actionsでの扱い
 
 PR単位のE2Eでは、GitHub ActionsからConvexへの直接デプロイは行わない。
-Convex 関数のデプロイはローカルの `npx convex dev --once` で行う。
+Convex 関数のデプロイはローカル開発者が `pnpm run convex:dev:cloud -- --once` でcloud dev deploymentを明示選択して行う。
 
 ### Production リリース時の生成変数
 
