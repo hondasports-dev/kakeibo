@@ -32,6 +32,31 @@ function parseEnvFile(content) {
   return values;
 }
 
+function deriveClerkJwtIssuerDomain(publishableKey) {
+  const normalizedKey = publishableKey.trim().replace(/^(['"])(.*)\1$/, "$2");
+  const match = normalizedKey.match(/^pk_(?:test|live)_(.+)$/);
+  if (!match) {
+    throw new Error(
+      "VITE_CLERK_PUBLISHABLE_KEY からCLERK_JWT_ISSUER_DOMAINを特定できません。Clerkのpublishable keyを確認してください。",
+    );
+  }
+
+  const decoded = Buffer.from(match[1], "base64").toString("utf8");
+  const hostname = decoded.endsWith("$") ? decoded.slice(0, -1) : decoded;
+
+  try {
+    const issuer = new URL(`https://${hostname}`);
+    if (issuer.hostname !== hostname || issuer.pathname !== "/") {
+      throw new Error("invalid Clerk issuer hostname");
+    }
+    return issuer.origin;
+  } catch {
+    throw new Error(
+      "VITE_CLERK_PUBLISHABLE_KEY からCLERK_JWT_ISSUER_DOMAINを特定できません。Clerkのpublishable keyを確認してください。",
+    );
+  }
+}
+
 function listWorktrees() {
   const result = spawnSync("git", ["worktree", "list", "--porcelain"], {
     cwd: repoRoot,
@@ -181,6 +206,18 @@ function syncConvexEnv(name, value) {
   });
 
   if (result.status !== 0) {
+    const combinedOutput = `${result.stdout?.toString() ?? ""}\n${result.stderr?.toString() ?? ""}`;
+    const windowsExitAssertionAfterSuccess =
+      process.platform === "win32" &&
+      combinedOutput.includes(`Successfully set ${name}`) &&
+      combinedOutput.includes("Assertion failed: !(handle->flags & UV_HANDLE_CLOSING)");
+    if (windowsExitAssertionAfterSuccess) {
+      console.warn(
+        `[e2e:env-sync] ${name} はlocal deploymentへ反映済みです（Convex CLIのWindows終了時assertは疎通確認で判定します）`,
+      );
+      return;
+    }
+
     const stderr = redactSensitiveText(result.stderr?.toString() ?? "", [value]);
     throw new Error(
       `convex env set ${name} に失敗しました。` +
@@ -191,13 +228,16 @@ function syncConvexEnv(name, value) {
   }
 }
 
-function syncConvexEnvironment(secret, userId) {
+function syncConvexEnvironment(secret, userId, clerkJwtIssuerDomain) {
+  if (clerkJwtIssuerDomain) {
+    syncConvexEnv("CLERK_JWT_ISSUER_DOMAIN", clerkJwtIssuerDomain);
+  }
   syncConvexEnv("APP_ENV", "development");
   syncConvexEnv("RECEIPT_IMAGE_EXTRACTOR_MODE", "mock");
   syncConvexEnv("E2E_CLERK_USER_ID", userId);
   syncConvexEnv("E2E_CLEANUP_SECRET", secret);
   console.log(
-    "[e2e:env-sync] Convex dev に E2E の環境ガード・テストユーザー・認証設定を反映しました",
+    `[e2e:env-sync] 選択中のConvex deploymentへE2E設定を反映しました${clerkJwtIssuerDomain ? "（local Clerk issuerを含む）" : ""}`,
   );
 }
 
@@ -220,6 +260,11 @@ async function main() {
     console.log(`[e2e:env-sync] 現在の .env.local を正本として使用します（${canonicalPath}）`);
   }
 
+  if (process.argv.slice(2).includes("--copy-only")) {
+    console.log("[e2e:env-sync] --copy-only のため、Convex deploymentの環境変数は変更していません");
+    return;
+  }
+
   const env = loadLocalEnv();
   if (!env) {
     throw new Error(".env.local の読み込みに失敗しました");
@@ -234,7 +279,16 @@ async function main() {
     throw new Error(".env.local に E2E_CLERK_USER_ID がありません");
   }
 
-  syncConvexEnvironment(secret, userId);
+  let clerkJwtIssuerDomain;
+  if (env.get("CONVEX_DEPLOYMENT")?.startsWith("local:")) {
+    const publishableKey = env.get("VITE_CLERK_PUBLISHABLE_KEY");
+    if (!publishableKey) {
+      throw new Error(".env.local に VITE_CLERK_PUBLISHABLE_KEY がありません");
+    }
+    clerkJwtIssuerDomain = deriveClerkJwtIssuerDomain(publishableKey);
+  }
+
+  syncConvexEnvironment(secret, userId, clerkJwtIssuerDomain);
   await verifyCleanupAuth(env);
 }
 
