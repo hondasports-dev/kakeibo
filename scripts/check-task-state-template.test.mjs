@@ -1,3 +1,7 @@
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -6,6 +10,7 @@ import {
   isTaskStateTemplatePath,
   normalizeChangedPath,
   parseTaskStateTemplateArguments,
+  readStagedFiles,
   runTaskStateTemplateCheck,
 } from "./check-task-state-template.mjs";
 
@@ -115,5 +120,32 @@ describe("task-state template check CLI helpers", () => {
         staged: true,
       }),
     ).toBe(0);
+  });
+
+  it("keeps both paths visible for a staged template rename", () => {
+    const repository = mkdtempSync(path.join(os.tmpdir(), "task-state-template-check-"));
+    try {
+      execFileSync("git", ["init", "-q"], { cwd: repository });
+      execFileSync("git", ["config", "user.name", "task-state-check"], { cwd: repository });
+      execFileSync("git", ["config", "user.email", "task-state-check@example.invalid"], {
+        cwd: repository,
+      });
+      const templateDirectory = path.join(repository, ".loop", "templates");
+      mkdirSync(templateDirectory, { recursive: true });
+      writeFileSync(path.join(templateDirectory, "task-state.yaml"), "schema: true\n");
+      execFileSync("git", ["add", ".loop/templates/task-state.yaml"], { cwd: repository });
+      execFileSync("git", ["commit", "-qm", "initial"], { cwd: repository });
+      mkdirSync(path.join(repository, "docs"));
+      execFileSync("git", ["mv", ".loop/templates/task-state.yaml", "docs/task-state.yaml"], {
+        cwd: repository,
+      });
+
+      expect(readStagedFiles(repository)).toEqual(
+        expect.arrayContaining([".loop/templates/task-state.yaml", "docs/task-state.yaml"]),
+      );
+      expect(runTaskStateTemplateCheck({ cwd: repository, staged: true })).toBe(1);
+    } finally {
+      rmSync(repository, { recursive: true, force: true });
+    }
   });
 });

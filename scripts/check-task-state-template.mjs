@@ -55,8 +55,8 @@ export function evaluateTaskStateTemplateChanges({
   };
 }
 
-function readStagedFiles(cwd) {
-  const output = execFileSync("git", ["diff", "--cached", "--name-only", "-z"], {
+export function readStagedFiles(cwd) {
+  const output = execFileSync("git", ["diff", "--cached", "--name-only", "--no-renames", "-z"], {
     cwd,
     encoding: "utf8",
   });
