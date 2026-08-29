@@ -101,7 +101,8 @@ R021〜R038は承認済み画像・匿名化印字行・人手ground truth等が
 
 ### 将来の別Issueで必須にする契約
 
-- 計測payloadは、version付きの指標ID、許可された状態enum、環境、発生時刻の粗いbucket、ランダムな送信idempotency keyだけに限定する。画像、OCR原文、商品名、金額、店舗名、認証・グループ識別子を送らない。
+- 計測payloadは、version付きの指標ID、許可された状態enum、環境、発生時刻の粗いbucket、PIIを含まないランダムな相関キー、イベントごとの送信idempotency keyだけに限定する。画像、OCR原文、商品名、金額、店舗名、認証・グループ識別子を送らない。
+- 相関キーは同じレビューセッションまたは下書きに属するQT01〜QT07のイベントを関連付けるための短命なランダム値で、ユーザーID・グループID・生の下書きIDから導出しない。idempotency keyは個々のイベントの再送を1回にまとめるためのキーであり、相関キーとは別の値・別の用途にする。
 - 送信はbest-effortとし、送信失敗はwarning/監視へ分離して登録mutationの結果やユーザー入力を変更しない。
 - 同じidempotency keyの再送は受信側で1回だけ集計する。タイムアウト後の再試行、重複受信、部分成功を決定的テストで検証する。
 - 収集先、保持期間、アクセス権限、削除手順、secretの扱いを実装前に明記し、プライバシー確認を通過するまで本番送信を有効にしない。
@@ -113,6 +114,7 @@ R021〜R038は承認済み画像・匿名化印字行・人手ground truth等が
 現行のbaselineを再計算する場合は、次の決定的テストを実行する。
 
 ```bash
+pnpm run receipt-tax:quality-metrics
 pnpm exec vitest run lib/domain/receipt/tax/receiptTaxGoldenCases.test.ts
 pnpm exec vitest run lib/convex/aiExpenseDrafts/receiptTaxGoldenRegistration.test.ts
 pnpm run lint
@@ -120,5 +122,6 @@ pnpm run format:check
 pnpm run build
 ```
 
-台帳や指標式を変更したPRでは、表のcommit SHA・件数・未利用ケース・残余リスクを同じPR本文へ更新する。
+`receipt-tax:quality-metrics` は台帳からOFF01〜OFF07、全件数、利用可能件数、ground truth確認件数、資料不足件数を現在のcommit SHA付きで決定的に出力する。
+台帳や指標式を変更したPRでは、この出力のcommit SHA・件数・未利用ケース・残余リスクを同じPR本文へ更新する。
 外部AI評価や実画像評価を通常CIへ追加しない。
