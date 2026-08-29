@@ -93,6 +93,7 @@ E2E 実行前は `pnpm exec playwright install chromium` とlocal Convexの起�
 | UI/UX、MUI方針、入力フロー           | `docs/ui-ux-design.md`          |
 | グループ管理・権限                   | `docs/group-admin-permissions.md` |
 | 外部サービス操作ツールのセットアップ | `docs/service-tooling-setup.md` |
+| レシート税判定の品質指標             | `docs/receipt-tax-quality-metrics.md` |
 
 ### 開発プロセス・運用
 
