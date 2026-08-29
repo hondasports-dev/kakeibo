@@ -64,9 +64,9 @@ jobs:
         run: |
           {
             echo "### E2E relevance"
-            echo "- runtime_relevant: `$RUNTIME_RELEVANT`"
-            echo "- reason: `$REASON`"
-            echo "- changed_paths: `$CHANGED_COUNT`"
+            echo "- runtime_relevant: \`$RUNTIME_RELEVANT\`"
+            echo "- reason: \`$REASON\`"
+            echo "- changed_paths: \`$CHANGED_COUNT\`"
           } >> "$GITHUB_STEP_SUMMARY"
 
   e2e:

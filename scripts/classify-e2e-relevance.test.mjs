@@ -110,6 +110,9 @@ describe("E2E workflow classification contract", () => {
     expect(workflow).toContain("needs.classify.outputs.runtime_relevant == 'true'");
     expect(workflow).toContain("shared-dev");
     expect(workflow).toContain("name: authenticated");
+    expect(workflow).toContain('echo "- runtime_relevant: \\`$RUNTIME_RELEVANT\\`"');
+    expect(workflow).toContain('echo "- reason: \\`$REASON\\`"');
+    expect(workflow).toContain('echo "- changed_paths: \\`$CHANGED_COUNT\\`"');
   });
 });
 
