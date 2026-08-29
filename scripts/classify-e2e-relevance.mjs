@@ -7,16 +7,14 @@ const COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/i;
 const PROCESS_ONLY_SCRIPT_PATTERN = /^scripts\/(?:check-loop|check-task)-[^/]+(?:\.test)?\.mjs$/;
 const PROCESS_ONLY_CLASSIFIER_TEST = "scripts/check-e2e-relevance.test.mjs";
 
+/** Normalize a Git path to a stable repository-relative form. */
 export function normalizeChangedPath(filePath) {
   return String(filePath)
     .replaceAll("\\", "/")
     .replace(/^\.\/+/, "");
 }
 
-/**
- * Return true only for files whose purpose is process/documentation policy.
- * Unknown paths intentionally return false so the workflow fails closed into E2E.
- */
+/** Return true only for process/documentation policy files; unknown paths stay E2E-relevant. */
 export function isProcessOnlyPath(filePath) {
   const normalized = normalizeChangedPath(filePath);
 
@@ -43,6 +41,7 @@ export function isProcessOnlyPath(filePath) {
   );
 }
 
+/** Classify a changed-path set and return the machine-readable E2E decision. */
 export function classifyChangedFiles(changedPaths = []) {
   const normalizedPaths = [
     ...new Set((changedPaths ?? []).map(normalizeChangedPath).filter(Boolean)),
@@ -66,12 +65,14 @@ export function classifyChangedFiles(changedPaths = []) {
   };
 }
 
+/** Reject untrusted git revision input before passing it to the git subprocess. */
 function validateCommitSha(value, name) {
   if (!COMMIT_SHA_PATTERN.test(value)) {
     throw new Error(`${name} must be a 40-character hexadecimal commit SHA`);
   }
 }
 
+/** Read changed paths between two validated commits using NUL-delimited git output. */
 export function readChangedFiles({ baseSha, headSha, cwd = process.cwd() }) {
   validateCommitSha(baseSha, "base SHA");
   validateCommitSha(headSha, "head SHA");
@@ -97,6 +98,7 @@ export function readChangedFiles({ baseSha, headSha, cwd = process.cwd() }) {
   return output.split("\0").filter(Boolean);
 }
 
+/** Append stable scalar outputs for a GitHub Actions step. */
 function writeGitHubOutput(outputPath, result) {
   appendFileSync(
     outputPath,
@@ -110,6 +112,7 @@ function writeGitHubOutput(outputPath, result) {
   );
 }
 
+/** Print a concise, secret-free classification result for the job log. */
 function printResult(result) {
   console.log("E2E_RELEVANCE status: PASS");
   console.log(`runtime_relevant: ${result.runtimeRelevant}`);
@@ -117,6 +120,7 @@ function printResult(result) {
   console.log(`changed_paths: ${result.changedPaths.length}`);
 }
 
+/** Run classification for a pull request and optionally write its Actions outputs. */
 export function runE2ERelevanceCheck({ baseSha, headSha, cwd = process.cwd(), githubOutput } = {}) {
   const result = classifyChangedFiles(readChangedFiles({ baseSha, headSha, cwd }));
   printResult(result);
@@ -126,6 +130,7 @@ export function runE2ERelevanceCheck({ baseSha, headSha, cwd = process.cwd(), gi
   return result;
 }
 
+/** Parse the CLI arguments used by the pull-request classification job. */
 export function parseArguments(args) {
   const options = { baseSha: "", headSha: "", githubOutput: "" };
 
