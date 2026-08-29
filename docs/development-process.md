@@ -339,6 +339,12 @@ E2E終了後はターミナル1のwatcherを `Ctrl+C` で停止する。
 
 `src/**` や `e2e/**` を変更したという**pathだけ**を理由にローカル全E2Eを要求しない。
 
+### PR CI E2Eの差分判定
+
+PRのE2E workflowは、まずPRのbase/head間のchanged pathを機械的に分類する。`.loop/**`、`skills/**`、ドキュメント、`.husky/**`、およびAgent Loopのprocess enforcement用スクリプトだけの変更は `runtime_relevant=false` としてbrowser E2Eを起動しない。アプリ、認証、データ、browser、E2E harness、package、workflow、環境同期に関わる変更や判定できないpathは `runtime_relevant=true` として従来どおりE2Eを実行する。判定結果と理由はworkflowのsummaryへ出力し、Agentの手動判断でskipしない。
+
+判定ロジックは [`scripts/classify-e2e-relevance.mjs`](../scripts/classify-e2e-relevance.mjs) とその `test:loop` で検証する。判定スクリプトやE2E workflow自身の変更はruntime-relevantとして扱い、E2Eの実行条件を弱めた変更を見逃しにくくする。
+
 ### Convex reflection
 
 `convex/**` の新規/変更関数をローカルE2Eで使う場合、上記のwatcherが変更をlocal deploymentへ自動反映する。1回だけ反映したい場合はlocal環境同期後に次を使う。
