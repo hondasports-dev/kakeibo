@@ -1,6 +1,7 @@
 name: E2E
 
 # 同一リポジトリの PR 作成・更新時に、CI 内の Vite dev server に対して実行する。
+# 先に changed-path classification を行い、process-only変更ではE2E jobをskipする。
 # fork PR と Dependabot PR には Actions Secrets が渡らないため、Secrets を使う E2E は実行しない。
 # Preview URL 自体は E2E 対象にしない。Vercel 対象 E2E は main の release candidate だけで実行する。
 #
@@ -27,19 +28,54 @@ on:
       - synchronize
       - reopened
       - ready_for_review
-    paths-ignore:
-      - "**/*.md"
 
 permissions:
   contents: read
   pull-requests: read
 
 jobs:
+  classify:
+    name: Classify E2E relevance
+    runs-on: ubuntu-latest
+    outputs:
+      runtime_relevant: ${{ steps.classify.outputs.runtime_relevant }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # merge commit ではなく、PR で push された head commit の差分を分類する。
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/classify-e2e-relevance.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --github-output "$GITHUB_OUTPUT"
+
+      - name: Publish classification summary
+        env:
+          RUNTIME_RELEVANT: ${{ steps.classify.outputs.runtime_relevant }}
+          REASON: ${{ steps.classify.outputs.reason }}
+          CHANGED_COUNT: ${{ steps.classify.outputs.changed_count }}
+        run: |
+          {
+            echo "### E2E relevance"
+            printf '%s\n' "- runtime_relevant: \`$RUNTIME_RELEVANT\`"
+            printf '%s\n' "- reason: \`$REASON\`"
+            printf '%s\n' "- changed_paths: \`$CHANGED_COUNT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   e2e:
     name: E2E (Playwright / Chromium / ${{ matrix.name }})
+    needs: classify
     # PR コードへ Secrets を渡すため、同一リポジトリの通常 PR に限定する。
     # Dependabot PR は GitHub の仕様で fork 相当として扱われ、Actions Secrets を利用できない。
     if: |
+      needs.classify.outputs.runtime_relevant == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
