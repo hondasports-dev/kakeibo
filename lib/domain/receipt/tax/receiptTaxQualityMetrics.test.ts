@@ -3,6 +3,7 @@ import { receiptTaxGoldenCaseLedger } from "./fixtures/receiptTaxGoldenCaseLedge
 import {
   buildReceiptTaxQualityMetrics,
   formatReceiptTaxQualityMetrics,
+  hasReceiptTaxQualityFailure,
 } from "./receiptTaxQualityMetrics";
 
 describe("receipt tax quality metrics", () => {
@@ -38,5 +39,28 @@ describe("receipt tax quality metrics", () => {
     for (const id of ["OFF01", "OFF02", "OFF03", "OFF04", "OFF05", "OFF06", "OFF07"]) {
       expect(output).toContain(`${id}:`);
     }
+  });
+
+  it("OFF07に不一致があれば失敗状態を返す", () => {
+    const sourceCase = receiptTaxGoldenCaseLedger.find((testCase) => testCase.input !== undefined);
+    if (!sourceCase?.input) {
+      throw new Error("a deterministic golden case is required");
+    }
+
+    const result = buildReceiptTaxQualityMetrics([
+      {
+        ...sourceCase,
+        expected: { ...sourceCase.expected, receiptTotalYen: 999999 },
+      },
+    ]);
+
+    expect(result.metrics.find((metric) => metric.id === "OFF07")).toMatchObject({
+      numerator: 1,
+      denominator: 1,
+    });
+    expect(hasReceiptTaxQualityFailure(result)).toBe(true);
+    expect(formatReceiptTaxQualityMetrics(result, "failing-revision")).toContain(
+      "RECEIPT_TAX_QUALITY_METRICS status: FAIL",
+    );
   });
 });

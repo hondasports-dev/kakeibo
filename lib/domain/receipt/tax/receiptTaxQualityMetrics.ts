@@ -91,6 +91,13 @@ function metric(
   return { id, numerator, denominator, percentage: percentage(numerator, denominator) };
 }
 
+export function hasReceiptTaxQualityFailure(metrics: ReceiptTaxQualityMetrics): boolean {
+  const deterministicMismatchMetric = metrics.metrics.find(
+    (metricResult) => metricResult.id === "OFF07",
+  );
+  return deterministicMismatchMetric === undefined || deterministicMismatchMetric.numerator > 0;
+}
+
 export function buildReceiptTaxQualityMetrics(
   cases: readonly ReceiptTaxGoldenCase[],
 ): ReceiptTaxQualityMetrics {
@@ -152,8 +159,9 @@ export function formatReceiptTaxQualityMetrics(
   metrics: ReceiptTaxQualityMetrics,
   revision: string,
 ): string {
+  const status = hasReceiptTaxQualityFailure(metrics) ? "FAIL" : "PASS";
   return [
-    "RECEIPT_TAX_QUALITY_METRICS status: PASS",
+    `RECEIPT_TAX_QUALITY_METRICS status: ${status}`,
     `revision: ${revision}`,
     `total_cases: ${metrics.totalCases}`,
     `available_cases: ${metrics.availableCases}`,
