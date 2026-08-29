@@ -11,7 +11,7 @@ principles:
   - Acceptance Criteria と Evidence で品質を証明し、Gate数では担保しない
   - Spec Confidence と Risk は別々に評価し、C0では実装しない
   - shared diff の writer は原則1体とする
-  - finding は task_state.findings を唯一の正本とする
+  - finding は current task instance の task_state.findings を唯一の正本とする
   - 高コストな reasoning / review / full check は Risk または Control が要求する時だけ使う
   - reviewer 同士を討論させず root が1回統合する
   - same content の Evidence を再利用し、content delta だけ再検証する
@@ -35,6 +35,15 @@ session_contract:
 
 context_policy:
   source_of_truth: task_state
+  state_storage:
+    template: .loop/templates/task-state.yaml
+    current_instance: .loop/state/<task-id>.yaml
+    template_role: schema_only
+    current_instance_tracking: worktree_local_ignored
+    rules:
+      - templateへtask固有値を記録しない
+      - current instanceはworktree-localへ保存しPRへcommitしない
+      - Finding Ledgerはcurrent instanceのfindings[]だけを正本とする
   compact_handoff:
     - goal
     - scope
@@ -192,6 +201,14 @@ controls:
     protected_branches:
       - main
       - preview
+  task_state_template:
+    trigger_when:
+      - before_publish
+    requires:
+      - node scripts/check-task-state-template.mjs --staged
+    schema_change_exception:
+      - --allow-schema-change
+      - --reason "schema change reason"
   security_review:
     trigger_when:
       [
@@ -367,6 +384,7 @@ review_policy:
 
 finding_ledger:
   source_of_truth: task_state.findings
+  storage: .loop/state/<task-id>.yaml
   stable_unique_id_required: true
   statuses:
     - open
@@ -485,6 +503,7 @@ delivery_contract:
     [
       spec_confirmed,
       workspace_preflight,
+      task_state_template_check,
       forward_and_reverse_coverage,
       acceptance_criteria_verified,
       required_verification_pass,

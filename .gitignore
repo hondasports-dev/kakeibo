@@ -61,3 +61,6 @@ playwright/.clerk/
 
 # Agent loop local review evidence (Delivery reads this; humans do not need it)
 .loop/review-evidence.json
+
+# Agent loop current task instances (copy the tracked schema here; never commit task-specific state)
+.loop/state/

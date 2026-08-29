@@ -48,6 +48,10 @@ merge_ready
 - base `preview` との差分確認
 - published contentがVerification/Review対象contentと対応
 - open/fix_now findingなし
+- `node scripts/check-task-state-template.mjs --staged` PASS
+
+`.loop/templates/task-state.yaml` の変更はtask stateの混入と区別できないため、schema更新の場合だけ
+`--allow-schema-change --reason "..."` を明示する。current task instanceは`.loop/state/<task-id>.yaml`へ置き、stagingしない。
 
 ## PR body
 

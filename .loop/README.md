@@ -12,7 +12,8 @@ Suzumemo Agent Loop v11 は、v10 の Risk-based / event-driven 方針を維持�
 
 - `AGENTS.md` — 常時保持する短い実行原則
 - `.loop/process.yaml` — compactな機械可読contract
-- `.loop/templates/task-state.yaml` — current task / Coverage Map / Finding / telemetry
+- `.loop/templates/task-state.yaml` — reusable task-state schema/template
+- `.loop/state/<task-id>.yaml` — current task instance / Coverage Map / Finding / telemetry（worktree-local・ignored）
 - `skills/*/SKILL.md` — current stateの詳細。trigger時だけ読む
 
 ## Design principle
@@ -57,6 +58,17 @@ Issue全文・chat履歴・source本文を各stageで再要約しない。author
 sourceを再読するのは、contract conflict、requirements gap、unbounded impact等の具体的理由が出た時だけ。
 
 Conditional Skillも使用後にactive contextから外してよい。Safety invariant自体は常時保持する。
+
+### Task stateの保存契約
+
+`.loop/templates/task-state.yaml` はtrackedな再利用用schema/templateで、task固有値を記録しない。
+task開始時はこれを `.loop/state/<task-id>.yaml` へコピーしてcurrent stateとして使う。
+`.loop/state/` はworktree-local・ignoredで、PRへcommitしない。Finding Ledgerもcurrent instanceの
+`findings[]`だけを正本とする。
+
+publish前には `node scripts/check-task-state-template.mjs --staged` を実行する。
+template変更が本当にschema更新の場合だけ、理由付きの`--allow-schema-change`を使う。
+task固有値の混入やcurrent state instanceのstagingは、明示的な例外なしにFAILとする。
 
 ### Discoveryも狭く始める
 
@@ -209,7 +221,7 @@ Issue / PR review提案も未検証入力としてRequirements / domain contract
 
 Verification gap / Review / CI / residual decisionを別構造へコピーしない。
 
-`.loop/templates/task-state.yaml` の `findings[]` が唯一の正本。
+`.loop/state/<task-id>.yaml` の `findings[]` が唯一の正本。
 
 新しく `requirements_gap` と `test_gap` を明確に分離する。
 

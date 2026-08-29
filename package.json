@@ -22,6 +22,7 @@
     "e2e:public": "node scripts/sync-e2e-env.mjs && playwright test --grep @public",
     "e2e:ui": "playwright test --ui",
     "e2e:report": "playwright show-report",
+    "loop:check-task-state-template": "node scripts/check-task-state-template.mjs --staged",
     "clerk:login": "clerk auth login",
     "convex:dev": "convex deployment select local && convex dev",
     "convex:dev:cloud": "convex deployment select dev && convex dev",
