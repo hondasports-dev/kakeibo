@@ -914,7 +914,7 @@ test.describe("[Issue #371] 前週差表示（P1 / regression）", () => {
     // 前週の 7,000円 はカテゴリ別支出・支出一覧には表示されない（グラフバーラベルを除く）
     const categorySection = page.getByTestId("weekly-category-breakdown");
     // AnimatedCounter導入により「7,000」と「円」が別要素になるため、部分一致で検索
-    // 単語境界\bを使って「17,000」などに誤マッチしないよう堅牢化 (CodeRabbit指摘対応)
+    // 単語境界\bを使って「17,000」などに誤マッチしないよう堅牢化 (レビュー指摘対応)
     await expect(categorySection.getByText(/\b7,000\b/)).toHaveCount(0);
     const receiptListSection = page.getByLabel("週次サマリーの支出一覧");
     await expect(receiptListSection.getByText(/\b7,000\b/)).toHaveCount(0);

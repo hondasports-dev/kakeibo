@@ -274,6 +274,7 @@ learning:
     reusable_rule: ""
     improvement_axes: [] # context | speed | precision
     proposed_target: ""
+    source_finding_ids: [] # review snapshotのstable ID。レビュー指摘を起点にした候補は必須。
     disposition: pending # pending | applied | follow_up | no_change
     location: ""
     persistent_follow_up:

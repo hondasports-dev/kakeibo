@@ -149,6 +149,30 @@ function loadLocalEnv() {
   return parseEnvFile(readFileSync(envPath, "utf8"));
 }
 
+export function isLocalEndpoint(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "http:" && ["127.0.0.1", "localhost", "::1", "[::1]"].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function hasLocalDeploymentSelection(env) {
+  return env?.get("CONVEX_DEPLOYMENT")?.trim().startsWith("local:") ?? false;
+}
+
+export function isLocalConvexEnvironment(env) {
+  return (
+    hasLocalDeploymentSelection(env) &&
+    isLocalEndpoint(env?.get("VITE_CONVEX_URL")) &&
+    isLocalEndpoint(env?.get("VITE_CONVEX_SITE_URL"))
+  );
+}
+
 async function verifyCleanupAuth(env) {
   const siteUrl = env.get("VITE_CONVEX_SITE_URL");
   const secret = env.get("E2E_CLEANUP_SECRET");
@@ -247,20 +271,44 @@ async function main() {
     return;
   }
 
-  const worktrees = listWorktrees();
-  const canonicalPath = resolveCanonicalEnvPath(worktrees);
+  const args = process.argv.slice(2);
+  const copyOnly = args.includes("--copy-only");
+  const allowCloud = args.includes("--allow-cloud");
   const targetPath = resolve(repoRoot, ".env.local");
+  const currentEnv = loadLocalEnv();
 
-  ensureCanonicalEnv(canonicalPath, worktrees);
-
-  if (resolve(canonicalPath) !== targetPath) {
-    copyFileSync(canonicalPath, targetPath);
-    console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
-  } else {
-    console.log(`[e2e:env-sync] 現在の .env.local を正本として使用します（${canonicalPath}）`);
+  if (hasLocalDeploymentSelection(currentEnv) && !isLocalConvexEnvironment(currentEnv)) {
+    throw new Error(
+      ".env.local はlocal deploymentを選択していますが、Convexの接続先がlocalではありません。" +
+        " `pnpm run dev` または `pnpm run convex:dev -- --once` を先に実行してlocal URLを生成してください。",
+    );
   }
 
-  if (process.argv.slice(2).includes("--copy-only")) {
+  if (!copyOnly && !allowCloud && !isLocalConvexEnvironment(currentEnv)) {
+    throw new Error(
+      "ローカルE2Eの環境同期を中止しました。通常の開発では `pnpm run dev` でlocal Convexを起動してください。" +
+        " cloud dev deploymentを明示的に使う場合だけ `pnpm run e2e:env-sync:cloud` を実行してください。",
+    );
+  }
+
+  if (isLocalConvexEnvironment(currentEnv)) {
+    console.log("[e2e:env-sync] local .env.local を維持します（cloudの正本で上書きしません）");
+  }
+
+  const worktrees = listWorktrees();
+  if (!isLocalConvexEnvironment(currentEnv)) {
+    const canonicalPath = resolveCanonicalEnvPath(worktrees);
+    ensureCanonicalEnv(canonicalPath, worktrees);
+
+    if (resolve(canonicalPath) !== targetPath) {
+      copyFileSync(canonicalPath, targetPath);
+      console.log(`[e2e:env-sync] .env.local を同期しました（正本: ${canonicalPath}）`);
+    } else {
+      console.log(`[e2e:env-sync] 現在の .env.local を正本として使用します（${canonicalPath}）`);
+    }
+  }
+
+  if (copyOnly) {
     console.log("[e2e:env-sync] --copy-only のため、Convex deploymentの環境変数は変更していません");
     return;
   }
@@ -268,6 +316,13 @@ async function main() {
   const env = loadLocalEnv();
   if (!env) {
     throw new Error(".env.local の読み込みに失敗しました");
+  }
+
+  if (!allowCloud && !isLocalConvexEnvironment(env)) {
+    throw new Error(
+      "cloud Convex deploymentへのE2E環境変数反映を拒否しました。" +
+        " `pnpm run convex:dev` でlocal deploymentへ切り替えるか、必要性を確認したうえで `pnpm run e2e:env-sync:cloud` を使ってください。",
+    );
   }
 
   const secret = env.get("E2E_CLEANUP_SECRET");
@@ -292,7 +347,9 @@ async function main() {
   await verifyCleanupAuth(env);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
-  process.exit(1);
-});
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : error);
+    process.exit(1);
+  });
+}

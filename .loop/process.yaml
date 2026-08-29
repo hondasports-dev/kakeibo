@@ -433,7 +433,22 @@ process_learning_policy:
     - external waitをAgent処理時間と混同しない
     - 改善は追加手順より削除・統合・遅延ロード・順序変更・Evidence再利用・cheap checkを優先する
     - candidateはapplied/follow_up/no_changeへ必ずdispositionする
+    - review findingは特定vendor名ではなく、stable IDを持つprovider-neutral snapshotとして扱う
+    - actionableなreview findingが1件でもあればlearning.eventをnoneにせず、各IDをtask-state.findingsとcandidate.source_finding_idsへ紐付ける
+    - review findingが再利用不能でもcandidateをno_changeへdispositionし、rationaleとevidenceを残す
     - current task scope外を同PRへ暗黙に混ぜない
+  review_finding_coverage:
+    snapshot: .loop/templates/review-findings.json
+    required_fields: [reviewed_head_sha, collection_status, findings]
+    finding_fields: [id, actionable]
+    collection_status: complete
+    verification: "node scripts/check-loop-evidence.mjs --learning --file <task-state.json> --review-findings-file <review-findings.json> --head <current-head-sha>"
+    rules:
+      - review snapshotが欠落している場合はPASSにしない
+      - review snapshotのcollection_statusがcompleteでない場合はPASSにしない
+      - snapshotのactionable findingは全件task-state.findings[]へ同じstable IDで登録する
+      - actionable findingは全件、少なくとも1つのlearning candidate.source_finding_idsで覆う
+      - review toolの切替時もsnapshot契約を維持し、vendor名をtriggerや判定条件にしない
   target_priority:
     [script_or_code, ci_or_deterministic_enforcement, skill, agents_policy, runbook_or_docs]
 

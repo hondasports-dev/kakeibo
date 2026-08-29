@@ -1,6 +1,6 @@
 learning_candidate:
   id: pr-647-verification-efficiency
-  created_from_task: "PR 647 / CodeRabbit follow-up"
+  created_from_task: "PR 647 / review follow-up"
   trigger: "ユーザーが同一セッション内のテスト再実行の多さを指摘し、loop改善を依頼した"
   event_type: manual_check_repetition
 
@@ -47,6 +47,6 @@ learning_candidate:
   observation:
     status: observing
     task_samples:
-      - "PR 647 / CodeRabbit follow-up"
+      - "PR 647 / review follow-up"
     recurrence_count: 0
     escalation_target: ci_or_gate

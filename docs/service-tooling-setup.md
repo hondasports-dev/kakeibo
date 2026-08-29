@@ -139,8 +139,10 @@ git ls-files --others --exclude-standard
 1. ローカル開発サーバを起動し、Chrome DevTools MCPで確認する。
 
 ```bash
-pnpm run dev -- --host 127.0.0.1
+pnpm run dev
 ```
+
+`pnpm run dev` はlocal Convex watcherとViteを同時に起動する。Convexを起動済みでViteだけ再起動する場合は `pnpm run dev:frontend -- --host 127.0.0.1` を使う。
 
 確認項目:
 
@@ -725,7 +727,7 @@ args: -y chrome-devtools-mcp@latest
 
 2026-05-12に、Vite開発サーバを起動してChrome DevTools MCPで確認した。
 
-- 起動コマンド: `pnpm run dev -- --host 127.0.0.1`
+- 起動コマンド: `pnpm run dev`
 - 確認URL: `http://localhost:5174/`
 - 補足: `5173` は使用中だったため、Viteが自動で `5174` を使用した
 - DOM確認: ブランドロゴ「Suzumemo スズメモ」、ダッシュボードまたは入力画面が表示されること

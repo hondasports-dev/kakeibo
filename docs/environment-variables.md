@@ -56,7 +56,7 @@ Local / DEV / Preview / CI では未設定時の既定を `LINE_INTEGRATION_MODE
 | PREVIEW RC             | fixed staging deployment  | `preview` branchの統合確認                    |
 | Production             | production deployment     | 本番トラフィック                              |
 
-通常のローカル開発は `pnpm run convex:dev` でlocal deploymentを選択する。クラウドのdev deploymentを使う必要がある場合だけ `pnpm run convex:dev:cloud` を明示的に実行する。
+通常のローカル開発は `pnpm run dev` でlocal deploymentを自動作成・選択し、Convex watcherとViteを起動する。Convexだけを起動する場合は `pnpm run convex:dev` を使う。クラウドのdev deploymentを使う必要がある場合だけ `pnpm run convex:dev:cloud` と `pnpm run e2e:env-sync:cloud` を明示的に実行する。
 
 ### OpenAI / レシート画像抽出関連
 
@@ -226,7 +226,7 @@ Vercel のビルドコマンドは **`pnpm run build`（`tsc -b && vite build`�
 `npx convex deploy` は実行されていない。そのため `CONVEX_DEPLOY_KEY` は
 Vercel に設定されておらず、Vercel ビルドから Convex への関数デプロイは行われない。
 
-通常のローカル開発では `pnpm run convex:dev` がlocal deploymentを選択し、Convex関数を同期する。
+通常のローカル開発では `pnpm run dev` がlocal deploymentを選択し、Convex watcherとViteを起動する。Convexだけを起動する場合は `pnpm run convex:dev` を使う。
 PR E2E用のcloud dev deploymentへ反映する場合だけ、ローカル開発者が
 `pnpm run convex:dev:cloud -- --once` を明示的に実行する。
 

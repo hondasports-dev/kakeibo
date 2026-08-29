@@ -67,7 +67,7 @@ export default defineConfig({
   webServer: process.env.E2E_BASE_URL
     ? undefined
     : {
-        command: "pnpm run dev",
+        command: process.env.CI ? "pnpm run dev:frontend" : "pnpm run dev",
         url: "http://localhost:5173",
         reuseExistingServer: !process.env.CI,
         timeout: 60_000,
