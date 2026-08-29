@@ -198,7 +198,8 @@ test.describe("Issue #672 税判定回帰の代表E2E", () => {
 
   test("@smoke totalOnlyからdetailedへ再編集して登録できる", async ({ page }) => {
     const userId = process.env.E2E_CLERK_USER_ID?.trim();
-    if (!userId) {
+    const userEmail = process.env.E2E_CLERK_USER_EMAIL?.trim();
+    if (!userId || !userEmail) {
       test.skip();
       return;
     }
