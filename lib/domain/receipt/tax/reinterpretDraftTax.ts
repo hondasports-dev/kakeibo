@@ -90,21 +90,19 @@ export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): Reinterpre
         : input.decisionOverride?.taxRateComposition === "rate10"
           ? 10
           : undefined;
-    if (decisionAmountBasis !== undefined || decisionTaxRate !== undefined) {
-      return {
-        ...extracted,
-        amountBasis: decisionAmountBasis ?? extracted.amountBasis,
-        taxRatePercent: decisionTaxRate ?? extracted.taxRatePercent,
-      };
-    }
+    const decisionAdjusted = {
+      ...extracted,
+      amountBasis: decisionAmountBasis ?? extracted.amountBasis,
+      taxRatePercent: decisionTaxRate ?? extracted.taxRatePercent,
+    };
     if (input.override?.itemIndex === index) {
       return {
-        ...extracted,
+        ...decisionAdjusted,
         taxRatePercent:
           input.override.taxRatePercent !== undefined
             ? input.override.taxRatePercent
-            : extracted.taxRatePercent,
-        amountBasis: input.override.amountBasis ?? extracted.amountBasis,
+            : decisionAdjusted.taxRatePercent,
+        amountBasis: input.override.amountBasis ?? decisionAdjusted.amountBasis,
       };
     }
     if (
@@ -113,12 +111,12 @@ export function reinterpretDraftTax(input: ReinterpretDraftTaxInput): Reinterpre
       input.override?.itemIndex !== index
     ) {
       return {
-        ...extracted,
+        ...decisionAdjusted,
         taxRatePercent: input.bulkUnresolvedOverride.taxRatePercent,
         amountBasis: input.bulkUnresolvedOverride.amountBasis,
       };
     }
-    return extracted;
+    return decisionAdjusted;
   });
 
   const selectedRate: TaxRatePercent | undefined =

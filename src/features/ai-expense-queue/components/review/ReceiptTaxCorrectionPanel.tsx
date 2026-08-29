@@ -78,11 +78,7 @@ export function ReceiptTaxCorrectionPanel({
   const [detailsState, setDetailsState] = useState({ draftId, value: false });
   const expanded = expandedState.draftId === draftId ? expandedState.value : needsAttention;
   const detailsExpanded = detailsState.draftId === draftId ? detailsState.value : false;
-  const hasUniformUserDecision =
-    (reviewForm.priceTaxTreatment === "included" || reviewForm.priceTaxTreatment === "excluded") &&
-    (reviewForm.taxRateComposition === "rate8" || reviewForm.taxRateComposition === "rate10");
-  const usesEstimate =
-    draft?.receiptTaxDecision?.taxAmount.source === "estimated" || hasUniformUserDecision;
+  const usesEstimate = draft?.receiptTaxDecision?.taxAmount.source === "estimated";
   const choseUnknown =
     reviewForm.priceTaxTreatment === "unknown" || reviewForm.taxRateComposition === "unknown";
 

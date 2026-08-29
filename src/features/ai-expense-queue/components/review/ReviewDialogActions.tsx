@@ -61,7 +61,7 @@ export function ReviewDialogActions({
           </Button>
           <Button
             disabled={isSubmitDisabled}
-            onClick={() => onSubmit(false)}
+            onClick={() => onSubmit(false, "detailed")}
             type="button"
             variant="contained"
           >
@@ -83,7 +83,7 @@ export function ReviewDialogActions({
           </Button>
           <Button
             disabled={isSubmitDisabled}
-            onClick={() => onSubmit(false)}
+            onClick={() => onSubmit(false, "detailed")}
             type="button"
             variant="contained"
           >
