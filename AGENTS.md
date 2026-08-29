@@ -4,7 +4,8 @@
 
 - Machine-readable loop: `.loop/process.yaml`
 - Overview / rationale: `.loop/README.md`
-- Current task state: `.loop/templates/task-state.yaml`
+- Task-state schema/template: `.loop/templates/task-state.yaml`
+- Current task state (worktree-local, ignored): `.loop/state/<task-id>.yaml`
 - Current stage / conditional helper: `skills/*/SKILL.md`
 - Plugin manifest: `plugin.json`
 
@@ -28,7 +29,7 @@ Human Gate / Incident / Process Learning は必要時だけのside path。
 - requirements gapはPREPAREへ戻す。test gapは解消またはRequirements正式変更までVerification PASS不可。
 - RiskとRequired Controlsを分離し、Implementation開始後の`max observed Risk`をcompletion floorとする。
 - required Verification / ReviewがFAIL・BLOCKEDのまま進まない。
-- `task-state.findings`をfindingの唯一のsource of truthとする。protected findingをAgent単独でdeferしない。
+- current instance（`.loop/state/<task-id>.yaml`）の`findings[]`をfindingの唯一のsource of truthとする。protected findingをAgent単独でdeferしない。
 - same tree/contentのEvidenceは再利用し、content changeでは必要なdeltaだけ再検証する。
 - `PR created`はcheckpoint。通常targetはlatest PR contentの`merge_ready`。
 - Process Learningはevent-driven。R3/R4だけを理由に起動しない。

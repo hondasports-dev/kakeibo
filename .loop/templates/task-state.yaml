@@ -1,3 +1,6 @@
+# SCHEMA TEMPLATE ONLY: copy to .loop/state/<task-id>.yaml for a current task instance.
+# Do not fill task-specific values in this tracked reusable template.
+
 session:
   current_task_id: ""
   active_delivery_pr: ""
