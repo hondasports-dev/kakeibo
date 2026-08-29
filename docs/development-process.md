@@ -6,7 +6,8 @@ Agent Loop の詳細をここへ二重定義しない。内容が衝突した場
 
 - Agent実行契約: `AGENTS.md`
 - Loop / Risk / Required Controls: `.loop/process.yaml`
-- Task state / Finding Ledger: `.loop/templates/task-state.yaml`
+- Task-state schema: `.loop/templates/task-state.yaml`
+- Current task instance / Finding Ledger: `.loop/state/<task-id>.yaml`（worktree-local・ignored）
 - 各工程の手順: `skills/*/SKILL.md`
 - 技術設計: `docs/technical-design.md`
 - 認証: `docs/auth-guard.md`
@@ -43,6 +44,10 @@ Production
 通常のAgent Delivery baseは `preview`、targetは `merge_ready`。
 
 `PR created` はcheckpointであり完了ではない。ユーザーが明示的に「PR作成まで」と指定しない限り、latest PR contentのCI・review・conflict・mergeabilityを確認する。
+
+Task stateはtracked templateへ直接記録せず、`.loop/templates/task-state.yaml`を`.loop/state/<task-id>.yaml`へコピーして使う。
+publish前は `node scripts/check-task-state-template.mjs --staged` でtemplate変更やcurrent instanceのstagingを確認し、
+schema更新時だけ理由付きの明示例外を使う。
 
 ---
 
@@ -366,7 +371,7 @@ Security specialistはsecurity controlが起動した場合だけ同じREVIEW st
 
 「Code Review → Security Review」を全taskの固定serial Gateにしない。
 
-Findingは `.loop/templates/task-state.yaml` の `findings[]` に直接記録する。同じ所見をreview / residual / reconciliationへ転記しない。
+Findingは `.loop/state/<task-id>.yaml` の `findings[]` に直接記録する。同じ所見をreview / residual / reconciliationへ転記しない。
 
 Protected findingはagent単独でdeferしない。
 
