@@ -251,6 +251,44 @@ describe("reinterpretDraftTax", () => {
     });
   });
 
+  it("部分的な全体判断の後も明細単位の補正を優先する", () => {
+    const result = reinterpretDraftTax({
+      amountYen: 1000,
+      items: [
+        {
+          itemName: "A",
+          printedAmountYen: 500,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+        {
+          itemName: "B",
+          printedAmountYen: 500,
+          amountBasis: "unknown",
+          taxRatePercent: null,
+          markers: [],
+          warnings: [],
+        },
+      ],
+      taxSummaries: [],
+      decisionOverride: { priceTaxTreatment: "excluded", taxRateComposition: "mixed" },
+      override: { itemIndex: 0, taxRatePercent: 8, amountBasis: "tax_included" },
+    });
+
+    expect(result.itemFields[0]).toMatchObject({
+      amountBasis: "tax_included",
+      taxRatePercent: 8,
+      printedAmountYen: 500,
+    });
+    expect(result.itemFields[1]).toMatchObject({
+      amountBasis: "tax_excluded",
+      taxRatePercent: null,
+      printedAmountYen: 500,
+    });
+  });
+
   it("税率だけの上書きでは明示された価格軸をuser根拠へ昇格しない", () => {
     const result = reinterpretDraftTax({
       amountYen: 1100,

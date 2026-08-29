@@ -3,29 +3,32 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReviewDialogActions } from "./ReviewDialogActions";
 
-function renderActions(showSummaryView: boolean) {
-  return render(
-    <ReviewDialogActions
-      isSubmitDisabled={false}
-      onClose={vi.fn()}
-      onEnterEditMode={vi.fn()}
-      onExitEditMode={vi.fn()}
-      onSubmit={vi.fn()}
-      reviewSubmitting={false}
-      showSummaryView={showSummaryView}
-    />,
-  );
-}
-
 describe("ReviewDialogActions", () => {
-  it("確認画面は2つの保存方法を明示する", () => {
-    renderActions(true);
+  it("確認画面から明細保存を明示して送る", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ReviewDialogActions
+        isSubmitDisabled={false}
+        onClose={vi.fn()}
+        onEnterEditMode={vi.fn()}
+        onExitEditMode={vi.fn()}
+        onSubmit={onSubmit}
+        reviewSubmitting={false}
+        showSummaryView
+      />,
+    );
 
     expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "修正する" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "レシート合計だけ保存" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "確認して準備OK" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
+    expect(onSubmit).toHaveBeenCalledWith(false, "detailed");
+    await user.click(screen.getByRole("button", { name: "レシート合計だけ保存" }));
+    expect(onSubmit).toHaveBeenCalledWith(false, "totalOnly");
   });
 
   it("編集画面から選んだ保存方法を送る", async () => {
@@ -46,7 +49,7 @@ describe("ReviewDialogActions", () => {
     expect(screen.getByRole("button", { name: "確認に戻る" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "この内容で保存" }));
-    expect(onSubmit).toHaveBeenCalledWith(false);
+    expect(onSubmit).toHaveBeenCalledWith(false, "detailed");
     await user.click(screen.getByRole("button", { name: "レシート合計だけ保存" }));
     expect(onSubmit).toHaveBeenCalledWith(false, "totalOnly");
   });

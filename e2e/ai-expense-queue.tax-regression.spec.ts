@@ -195,4 +195,46 @@ test.describe("Issue #672 税判定回帰の代表E2E", () => {
         .getByText("5,000円"),
     ).toBeVisible();
   });
+
+  test("@smoke totalOnlyからdetailedへ再編集して登録できる", async ({ page }) => {
+    const userId = process.env.E2E_CLERK_USER_ID?.trim();
+    if (!userId) {
+      test.skip();
+      return;
+    }
+
+    await gotoAuthenticated(page, INPUT_PATH);
+    await waitForReceiptInputQueue(page);
+    await seedTaxReviewDraftByUser(userId);
+    await page.reload();
+    const { queue, dialog } = await openFirstReviewDialog(page);
+
+    await dialog.getByRole("radio", { name: "分からない" }).first().check();
+    await dialog.getByRole("button", { name: "この内容で保存" }).click();
+    await expect(dialog).toBeHidden();
+
+    const readyItem = queue
+      .getByRole("region", { name: "登録できます" })
+      .locator(".ai-expense-queue-item")
+      .filter({ hasText: "E2E税レビュー店" })
+      .first();
+    await expect(readyItem.getByText("合計だけで保存")).toBeVisible();
+    await readyItem.getByRole("button", { name: "修正する" }).click();
+    await expect(dialog).toBeVisible();
+
+    await dialog.getByRole("radio", { name: "表示価格にあとから税が加算される" }).check();
+    await dialog.getByRole("radio", { name: "すべて8%" }).check();
+    await expect(dialog.getByRole("button", { name: "この内容で保存" })).toBeEnabled();
+    await dialog.getByRole("button", { name: "この内容で保存" }).click();
+    await expect(dialog).toBeHidden();
+    await expect(readyItem.getByText("合計だけで保存")).toHaveCount(0);
+
+    await readyItem.getByRole("button", { name: "登録する" }).click();
+    const registeredItems = queue
+      .getByRole("region", { name: "登録済み" })
+      .locator(".ai-expense-queue-item")
+      .filter({ hasText: "E2E税レビュー店" });
+    await expect(registeredItems).toHaveCount(1, { timeout: 15_000 });
+    await expect(registeredItems.first().getByText("108円")).toBeVisible();
+  });
 });
