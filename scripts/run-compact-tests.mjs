@@ -34,7 +34,11 @@ export function parseArguments(argv) {
   return { help: false, mode, forwardedArgs };
 }
 
-export function buildCommands(mode, forwardedArgs = []) {
+export function isCiEnvironment(env = process.env) {
+  return env?.CI === "1" || env?.CI === "true";
+}
+
+export function buildCommands(mode, forwardedArgs = [], { compact = true } = {}) {
   if (!isMode(mode)) {
     throw new Error(`未対応のテスト種別です: ${mode}`);
   }
@@ -49,7 +53,13 @@ export function buildCommands(mode, forwardedArgs = []) {
       {
         label: "vitest",
         command: process.execPath,
-        args: [paths.vitest, "run", ...forwardedArgs, "--reporter=minimal", "--maxWorkers=4"],
+        args: [
+          paths.vitest,
+          "run",
+          ...forwardedArgs,
+          ...(compact ? ["--reporter=minimal"] : []),
+          "--maxWorkers=4",
+        ],
       },
     ];
   }
@@ -67,9 +77,7 @@ export function buildCommands(mode, forwardedArgs = []) {
         paths.playwright,
         "test",
         ...forwardedArgs,
-        "--reporter=dot",
-        "--quiet",
-        "--max-failures=1",
+        ...(compact ? ["--reporter=dot", "--quiet", "--max-failures=1"] : []),
       ],
     },
   ];
@@ -87,19 +95,25 @@ function appendLogHeader(logFileDescriptor, label) {
   writeSync(logFileDescriptor, `\n===== ${label} =====\n`);
 }
 
-function runCommand(commandSpec, logFileDescriptor) {
-  appendLogHeader(logFileDescriptor, commandSpec.label);
+function runCommand(commandSpec, { logFileDescriptor, inheritOutput = false } = {}) {
+  if (!inheritOutput) {
+    appendLogHeader(logFileDescriptor, commandSpec.label);
+  }
 
   return new Promise((resolve) => {
     const child = spawn(commandSpec.command, commandSpec.args, {
       cwd: repoRoot,
       env: process.env,
-      stdio: ["ignore", logFileDescriptor, logFileDescriptor],
+      stdio: inheritOutput ? "inherit" : ["ignore", logFileDescriptor, logFileDescriptor],
       windowsHide: true,
     });
 
     child.once("error", (error) => {
-      writeSync(logFileDescriptor, `\n[launcher error] ${error.message}\n`);
+      if (inheritOutput) {
+        console.error(error.message);
+      } else {
+        writeSync(logFileDescriptor, `\n[launcher error] ${error.message}\n`);
+      }
       resolve({ exitCode: 1, signal: undefined });
     });
     child.once("exit", (exitCode, signal) => {
@@ -109,7 +123,17 @@ function runCommand(commandSpec, logFileDescriptor) {
 }
 
 export async function runCompactTests({ mode, forwardedArgs = [], logPath } = {}) {
-  const commands = buildCommands(mode, forwardedArgs);
+  const compact = !isCiEnvironment();
+  const commands = buildCommands(mode, forwardedArgs, { compact });
+
+  if (!compact) {
+    for (const commandSpec of commands) {
+      const result = await runCommand(commandSpec, { inheritOutput: true });
+      if (result.exitCode !== 0) return result.exitCode;
+    }
+    return 0;
+  }
+
   const resolvedLogPath =
     logPath ?? path.join(mkdtempSync(compactLogPrefix), `${mode ?? "unknown"}.log`);
   const logFileDescriptor = openSync(resolvedLogPath, "a");
@@ -143,6 +167,7 @@ function printHelp() {
   console.log("使い方: pnpm --silent run test:agent [vitest options]");
   console.log("        pnpm --silent run e2e:agent [playwright options]");
   console.log("成功時は要約のみを表示し、詳細ログはOSの一時ディレクトリへ保存します。");
+  console.log("CI=true/1 ではcompact化せず、既存の標準出力・reporterをそのまま使います。");
 }
 
 const invokedPath = process.argv[1] ? path.resolve(process.argv[1]) : "";

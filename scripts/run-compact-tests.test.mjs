@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildCommands, formatSummary, parseArguments } from "./run-compact-tests.mjs";
+import {
+  buildCommands,
+  formatSummary,
+  isCiEnvironment,
+  parseArguments,
+} from "./run-compact-tests.mjs";
 
 describe("compact test runner arguments", () => {
   it("selects Vitest and forwards test filters", () => {
@@ -49,6 +54,19 @@ describe("compact test runner arguments", () => {
       "--quiet",
       "--max-failures=1",
     ]);
+  });
+
+  it("disables compact flags in CI while retaining the test phases", () => {
+    expect(isCiEnvironment({ CI: "true" })).toBe(true);
+    expect(isCiEnvironment({ CI: "1" })).toBe(true);
+    expect(isCiEnvironment({ CI: "false" })).toBe(false);
+
+    const vitestArgs = buildCommands("vitest", [], { compact: false })[1].args;
+    expect(vitestArgs).not.toContain("--reporter=minimal");
+    expect(vitestArgs).toContain("--maxWorkers=4");
+
+    const playwrightArgs = buildCommands("e2e", [], { compact: false })[1].args;
+    expect(playwrightArgs).not.toEqual(expect.arrayContaining(["--reporter=dot", "--quiet"]));
   });
 
   it("formats bounded machine-readable summaries", () => {
