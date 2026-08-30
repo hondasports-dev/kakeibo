@@ -1,6 +1,6 @@
 ---
 name: pr-aftercare
-description: PR公開後、最新headのCI・review・requested changes・conflict・approvalを追跡し、選択Risk Profileに必要な修正ループを回してmerge-readyまで収束させる。
+description: PR公開後、latest contentのCI・review・requested changes・approval・conflict・mergeabilityを追跡し、必要なdeltaだけ再検証してmerge-readyまで収束させる。
 license: Apache-2.0
 ---
 
@@ -8,172 +8,136 @@ license: Apache-2.0
 
 ## 目的
 
-PR作成で止まらず、**最新headが実際にmerge-readyになるまで**追跡する。
+PR作成で止まらず、latest PR contentを実際にmerge-readyへ収束させる。
 
-Risk-basedにしてもAftercareは軽量化の対象外。ここは主にGitHub state / Evidence確認であり、multi-agent reviewを増やす工程ではない。
+Aftercareは主にGitHub state確認であり、multi-agent reviewを増やす工程ではない。
 
-## Session boundary
+## 毎cycle
 
-Aftercareがterminalになるまでcurrent taskを保持する。
+観測対象を1つのrevisionへ束縛する。
 
-- 別taskのDelivery PRを作らない
-- 同一taskの修正は同じbranch / PRへ積む
-- 並行taskはユーザー明示許可時だけ
-
-## Observation epoch
-
-cycleごとに:
-
-```text
-PR
-Base
-Head branch
-Observed head SHA
-Risk / profile
-Delivery target
-```
-
-を固定する。
-
-head SHAが変わったら旧headのsuccessを流用しない。
-
-Draft状態が変わったら、同じheadでも新しいobservation epochを開く。特に Draft → ready のあと、ready前のreview観測を流用しない。
-
-## Draft / ready review epoch
-
-Draft中のbot skipを、actionable findingsなしのEvidenceにしてはいけない。
-
-次は `Review findings: none` の根拠にならない。
-
-- `Review skipped: draft pull request`
-- Draft中に完了した skip / "review available on request"
-- ready前に取得した空のreview comment一覧
-
-Draftを外したあと、post-ready epochで次を再取得する。
-
-- issue comments
-- review comments / threads
-- review state（`COMMENTED` / `CHANGES_REQUESTED` / `APPROVED`）
-- review関連のchecks
-
-このepochが終わるまで `merge_ready` にしない。review checkが `pending` / `in_progress` なら従来どおりPASSではない。ready後にbotが本レビューを出したら、その指摘をfindingsとしてclosureする。
-
-## 監視対象
-
-- required CI / checks
-- actionable human / bot review findings
+- PR / base / head
+- observed commit SHA
+- observed tree SHA
+- required checks
+- human/bot actionable findings
 - requested changes
-- unresolved blocking threads
-- required approval
+- approval
 - conflict / mergeability
-- Draft状態
+- Draft / ready state
 
-pending / queued / in_progressはPASSではない。
+checks / review / approval / conflict / mergeabilityのEvidenceは、どのobserved revisionに対するものか分かる形で記録する。
 
-## Finding / CI failure時
+`pending / queued / in_progress` はPASSではない。
 
-### Code / test fix
+レビュー結果は、利用するレビューサービス名に依存しないsnapshotへ正規化する。
+`reviewed_head_sha`、`collection_status: complete`、stableな`findings[].id`と
+`findings[].actionable`を記録し、current headとの一致を確認する。snapshotが欠落・未完了・
+古い場合、またはactionable findingがFinding Ledger / Process Learningへstable IDで紐付かない場合は
+AftercareをPASSにしない。
 
-```text
-PR_AFTERCARE
-→ IMPLEMENTATION
-→ profile-required VERIFICATION
-→ profile-required CODE_REVIEW
-→ profile-required SECURITY_REVIEW
-→ DELIVERY (same PR)
-→ PR_AFTERCARE (new head)
-```
+## Draft / ready
 
-`profile-required` が重要。R1/R2の修正で理由なくfull Security Reviewへ拡大しない。
+Draft中のbot skipを「findingなし」のEvidenceにしない。
 
-### Risk escalation
+Draft → ready後はreview state / comments / threads / review checksを再観測する。
 
-reviewやCIで新しいauth/data/shared/external impactが見つかった場合:
+## Head change
 
-```text
-PR_AFTERCARE
-→ REQUIREMENTS / IMPACT
-→ Risk/Profile更新
-→ new-profile required gates
-→ DELIVERY
-→ PR_AFTERCARE
-```
+SHAが変わっただけで全工程を再実行しない。ただしsame contentの再利用にはtree identityの証明が必要。
 
-### Specification conflict
+### same tree/content
 
-Requirementsへ戻す。C0になったら解消までImplementation禁止。
+次をすべて満たす時だけprevious Verification / Reviewを再利用できる。
 
-### Unknown / repeated failure
+- previous tree SHAが非空
+- current tree SHAが非空
+- previous tree SHA == current tree SHA
 
-Incident。
+この場合はGitHub側のlatest observationだけ更新する。
 
-### Human-only blocker
+### identityを証明できない / content changed
 
-BLOCKED。DONEにしない。
+- tree SHAが欠落、または一致を証明できない → content changedとして扱う
+- delta Verification
+- REVIEWがrequiredだったtaskはdelta Review
+- protected behavior / AC / Risk / Controlsが変わる、またはdeltaをboundできない → affected scope full rerun
 
-## Finding closure
+その後、同じPRへpublishして最新contentのCIを確認する。
 
-各findingを:
+## Finding Ledger
 
-- fixed
-- rejected with reason
-- outdated
-- resolved
-- blocking
+review / CI / human findingは共通 `findings[]` の同じrecordを更新する。
 
-のいずれかにする。
+各recordに最低限:
 
-コード変更したclosureは最新headでprofile-required Verification/Review Evidenceが必要。
+- stable `id`
+- `source`
+- `observed_revision`（commit SHA + tree SHA）
+- `status` / `disposition`
+- `evidence`
+
+を保持する。
+
+同じfindingが次cycleでも残る場合、新しいduplicate recordを作らず同じstable IDを更新する。
+
+遷移例:
+
+- fixed → 同じrecordへresolution / verified_revision / evidenceを追記し、検証後にresolved
+- rejected / not_applicable → 同じrecordへrationale / evidenceを追記
+- protected accept → 同じrecordへHuman Gate approvalを記録
+- test gap → 同じrecordをfixまたはRequirements reassessmentまでopenのまま保持
+
+旧revisionのfindingを単に削除せず、現revisionでoutdated / not_applicableになった根拠を同recordへ残す。
+
+レビュー結果を再利用できない場合も、Process Learningへ`no_change`とrationale / evidenceを残す。
+
+Reviewer同士を討論させない。
+
+## Risk escalation
+
+Aftercareで新しいauth/data/financial/shared/external impactが判明したらPREPAREへ戻り、Risk / Controls / Verification planを更新する。
 
 ## Merge-ready
 
-PASS条件:
+PASS直前にrevision consistencyを再確認する。
 
-- current taskの唯一のDelivery PR
-- non-draft（明示Draft運用を除く）
-- post-ready review epochを観測済み（Draftからreadyにした場合）
-- latest headのrequired checks success
-- actionable blocking findingsなし。Draft skipをnone扱いしていない
+- GitHubのcurrent PR head commit SHA == recorded observed commit SHA
+- current tree SHA == recorded observed tree SHA
+- latest contentのrequired checks success
+- required review / requested changes / approval / conflict / mergeabilityが同じobserved revisionに対するEvidence
+- blocking findingsなし
 - requested changesなし
-- required approval satisfied
+- required approvalがある場合 `approval_status: pass`
+- required approvalがない場合 `approval_status: not_required` 可
 - conflictなし
 - mergeable
-- verified headがcurrent
+- non-draft（明示Draft運用を除く）
 
-## merged_cleaned
+revision不一致、tree identity不明、approval pending/block、またはEvidenceのrevisionを特定できない場合はPASSにせず、BLOCKEDまたはdelta/full再検証へ戻る。
 
-ユーザーがmergeまで明示した場合だけ:
+## Explicit publish-only
 
-- merge直前にmerge-ready再確認
-- merge result / base反映確認
-- Issue state確認
-- task branch/worktree cleanup
+ユーザーが明示的に「PR作成まで」「CI待ちは不要」と指定した場合だけAftercare NOT_REQUIRED可。
 
-mergeとcleanupを一体操作にしない。canonical preview worktreeや正本`.env.local`を削除しない。
-
-## 明示的PR作成だけ
-
-「PR作成までで止めて」「CI待ちは不要」等の明示時だけ `NOT_REQUIRED` 可。
-
-単なる「PR投げて」は `merge_ready`。
+単なる「PR投げて」はmerge_ready。
 
 ## 出力
 
 ```text
-PR_AFTERCARE
-Status: PASS | FAIL | BLOCKED | NOT_REQUIRED
-Risk / profile:
-Target:
+PR AFTERCARE
+Status: PASS | BLOCKED | NOT_REQUIRED
 PR:
-Observed head SHA:
-Draft / ready epoch:
+Observed commit / tree:
+Revision consistency:
 Checks:
 Review findings:
 Requested changes:
-Approval:
+Approval required:
+Approval status:
 Conflict:
 Mergeable:
-Risk escalation:
-Blocking items:
+Delta revalidation:
+Blockers:
 Evidence:
 ```

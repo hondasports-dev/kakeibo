@@ -5,6 +5,7 @@ import type { MutationCtx } from "../../../convex/_generated/server";
 import { updateForReviewHandler } from "../../../convex/aiExpenseDrafts/mutations";
 import { applyReceiptTaxSettingsHandler } from "./applyReceiptTaxSettings";
 import { replaceDraftItemsForReview } from "./reviewValidation";
+import { resetReceiptToAiInterpretationHandler } from "./receiptDataContract";
 
 const GROUP_ID = "group-001" as Id<"groups">;
 const DRAFT_ID = "draft-tax" as Id<"aiExpenseDrafts">;
@@ -116,6 +117,186 @@ const externalTaxSummaries = [
 ];
 
 describe("updateForReviewHandler tax reinterpretation", () => {
+  it("税集計がなくても2段階選択を再計算してsnapshotへ保存する", async () => {
+    const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        shopName: "テスト店",
+        date: "2026-08-27",
+        amountYen: 1100,
+        categoryId: CAT_ID,
+        confidence: { shopName: 0.9, date: 0.9, amountYen: 0.9, categoryId: 0.9 },
+        warnings: [],
+        reviewReasons: ["user_confirmation_required"],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [
+        {
+          _id: "item-1",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "商品",
+          amountYen: 1000,
+          printedAmountYen: 1000,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-08-27",
+      amountYen: 1100,
+      categoryId: CAT_ID,
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate10",
+    });
+
+    expect(getDraft()).toMatchObject({
+      receiptTaxDecision: {
+        priceTaxTreatment: "excluded",
+        taxRateComposition: "rate10",
+        resolutionSource: "user",
+      },
+      receiptUserOverride: {
+        fields: expect.arrayContaining(["receiptTaxDecision", "taxSummaries"]),
+      },
+    });
+    expect(getItems()[0]).toMatchObject({ allocatedTaxYen: 100, normalizedAmountYen: 1100 });
+  });
+
+  it("2段階の税選択を保存し、AI判定よりユーザー判断を優先する", async () => {
+    const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        shopName: "テスト店",
+        date: "2026-08-27",
+        amountYen: 1100,
+        categoryId: CAT_ID,
+        confidence: { shopName: 0.9, date: 0.9, amountYen: 0.9, categoryId: 0.9 },
+        warnings: [],
+        reviewReasons: ["user_confirmation_required"],
+        taxSummaries: [
+          {
+            taxRatePercent: 10,
+            taxMode: "external",
+            taxableAmountYen: 1000,
+            taxableAmountBasis: "tax_excluded",
+            taxYen: 100,
+            roundingMethod: "unknown",
+            confidence: {},
+            warnings: [],
+            status: "verified",
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [
+        {
+          _id: "item-1",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "商品",
+          amountYen: 1000,
+          printedAmountYen: 1000,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-08-27",
+      amountYen: 1100,
+      categoryId: CAT_ID,
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate10",
+      items: [
+        {
+          itemId: "item-1" as Id<"aiExpenseDraftItems">,
+          itemName: "商品",
+          amountYen: 1000,
+          categoryId: CAT_ID,
+        },
+      ],
+    });
+
+    expect(getDraft().receiptTaxDecision).toMatchObject({
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate10",
+      resolutionSource: "user",
+    });
+    expect(getDraft().receiptUserOverride).toMatchObject({
+      fields: expect.arrayContaining(["receiptTaxDecision", "taxSummaries"]),
+      values: expect.objectContaining({
+        receiptTaxDecision: expect.objectContaining({ resolutionSource: "user" }),
+      }),
+    });
+    expect(getItems()[0]).toMatchObject({
+      amountBasis: "tax_excluded",
+      taxRatePercent: 10,
+      normalizedAmountYen: 1100,
+    });
+
+    const totalOnly = await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-08-27",
+      amountYen: 1100,
+      categoryId: CAT_ID,
+      registrationMode: "detailed",
+      priceTaxTreatment: "unknown",
+      taxRateComposition: "unknown",
+    });
+    expect(totalOnly).toMatchObject({
+      status: "ready",
+      registrationMode: "totalOnly",
+      receiptTaxDecision: {
+        priceTaxTreatment: "unknown",
+        taxRateComposition: "unknown",
+        resolutionSource: "user",
+      },
+    });
+
+    const detailed = await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-08-27",
+      amountYen: 1100,
+      categoryId: CAT_ID,
+      priceTaxTreatment: "excluded",
+      taxRateComposition: "rate10",
+    });
+    expect(detailed).toMatchObject({
+      registrationMode: "detailed",
+      receiptTaxDecision: {
+        priceTaxTreatment: "excluded",
+        taxRateComposition: "rate10",
+        resolutionSource: "user",
+      },
+    });
+  });
+
   it("削除・並べ替え・追加後も税情報を元の itemId にだけ引き継ぐ", async () => {
     const { ctx, getItems } = createInMemoryMutationCtx({
       draft: {
@@ -463,7 +644,259 @@ describe("updateForReviewHandler tax reinterpretation", () => {
 
     const items = getItems();
     expect(items[0]?.printedAmountYen).toBe(99);
-    expect(items[0]?.taxResolutionStatus).toBe("resolved");
+    expect(items[0]?.taxResolutionStatus).toBe("unresolved");
+  });
+
+  it("ユーザーが7,803円へ修正した合計を743円+60円の税算術で上書きしない", async () => {
+    const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        shopName: "テスト店",
+        date: "2026-07-04",
+        amountYen: 803,
+        categoryId: CAT_ID,
+        confidence: { shopName: 1, date: 1, amountYen: 0.5, categoryId: 1 },
+        warnings: [],
+        reviewReasons: ["amount_mismatch"],
+        receiptTotalResolution: {
+          status: "ambiguous",
+          protectedAmountYen: 803,
+          candidates: [
+            {
+              amountYen: 803,
+              source: "explicit_label",
+              evidence: "extraction.amountYen",
+            },
+            {
+              amountYen: 7803,
+              source: "payment_change",
+              evidence: "cash_received:10000 - change:2197",
+            },
+          ],
+          reasons: ["multiple_receipt_total_candidates"],
+        },
+        taxSummaries: [
+          {
+            ...externalTaxSummaries[0],
+            taxableAmountYen: 743,
+            taxYen: 60,
+            taxIncludedAmountYen: 803,
+          },
+        ],
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [
+        {
+          _id: "item-1",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          itemName: "商品A",
+          amountYen: 743,
+          printedAmountYen: 743,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    const result = await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-07-04",
+      amountYen: 7803,
+      categoryId: CAT_ID,
+      items: [
+        {
+          itemName: "商品A",
+          amountYen: 743,
+          categoryId: CAT_ID,
+          confidence: { itemName: 1, amountYen: 1, categoryId: 1 },
+        },
+      ],
+    });
+
+    expect(result.amountYen).toBe(7803);
+    expect(result.status).toBe("needs_review");
+    expect(getDraft().amountYen).toBe(7803);
+    expect(getDraft().confidence.amountYen).toBe(1);
+    expect(getDraft().receiptUserOverride).toMatchObject({
+      source: "user",
+      fields: expect.arrayContaining(["amountYen", "items"]),
+      values: expect.objectContaining({
+        amountYen: 7803,
+        items: [expect.objectContaining({ itemName: "商品A", amountYen: 743 })],
+      }),
+    });
+    expect(getDraft().receiptTotalResolution).toMatchObject({
+      status: "verified",
+      protectedAmountYen: 7803,
+      candidates: expect.arrayContaining([
+        expect.objectContaining({ amountYen: 7803, source: "user_confirmed" }),
+        expect.objectContaining({
+          amountYen: 7803,
+          source: "payment_change",
+          evidence: "cash_received:10000 - change:2197",
+        }),
+        expect.objectContaining({ amountYen: 803, source: "tax_arithmetic" }),
+      ]),
+    });
+    expect(getItems()[0]).toMatchObject({
+      printedAmountYen: 743,
+      normalizedAmountYen: 743,
+      allocatedTaxYen: 0,
+      taxResolutionStatus: "unresolved",
+    });
+  });
+
+  it("税率別集計なしでも補正額をuser_confirmed totalとして保存する", async () => {
+    const { ctx, getDraft } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        status: "needs_review",
+        documentType: "receipt",
+        shopName: "テスト店",
+        date: "2026-07-04",
+        amountYen: 803,
+        categoryId: CAT_ID,
+        confidence: { shopName: 0.9, date: 0.9, amountYen: 0.9, categoryId: 0.9 },
+        warnings: [],
+        reviewReasons: ["user_confirmation_required"],
+        receiptTotalResolution: {
+          status: "verified",
+          protectedAmountYen: 803,
+          candidates: [
+            { amountYen: 803, source: "explicit_label", evidence: "extraction.amountYen" },
+          ],
+          reasons: [],
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [],
+    });
+
+    await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "テスト店",
+      date: "2026-07-04",
+      amountYen: 7803,
+      categoryId: CAT_ID,
+    });
+
+    expect(getDraft()).toMatchObject({
+      amountYen: 7803,
+      receiptTotalResolution: {
+        status: "verified",
+        protectedAmountYen: 7803,
+        candidates: expect.arrayContaining([
+          expect.objectContaining({ amountYen: 7803, source: "user_confirmed" }),
+        ]),
+      },
+      receiptUserOverride: {
+        fields: expect.arrayContaining(["amountYen", "receiptTotalResolution"]),
+        values: expect.objectContaining({
+          amountYen: 7803,
+          receiptTotalResolution: expect.objectContaining({ protectedAmountYen: 7803 }),
+        }),
+      },
+    });
+  });
+
+  it("明示操作でuser overrideを解除しAI interpretationへ戻せる", async () => {
+    const aiValues = {
+      status: "needs_review" as const,
+      documentType: "receipt" as const,
+      shopName: "AI店舗",
+      date: "2026-07-04",
+      amountYen: 803,
+      categoryId: CAT_ID,
+      confidence: { shopName: 0.9, date: 0.9, amountYen: 0.9, categoryId: 0.9 },
+      warnings: ["ai_warning"],
+      reviewReasons: ["user_confirmation_required" as const],
+      items: [
+        {
+          itemName: "AI商品",
+          amountYen: 803,
+          printedAmountYen: 803,
+          categoryId: CAT_ID,
+          confidence: { itemName: 0.9, amountYen: 0.9, categoryId: 0.9 },
+        },
+      ],
+    };
+    const { ctx, getDraft, getItems } = createInMemoryMutationCtx({
+      draft: {
+        _id: DRAFT_ID,
+        groupId: GROUP_ID,
+        ...aiValues,
+        sourceType: "image_upload",
+        receiptInterpretation: { source: "ai", interpretedAt: 1, values: aiValues },
+        rawObservation: {
+          source: "ai_ocr",
+          observedAt: 1,
+          lines: [
+            {
+              rawText: "合計 803円",
+              amountText: "803円",
+              amountYen: 803,
+              lineRoleCandidates: ["total"],
+              roleConfidence: 0.9,
+              explicitlyPrinted: true,
+              sourceLineIndex: 1,
+            },
+          ],
+        },
+        createdAt: 1,
+        updatedAt: 1,
+      },
+      items: [
+        {
+          _id: "item-ai",
+          groupId: GROUP_ID,
+          draftId: DRAFT_ID,
+          ...aiValues.items[0],
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+    });
+
+    await updateForReviewHandler(ctx, {
+      draftId: DRAFT_ID,
+      documentType: "receipt",
+      shopName: "ユーザー店舗",
+      date: "2026-07-04",
+      amountYen: 7803,
+      categoryId: CAT_ID,
+      items: [
+        {
+          itemName: "ユーザー商品",
+          amountYen: 7803,
+          categoryId: CAT_ID,
+        },
+      ],
+    });
+    expect(getDraft().receiptUserOverride).toBeDefined();
+
+    await resetReceiptToAiInterpretationHandler(ctx, { draftId: DRAFT_ID }, GROUP_ID);
+
+    expect(getDraft()).toMatchObject({
+      shopName: "AI店舗",
+      amountYen: 803,
+      receiptUserOverride: undefined,
+      rawObservation: expect.objectContaining({ source: "ai_ocr" }),
+    });
+    expect(getItems()).toEqual([
+      expect.objectContaining({ itemName: "AI商品", amountYen: 803, printedAmountYen: 803 }),
+    ]);
   });
 
   it("外税一括適用後に印字金額を変えず保存すると ready になり得る", async () => {

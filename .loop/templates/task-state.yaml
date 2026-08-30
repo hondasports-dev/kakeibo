@@ -1,252 +1,290 @@
+# SCHEMA TEMPLATE ONLY: copy to .loop/state/<task-id>.yaml for a current task instance.
+# Do not fill task-specific values in this tracked reusable template.
+
 session:
-  current_task_bound: false
   current_task_id: ""
   active_delivery_pr: ""
-  parallel_task_authorized: false
-  transition_required_before_new_task: true
-  evidence: []
+
+revision:
+  current:
+    commit_sha: ""
+    tree_sha: ""
+  verified:
+    commit_sha: ""
+    tree_sha: ""
+  reviewed:
+    commit_sha: ""
+    tree_sha: ""
+  published:
+    commit_sha: ""
+    tree_sha: ""
+  observed:
+    commit_sha: ""
+    tree_sha: ""
 
 task:
   id: ""
   source: ""
   objective: ""
-  current_state: workspace_preflight
   base_branch: preview
   delivery_target: merge_ready
-  stop_after_publish: false
+  current_state: prepare
 
-specification:
-  confidence: c0_unclear # c0_unclear | c0_conflicted | c1_reconstructed | c2_confirmed
-  expected_delta: false
-  authoritative_sources: []
-  conflicting_sources: []
-  reconstruction_evidence: []
-  unresolved_material_choices: []
-  human_gate_required: false
-  evidence: []
-
-risk:
-  initial_level: pending # r0_trivial | r1_low | r2_medium | r3_high | r4_critical
-  confirmed_level: pending
-  max_observed_level: pending
-  selected_profile: pending # trivial | fast | standard | high | critical
-  axes:
-    blast_radius:
-      score: 0
-      reason: ""
-    data_security:
-      score: 0
-      reason: ""
-    reversibility:
-      score: 0
-      reason: ""
-    uncertainty:
-      score: 0
-      reason: ""
-  score: 0
-  floor_triggers: []
-  critical_triggers: []
-  downgrade:
-    requested: false
-    allowed_before_implementation: false
+prepare:
+  status: pending
+  workspace_preflight:
+    status: pending # pending | pass | not_required | blocked
     evidence: []
-  escalation_history: []
-  evidence: []
-
-always_on_safety:
-  prompt_injection_guard:
-    status: pending
-    evidence: []
-  service_ops_safety:
-    status: pending
-    evidence: []
-
-workspace_preflight:
-  status: pending # pending | pass | blocked | not_required
-  command: node scripts/check-task-worktree.mjs --require-clean
-  branch: ""
-  current_worktree: ""
-  canonical_worktree: ""
-  baseline_status: pending
-  exception: ""
-  evidence: []
-
-requirements:
-  status: pending # pending | pass | blocked | not_required
-  mode: pending # minimal_plan | plan_with_impact_summary | standard | high | critical
+  specification:
+    confidence: c0_unclear # c0_unclear | c0_conflicted | c1_reconstructed | c2_confirmed
+    authoritative_sources: [] # source referenceだけを保持し、長文本文は複製しない
+    conflicting_sources: []
+    material_assumptions: [] # 実装結果を変えうる未確認事項だけ
+    unresolved_material_choices: []
   goal: ""
-  current_behavior: ""
-  expected_behavior: ""
   in_scope: []
   out_of_scope: []
-  preserve: []
-  acceptance_criteria: []
-  edge_and_error_states: []
-  test_strategy: []
-  impact_summary:
-    direct_changes: []
-    shared_surfaces: []
-    auth_or_data_boundaries: []
-    external_or_deployment: []
-    regression_tests: []
-  independent_review:
-    required_count: 0
-    completed_count: 0
-    reviews: []
-  post_synthesis_review:
-    required_count: 0
-    completed_count: 0
-    evidence: []
-  human_gate:
-    status: not_required
-    decision: ""
-    reason: ""
-  evidence: []
-
-impact_analysis:
-  status: pending # pending | pass | blocked | not_required
-  required_by_profile: false
-  direct_changes: []
-  callers: []
-  callees: []
-  shared_state: []
-  auth_or_authorization_boundaries: []
-  data_or_schema: []
-  affected_ui_or_flows: []
-  regression_tests: []
-  external_or_deployment_impact: []
-  recovery_or_rollback: []
-  risk_reassessment:
-    previous_level: ""
-    confirmed_level: ""
-    escalated: false
-    reason: ""
+  acceptance_criteria: [] # { id: AC01, expectation: "..." }
+  invariants: [] # { id: IV01, preserve: "..." }
+  relevance_dimensions:
+    happy_path: pending # relevant | not_applicable
+    boundary: pending
+    error_failure: pending
+    empty_loading: pending
+    auth_ownership: pending
+    persistence_state_transition: pending
+    caller_compatibility: pending
+    concurrency_idempotency: pending
+    navigation_accessibility: pending
+    not_applicable_reasons: {}
+  coverage_map: []
+  # compact entries only:
+  # - contract_id: AC01 | IV01
+  #   implementation_surfaces: [path-or-symbol]
+  #   verification_cases: [TC01]
+  #   status: planned | covered | gap | not_required
+  test_cases: []
+  # - id: TC01
+  #   contract_ids: [AC01]
+  #   kind: positive | boundary | negative | failure | regression | e2e
+  #   method: "test path / command / manual evidence"
+  risk:
+    initial_level: pending
+    level: pending # r0_trivial | r1_low | r2_medium | r3_high | r4_critical
+    max_observed_level: pending
+    axes:
+      blast_radius: { score: 0, reason: "" }
+      data_security: { score: 0, reason: "" }
+      reversibility: { score: 0, reason: "" }
+      uncertainty: { score: 0, reason: "" }
+    critical_triggers: []
+  required_controls: []
+  verification_plan: []
+  impact_summary: []
   evidence: []
 
 implementation:
   status: pending
   changed_files: []
-  red_evidence: []
-  green_evidence: []
+  behavior_change_map: [] # { surface: path-or-symbol, contract_ids: [AC01, IV01] } or design_deviation reference
   design_deviations: []
-  impact_changes_discovered: []
-  integrity_check: pending
+  newly_observed_risk: []
   evidence: []
 
 verification:
   status: pending
-  mode: pending # targeted | scoped_full | full_for_affected_scope | full_plus_recovery_evidence
+  affected_scope: []
   checks: []
+  acceptance_criteria_results: []
+  invariant_results: []
+  coverage_gaps: []
+  skipped_with_reason: []
+  reruns: []
+  evidence: []
+
+review:
+  status: pending # pending | not_required | pass | blocked
+  required_by: []
+  reviewers: []
   coverage: []
-  e2e: []
-  browser_or_runtime: []
-  skipped_checks: []
+  omission_scan:
+    status: pending # pending | pass | blocked | not_required
+    checked_contract_ids: []
+    checked_dimensions: []
+    evidence: []
   evidence: []
 
-code_review:
-  status: pending # pending | pass | fail | blocked | not_required
-  mode: pending # combined_code_and_security_quick_scan | code_review_with_security_quick_scan | full | not_required
-  reviewed_head_sha: ""
-  must_fix: []
-  nice_to_have: []
-  regression_risks: []
-  test_adequacy: []
-  security_quick_scan:
-    status: pending # pending | pass | escalate | not_required
-    auth_or_data_boundary: []
-    input_or_injection: []
-    secrets_or_external_service: []
-    destructive_or_production: []
-    escalation_reason: ""
+# Single source of truth for review findings, verification gaps, CI findings, and residual decisions.
+finding_record_schema:
+  id: ""
+  source: "" # verification | review | security_review | ci | human_review
+  observed_revision:
+    commit_sha: ""
+    tree_sha: ""
+  status: open # open | resolved; resolved iff disposition is resolved
+  category: "" # correctness | security | requirements_gap | test_gap | scope | reliability | maintainability | financial | other
+  finding: ""
+  failure_scenario: ""
+  affected_acceptance_criteria: []
+  affected_invariants: []
+  risk_domains: []
   evidence: []
+  recommended_action: ""
+  disposition: open # open | fix_now | defer_with_evidence | accept_with_human_gate | not_applicable | resolved
+  rationale: ""
+  mitigation: ""
+  follow_up_issue: ""
+  human_approval:
+    required: false
+    status: not_required # pending | approved | rejected | not_required
+    approver: ""
+    approved_at: ""
+    scope: ""
+    evidence: ""
+  resolution: ""
+  verified_revision:
+    commit_sha: ""
+    tree_sha: ""
 
-security_review:
-  status: pending # pending | pass | fail | blocked | not_required
-  required_by_profile: false
-  reviewed_head_sha: ""
-  authentication: []
-  authorization: []
-  data_boundary_and_privacy: []
-  input_and_injection: []
-  secrets: []
-  external_services: []
-  destructive_operations: []
-  must_fix: []
-  residual_risks: []
-  not_required_reason: ""
-  evidence: []
-
-human_gates: []
-incidents: []
+findings: []
 
 delivery:
   status: pending
-  checkpoint: pr_created
-  mode: pending # create | update_existing
   branch: ""
   commit: ""
   pull_request: ""
   base: preview
-  head: ""
-  published_head_sha: ""
-  draft: false
-  delivery_target: merge_ready
   evidence: []
 
 pr_aftercare:
-  status: pending # pending | pass | fail | blocked | not_required
-  target: merge_ready
-  pull_request: ""
-  observed_head_sha: ""
-  cycle_count: 0
+  status: pending
   checks: []
-  review_findings: []
   requested_changes: []
-  approval_status: pending
+  approval_required: false
+  approval_status: pending # pending | pass | not_required | blocked
+  approval_evidence: []
+  revision_consistency: pending # pending | pass | blocked
   conflict_status: pending
   mergeable: pending
-  verified_head_is_current: false
-  merge_status: pending
-  blockers: []
-  not_required_reason: ""
   evidence: []
 
-process_learning:
-  status: pending # pending | pass | not_required
-  mode: pending # fast_none_path | full
-  events_detected: []
-  events_reviewed: []
+telemetry:
+  enabled: true
+  measurement_source: wall_clock
+  stages:
+    prepare:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    implementation:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    verification:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    review:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    delivery:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    pr_aftercare:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    incident:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+    process_learning:
+      {
+        started_at: "",
+        finished_at: "",
+        elapsed_seconds: null,
+        external_wait_seconds: 0,
+        wait_reasons: [],
+      }
+  counters:
+    source_reads: 0
+    skill_loads: 0
+    changed_files: 0
+    acceptance_criteria_count: 0
+    invariant_count: 0
+    test_case_count: 0
+    required_control_count: 0
+    findings_added: 0
+    retries: 0
+    full_suite_runs: 0
+    review_cycles: 0
+  summary:
+    total_elapsed_seconds: null
+    total_external_wait_seconds: 0
+    active_elapsed_seconds: null
+    spec_confidence: ""
+    risk_level: ""
+    max_observed_risk: ""
+    task_size: "" # tiny | small | medium | large; observed from changed files / AC / surfaces, not effort guess
+    notes: []
+  optional_metrics:
+    token_usage: null # runtimeが正確に提供する場合だけ記録する
+
+learning:
+  event: none
+  status: not_required
+  retrospective:
+    unnecessary_decisions_or_actions: []
+    incorrect_decisions: []
+    decisions_to_retain: []
+    next_loop_adjustments: []
+  candidate_schema:
+    observed_problem: ""
+    process_cause: ""
+    reusable_rule: ""
+    improvement_axes: [] # context | speed | precision
+    proposed_target: ""
+    source_finding_ids: [] # review snapshotのstable ID。レビュー指摘を起点にした候補は必須。
+    disposition: pending # pending | applied | follow_up | no_change
+    location: ""
+    persistent_follow_up:
+      type: "" # issue | task | pr
+      reference: ""
+    rationale: ""
+    evidence: []
+    verification_evidence: []
   candidates: []
-  candidates_none_reason: ""
-  evidence: []
-
-task_transition:
-  status: pending
-  closing_task:
-    id: ""
-    source: ""
-    branch: ""
-    worktree: ""
-    pull_request: ""
-    delivery_result: ""
-    final_head_sha: ""
-  next_task:
-    decision: none # none | bind
-    id: ""
-    source: ""
-    objective: ""
-    carried_context: []
-  session_released: false
-  evidence: []
 
 completion:
   status: in_progress
-  spec_confidence_resolved: false
-  risk_profile_recorded: false
-  profile_required_gates_passed: false
-  delivery_target_reached: false
-  pr_aftercare_terminal: false
-  learning_event_classified: false
-  task_transition_passed: false
-  unresolved_required_items: []
-  evidence: []
+  blockers: []

@@ -34,6 +34,7 @@ export type ReviewItemCardProps = {
   taxUpdatingItemId?: string | null;
   isCategorySplit: boolean;
   isExpanded: boolean;
+  enableItemTaxEditing?: boolean;
   onItemChange: (
     itemId: string,
     field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
@@ -56,6 +57,7 @@ export function ReviewItemCard({
   taxUpdatingItemId,
   isCategorySplit,
   isExpanded,
+  enableItemTaxEditing = false,
   onItemChange,
   onRemoveItem,
   onAssignCategoryToItems,
@@ -69,7 +71,7 @@ export function ReviewItemCard({
   const taxContext = buildTaxContextFromReviewItem(item);
   const taxVm = toReceiptItemTaxViewModel(item);
   const isTaxUpdating = taxUpdatingItemId === item.id;
-  const showTaxRateSelect = taxContext.status === "unresolved";
+  const showTaxRateSelect = enableItemTaxEditing && taxContext.status === "unresolved";
   const showRegistrationAmount =
     taxContext.status === "resolved" &&
     item.amountBasis === "tax_excluded" &&

@@ -18,6 +18,7 @@ export function ReviewItemsEditor({
   onAssignCategoryToItems,
   onDiscountTargetChange,
   onTaxRateChange,
+  enableItemTaxEditing = false,
 }: {
   categories: AiExpenseQueueCategory[];
   selectedReviewDraft: AiExpenseDraft | null;
@@ -36,6 +37,7 @@ export function ReviewItemsEditor({
   onAssignCategoryToItems: (itemIds: string[], categoryId: string) => void;
   onDiscountTargetChange: (discountItemId: string, targetItemId: string) => void;
   onTaxRateChange?: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) => void;
+  enableItemTaxEditing?: boolean;
 }) {
   const [expandedDetailIds, setExpandedDetailIds] = useState<Set<string>>(new Set());
   const productItems = useMemo(
@@ -110,6 +112,7 @@ export function ReviewItemsEditor({
               index={index}
               isCategorySplit={isCategorySplit}
               isExpanded={expandedDetailIds.has(item.id)}
+              enableItemTaxEditing={enableItemTaxEditing}
               item={item}
               productItems={productItems}
               selectedReviewDraft={selectedReviewDraft}

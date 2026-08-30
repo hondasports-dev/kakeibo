@@ -7,6 +7,7 @@ import {
 } from "./persistTaxInterpretation";
 import type { AmountBasis, TaxMode, TaxRatePercent } from "../../receiptTax/types";
 import { buildDraftSummaryOverride } from "../../domain/receipt/tax/summaryOverrides";
+import { persistReceiptUserOverrideSnapshot } from "./receiptDataContract";
 
 export type UpdateSummaryTaxOverridesArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -65,9 +66,15 @@ export async function updateSummaryTaxOverridesHandler(
     throw new ConvexError(err instanceof Error ? err.message : "Invalid tax override");
   }
 
-  return await persistDraftTaxInterpretation(ctx, {
+  const result = await persistDraftTaxInterpretation(ctx, {
     draftId: args.draftId,
     groupId,
     summaryOverride,
   });
+  const updatedDraft = await persistReceiptUserOverrideSnapshot(ctx, {
+    draftId: args.draftId,
+    groupId,
+    fields: ["taxSummaries", "receiptTotalResolution", "receiptTaxDecision"],
+  });
+  return { ...result, draft: updatedDraft };
 }

@@ -79,10 +79,10 @@ pnpm exec clerk doctor
 
 既存applicationを使う場合は、`pnpm exec clerk apps list` でIDを確認してから `pnpm exec clerk link --app <app_id>` を使う。
 
-1. Convex projectとdev deploymentを作成する。
+1. Convex projectとlocal deploymentを作成する。
 
 ```bash
-pnpm exec convex dev --once --configure new
+pnpm exec convex dev --once --configure new --dev-deployment local
 pnpm exec convex function-spec
 pnpm exec convex data
 pnpm exec convex ai-files install
@@ -139,8 +139,10 @@ git ls-files --others --exclude-standard
 1. ローカル開発サーバを起動し、Chrome DevTools MCPで確認する。
 
 ```bash
-pnpm run dev -- --host 127.0.0.1
+pnpm run dev
 ```
+
+`pnpm run dev` はlocal Convex watcherとViteを同時に起動する。Convexを起動済みでViteだけ再起動する場合は `pnpm run dev:frontend -- --host 127.0.0.1` を使う。
 
 確認項目:
 
@@ -243,7 +245,7 @@ MCP server設定は例外扱いとする。Codex MCP serverでは公式手順と
 
 | 用途       | Vercel                               | Clerk                            | Convex                                   |
 | ---------- | ------------------------------------ | -------------------------------- | ---------------------------------------- |
-| local dev  | local `.env.local`                   | Development instance `pk_test_*` | dev deployment                           |
+| local dev  | local `.env.local`                   | Development instance `pk_test_*` | local deployment                         |
 | preview PR | Vercel Preview `*.vercel.app` URL    | 原則Development instance         | dev deployment                           |
 | preview branch / RC | Vercel Preview `*.vercel.app` URL | Development instance             | fixed staging deployment                 |
 | production | Vercel Production `*.vercel.app` URL | Production instance `pk_live_*`  | production deployment                    |
@@ -725,7 +727,7 @@ args: -y chrome-devtools-mcp@latest
 
 2026-05-12に、Vite開発サーバを起動してChrome DevTools MCPで確認した。
 
-- 起動コマンド: `pnpm run dev -- --host 127.0.0.1`
+- 起動コマンド: `pnpm run dev`
 - 確認URL: `http://localhost:5174/`
 - 補足: `5173` は使用中だったため、Viteが自動で `5174` を使用した
 - DOM確認: ブランドロゴ「Suzumemo スズメモ」、ダッシュボードまたは入力画面が表示されること

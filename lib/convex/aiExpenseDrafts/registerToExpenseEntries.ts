@@ -1,9 +1,12 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { createExpenseEntriesFromDraftHandler } from "../expenseEntries/createFromDraft";
 import { requireGroupMembership } from "../../../convex/groups/membership";
-import { aggregateDraftItemsByCategory } from "./reviewValidation";
+import {
+  buildDraftRegistrationItems,
+  reconcileDraftExpenseEntries,
+  resolveRegistrationMode,
+} from "./reconcileExpenseEntries";
 import {
   dedupeDraftIds,
   getReadyDraftRegistrationErrorMessage,
@@ -26,7 +29,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
   ctx: MutationCtx,
   args: RegisterReadyDraftsArgs,
 ) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const uniqueDraftIds = dedupeDraftIds(args.draftIds);
   if (uniqueDraftIds.length === 0) {
     return {
@@ -62,6 +65,7 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
   }
 
   const createdExpenseEntryIds: Id<"expenseEntries">[] = [];
+  const registeredCategoryIds = new Map<Id<"aiExpenseDrafts">, Id<"categories">[]>();
 
   for (const draft of draftsToRegister) {
     const items = await ctx.db
@@ -72,11 +76,17 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
       .order("asc")
       .take(100);
 
-    const itemsToRegister = aggregateDraftItemsByCategory(draft, items);
+    const itemsToRegister = buildDraftRegistrationItems(draft, items);
+    registeredCategoryIds.set(draft._id, [
+      ...new Set(itemsToRegister.map((item) => item.categoryId)),
+    ]);
 
-    const entryIds = await createExpenseEntriesFromDraftHandler(ctx, {
-      draftId: draft._id,
+    const entryIds = await reconcileDraftExpenseEntries(ctx, {
+      draft,
+      groupId,
+      userId,
       items: itemsToRegister,
+      now: Date.now(),
     });
     createdExpenseEntryIds.push(...entryIds);
   }
@@ -86,6 +96,18 @@ export async function registerReadyDraftsAsExpenseEntriesHandler(
     draftsToRegister.map((draft) =>
       ctx.db.patch(draft._id, {
         status: "registered",
+        derivedRegistration: {
+          source: "derived",
+          destination: "expense_entries",
+          registrationMode: resolveRegistrationMode(draft),
+          ...(resolveRegistrationMode(draft) === "totalOnly"
+            ? { taxRatePercent: null, taxableAmountYen: null, taxYen: null }
+            : {}),
+          amountYen: draft.amountYen!,
+          date: draft.date!,
+          categoryIds: registeredCategoryIds.get(draft._id) ?? [],
+          registeredAt: now,
+        },
         updatedAt: now,
       }),
     ),

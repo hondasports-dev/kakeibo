@@ -8,6 +8,7 @@ import {
   type BulkUnresolvedTaxOverride,
   type DraftSummaryOverride,
   type DraftTaxOverride,
+  type ReinterpretDraftTaxInput,
 } from "../../receiptTax/reinterpretDraftTax";
 import {
   filterNonInterpretationWarnings,
@@ -23,6 +24,8 @@ export type PersistDraftTaxInterpretationArgs = {
   override?: DraftTaxOverride;
   bulkUnresolvedOverride?: BulkUnresolvedTaxOverride;
   summaryOverride?: DraftSummaryOverride;
+  receiptTotalSource?: "explicit_label" | "user_confirmed" | "ai_estimate";
+  decisionOverride?: ReinterpretDraftTaxInput["decisionOverride"];
 };
 
 export type PersistDraftTaxInterpretationResult = {
@@ -41,7 +44,11 @@ export async function persistDraftTaxInterpretation(
   if (draft.groupId !== args.groupId) {
     throw new ConvexError("AI expense draft does not belong to the current group");
   }
-  if (draft.amountYen === undefined || !draft.taxSummaries || draft.taxSummaries.length === 0) {
+  if (
+    draft.amountYen === undefined ||
+    ((!draft.taxSummaries || draft.taxSummaries.length === 0) &&
+      args.decisionOverride === undefined)
+  ) {
     throw new ConvexError("Tax reinterpretation requires draft amount and tax summaries");
   }
 
@@ -53,17 +60,38 @@ export async function persistDraftTaxInterpretation(
     .order("asc")
     .collect();
 
+  const persistedReceiptTotalSource = draft.receiptTotalResolution?.candidates.find(
+    (candidate) => candidate.amountYen === draft.amountYen,
+  )?.source;
+  const receiptTotalSource =
+    persistedReceiptTotalSource === "explicit_label" ||
+    persistedReceiptTotalSource === "user_confirmed" ||
+    persistedReceiptTotalSource === "ai_estimate"
+      ? persistedReceiptTotalSource
+      : "ai_estimate";
+  const receiptTotalSupportingCandidates = draft.receiptTotalResolution?.candidates.filter(
+    (candidate) =>
+      candidate.source !== "tax_summary_total" && candidate.source !== "tax_arithmetic",
+  );
+
   const { interpretation, itemFields } = reinterpretDraftTax({
     amountYen: draft.amountYen,
-    taxSummaries: draft.taxSummaries,
+    receiptTotalSource: args.receiptTotalSource ?? receiptTotalSource,
+    receiptTotalConfidence: draft.confidence.amountYen,
+    receiptTotalSupportingCandidates,
+    taxSummaries: draft.taxSummaries ?? [],
     markerDefinitions: draft.markerDefinitions,
+    rawObservationLines: draft.rawObservation?.lines,
+    receiptLineClassifications: draft.receiptInterpretation?.values.receiptLineClassifications,
     items: items.map(mapDraftItemToTaxFields),
     override: args.override,
     bulkUnresolvedOverride: args.bulkUnresolvedOverride,
     summaryOverride: args.summaryOverride,
+    decisionOverride: args.decisionOverride,
   });
 
-  const taxReviewReasons = deriveTaxReviewReasons(interpretation);
+  const ignoresTaxDetails = draft.registrationMode === "totalOnly";
+  const taxReviewReasons = ignoresTaxDetails ? [] : deriveTaxReviewReasons(interpretation);
   const preservedReasons = args.preservedNonTaxReasons ?? nonTaxReviewReasons(draft.reviewReasons);
   const mergedTaxReasons = mergeReviewReasons(taxReviewReasons, preservedReasons);
   const classification = classifyAiExpenseDraft({
@@ -76,13 +104,17 @@ export async function persistDraftTaxInterpretation(
     amountYen: draft.amountYen,
     categoryId: draft.categoryId,
     confidence: draft.confidence,
-    warnings: interpretation.warnings,
+    warnings: ignoresTaxDetails
+      ? filterNonInterpretationWarnings(draft.warnings ?? [])
+      : interpretation.warnings,
     multiCategoryConfirmed: true,
-    items: items.map((item, index) => ({
-      itemName: item.itemName,
-      amountYen: itemFields[index]?.normalizedAmountYen ?? item.amountYen,
-      categoryId: item.categoryId,
-    })),
+    items: ignoresTaxDetails
+      ? undefined
+      : items.map((item, index) => ({
+          itemName: item.itemName,
+          amountYen: itemFields[index]?.normalizedAmountYen ?? item.amountYen,
+          categoryId: item.categoryId,
+        })),
   });
   const reviewReasons = mergeReviewReasons(classification.reviewReasons, mergedTaxReasons);
   const status = reviewReasons.length === 0 ? "ready" : "needs_review";
@@ -113,6 +145,8 @@ export async function persistDraftTaxInterpretation(
   await ctx.db.patch(args.draftId, {
     status,
     taxSummaries: interpretation.taxSummaries,
+    receiptTotalResolution: interpretation.receiptTotalResolution,
+    receiptTaxDecision: interpretation.decision,
     warnings: [...new Set([...nonInterpretationWarnings, ...interpretation.warnings])],
     reviewReasons,
     updatedAt: now,

@@ -18,6 +18,7 @@ export const emptyReviewForm: ReviewFormValues = {
   date: "",
   amountYen: "",
   categoryId: "",
+  registrationMode: "detailed",
 };
 
 export function mapDraftToQueueItem(
@@ -48,6 +49,7 @@ export function mapDraftToQueueItem(
     hasUncategorizedItems: draft.itemSummary?.hasUncategorizedItems,
     hasLowConfidenceItems: draft.itemSummary?.hasLowConfidenceItems,
     categoryAggregates,
+    registrationMode: draft.registrationMode,
   };
 }
 
@@ -63,6 +65,14 @@ export function mapConvexDraftToAiExpenseDraft(draft: Doc<"aiExpenseDrafts">): A
     paymentPurpose: draft.paymentPurpose,
     date: draft.date,
     amountYen: draft.amountYen,
+    receiptTotalResolution: draft.receiptTotalResolution,
+    receiptTaxDecision: draft.receiptTaxDecision,
+    receiptDataContractVersion: draft.receiptDataContractVersion,
+    rawObservation: draft.rawObservation,
+    receiptInterpretation: draft.receiptInterpretation,
+    receiptUserOverride: draft.receiptUserOverride,
+    registrationMode: draft.registrationMode,
+    derivedRegistration: draft.derivedRegistration,
     categoryId: draft.categoryId,
     reviewReasons: draft.reviewReasons,
     warnings: draft.warnings,
@@ -72,12 +82,20 @@ export function mapConvexDraftToAiExpenseDraft(draft: Doc<"aiExpenseDrafts">): A
 }
 
 export function mapDraftToReviewForm(draft: AiExpenseDraft): ReviewFormValues {
+  const hasSavedTaxDecision = draft.receiptUserOverride?.fields.includes("receiptTaxDecision");
   return {
     documentType: draft.documentType,
     shopName: getDraftTitle(draft, ""),
     date: draft.date ?? "",
     amountYen: draft.amountYen?.toString() ?? "",
     categoryId: draft.categoryId ?? "",
+    registrationMode: draft.registrationMode ?? "detailed",
+    priceTaxTreatment: hasSavedTaxDecision
+      ? draft.receiptTaxDecision?.priceTaxTreatment
+      : undefined,
+    taxRateComposition: hasSavedTaxDecision
+      ? draft.receiptTaxDecision?.taxRateComposition
+      : undefined,
   };
 }
 

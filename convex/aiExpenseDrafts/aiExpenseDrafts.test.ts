@@ -30,6 +30,17 @@ type DraftDoc = {
   paymentPurpose?: string;
   date?: string;
   amountYen?: number;
+  registrationMode?: "detailed" | "totalOnly";
+  receiptTotalResolution?: {
+    status: "verified" | "ambiguous" | "contradictory";
+    protectedAmountYen: number | null;
+    candidates: Array<{
+      amountYen: number;
+      source: "user_confirmed";
+      evidence: string;
+    }>;
+    reasons: string[];
+  };
   categoryId?: string;
   confidence: {
     documentType?: number;
@@ -99,6 +110,11 @@ function createMutationCtx(
     insertedDoc?: DraftDoc;
     insertedIds?: string[];
     items?: DraftItemDoc[];
+    expenseEntries?: Array<{
+      _id: string;
+      groupId: string;
+      categoryId?: string;
+    }>;
     runMutation?: ReturnType<typeof vi.fn>;
     groupId?: string;
   } = {},
@@ -142,11 +158,14 @@ function createMutationCtx(
           }
           return { unique: vi.fn().mockResolvedValue(groupMember) };
         }
+        const rows =
+          _tableName === "expenseEntries" ? (opts.expenseEntries ?? []) : (opts.items ?? []);
         return {
+          take: vi.fn().mockResolvedValue(rows),
           order: vi.fn().mockReturnValue({
-            take: vi.fn().mockResolvedValue(opts.items ?? []),
+            take: vi.fn().mockResolvedValue(rows),
           }),
-          collect: vi.fn().mockResolvedValue(opts.items ?? []),
+          collect: vi.fn().mockResolvedValue(rows),
         };
       }),
   }));
@@ -434,6 +453,30 @@ describe("aiExpenseDrafts", () => {
       shopName: "スーパー青葉",
       date: "2026-06-01",
       amountYen: 1200,
+      rawObservationLines: [
+        {
+          rawText: "合計 1,200円",
+          amountText: "1,200円",
+          amountYen: 1200,
+          lineRoleCandidates: ["total"],
+          roleConfidence: 0.95,
+          explicitlyPrinted: true,
+          sourceLineIndex: 4,
+        },
+      ],
+      receiptLineClassifications: [
+        {
+          sourceLineIndex: 4,
+          status: "classified",
+          candidates: [
+            {
+              role: "totalCandidate",
+              score: 0.98,
+              evidence: ["explicit_label:total", "position:receipt_footer"],
+            },
+          ],
+        },
+      ],
       confidence: {
         shopName: 0.92,
         date: 0.88,
@@ -459,12 +502,84 @@ describe("aiExpenseDrafts", () => {
         status: "needs_review",
         documentType: "receipt",
         shopName: "スーパー青葉",
+        receiptDataContractVersion: 1,
+        rawObservation: expect.objectContaining({
+          source: "ai_ocr",
+          lines: [expect.objectContaining({ rawText: "合計 1,200円", amountYen: 1200 })],
+        }),
+        receiptInterpretation: expect.objectContaining({
+          source: "ai",
+          values: expect.objectContaining({
+            amountYen: 1200,
+            shopName: "スーパー青葉",
+            receiptLineClassifications: [
+              expect.objectContaining({
+                sourceLineIndex: 4,
+                candidates: [expect.objectContaining({ role: "totalCandidate" })],
+              }),
+            ],
+          }),
+        }),
       }),
     );
     expect(dbInsert).not.toHaveBeenCalledWith("receipts", expect.anything());
     const insertedDraft = dbInsert.mock.calls[0][1] as Record<string, unknown>;
     expect(insertedDraft).not.toHaveProperty("imageDataUrl");
     expect(insertedDraft).not.toHaveProperty("image");
+  });
+
+  it("再解析では新しいAI interpretationを保存しつつuser overrideを正本にする", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "category-food": { groupId: GROUP_ID },
+      },
+      insertedDoc: { ...ownedDraft, _id: "new-draft-id", status: "needs_review" },
+    });
+    const preservedUserOverride = {
+      source: "user" as const,
+      updatedAt: 123,
+      fields: ["shopName", "amountYen"],
+      values: {
+        status: "needs_review" as const,
+        documentType: "receipt" as const,
+        shopName: "ユーザー確定店舗",
+        date: "2026-07-03",
+        amountYen: 7803,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        categoryId: "category-food" as any,
+        confidence: { shopName: 1, date: 1, amountYen: 1, categoryId: 1 },
+        warnings: [],
+        reviewReasons: ["amount_mismatch" as const],
+        items: [],
+      },
+    };
+
+    await createFromExtractionHandler(ctx, {
+      documentType: "receipt",
+      shopName: "AI再解析店舗",
+      date: "2026-07-04",
+      amountYen: 803,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "category-food" as any,
+      confidence: { shopName: 0.9, date: 0.9, amountYen: 0.9, categoryId: 0.9 },
+      warnings: [],
+      preservedUserOverride,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDrafts",
+      expect.objectContaining({
+        shopName: "ユーザー確定店舗",
+        amountYen: 7803,
+        receiptUserOverride: preservedUserOverride,
+        receiptInterpretation: expect.objectContaining({
+          source: "ai",
+          values: expect.objectContaining({ shopName: "AI再解析店舗", amountYen: 803 }),
+        }),
+      }),
+    );
   });
 
   it("税率別集計と正規化済み明細を下書きへ保存する", async () => {
@@ -477,6 +592,18 @@ describe("aiExpenseDrafts", () => {
       shopName: "TRIAL",
       date: "2026-07-03",
       amountYen: 1683,
+      receiptTotalResolution: {
+        status: "verified",
+        protectedAmountYen: 1683,
+        candidates: [
+          {
+            amountYen: 1683,
+            source: "explicit_label",
+            evidence: "extraction.amountYen",
+          },
+        ],
+        reasons: [],
+      },
       taxSummaries: [
         {
           taxRatePercent: 8,
@@ -514,7 +641,17 @@ describe("aiExpenseDrafts", () => {
     const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDrafts",
-      expect.objectContaining({ amountYen: 1683, taxSummaries: expect.any(Array) }),
+      expect.objectContaining({
+        amountYen: 1683,
+        taxSummaries: expect.any(Array),
+        receiptTotalResolution: expect.objectContaining({
+          status: "verified",
+          protectedAmountYen: 1683,
+          candidates: expect.arrayContaining([
+            expect.objectContaining({ source: "explicit_label", evidence: "extraction.amountYen" }),
+          ]),
+        }),
+      }),
     );
     expect(dbInsert).toHaveBeenCalledWith(
       "aiExpenseDraftItems",
@@ -918,6 +1055,12 @@ describe("aiExpenseDrafts", () => {
       expect.objectContaining({
         status: "registered",
         registeredReceiptId: "receipt-001",
+        derivedRegistration: expect.objectContaining({
+          source: "derived",
+          destination: "receipt",
+          amountYen: 1200,
+          categoryIds: ["cat-food"],
+        }),
       }),
     );
     expect(dbPatch).toHaveBeenCalledWith(
@@ -1062,7 +1205,7 @@ describe("aiExpenseDrafts", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenLastCalledWith(
+    expect(dbPatch).toHaveBeenCalledWith(
       "draft-owned",
       expect.objectContaining({
         status: "ready",
@@ -1327,7 +1470,7 @@ describe("aiExpenseDrafts", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenLastCalledWith(
+    expect(dbPatch).toHaveBeenCalledWith(
       "draft-ready",
       expect.objectContaining({
         status: "ready",
@@ -1342,36 +1485,69 @@ describe("aiExpenseDrafts", () => {
     );
   });
 
-  it("登録済みの下書きはレビュー編集できない", async () => {
+  it("登録済みの下書きは同じexpenseEntryを再利用してレビュー編集できる", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {
         "draft-registered": {
           ...ownedDraft,
           _id: "draft-registered",
           status: "registered",
+          categoryId: "cat-food",
         },
         "cat-food": {
           groupId: GROUP_ID,
           isActive: true,
         },
       },
+      expenseEntries: [{ _id: "entry-existing", groupId: GROUP_ID, categoryId: "cat-food" }],
+    });
+
+    await updateForReviewHandler(ctx, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      draftId: "draft-registered" as any,
+      documentType: "receipt",
+      shopName: "スーパー青葉",
+      date: "2026-06-02",
+      amountYen: 1680,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      categoryId: "cat-food" as any,
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const patch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
+    expect(patch).toHaveBeenCalledWith(
+      "entry-existing",
+      expect.objectContaining({ categoryId: "cat-food", source: "ai_suggested" }),
+    );
+    expect((ctx.db as any).insert as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+  });
+
+  it("legacy receiptへ登録済みの下書きはexpenseEntryへ二重登録しない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      getDocById: {
+        "draft-registered": {
+          ...readyDraft,
+          _id: "draft-registered",
+          status: "registered",
+          registeredReceiptId: "receipt-1",
+        },
+        "cat-food": { groupId: GROUP_ID, isActive: true },
+      },
     });
 
     await expect(
       updateForReviewHandler(ctx, {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        draftId: "draft-registered" as any,
+        draftId: "draft-registered" as Id<"aiExpenseDrafts">,
         documentType: "receipt",
         shopName: "スーパー青葉",
         date: "2026-06-02",
         amountYen: 1680,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        categoryId: "cat-food" as any,
+        categoryId: "cat-food" as Id<"categories">,
       }),
-    ).rejects.toMatchObject({ data: "Registered AI expense draft cannot be edited" });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect((ctx.db as any).patch as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+    ).rejects.toMatchObject({
+      data: "Legacy receipt registrations cannot be edited from the AI queue",
+    });
+    expect(ctx.db.insert).not.toHaveBeenCalled();
   });
 
   it("払込票は統合した店名・内容で登録準備OKへ戻せる", async () => {
@@ -1398,7 +1574,7 @@ describe("aiExpenseDrafts", () => {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dbPatch = (ctx.db as any).patch as ReturnType<typeof vi.fn>;
-    expect(dbPatch).toHaveBeenLastCalledWith(
+    expect(dbPatch).toHaveBeenCalledWith(
       "draft-owned",
       expect.objectContaining({
         status: "ready",
@@ -1511,6 +1687,38 @@ describe("aiExpenseDrafts", () => {
     const result = await listByStatusHandler(ctx, { status: "needs_review" });
 
     expect(result).toEqual([ownedDraft]);
+  });
+
+  it("listByStatus はraw observation・AI interpretation・user overrideを破壊せず返す", async () => {
+    const contractDraft = {
+      ...ownedDraft,
+      rawObservation: {
+        source: "ai_ocr",
+        observedAt: 1,
+        lines: [
+          {
+            rawText: "合計 1,200円",
+            amountText: "1,200円",
+            amountYen: 1200,
+            lineRoleCandidates: ["total"],
+            roleConfidence: 0.9,
+            explicitlyPrinted: true,
+            sourceLineIndex: 5,
+          },
+        ],
+      },
+      receiptInterpretation: { source: "ai", interpretedAt: 1, values: { amountYen: 1200 } },
+      receiptUserOverride: { source: "user", updatedAt: 2, fields: ["amountYen"] },
+    };
+    const ctx = createQueryCtx(createIdentity(), { drafts: [contractDraft] });
+
+    const result = await listByStatusHandler(ctx, { status: "needs_review" });
+
+    expect(result[0]).toMatchObject({
+      rawObservation: contractDraft.rawObservation,
+      receiptInterpretation: contractDraft.receiptInterpretation,
+      receiptUserOverride: contractDraft.receiptUserOverride,
+    });
   });
 
   it("listByStatus は明細のカテゴリ別集約サマリーを返す", async () => {
@@ -1844,6 +2052,12 @@ describe("aiExpenseDrafts", () => {
         "draft-ready",
         expect.objectContaining({
           status: "registered",
+          derivedRegistration: expect.objectContaining({
+            source: "derived",
+            destination: "expense_entries",
+            amountYen: 1380,
+            categoryIds: ["cat-food", "cat-medical"],
+          }),
         }),
       );
     });
@@ -2001,6 +2215,9 @@ describe("aiExpenseDrafts", () => {
           "draft-ready": {
             ...readyDraft,
             amountYen: 9999,
+            taxRatePercent: null,
+            taxableAmountYen: null,
+            taxYen: null,
           },
           "cat-food": { groupId: GROUP_ID, isActive: true },
         },
@@ -2014,6 +2231,81 @@ describe("aiExpenseDrafts", () => {
       ).rejects.toMatchObject({ data: "Draft item total must match draft amount" });
       expect(ctx.db.insert).not.toHaveBeenCalled();
       expect(ctx.db.patch).not.toHaveBeenCalled();
+    });
+
+    it("totalOnlyはユーザー確認済み合計を1件だけ登録し明細不一致を集計へ入れない", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            amountYen: 9999,
+            registrationMode: "totalOnly",
+            receiptTotalResolution: {
+              status: "verified",
+              protectedAmountYen: 9999,
+              candidates: [
+                {
+                  amountYen: 9999,
+                  source: "user_confirmed",
+                  evidence: "review.amountYen",
+                },
+              ],
+              reasons: [],
+            },
+          },
+          "cat-food": { groupId: GROUP_ID, isActive: true },
+        },
+        insertedIds: ["entry-total"],
+        items: readyDraftItems,
+      });
+
+      const result = await registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+        draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+      });
+
+      expect(result.createdExpenseEntryIds).toEqual(["entry-total"]);
+      expect(ctx.db.insert).toHaveBeenCalledTimes(1);
+      expect(ctx.db.insert).toHaveBeenCalledWith(
+        "expenseEntries",
+        expect.objectContaining({ amount: 9999, categoryId: "cat-food" }),
+      );
+      expect(ctx.db.patch).toHaveBeenCalledWith(
+        "draft-ready",
+        expect.objectContaining({
+          derivedRegistration: expect.objectContaining({
+            registrationMode: "totalOnly",
+            amountYen: 9999,
+            categoryIds: ["cat-food"],
+          }),
+        }),
+      );
+    });
+
+    it("totalOnlyはAI推定だけの合計を登録しない", async () => {
+      const ctx = createMutationCtx(createIdentity(), {
+        getDocById: {
+          "draft-ready": {
+            ...readyDraft,
+            registrationMode: "totalOnly",
+            receiptTotalResolution: {
+              status: "ambiguous",
+              protectedAmountYen: 1200,
+              candidates: [],
+              reasons: [],
+            },
+          },
+        },
+        items: readyDraftItems,
+      });
+
+      await expect(
+        registerReadyDraftsAsExpenseEntriesHandler(ctx, {
+          draftIds: ["draft-ready" as Id<"aiExpenseDrafts">],
+        }),
+      ).rejects.toMatchObject({
+        data: "Receipt total must be confirmed before total-only registration",
+      });
+      expect(ctx.db.insert).not.toHaveBeenCalled();
     });
 
     it("低信頼度の明細が残るready下書きはexpenseEntries登録できない", async () => {

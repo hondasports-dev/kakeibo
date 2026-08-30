@@ -94,7 +94,7 @@ export function ReceiptTaxSummaryEditor({
 
   const amountBasisLabel = form.taxableAmountBasis === "tax_included" ? "（税込）" : "（税抜）";
 
-  const status = summary.status ?? "coherent";
+  const status = summary.status ?? "ambiguous";
   const statusLabel = getTaxSummaryStatusLabel(status);
 
   return (

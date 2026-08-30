@@ -14,6 +14,7 @@ import {
   deriveBulkTaxSettings,
   getBulkTaxSettingsErrorMessage,
 } from "../../domain/aiExpenseDrafts/applyReceiptTaxSettings";
+import { persistReceiptUserOverrideSnapshot } from "./receiptDataContract";
 
 export type ApplyReceiptTaxSettingsArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -58,7 +59,7 @@ export async function applyReceiptTaxSettingsHandler(
     throw new ConvexError(getBulkTaxSettingsErrorMessage(settingsResult.error));
   }
 
-  return await persistDraftTaxInterpretation(ctx, {
+  const result = await persistDraftTaxInterpretation(ctx, {
     draftId: args.draftId,
     groupId,
     bulkUnresolvedOverride: {
@@ -66,4 +67,10 @@ export async function applyReceiptTaxSettingsHandler(
       amountBasis: settingsResult.amountBasis,
     },
   });
+  const updatedDraft = await persistReceiptUserOverrideSnapshot(ctx, {
+    draftId: args.draftId,
+    groupId,
+    fields: ["items", "receiptTotalResolution", "receiptTaxDecision"],
+  });
+  return { ...result, draft: updatedDraft };
 }

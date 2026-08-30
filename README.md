@@ -1,5 +1,3 @@
-![CodeRabbit Pull Request Reviews](https://img.shields.io/coderabbit/prs/github/hondasports/kakeibo?utm_source=oss&utm_medium=github&utm_campaign=hondasports%2Fkakeibo&labelColor=171717&color=FF570A&link=https%3A%2F%2Fcoderabbit.ai&label=CodeRabbit+Reviews)
-
 # Suzumemo
 
 Suzumemoは、思いついた時に支出や収入を軽く記録し、あとから支出傾向を振り返るための個人・家族向けWeb家計簿アプリです。
@@ -21,6 +19,8 @@ cp .env.example .env.local
 
 `.env.local` に Clerk と Convex の値を設定します。詳細は [`docs/environment-variables.md`](docs/environment-variables.md) を参照してください。
 
+`.env.example` の Convex 値は既存projectへ接続するための初期値です。通常のローカル開発では `pnpm run dev` がlocal deploymentを自動作成・選択し、Git管理外の `.env.local` をlocal URLへ更新します。worktreeの初回bootstrapだけ、必要なら `pnpm run e2e:env-sync -- --copy-only` で正本をコピーしてください。
+
 最低限必要な変数:
 
 - `VITE_CLERK_PUBLISHABLE_KEY`
@@ -28,29 +28,43 @@ cp .env.example .env.local
 - `VITE_CONVEX_URL`
 - `VITE_CONVEX_SITE_URL`（E2E / HTTP エンドポイント用）
 
-### 2. Convex バックエンド
+### 2. Convex バックエンドとフロントエンド
 
 ```bash
-pnpm run convex:dev
+pnpm run dev
 ```
 
-または Cursor Cloud 等では `CONVEX_AGENT_MODE=anonymous npx convex dev` で匿名 dev deployment を起動できます（`AGENTS.md` 参照）。
+このコマンドはlocal deploymentが無ければ作成し、local deploymentを選択してからConvexのwatchとViteを同時に開始します。ローカルのFunction callsやDatabase I/OはConvexプランの利用枠に加算されません。Convexだけを起動する場合は `pnpm run convex:dev` を使ってください。
 
-Convex 側には最低限 `CLERK_JWT_ISSUER_DOMAIN` を設定してください:
+外部サービスから受けるWebhookの確認や、PR E2E向けにクラウドのdev deploymentへ関数を反映する場合だけ、明示的に次を使います。このコマンドはクラウド利用枠を消費します。
 
 ```bash
-pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://your-clerk-frontend-api-url.clerk.accounts.dev
-pnpm exec convex env set RECEIPT_IMAGE_EXTRACTOR_MODE mock
-pnpm exec convex env set APP_ENV development
+pnpm run convex:dev:cloud
 ```
 
-### 3. フロントエンド
+Cursor Cloud等で匿名dev deploymentが必要な場合は `CONVEX_AGENT_MODE=anonymous npx convex dev` を使います（`AGENTS.md` 参照）。
+
+初回はlocal deploymentの作成確認に同意します。Clerk issuerとE2E用設定は、local watcherを起動したまま別ターミナルで同期できます。
+
+```powershell
+pnpm run e2e:env-sync
+```
+
+local deploymentを選択した `.env.local` はcloudの正本で上書きされず、`CLERK_JWT_ISSUER_DOMAIN`、E2Eガード、固定テストユーザー、mockレシート抽出設定だけがlocal deploymentへ入ります。cloud dev deploymentへ同期する場合だけ `pnpm run e2e:env-sync:cloud` を明示してください。詳しい手順とseed方針は [`docs/development-process.md`](docs/development-process.md) を参照してください。
+
+### 3. フロントエンドだけを起動する場合
 
 ```bash
-pnpm run dev -- --host 127.0.0.1
+pnpm run dev:frontend -- --host 127.0.0.1
 ```
 
-ブラウザで `http://localhost:5173` を開きます。
+Convex watcherを別ターミナルで起動済みの場合に使います。通常は `pnpm run dev` を使い、ブラウザで `http://localhost:5173` を開いてください。
+
+### 4. Convex関数の自動テスト
+
+Convex関数の自動テストにはJavaScript上のモックバックエンドである `convex-test` を使います。Vitest実行時はlocal／cloud deploymentを起動する必要がなく、Convexの利用枠も消費しません。
+
+`convex-test` は実バックエンドの制限やRuntimeを完全には再現しないため、実バックエンドとの結合確認はlocal deployment、公開URLが必要な確認だけcloud deploymentを使います。
 
 ## 検証コマンド
 
@@ -65,7 +79,7 @@ pnpm run e2e:public -- --project=chromium
 pnpm run test:email-integration
 ```
 
-E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同期が必要です（[`docs/development-process.md`](docs/development-process.md) 参照）。
+E2E 実行前は `pnpm exec playwright install chromium` とlocal Convexの起動・環境同期が必要です。ローカルE2Eは実DB／認証／HTTP境界の確認、`convex-test` は関数単位の高速テストに使い分けます（[`docs/development-process.md`](docs/development-process.md) 参照）。
 
 ## 主要ドキュメント
 
@@ -79,6 +93,7 @@ E2E 実行前は `pnpm exec playwright install chromium` と `.env.local` の同
 | UI/UX、MUI方針、入力フロー           | `docs/ui-ux-design.md`          |
 | グループ管理・権限                   | `docs/group-admin-permissions.md` |
 | 外部サービス操作ツールのセットアップ | `docs/service-tooling-setup.md` |
+| レシート税判定の品質指標             | `docs/receipt-tax-quality-metrics.md` |
 
 ### 開発プロセス・運用
 

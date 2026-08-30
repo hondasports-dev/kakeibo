@@ -1,10 +1,8 @@
 name: E2E
 
-# Vercel Git Integration が Preview デプロイを完了した時点で、CI 内の Vite dev server に対して実行する。
-# deployment_status イベントを使うことで:
-#   1. Vercel が発行するデプロイ完了通知を受け取る
-#   2. deployment の commit / branch を信頼判定に使う
-#   3. Secrets が GitHub から安全に渡される（pull_request イベントの fork 問題を回避）
+# 同一リポジトリの PR 作成・更新時に、CI 内の Vite dev server に対して実行する。
+# 先に changed-path classification を行い、process-only変更ではE2E jobをskipする。
+# fork PR と Dependabot PR には Actions Secrets が渡らないため、Secrets を使う E2E は実行しない。
 # Preview URL 自体は E2E 対象にしない。Vercel 対象 E2E は main の release candidate だけで実行する。
 #
 # 必要な GitHub Actions Secrets（手動設定が必要）:
@@ -21,30 +19,75 @@ name: E2E
 # 詳細: docs/development-process.md「E2E 確認方針」
 #       docs/environment-variables.md「GitHub Actions Secrets に保存する項目」
 on:
-  deployment_status:
+  pull_request:
+    branches:
+      - main
+      - preview
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
 
 permissions:
   contents: read
   pull-requests: read
 
 jobs:
+  classify:
+    name: Classify E2E relevance
+    runs-on: ubuntu-latest
+    outputs:
+      runtime_relevant: ${{ steps.classify.outputs.runtime_relevant }}
+      reason: ${{ steps.classify.outputs.reason }}
+      changed_count: ${{ steps.classify.outputs.changed_count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          # merge commit ではなく、PR で push された head commit の差分を分類する。
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Classify changed paths
+        id: classify
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/classify-e2e-relevance.mjs --base "$BASE_SHA" --head "$HEAD_SHA" --github-output "$GITHUB_OUTPUT"
+
+      - name: Publish classification summary
+        env:
+          RUNTIME_RELEVANT: ${{ steps.classify.outputs.runtime_relevant }}
+          REASON: ${{ steps.classify.outputs.reason }}
+          CHANGED_COUNT: ${{ steps.classify.outputs.changed_count }}
+        run: |
+          {
+            echo "### E2E relevance"
+            printf '%s\n' "- runtime_relevant: \`$RUNTIME_RELEVANT\`"
+            printf '%s\n' "- reason: \`$REASON\`"
+            printf '%s\n' "- changed_paths: \`$CHANGED_COUNT\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
   e2e:
     name: E2E (Playwright / Chromium / ${{ matrix.name }})
-    # Vercel の Preview デプロイが成功した時のみ実行
-    # Production デプロイ（environment == 'Production'）は除外する
-    # GitHub Environment の deployment_status は target_url が Actions job URL になるため除外する
-    # preview ブランチのデプロイは preview-deploy.yml 内で smoke E2E を実行するため、
-    # Vercel の deployment_status 由来の単独 E2E は重複実行しない
+    needs: classify
+    # PR コードへ Secrets を渡すため、同一リポジトリの通常 PR に限定する。
+    # Dependabot PR は GitHub の仕様で fork 相当として扱われ、Actions Secrets を利用できない。
     if: |
-      github.event.deployment_status.state == 'success' &&
-      contains(github.event.deployment_status.environment, 'Preview') &&
-      contains(github.event.deployment_status.target_url, '.vercel.app') &&
-      github.event.deployment.ref != 'preview'
+      needs.classify.outputs.runtime_relevant == 'true' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout }}
     concurrency:
-      group: e2e-local-smoke-${{ matrix.name }}
-      cancel-in-progress: true
+      # authenticated は共有Dev DB・固定ユーザーをcleanupするため、PRをまたいで直列化する。
+      # public は共有fixtureを変更しないため、同じPRの古い実行だけをキャンセルする。
+      group: e2e-${{ matrix.name }}-${{ matrix.name == 'authenticated' && 'shared-dev' || github.event.pull_request.number }}
+      # authenticated は共有Dev DBを使うため先行runをcancelせず、同じgroup内でqueueする。
+      # public はPR単位のgroupなので、同一PRの古いrunだけをcancelする。
+      queue: ${{ matrix.queue }}
+      cancel-in-progress: ${{ matrix.cancel_in_progress }}
     strategy:
       fail-fast: false
       matrix:
@@ -52,138 +95,31 @@ jobs:
           - name: public
             e2e_command: pnpm run e2e:public -- --project=chromium --workers=3
             timeout: 10
+            queue: single
+            cancel_in_progress: true
           - name: authenticated
             e2e_command: pnpm run e2e:smoke -- --project=chromium --grep-invert @public --workers=1
             timeout: 20
+            queue: max
+            cancel_in_progress: false
     steps:
-      - name: Verify trusted deployment source
-        id: trust
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
-        with:
-          script: |
-            const deployment = context.payload.deployment
-            const { owner, repo } = context.repo
-            const sameRepo = `${owner}/${repo}`
-            const ref = deployment?.ref
-            const shaFromDeployment = deployment?.sha
-            const looksLikeSha = typeof ref === 'string' && /^[0-9a-f]{40}$/i.test(ref)
-
-            let commitSha = shaFromDeployment || (looksLikeSha ? ref : undefined)
-            let sameRepoBranch = false
-            let reason = 'deployment source could not be verified'
-            let docsOnly = false
-
-            if (ref && !looksLikeSha) {
-              try {
-                const branch = await github.rest.repos.getBranch({ owner, repo, branch: ref })
-                const branchSha = branch.data.commit.sha
-                if (!shaFromDeployment || branchSha === shaFromDeployment) {
-                  commitSha = commitSha || branchSha
-                  sameRepoBranch = true
-                  reason = `same-repository branch ${ref}`
-                } else {
-                  reason = `branch ${ref} points to ${branchSha}, not deployment ${shaFromDeployment}`
-                }
-              } catch (error) {
-                core.info(`Deployment ref is not a same-repository branch: ${ref}`)
-              }
-            }
-
-            let trusted = false
-            if (commitSha) {
-              // Vercel の deployment_status は、GitHub が commit から PR を即座に
-              // 逆引きできる前に届くことがある。
-              // その場合でも、同一リポジトリの branch tip が deployment の SHA と
-              // 一致していれば、同一ブランチ由来の Preview とみなして E2E を走らせる。
-              let prs = { data: [] }
-              try {
-                prs = await github.rest.repos.listPullRequestsAssociatedWithCommit({
-                  owner,
-                  repo,
-                  commit_sha: commitSha,
-                })
-              } catch (error) {
-                const status = error?.status ?? 'unknown'
-                core.warning(
-                  `Could not resolve pull requests for commit ${commitSha} (HTTP ${status}); falling back to branch-tip verification.`,
-                )
-              }
-              const sameRepoPr = prs.data.find((pr) => pr.head.repo?.full_name === sameRepo)
-              const forkPr = prs.data.find((pr) => pr.head.repo?.full_name !== sameRepo)
-
-              if (sameRepoPr) {
-                trusted = true
-                reason = `same-repository PR #${sameRepoPr.number}`
-
-                const files = await github.paginate(github.rest.pulls.listFiles, {
-                  owner,
-                  repo,
-                  pull_number: sameRepoPr.number,
-                  per_page: 100,
-                })
-                docsOnly =
-                  files.length > 0 &&
-                  files.every((file) => file.filename.toLowerCase().endsWith('.md'))
-                if (docsOnly) {
-                  trusted = false
-                  reason = `docs-only PR #${sameRepoPr.number}`
-                }
-              } else if (forkPr) {
-                reason = `fork PR #${forkPr.number} from ${forkPr.head.repo?.full_name}`
-              } else {
-                // commit -> PR の逆引きがまだ取れない場合の保険。
-                // branch tip が一致するなら、その branch からの Preview と判断する。
-                const branches = await github.paginate(github.rest.repos.listBranches, {
-                  owner,
-                  repo,
-                  per_page: 100,
-                })
-                const sameRepoBranchTip = branches.find((branch) => branch.commit?.sha === commitSha)
-
-                if (sameRepoBranchTip) {
-                  trusted = true
-                  reason = `same-repository branch ${sameRepoBranchTip.name}`
-                } else if (sameRepoBranch) {
-                  trusted = true
-                }
-              }
-            }
-
-            core.setOutput('trusted', trusted ? 'true' : 'false')
-            core.setOutput('docs_only', docsOnly ? 'true' : 'false')
-            core.setOutput('checkout_ref', commitSha || ref)
-            core.setOutput('reason', reason)
-
-            if (trusted) {
-              core.info(`Trusted deployment source: ${reason}`)
-            } else if (docsOnly) {
-              core.notice(`Skipping E2E for Markdown-only changes: ${reason}`)
-            } else {
-              core.notice(`Skipping secrets-backed E2E: ${reason}`)
-            }
-
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        if: steps.trust.outputs.trusted == 'true'
         with:
           persist-credentials: false
-          # trust判定で検証したcommitをcheckoutし、Preview URLとE2Eコードのずれを避ける
-          ref: ${{ steps.trust.outputs.checkout_ref }}
+          # merge commit ではなく、PR で push された head commit を検証する。
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6
-        if: steps.trust.outputs.trusted == 'true'
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
-        if: steps.trust.outputs.trusted == 'true'
         with:
           node-version-file: ".nvmrc"
           cache: pnpm
 
       - name: Install dependencies
-        if: steps.trust.outputs.trusted == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Resolve E2E Clerk user identifier
-        if: steps.trust.outputs.trusted == 'true'
         env:
           CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
@@ -192,7 +128,6 @@ jobs:
 
       - name: Cache Playwright browsers
         id: playwright-cache
-        if: steps.trust.outputs.trusted == 'true'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/.cache/ms-playwright
@@ -200,15 +135,14 @@ jobs:
           key: playwright-chromium-${{ hashFiles('**/pnpm-lock.yaml') }}
 
       - name: Install Playwright browsers (Chromium only)
-        if: steps.trust.outputs.trusted == 'true' && steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install chromium --with-deps
 
       - name: Install Playwright system dependencies (cache hit時)
-        if: steps.trust.outputs.trusted == 'true' && steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
         run: pnpm exec playwright install-deps chromium
 
       - name: Sync E2E cleanup secret to dev deployment
-        if: steps.trust.outputs.trusted == 'true'
         env:
           CONVEX_DEPLOY_KEY: ${{ secrets.DEV_CONVEX_DEPLOY_KEY }}
           E2E_CLEANUP_SECRET: ${{ secrets.DEV_E2E_CLEANUP_SECRET }}
@@ -232,7 +166,6 @@ jobs:
           pnpm exec convex env set E2E_CLEANUP_SECRET "$E2E_CLEANUP_SECRET"
 
       - name: Configure local Vite E2E
-        if: steps.trust.outputs.trusted == 'true'
         env:
           VITE_CONVEX_URL: ${{ secrets.VITE_CONVEX_URL }}
           VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.CLERK_PUBLISHABLE_KEY }}
@@ -250,7 +183,6 @@ jobs:
           echo "VITE_CLERK_PUBLISHABLE_KEY=$VITE_CLERK_PUBLISHABLE_KEY" >> "$GITHUB_ENV"
 
       - name: Run local smoke E2E tests
-        if: steps.trust.outputs.trusted == 'true'
         run: ${{ matrix.e2e_command }}
         env:
           # Clerk Testing Token 取得用
@@ -265,10 +197,10 @@ jobs:
 
       # 失敗時のみ artifact を保存（認証情報が含まれる可能性があるため短期保存）
       - name: Upload test results on failure
-        if: failure() && steps.trust.outputs.trusted == 'true'
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: playwright-report-${{ github.run_id }}
+          name: playwright-report-${{ github.run_id }}-${{ matrix.name }}
           path: |
             playwright-report/
             test-results/

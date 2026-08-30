@@ -1,45 +1,64 @@
 ---
 name: workspace-preflight
-description: Verify that a repository change starts in an isolated task worktree with a non-protected branch and a known baseline. Use before editing code, configuration, or process files.
+description: repository変更のPREPARE内で最初の編集前に使うcheap deterministic control。task worktree、非protected branch、clean baselineを強制する。
+license: Apache-2.0
 ---
 
 # Workspace Preflight
 
-このSkillは、リポジトリのファイルを変更するタスクで、Requirementsへ入る前かつ最初の編集前に適用する。常時必須の安全Skillを読んだ後、他の変更工程より先に実行する。
+## 適用
+
+repository fileを変更するtaskでは最初の編集前に実行する。
+
+独立した長いLoop stateではなく、PREPARE内のdeterministic control。
 
 ## 実行
 
-タスク用worktreeのrootで次を実行する。
+task worktree rootで:
 
 ```bash
 node scripts/check-task-worktree.mjs --require-clean
 ```
 
-次のEvidenceが揃うまで、`apply_patch`、エディタ保存、生成物の更新などファイル変更を始めない。
+このscriptが機械的に証明するPASS条件:
 
-- 終了コード `0`
-- 出力 `WORKSPACE_PREFLIGHT status: PASS`
+- exit code 0
+- `WORKSPACE_PREFLIGHT status: PASS`
 - `main` / `preview` ではないtask branch
-- canonical worktreeとは異なる、Gitに登録済みのtask worktree
-- preflight開始時点のclean baseline
+- canonical worktreeとは別の登録済みworktree
+- clean baseline
 
-## FAIL時
+`task identity == branch` や「差分が他task由来ではない」ことは、このscript単体では判定しない。これらはPREPAREのtask/session bindingとDeliveryのscope integrityで確認し、scriptのPASS証跡として水増ししない。
 
-FAILしたまま作業を進めない。特に次の場合は、変更を加えずに止める。
+## FAIL
 
-- canonical worktreeにいる
-- `main` / `preview` にいる
-- detached HEAD、またはGitに登録されていない場所にいる
-- 開始前から未コミット差分がある
+FAILしたまま編集しない。
 
-必要なら `git worktree add <task-path> -b codex/<task-name> preview` でtask worktreeを作り、そこでpreflightを再実行する。既存の差分やcanonical worktreeを勝手に消したり戻したりしない。
+- canonical worktree
+- `main` / `preview`
+- detached HEAD
+- unregistered worktree
+- pre-existing uncommitted diff
+
+必要なら:
+
+```bash
+git worktree add <task-path> -b codex/<task-name> preview
+```
+
+既存差分を勝手にreset/stash/deleteしない。
 
 ## 例外
 
-`docs/` 配下、`README.md`、`CHANGELOG.md`だけの文書変更は、別途記録したうえでこのpreflightを省略できる。ユーザーが既存PRへ混ぜる修正を明示した場合も、新しいworktreeの作成自体は省略できるが、既存PRのtask worktreeでpreflightを実行する。`AGENTS.md`、`.loop/`、`skills/`、`scripts/`、設定ファイル、アプリコードは文書扱いにしない。
+`docs/`、`README.md`、`CHANGELOG.md`だけのpure docsは理由を記録して省略可。
 
-pre-commit hookの `--staged` チェックは最後の安全網であり、編集前のpreflightの代わりにはならない。
+次はpure docs扱いしない。
 
-## 安全境界
+- `AGENTS.md`
+- `.loop/`
+- `skills/`
+- `scripts/`
+- config
+- app code
 
-このSkillとスクリプトはlocal Gitの状態だけを読み取り、secret、env、外部サービス、productionデータを扱わない。preflight自体はbranch作成、checkout、削除、reset、commit、pushを実行しない。
+pre-commitの`--staged` checkは最後の安全網であり、編集前preflightの代替ではない。

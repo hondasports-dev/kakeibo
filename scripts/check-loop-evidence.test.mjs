@@ -3,11 +3,17 @@ import { describe, expect, it } from "vitest";
 
 import {
   evaluateLearningApplication,
+  evaluateLearningReviewCoverage,
   evaluateReviewEvidence,
   evaluateSkipIfMissingReview,
+  evaluateVerificationEvidence,
+  extractFindingRecords,
+  extractLearningRecord,
   hasProcessPolicyChange,
   isProcessPolicyPath,
   normalizeChangedPath,
+  parseLoopEvidenceArguments,
+  runLoopEvidenceCheck,
 } from "./check-loop-evidence.mjs";
 
 const HEAD = "cffdaacf556bdd48c84ccebf22a1a9ee0ac8aa62";
@@ -25,6 +31,33 @@ function validEvidence(overrides = {}) {
     reviewed_head_sha: HEAD,
     code_review: passReview(),
     security_review: passReview(),
+    ...overrides,
+  };
+}
+
+function validVerificationEvidence(overrides = {}) {
+  return {
+    status: "PASS",
+    verification_epoch: "epoch-1",
+    evidence_snapshot: HEAD,
+    affected_scope: ["scripts/check-loop-evidence.mjs"],
+    check_authority: ["local", "ci"],
+    checks: [
+      {
+        name: "loop evidence targeted test",
+        authority: "local",
+        scope: "targeted",
+        status: "PASS",
+      },
+      {
+        name: "repository test",
+        authority: "ci",
+        scope: "full_repository",
+        status: "PASS",
+      },
+    ],
+    reruns: [],
+    duplicate_full_check_reason: "",
     ...overrides,
   };
 }
@@ -185,35 +218,220 @@ describe("evaluateSkipIfMissingReview", () => {
   });
 });
 
-describe("evaluateLearningApplication", () => {
-  it("fails a current-PR apply request with no candidates", () => {
+describe("evaluateVerificationEvidence", () => {
+  it("passes scoped local checks with CI as the full-check authority", () => {
+    expect(evaluateVerificationEvidence({ evidence: validVerificationEvidence() })).toMatchObject({
+      ok: true,
+      errors: [],
+    });
+  });
+
+  it("fails duplicate full checks without an explicit reason", () => {
+    const result = evaluateVerificationEvidence({
+      evidence: validVerificationEvidence({
+        checks: [
+          {
+            name: "repository test",
+            authority: "local",
+            scope: "full_repository",
+            status: "PASS",
+          },
+          {
+            name: "repository test",
+            authority: "ci",
+            scope: "full_repository",
+            status: "PASS",
+          },
+        ],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain(
+      "duplicate full checks require duplicate_full_check_reason: repository test",
+    );
+  });
+
+  it("fails a verification marked PASS when an individual check failed", () => {
+    const result = evaluateVerificationEvidence({
+      evidence: validVerificationEvidence({
+        checks: [
+          {
+            name: "targeted test",
+            authority: "local",
+            scope: "targeted",
+            status: "FAIL",
+          },
+        ],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("check[0].status must be PASS or NOT_REQUIRED");
+  });
+
+  it("allows duplicate full checks when the duplication is justified", () => {
     expect(
-      evaluateLearningApplication({ userRequestedCurrentPrApply: true, candidates: [] }),
+      evaluateVerificationEvidence({
+        evidence: validVerificationEvidence({
+          checks: [
+            {
+              name: "repository test",
+              authority: "local",
+              scope: "full_repository",
+              status: "PASS",
+            },
+            {
+              name: "repository test",
+              authority: "ci",
+              scope: "full_repository",
+              status: "PASS",
+            },
+          ],
+          duplicate_full_check_reason:
+            "CI feedback was unavailable during a broad failure diagnosis",
+        }),
+      }),
+    ).toMatchObject({ ok: true, errors: [] });
+  });
+
+  it("requires a reason and invalidation for every rerun", () => {
+    const result = evaluateVerificationEvidence({
+      evidence: validVerificationEvidence({
+        reruns: [{ check: "repository test", reason: "fixed assertion" }],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("rerun[0].invalidated_by is required");
+  });
+});
+
+function learningCandidate(overrides = {}) {
+  return {
+    observed_problem: "A reusable loop problem was observed",
+    process_cause: "The existing enforcement did not cover it",
+    reusable_rule: "Enforce the reusable behavior deterministically",
+    improvement_axes: ["precision"],
+    proposed_target: "scripts/check-loop-evidence.mjs",
+    disposition: "applied",
+    location: "scripts/check-loop-evidence.mjs",
+    evidence: ["task-state finding F001"],
+    verification_evidence: ["targeted test PASS"],
+    ...overrides,
+  };
+}
+
+function learningRecord(overrides = {}) {
+  return {
+    event: "actionable_review_finding",
+    status: "pass",
+    candidates: [learningCandidate()],
+    ...overrides,
+  };
+}
+
+function reviewFindingsSnapshot(overrides = {}) {
+  return {
+    reviewed_head_sha: HEAD,
+    collection_status: "complete",
+    findings: [{ id: "RF001", actionable: true }],
+    ...overrides,
+  };
+}
+
+function taskFinding(id, overrides = {}) {
+  return {
+    id,
+    source: "review",
+    status: "resolved",
+    disposition: "resolved",
+    ...overrides,
+  };
+}
+
+describe("evaluateLearningApplication", () => {
+  it("fails missing or malformed learning records", () => {
+    expect(
+      evaluateLearningApplication({ userRequestedCurrentPrApply: false, learning: undefined }),
+    ).toMatchObject({ ok: false });
+    expect(
+      evaluateLearningApplication({ userRequestedCurrentPrApply: false, learning: [] }),
     ).toMatchObject({ ok: false });
   });
 
-  it("fails a current-PR apply request unless every candidate is applied with a location", () => {
+  it("allows only NOT_REQUIRED with empty candidates when event is none", () => {
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: false,
+        learning: { event: "none", status: "not_required", candidates: [] },
+      }),
+    ).toMatchObject({ ok: true, errors: [] });
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: false,
+        learning: { event: "none", status: "pass", candidates: [] },
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: false,
+        learning: { event: "none", status: "not_required", candidates: [learningCandidate()] },
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("requires PASS and an explicit candidates array when an event occurred", () => {
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: false,
+        learning: { event: "actionable_review_finding", status: "pending" },
+      }),
+    ).toMatchObject({ ok: false });
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: false,
+        learning: learningRecord({ status: "pending", candidates: [] }),
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("fails a current-PR apply request with no candidates", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [
-          { applicationStatus: "not_applied", location: "scripts/check-loop-evidence.mjs" },
-        ],
+        learning: learningRecord({ candidates: [] }),
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("fails a current-PR apply request unless every candidate is applied with evidence", () => {
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: true,
+        learning: learningRecord({
+          candidates: [
+            learningCandidate({
+              disposition: "follow_up",
+              persistent_follow_up: { type: "issue", reference: "#700" },
+              rationale: "outside current scope",
+            }),
+          ],
+        }),
       }),
     ).toMatchObject({ ok: false });
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [{ applicationStatus: "applied", location: "  " }],
+        learning: learningRecord({ candidates: [learningCandidate({ location: "  " })] }),
       }),
     ).toMatchObject({ ok: false });
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [
-          { applicationStatus: "applied", location: "scripts/check-loop-evidence.mjs" },
-          { applicationStatus: "not_applied", location: "skills/delivery/SKILL.md" },
-        ],
+        learning: learningRecord({
+          candidates: [learningCandidate({ verification_evidence: ["  "] })],
+        }),
       }),
     ).toMatchObject({ ok: false });
   });
@@ -222,20 +440,36 @@ describe("evaluateLearningApplication", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [{ applicationStatus: "applied", location: "scripts/check-loop-evidence.mjs" }],
+        learning: learningRecord(),
       }),
     ).toMatchObject({ ok: true, errors: [] });
   });
 
-  it("passes deferred not_applied candidates when apply was not requested", () => {
+  it("passes persistent follow_up and evidenced no_change candidates", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: false,
-        candidates: [{ applicationStatus: "not_applied", location: "" }],
+        learning: learningRecord({
+          candidates: [
+            learningCandidate({
+              disposition: "follow_up",
+              location: "",
+              persistent_follow_up: {
+                type: "issue",
+                reference: "https://github.com/example/repo/issues/1",
+              },
+              rationale: "outside current scope",
+              verification_evidence: [],
+            }),
+            learningCandidate({
+              disposition: "no_change",
+              location: "",
+              rationale: "existing enforcement already covers the rule",
+              verification_evidence: [],
+            }),
+          ],
+        }),
       }),
-    ).toMatchObject({ ok: true, errors: [] });
-    expect(
-      evaluateLearningApplication({ userRequestedCurrentPrApply: false, candidates: [] }),
     ).toMatchObject({ ok: true, errors: [] });
   });
 
@@ -243,7 +477,51 @@ describe("evaluateLearningApplication", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: false,
-        candidates: [{ applicationStatus: "applied", location: "scripts/check-loop-evidence.mjs" }],
+        learning: learningRecord(),
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("fails candidates without reusable content, valid axes, evidence, or disposition details", () => {
+    const result = evaluateLearningApplication({
+      userRequestedCurrentPrApply: false,
+      learning: learningRecord({
+        candidates: [
+          learningCandidate({
+            observed_problem: " ",
+            improvement_axes: ["cost"],
+            evidence: ["  "],
+            disposition: "follow_up",
+            persistent_follow_up: { type: "note", reference: " " },
+            rationale: "",
+          }),
+        ],
+      }),
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("candidate[0].observed_problem is required");
+    expect(result.errors).toContain(
+      "candidate[0].improvement_axes must contain context, speed, or precision",
+    );
+    expect(result.errors).toContain("candidate[0].evidence requires non-empty text entries");
+    expect(result.errors).toContain(
+      "candidate[0].persistent_follow_up requires type issue/task/pr and reference",
+    );
+  });
+
+  it("limits reusable candidates to the 3 highest-impact items", () => {
+    expect(
+      evaluateLearningApplication({
+        userRequestedCurrentPrApply: true,
+        learning: learningRecord({
+          candidates: [
+            learningCandidate(),
+            learningCandidate(),
+            learningCandidate(),
+            learningCandidate(),
+          ],
+        }),
       }),
     ).toMatchObject({ ok: false });
   });
@@ -261,18 +539,234 @@ describe("evaluateLearningApplication", () => {
     expect(production).toContain("convex deploy");
   });
 
-  it("treats unknown applicationStatus as not_applied", () => {
+  it("fails unknown dispositions", () => {
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: true,
-        candidates: [{ applicationStatus: "pending", location: "scripts/check-loop-evidence.mjs" }],
+        learning: learningRecord({
+          candidates: [learningCandidate({ disposition: "pending" })],
+        }),
       }),
     ).toMatchObject({ ok: false });
     expect(
       evaluateLearningApplication({
         userRequestedCurrentPrApply: false,
-        candidates: [{ applicationStatus: "pending", location: "" }],
+        learning: learningRecord({
+          candidates: [learningCandidate({ disposition: "pending" })],
+        }),
+      }),
+    ).toMatchObject({ ok: false });
+  });
+
+  it("extracts the nested task-state learning record and rejects unknown input shapes", () => {
+    const learning = learningRecord();
+    expect(extractLearningRecord({ learning })).toEqual(learning);
+    expect(extractLearningRecord(learning)).toEqual(learning);
+    expect(extractLearningRecord([learningCandidate()])).toBeUndefined();
+  });
+
+  it("fails closed through the CLI runner for pending, missing, and chat-only task state", () => {
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: false,
+        candidatesJson: JSON.stringify({
+          learning: learningRecord({ status: "pending", candidates: [] }),
+        }),
+      }),
+    ).toBe(1);
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: false,
+        candidatesJson: JSON.stringify({ learning: { event: "actionable_review_finding" } }),
+      }),
+    ).toBe(1);
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: false,
+        candidatesJson: JSON.stringify([learningCandidate()]),
+      }),
+    ).toBe(1);
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: false,
+        candidatesJson: JSON.stringify({
+          learning: { event: "none", status: "not_required", candidates: [] },
+        }),
+      }),
+    ).toBe(0);
+  });
+});
+
+describe("evaluateLearningReviewCoverage", () => {
+  it("requires every actionable finding to be linked to the task ledger and learning", () => {
+    const result = evaluateLearningReviewCoverage({
+      reviewFindings: reviewFindingsSnapshot(),
+      taskFindings: [],
+      learning: learningRecord({ candidates: [learningCandidate({ source_finding_ids: [] })] }),
+      headSha: HEAD,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.errors).toContain("review finding is missing from task-state.findings: RF001");
+    expect(result.errors).toContain("review finding is not covered by a learning candidate: RF001");
+  });
+
+  it("passes a complete provider-neutral snapshot with stable ID coverage", () => {
+    const result = evaluateLearningReviewCoverage({
+      reviewFindings: reviewFindingsSnapshot({
+        findings: [
+          { id: "RF001", actionable: true },
+          { id: "RF002", actionable: true },
+          { id: "RF003", actionable: false },
+        ],
+      }),
+      taskFindings: [taskFinding("RF001"), taskFinding("RF002")],
+      learning: learningRecord({
+        candidates: [learningCandidate({ source_finding_ids: ["RF001", "RF002"] })],
+      }),
+      headSha: HEAD,
+    });
+
+    expect(result).toMatchObject({ ok: true, errors: [] });
+  });
+
+  it("fails stale, incomplete, duplicate, and malformed snapshots", () => {
+    expect(
+      evaluateLearningReviewCoverage({
+        reviewFindings: reviewFindingsSnapshot({ reviewed_head_sha: "other" }),
+        taskFindings: [],
+        learning: { event: "none", status: "not_required", candidates: [] },
+        headSha: HEAD,
+      }).errors,
+    ).toContain("review findings snapshot head SHA does not match current head SHA");
+
+    expect(
+      evaluateLearningReviewCoverage({
+        reviewFindings: reviewFindingsSnapshot({ collection_status: "partial" }),
+        taskFindings: [],
+        learning: { event: "none", status: "not_required", candidates: [] },
+        headSha: HEAD,
+      }).errors,
+    ).toContain("review findings snapshot collection_status must be complete");
+
+    const malformed = evaluateLearningReviewCoverage({
+      reviewFindings: reviewFindingsSnapshot({
+        findings: [
+          { id: "RF001", actionable: true },
+          { id: "RF001", actionable: false },
+          { id: "RF002", actionable: "yes" },
+        ],
+      }),
+      taskFindings: [],
+      learning: { event: "none", status: "not_required", candidates: [] },
+      headSha: HEAD,
+    });
+    expect(malformed.errors).toContain("review findings snapshot contains duplicate id: RF001");
+    expect(malformed.errors).toContain("review finding[2].actionable must be boolean");
+  });
+
+  it("allows a complete snapshot containing only non-actionable findings", () => {
+    expect(
+      evaluateLearningReviewCoverage({
+        reviewFindings: reviewFindingsSnapshot({
+          findings: [{ id: "RF001", actionable: false }],
+        }),
+        taskFindings: [],
+        learning: { event: "none", status: "not_required", candidates: [] },
+        headSha: HEAD,
       }),
     ).toMatchObject({ ok: true, errors: [] });
+  });
+});
+
+describe("review finding input wiring", () => {
+  it("extracts findings and parses the snapshot options", () => {
+    const findings = [taskFinding("RF001")];
+    expect(extractFindingRecords({ findings })).toEqual(findings);
+    expect(extractFindingRecords({ learning: learningRecord() })).toBeUndefined();
+
+    expect(
+      parseLoopEvidenceArguments([
+        "--learning",
+        "--file",
+        "task-state.json",
+        "--review-findings-file",
+        "review-findings.json",
+        "--head",
+        HEAD,
+      ]),
+    ).toMatchObject({
+      mode: "learning",
+      file: "task-state.json",
+      reviewFindingsFile: "review-findings.json",
+      reviewFindingsProvided: true,
+      requireReviewFindings: true,
+      headSha: HEAD,
+    });
+
+    expect(parseLoopEvidenceArguments(["--learning", "--review-findings-file"])).toMatchObject({
+      reviewFindingsProvided: true,
+      requireReviewFindings: true,
+    });
+  });
+
+  it("enforces provider-neutral coverage through the CLI runner", () => {
+    const input = {
+      learning: learningRecord({
+        candidates: [learningCandidate({ source_finding_ids: ["RF001"] })],
+      }),
+      findings: [taskFinding("RF001")],
+    };
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify(input),
+        reviewFindingsJson: JSON.stringify(reviewFindingsSnapshot()),
+        headSha: HEAD,
+      }),
+    ).toBe(0);
+
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        requireReviewFindings: true,
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify(input),
+        headSha: HEAD,
+      }),
+    ).toBe(1);
+
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify({
+          learning: learningRecord(),
+          findings: [taskFinding("RF001")],
+        }),
+        reviewFindingsJson: JSON.stringify(reviewFindingsSnapshot()),
+        headSha: HEAD,
+      }),
+    ).toBe(1);
+
+    expect(
+      runLoopEvidenceCheck({
+        mode: "learning",
+        userRequestedCurrentPrApply: true,
+        candidatesJson: JSON.stringify({
+          learning: learningRecord({
+            candidates: [learningCandidate({ source_finding_ids: ["RF001"] })],
+          }),
+          findings: [taskFinding("RF001")],
+        }),
+        reviewFindingsJson: "null",
+        headSha: HEAD,
+      }),
+    ).toBe(1);
   });
 });

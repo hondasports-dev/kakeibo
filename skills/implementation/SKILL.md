@@ -1,6 +1,6 @@
 ---
 name: implementation
-description: Spec ConfidenceとRisk Profileが確定した後、profileで要求されたRequirements/Impact Evidenceに従って最小差分を実装する。振る舞い変更やバグ修正の実装に使う。
+description: PREPAREのcompact contract（AC/IV/TC、Risk、Controls、Coverage Map）に従ってone-writerで最小差分を実装し、behavior-changing diffをcontractへ逆引きする。
 license: Apache-2.0
 ---
 
@@ -8,86 +8,98 @@ license: Apache-2.0
 
 ## 前提
 
-- Spec Confidenceが `C1` または `C2`
-- Risk Level / selected profileが記録済み
-- RequirementsがPASS
-- profileがseparate Impact Gateを要求する場合だけ `IMPACT_ANALYSIS: PASS`
-- R0/R1ではRequirements packetの`impact_summary`が存在
-- Workspace Preflightと常時安全Skillを適用済み
+- Spec Confidence C1/C2
+- PREPARE PASS
+- repository changeならWorkspace Preflight PASS / documented exception
+- AC / relevant IVがID付き
+- material assumptions解消済み
+- Risk / Required Controls / Verification plan記録済み
+- required Human Gateがimplementation前に必要なら承認済み
 
-## 実装契約
+前工程を長く再要約しない。`task-state.prepare` のcompact contractを参照する。
 
-開始前に最低限:
-
-```text
-Goal:
-Spec confidence:
-Risk / profile:
-Editable scope:
-Out of scope:
-Acceptance Criteria:
-Impact summary / Impact Analysis:
-Constraints:
-Verification plan:
-```
-
-Issue本文だけを実装契約にしない。
+Issue本文、chat履歴、Requirements Skill全文を通常は読み直さない。contractが無効化された根拠が出た時だけPREPAREへ戻る。
 
 ## Writer境界
 
-- 同一差分のwriterは原則1体
-- 複数writerはpathを完全分離できる場合だけ
+- same shared diffのwriterは原則1体
+- 複数writerはpath-disjointを証明できる時だけ
 - 他taskの差分を混ぜない
 - secret / `.env.local` / local artifactをcommitしない
 
-## TDD
+## 実装
 
-振る舞い変更・bug fixでは、適切ならRED/GREENを使う。
+- AC / IVに必要な最小変更
+- scope外refactorを混ぜない
+- behavior change / bug fixでは必要ならRED/GREEN
+- kakeibo固有の既存patternを尊重する
+- Coverage Mapに無いbehavior changeを見つけたら、その場で暗黙追加せずcontractへ戻す
 
-1. 仕様を証明する最小testを追加/更新
-2. 期待した理由でRED
-3. 最小実装
-4. GREEN
-5. 必要なrefactor後もGREEN
+## Early falsification
 
-R0 docs/format等でtest不要なら理由を記録する。
+高コストな実装やE2Eの前に、安く否定できる前提を先に潰す。
 
-## Risk / Specの再評価
+例:
 
-実装中に次を発見したら、その場で実装範囲だけ広げない。
+- owning `tsconfig` /型境界
+- direct callerの引数・戻り値契約
+- validator / serializer / persistence shape
+- auth / membership helperの前提
+- existing testが示す境界条件
 
-- material spec ambiguity → Requirementsへ戻る
-- shared caller / provider影響 → Risk再評価
-- auth/data/schema/external trigger → R3+へ昇格
-- production/irreversible trigger → R4へ昇格
+material assumptionが誤りやった場合は、実装を押し切らずPREPAREのAC / IV / Risk / Controls / TCを更新する。
 
-Implementation開始後はtask中のmax observed Riskがcompletion floor。
+## Reverse coverage
 
-## Integrity Check
+Implementation終了時にbehavior-changing diffをcontractへ逆引きする。
 
-終了時にtracked/untrackedを含む差分を確認する。
+```text
+src/a.ts#save → AC01, AC02
+convex/b.ts#update → AC02, IV01
+```
 
-- scope外変更なし
-- Acceptance Criteriaと対応
-- unexplained design deviationなし
-- required impact対策がVerification planへ反映
+PASS条件:
+
+- behavior-changing surfaceはAC / IV / 明示design deviationのいずれかへ対応
+- formatting / generated / mechanically required変更はbehavior changeとして無理に紐付けない
+- 対応しないbehavior changeはscope creepまたはrequirements gapとしてPREPAREへ戻す
+
+AC本文を再コピーせずIDで記録する。
+
+## 新しい発見
+
+実装中に次を見つけたら勝手にscopeだけ広げない。
+
+- material spec ambiguity → PREPAREへ
+- ACに無い必要behavior → requirements gapとしてPREPAREへ
+- shared caller / provider impact → Risk/Controls再評価
+- auth/data/financial/external impact → Controls追加・Risk再評価
+- production / irreversible effect → R4/Human Gate
+
+Implementation開始後はmax observed Riskがcompletion floor。
+
+## 終了確認
+
+- intended filesのみ
+- AC / IVと差分が対応
+- reverse coverage成立
+- design deviationは説明済み
+- newly observed riskはPREPAREへ反映
+- Verification plan / TCを更新済み
 - unrelated dependency/refactorなし
-- secret/local-only/generated artifactなし
+- secret/local-only artifactなし
 
 ## 出力
+
+unchangedなPREPARE内容は繰り返さない。
 
 ```text
 IMPLEMENTATION
 Status: PASS | FAIL | BLOCKED
-Spec confidence:
-Risk / profile:
 Changed files:
-RED evidence:
-GREEN evidence:
+Behavior change map:
 Design deviations:
-Impact changes discovered:
-Risk escalation:
-Unresolved items:
-Integrity check:
+Newly observed risk:
+Controls / TC changed:
 Evidence:
 ```

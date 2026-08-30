@@ -1,4 +1,4 @@
-import { MenuItem, TextField } from "@mui/material";
+import { Alert, MenuItem, TextField } from "@mui/material";
 import { documentTypeLabels, reviewDocumentTypeOptions } from "../labels";
 import type {
   AiExpenseQueueCategory,
@@ -65,6 +65,24 @@ export function ReviewFormFields({
         }}
         value={reviewForm.amountYen}
       />
+
+      <TextField
+        fullWidth
+        label="登録方法"
+        onChange={(event) => onFieldChange("registrationMode", event.target.value)}
+        select
+        value={reviewForm.registrationMode}
+      >
+        <MenuItem value="detailed">明細ごとに保存</MenuItem>
+        <MenuItem value="totalOnly">レシート合計だけで保存</MenuItem>
+      </TextField>
+
+      {reviewForm.registrationMode === "totalOnly" ? (
+        <Alert severity="info" variant="outlined">
+          登録される金額は{Number(reviewForm.amountYen || 0).toLocaleString()}円です。
+          OCRの商品明細と税内訳は確認用に残りますが、履歴・予算・カテゴリ集計には使われません。
+        </Alert>
+      ) : null}
 
       <TextField
         fullWidth

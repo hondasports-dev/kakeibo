@@ -80,6 +80,32 @@ export function useReviewFormState({
 
   const handleReviewFieldChange = (field: keyof ReviewFormValues, value: string) => {
     setReviewForm((current) => ({ ...current, [field]: value }));
+    if (field === "priceTaxTreatment" || field === "taxRateComposition") {
+      const nextPriceTaxTreatment =
+        field === "priceTaxTreatment" ? value : reviewForm.priceTaxTreatment;
+      const nextTaxRateComposition =
+        field === "taxRateComposition" ? value : reviewForm.taxRateComposition;
+      setReviewItems((current) =>
+        applyReviewItemsTaxPreview(current, {
+          paidTotalYen: Number(reviewForm.amountYen),
+          taxSummaries: selectedReviewDraft?.taxSummaries,
+          markerDefinitions: selectedReviewDraft?.markerDefinitions,
+          priceTaxTreatment: nextPriceTaxTreatment as ReviewFormValues["priceTaxTreatment"],
+          taxRateComposition: nextTaxRateComposition as ReviewFormValues["taxRateComposition"],
+        }),
+      );
+    }
+    if (field === "amountYen") {
+      setReviewItems((current) =>
+        applyReviewItemsTaxPreview(current, {
+          paidTotalYen: Number(value),
+          taxSummaries: selectedReviewDraft?.taxSummaries,
+          markerDefinitions: selectedReviewDraft?.markerDefinitions,
+          priceTaxTreatment: reviewForm.priceTaxTreatment,
+          taxRateComposition: reviewForm.taxRateComposition,
+        }),
+      );
+    }
     if (field === "categoryId") {
       setReviewItems((current) =>
         isCategorySplit
@@ -172,6 +198,8 @@ export function useReviewFormState({
         paidTotalYen: Number.isFinite(paidTotalYen) ? paidTotalYen : undefined,
         taxSummaries: selectedReviewDraft?.taxSummaries,
         markerDefinitions: selectedReviewDraft?.markerDefinitions,
+        priceTaxTreatment: reviewForm.priceTaxTreatment,
+        taxRateComposition: reviewForm.taxRateComposition,
       });
     });
   };

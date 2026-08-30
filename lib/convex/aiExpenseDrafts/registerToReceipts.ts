@@ -4,6 +4,7 @@ import type { Doc, Id } from "../../../convex/_generated/dataModel";
 import { insertReceiptForGroup } from "../../../convex/receipts/crud";
 import { requireGroupMembership } from "../../../convex/groups/membership";
 import { resolveReceiptShopNameFromDraft } from "../../domain/aiExpenseDrafts/shopName";
+import { buildDraftRegistrationItems, resolveRegistrationMode } from "./reconcileExpenseEntries";
 import {
   dedupeDraftIds,
   getReadyDraftRegistrationErrorMessage,
@@ -61,6 +62,8 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
   const registeredReceiptIds: Id<"receipts">[] = [];
 
   for (const draft of draftsToRegister) {
+    // totalOnly の場合は確認済み合計であることを同じ契約で検証する。
+    buildDraftRegistrationItems(draft, []);
     const receiptId = await insertReceiptForGroup(
       ctx,
       groupId,
@@ -83,6 +86,18 @@ export async function registerReadyDraftsHandler(ctx: MutationCtx, args: Registe
       ctx.db.patch(draft._id, {
         status: "registered",
         registeredReceiptId: registeredReceiptIds[index],
+        derivedRegistration: {
+          source: "derived",
+          destination: "receipt",
+          registrationMode: resolveRegistrationMode(draft),
+          ...(resolveRegistrationMode(draft) === "totalOnly"
+            ? { taxRatePercent: null, taxableAmountYen: null, taxYen: null }
+            : {}),
+          amountYen: draft.amountYen!,
+          date: draft.date!,
+          categoryIds: [draft.categoryId!],
+          registeredAt: now,
+        },
         updatedAt: now,
       }),
     ),

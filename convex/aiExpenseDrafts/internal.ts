@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { internalMutation } from "../_generated/server";
+import { internalMutation, internalQuery } from "../_generated/server";
 import {
   aiExpenseDraftConfidenceValidator,
   aiExpenseDraftDocumentTypeValidator,
@@ -9,6 +9,11 @@ import {
   markerDefinitionsValidator,
   receiptItemTaxRatePercentValidator,
   receiptMarkersValidator,
+  receiptRawObservationLineValidator,
+  receiptLineClassificationValidator,
+  receiptTotalResolutionValidator,
+  receiptTaxDecisionValidator,
+  receiptUserOverrideSnapshotValidator,
   taxResolutionSourceValidator,
   taxResolutionStatusValidator,
   taxSummaryValidator,
@@ -22,6 +27,7 @@ import {
 } from "../../lib/convex/aiExpenseDrafts/createFromExtraction";
 import {
   createE2eReadyDraftForUserHandler,
+  createE2eMixedTaxReviewDraftForUserHandler,
   createE2eTaxReviewDraftForUserHandler,
   createE2eTaxSummaryConflictDraftForUserHandler,
   deleteDraftsByUserBatchHandler,
@@ -38,6 +44,7 @@ export {
 export {
   deleteDraftsByUserBatchHandler,
   createE2eReadyDraftForUserHandler,
+  createE2eMixedTaxReviewDraftForUserHandler,
   createE2eTaxReviewDraftForUserHandler,
   createE2eTaxSummaryConflictDraftForUserHandler,
 } from "../../lib/convex/aiExpenseDrafts/e2eDraftFixtures";
@@ -90,6 +97,11 @@ const extractedDraftArgs = {
   date: v.optional(v.string()),
   amountYen: v.optional(v.number()),
   taxSummaries: v.optional(v.array(taxSummaryValidator)),
+  receiptTotalResolution: v.optional(receiptTotalResolutionValidator),
+  receiptTaxDecision: v.optional(receiptTaxDecisionValidator),
+  rawObservationLines: v.optional(v.array(receiptRawObservationLineValidator)),
+  receiptLineClassifications: v.optional(v.array(receiptLineClassificationValidator)),
+  preservedUserOverride: v.optional(receiptUserOverrideSnapshotValidator),
   markerDefinitions: v.optional(markerDefinitionsValidator),
   categoryId: v.optional(v.id("categories")),
   imageFileName: v.optional(v.string()),
@@ -128,6 +140,27 @@ export const deleteOrphanedDraft = internalMutation({
   handler: deleteOrphanedDraftHandler,
 });
 
+export const getForReanalysis = internalQuery({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    groupId: v.id("groups"),
+  },
+  handler: async (ctx, args) => {
+    const draft = await ctx.db.get(args.draftId);
+    if (draft?.groupId !== args.groupId) {
+      return null;
+    }
+    const items = await ctx.db
+      .query("aiExpenseDraftItems")
+      .withIndex("by_group_id_and_draft_id", (q) =>
+        q.eq("groupId", args.groupId).eq("draftId", args.draftId),
+      )
+      .order("asc")
+      .take(100);
+    return { draft, items };
+  },
+});
+
 export const deleteDraftsByUserBatch = internalMutation({
   args: {
     groupId: v.id("groups"),
@@ -155,6 +188,16 @@ export const createE2eTaxReviewDraftForUser = internalMutation({
     secondaryCategoryId: v.optional(v.id("categories")),
   },
   handler: createE2eTaxReviewDraftForUserHandler,
+});
+
+export const createE2eMixedTaxReviewDraftForUser = internalMutation({
+  args: {
+    groupId: v.id("groups"),
+    createdByUserId: v.string(),
+    categoryId: v.id("categories"),
+    secondaryCategoryId: v.optional(v.id("categories")),
+  },
+  handler: createE2eMixedTaxReviewDraftForUserHandler,
 });
 
 export const createE2eTaxSummaryConflictDraftForUser = internalMutation({

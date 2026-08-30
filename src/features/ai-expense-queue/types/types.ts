@@ -1,5 +1,19 @@
 import type { Id } from "../../../../convex/_generated/dataModel";
-import type { ExtractedTaxSummary, TaxResolutionSource } from "../../../../lib/receiptTax/types";
+import type {
+  ExtractedTaxSummary,
+  PriceTaxTreatment,
+  ReceiptTaxDecision,
+  ReceiptTotalResolution,
+  TaxRateComposition,
+  TaxResolutionSource,
+} from "../../../../lib/receiptTax/types";
+import type { ReceiptRawObservation } from "../../../../lib/domain/receipt/observations";
+import type {
+  AiExpenseRegistrationMode,
+  DerivedRegistrationSnapshot,
+  ReceiptInterpretationSnapshot,
+  ReceiptUserOverrideSnapshot,
+} from "../../../../lib/domain/aiExpenseDrafts/receiptDataContract";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -38,6 +52,7 @@ export type AiExpenseQueueItem = {
     categoryName?: string;
     amountYen: number;
   }>;
+  registrationMode?: AiExpenseRegistrationMode;
 };
 
 export type AiExpenseUploadBatch = {
@@ -91,6 +106,9 @@ export type AiExpenseQueuePanelProps = {
         amountYen: number;
         categoryId: string;
       }>;
+      registrationMode?: AiExpenseRegistrationMode;
+      priceTaxTreatment?: PriceTaxTreatment;
+      taxRateComposition?: TaxRateComposition;
     },
     registerAfterUpdate: boolean,
   ) => Promise<AiExpenseReviewSubmitResult> | AiExpenseReviewSubmitResult;
@@ -113,6 +131,14 @@ export type AiExpenseDraft = {
   reviewReasons: string[];
   warnings?: string[];
   taxSummaries?: Array<Omit<ExtractedTaxSummary, "confidence">>;
+  receiptTotalResolution?: ReceiptTotalResolution;
+  receiptTaxDecision?: ReceiptTaxDecision;
+  receiptDataContractVersion?: 1;
+  rawObservation?: ReceiptRawObservation;
+  receiptInterpretation?: ReceiptInterpretationSnapshot;
+  receiptUserOverride?: ReceiptUserOverrideSnapshot;
+  registrationMode?: AiExpenseRegistrationMode;
+  derivedRegistration?: DerivedRegistrationSnapshot;
   markerDefinitions?: Array<{ marker: string; description: string }>;
   itemSummary?: {
     itemTotalYen: number;
@@ -167,6 +193,9 @@ export type ReviewFormValues = {
   date: string;
   amountYen: string;
   categoryId: string;
+  registrationMode: AiExpenseRegistrationMode;
+  priceTaxTreatment?: PriceTaxTreatment;
+  taxRateComposition?: TaxRateComposition;
 };
 
 export type ReviewItemValues = AiExpenseItemTaxDetails & {

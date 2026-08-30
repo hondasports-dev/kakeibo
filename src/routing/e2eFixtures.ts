@@ -60,6 +60,21 @@ export const devAiExpenseReviewDrafts = {
     categoryId: "e2e-cat-utilities",
     reviewReasons: ["low_confidence", "missing_required_field"],
     warnings: ["支払内容の印字が薄いため確認してください"],
+    rawObservation: {
+      source: "ai_ocr" as const,
+      observedAt: 1,
+      lines: [
+        {
+          rawText: "大阪市水道局 水道料金",
+          amountText: "9,120円",
+          amountYen: 9120,
+          lineRoleCandidates: ["total" as const],
+          roleConfidence: 0.88,
+          explicitlyPrinted: true,
+          sourceLineIndex: 0,
+        },
+      ],
+    },
   },
 };
 

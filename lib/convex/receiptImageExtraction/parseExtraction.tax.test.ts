@@ -60,6 +60,28 @@ const trialExtraction = {
     categoryName: 1,
   },
   warnings: [],
+  rawObservations: [
+    {
+      rawText: "合計 ￥1,683",
+      amountText: "￥1,683",
+      amountYen: 1683,
+      lineRoleCandidates: ["total"],
+      roleConfidence: 0.98,
+      explicitlyPrinted: true,
+      sourceLineIndex: 12,
+      boundingBox: null,
+    },
+    {
+      rawText: "消費税 0円",
+      amountText: "0円",
+      amountYen: 0,
+      lineRoleCandidates: ["tax", "unknown"],
+      roleConfidence: 0.6,
+      explicitlyPrinted: true,
+      sourceLineIndex: 13,
+      boundingBox: { left: 0.1, top: 0.7, width: 0.8, height: 0.03 },
+    },
+  ],
 };
 
 function parse(payload: unknown) {
@@ -94,6 +116,80 @@ describe("parseOpenAIResponse tax boundary", () => {
       taxableAmountYen: 1559,
       taxYen: 124,
     });
+  });
+
+  it("OCR原文・金額文字列・0円・role候補を補正せず保持する", () => {
+    const result = parse(trialExtraction);
+
+    expect(result.rawObservations).toEqual([
+      {
+        rawText: "合計 ￥1,683",
+        amountText: "￥1,683",
+        amountYen: 1683,
+        lineRoleCandidates: ["total"],
+        roleConfidence: 0.98,
+        explicitlyPrinted: true,
+        sourceLineIndex: 12,
+        boundingBox: undefined,
+      },
+      expect.objectContaining({
+        rawText: "消費税 0円",
+        amountText: "0円",
+        amountYen: 0,
+        lineRoleCandidates: ["tax", "unknown"],
+        boundingBox: { left: 0.1, top: 0.7, width: 0.8, height: 0.03 },
+      }),
+    ]);
+  });
+
+  it("支払総額不明のnullと印字された0円観測を区別する", () => {
+    const payload = structuredClone(trialExtraction);
+    payload.amountYen = null as never;
+    payload.rawObservations[0].amountText = null;
+    payload.rawObservations[0].amountYen = null;
+
+    const result = parse(payload);
+
+    expect(result.amountYen).toBeNull();
+    expect(result.rawObservations?.[0].amountYen).toBeNull();
+    expect(result.rawObservations?.[1].amountYen).toBe(0);
+  });
+
+  it("印字されたtop-level 0円を観測値としてparseし、nullと区別する", () => {
+    const payload = structuredClone(trialExtraction);
+    payload.amountYen = 0;
+    payload.rawObservations[0] = {
+      ...payload.rawObservations[0],
+      rawText: "合計 0円",
+      amountText: "0円",
+      amountYen: 0,
+      lineRoleCandidates: ["total"],
+    };
+
+    const result = parse(payload);
+
+    expect(result.amountYen).toBe(0);
+    expect(result.rawObservations?.[0]).toMatchObject({ amountText: "0円", amountYen: 0 });
+  });
+
+  it("raw observationの不正role・confidence・boundingBoxを拒否する", () => {
+    const role = structuredClone(trialExtraction) as unknown as {
+      rawObservations: Array<Record<string, unknown>>;
+    };
+    role.rawObservations[0].lineRoleCandidates = ["確定合計"];
+    expect(() => parse(role)).toThrow(/lineRoleCandidates/);
+
+    const confidence = structuredClone(trialExtraction) as unknown as {
+      rawObservations: Array<Record<string, unknown>>;
+    };
+    confidence.rawObservations[0].roleConfidence = 1.1;
+    expect(() => parse(confidence)).toThrow(/roleConfidence/);
+
+    const box = structuredClone(trialExtraction) as unknown as {
+      rawObservations: Array<Record<string, unknown>>;
+    };
+    box.rawObservations[1].boundingBox = { left: -1, top: 0, width: 1, height: 1 };
+    expect(() => parse(box)).toThrow(/boundingBox/);
   });
 
   it("parserでは外税の金額関係から税属性を補正しない", () => {

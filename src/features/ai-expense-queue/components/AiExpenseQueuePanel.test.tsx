@@ -11,6 +11,7 @@ const {
   registerReadyDraftsAsExpenseEntriesMock,
   legacyRegisterReadyDraftsMock,
   updateForReviewMock,
+  resetReceiptToAiInterpretationMock,
   createBatchMock,
   analyzeImageJobMock,
   retryImageJobMock,
@@ -22,6 +23,7 @@ const {
   registerReadyDraftsAsExpenseEntriesMock: vi.fn(),
   legacyRegisterReadyDraftsMock: vi.fn(),
   updateForReviewMock: vi.fn(),
+  resetReceiptToAiInterpretationMock: vi.fn(),
   createBatchMock: vi.fn(),
   analyzeImageJobMock: vi.fn(),
   retryImageJobMock: vi.fn(),
@@ -43,6 +45,7 @@ vi.mock("../../../../convex/_generated/api", () => ({
         registerReadyDraftsAsExpenseEntries:
           "aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries",
         updateForReview: "aiExpenseDrafts.mutations.updateForReview",
+        resetReceiptToAiInterpretation: "aiExpenseDrafts.mutations.resetReceiptToAiInterpretation",
         deleteDraft: "aiExpenseDrafts.mutations.deleteDraft",
       },
     },
@@ -74,6 +77,9 @@ vi.mock("../../../../convex/_generated/api", () => ({
 vi.mock("convex/react", () => ({
   useMutation: (reference: string) => {
     if (reference === "aiExpenseDrafts.mutations.updateForReview") return updateForReviewMock;
+    if (reference === "aiExpenseDrafts.mutations.resetReceiptToAiInterpretation") {
+      return resetReceiptToAiInterpretationMock;
+    }
     if (reference === "aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries") {
       return registerReadyDraftsAsExpenseEntriesMock;
     }
@@ -116,6 +122,8 @@ describe("AiExpenseQueuePanel", () => {
     legacyRegisterReadyDraftsMock.mockResolvedValue(undefined);
     updateForReviewMock.mockReset();
     updateForReviewMock.mockResolvedValue({ status: "ready", reviewReasons: [] });
+    resetReceiptToAiInterpretationMock.mockReset();
+    resetReceiptToAiInterpretationMock.mockResolvedValue(undefined);
     createBatchMock.mockReset();
     createBatchMock.mockResolvedValue({
       batch: { _id: "batch-1" },
@@ -709,6 +717,41 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
+  it("登録失敗後も選択状態を保持して同じ下書きを再試行できる", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    registerReadyDraftsAsExpenseEntriesMock
+      .mockRejectedValueOnce(new Error("登録処理に失敗しました"))
+      .mockResolvedValueOnce(undefined);
+
+    try {
+      renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[0]]} />);
+
+      const readySection = screen.getByRole("region", { name: "登録できます" });
+      const registerButton = within(readySection).getByRole("button", { name: "登録する" });
+      await user.click(registerButton);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("登録に失敗しました。時間をおいて再度お試しください。"),
+        ).toBeVisible();
+      });
+      expect(
+        screen.getByRole("checkbox", { name: "スーパー北浜を登録対象に含める" }),
+      ).toBeChecked();
+
+      await user.click(registerButton);
+      await waitFor(() => {
+        expect(registerReadyDraftsAsExpenseEntriesMock).toHaveBeenCalledTimes(2);
+      });
+      expect(
+        screen.queryByText("登録に失敗しました。時間をおいて再度お試しください。"),
+      ).not.toBeInTheDocument();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("登録準備OKカードではカテゴリ別登録候補を重複表示しない", () => {
     renderWithProviders(
       <AiExpenseQueuePanel
@@ -957,7 +1000,7 @@ describe("AiExpenseQueuePanel", () => {
     await user.type(screen.getByLabelText("店名・内容"), "スーパー青葉");
     await user.clear(screen.getByLabelText("合計金額"));
     await user.type(screen.getByLabelText("合計金額"), "1680");
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith({
       draftId: "draft-review",
@@ -966,9 +1009,139 @@ describe("AiExpenseQueuePanel", () => {
       date: "2026-06-01",
       amountYen: 1680,
       categoryId: "cat-daily",
+      registrationMode: "detailed",
       items: [],
     });
     expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
+  });
+
+  it("合計だけで保存を選ぶと登録金額と明細を集計しない説明を表示してmodeを保存する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") return [];
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "スーパー青葉",
+          date: "2026-06-01",
+          amountYen: 1680,
+          categoryId: "cat-daily",
+          reviewReasons: ["amount_mismatch"],
+        },
+        items: [{ itemName: "OCR商品", amountYen: 1200, categoryId: undefined, confidence: {} }],
+      };
+    });
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "修正する" }));
+    await user.click(within(dialog).getByRole("combobox", { name: "登録方法" }));
+    await user.click(screen.getByRole("option", { name: "レシート合計だけで保存" }));
+
+    expect(within(dialog).getByText(/登録される金額は1,680円/)).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/履歴・予算・カテゴリ集計には使われません/),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "レシート合計だけ保存" }));
+    expect(updateForReviewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ amountYen: 1680, registrationMode: "totalOnly" }),
+    );
+  });
+
+  it("明細保存ボタンは合計だけの表示中でも明細modeを明示する", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") return [];
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "スーパー青葉",
+          date: "2026-06-01",
+          amountYen: 1680,
+          categoryId: "cat-daily",
+          reviewReasons: ["amount_mismatch"],
+        },
+        items: [{ itemName: "OCR商品", amountYen: 1200, categoryId: "cat-daily", confidence: {} }],
+      };
+    });
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "修正する" }));
+    await user.click(within(dialog).getByRole("combobox", { name: "登録方法" }));
+    await user.click(screen.getByRole("option", { name: "レシート合計だけで保存" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
+
+    expect(updateForReviewMock).toHaveBeenCalledWith(
+      expect.objectContaining({ amountYen: 1680, registrationMode: "detailed" }),
+    );
+  });
+
+  it("OCR原文を確認し、ユーザー補正を明示操作でAI判定へ戻せる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, args: { draftId?: string } | "skip") => {
+      if (reference !== "aiExpenseDrafts.queries.getWithItems" || args === "skip") {
+        return [];
+      }
+      return {
+        draft: {
+          _id: args.draftId,
+          status: "needs_review",
+          documentType: "receipt",
+          shopName: "ユーザー補正店舗",
+          date: "2026-06-01",
+          amountYen: 803,
+          categoryId: "cat-daily",
+          reviewReasons: [],
+          rawObservation: {
+            source: "ai_ocr",
+            observedAt: 1,
+            lines: [
+              {
+                rawText: "合計 ￥８０３",
+                amountText: "￥８０３",
+                amountYen: 803,
+                lineRoleCandidates: ["total"],
+                roleConfidence: 0.98,
+                explicitlyPrinted: true,
+                sourceLineIndex: 0,
+              },
+            ],
+          },
+          receiptInterpretation: { source: "ai", interpretedAt: 1, values: {} },
+          receiptUserOverride: {
+            source: "user",
+            updatedAt: 2,
+            fields: ["amountYen"],
+            values: {},
+          },
+        },
+        items: [],
+      };
+    });
+
+    renderWithProviders(
+      <AiExpenseQueuePanel initialItems={[queueItems[1]]} categories={categories} />,
+    );
+    await user.click(screen.getByRole("button", { name: "確認する" }));
+
+    const dialog = screen.getByRole("dialog", { name: "下書き確認" });
+    expect(within(dialog).getByRole("region", { name: "OCR原文" })).toHaveTextContent(
+      "合計 ￥８０３（金額文字列: ￥８０３）",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "AI判定へ戻す" }));
+
+    expect(resetReceiptToAiInterpretationMock).toHaveBeenCalledWith({ draftId: "draft-review" });
   });
 
   it("明細あり下書きは状態を簡潔に表示し、明細は折りたたみで確認できる", async () => {
@@ -988,6 +1161,37 @@ describe("AiExpenseQueuePanel", () => {
           categoryId: "cat-daily",
           reviewReasons: ["ambiguous_category", "amount_mismatch"],
           warnings: [],
+          rawObservation: {
+            source: "ai_ocr",
+            observedAt: 1,
+            lines: [
+              {
+                rawText: "読取不能 250円",
+                amountText: "250円",
+                amountYen: 250,
+                lineRoleCandidates: ["item", "unknown"],
+                roleConfidence: 0.4,
+                explicitlyPrinted: true,
+                sourceLineIndex: 4,
+              },
+            ],
+          },
+          receiptInterpretation: {
+            source: "ai",
+            interpretedAt: 1,
+            values: {
+              receiptLineClassifications: [
+                {
+                  sourceLineIndex: 4,
+                  status: "ambiguous",
+                  candidates: [
+                    { role: "item", score: 0.51, evidence: ["ai_candidate:item"] },
+                    { role: "unknown", score: 0.4, evidence: ["classification_ambiguous"] },
+                  ],
+                },
+              ],
+            },
+          },
         },
         items: [
           {
@@ -1018,6 +1222,10 @@ describe("AiExpenseQueuePanel", () => {
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByRole("heading", { name: "ドラッグストアA" })).toBeInTheDocument();
     expect(within(dialog).getByText("2026/06/21 ・ 1,380円")).toBeInTheDocument();
+    expect(within(dialog).getByText(/判定が曖昧なOCR行が1件/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText("要確認 OCR行 4")).toHaveTextContent(
+      "候補: 商品 / 不明・明細へ未反映の可能性",
+    );
     expect(within(dialog).queryByRole("heading", { name: "登録候補" })).not.toBeInTheDocument();
     expect(within(dialog).queryByText("食費 150円")).not.toBeInTheDocument();
     expect(within(dialog).queryByText("日用品 980円")).not.toBeInTheDocument();
@@ -1032,7 +1240,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(dialog).getByText("パン")).toBeInTheDocument();
     expect(within(dialog).getByText("胃薬")).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "修正する" })).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
   });
 
   it("複数カテゴリの編集後は登録前の確認画面へ戻る", async () => {
@@ -1070,13 +1278,13 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(within(dialog).getByRole("button", { name: "修正する" }));
     expect(within(dialog).getByLabelText("金額の照合")).toBeInTheDocument();
     expect(within(dialog).queryByText(/unknown_amount_basis/)).not.toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: "修正して登録" })).not.toBeInTheDocument();
     expect(
       within(dialog).queryByRole("button", { name: "登録準備OKに戻す" }),
     ).not.toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
     expect(updateForReviewMock).toHaveBeenCalled();
     expect(registerReadyDraftsAsExpenseEntriesMock).not.toHaveBeenCalled();
@@ -1157,7 +1365,7 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(screen.getByRole("option", { name: "食費" }));
     await user.click(categoryInputs[1]);
     await user.click(screen.getByRole("option", { name: "食費" }));
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith({
       draftId: "draft-review",
@@ -1166,6 +1374,7 @@ describe("AiExpenseQueuePanel", () => {
       date: "2026-06-21",
       amountYen: 1380,
       categoryId: "cat-daily",
+      registrationMode: "detailed",
       items: [
         expect.objectContaining({
           itemName: "パン",
@@ -1239,7 +1448,7 @@ describe("AiExpenseQueuePanel", () => {
     const totalsPanel = within(dialog).getByLabelText("金額の照合");
     expect(within(totalsPanel).getAllByText("990円").length).toBeGreaterThanOrEqual(2);
 
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1301,7 +1510,7 @@ describe("AiExpenseQueuePanel", () => {
     await user.click(within(dialog).getByRole("button", { name: "修正する" }));
 
     expect(within(dialog).queryByText("対象商品のカテゴリから減額します")).not.toBeInTheDocument();
-    await user.click(within(dialog).getByRole("button", { name: "保存して閉じる" }));
+    await user.click(within(dialog).getByRole("button", { name: "この内容で保存" }));
 
     expect(updateForReviewMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -1333,7 +1542,7 @@ describe("AiExpenseQueuePanel", () => {
 
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).getByText("下書きを読み込んでいます。")).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeDisabled();
     expect(within(dialog).queryByLabelText("合計金額")).not.toBeInTheDocument();
   });
 
@@ -1357,7 +1566,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(
       within(dialog).getByText("下書きが見つかりません。一覧を更新してもう一度確認してください。"),
     ).toBeInTheDocument();
-    expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeDisabled();
+    expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeDisabled();
   });
 
   it("未判定の書類種別は選択肢に表示せず送信前に止める", async () => {
@@ -1392,7 +1601,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(within(listbox).queryByRole("option", { name: "種別未判定" })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
 
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     expect(within(dialog).getByText("書類種別を選択してください。")).toBeInTheDocument();
     expect(updateForReviewMock).not.toHaveBeenCalled();
@@ -1430,7 +1639,7 @@ describe("AiExpenseQueuePanel", () => {
     expect(nameInput).toHaveValue("大阪市水道局");
     await user.clear(nameInput);
     await user.type(nameInput, "大阪市水道局 水道料金");
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     expect(onReviewSubmit).toHaveBeenCalledWith(
       "draft-review",
@@ -1480,7 +1689,7 @@ describe("AiExpenseQueuePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "確認する" }));
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -1516,12 +1725,19 @@ describe("AiExpenseQueuePanel", () => {
 
       await user.click(screen.getByRole("button", { name: "確認する" }));
       const nameInput = screen.getByLabelText("店名・内容");
+      const amountInput = screen.getByLabelText("合計金額");
       await user.clear(nameInput);
       await user.type(nameInput, "保存前の入力");
-      await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+      await user.clear(amountInput);
+      await user.type(amountInput, "7803");
+      await user.click(screen.getByRole("button", { name: "レシート合計だけ保存" }));
 
       expect(screen.getByRole("dialog")).toBeInTheDocument();
       expect(nameInput).toHaveValue("保存前の入力");
+      expect(amountInput).toHaveValue("7803");
+      expect(screen.getByRole("combobox", { name: "登録方法" })).toHaveTextContent(
+        "レシート合計だけで保存",
+      );
       expect(
         screen
           .getAllByRole("alert")
@@ -1559,7 +1775,7 @@ describe("AiExpenseQueuePanel", () => {
     );
 
     await user.click(screen.getByRole("button", { name: "確認する" }));
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
 
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -1648,7 +1864,7 @@ describe("AiExpenseQueuePanel", () => {
       expect(within(dialog).queryByRole("heading", { name: "登録候補" })).not.toBeInTheDocument();
       expect(within(dialog).queryByText("食費 150円")).not.toBeInTheDocument();
       expect(within(dialog).getByRole("button", { name: "修正する" })).toBeEnabled();
-      expect(within(dialog).getByRole("button", { name: "保存して閉じる" })).toBeEnabled();
+      expect(within(dialog).getByRole("button", { name: "この内容で保存" })).toBeEnabled();
     });
   });
 });

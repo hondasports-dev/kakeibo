@@ -45,6 +45,7 @@ export function useReviewDialog({
     onRegister,
     clearSelection: draftSelection.clearSelection,
     resetForm: formState.resetForm,
+    setReviewForm: formState.setReviewForm,
   });
 
   const taxOverrides = useReviewTaxOverrides({
@@ -106,9 +107,11 @@ export function useReviewDialog({
     handleAssignCategoryToItems: formState.handleAssignCategoryToItems,
     handleDiscountTargetChange: formState.handleDiscountTargetChange,
     handleSubmitReview: submit.handleSubmitReview,
+    handleResetToAiInterpretation: submit.handleResetToAiInterpretation,
     taxUpdatingItemId: taxOverrides.taxUpdatingItemId,
     isApplyingReceiptTax: taxOverrides.isApplyingReceiptTax,
     handleTaxRateChange: taxOverrides.handleTaxRateChange,
+    handleAmountBasisChange: taxOverrides.handleAmountBasisChange,
     handleApplyReceiptTaxSettings: taxOverrides.handleApplyReceiptTaxSettings,
     taxSummaryUpdatingIndex: taxSummaryOverrides.taxSummaryUpdatingIndex,
     handleTaxSummaryChange: taxSummaryOverrides.handleTaxSummaryChange,

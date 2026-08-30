@@ -1,56 +1,58 @@
 ---
 name: impact-analysis
-description: R2-R4またはRisk再評価が必要な変更で、caller/callee・shared state・auth/data・tests・deploy影響を独立して確認し、confirmed Riskを更新する。R0/R1ではRequirementsのimpact summaryで代替する。
+description: PREPAREのimpact summaryでは安全に影響範囲をboundできない時だけ使う条件付きhelper。caller/shared state/auth/data/financial/external/deploy impactを深掘りしてRisk/Controlsを更新する。
 license: Apache-2.0
 ---
 
-# Impact Analysis
+# Impact Analysis Helper
 
-## 適用
+## 使う時
 
-- R0: NOT_REQUIRED
-- R1: Requirementsの`impact_summary`で代替
-- R2/R3/R4: separate Gateとして実行
-- R0/R1でもshared/auth/data/external impactの疑いが出たら、このGateへ昇格してRiskを再判定
+defaultでは別Gateにしない。
+
+次の場合だけ起動する。
+
+- cross-cutting change
+- shared state / multiple callers
+- auth / authorization / group boundaryの影響が不明
+- Convex schema / persistent data contractの影響が不明
+- billing / financial integrityへの影響が不明
+- external service / deploy / rollback impactが不明
 
 ## 観点
 
 - direct change surfaces
 - callers / callees
-- shared state / shared component / provider
-- authentication / authorization / tenant boundary
-- data / schema / migration
-- affected UI / user flows
+- shared provider / hook / membership helper
+- authn / authz / group boundary
+- data / Convex schema / persistent contract
+- billing / payment / financial settlement
+- affected UI / user flow
 - regression tests
-- external service / deployment
+- Clerk / Convex / Vercel / GitHub / webhook / OAuth
 - rollback / recovery
 
-## Risk再評価
+## 更新
 
-Requirementsのinitial Riskを検証し、confirmed Riskを記録する。
+発見した内容は新しいGate recordへ複製せず、PREPAREの:
 
-- 新しいimpact発見 → 即時Risk昇格
-- R3/R4 floor trigger発見 → profileを切り替える
-- downgrade → 実装前かつEvidence付きのみ
+- `impact_summary`
+- Risk / max observed Risk
+- Required Controls
+- Verification plan
 
-Riskを上げた場合、新profileで追加されたRequirements review / Security Review / Verification条件を必須にする。
+へ反映する。
+
+Implementation開始後にRiskが上がった場合はmax observed Riskを更新し、completion floorを下げない。
 
 ## 出力
 
 ```text
-IMPACT_ANALYSIS
-Status: PASS | BLOCKED | NOT_REQUIRED
-Initial risk:
-Confirmed risk:
-Risk escalated:
-Direct changes:
-Callers / callees:
-Shared state:
-Auth / data boundaries:
-Data / schema:
-Affected flows:
-Regression tests:
-External / deployment:
-Recovery / rollback:
+IMPACT ANALYSIS
+Status: PASS | BLOCKED
+New impact:
+Risk change:
+Controls added:
+Verification plan changes:
 Evidence:
 ```

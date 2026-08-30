@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { interpretReceiptTax, type ReceiptTaxInput } from "./index";
+import { interpretReceiptTax as interpretReceiptTaxRaw, type ReceiptTaxInput } from "./index";
+
+function interpretReceiptTax(input: ReceiptTaxInput) {
+  return interpretReceiptTaxRaw({
+    receiptTotalSource: "explicit_label",
+    receiptTotalConfidence: 0.99,
+    ...input,
+  });
+}
 
 const summary = (
   taxRatePercent: 0 | 8 | 10,
@@ -162,6 +170,13 @@ describe("interpretReceiptTax", () => {
 
     expect(result.items[0].allocatedTaxYen).toBe(0);
     expect(result.warnings).toContain("conflicting_tax_summary:8");
+    expect(result.taxSummaries.map((value) => value.status)).toEqual([
+      "contradictory",
+      "contradictory",
+    ]);
+    expect(
+      result.taxSummaries.every((value) => value.reasons?.includes("unresolved_tax_summary")),
+    ).toBe(true);
   });
 
   it("内税解決済み明細がある混合レシートでは外税summaryの implied tax 按分をスキップする", () => {
@@ -176,7 +191,7 @@ describe("interpretReceiptTax", () => {
     expect(result.items[1].normalizedAmountYen).toBe(50);
   });
 
-  it("フレッシュ石守相当: OCR内税誤判定を外税補正し支払合計へ按分する", () => {
+  it("フレッシュ石守相当: 算術一致だけでは外税補正・税按分しない", () => {
     const wrongOcrSummary = {
       taxRatePercent: 8 as const,
       taxMode: "included" as const,
@@ -194,19 +209,16 @@ describe("interpretReceiptTax", () => {
     });
 
     expect(result.taxSummaries[0]).toMatchObject({
-      taxMode: "external",
-      taxableAmountBasis: "tax_excluded",
+      taxMode: "included",
+      taxableAmountBasis: "tax_included",
+      status: "contradictory",
     });
-    expect(result.items[0].taxContext).toMatchObject({
-      status: "resolved",
-      taxRatePercent: 8,
-      amountBasis: "tax_excluded",
-      source: "paid_total_reconciliation",
-    });
-    expect(result.items[1].taxContext.status).toBe("resolved");
-    expect(result.items[2].taxContext.status).toBe("unresolved");
-    expect(result.items.reduce((sum, value) => sum + value.allocatedTaxYen, 0)).toBe(604);
-    expect(result.items.reduce((sum, value) => sum + value.normalizedAmountYen, 0)).toBe(8562);
-    expect(result.warnings).toContain("taxable_amount_mismatch:8");
+    expect(result.items.every((value) => value.taxContext.status === "unresolved")).toBe(true);
+    expect(result.items.reduce((sum, value) => sum + value.allocatedTaxYen, 0)).toBe(0);
+    expect(result.items.reduce((sum, value) => sum + value.normalizedAmountYen, 0)).toBe(7958);
+    expect(result.receiptTotalResolution.protectedAmountYen).toBe(8562);
+    expect(result.receiptTotalResolution.status).toBe("ambiguous");
+    expect(result.warnings).toContain("ambiguous_receipt_total");
+    expect(result.taxSummaries[0].reasons).toContain("tax_summary_amount_mismatch");
   });
 });

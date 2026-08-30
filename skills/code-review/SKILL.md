@@ -1,103 +1,143 @@
 ---
 name: code-review
-description: Verification後、Risk Profileに応じて差分の正しさ・回帰・保守性・テスト妥当性をレビューし、R1/R2ではSecurity quick scanも同時に行う。Delivery前の品質判定に使う。
+description: REVIEW stageを所有し、Risk/Controlsが要求する時だけ独立レビューを行う。compact contract・diff・Coverage Mapを使い、仕様/要件/test caseの漏れを先に探してからcorrectness/securityを確認する。
 license: Apache-2.0
 ---
 
-# Code Review
+# REVIEW
 
-## 目的
+## 起動条件
 
-変更差分を実装時の自己確認とは分けて見直す。ただし、低〜中リスク変更でCode ReviewとSecurity Reviewを毎回別LLM工程にしない。
+- R0: 原則NOT_REQUIRED
+- R1: Controlが独立reviewを要求した時だけ
+- R2: 1 independent reviewer
+- R3: 1 independent risk-aware reviewer
+- R4: 1 independent reviewer + Human Gate
+- Implementationでmaterial new riskを発見した場合
 
-## Profile別
+default independent reviewerは最大1体。
 
-### R0
+R4またはmaterially distinct specialtyが必要な場合だけspecialistを追加できる。
 
-separate Code Reviewは原則NOT_REQUIRED。targeted checkとdiff integrityで十分な理由を記録する。
+## Compact review packet
 
-### R1
+Reviewerへ渡すdefault inputは次だけ。
 
-1回のreviewで次を確認する。
+- AC / IV IDと短いcontract文
+- relevant dimensions / material assumptions
+- impact summary / Risk / Required Controls
+- behavior-changing diff / behavior change map
+- Coverage Map / TC結果 / Verification Evidence
+- open Finding IDs
+- reviewed revision
 
-- Acceptance Criteria
-- correctness / edge / regression
-- test adequacy
-- scope integrity
-- **Security quick scan**
+Issue全文、chat履歴、全Skill、全repoを毎回渡さない。
 
-### R2
+Reviewerが具体的なconflict / missing caller / missing boundaryを示した場合だけ該当sourceへ追加探索する。
 
-R1より広いcaller / shared surfaceを確認する。Security quick scanでR3 floor triggerを発見したらRiskをR3へ上げ、独立Security Reviewを要求する。
+## Discussion policy
 
-### R3 / R4
+- reviewersは独立して読む
+- reviewer-to-reviewer debateはしない
+- rootが1回だけ統合する
+- Main/rootの自己確認をrequired independent reviewに数えない
 
-full Code Reviewとして実行し、Securityは次の独立Gateへ渡す。
+## Review order
 
-## 共通観点
+### 1. Omission scan
 
-- 目的・scopeとの一致
-- null / empty / boundary / error
+styleや細かい実装論より先に、contract漏れを確認する。
+
+- AC / IVにimplementation surfaceが無いものはないか
+- AC / IVにVerification Evidenceが無いものはないか
+- behavior-changing diffにAC / IV / design deviationの対応が無いものはないか
+- PREPAREでrelevantとしたdimensionのtest caseが抜けていないか
+- happy pathだけでboundary / denial / failureが抜けていないか
+- Preserve対象を壊すcaller / serializer / validator / persistence経路がないか
+- current task scope外のbehavior changeが混入していないか
+
+materialな漏れだけfindingにする。単なる「念のため全部追加」はしない。
+
+### 2. Correctness / boundary
+
+- correctness / boundary / error
 - async / race / stale state
-- API / type / schema contract
 - caller compatibility
-- maintainability / unnecessary abstraction
-- performance上の明らかな問題
-- changed testsが仕様を実際にassertしているか
+- shared state
+- data / state transition
+- test adequacy
 
-Frontendではloading / empty / error / a11y / navigation / state propagationを必要に応じて見る。
-Convexではvalidator、membership/auth前提、index / collect / OCC、caller contractを必要に応じて見る。
+### 3. Domain rubric
 
-## Security quick scan（R1/R2）
+Required Controlがある領域だけ深掘りする。
 
-別Security Reviewを起動する前の軽量screen。
+- security / auth / ownership
+- financial / data integrity
+- destructive / idempotency / recovery
 
-- authn / authz / membership条件を変更していないか
-- tenant / group / user data boundaryへ影響しないか
-- user-controlled input / HTML / URL / redirect等を新しく扱わないか
-- secret / privileged envへ触れないか
-- external service write / webhookを増やさないか
-- destructive / production behaviorを変えないか
+### 4. Maintainability / performance / UX
 
-1つでもR3 floor triggerが見つかったら `security_quick_scan: escalate` とし、Riskを再分類する。quick scanだけでR3変更をPASSさせない。
+materialな場合だけ。
 
-## Review independence
+Frontendではloading / empty / error / a11y / navigation / state propagation。
 
-- 実装メモをそのままReview Evidenceへ流用しない。
-- 対象head SHAを固定する。
-- 同一sessionでも実装完了後に別のreview passとして実行すればよい。
-- R3/R4でprofileが独立reviewerを要求する場合はその契約に従う。
+Convexではvalidator、membership/auth前提、index/collect/OCC、caller contract。
 
-低Riskで「別Agentを起動した」という事実だけを品質Evidenceにしない。
+## Requirements gap / Test gap
 
-## FAIL
+Reviewerは区別する。
 
-Must-fixがあれば:
+- 必要behaviorがAC/IVに無い → `requirements_gap`。PREPAREへ戻す
+- AC/IVはあるがEvidenceが無い → `test_gap`
 
-```text
-CODE_REVIEW FAIL
-→ IMPLEMENTATION
-→ profile-required VERIFICATION
-→ CODE_REVIEW
-```
+reviewer自身が新仕様を暗黙に決めない。
 
-Risk escalationを伴う場合はRequirements / Impactへ戻ってprofileを更新する。
+## Security
+
+通常はこのREVIEW内のsecurity rubricで確認する。
+
+security controlが起動した場合だけ `skills/security-review/SKILL.md` を追加する。Securityを別serial Gateとして常に挟まない。
+
+## Finding Ledger
+
+所見があれば `task-state.findings[]` にstable IDで直接追加する。
+
+同じfindingを:
+
+- review findings
+- security residual
+- risk reconciliation residual
+
+へコピーしない。
+
+reviewer recommendationはfinal dispositionではない。rootが同じrecordのdispositionを更新する。
+
+Must-fixは `fix_now`、未解決は `open`。
+
+## Revision
+
+reviewed revisionを記録する。
+
+content change後:
+
+- delta review
+- protected behavior / AC / Risk / Controls change、またはdeltaをboundできない → affected scopeをfull review
+
+SHAだけ変わりtree/contentが同じなら再レビュー不要。
 
 ## 出力
 
+AC本文やsource本文を再掲せず、IDとfindingだけを中心にする。
+
 ```text
-CODE_REVIEW
-Status: PASS | FAIL | NOT_REQUIRED
-Risk level:
-Profile:
-Reviewed head SHA:
-Reviewed scope:
-Must-fix:
-Nice-to-have:
-Regression risks:
-Test adequacy:
-Security quick scan: PASS | ESCALATE | NOT_REQUIRED
-Security escalation reason:
-Integrity check:
+REVIEW
+Status: PASS | BLOCKED | NOT_REQUIRED
+Revision:
+Required by:
+Reviewer:
+Omission scan: PASS | BLOCKED | NOT_REQUIRED
+Coverage checked: AC/IV IDs
+Findings added:
+Security specialist: used | not_required
 Evidence:
 ```

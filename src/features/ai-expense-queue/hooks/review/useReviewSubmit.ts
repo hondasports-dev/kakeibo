@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { useMutation } from "convex/react";
 import {
   registerReadyDraftsAsExpenseEntriesApi,
+  resetReceiptToAiInterpretationApi,
   updateForReviewApi,
 } from "../../../../lib/repositories/aiExpenseDrafts";
 import type { Id } from "../../../../../convex/_generated/dataModel";
@@ -24,6 +25,7 @@ export function useReviewSubmit({
   onRegister,
   clearSelection,
   resetForm,
+  setReviewForm,
 }: {
   selectedReviewDraftId: string | null;
   reviewForm: ReviewFormValues;
@@ -33,6 +35,7 @@ export function useReviewSubmit({
   onRegister?: (draftId: string) => void;
   clearSelection: () => void;
   resetForm: () => void;
+  setReviewForm: Dispatch<SetStateAction<ReviewFormValues>>;
 }) {
   const [reviewError, setReviewError] = useState("");
   const [reviewSaveFeedback, setReviewSaveFeedback] = useState<{
@@ -42,19 +45,58 @@ export function useReviewSubmit({
   const [reviewSubmitting, setReviewSubmitting] = useState(false);
 
   const updateForReview = useMutation(updateForReviewApi());
+  const resetReceiptToAiInterpretation = useMutation(resetReceiptToAiInterpretationApi());
   const registerReadyDraftsAsExpenseEntries = useMutation(registerReadyDraftsAsExpenseEntriesApi());
 
-  const handleSubmitReview = async (registerAfterUpdate: boolean) => {
+  const handleResetToAiInterpretation = async () => {
     if (!selectedReviewDraftId) {
       return;
     }
-    const validationError = getReviewSubmitError(reviewForm, reviewItems);
+
+    setReviewSubmitting(true);
+    setReviewError("");
+    try {
+      await resetReceiptToAiInterpretation({
+        draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
+      });
+      setReviewSaveFeedback({
+        message: "ユーザー補正を解除し、AI判定へ戻しました。",
+        severity: "success",
+      });
+      clearSelection();
+      resetForm();
+    } catch (error) {
+      const message = toUserFacingReviewError(error);
+      setReviewError(message);
+      setReviewSaveFeedback({ message, severity: "error" });
+    } finally {
+      setReviewSubmitting(false);
+    }
+  };
+
+  const handleSubmitReview = async (
+    registerAfterUpdate: boolean,
+    registrationModeOverride?: ReviewFormValues["registrationMode"],
+  ) => {
+    if (!selectedReviewDraftId) {
+      return;
+    }
+    const hasUnknownTaxChoice =
+      reviewForm.priceTaxTreatment === "unknown" || reviewForm.taxRateComposition === "unknown";
+    const effectiveRegistrationMode = hasUnknownTaxChoice ? "totalOnly" : registrationModeOverride;
+    const submittedForm = effectiveRegistrationMode
+      ? { ...reviewForm, registrationMode: effectiveRegistrationMode }
+      : reviewForm;
+    if (effectiveRegistrationMode !== undefined) {
+      setReviewForm((current) => ({ ...current, registrationMode: effectiveRegistrationMode }));
+    }
+    const validationError = getReviewSubmitError(submittedForm, reviewItems);
     if (validationError) {
       setReviewError(validationError);
       return;
     }
-    const amountYen = Number(reviewForm.amountYen);
-    const submittedItems = prepareReviewItemsForSubmit(reviewItems, reviewForm.categoryId);
+    const amountYen = Number(submittedForm.amountYen);
+    const submittedItems = prepareReviewItemsForSubmit(reviewItems, submittedForm.categoryId);
 
     setReviewSubmitting(true);
     setReviewError("");
@@ -63,11 +105,14 @@ export function useReviewSubmit({
         const updated = await onReviewSubmit(
           selectedReviewDraftId,
           {
-            documentType: reviewForm.documentType,
-            shopName: reviewForm.shopName,
-            date: reviewForm.date,
+            documentType: submittedForm.documentType,
+            shopName: submittedForm.shopName,
+            date: submittedForm.date,
             amountYen,
-            categoryId: reviewForm.categoryId,
+            categoryId: submittedForm.categoryId,
+            registrationMode: submittedForm.registrationMode,
+            priceTaxTreatment: submittedForm.priceTaxTreatment,
+            taxRateComposition: submittedForm.taxRateComposition,
             items: submittedItems.map((item) => ({
               itemName: item.itemName.trim(),
               amountYen: Number(item.amountYen),
@@ -81,7 +126,7 @@ export function useReviewSubmit({
             amountYen,
             categoryName,
             reviewReasons: updated.reviewReasons,
-            shopName: reviewForm.shopName,
+            shopName: submittedForm.shopName,
             status: updated.status === "needs_review" ? "needs_review" : "ready",
           }),
           severity: "success",
@@ -91,11 +136,14 @@ export function useReviewSubmit({
       } else {
         const updated = await updateForReview({
           draftId: selectedReviewDraftId as Id<"aiExpenseDrafts">,
-          documentType: reviewForm.documentType,
-          shopName: reviewForm.shopName,
-          date: reviewForm.date,
+          documentType: submittedForm.documentType,
+          shopName: submittedForm.shopName,
+          date: submittedForm.date,
           amountYen,
-          categoryId: reviewForm.categoryId as Id<"categories">,
+          categoryId: submittedForm.categoryId as Id<"categories">,
+          registrationMode: submittedForm.registrationMode,
+          priceTaxTreatment: submittedForm.priceTaxTreatment,
+          taxRateComposition: submittedForm.taxRateComposition,
           items: submittedItems.map((item) => ({
             ...(item.persistedItemId
               ? { itemId: item.persistedItemId as Id<"aiExpenseDraftItems"> }
@@ -125,7 +173,7 @@ export function useReviewSubmit({
             amountYen,
             categoryName,
             reviewReasons: updated.reviewReasons ?? [],
-            shopName: reviewForm.shopName,
+            shopName: submittedForm.shopName,
             status: updated.status === "needs_review" ? "needs_review" : "ready",
           }),
           severity: "success",
@@ -158,6 +206,7 @@ export function useReviewSubmit({
     setReviewError,
     setReviewSubmitting,
     handleSubmitReview,
+    handleResetToAiInterpretation,
     clearReviewError,
     clearReviewSaveFeedback,
   };

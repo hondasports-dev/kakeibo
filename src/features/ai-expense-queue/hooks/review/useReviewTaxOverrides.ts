@@ -95,7 +95,10 @@ export function useReviewTaxOverrides({
     taxUpdatingItemId,
     isApplyingReceiptTax,
     handleTaxRateChange: (itemId: string, taxRatePercent: 0 | 8 | 10 | null) =>
-      void applyTaxOverride(itemId, { taxRatePercent }),
+      void applyTaxOverride(
+        itemId,
+        taxRatePercent === 0 ? { taxRatePercent, amountBasis: "tax_included" } : { taxRatePercent },
+      ),
     handleAmountBasisChange: (itemId: string, amountBasis: AmountBasis) =>
       void applyTaxOverride(itemId, { amountBasis }),
     handleApplyReceiptTaxSettings: () => void handleApplyReceiptTaxSettings(),

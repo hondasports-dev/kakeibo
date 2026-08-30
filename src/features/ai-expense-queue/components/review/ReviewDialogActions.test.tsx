@@ -3,31 +3,35 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReviewDialogActions } from "./ReviewDialogActions";
 
-function renderActions(showSummaryView: boolean) {
-  return render(
-    <ReviewDialogActions
-      isSubmitDisabled={false}
-      onClose={vi.fn()}
-      onEnterEditMode={vi.fn()}
-      onExitEditMode={vi.fn()}
-      onSubmit={vi.fn()}
-      reviewSubmitting={false}
-      showSummaryView={showSummaryView}
-    />,
-  );
-}
-
 describe("ReviewDialogActions", () => {
-  it("確認画面は閉じる・修正する・保存して閉じるを表示する", () => {
-    renderActions(true);
+  it("確認画面から明細保存を明示して送る", async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    render(
+      <ReviewDialogActions
+        isSubmitDisabled={false}
+        onClose={vi.fn()}
+        onEnterEditMode={vi.fn()}
+        onExitEditMode={vi.fn()}
+        onSubmit={onSubmit}
+        reviewSubmitting={false}
+        showSummaryView
+      />,
+    );
 
     expect(screen.getByRole("button", { name: "閉じる" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "修正する" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "保存して閉じる" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "レシート合計だけ保存" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "確認して準備OK" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
+    expect(onSubmit).toHaveBeenCalledWith(false, "detailed");
+    await user.click(screen.getByRole("button", { name: "レシート合計だけ保存" }));
+    expect(onSubmit).toHaveBeenCalledWith(false, "totalOnly");
   });
 
-  it("編集画面は確認に戻る・保存して閉じるを表示する", async () => {
+  it("編集画面から選んだ保存方法を送る", async () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
     render(
@@ -43,8 +47,31 @@ describe("ReviewDialogActions", () => {
     );
 
     expect(screen.getByRole("button", { name: "確認に戻る" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "保存して閉じる" })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "保存して閉じる" }));
-    expect(onSubmit).toHaveBeenCalledWith(false);
+    expect(screen.getByRole("button", { name: "この内容で保存" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "この内容で保存" }));
+    expect(onSubmit).toHaveBeenCalledWith(false, "detailed");
+    await user.click(screen.getByRole("button", { name: "レシート合計だけ保存" }));
+    expect(onSubmit).toHaveBeenCalledWith(false, "totalOnly");
+  });
+
+  it("ユーザー補正がある場合だけ明示的にAI判定へ戻せる", async () => {
+    const user = userEvent.setup();
+    const onResetToAiInterpretation = vi.fn();
+    render(
+      <ReviewDialogActions
+        canResetToAiInterpretation
+        isSubmitDisabled={false}
+        onClose={vi.fn()}
+        onEnterEditMode={vi.fn()}
+        onExitEditMode={vi.fn()}
+        onResetToAiInterpretation={onResetToAiInterpretation}
+        onSubmit={vi.fn()}
+        reviewSubmitting={false}
+        showSummaryView
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "AI判定へ戻す" }));
+    expect(onResetToAiInterpretation).toHaveBeenCalledOnce();
   });
 });

@@ -5,6 +5,7 @@ import type { Id } from "../_generated/dataModel";
 import {
   aiExpenseDraftDocumentTypeValidator,
   aiExpenseDraftItemConfidenceValidator,
+  aiExpenseRegistrationModeValidator,
   amountBasisValidator,
   receiptItemTaxRatePercentValidator,
   taxModeValidator,
@@ -19,6 +20,12 @@ import { registerReadyDraftsAsExpenseEntriesHandler } from "../../lib/convex/aiE
 import { applyReceiptTaxSettingsHandler } from "../../lib/convex/aiExpenseDrafts/applyReceiptTaxSettings";
 import { updateForReviewHandler } from "../../lib/convex/aiExpenseDrafts/updateForReview";
 import type { TaxMode, TaxRatePercent } from "../../lib/receiptTax/types";
+import {
+  priceTaxTreatmentValidator,
+  taxRateCompositionValidator,
+} from "../../lib/convex/aiExpenseDrafts/validators";
+import { resetReceiptToAiInterpretationHandler } from "../../lib/convex/aiExpenseDrafts/receiptDataContract";
+import { updateRegisteredDraftHandler } from "../../lib/convex/aiExpenseDrafts/updateRegisteredDraft";
 
 type DeleteDraftArgs = {
   draftId: Id<"aiExpenseDrafts">;
@@ -83,6 +90,14 @@ export async function applyReceiptTaxSettingsMutationHandler(
   return await applyReceiptTaxSettingsHandler(ctx, args, groupId);
 }
 
+export async function resetReceiptToAiInterpretationMutationHandler(
+  ctx: MutationCtx,
+  args: { draftId: Id<"aiExpenseDrafts"> },
+) {
+  const { groupId } = await requireGroupMembership(ctx);
+  return await resetReceiptToAiInterpretationHandler(ctx, args, groupId);
+}
+
 export const deleteDraft = mutation({
   args: {
     draftId: v.id("aiExpenseDrafts"),
@@ -100,6 +115,9 @@ export const updateForReview = mutation({
     paymentPurpose: v.optional(v.string()),
     date: v.string(),
     amountYen: v.number(),
+    registrationMode: v.optional(aiExpenseRegistrationModeValidator),
+    priceTaxTreatment: v.optional(priceTaxTreatmentValidator),
+    taxRateComposition: v.optional(taxRateCompositionValidator),
     categoryId: v.id("categories"),
     items: v.optional(
       v.array(
@@ -150,6 +168,13 @@ export const applyReceiptTaxSettings = mutation({
   handler: applyReceiptTaxSettingsMutationHandler,
 });
 
+export const resetReceiptToAiInterpretation = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+  },
+  handler: resetReceiptToAiInterpretationMutationHandler,
+});
+
 export const registerReadyDrafts = mutation({
   args: {
     draftIds: v.array(v.id("aiExpenseDrafts")),
@@ -164,8 +189,34 @@ export const registerReadyDraftsAsExpenseEntries = mutation({
   handler: registerReadyDraftsAsExpenseEntriesHandler,
 });
 
+export const updateRegisteredDraft = mutation({
+  args: {
+    draftId: v.id("aiExpenseDrafts"),
+    date: v.string(),
+    amountYen: v.number(),
+    categoryId: v.id("categories"),
+    shopName: v.string(),
+    memo: v.optional(v.string()),
+    registrationMode: aiExpenseRegistrationModeValidator,
+    items: v.optional(
+      v.array(
+        v.object({
+          itemId: v.optional(v.id("aiExpenseDraftItems")),
+          itemName: v.string(),
+          amountYen: v.number(),
+          categoryId: v.id("categories"),
+          confidence: v.optional(aiExpenseDraftItemConfidenceValidator),
+          warnings: v.optional(v.array(v.string())),
+        }),
+      ),
+    ),
+  },
+  handler: updateRegisteredDraftHandler,
+});
+
 export {
   registerReadyDraftsAsExpenseEntriesHandler,
   registerReadyDraftsHandler,
   updateForReviewHandler,
+  updateRegisteredDraftHandler,
 };

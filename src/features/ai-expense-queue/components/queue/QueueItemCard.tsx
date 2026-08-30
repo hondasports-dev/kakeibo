@@ -179,6 +179,9 @@ export function QueueItemCard({
 
         <Stack direction="row" spacing={0.75} sx={{ alignItems: "center", flexWrap: "wrap" }}>
           <StatusChip status={item.status} />
+          {item.registrationMode === "totalOnly" ? (
+            <Chip label="合計だけで保存" size="small" variant="outlined" />
+          ) : null}
           <ReviewReasonChips
             reasons={primaryReviewReason ? [primaryReviewReason] : []}
             status={item.status}

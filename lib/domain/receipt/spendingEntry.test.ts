@@ -156,6 +156,8 @@ describe("enrichSpendingEntry", () => {
       }),
     ).toEqual({
       ...baseEntry,
+      aiExpenseDraftId: "d1",
+      registrationMode: "detailed",
       receiptGroupId: "aiExpenseDraft:d1",
       receiptShopName: "ローソン",
       receiptTotalAmountYen: 1000,

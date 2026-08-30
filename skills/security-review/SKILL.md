@@ -1,65 +1,49 @@
 ---
 name: security-review
-description: R3/R4またはSecurity quick scanで昇格した変更に対して、auth・data boundary・input・secret・external service・destructive operationを独立Gateとして確認する。高リスク変更のDelivery前に使う。
+description: security_review Controlが起動した時だけREVIEW stageへ追加するspecialist helper。auth、group/data boundary、input、secret、webhook/external write、production effectを確認する。
 license: Apache-2.0
 ---
 
-# Security Review
+# Security Review Helper
 
-## 適用
+## Required when
 
-このSkillは**全変更で毎回起動しない**。
+- authentication / authorization変更
+- tenant / group / user data boundary変更
+- privileged env / secret boundary変更
+- user-controlled HTML / URL / redirect / file / MIME
+- webhook / external write boundary変更
+- main reviewerがsecurity specialistを要求
 
-### Required
-
-- Risk `R3 high`
-- Risk `R4 critical`
-- R1/R2のCode Review quick scanでR3 floor triggerを発見した場合
-
-### NOT_REQUIRED可能
-
-- R0
-- R1
-- R2でsecurity/data/production/destructive floor triggerがなく、Code ReviewのSecurity quick scanがPASS
-
-NOT_REQUIRED理由をEvidenceへ残す。
-
-## 目的
-
-高リスク差分について、機能的な正しさとは別にsecurity / data / operational boundaryを確認する。
+Risk R3/R4という理由だけで自動起動しない。逆にRisk R1/R2でも上記Controlがあれば起動する。
 
 ## 観点
 
-### Authentication / Authorization
+### Auth / Authorization
 
-- 未ログイン・未所属・権限不足
-- membership / ownership / admin等のserver-side enforcement
-- client supplied userId / groupId等を信用していないか
-- tenant / group越境
+- unauthenticated / unauthorized / non-member
+- membership / ownership / admin server-side enforcement
+- client supplied userId/groupIdを信用していないか
+- cross-user / cross-group isolation
 
-### Data Boundary / Privacy
+### Data / Privacy
 
-- 他user / group data混入
-- unnecessary PII / 家計情報露出
+- 他user/group data混入
+- unnecessary household data / PII exposure
 - delete / archive / retention / audit
-- migration compatibility
 
-### Input / Injection
+### Input
 
 - public input validation
 - HTML / URL / redirect / filename
-- shell / query / command construction
-- error messageによる情報露出
+- command/query construction
+- error leakage
 
-### Secrets / Environment
+### Secrets / External
 
-- `.env.local` / API key / tokenをcommitしない
-- server secretをclientへ露出しない
-- dev / preview / productionを混同しない
-
-### External Service / Webhook
-
-- signature / origin / CSRF等の必要条件
+- `.env.local` / token / API key
+- server secretのclient露出
+- webhook signature/origin/CSRF
 - retry / idempotency
 - unintended production write
 
@@ -70,40 +54,30 @@ NOT_REQUIRED理由をEvidenceへ残す。
 - duplicate execution
 - Human Gate
 
-R4ではproduction / irreversible operation直前のHuman GateがPASSしていることを確認する。
+## Finding Ledger
 
-## Risk escalation
+所見は共通 `findings[]` へ直接追加する。`security_review.residual_risks` 等の別recordを作らない。
 
-Review中にR4 critical triggerを発見したらSecurity Reviewだけを重くして済ませない。Requirementsへ戻し、RiskをR4へ昇格してHuman Gate / recovery evidenceを追加する。
+新しいsecurity findingにはstable IDを払い出し、最低限次を保持する。
 
-## FAIL
+- `id`
+- `source: security_review`
+- `observed_revision`（commit SHA + tree SHA）
+- `status` / `disposition`
+- `evidence`
 
-```text
-SECURITY_REVIEW FAIL
-→ IMPLEMENTATION
-→ profile-required VERIFICATION
-→ CODE_REVIEW
-→ SECURITY_REVIEW
-```
+再レビューで同じfindingを確認した場合はduplicate recordを作らず、同じstable IDのentryへ最新revision / evidence / dispositionを追記する。
 
-仕様判断が必要ならRequirements、原因不明ならIncidentへ戻る。
+protected findingはagent単独defer不可。
 
 ## 出力
 
 ```text
-SECURITY_REVIEW
-Status: PASS | FAIL | NOT_REQUIRED | BLOCKED
-Risk level:
-Reviewed head SHA:
-Authentication:
-Authorization:
-Data boundary / privacy:
-Input / injection:
-Secrets:
-External services:
-Destructive / production:
-Must-fix:
-Residual risks:
-Human Gate status:
+SECURITY REVIEW
+Status: PASS | BLOCKED
+Revision:
+Coverage:
+Finding IDs added/updated:
+Human Gate:
 Evidence:
 ```

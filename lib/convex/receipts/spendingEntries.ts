@@ -118,6 +118,7 @@ async function fetchReceiptEnrichmentData(
         shopName: draft.shopName,
         payeeName: draft.payeeName,
         amountYen: draft.amountYen,
+        registrationMode: draft.registrationMode,
       });
     }
   }

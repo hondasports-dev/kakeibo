@@ -1,91 +1,202 @@
 ---
 name: requirements
-description: ユーザー要求、Issue、docs、tests、既存実装を統合し、Spec Confidenceを確定したうえでRisk LevelとLoop Profileを選ぶ。実装前の仕様確定とrisk-based routingに使う。
+description: PREPAREを所有し、Spec Confidence、scope、ID付きAcceptance Criteria/Invariant、Risk、Required Controls、Coverage Mapを一度だけ確定する。長文再読を避けつつ仕様・要件・test case漏れを早期検出する。
 license: Apache-2.0
 ---
 
-# Requirements / Specification / Risk Routing
+# PREPARE / Requirements
 
 ## 目的
 
-このSkillは「何を作るか」と「どれだけ重いループを使うか」を決める。
+実装前に「何を作るか」「何を守るか」「何を証明するか」を一度だけ決める。
 
-**仕様不明と変更リスクを混同しない。**
+このSkillは次を所有する。
 
-1. Spec Confidenceを確定する
-2. Acceptance Criteriaとscopeを作る
-3. Riskを判定する
-4. Loop Profileを選ぶ
+- Goal / In scope / Out of scope
+- ID付き Acceptance Criteria（`ACxx`）
+- ID付き Preserve / Invariant（`IVxx`）
+- relevant requirement dimensions
+- material assumptions
+- Spec Confidence
+- Risk / max observed Risk
+- Required Controls
+- compact Coverage Map
+- Verification plan / Test Case（`TCxx`）
+- 必要十分な Impact summary
 
 `C0` のままImplementationへ進まない。
 
-## 1. Spec Confidence
+## Context discipline
+
+PREPAREでsourceを読んだ後、後工程へ長文を再コピーしない。
+
+保持するのは短いcontractと参照だけ。
+
+- authoritative sourceはURL / path / Issue comment等の参照を残す
+- 同じsource本文をtask-stateや各stage outputへ複製しない
+- AC / IV / TCはIDで参照する
+- unchangedなGoal / scope / Risk / Controlsを後stageで再要約しない
+
+探索はまずcheapに絞る。
+
+1. code search / symbol / filenameでdefinition・direct caller・direct test候補を出す
+2. 直接関係する箇所だけ読む
+3. material assumption、shared impact、source conflictを解消できない時だけ範囲を広げる
+
+「漏れが怖いから全repoを読む」はdefaultにしない。
+
+## Workspace Preflight
+
+repository fileを変更するtaskでは、最初の編集前に `skills/workspace-preflight/SKILL.md` を適用する。
+
+これは独立した長いreasoning Gateではなく、PREPARE内のcheap deterministic control。
+
+## Spec Confidence
 
 ### C2 confirmed
 
-- 目的・期待結果・主要Acceptance Criteriaが明確
-- materialな仕様sourceが矛盾しない
+目的・期待結果・主要ACが明確でmaterial conflictなし。
 
 ### C1 reconstructed
 
-Issue等に不足はあるが、canonical docs、tests、既存pattern等から成果物をほぼ一意に補完できる。
-
-局所的な命名や既存patternの踏襲はMainが補完してよい。
+不足はあるが、authoritative docs / tests / existing patternからmaterial product choiceなしに復元できる。
 
 ### C0 unclear
 
-複数の妥当な仕様があり、選択でユーザー体験・data意味・権限・完了条件が変わる。
+複数の妥当な成果物があり、選択でUX・data意味・権限・課金・完了条件等がmaterially変わる。
 
-→ Requirements Discoveryを続ける。解消しなければHuman Gate。
+→ Requirements Discovery。解消しなければHuman Gate。
 
 ### C0 conflicted
 
-望ましい最終状態について有力なsource同士が矛盾する。
+desired stateについてauthoritative source同士が矛盾する。
 
 → Source reconciliation。解消しなければHuman Gate。
 
-## 2. Source reconciliation
+## Source priority
 
-Evidenceは次の順で確認する。
-
-1. 現在のユーザー指示
-2. 最新の明示承認仕様 / ADR / decision
-3. 現在taskのIssue・コメント
+1. current user instruction
+2. latest explicitly approved spec / ADR / decision
+3. current task Issue / comments
 4. canonical docs
 5. tests
-6. implementation / existing pattern
+6. current implementation / existing pattern
 
-ただし、Issueが「現在BをAへ変更する」と明示しているなら、既存実装Bとの差はConflictではなくexpected delta。
+Issueが「現在BをAへ変える」と明示している場合、Bとの差はexpected deltaでありconflictではない。
 
-次のような場合は自動でどちらかを選ばない。
+既存testは重要なEvidenceやが、現在の明示仕様と矛盾する場合にtestを仕様へ昇格させない。
 
-- Issue A / approved spec B
-- Issue A / docs・tests・implementation B だがIssueがintentional changeかstaleか不明
-- data保持、認可、課金、削除等で複数の妥当な最終状態がある
+## Material assumptions
 
-Human Gateへ渡す時は、各source、更新時点、差分、成果物への影響を示す。
+記録するのは、間違うと実装結果がmaterially変わる推測だけ。
 
-## 3. Scope / Acceptance Criteria
+- cheapに確認できる → Implementation前に確認
+- sourceから一意に復元できる → C1として根拠を残す
+- 複数の妥当な選択肢が残る → C0
 
-最低限:
+細かい実装推測を大量にledger化せず、product behavior / data / auth / caller / completion条件に効くものだけ残す。
 
-- Goal
-- Current behavior
-- Expected behavior
-- In scope
-- Out of scope
-- Preserve
-- Acceptance Criteria
-- edge / error state
-- Test Strategy
+## Requirement completeness scan
 
-R0/R1では必要十分な短いpacketでよい。テンプレを埋めるためだけに不要な項目を増やさない。
+runtime behaviorを変えるtaskでは、次を**一度だけ** `relevant` / `not_applicable` に分類する。
 
-## 4. Risk判定
+- happy path
+- boundary
+- error / failure
+- empty / loading
+- auth / ownership
+- persistence / state transition
+- caller compatibility
+- concurrency / idempotency
+- navigation / accessibility
 
-Spec ConfidenceがC1/C2になってから確定する。
+`relevant` な観点はACまたはIVとTCへ反映する。
 
-4軸を `0..2` で記録する。
+`not_applicable` は短い理由だけ残し、観点ごとの長い定型文を作らない。
+
+### AC
+
+ACは1件1意味で、外から観測できる期待結果を書く。
+
+```text
+AC01: 条件Xで操作すると結果Yになる
+AC02: 権限なしでは操作できず状態も変わらない
+```
+
+### Invariant / Preserve
+
+今回壊してはいけない既存behaviorだけをID化する。
+
+```text
+IV01: 既存caller Aの戻り値契約を維持する
+```
+
+全部の既存behaviorを列挙しない。
+
+## Coverage Map
+
+runtime behavior変更、Required Controlあり、またはR2以上ではcompact Coverage Mapを作る。
+
+```text
+AC01 → implementation: src/a.ts → TC01
+AC02 → implementation: convex/b.ts → TC02, TC03
+IV01 → implementation: shared/c.ts → TC04
+```
+
+AC本文を何度もコピーせずIDだけで繋ぐ。
+
+### Forward coverage
+
+すべてのACとrelevant IVに:
+
+- 1つ以上のVerification case、または
+- behavior不変等の明示NOT_REQUIRED理由
+
+があること。
+
+### Reverse coverage
+
+想定するbehavior-changing surfaceが:
+
+- AC
+- IV
+- 明示したdesign deviation
+
+のどれかへ対応すること。
+
+この段階では実際のdiffはまだ無いので、Implementation終了時にreverse coverageを確定する。
+
+## Test Case derivation
+
+TCはAC/IVから導出する。
+
+- positive
+- boundary
+- negative / denial
+- failure
+- regression
+- functional E2E
+
+を全部機械的に作るのではなく、`relevant` と判定したdimensionだけ作る。
+
+「test fileが存在する」ではなく、何を証明するかをTC IDで短く定義する。
+
+## Independent Spec Review
+
+RiskがR3/R4という理由だけで複数reviewerを起動しない。
+
+最大1 reviewerを使うのは次だけ。
+
+- C1復元後もmaterial choiceが残る
+- 復元した仕様がauth/data/financial等のprotected behaviorを変える
+
+Reviewerには長い会話履歴ではなく、source参照 + Goal/scope + AC/IV + material assumptions + relevance dimensions + TC案を渡す。
+
+Reviewer同士を討論させない。rootが1回統合する。
+
+## Risk
+
+4軸 `0..2`。
 
 - Blast Radius
 - Data / Security
@@ -94,115 +205,82 @@ Spec ConfidenceがC1/C2になってから確定する。
 
 目安:
 
-- `0..2` → R1
-- `3..4` → R2
-- `5..8` → R3
+- 0..2 → R1
+- 3..4 → R2
+- 5..8 → R3
 
 R0 / R4は明示条件。
 
-### R3 floor
+R4代表:
 
-- authn / authz
-- tenant / group / data boundary
-- schema / migration
-- data deletion / retention
-- billing / payment
-- privileged secret / env
-- webhook / external service write
-- production behavior config
-
-### R4 critical
-
-- production DB migration
-- bulk / irreversible data mutation
+- production DB/data migration
+- bulk / irreversible mutation
 - account deletion semantics
 - authorization model overhaul
 - financial settlement integrity
 - production secret rotation
-- production DNS / domain cutover
+- production DNS/domain cutover
 
-process policyは一律Highにしない。通常R2、safety / Delivery completion / production-destructive policy変更はR3+。
+Risk上昇は発見時点で即時。Implementation開始後はmax observed Riskをcompletion floorにする。
 
-## 5. Profile選択
+## Required Controls
 
-### R0 trivial
+Riskとは別に選ぶ。
 
-- independent review: 0
-- separate Impact: no
-- separate Code Review: no
-- separate Security Review: no
+- `workspace_preflight`
+- `security_review`
+- `data_model`
+- `financial_integrity`
+- `destructive_or_stateful`
+- `service_ops`
+- `human_gate`
+- `prompt_injection_guard`
 
-### R1 fast
+authやschemaに触れたという理由だけで全High ceremonyを起動せず、必要なControlを追加する。
 
-- independent review: 0
-- Impactはこのpacketの`impact_summary`へ統合
-- Code Reviewでsecurity quick scan
+## Impact
 
-### R2 standard
+通常はこのpacketの `impact_summary` で十分。
 
-- independent review: 0が既定
-- 次の時だけ1 review:
-  - C1
-  - material uncertainty
-  - cross-cutting change
-  - Mainがmaterial ambiguityを検出
-- post-synthesis review: 0
-- separate Impact: yes
+`skills/impact-analysis/SKILL.md` を別途読むのは:
 
-### R3 high
+- cross-cutting
+- shared state / callersが多い
+- auth/data/schema/financial/external writeの影響が不明
+- rollback/deploy impactが不明
 
-- independent review: 2
-- separate Impact / Code Review / Security Review
+## PREPARE PASS条件
 
-### R4 critical
-
-- independent review: 3
-- post-synthesis review: 1
-- implementation前Human Gate
-- production / irreversible operation前Human Gate
-
-## 6. Independent Review契約
-
-R2-R4でreviewが必要な時だけ使う。
-
-- 同じimmutable input snapshotを使う
-- reviewerはread-only
-- Mainの結論や他reviewerの結果を提出前に見せない
-- Mainはreview人数に数えない
-- revisionが変わったら影響するreviewをinvalidにする
-
-**R0/R1へmulti-agent reviewを追加して安全性を水増ししない。** 新しい不確実性を見つけたならRiskまたはSpec Confidenceを再判定する。
-
-## 7. Risk再評価
-
-Riskは最初の分類で固定しない。
-
-- 新しいcaller / shared state / auth / data / external impact発見 → 即時昇格
-- 低下 → 実装前にEvidence付きのみ
-- 実装開始後 → task中の最大Riskをcompletion floorにする
+- C1 / C2
+- unresolved material choiceなし
+- material assumptionが解消済み、またはC1根拠あり
+- AC / relevant IVがID付き
+- runtime behavior変更ならrelevance dimensions分類済み
+- required taskではCoverage Map作成済み
+- AC / relevant IVごとにVerification caseまたは明示NOT_REQUIRED理由あり
+- Risk / Controls / Verification plan確定
 
 ## 出力
 
+長文sourceの再要約は不要。
+
 ```text
-REQUIREMENTS
+PREPARE
 Status: PASS | BLOCKED
-Spec confidence: C0 | C1 | C2
-Expected delta:
-Authoritative sources:
-Conflicts:
+Workspace preflight:
+Spec confidence:
+Source refs:
+Material assumptions:
 Goal:
-In scope:
-Out of scope:
-Acceptance criteria:
-Impact summary:
-Risk axes:
-Risk score:
-Risk floor triggers:
-Risk level: R0 | R1 | R2 | R3 | R4
-Selected profile: trivial | fast | standard | high | critical
-Independent reviews required/completed:
+In / Out:
+AC IDs:
+IV IDs:
+Relevant dimensions:
+Coverage Map:
+Risk / max observed:
+Controls:
+Verification TC IDs:
+Independent spec review:
 Human Gate:
 Evidence:
 ```
-
-PASS条件はSpec ConfidenceがC1/C2で、Risk/Profileが記録されていること。

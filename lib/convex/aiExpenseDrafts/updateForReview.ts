@@ -1,4 +1,5 @@
 import { ConvexError } from "convex/values";
+import type { Doc } from "../../../convex/_generated/dataModel";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import { classifyAiExpenseDraft } from "../../../convex/aiExpenseDrafts/model";
 import { requireGroupMembership } from "../../../convex/groups/membership";
@@ -13,9 +14,28 @@ import { buildReviewConfidence } from "../../../lib/domain/aiExpenseDrafts/revie
 import { trimOptional } from "../../../lib/domain/common/string";
 import { persistDraftTaxInterpretation } from "./persistTaxInterpretation";
 import { nonTaxReviewReasons } from "../../domain/aiExpenseDrafts/reviewReasons";
+import { persistReceiptUserOverrideSnapshot } from "./receiptDataContract";
+import { resolveReceiptTotal } from "../../domain/receipt/tax/resolveReceiptTotal";
+import {
+  buildDraftRegistrationItems,
+  reconcileDraftExpenseEntries,
+  resolveRegistrationMode,
+} from "./reconcileExpenseEntries";
+
+const REVIEW_OVERRIDE_FIELDS = [
+  "documentType",
+  "shopName",
+  "paymentPlace",
+  "payeeName",
+  "paymentPurpose",
+  "date",
+  "amountYen",
+  "registrationMode",
+  "categoryId",
+] as const;
 
 export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForReviewArgs) {
-  const { groupId } = await requireGroupMembership(ctx);
+  const { groupId, userId } = await requireGroupMembership(ctx);
   const draft = await ctx.db.get(args.draftId);
   if (draft === null) {
     throw new ConvexError("AI expense draft not found");
@@ -23,10 +43,22 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
   if (draft.groupId !== groupId) {
     throw new ConvexError("AI expense draft does not belong to the current group");
   }
-  if (draft.status === "registered") {
-    throw new ConvexError("Registered AI expense draft cannot be edited");
+  const wasRegistered = draft.status === "registered";
+  if (
+    wasRegistered &&
+    (draft.registeredReceiptId !== undefined ||
+      draft.derivedRegistration?.destination === "receipt")
+  ) {
+    throw new ConvexError("Legacy receipt registrations cannot be edited from the AI queue");
   }
-  if (draft.status !== "needs_review" && draft.status !== "ready") {
+  const hasTaxDecisionUpdate =
+    args.priceTaxTreatment !== undefined || args.taxRateComposition !== undefined;
+  const registrationMode =
+    args.priceTaxTreatment === "unknown" || args.taxRateComposition === "unknown"
+      ? "totalOnly"
+      : (args.registrationMode ??
+        (hasTaxDecisionUpdate ? "detailed" : (draft.registrationMode ?? "detailed")));
+  if (!wasRegistered && draft.status !== "needs_review" && draft.status !== "ready") {
     throw new ConvexError("Only needs_review or ready AI expense drafts can be edited");
   }
 
@@ -35,7 +67,9 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
 
   const now = Date.now();
   if (args.items !== undefined) {
-    assertPositiveCategoryTotals(args.items);
+    if (registrationMode === "detailed") {
+      assertPositiveCategoryTotals(args.items);
+    }
     await replaceDraftItemsForReview(ctx, args.draftId, groupId, args.items, now);
   }
 
@@ -58,11 +92,14 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     confidence: reviewConfidence,
     warnings: [],
     multiCategoryConfirmed: true,
-    items: args.items?.map((item) => ({
-      itemName: item.itemName,
-      amountYen: item.amountYen,
-      categoryId: item.categoryId,
-    })),
+    items:
+      registrationMode === "detailed"
+        ? args.items?.map((item) => ({
+            itemName: item.itemName,
+            amountYen: item.amountYen,
+            categoryId: item.categoryId,
+          }))
+        : undefined,
   });
 
   await ctx.db.patch(args.draftId, {
@@ -73,29 +110,112 @@ export async function updateForReviewHandler(ctx: MutationCtx, args: UpdateForRe
     paymentPurpose: trimOptional(args.paymentPurpose),
     date: trimOptional(args.date),
     amountYen: args.amountYen,
+    registrationMode,
     categoryId: args.categoryId,
     confidence: reviewConfidence,
     updatedAt: now,
   });
 
-  if (draft.taxSummaries && draft.taxSummaries.length > 0) {
-    const { draft: updated } = await persistDraftTaxInterpretation(ctx, {
+  if (
+    (draft.taxSummaries && draft.taxSummaries.length > 0) ||
+    args.priceTaxTreatment !== undefined ||
+    args.taxRateComposition !== undefined
+  ) {
+    await persistDraftTaxInterpretation(ctx, {
       draftId: args.draftId,
       groupId,
+      receiptTotalSource: "user_confirmed",
+      decisionOverride:
+        args.priceTaxTreatment !== undefined || args.taxRateComposition !== undefined
+          ? {
+              priceTaxTreatment: args.priceTaxTreatment,
+              taxRateComposition: args.taxRateComposition,
+            }
+          : undefined,
       preservedNonTaxReasons: nonTaxReviewReasons(classification.reviewReasons),
     });
-    return updated;
+    const updated = await persistReceiptUserOverrideSnapshot(ctx, {
+      draftId: args.draftId,
+      groupId,
+      fields: [
+        ...REVIEW_OVERRIDE_FIELDS,
+        "receiptTotalResolution",
+        ...(args.priceTaxTreatment !== undefined || args.taxRateComposition !== undefined
+          ? ["receiptTaxDecision", "taxSummaries"]
+          : []),
+        ...(args.items === undefined ? [] : ["items"]),
+      ],
+      updatedAt: now,
+    });
+    return await reconcileRegisteredDraft(updated);
   }
 
   await ctx.db.patch(args.draftId, {
     status: classification.status,
+    receiptTotalResolution: resolveReceiptTotal({
+      amountYen: args.amountYen,
+      source: "user_confirmed",
+      confidence: reviewConfidence.amountYen,
+      supportingCandidates: draft.receiptTotalResolution?.candidates.filter(
+        (candidate) => candidate.source !== "user_confirmed",
+      ),
+      taxSummaries: [],
+    }),
     reviewReasons: classification.reviewReasons,
     updatedAt: now,
   });
 
-  const updated = await ctx.db.get(args.draftId);
-  if (updated === null) {
-    throw new ConvexError("Failed to retrieve updated AI expense draft");
+  const updated = await persistReceiptUserOverrideSnapshot(ctx, {
+    draftId: args.draftId,
+    groupId,
+    fields: [
+      ...REVIEW_OVERRIDE_FIELDS,
+      "receiptTotalResolution",
+      ...(args.items === undefined ? [] : ["items"]),
+    ],
+    updatedAt: now,
+  });
+  return await reconcileRegisteredDraft(updated);
+
+  async function reconcileRegisteredDraft(updatedDraft: Doc<"aiExpenseDrafts">) {
+    if (!wasRegistered) {
+      return updatedDraft;
+    }
+    const updatedItems = await ctx.db
+      .query("aiExpenseDraftItems")
+      .withIndex("by_group_id_and_draft_id", (q) =>
+        q.eq("groupId", groupId).eq("draftId", args.draftId),
+      )
+      .order("asc")
+      .take(100);
+    const registrationItems = buildDraftRegistrationItems(updatedDraft, updatedItems);
+    await reconcileDraftExpenseEntries(ctx, {
+      draft: updatedDraft,
+      groupId,
+      userId,
+      items: registrationItems,
+      now,
+    });
+    await ctx.db.patch(args.draftId, {
+      status: "registered",
+      derivedRegistration: {
+        source: "derived",
+        destination: "expense_entries",
+        registrationMode: resolveRegistrationMode(updatedDraft),
+        ...(resolveRegistrationMode(updatedDraft) === "totalOnly"
+          ? { taxRatePercent: null, taxableAmountYen: null, taxYen: null }
+          : {}),
+        amountYen: updatedDraft.amountYen!,
+        date: updatedDraft.date!,
+        categoryIds: [...new Set(registrationItems.map((item) => item.categoryId))],
+        registeredAt: updatedDraft.derivedRegistration?.registeredAt ?? now,
+      },
+      updatedAt: now,
+    });
+    const reconciled = await ctx.db.get(args.draftId);
+    if (reconciled === null) {
+      throw new ConvexError("AI expense draft not found after registered update");
+    }
+    return reconciled;
   }
-  return updated;
 }

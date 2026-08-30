@@ -57,8 +57,6 @@ function findUniqueSubset(
   return match?.count === 1 && match.indexes.length > 0 ? match.indexes : undefined;
 }
 
-const PAID_TOTAL_IMPLIED_TAX_TOLERANCE_YEN = 30;
-
 export function resolveTaxContext(args: {
   amountYen: number;
   items: ExtractedReceiptItem[];
@@ -73,7 +71,10 @@ export function resolveTaxContext(args: {
   }));
 
   const processableSummaries = args.taxSummaries.filter(
-    (summary) => summary.status !== "conflicting",
+    (summary) =>
+      summary.status === undefined ||
+      summary.status === "verified" ||
+      summary.status === "coherent",
   );
 
   args.items.forEach((item, index) => {
@@ -125,12 +126,12 @@ export function resolveTaxContext(args: {
 
   const unresolved = () =>
     args.items.map((_, index) => index).filter((index) => contexts[index].status === "unresolved");
-  if (args.taxSummaries.length === 1 && unresolved().length > 0) {
+  if (processableSummaries.length === 1 && unresolved().length > 0) {
     const indexes = unresolved();
     const resolvedIndexes = args.items
       .map((_, index) => index)
       .filter((index) => contexts[index].status === "resolved");
-    const summary = args.taxSummaries[0];
+    const summary = processableSummaries[0];
     if (itemTotal(args.items, [...resolvedIndexes, ...indexes]) === summary.taxableAmountYen) {
       const context = resolved(summary, "single_summary");
       if (context) indexes.forEach((index) => (contexts[index] = context));
@@ -141,7 +142,7 @@ export function resolveTaxContext(args: {
   while (madeProgress && unresolved().length > 0) {
     madeProgress = false;
     const unresolvedIndexes = unresolved();
-    const proposals = args.taxSummaries.flatMap((summary) => {
+    const proposals = processableSummaries.flatMap((summary) => {
       const alreadyResolved = args.items.reduce((sum, item, index) => {
         const context = contexts[index];
         return context.status === "resolved" && context.taxRatePercent === summary.taxRatePercent
@@ -172,7 +173,7 @@ export function resolveTaxContext(args: {
 
   const unresolvedIndexes = unresolved();
   if (unresolvedIndexes.length > 0) {
-    const candidates = args.taxSummaries.filter((summary) => {
+    const candidates = processableSummaries.filter((summary) => {
       const resolvedTotal = args.items.reduce((sum, item, index) => {
         const context = contexts[index];
         return context.status === "resolved" && context.taxRatePercent === summary.taxRatePercent
@@ -184,28 +185,6 @@ export function resolveTaxContext(args: {
     if (candidates.length === 1) {
       const context = resolved(candidates[0], "remaining_summary");
       if (context) unresolvedIndexes.forEach((index) => (contexts[index] = context));
-    }
-  }
-
-  if (args.taxSummaries.length === 1) {
-    const summary = args.taxSummaries[0];
-    const printedTotal = args.items.reduce((sum, item) => sum + item.printedAmountYen, 0);
-    const impliedTaxYen = args.amountYen - printedTotal;
-    const isExternalSummary =
-      summary.taxMode === "external" && summary.taxableAmountBasis === "tax_excluded";
-    if (
-      isExternalSummary &&
-      args.amountYen > printedTotal &&
-      impliedTaxYen > 0 &&
-      Math.abs(impliedTaxYen - summary.taxYen) <= PAID_TOTAL_IMPLIED_TAX_TOLERANCE_YEN
-    ) {
-      const context = resolved(summary, "paid_total_reconciliation");
-      if (context) {
-        for (const index of unresolved()) {
-          if (args.items[index].printedAmountYen < 0) continue;
-          contexts[index] = context;
-        }
-      }
     }
   }
 

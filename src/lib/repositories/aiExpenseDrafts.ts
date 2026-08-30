@@ -7,8 +7,11 @@ export const getWithItemsApi = () => api.aiExpenseDrafts.queries.getWithItems;
 export const listByStatusApi = () => api.aiExpenseDrafts.queries.listByStatus;
 export const registerReadyDraftsAsExpenseEntriesApi = () =>
   api.aiExpenseDrafts.mutations.registerReadyDraftsAsExpenseEntries;
+export const resetReceiptToAiInterpretationApi = () =>
+  api.aiExpenseDrafts.mutations.resetReceiptToAiInterpretation;
 export const updateDraftItemTaxOverridesApi = () =>
   api.aiExpenseDrafts.mutations.updateDraftItemTaxOverrides;
 export const updateForReviewApi = () => api.aiExpenseDrafts.mutations.updateForReview;
+export const updateRegisteredDraftApi = () => api.aiExpenseDrafts.mutations.updateRegisteredDraft;
 export const updateSummaryTaxOverridesApi = () =>
   api.aiExpenseDrafts.mutations.updateSummaryTaxOverrides;
