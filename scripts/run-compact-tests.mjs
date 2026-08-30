@@ -16,10 +16,20 @@ const paths = {
   vitest: path.join(repoRoot, "node_modules", "vitest", "vitest.mjs"),
 };
 
+/**
+ * Reports whether a command-line value identifies a supported test runner.
+ * @param {unknown} value Candidate runner name.
+ * @returns {boolean} Whether the value is a supported runner.
+ */
 function isMode(value) {
   return value === "vitest" || value === "e2e";
 }
 
+/**
+ * Parses the runner mode and forwards the remaining command-line arguments.
+ * @param {string[]} argv Arguments after the launcher name.
+ * @returns {{ help: boolean, mode: "vitest" | "e2e" | null, forwardedArgs: string[] }} Parsed options.
+ */
 export function parseArguments(argv) {
   const [mode, ...forwardedArgs] = argv;
 
@@ -34,10 +44,22 @@ export function parseArguments(argv) {
   return { help: false, mode, forwardedArgs };
 }
 
+/**
+ * Detects CI execution, where output must remain unchanged.
+ * @param {NodeJS.ProcessEnv} [env=process.env] Environment to inspect.
+ * @returns {boolean} Whether compact local output is disabled.
+ */
 export function isCiEnvironment(env = process.env) {
   return env?.CI === "1" || env?.CI === "true";
 }
 
+/**
+ * Builds the ordered preflight and test commands for a runner.
+ * @param {"vitest" | "e2e"} mode Test runner to execute.
+ * @param {string[]} [forwardedArgs=[]] User-supplied runner arguments.
+ * @param {{ compact?: boolean }} [options={}] Output-mode options.
+ * @returns {{ label: string, command: string, args: string[] }[]} Commands to execute.
+ */
 export function buildCommands(mode, forwardedArgs = [], { compact = true } = {}) {
   if (!isMode(mode)) {
     throw new Error(`未対応のテスト種別です: ${mode}`);
@@ -83,6 +105,11 @@ export function buildCommands(mode, forwardedArgs = [], { compact = true } = {})
   ];
 }
 
+/**
+ * Formats the single-line result emitted by local compact execution.
+ * @param {{ mode: string | null, status: string, logPath: string, phase?: string, exitCode?: number, signal?: NodeJS.Signals }} result Result metadata.
+ * @returns {string} Machine-readable summary line.
+ */
 export function formatSummary({ mode, status, logPath, phase, exitCode, signal }) {
   const fields = [`COMPACT_TEST status=${status}`, `mode=${mode}`, `log=${logPath}`];
   if (phase) fields.push(`phase=${phase}`);
@@ -91,10 +118,22 @@ export function formatSummary({ mode, status, logPath, phase, exitCode, signal }
   return fields.join(" ");
 }
 
+/**
+ * Adds a section marker to a captured test log.
+ * @param {number} logFileDescriptor Open log file descriptor.
+ * @param {string} label Command label.
+ * @returns {void}
+ */
 function appendLogHeader(logFileDescriptor, label) {
   writeSync(logFileDescriptor, `\n===== ${label} =====\n`);
 }
 
+/**
+ * Runs one command with either inherited or captured output.
+ * @param {{ label: string, command: string, args: string[] }} commandSpec Command specification.
+ * @param {{ logFileDescriptor?: number, inheritOutput?: boolean }} [options={}] Output options.
+ * @returns {Promise<{ exitCode: number, signal: NodeJS.Signals | undefined }>} Process result.
+ */
 function runCommand(commandSpec, { logFileDescriptor, inheritOutput = false } = {}) {
   if (!inheritOutput) {
     appendLogHeader(logFileDescriptor, commandSpec.label);
@@ -122,6 +161,11 @@ function runCommand(commandSpec, { logFileDescriptor, inheritOutput = false } = 
   });
 }
 
+/**
+ * Runs the requested test suite with compact output for local execution only.
+ * @param {{ mode: "vitest" | "e2e", forwardedArgs?: string[], logPath?: string }} options Runner options.
+ * @returns {Promise<number>} Process exit code.
+ */
 export async function runCompactTests({ mode, forwardedArgs = [], logPath } = {}) {
   const compact = !isCiEnvironment();
   const commands = buildCommands(mode, forwardedArgs, { compact });
@@ -139,7 +183,7 @@ export async function runCompactTests({ mode, forwardedArgs = [], logPath } = {}
   const logFileDescriptor = openSync(resolvedLogPath, "a");
 
   for (const commandSpec of commands) {
-    const result = await runCommand(commandSpec, logFileDescriptor);
+    const result = await runCommand(commandSpec, { logFileDescriptor });
     if (result.exitCode !== 0) {
       fsyncSync(logFileDescriptor);
       closeSync(logFileDescriptor);
@@ -163,6 +207,10 @@ export async function runCompactTests({ mode, forwardedArgs = [], logPath } = {}
   return 0;
 }
 
+/**
+ * Prints launcher usage information.
+ * @returns {void}
+ */
 function printHelp() {
   console.log("使い方: pnpm --silent run test:agent [vitest options]");
   console.log("        pnpm --silent run e2e:agent [playwright options]");
