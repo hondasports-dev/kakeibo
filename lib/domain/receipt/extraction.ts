@@ -4,6 +4,7 @@ import {
   validateReceiptShopName,
   validateReceiptTotalAmount,
 } from "./receiptExtraction";
+import { normalizeReceiptDate } from "./receiptDate";
 import type {
   AmountBasis,
   ExtractedFields,
@@ -57,10 +58,6 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
     if (typeof obj.date !== "string") {
       throw new Error("OpenAI レスポンスの date が文字列ではありません");
     }
-    const dateResult = validateExtractedIsoDate(obj.date);
-    if (!dateResult.success) {
-      throw new Error("OpenAI レスポンスの date が実在する YYYY-MM-DD 形式ではありません");
-    }
     if (typeof obj.amountYen !== "number" && obj.amountYen !== null) {
       throw new Error("OpenAI レスポンスの amountYen が数値またはnullではありません");
     }
@@ -84,12 +81,13 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
     const taxSummaries = parseOptionalTaxSummaries(obj.taxSummaries);
     const markerDefinitions = parseOptionalMarkerDefinitions(obj.markerDefinitions);
     const rawObservations = parseOptionalRawObservations(obj.rawObservations);
+    const parsedDate = resolveExtractedDate(obj.date, rawObservations);
 
     return {
       success: true,
       extracted: {
         shopName: obj.shopName,
-        date: obj.date,
+        date: parsedDate.date,
         amountYen: obj.amountYen,
         documentType,
         paymentPlace,
@@ -101,14 +99,57 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
         markerDefinitions,
         rawObservations,
         confidence,
-        warnings: Array.isArray(obj.warnings)
-          ? (obj.warnings as string[]).filter((w) => typeof w === "string")
-          : [],
+        warnings: [
+          ...(Array.isArray(obj.warnings)
+            ? (obj.warnings as string[]).filter((w) => typeof w === "string")
+            : []),
+          ...parsedDate.warnings,
+        ],
       },
     };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+function resolveExtractedDate(
+  date: string,
+  rawObservations: ReceiptRawObservationLine[] | undefined,
+): { date: string; warnings: string[] } {
+  const validated = validateExtractedIsoDate(date);
+  if (validated.success) return { date: validated.date, warnings: [] };
+
+  const normalizedStructuredDate = normalizeReceiptDate(date);
+  if (normalizedStructuredDate.success) {
+    return {
+      date: normalizedStructuredDate.date,
+      warnings: ["date_normalized_from_structured_value"],
+    };
+  }
+
+  const candidates = [
+    ...new Set(
+      (rawObservations ?? []).flatMap((line) => {
+        if (!isPurchaseDateObservation(line.rawText)) return [];
+        const result = normalizeReceiptDate(line.rawText);
+        return result.success ? [result.date] : [];
+      }),
+    ),
+  ];
+  if (candidates.length === 1) {
+    return { date: candidates[0], warnings: ["date_recovered_from_raw_observations"] };
+  }
+  throw new Error("OpenAI レスポンスの date が妥当な YYYY-MM-DD 形式ではありません");
+}
+
+const NON_PURCHASE_DATE_CONTEXT =
+  /(?:期限|有効|失効|キャンペーン|休業|定休日|返品|交換|発行|登録|入会|製造|賞味|消費)/;
+const PRINTED_TIME = /(?:[01]?\d|2[0-3])\s*(?::|時)\s*[0-5]?\d(?:\s*分)?/;
+
+/** 購入日時らしい明示時刻を伴う行だけを、不正な構造化日付の救済候補にする。 */
+function isPurchaseDateObservation(rawText: string): boolean {
+  const normalized = rawText.normalize("NFKC");
+  return PRINTED_TIME.test(normalized) && !NON_PURCHASE_DATE_CONTEXT.test(normalized);
 }
 
 function parseOptionalRawObservations(value: unknown): ReceiptRawObservationLine[] | undefined {

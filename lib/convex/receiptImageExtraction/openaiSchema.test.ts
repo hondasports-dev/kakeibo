@@ -65,6 +65,14 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(prompt).toContain("warnings に理由");
   });
 
+  it("商品カテゴリ・複数行境界・2桁年の抽出規則を明示する", () => {
+    const prompt = RECEIPT_EXTRACTION_PROMPT_LINES.join("\n");
+    expect(prompt).toContain("店舗種別より商品名と用途");
+    expect(prompt).toContain("価格が印字された各商品行を境界");
+    expect(prompt).toContain("2桁");
+    expect(prompt).toContain("20YY");
+  });
+
   it("有効カテゴリをデータとしてプロンプトへ渡しcategoryNameを動的enumに制限する", () => {
     const categoryNames = ["食費", "日用品", "食費"];
     const prompt = buildReceiptExtractionPrompt(categoryNames);
