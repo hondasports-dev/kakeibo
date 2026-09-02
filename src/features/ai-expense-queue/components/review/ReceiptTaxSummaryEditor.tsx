@@ -92,7 +92,7 @@ export function ReceiptTaxSummaryEditor({
     }
   };
 
-  const amountBasisLabel = form.taxableAmountBasis === "tax_included" ? "（税込）" : "（税抜）";
+  const amountBasisLabel = getAmountBasisLabel(form.taxableAmountBasis);
 
   const status = summary.status ?? "ambiguous";
   const statusLabel = getTaxSummaryStatusLabel(status);
@@ -132,6 +132,7 @@ export function ReceiptTaxSummaryEditor({
         >
           <MenuItem value="external">外税</MenuItem>
           <MenuItem value="included">内税</MenuItem>
+          <MenuItem value="mixed">混在</MenuItem>
           <MenuItem value="unknown">不明</MenuItem>
         </TextField>
       </Stack>
@@ -204,6 +205,12 @@ export function ReceiptTaxSummaryEditor({
       </Button>
     </Stack>
   );
+}
+
+function getAmountBasisLabel(amountBasis: AmountBasis | undefined): string {
+  if (amountBasis === "tax_included") return "（税込）";
+  if (amountBasis === "tax_excluded") return "（税抜）";
+  return "（種別不明）";
 }
 
 function getTaxModeLabel(taxMode: TaxMode): string {

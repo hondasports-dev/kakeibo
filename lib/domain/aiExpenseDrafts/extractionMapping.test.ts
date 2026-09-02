@@ -13,6 +13,62 @@ const foodCategory: CategoryLike<string> = {
 };
 
 describe("mapExtractionToDraftArgs tax normalization", () => {
+  it("8%内税と10%外税の混在を率別に解決して支払総額へ一致させる", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 320,
+        items: [
+          {
+            ...product,
+            itemName: "食品",
+            amountYen: 100,
+            printedAmountYen: 100,
+            amountBasis: "tax_included",
+            taxRatePercent: 8,
+          },
+          {
+            ...product,
+            itemName: "日用品",
+            amountYen: 200,
+            printedAmountYen: 200,
+            amountBasis: "tax_excluded",
+            taxRatePercent: 10,
+          },
+        ],
+        taxSummaries: [
+          {
+            ...trialExternal8Fixture.taxSummaries![0],
+            taxRatePercent: 8,
+            taxMode: "included",
+            taxableAmountYen: 100,
+            taxableAmountBasis: "tax_included",
+            taxYen: 7,
+            taxIncludedAmountYen: 100,
+          },
+          {
+            ...trialExternal8Fixture.taxSummaries![0],
+            taxRatePercent: 10,
+            taxMode: "external",
+            taxableAmountYen: 200,
+            taxableAmountBasis: "unknown",
+            taxYen: 20,
+            taxIncludedAmountYen: 220,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items?.map((item) => item.normalizedAmountYen)).toEqual([100, 220]);
+    expect(mapped.items?.reduce((sum, item) => sum + (item.normalizedAmountYen ?? 0), 0)).toBe(320);
+    expect(mapped.taxSummaries?.[1]).toMatchObject({
+      taxMode: "external",
+      taxableAmountBasis: "tax_excluded",
+      status: "verified",
+    });
+  });
+
   it("TRIAL外税を正規化し、印字額・按分税・登録額を分離する", () => {
     const mapped = mapExtractionToDraftArgs(trialExternal8Fixture, [foodCategory]);
 
@@ -527,5 +583,190 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
       reasons: ["receipt_total_missing_or_invalid"],
     });
     expect(mapped.rawObservationLines).toEqual(rawObservations);
+  });
+
+  it("0円の非金銭ポイント行を除外し、負額割引は保持する", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [
+          product,
+          { ...product, itemName: "ポイント10倍", amountYen: 0, printedAmountYen: 0 },
+          { ...product, itemName: "クーポン値引", amountYen: -20, printedAmountYen: -20 },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items?.map((item) => item.itemName)).not.toContain("ポイント10倍");
+    expect(mapped.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ itemName: "クーポン値引", amountYen: -20 }),
+      ]),
+    );
+  });
+
+  it("曖昧な価格付き抽出商品を削除せず確認対象に残す", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [{ ...product, itemName: "読取不鮮明商品", amountYen: 198, printedAmountYen: 198 }],
+        rawObservations: [
+          {
+            rawText: "読取不鮮明商品 198円",
+            amountText: "198円",
+            amountYen: 198,
+            lineRoleCandidates: ["item", "unknown"],
+            roleConfidence: 0.2,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ itemName: "読取不鮮明商品" })]),
+    );
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+  });
+
+  it("未消費の明示価格商品をraw observationから復元する", () => {
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "コカ・コーラ 88円",
+            amountText: "88円",
+            amountYen: 88,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.98,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items).toEqual([
+      expect.objectContaining({
+        itemName: "コカ・コーラ",
+        printedAmountYen: 88,
+        warnings: expect.arrayContaining(["item_recovered_from_raw_observation"]),
+      }),
+    ]);
+  });
+
+  it("同名同額の複数行を一対一で対応させて重複復元しない", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 200,
+        items: [
+          { ...product, itemName: "同じ商品", amountYen: 100, printedAmountYen: 100 },
+          { ...product, itemName: "同じ商品", amountYen: 100, printedAmountYen: 100 },
+        ],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "同じ商品 100円",
+            amountText: "100円",
+            amountYen: 100,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+          {
+            rawText: "同じ商品 100円",
+            amountText: "100円",
+            amountYen: 100,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 2,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items).toHaveLength(2);
+    expect(mapped.items?.map((item) => item.printedAmountYen)).toEqual([100, 100]);
+  });
+
+  it("同名行の金額が食い違っても二重復元せず確認対象にする", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [{ ...product, itemName: "商品A", amountYen: 198, printedAmountYen: 198 }],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "商品A 188円",
+            amountText: "188円",
+            amountYen: 188,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items).toHaveLength(1);
+    expect(mapped.items?.[0]).toMatchObject({ itemName: "商品A", printedAmountYen: 198 });
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+  });
+
+  it("構造化税summary欠落時に明示税行から復元する", () => {
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 530,
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "(10%内税 対象) 530円",
+            amountText: "530円",
+            amountYen: 530,
+            lineRoleCandidates: ["tax"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 10,
+          },
+          {
+            rawText: "(10%内税額) 48円",
+            amountText: "48円",
+            amountYen: 48,
+            lineRoleCandidates: ["tax"],
+            roleConfidence: 0.95,
+            explicitlyPrinted: true,
+            sourceLineIndex: 11,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.taxSummaries).toEqual([
+      expect.objectContaining({ taxRatePercent: 10, taxMode: "included", taxYen: 48 }),
+    ]);
+  });
+
+  it("全明細のカテゴリが空ならレシート全体カテゴリを補完する", () => {
+    const source = {
+      ...trialExternal8Fixture,
+      categoryName: "食費",
+      items: trialExternal8Fixture.items!.map((item) => ({ ...item, categoryName: "" })),
+    };
+    const mapped = mapExtractionToDraftArgs(source, [foodCategory]);
+    expect(mapped.items?.every((item) => item.categoryId === foodCategory._id)).toBe(true);
+    expect(mapped.items?.every((item) => item.categoryName === foodCategory.name)).toBe(true);
   });
 });

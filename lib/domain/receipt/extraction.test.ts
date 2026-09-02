@@ -105,4 +105,58 @@ describe("parseOpenAIResponse domain", () => {
     const result = parse(payload);
     expect(result.success).toBe(false);
   });
+
+  it("不合理な構造化年を2桁年の生観測から復元する", () => {
+    const payload = structuredClone(trialExtraction) as typeof trialExtraction & {
+      rawObservations: Array<Record<string, unknown>>;
+    };
+    payload.date = "2674-07-24";
+    payload.rawObservations = [
+      {
+        rawText: "26年07月24日 10:08",
+        amountText: null,
+        amountYen: null,
+        lineRoleCandidates: ["unknown"],
+        roleConfidence: 0.8,
+        explicitlyPrinted: true,
+        sourceLineIndex: 0,
+        boundingBox: null,
+      },
+    ];
+    const result = parse(payload);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.extracted.date).toBe("2026-07-24");
+    expect(result.extracted.warnings).toContain("date_recovered_from_raw_observations");
+  });
+
+  it("構造化された2桁和暦風年をraw観測なしで正規化する", () => {
+    const payload = structuredClone(trialExtraction);
+    payload.date = "26年07月24日";
+    const result = parse(payload);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.extracted.date).toBe("2026-07-24");
+    expect(result.extracted.warnings).toContain("date_normalized_from_structured_value");
+  });
+
+  it("期限日の生観測を購入日として復元しない", () => {
+    const payload = structuredClone(trialExtraction) as typeof trialExtraction & {
+      rawObservations: Array<Record<string, unknown>>;
+    };
+    payload.date = "2674-07-24";
+    payload.rawObservations = [
+      {
+        rawText: "ポイント有効期限 2026年09月30日",
+        amountText: null,
+        amountYen: null,
+        lineRoleCandidates: ["unknown"],
+        roleConfidence: 0.8,
+        explicitlyPrinted: true,
+        sourceLineIndex: 0,
+        boundingBox: null,
+      },
+    ];
+    expect(parse(payload).success).toBe(false);
+  });
 });

@@ -25,6 +25,7 @@ import {
 import { interpretReceiptTax } from "../receipt/tax/interpretReceiptTax";
 import { interpretReceiptTaxDecision } from "../receipt/tax/interpretReceiptTaxDecision";
 import { resolveReceiptTotal } from "../receipt/tax/resolveReceiptTotal";
+import { deriveTaxSummariesFromObservations } from "../receipt/tax/taxSummariesFromObservations";
 import type {
   AiExpenseDraftConfidence,
   AiExpenseDraftDocumentType,
@@ -104,11 +105,13 @@ function classificationForExtractedItem(
   item: NonNullable<ExtractReceiptFieldsResult["items"]>[number],
   rawLines: ReceiptRawObservationLine[],
   classifications: ReceiptLineClassification[],
+  excludedSourceLineIndexes: ReadonlySet<number> = new Set(),
 ) {
   const itemText = normalizeReceiptLineMatchText(item.itemName);
   const printedAmountYen = item.printedAmountYen ?? item.amountYen;
   return classifications
     .flatMap((classification) => {
+      if (excludedSourceLineIndexes.has(classification.sourceLineIndex)) return [];
       const line = rawLines.find(
         (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
       );
@@ -124,6 +127,16 @@ function classificationForExtractedItem(
     })
     .sort((left, right) => Number(right.amountMatches) - Number(left.amountMatches))[0]
     ?.classification;
+}
+
+function isNonMonetaryPromotion(
+  item: NonNullable<ExtractReceiptFieldsResult["items"]>[number],
+): boolean {
+  const amount = item.printedAmountYen ?? item.amountYen;
+  return (
+    amount === 0 &&
+    /(?:ポイント.*(?:倍|発行|付与|特典)|会員.*特典)/.test(item.itemName.normalize("NFKC"))
+  );
 }
 
 function normalizeExtractedItemForTax(
@@ -149,16 +162,28 @@ export function mapExtractionToDraftArgs<TId>(
   imageFileName?: string,
 ): DraftArgs<TId> {
   const rawObservationLines = extracted.rawObservations ?? [];
+  const extractedTaxSummaries = (extracted.taxSummaries ?? []) as ExtractedTaxSummary[];
+  const taxSummaries =
+    extractedTaxSummaries.length > 0
+      ? extractedTaxSummaries
+      : deriveTaxSummariesFromObservations(rawObservationLines);
   const receiptLineClassifications = classifyReceiptLines(rawObservationLines, {
     receiptTotalYen: extracted.amountYen,
-    taxAmountsYen: receiptTaxAmounts((extracted.taxSummaries ?? []) as ExtractedTaxSummary[]),
+    taxAmountsYen: receiptTaxAmounts(taxSummaries),
   });
   const ambiguousExtractedItemIndexes: number[] = [];
+  const consumedRawLineIndexes = new Set<number>();
+  const matchedRawLineIndexByItem = new Map<
+    NonNullable<ExtractReceiptFieldsResult["items"]>[number],
+    number
+  >();
   const extractedItems = extracted.items?.filter((item, index) => {
+    if (isNonMonetaryPromotion(item)) return false;
     const fromRaw = classificationForExtractedItem(
       item,
       rawObservationLines,
       receiptLineClassifications,
+      consumedRawLineIndexes,
     );
     const [fallback] = classifyReceiptLines(
       [
@@ -172,16 +197,81 @@ export function mapExtractionToDraftArgs<TId>(
           sourceLineIndex: 0,
         },
       ],
-      { taxAmountsYen: receiptTaxAmounts((extracted.taxSummaries ?? []) as ExtractedTaxSummary[]) },
+      { taxAmountsYen: receiptTaxAmounts(taxSummaries) },
     );
     const classification = fromRaw ?? fallback;
+    if (fromRaw) matchedRawLineIndexByItem.set(item, fromRaw.sourceLineIndex);
+    if (fromRaw) {
+      consumedRawLineIndexes.add(fromRaw.sourceLineIndex);
+      const rawAmount = rawObservationLines.find(
+        (line) => line.sourceLineIndex === fromRaw.sourceLineIndex,
+      )?.amountYen;
+      if (
+        rawAmount !== undefined &&
+        rawAmount !== null &&
+        rawAmount !== (item.printedAmountYen ?? item.amountYen)
+      ) {
+        ambiguousExtractedItemIndexes.push(index);
+      }
+    }
     if (classification?.status === "ambiguous") {
       ambiguousExtractedItemIndexes.push(index);
-      return false;
+      return true;
     }
     const role = classification?.candidates[0]?.role ?? "unknown";
     return !STRUCTURAL_NON_ITEM_ROLES.has(role);
   });
+  const recoveredRawItems: Array<{
+    item: NonNullable<ExtractReceiptFieldsResult["items"]>[number];
+    sourceLineIndex: number;
+  }> = receiptLineClassifications.flatMap((classification) => {
+    if (
+      classification.status !== "classified" ||
+      consumedRawLineIndexes.has(classification.sourceLineIndex) ||
+      !["item", "fee"].includes(classification.candidates[0]?.role ?? "")
+    ) {
+      return [];
+    }
+    const line = rawObservationLines.find(
+      (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
+    );
+    if (!line || !line.explicitlyPrinted || line.amountYen === null || line.amountYen <= 0) {
+      return [];
+    }
+    const itemName = line.amountText
+      ? line.rawText.replace(line.amountText, "").trim()
+      : line.rawText.trim();
+    if (!itemName) return [];
+    return [
+      {
+        sourceLineIndex: line.sourceLineIndex,
+        item: {
+          itemName,
+          amountYen: line.amountYen,
+          printedAmountYen: line.amountYen,
+          amountBasis: "unknown" as const,
+          taxRatePercent: null,
+          markers: [],
+          categoryName: "",
+          confidence: {
+            itemName: line.roleConfidence,
+            amountYen: line.roleConfidence,
+            printedAmountYen: line.roleConfidence,
+          },
+          warnings: ["item_recovered_from_raw_observation"],
+        },
+      },
+    ];
+  });
+  const effectiveItems = [
+    ...(extractedItems ?? []).map((item) => ({
+      item,
+      sourceLineIndex: matchedRawLineIndexByItem.get(item) ?? Number.MAX_SAFE_INTEGER,
+    })),
+    ...recoveredRawItems,
+  ]
+    .sort((left, right) => left.sourceLineIndex - right.sourceLineIndex)
+    .map(({ item }) => item);
 
   const candidates = buildCategoryCandidates({
     documentType: extracted.documentType,
@@ -192,15 +282,19 @@ export function mapExtractionToDraftArgs<TId>(
     categories,
   });
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
+  const useReceiptCategoryForItems =
+    categoryId !== undefined &&
+    effectiveItems.length > 0 &&
+    effectiveItems.every((item) => !item.categoryName?.trim());
 
   const taxInput: ReceiptTaxInput | undefined =
-    extracted.amountYen !== null && extracted.taxSummaries
+    extracted.amountYen !== null
       ? {
           amountYen: extracted.amountYen,
           receiptTotalSource: "explicit_label",
           receiptTotalConfidence: extracted.confidence.amountYen,
-          items: (extractedItems ?? []).map(normalizeExtractedItemForTax),
-          taxSummaries: extracted.taxSummaries as ExtractedTaxSummary[],
+          items: effectiveItems.map(normalizeExtractedItemForTax),
+          taxSummaries,
           markerDefinitions: extracted.markerDefinitions,
           rawObservationLines,
           receiptLineClassifications,
@@ -218,10 +312,10 @@ export function mapExtractionToDraftArgs<TId>(
       amountYen: extracted.amountYen,
       source: "explicit_label",
       confidence: extracted.confidence.amountYen,
-      taxSummaries: (extracted.taxSummaries ?? []) as ExtractedTaxSummary[],
+      taxSummaries,
     });
 
-  const items = extractedItems?.map((item, index) => {
+  const items = effectiveItems.map((item, index) => {
     const normalized = interpretation?.items[index];
     const itemCandidates = buildCategoryCandidates({
       documentType: extracted.documentType,
@@ -229,7 +323,9 @@ export function mapExtractionToDraftArgs<TId>(
       shopName: item.itemName,
       categories,
     });
-    const itemCategoryId = resolveCategoryIdFromCandidates(item.categoryName, itemCandidates);
+    const itemCategoryId =
+      resolveCategoryIdFromCandidates(item.categoryName, itemCandidates) ??
+      (useReceiptCategoryForItems ? categoryId : undefined);
     const taxFields = normalized ? interpretedItemToDraftFields(normalized) : undefined;
 
     return {
@@ -252,7 +348,11 @@ export function mapExtractionToDraftArgs<TId>(
       taxReviewReasons: taxFields?.taxReviewReasons,
       quantity: normalized?.quantity ?? item.quantity,
       unitPriceYen: normalized?.unitPriceYen ?? item.unitPriceYen,
-      categoryName: item.categoryName,
+      categoryName:
+        item.categoryName ||
+        (useReceiptCategoryForItems
+          ? categories.find((category) => category._id === categoryId)?.name
+          : undefined),
       categoryId: itemCategoryId,
       confidence: {
         itemName: item.confidence.itemName,
@@ -289,7 +389,7 @@ export function mapExtractionToDraftArgs<TId>(
     date: extracted.date || undefined,
     amountYen:
       extracted.amountYen !== null && extracted.amountYen > 0 ? extracted.amountYen : undefined,
-    taxSummaries: interpretation?.taxSummaries ?? extracted.taxSummaries,
+    taxSummaries: interpretation?.taxSummaries ?? taxSummaries,
     receiptTotalResolution,
     receiptTaxDecision,
     rawObservationLines: extracted.rawObservations,

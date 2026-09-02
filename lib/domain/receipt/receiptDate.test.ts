@@ -6,6 +6,8 @@ describe("normalizeReceiptDate", () => {
     ["2024-03-15", "2024-03-15"],
     ["2024/3/15", "2024-03-15"],
     ["2024年3月15日", "2024-03-15"],
+    ["1999-12-31", "1999-12-31"],
+    ["26年07月24日", "2026-07-24"],
     ["  2024-03-15  ", "2024-03-15"],
     ["2024-03-15\u3000", "2024-03-15"],
   ])("%s -> %s", (input, expected) => {
@@ -18,6 +20,10 @@ describe("normalizeReceiptDate", () => {
     if (!result.success) {
       expect(["invalid", "no_candidate", "ambiguous", "range_expression"]).toContain(result.error);
     }
+  });
+
+  it("OCRが作った不合理な未来年を拒否する", () => {
+    expect(normalizeReceiptDate("2674年07月24日")).toEqual({ success: false, error: "invalid" });
   });
 
   it("範囲表現を拒否する", () => {

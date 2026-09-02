@@ -6,7 +6,15 @@ const DATE_PATTERNS = [
   /(?<!\d)(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?!\d)/g,
   /(?<!\d)(\d{4})\.(\d{1,2})\.(\d{1,2})(?!\d)/g,
   /(?<!\d)(\d{4})年\s*(\d{1,2})月\s*(\d{1,2})日(?!\d)/g,
+  /(?<!\d)(\d{2})年\s*(\d{1,2})月\s*(\d{1,2})日(?!\d)/g,
 ];
+
+export function isPlausibleReceiptYear(
+  year: number,
+  referenceYear = new Date().getFullYear(),
+): boolean {
+  return year >= 1 && year <= referenceYear + 1;
+}
 
 /** レシート等の OCR テキストから日付を抽出し、YYYY-MM-DD 形式に正規化する。 */
 export function normalizeReceiptDate(
@@ -26,7 +34,7 @@ export function normalizeReceiptDate(
   }
 
   const { year, month, day } = candidates[0];
-  if (!isValidCalendarDate(year, month, day)) {
+  if (!isPlausibleReceiptYear(year) || !isValidCalendarDate(year, month, day)) {
     return { success: false, error: "invalid" };
   }
 
@@ -40,8 +48,9 @@ function findDateCandidates(value: string): Array<{ year: number; month: number;
   const candidates: Array<{ year: number; month: number; day: number }> = [];
   for (const pattern of DATE_PATTERNS) {
     for (const match of value.matchAll(pattern)) {
+      const parsedYear = Number(match[1]);
       candidates.push({
-        year: Number(match[1]),
+        year: match[1].length === 2 ? 2000 + parsedYear : parsedYear,
         month: Number(match[2]),
         day: Number(match[3]),
       });

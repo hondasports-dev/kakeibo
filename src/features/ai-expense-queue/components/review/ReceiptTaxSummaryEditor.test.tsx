@@ -91,4 +91,22 @@ describe("ReceiptTaxSummaryEditor", () => {
     expect(screen.getByRole("button", { name: "保存中…" })).toBeDisabled();
     expect(screen.getByRole("spinbutton", { name: "対象額" })).toBeDisabled();
   });
+
+  it("混在を選択でき、unknown basisを税抜と誤表示しない", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <ReceiptTaxSummaryEditor
+        isSaving={false}
+        summary={{ ...summary(), taxableAmountBasis: "unknown" }}
+        summaryIndex={0}
+        onChange={onChange}
+      />,
+    );
+    expect(screen.getByText(/種別不明/)).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "税モード" }));
+    await user.click(screen.getByRole("option", { name: "混在" }));
+    await user.click(screen.getByRole("button", { name: "保存" }));
+    expect(onChange).toHaveBeenCalledWith(0, { taxMode: "mixed" });
+  });
 });

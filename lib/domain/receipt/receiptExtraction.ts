@@ -1,6 +1,6 @@
 import { validateExpenseAmount, type ExpenseAmountError } from "../expenseEntries/expenseEntryItem";
 import { isValidIsoDateString } from "../week/weekDates";
-import { normalizeReceiptDate, type ReceiptDateError } from "./receiptDate";
+import { isPlausibleReceiptYear, normalizeReceiptDate, type ReceiptDateError } from "./receiptDate";
 
 export { normalizeReceiptDate } from "./receiptDate";
 export type { ReceiptDateError } from "./receiptDate";
@@ -33,6 +33,9 @@ export function validateExtractedIsoDate(
     return { success: true, date };
   }
   if (!isValidIsoDateString(date)) {
+    return { success: false, error: "invalid" };
+  }
+  if (!isPlausibleReceiptYear(Number(date.slice(0, 4)))) {
     return { success: false, error: "invalid" };
   }
   return { success: true, date };
