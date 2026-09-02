@@ -54,12 +54,7 @@ function canonicalizeTaxSummaryDeclaration(
   const basisMode = modeFromBasis(summary.taxableAmountBasis);
   const canInferMode = summary.taxMode === "unknown";
 
-  if (
-    declaredMode &&
-    !basisMode &&
-    expectedAmount !== undefined &&
-    modes.includes(declaredMode)
-  ) {
+  if (declaredMode && !basisMode && expectedAmount !== undefined && modes.includes(declaredMode)) {
     return { ...summary, taxableAmountBasis: basisFromMode(declaredMode) };
   }
   if (canInferMode && basisMode && expectedAmount !== undefined && modes.includes(basisMode)) {
