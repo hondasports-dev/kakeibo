@@ -21,6 +21,7 @@ import {
 } from "../../utils/reviewItemCategories";
 import { isDiscountItemName, isDiscountLine } from "../../utils/discountItems";
 import { applyReviewItemsTaxPreview } from "../../utils/reviewItemsTaxPreview";
+import { reconcileNegativeLineWarnings } from "../../utils/negativeLineWarnings";
 
 export function useReviewFormState({
   selectedReviewDraftId,
@@ -154,12 +155,14 @@ export function useReviewFormState({
               amountYen: value,
               printedAmountYen: amountNum,
               normalizedAmountYen: amountNum,
+              warnings: reconcileNegativeLineWarnings(item.warnings, item.lineType, amountNum),
             };
           }
           return {
             ...item,
             amountYen: value,
             printedAmountYen: amountNum,
+            warnings: reconcileNegativeLineWarnings(item.warnings, item.lineType, amountNum),
           };
         }
         if (field === "lineType") {
@@ -167,10 +170,10 @@ export function useReviewFormState({
             ...item,
             lineType: value as ReviewItemValues["lineType"],
             discountTargetItemId: undefined,
-            warnings: item.warnings?.filter(
-              (warning) =>
-                warning !== "negative_amount_line_type_uncertain" &&
-                warning !== "negative_amount_on_product_line",
+            warnings: reconcileNegativeLineWarnings(
+              item.warnings,
+              value as ReviewItemValues["lineType"],
+              Number(item.amountYen),
             ),
           };
         }

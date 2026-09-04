@@ -15,4 +15,11 @@ describe("calculateResizeDimensions", () => {
       height: 800,
     });
   });
+
+  it("短辺が可読幅未満の極端な長尺画像も長辺上限まで縮小する", () => {
+    expect(calculateResizeDimensions(500, 5000, { longSide: 1600, minShortSide: 1000 })).toEqual({
+      width: 160,
+      height: 1600,
+    });
+  });
 });

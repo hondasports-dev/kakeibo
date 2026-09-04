@@ -5,7 +5,7 @@ import type { Doc } from "../../../convex/_generated/dataModel";
 import type { ReceiptUserOverrideSnapshot } from "../../domain/aiExpenseDrafts/receiptDataContract";
 import { mapExtractionToDraftArgs } from "../../../lib/domain/aiExpenseDrafts/extractionMapping";
 import { extractReceiptFieldsHandler } from "../../../convex/receiptImageExtraction/extraction";
-import { logReceiptExtractionStage } from "./telemetry";
+import { measureReceiptExtractionSave } from "./telemetry";
 
 export type AnalyzeReceiptImageCoreArgs = {
   imageDataUrl: string;
@@ -51,36 +51,18 @@ export async function analyzeReceiptImageToDraftCore(
       })),
     });
   } catch (err) {
-    return await ctx.runMutation(
-      internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
-      {
+    return await measureReceiptExtractionSave(args.telemetryId, "failure_draft", () =>
+      ctx.runMutation(internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis, {
         warning: getSafeFailureWarning(err),
         imageFileName: args.imageFileName,
-      },
+      }),
     );
   }
 
-  const saveStartedAt = Date.now();
-  try {
-    const draft = await ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
+  return await measureReceiptExtractionSave(args.telemetryId, "result_draft", () =>
+    ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
       ...mapExtractionToDraftArgs(extracted, categories, args.imageFileName),
       preservedUserOverride: args.preservedUserOverride,
-    });
-    logReceiptExtractionStage({
-      telemetryId: args.telemetryId,
-      stage: "save",
-      durationMs: Date.now() - saveStartedAt,
-      outcome: "success",
-    });
-    return draft;
-  } catch (err) {
-    logReceiptExtractionStage({
-      telemetryId: args.telemetryId,
-      stage: "save",
-      durationMs: Date.now() - saveStartedAt,
-      outcome: "failure",
-      failureKind: "draft_save",
-    });
-    throw err;
-  }
+    }),
+  );
 }

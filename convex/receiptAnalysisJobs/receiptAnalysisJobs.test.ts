@@ -815,6 +815,64 @@ describe("analyzeImageJobHandler", () => {
     });
   });
 
+  it("通常draft保存に失敗した後の失敗draft保存もtelemetryへ記録する", async () => {
+    await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
+      const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+      const jobDoc = {
+        _id: "job-save-failure",
+        groupId: GROUP_ID,
+        batchId: "batch-1",
+        status: "queued",
+        fileName: "long-receipt.jpg",
+      } as Doc<"receiptAnalysisImageJobs">;
+      const failedDraft = {
+        _id: "draft-failed",
+        status: "failed",
+        warnings: ["database unavailable"],
+      } as Doc<"aiExpenseDrafts">;
+      const ctx = createActionCtx(createIdentity());
+      ctx.runQuery = vi
+        .fn()
+        .mockResolvedValueOnce({ hasAcceptedExternalApiConsent: true })
+        .mockResolvedValueOnce({ _id: GROUP_ID })
+        .mockResolvedValueOnce(jobDoc)
+        .mockResolvedValueOnce([]);
+      ctx.runMutation = vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("database unavailable"))
+        .mockResolvedValueOnce(failedDraft)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined);
+
+      await analyzeImageJobHandler(ctx, {
+        jobId: "job-save-failure" as Id<"receiptAnalysisImageJobs">,
+        imageDataUrl: VALID_IMAGE_DATA_URL,
+      });
+
+      expect(info).toHaveBeenCalledWith(
+        "receipt_extraction_stage",
+        expect.objectContaining({
+          telemetryId: "job-save-failure",
+          stage: "save",
+          outcome: "failure",
+          failureKind: "draft_save",
+          saveKind: "result_draft",
+        }),
+      );
+      expect(info).toHaveBeenCalledWith(
+        "receipt_extraction_stage",
+        expect.objectContaining({
+          telemetryId: "job-save-failure",
+          stage: "save",
+          outcome: "success",
+          saveKind: "failure_draft",
+        }),
+      );
+    });
+  });
+
   it("再解析成功時はuser overrideを新draftへ継承してから旧draftを削除する", async () => {
     await withEnv({ RECEIPT_IMAGE_EXTRACTOR_MODE: "mock", APP_ENV: "development" }, async () => {
       const receiptUserOverride = {

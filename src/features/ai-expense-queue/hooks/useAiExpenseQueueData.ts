@@ -76,7 +76,9 @@ export function useAiExpenseQueueData({
             item.previewImageDataUrl ?? (job ? pendingImageDataUrls.get(job._id) : undefined),
           failureHint:
             item.failureHint ??
-            (item.status === "failed" ? getImageCaptureFailureHint("failed") : undefined),
+            (item.status === "failed"
+              ? getImageCaptureFailureHint("failed", item.warnings)
+              : undefined),
         };
       }),
     [initialItems, jobByDraftId, pendingImageDataUrls],

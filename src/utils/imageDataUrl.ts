@@ -16,9 +16,10 @@ export function calculateResizeDimensions(
   const originalLongSide = Math.max(width, height);
   const originalShortSide = Math.min(width, height);
   const longSideScale = Math.min(1, candidate.longSide / originalLongSide);
-  const readableScale = candidate.minShortSide
-    ? Math.min(1, candidate.minShortSide / originalShortSide)
-    : 0;
+  const readableScale =
+    candidate.minShortSide && originalShortSide >= candidate.minShortSide
+      ? candidate.minShortSide / originalShortSide
+      : 0;
   const scale = Math.max(longSideScale, readableScale);
   return {
     width: Math.max(1, Math.round(width * scale)),
