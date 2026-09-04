@@ -860,6 +860,7 @@ describe("extractReceiptFieldsHandler", () => {
           expect(result.items).toEqual([
             {
               itemName: "パン",
+              lineType: "item",
               amountYen: 150,
               printedAmountYen: 150,
               amountBasis: "tax_included",
@@ -881,6 +882,7 @@ describe("extractReceiptFieldsHandler", () => {
             },
             {
               itemName: "胃薬",
+              lineType: "item",
               amountYen: 980,
               printedAmountYen: 980,
               amountBasis: "tax_included",
@@ -902,6 +904,7 @@ describe("extractReceiptFieldsHandler", () => {
             },
             {
               itemName: "クーポン券割引",
+              lineType: "discount",
               amountYen: -110,
               printedAmountYen: -110,
               amountBasis: "tax_included",
