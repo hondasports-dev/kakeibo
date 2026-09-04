@@ -64,6 +64,22 @@ describe("mapConvexDraftToAiExpenseDraft", () => {
 });
 
 describe("mapDraftToQueueItem", () => {
+  it("失敗warningをキューへ渡して原因別hintを生成する", () => {
+    const item = mapDraftToQueueItem(
+      {
+        _id: "draft-timeout",
+        status: "failed",
+        documentType: "receipt",
+        reviewReasons: [],
+        warnings: ["[receipt_extraction:timeout] response body timeout"],
+      },
+      {},
+    );
+
+    expect(item.warnings).toEqual(["[receipt_extraction:timeout] response body timeout"]);
+    expect(item.failureHint).toContain("タイムアウト");
+  });
+
   it("統合済みの払込票は店名・内容を一覧タイトルに使う", () => {
     const item = mapDraftToQueueItem(
       {

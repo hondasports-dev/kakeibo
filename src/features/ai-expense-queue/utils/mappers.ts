@@ -37,6 +37,7 @@ export function mapDraftToQueueItem(
     fileName: draft.imageFileName ?? "AI支出下書き",
     previewImageDataUrl,
     failureHint: getImageCaptureFailureHint(draft.status as AiExpenseDraftStatus, draft.warnings),
+    warnings: draft.warnings,
     status: statusOverrides[draft._id] ?? draft.status,
     documentType: draft.documentType,
     title: getDraftTitle(draft),

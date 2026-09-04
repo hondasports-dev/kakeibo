@@ -11,6 +11,7 @@ import {
 import { getExtractorMode } from "../../lib/convex/receiptImageExtraction/mode";
 import { snapshotReceiptDraftValues } from "../../lib/convex/aiExpenseDrafts/receiptDataContract";
 import type { ReceiptUserOverrideSnapshot } from "../../lib/domain/aiExpenseDrafts/receiptDataContract";
+import { measureReceiptExtractionSave } from "../../lib/convex/receiptImageExtraction/telemetry";
 
 export type CheckAiReviewRequiredArgs = {
   batchId: Id<"receiptAnalysisBatches">;
@@ -86,12 +87,11 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
   } catch (err) {
     jobFailed = true;
     const safeError = getSafeFailureWarning(err);
-    draft = await ctx.runMutation(
-      internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
-      {
+    draft = await measureReceiptExtractionSave(String(args.jobId), "failure_draft", () =>
+      ctx.runMutation(internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis, {
         warning: safeError,
         imageFileName: job.fileName,
-      },
+      }),
     );
   }
 

@@ -10,6 +10,10 @@ import { logReceiptExtractionStage } from "./telemetry";
 
 const OPENAI_RECEIPT_TIMEOUT_MS = 120_000;
 
+function isTimeoutError(err: unknown) {
+  return err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+}
+
 export async function callOpenAIReceiptExtractor({
   imageDataUrl,
   apiKey,
@@ -35,8 +39,7 @@ export async function callOpenAIReceiptExtractor({
       signal: AbortSignal.timeout(OPENAI_RECEIPT_TIMEOUT_MS),
     });
   } catch (err) {
-    const timeout =
-      err instanceof Error && (err.name === "TimeoutError" || err.name === "AbortError");
+    const timeout = isTimeoutError(err);
     logReceiptExtractionStage({
       telemetryId,
       stage: "openai_http",
@@ -70,16 +73,25 @@ export async function callOpenAIReceiptExtractor({
   const jsonStartedAt = Date.now();
   try {
     data = (await response.json()) as OpenAIResponsesApiResponse;
-  } catch {
+  } catch (err) {
+    const failureKind = isTimeoutError(err)
+      ? "timeout"
+      : err instanceof SyntaxError
+        ? "malformed_json"
+        : "network";
     logReceiptExtractionStage({
       telemetryId,
       stage: "json_parse",
       durationMs: Date.now() - jsonStartedAt,
       outcome: "failure",
-      failureKind: "malformed_json",
+      failureKind,
     });
     throw new ConvexError(
-      "[receipt_extraction:malformed_json] OpenAI API のレスポンスを JSON としてパースできませんでした",
+      failureKind === "timeout"
+        ? "[receipt_extraction:timeout] OpenAI API のレスポンス受信がタイムアウトしました"
+        : failureKind === "malformed_json"
+          ? "[receipt_extraction:malformed_json] OpenAI API のレスポンスを JSON としてパースできませんでした"
+          : "[receipt_extraction:network] OpenAI API のレスポンス受信に失敗しました",
     );
   }
 

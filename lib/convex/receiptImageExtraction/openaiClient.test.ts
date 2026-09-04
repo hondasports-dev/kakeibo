@@ -9,6 +9,34 @@ afterEach(() => {
 });
 
 describe("callOpenAIReceiptExtractor failure stages", () => {
+  it.each([
+    [Object.assign(new Error("timed out"), { name: "TimeoutError" }), "timeout"],
+    [new SyntaxError("invalid json"), "malformed_json"],
+    [new TypeError("body stream failed"), "network"],
+  ])("JSON本文の読み込み失敗を原因別に分類する", async (error, expectedKind) => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: vi.fn().mockRejectedValue(error),
+    } as unknown as Response);
+
+    await expect(
+      callOpenAIReceiptExtractor({
+        imageDataUrl: "data:image/jpeg;base64,AAA",
+        apiKey: "test-key",
+      }),
+    ).rejects.toThrow(new RegExp(`receipt_extraction:${expectedKind}`));
+    expect(info).toHaveBeenCalledWith(
+      "receipt_extraction_stage",
+      expect.objectContaining({
+        stage: "json_parse",
+        outcome: "failure",
+        failureKind: expectedKind,
+      }),
+    );
+  });
+
   it("incomplete応答をdomain parse前に分類し、usageだけをtelemetryへ出す", async () => {
     const info = vi.spyOn(console, "info").mockImplementation(() => undefined);
     globalThis.fetch = vi.fn().mockResolvedValue(

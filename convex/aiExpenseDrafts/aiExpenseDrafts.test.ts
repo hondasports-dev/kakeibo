@@ -561,6 +561,7 @@ describe("aiExpenseDrafts", () => {
         itemName: "M002 玉ねぎ3玉",
         lineType: "unknown",
         amountYen: -16,
+        printedAmountYen: -16,
         warnings: ["negative_amount_line_type_uncertain"],
       }),
     );

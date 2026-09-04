@@ -33,6 +33,7 @@ export type AiExpenseQueueItem = {
   fileName?: string;
   previewImageDataUrl?: string;
   failureHint?: string;
+  warnings?: string[];
   /** セッション中だけ使う解析ジョブとの紐付け。永続化しない。 */
   jobId?: string;
   /** セッション中だけ使う解析バッチとの紐付け。永続化しない。 */
