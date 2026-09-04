@@ -47,9 +47,11 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
         "roleConfidence",
         "explicitlyPrinted",
         "sourceLineIndex",
-        "boundingBox",
       ]),
     );
+    expect(observation.required).not.toContain("boundingBox");
+    expect(observation.properties).not.toHaveProperty("boundingBox");
+    expect(observation.properties.lineRoleCandidates.maxItems).toBe(2);
     expect(observation.properties.lineRoleCandidates.items.enum).toEqual(
       expect.arrayContaining(["item", "tax", "subtotal", "total", "payment", "change", "unknown"]),
     );
@@ -131,6 +133,13 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     const taxSummarySchema = schema.properties.taxSummaries.items;
 
     expect(itemSchema.properties.printedAmountYen).toMatchObject({ type: "integer" });
+    expect(itemSchema.properties.lineType.enum).toEqual([
+      "item",
+      "discount",
+      "promotion_adjustment",
+      "unknown",
+    ]);
+    expect(itemSchema.required).toContain("lineType");
     expect(itemSchema.properties.taxRatePercent).toEqual({
       type: ["integer", "null"],
       enum: [0, 8, 10, null],

@@ -7,13 +7,14 @@ import {
   Chip,
   Collapse,
   IconButton,
+  MenuItem,
   Stack,
   TextField,
   Typography,
 } from "@mui/material";
 import { formatYen } from "../../../../utils/currency";
 import type { AiExpenseQueueCategory, AiExpenseDraft, ReviewItemValues } from "../../types/types";
-import { isDiscountItemName, sanitizeSignedYenInput } from "../../utils/discountItems";
+import { isDiscountLine, sanitizeSignedYenInput } from "../../utils/discountItems";
 import { isLowConfidenceItem } from "../../utils/reviewDialogUtils";
 import {
   buildTaxContextFromReviewItem,
@@ -37,7 +38,7 @@ export type ReviewItemCardProps = {
   enableItemTaxEditing?: boolean;
   onItemChange: (
     itemId: string,
-    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId" | "lineType">,
     value: string,
   ) => void;
   onRemoveItem: (itemId: string) => void;
@@ -135,20 +136,23 @@ export function ReviewItemCard({
               onItemChange(
                 item.id,
                 "amountYen",
-                sanitizeSignedYenInput(item.itemName, event.target.value),
+                sanitizeSignedYenInput(item.itemName, event.target.value, item.lineType),
               )
             }
             slotProps={{
               htmlInput: {
                 autoComplete: "off",
-                inputMode: isDiscountItemName(item.itemName) ? "text" : "numeric",
+                inputMode:
+                  isDiscountLine(item.itemName, item.lineType) || item.lineType === "unknown"
+                    ? "text"
+                    : "numeric",
                 name: `item-amount-${index}`,
               },
             }}
             sx={{ minWidth: { sm: 140 } }}
             value={item.amountYen}
             helperText={
-              isDiscountItemName(item.itemName)
+              isDiscountLine(item.itemName, item.lineType)
                 ? "割引額はマイナスで入力"
                 : item.amountBasis === "tax_excluded" && taxContext.status === "resolved"
                   ? "税抜の印字額です。登録は下の税込額を使います"
@@ -156,6 +160,21 @@ export function ReviewItemCard({
             }
           />
         </Stack>
+
+        {Number(item.amountYen) < 0 && (
+          <TextField
+            fullWidth
+            label="この負額行の種類"
+            onChange={(event) => onItemChange(item.id, "lineType", event.target.value)}
+            select
+            value={item.lineType ?? (isDiscountLine(item.itemName) ? "discount" : "unknown")}
+          >
+            <MenuItem value="unknown">判定できない（要確認）</MenuItem>
+            <MenuItem value="promotion_adjustment">販促・よりどり調整</MenuItem>
+            <MenuItem value="discount">値引き・クーポン</MenuItem>
+            <MenuItem value="item">通常商品</MenuItem>
+          </TextField>
+        )}
 
         {showRegistrationAmount && item.normalizedAmountYen != null && (
           <Typography color="text.secondary" variant="body2">

@@ -32,6 +32,23 @@ describe("isValidSignedLineItemAmount", () => {
   });
 });
 
+describe("explicit receipt item line type", () => {
+  it("品名に値引き語がなくても販促調整の負額を許容する", () => {
+    expect(isValidSignedLineItemAmount("M001 東洋水産よりどり", -10, "promotion_adjustment")).toBe(
+      true,
+    );
+  });
+
+  it("通常商品と不明行の負額を確定値として許容しない", () => {
+    expect(isValidSignedLineItemAmount("商品", -10, "item")).toBe(false);
+    expect(isValidSignedLineItemAmount("商品", -10, "unknown")).toBe(false);
+  });
+
+  it("不明な負額行はレビュー中のマイナス入力を維持する", () => {
+    expect(sanitizeSignedYenInput("M002 玉ねぎ3玉", "-16", "unknown")).toBe("-16");
+  });
+});
+
 describe("sanitizeSignedYenInput", () => {
   it("割引明細は負数入力を維持する", () => {
     expect(sanitizeSignedYenInput("クーポン券割引", "-")).toBe("-");

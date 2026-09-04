@@ -13,6 +13,43 @@ const foodCategory: CategoryLike<string> = {
 };
 
 describe("mapExtractionToDraftArgs tax normalization", () => {
+  it("不確実な負額行だけを警告付きで保持し、他の抽出項目を失わない", () => {
+    const source = structuredClone(trialExternal8Fixture);
+    source.shopName = "マルアイ";
+    source.date = "2026-08-16";
+    source.amountYen = 7462;
+    source.items = [
+      {
+        ...source.items![0],
+        itemName: "通常商品",
+        printedAmountYen: 7478,
+        amountYen: 7478,
+        lineType: "item",
+      },
+      {
+        ...source.items![0],
+        itemName: "M002 玉ねぎ3玉",
+        printedAmountYen: -16,
+        amountYen: -16,
+        lineType: "unknown",
+        warnings: ["negative_amount_line_type_uncertain"],
+      },
+    ];
+    source.taxSummaries = [];
+
+    const mapped = mapExtractionToDraftArgs(source, [foodCategory]);
+
+    expect(mapped).toMatchObject({ shopName: "マルアイ", date: "2026-08-16", amountYen: 7462 });
+    expect(mapped.items).toHaveLength(2);
+    expect(mapped.items?.[1]).toMatchObject({
+      itemName: "M002 玉ねぎ3玉",
+      lineType: "unknown",
+      printedAmountYen: -16,
+      warnings: expect.arrayContaining(["negative_amount_line_type_uncertain"]),
+    });
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+  });
+
   it("8%内税と10%外税の混在を率別に解決して支払総額へ一致させる", () => {
     const product = trialExternal8Fixture.items![0];
     const mapped = mapExtractionToDraftArgs(

@@ -77,6 +77,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     draft = await analyzeReceiptImageToDraftCore(ctx, {
       imageDataUrl: args.imageDataUrl,
       imageFileName: job.fileName,
+      telemetryId: String(args.jobId),
       preservedUserOverride,
     });
     if (draft.status === "failed") {

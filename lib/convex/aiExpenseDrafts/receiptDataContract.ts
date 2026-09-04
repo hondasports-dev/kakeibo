@@ -31,6 +31,7 @@ export function snapshotReceiptDraftValues(
     reviewReasons: draft.reviewReasons,
     items: items.map((item) => ({
       itemName: item.itemName,
+      lineType: item.lineType,
       amountYen: item.amountYen,
       printedAmountYen: item.printedAmountYen,
       amountBasis: item.amountBasis,

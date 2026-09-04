@@ -14,6 +14,7 @@ import type {
   ReceiptInterpretationSnapshot,
   ReceiptUserOverrideSnapshot,
 } from "../../../../lib/domain/aiExpenseDrafts/receiptDataContract";
+import type { ReceiptItemLineType } from "../../../../lib/domain/receipt/discountItems";
 
 export type AiExpenseQueueStatus =
   | "adding"
@@ -103,6 +104,7 @@ export type AiExpenseQueuePanelProps = {
       categoryId: string;
       items?: Array<{
         itemName: string;
+        lineType?: ReceiptItemLineType;
         amountYen: number;
         categoryId: string;
       }>;
@@ -170,6 +172,7 @@ export type AiExpenseItemTaxDetails = {
 export type AiExpenseDraftItem = AiExpenseItemTaxDetails & {
   _id?: string;
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: number;
   categoryName?: string;
   categoryId?: string;
@@ -202,6 +205,7 @@ export type ReviewItemValues = AiExpenseItemTaxDetails & {
   id: string;
   persistedItemId?: string;
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: string;
   categoryId: string;
   usesReceiptCategory?: boolean;

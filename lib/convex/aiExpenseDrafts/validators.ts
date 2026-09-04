@@ -284,6 +284,14 @@ export const receiptLineClassificationValidator = v.object({
 
 export const receiptDraftItemSnapshotValidator = v.object({
   itemName: v.string(),
+  lineType: v.optional(
+    v.union(
+      v.literal("item"),
+      v.literal("discount"),
+      v.literal("promotion_adjustment"),
+      v.literal("unknown"),
+    ),
+  ),
   amountYen: v.number(),
   printedAmountYen: v.optional(v.number()),
   amountBasis: v.optional(amountBasisValidator),

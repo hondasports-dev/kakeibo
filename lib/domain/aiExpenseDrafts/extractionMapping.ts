@@ -11,6 +11,7 @@ import type {
   TaxResolutionSource,
 } from "../receipt/tax/types";
 import type { ExtractReceiptFieldsResult } from "../../convex/receiptImageExtraction/types";
+import type { ReceiptItemLineType } from "../receipt/discountItems";
 import type {
   ReceiptLineClassification,
   ReceiptRawObservationLine,
@@ -34,6 +35,7 @@ import type {
 
 export type DraftItem<TId = string> = {
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: number;
   printedAmountYen?: number;
   amountBasis?: AmountBasis;
@@ -263,6 +265,7 @@ export function mapExtractionToDraftArgs<TId>(
         sourceLineIndex: line.sourceLineIndex,
         item: {
           itemName,
+          lineType: "item" as const,
           amountYen: line.amountYen,
           printedAmountYen: line.amountYen,
           amountBasis: "unknown" as const,
@@ -346,6 +349,7 @@ export function mapExtractionToDraftArgs<TId>(
 
     return {
       itemName: item.itemName,
+      lineType: item.lineType,
       amountYen: normalized?.normalizedAmountYen ?? item.amountYen,
       printedAmountYen: taxFields?.printedAmountYen ?? item.printedAmountYen,
       amountBasis: taxFields?.amountBasis ?? item.amountBasis,
@@ -391,7 +395,13 @@ export function mapExtractionToDraftArgs<TId>(
   );
   const reviewReasons = [
     ...taxReviewReasons,
-    ...(ambiguousStructuralLines.length > 0 || ambiguousExtractedItemIndexes.length > 0
+    ...(ambiguousStructuralLines.length > 0 ||
+    ambiguousExtractedItemIndexes.length > 0 ||
+    effectiveItems.some(
+      (item) =>
+        (item.printedAmountYen ?? item.amountYen) < 0 &&
+        (item.lineType === "unknown" || item.lineType === "item"),
+    )
       ? (["user_confirmation_required"] as const)
       : []),
   ];
