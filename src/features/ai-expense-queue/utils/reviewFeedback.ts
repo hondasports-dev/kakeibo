@@ -49,11 +49,7 @@ export function deriveVisibleReviewReasons(
   items: Array<{ categoryId: string }>,
   receiptCategoryId: string,
 ): string[] {
-  if (
-    receiptCategoryId.trim() !== "" &&
-    items.length > 0 &&
-    items.every((item) => item.categoryId.trim() !== "")
-  ) {
+  if (receiptCategoryId.trim() !== "" && items.every((item) => item.categoryId.trim() !== "")) {
     return reasons.filter((reason) => reason !== "ambiguous_category");
   }
   return reasons;

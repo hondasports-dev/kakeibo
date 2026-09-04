@@ -50,4 +50,16 @@ describe("deriveTaxSummariesFromObservations", () => {
       ]),
     ).toEqual([]);
   });
+
+  it("0%外税対象の明示modeを上書きしない", () => {
+    expect(deriveTaxSummariesFromObservations([line(1, "0%外税 対象 500円", 500)])).toEqual([
+      expect.objectContaining({
+        taxRatePercent: 0,
+        taxMode: "external",
+        taxableAmountBasis: "tax_excluded",
+        taxableAmountYen: 500,
+        taxYen: 0,
+      }),
+    ]);
+  });
 });

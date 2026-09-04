@@ -109,24 +109,38 @@ function classificationForExtractedItem(
 ) {
   const itemText = normalizeReceiptLineMatchText(item.itemName);
   const printedAmountYen = item.printedAmountYen ?? item.amountYen;
-  return classifications
-    .flatMap((classification) => {
-      if (excludedSourceLineIndexes.has(classification.sourceLineIndex)) return [];
-      const line = rawLines.find(
-        (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
-      );
-      if (!line) return [];
-      const lineText = normalizeReceiptLineMatchText(line.rawText);
-      const textMatches =
-        itemText.length > 0 &&
-        lineText.length > 0 &&
-        (lineText.includes(itemText) || itemText.includes(lineText));
-      return textMatches
-        ? [{ classification, amountMatches: line.amountYen === printedAmountYen }]
-        : [];
-    })
-    .sort((left, right) => Number(right.amountMatches) - Number(left.amountMatches))[0]
-    ?.classification;
+  const candidates = classifications.flatMap((classification) => {
+    if (excludedSourceLineIndexes.has(classification.sourceLineIndex)) return [];
+    const line = rawLines.find(
+      (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
+    );
+    if (!line) return [];
+    const lineText = normalizeReceiptLineMatchText(line.rawText);
+    const textMatches =
+      itemText.length > 0 &&
+      lineText.length > 0 &&
+      (lineText.includes(itemText) || itemText.includes(lineText));
+    return textMatches
+      ? [
+          {
+            classification,
+            amountMatches: line.amountYen === printedAmountYen,
+            exactTextMatch: lineText === itemText,
+          },
+        ]
+      : [];
+  });
+  const exactCandidates = candidates.filter((candidate) => candidate.exactTextMatch);
+  const selectableCandidates = exactCandidates.length > 0 ? exactCandidates : candidates;
+  if (exactCandidates.length === 0 && selectableCandidates.length > 1) {
+    return { classification: undefined, ambiguousPartialMatch: true };
+  }
+  return {
+    classification: selectableCandidates.sort(
+      (left, right) => Number(right.amountMatches) - Number(left.amountMatches),
+    )[0]?.classification,
+    ambiguousPartialMatch: false,
+  };
 }
 
 function isNonMonetaryPromotion(
@@ -179,12 +193,14 @@ export function mapExtractionToDraftArgs<TId>(
   >();
   const extractedItems = extracted.items?.filter((item, index) => {
     if (isNonMonetaryPromotion(item)) return false;
-    const fromRaw = classificationForExtractedItem(
+    const rawMatch = classificationForExtractedItem(
       item,
       rawObservationLines,
       receiptLineClassifications,
       consumedRawLineIndexes,
     );
+    const fromRaw = rawMatch.classification;
+    if (rawMatch.ambiguousPartialMatch) ambiguousExtractedItemIndexes.push(index);
     const [fallback] = classifyReceiptLines(
       [
         {
