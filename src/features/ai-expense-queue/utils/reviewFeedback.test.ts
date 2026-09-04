@@ -23,4 +23,8 @@ describe("deriveVisibleReviewReasons", () => {
       deriveVisibleReviewReasons(["ambiguous_category"], [{ categoryId: "food" }], ""),
     ).toEqual(["ambiguous_category"]);
   });
+
+  it("明細なしでもレシート全体カテゴリがあれば未分類警告を表示しない", () => {
+    expect(deriveVisibleReviewReasons(["ambiguous_category"], [], "food")).toEqual([]);
+  });
 });

@@ -725,6 +725,74 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     expect(mapped.reviewReasons).toContain("user_confirmation_required");
   });
 
+  it("部分一致より完全一致するraw商品行を優先する", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        amountYen: 200,
+        items: [{ ...product, itemName: "水", amountYen: 100, printedAmountYen: 100 }],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "天然水 100円",
+            amountText: "100円",
+            amountYen: 100,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+          {
+            rawText: "水 100円",
+            amountText: "100円",
+            amountYen: 100,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 2,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items?.map((item) => item.itemName)).toEqual(["天然水", "水"]);
+  });
+
+  it("複数の部分一致raw候補は消費せず確認対象として保持する", () => {
+    const product = trialExternal8Fixture.items![0];
+    const mapped = mapExtractionToDraftArgs(
+      {
+        ...trialExternal8Fixture,
+        items: [{ ...product, itemName: "水", amountYen: 100, printedAmountYen: 100 }],
+        taxSummaries: [],
+        rawObservations: [
+          {
+            rawText: "天然水 100円",
+            amountText: "100円",
+            amountYen: 100,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 1,
+          },
+          {
+            rawText: "炭酸水 100円",
+            amountText: "100円",
+            amountYen: 100,
+            lineRoleCandidates: ["item"],
+            roleConfidence: 0.99,
+            explicitlyPrinted: true,
+            sourceLineIndex: 2,
+          },
+        ],
+      },
+      [foodCategory],
+    );
+    expect(mapped.items?.map((item) => item.itemName)).toEqual(["天然水", "炭酸水", "水"]);
+    expect(mapped.reviewReasons).toContain("user_confirmation_required");
+  });
+
   it("構造化税summary欠落時に明示税行から復元する", () => {
     const mapped = mapExtractionToDraftArgs(
       {

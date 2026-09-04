@@ -46,7 +46,7 @@ export function deriveTaxSummariesFromObservations(
     }
     if (rate === 0 && isTarget) {
       parts.tax = 0;
-      parts.mode = "included";
+      parts.mode ??= "included";
     }
     byRate.set(rate, parts);
   }

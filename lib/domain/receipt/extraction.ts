@@ -117,7 +117,7 @@ function resolveExtractedDate(
   rawObservations: ReceiptRawObservationLine[] | undefined,
 ): { date: string; warnings: string[] } {
   const validated = validateExtractedIsoDate(date);
-  if (validated.success) return { date: validated.date, warnings: [] };
+  if (validated.success && validated.date !== "") return { date: validated.date, warnings: [] };
 
   const normalizedStructuredDate = normalizeReceiptDate(date);
   if (normalizedStructuredDate.success) {
@@ -139,6 +139,7 @@ function resolveExtractedDate(
   if (candidates.length === 1) {
     return { date: candidates[0], warnings: ["date_recovered_from_raw_observations"] };
   }
+  if (date === "") return { date, warnings: [] };
   throw new Error("OpenAI レスポンスの date が妥当な YYYY-MM-DD 形式ではありません");
 }
 
