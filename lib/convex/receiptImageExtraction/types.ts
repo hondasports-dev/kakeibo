@@ -4,6 +4,8 @@ import {
   MAX_EXTRACTED_LINE_ITEMS as _MAX_EXTRACTED_LINE_ITEMS,
 } from "../../../lib/domain/receipt/extraction";
 import type { ReceiptRawObservationLine } from "../../../lib/domain/receipt/observations";
+import type { ReceiptItemLineType } from "../../../lib/domain/receipt/discountItems";
+export type { ReceiptItemLineType } from "../../../lib/domain/receipt/discountItems";
 export type { ReceiptRawObservationLine } from "../../../lib/domain/receipt/observations";
 
 export type ExtractionConfidence = {
@@ -25,6 +27,8 @@ export type RoundingMethod = "floor" | "round" | "ceil" | "unknown";
 
 export type ExtractReceiptItemResult = {
   itemName: string;
+  /** 明細の意味。旧応答との移行期間は optional。 */
+  lineType?: ReceiptItemLineType;
   /** @deprecated 税対応の抽出結果では printedAmountYen を使用する。 */
   amountYen: number;
   /** #411/#412 の schema・parse 移行完了までは既存レスポンスとの互換用に optional。 */
@@ -89,6 +93,13 @@ export type ExtractReceiptFieldsResult = {
 };
 
 export type OpenAIResponsesApiResponse = {
+  status?: string;
+  incomplete_details?: { reason?: string } | null;
+  usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+    total_tokens?: number;
+  };
   output: Array<{
     type: string;
     content: Array<{
@@ -102,6 +113,7 @@ export type ExtractedFields = ExtractReceiptFieldsResult;
 
 export type ExtractReceiptFieldsArgs = {
   imageDataUrl: string;
+  telemetryId?: string;
   categories?: ReceiptCategoryHint[];
   /** @deprecated Use categories so descriptions reach the extractor. */
   categoryNames?: string[];
@@ -115,6 +127,7 @@ export type ReceiptCategoryHint = {
 export type OpenAIReceiptExtractorArgs = {
   imageDataUrl: string;
   apiKey: string;
+  telemetryId?: string;
   categories?: ReceiptCategoryHint[];
   /** @deprecated Use categories so descriptions reach the extractor. */
   categoryNames?: string[];

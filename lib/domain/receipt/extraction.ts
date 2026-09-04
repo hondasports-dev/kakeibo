@@ -1,4 +1,8 @@
-import { isDiscountItemName } from "./discountItems";
+import {
+  isDiscountItemName,
+  RECEIPT_ITEM_LINE_TYPES,
+  type ReceiptItemLineType,
+} from "./discountItems";
 import {
   validateExtractedIsoDate,
   validateReceiptShopName,
@@ -283,10 +287,10 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
   if (typeof item.itemName !== "string") {
     throw new Error(`OpenAI レスポンスの items[${index}].itemName が文字列ではありません`);
   }
+  const lineType = parseReceiptItemLineType(item.lineType, item.itemName, item.printedAmountYen);
   const printedAmountYen = parseSignedItemInteger(
     item.printedAmountYen,
     `items[${index}].printedAmountYen`,
-    item.itemName,
   );
   const amountBasis = parseAmountBasis(item.amountBasis, `items[${index}].amountBasis`);
   const taxRatePercent = parseItemTaxRatePercent(
@@ -299,6 +303,7 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
   const confidence = parseItemConfidence(item.confidence, index);
   return {
     itemName: item.itemName,
+    lineType,
     amountYen: printedAmountYen,
     printedAmountYen,
     amountBasis,
@@ -309,10 +314,33 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
     unitPriceYen: parseOptionalInteger(item.unitPriceYen, `items[${index}].unitPriceYen`),
     categoryName: parseOptionalString(item.categoryName, `items[${index}].categoryName`),
     confidence,
-    warnings: Array.isArray(item.warnings)
-      ? (item.warnings as string[]).filter((warning) => typeof warning === "string")
-      : [],
+    warnings: [
+      ...(Array.isArray(item.warnings)
+        ? (item.warnings as string[]).filter((warning) => typeof warning === "string")
+        : []),
+      ...(printedAmountYen < 0 && lineType === "unknown"
+        ? ["negative_amount_line_type_uncertain"]
+        : []),
+      ...(printedAmountYen < 0 && lineType === "item" ? ["negative_amount_on_product_line"] : []),
+    ],
   };
+}
+
+function parseReceiptItemLineType(
+  value: unknown,
+  itemName: string,
+  printedAmountYen: unknown,
+): ReceiptItemLineType {
+  if (typeof value === "string" && RECEIPT_ITEM_LINE_TYPES.includes(value as ReceiptItemLineType)) {
+    return value as ReceiptItemLineType;
+  }
+  if (value !== undefined && value !== null) {
+    throw new Error("OpenAI レスポンスの items[].lineType が不正です");
+  }
+  if (typeof printedAmountYen === "number" && printedAmountYen < 0) {
+    return isDiscountItemName(itemName) ? "discount" : "unknown";
+  }
+  return "item";
 }
 
 function parseOptionalMarkerDefinitions(value: unknown): ReceiptMarkerDefinition[] | undefined {
@@ -488,15 +516,9 @@ function parseOptionalInteger(value: unknown, field: string): number | undefined
   return value;
 }
 
-function parseSignedItemInteger(value: unknown, field: string, itemName: string): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    (value < 0 && !isDiscountItemName(itemName))
-  ) {
-    throw new Error(
-      `OpenAI レスポンスの ${field} は通常明細では0以上、割引明細では負の整数である必要があります`,
-    );
+function parseSignedItemInteger(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new Error(`OpenAI レスポンスの ${field} は整数である必要があります`);
   }
   return value;
 }

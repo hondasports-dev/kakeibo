@@ -15,6 +15,8 @@ export function isDialogHiddenTaxWarning(warning: string): boolean {
 
 const taxWarningMessages: Record<string, string> = {
   normalized_amount_mismatch: "お支払いと読み取った商品の合計が一致しません。",
+  negative_amount_line_type_uncertain: "負の金額の行種別を確認してください。",
+  negative_amount_on_product_line: "通常商品に負の金額が付いています。行種別を確認してください。",
 };
 
 /** 税関連 warning をユーザー向けメッセージに変換する。 */

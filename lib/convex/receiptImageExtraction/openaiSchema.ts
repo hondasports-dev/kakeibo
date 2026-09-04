@@ -13,17 +13,18 @@ export const RECEIPT_EXTRACTION_PROMPT_LINES = [
   "レシート全体の categoryName は shopName を参考にできますが、items[].categoryName は店舗種別より商品名と用途、および提示されたカテゴリ説明を優先してください。同じ店舗でも飲料・食品・医薬品など商品ごとにカテゴリが異なり得ます。商品を識別できない場合だけ店舗種別を補助情報にしてください。払込票は payeeName と paymentPurpose を重視してください。",
   "日付の年が2桁（例: 26年）の場合は20YYとして YYYY-MM-DD に正規化してください。画像にない不合理な未来年へ補完せず、確定できなければ空文字列と警告を返してください。",
   "rawObservations には印字行を上から順に保持し、rawText と amountText は補正・要約せず画像で読めた文字列をそのまま返してください。読めない金額は amountYen を null とし、実際に0円と印字されている場合だけ0を返してください。",
-  "rawObservations の lineRoleCandidates は候補であり確定値ではありません。item、discount、tax、subtotal、total、payment、change、unknown から可能性のあるものを返し、roleConfidence と sourceLineIndex、explicitlyPrinted を必ず設定してください。boundingBox を取得できない場合は null にしてください。",
+  "rawObservations の lineRoleCandidates は候補であり確定値ではありません。item、discount、tax、subtotal、total、payment、change、unknown から可能性の高いものを最大2つ返し、roleConfidence と sourceLineIndex、explicitlyPrinted を必ず設定してください。座標情報は返さないでください。",
   "amountYen は『合計』『お支払い』『現計』など支払総額を示す明示ラベルの印字値だけを設定してください。小計・税額・税率別対象額から計算または推測してはいけません。",
   "お預り・現金・釣銭・お釣り・支払方法別の金額は amountYen に使わず、支払総額の明示ラベルが判別できない場合は amountYen を null、confidence.amountYen を低くしてください。",
   "結果は以下の JSON スキーマに従って返してください：",
-  "items には itemName、printedAmountYen、amountBasis、taxRatePercent、markers、categoryName、quantity、unitPriceYen、confidence、warnings を入れてください。",
+  "items には itemName、lineType、printedAmountYen、amountBasis、taxRatePercent、markers、categoryName、quantity、unitPriceYen、confidence、warnings を入れてください。",
+  "lineType は通常商品なら item、明示的な値引きなら discount、商品名や企画コードに紐づく販促調整なら promotion_adjustment、判定できない場合は unknown にしてください。負額かどうかだけで通常商品名を discount に変えないでください。",
   "商品明細の金額は税込と決め打ちせず、レシートの印字値を printedAmountYen に、税込・税抜・不明を amountBasis に入れてください。",
   "商品名が複数行に折り返されていても、直前または直後に独立した価格付き商品がある場合は結合しないでください。価格が印字された各商品行を境界として扱い、独立した商品金額を失わないでください。",
   "税率は 8、10、0、null のいずれかで返し、0.08 や 0.10 は返さないでください。明細に印字された税率記号は推測せず markers に文字列のまま入れてください。レシート内に記号の凡例があれば markerDefinitions に入れてください。",
   "レシート下部の税率別対象額と正式な税額は taxSummaries に入れてください。消費税計・小計・合計・決済情報は items に含めないでください。",
   "taxSummaries の taxMode は外税なら external、内税なら included、混在なら mixed、判別不能なら unknown にしてください。taxableAmountBasis は対象額の税込・税抜表記に合わせ、taxIncludedAmountYen は税込額の表示があれば設定し、なければ null にしてください。roundingMethod は端数処理表記から floor、round、ceil を選び、判別不能なら unknown にしてください。",
-  "値引き・クーポン・ポイント充当は負の printedAmountYen として items に含めてください。印字順を維持し、割引行の直前または近接する商品、商品名、割引率から対象商品を判断できる場合は、対象商品と同じ categoryName を設定してください。対象が不明な場合は推測でカテゴリを設定せず、categoryName を空文字列にして warnings に理由を入れてください。",
+  "値引き・クーポン・ポイント充当は lineType=discount、M001/M002等の企画・よりどり・販促調整は lineType=promotion_adjustment とし、負の printedAmountYen として items に含めてください。品名に値引き語がなくても、直前または近接する商品、印字順、負額、企画コードを合わせて判断してください。不確実なら lineType=unknown として行を残し、warnings に理由を入れてください。対象商品を判断できる場合は対象商品と同じ categoryName、対象不明なら推測でカテゴリを設定せず categoryName を空文字列にしてください。",
   "明細や税率別集計が読み取れない場合、またはコンビニ払込票の場合は items と taxSummaries を空配列 [] にしてください。",
   "読み取れない項目は空文字列または0を使用し、該当項目の confidence を低くしてください。",
 ] as const;
@@ -48,6 +49,10 @@ export const RECEIPT_EXTRACTION_JSON_SCHEMA = {
         type: "object",
         properties: {
           itemName: { type: "string" },
+          lineType: {
+            type: "string",
+            enum: ["item", "discount", "promotion_adjustment", "unknown"],
+          },
           printedAmountYen: { type: "integer" },
           amountBasis: {
             type: "string",
@@ -83,6 +88,7 @@ export const RECEIPT_EXTRACTION_JSON_SCHEMA = {
         },
         required: [
           "itemName",
+          "lineType",
           "printedAmountYen",
           "amountBasis",
           "taxRatePercent",
@@ -175,6 +181,7 @@ export const RECEIPT_EXTRACTION_JSON_SCHEMA = {
           amountYen: { type: ["integer", "null"] },
           lineRoleCandidates: {
             type: "array",
+            maxItems: 2,
             items: {
               type: "string",
               enum: [
@@ -192,17 +199,6 @@ export const RECEIPT_EXTRACTION_JSON_SCHEMA = {
           roleConfidence: { type: "number", minimum: 0, maximum: 1 },
           explicitlyPrinted: { type: "boolean" },
           sourceLineIndex: { type: "integer", minimum: 0 },
-          boundingBox: {
-            type: ["object", "null"],
-            properties: {
-              left: { type: "number", minimum: 0, maximum: 1 },
-              top: { type: "number", minimum: 0, maximum: 1 },
-              width: { type: "number", minimum: 0, maximum: 1 },
-              height: { type: "number", minimum: 0, maximum: 1 },
-            },
-            required: ["left", "top", "width", "height"],
-            additionalProperties: false,
-          },
         },
         required: [
           "rawText",
@@ -212,7 +208,6 @@ export const RECEIPT_EXTRACTION_JSON_SCHEMA = {
           "roleConfidence",
           "explicitlyPrinted",
           "sourceLineIndex",
-          "boundingBox",
         ],
         additionalProperties: false,
       },

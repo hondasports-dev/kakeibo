@@ -90,6 +90,28 @@ describe("getReviewItemsErrorMessage", () => {
   it("有効な明細はエラーなし", () => {
     expect(getReviewItemsErrorMessage([validItem])).toBeNull();
   });
+
+  it("明示した販促調整は品名に値引き語がなくても負額を保存できる", () => {
+    expect(
+      getReviewItemsErrorMessage([
+        {
+          itemName: "M002 玉ねぎ3玉",
+          lineType: "promotion_adjustment",
+          amountYen: "-16",
+          categoryId: "cat-food",
+          discountTargetItemId: "product",
+        },
+      ]),
+    ).toBeNull();
+  });
+
+  it("通常商品として指定した負額は保存させない", () => {
+    expect(
+      getReviewItemsErrorMessage([
+        { itemName: "商品", lineType: "item", amountYen: "-16", categoryId: "cat-food" },
+      ]),
+    ).toBe("明細名、明細金額、カテゴリを確認してください。");
+  });
 });
 
 describe("getReviewCategoryAggregateErrorMessage", () => {

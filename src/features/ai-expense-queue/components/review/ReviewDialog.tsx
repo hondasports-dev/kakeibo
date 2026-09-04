@@ -85,7 +85,7 @@ export function ReviewDialog({
   onFieldChange: (field: keyof ReviewFormValues, value: string) => void;
   onItemChange: (
     itemId: string,
-    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId" | "lineType">,
     value: string,
   ) => void;
   onAddItem: () => void;

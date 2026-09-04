@@ -1,8 +1,8 @@
 import type { ReviewItemValues } from "../types/types";
-import { isDiscountItemName } from "./discountItems";
+import { isDiscountLine } from "./discountItems";
 
 function isProductItem(item: ReviewItemValues) {
-  return !isDiscountItemName(item.itemName);
+  return !isDiscountLine(item.itemName, item.lineType);
 }
 
 function syncTargetedDiscounts(items: ReviewItemValues[]) {
@@ -10,7 +10,7 @@ function syncTargetedDiscounts(items: ReviewItemValues[]) {
     items.filter(isProductItem).map((item) => [item.id, item.categoryId]),
   );
   return items.map((item) => {
-    if (!isDiscountItemName(item.itemName) || !item.discountTargetItemId) {
+    if (!isDiscountLine(item.itemName, item.lineType) || !item.discountTargetItemId) {
       return item;
     }
     return {
@@ -151,7 +151,7 @@ export function assignDiscountTarget(
 ) {
   const target = items.find((item) => item.id === targetItemId && isProductItem(item));
   return items.map((item) =>
-    item.id === discountItemId && isDiscountItemName(item.itemName)
+    item.id === discountItemId && isDiscountLine(item.itemName, item.lineType)
       ? {
           ...item,
           categoryId: target?.categoryId ?? "",

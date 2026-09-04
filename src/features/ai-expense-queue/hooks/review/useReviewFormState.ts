@@ -19,7 +19,7 @@ import {
   initializeReviewCategoryState,
   prepareReviewItemsForSubmit,
 } from "../../utils/reviewItemCategories";
-import { isDiscountItemName } from "../../utils/discountItems";
+import { isDiscountItemName, isDiscountLine } from "../../utils/discountItems";
 import { applyReviewItemsTaxPreview } from "../../utils/reviewItemsTaxPreview";
 
 export function useReviewFormState({
@@ -117,12 +117,16 @@ export function useReviewFormState({
 
   const handleReviewItemChange = (
     itemId: string,
-    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId" | "lineType">,
     value: string,
   ) => {
     setReviewItems((current) => {
       const targetItem = current.find((item) => item.id === itemId);
-      if (field === "categoryId" && targetItem && !isDiscountItemName(targetItem.itemName)) {
+      if (
+        field === "categoryId" &&
+        targetItem &&
+        !isDiscountLine(targetItem.itemName, targetItem.lineType)
+      ) {
         return assignCategoryToItems(current, [itemId], value);
       }
       const updated = current.map((item) => {
@@ -156,6 +160,18 @@ export function useReviewFormState({
             ...item,
             amountYen: value,
             printedAmountYen: amountNum,
+          };
+        }
+        if (field === "lineType") {
+          return {
+            ...item,
+            lineType: value as ReviewItemValues["lineType"],
+            discountTargetItemId: undefined,
+            warnings: item.warnings?.filter(
+              (warning) =>
+                warning !== "negative_amount_line_type_uncertain" &&
+                warning !== "negative_amount_on_product_line",
+            ),
           };
         }
         if (field !== "itemName") {

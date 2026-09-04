@@ -115,6 +115,7 @@ export function useReviewSubmit({
             taxRateComposition: submittedForm.taxRateComposition,
             items: submittedItems.map((item) => ({
               itemName: item.itemName.trim(),
+              lineType: item.lineType,
               amountYen: Number(item.amountYen),
               categoryId: item.categoryId,
             })),
@@ -149,6 +150,7 @@ export function useReviewSubmit({
               ? { itemId: item.persistedItemId as Id<"aiExpenseDraftItems"> }
               : {}),
             itemName: item.itemName.trim(),
+            lineType: item.lineType,
             amountYen: Number(item.amountYen),
             categoryId: item.categoryId as Id<"categories">,
             confidence: {
