@@ -185,11 +185,18 @@ export function mapExtractionToDraftArgs<TId>(
 ): DraftArgs<TId> {
   const rawObservationLines = extracted.rawObservations ?? [];
   const extractedTaxSummaries = (extracted.taxSummaries ?? []) as ExtractedTaxSummary[];
-  const taxSummaries =
-    extractedTaxSummaries.length > 0
-      ? extractedTaxSummaries
-      : deriveTaxSummariesFromObservations(rawObservationLines, extracted.amountYen);
-  const receiptLineClassifications = classifyReceiptLines(rawObservationLines, {
+  // Preserve supplied summaries (including conflicts); recover only missing rates.
+  const taxSummaries = [
+    ...extractedTaxSummaries,
+    ...deriveTaxSummariesFromObservations(rawObservationLines, extracted.amountYen).filter(
+      (summary) =>
+        !extractedTaxSummaries.some(
+          (existing) => existing.taxRatePercent === summary.taxRatePercent,
+        ),
+    ),
+  ];
+  const evidence = prepareReceiptItemEvidence(extracted.items ?? [], rawObservationLines);
+  const receiptLineClassifications = classifyReceiptLines(evidence.lines, {
     receiptTotalYen: extracted.amountYen,
     taxAmountsYen: receiptTaxAmounts(taxSummaries),
   });
@@ -199,7 +206,6 @@ export function mapExtractionToDraftArgs<TId>(
     NonNullable<ExtractReceiptFieldsResult["items"]>[number],
     number
   >();
-  const evidence = prepareReceiptItemEvidence(extracted.items ?? [], rawObservationLines);
   const extractedItems = evidence.items.filter((item, index) => {
     if (isNonMonetaryPromotion(item)) return false;
     const rawMatch = classificationForExtractedItem(
@@ -328,10 +334,6 @@ export function mapExtractionToDraftArgs<TId>(
     categories,
   });
   const categoryId = resolveCategoryIdFromCandidates(extracted.categoryName, candidates);
-  const useReceiptCategoryForItems =
-    categoryId !== undefined &&
-    effectiveItems.length > 0 &&
-    effectiveItems.every((item) => !item.categoryName?.trim());
 
   const taxInput: ReceiptTaxInput | undefined =
     extracted.amountYen !== null
@@ -369,9 +371,7 @@ export function mapExtractionToDraftArgs<TId>(
       shopName: item.itemName,
       categories,
     });
-    const itemCategoryId =
-      resolveCategoryIdFromCandidates(item.categoryName, itemCandidates) ??
-      (useReceiptCategoryForItems ? categoryId : undefined);
+    const itemCategoryId = resolveCategoryIdFromCandidates(item.categoryName, itemCandidates);
     const taxFields = normalized ? interpretedItemToDraftFields(normalized) : undefined;
 
     return {
@@ -395,11 +395,7 @@ export function mapExtractionToDraftArgs<TId>(
       taxReviewReasons: taxFields?.taxReviewReasons,
       quantity: normalized?.quantity ?? item.quantity,
       unitPriceYen: normalized?.unitPriceYen ?? item.unitPriceYen,
-      categoryName:
-        item.categoryName ||
-        (useReceiptCategoryForItems
-          ? categories.find((category) => category._id === categoryId)?.name
-          : undefined),
+      categoryName: item.categoryName || undefined,
       categoryId: itemCategoryId,
       confidence: {
         itemName: item.confidence.itemName,

@@ -1,5 +1,6 @@
 import type { ExtractReceiptFieldsResult } from "../../convex/receiptImageExtraction/types";
 import type { ReceiptRawObservationLine } from "../receipt/observations";
+import { classifyReceiptLines } from "../receipt/lineClassification";
 
 type Item = NonNullable<ExtractReceiptFieldsResult["items"]>[number];
 
@@ -36,6 +37,26 @@ export function prepareReceiptItemEvidence(items: Item[], raw: ReceiptRawObserva
   const lines = [...raw]
     .sort((a, b) => a.sourceLineIndex - b.sourceLineIndex)
     .map((line) => ({ ...line }));
+  // Unknown is an AI guess, not a veto. Require corroborating extracted product text
+  // and reject explicit structural labels before using such a row as item evidence.
+  for (const line of lines) {
+    if (!line.explicitlyPrinted || !line.lineRoleCandidates.every((role) => role === "unknown"))
+      continue;
+    if (
+      /(?:ポイント|クーポン|会員|残高|登録番号|伝票|レシートNo|TEL|電話|預り|釣り)/i.test(
+        line.rawText.normalize("NFKC"),
+      )
+    )
+      continue;
+    const classification = classifyReceiptLines([line])[0];
+    if (classification?.status === "classified") continue;
+    const name = receiptItemMatchName(withoutReceiptAmount(line));
+    if (name.length < 2 || auxiliary(withoutReceiptAmount(line))) continue;
+    if (items.some((item) => receiptItemMatchName(item.itemName).includes(name))) {
+      line.lineRoleCandidates = ["item"];
+      line.roleConfidence = Math.max(line.roleConfidence, 0.8);
+    }
+  }
   const supportIndexes = new Set<number>();
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
@@ -75,21 +96,22 @@ export function prepareReceiptItemEvidence(items: Item[], raw: ReceiptRawObserva
     )
     .flatMap((item) => {
       const name = receiptItemMatchName(item.itemName);
-      const contained = productLines.filter((line) => {
+      const containedText = lines.filter((line) => {
         const rawName = receiptItemMatchName(withoutReceiptAmount(line));
-        return (
-          line.lineRoleCandidates.includes("item") && rawName.length >= 2 && name.includes(rawName)
-        );
+        return rawName.length >= 2 && name.includes(rawName);
       });
+      const contained = productLines.filter(
+        (line) => containedText.includes(line) && line.lineRoleCandidates.includes("item"),
+      );
       // A merged AI name spanning multiple printed products belongs only to its priced row.
       const priced = contained.filter(
         (line) => line.amountYen === (item.printedAmountYen ?? item.amountYen),
       );
       if (
-        new Set(contained.map((line) => receiptItemMatchName(withoutReceiptAmount(line)))).size >
-          1 &&
+        new Set(containedText.map((line) => receiptItemMatchName(withoutReceiptAmount(line))))
+          .size > 1 &&
         priced.length === 1 &&
-        contained.some((line) => line.amountYen !== priced[0].amountYen)
+        containedText.some((line) => line.amountYen !== priced[0].amountYen)
       ) {
         if (
           items.some(
