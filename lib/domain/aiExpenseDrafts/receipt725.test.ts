@@ -49,6 +49,23 @@ function check(result: ReturnType<typeof map>, count: number, total: number) {
   expect(result.items!.every((i) => i.taxResolutionStatus === "resolved")).toBe(true);
 }
 describe("725 production receipt regressions", () => {
+  it.each(["軽 ¥300", "軽※ ¥300", "飲料 軽* ¥300", "軽井沢ビール ¥300"])(
+    "recognizes standalone light-tax markers only: %s",
+    (rawText) => {
+      const result = mapExtractionToDraftArgs(
+        {
+          ...trialExternal8Fixture,
+          amountYen: 300,
+          items: [item(rawText.replace(" ¥300", ""), 300)],
+          markerDefinitions: [{ marker: "軽", description: "軽は軽減税率8%適用商品" }],
+          rawObservations: observations([[rawText, 300, "¥300"]]),
+          taxSummaries: [],
+        },
+        categories,
+      );
+      expect(result.items![0].markers?.includes("軽")).toBe(!rawText.startsWith("軽井沢"));
+    },
+  );
   it("recovers a missing tax rate without duplicating or overwriting supplied tax summaries", () => {
     const rawObservations = observations([
       ["食品 ¥100", 100, "¥100"],

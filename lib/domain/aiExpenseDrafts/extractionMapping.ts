@@ -318,8 +318,9 @@ export function mapExtractionToDraftArgs<TId>(
         .filter(
           (definition) =>
             raw &&
-            (raw.trimStart().startsWith(definition.marker) ||
-              (definition.marker === "軽" && /軽[※*]?\s*[¥￥]/.test(raw))),
+            (definition.marker === "軽"
+              ? /(?:^|\s)軽[※*]?\s*[¥￥]/.test(raw)
+              : raw.trimStart().startsWith(definition.marker)),
         )
         .map((definition) => definition.marker);
       return { ...item, markers: [...new Set([...(item.markers ?? []), ...printedMarkers])] };
