@@ -125,10 +125,31 @@ delegation_policy:
 
 telemetry_policy:
   stages:
-    [prepare, implementation, verification, review, delivery, pr_aftercare, incident, process_learning]
+    [
+      prepare,
+      implementation,
+      verification,
+      review,
+      delivery,
+      pr_aftercare,
+      incident,
+      process_learning,
+    ]
   stage_fields: [started_at, finished_at, elapsed_seconds, external_wait_seconds, wait_reasons]
   counters:
-    [source_reads, skill_loads, changed_files, acceptance_criteria_count, invariant_count, test_case_count, required_control_count, findings_added, retries, full_suite_runs, review_cycles]
+    [
+      source_reads,
+      skill_loads,
+      changed_files,
+      acceptance_criteria_count,
+      invariant_count,
+      test_case_count,
+      required_control_count,
+      findings_added,
+      retries,
+      full_suite_runs,
+      review_cycles,
+    ]
   rules:
     - wall-clockを記録し観測できない時間は推測しない
     - CI / Human Gate / external service 待ちは可能なら external_wait へ分離する
@@ -244,10 +265,18 @@ controls:
       - --allow-schema-change
       - --reason "schema change reason"
   security_review:
-    trigger_when: [auth_change, ownership_boundary_change, privileged_env_change, user_controlled_content_boundary, external_write_boundary]
+    trigger_when:
+      [
+        auth_change,
+        ownership_boundary_change,
+        privileged_env_change,
+        user_controlled_content_boundary,
+        external_write_boundary,
+      ]
     reviewer: independent_once
   data_model:
-    trigger_when: [convex_schema_or_data_contract, shared_auth_helper, migration_or_persistent_shape]
+    trigger_when:
+      [convex_schema_or_data_contract, shared_auth_helper, migration_or_persistent_shape]
     requires:
       - affected_query_mutation_component_test
       - caller_or_access_boundary_test_when_relevant
@@ -288,7 +317,7 @@ profiles:
     verification: targeted
     independent_review: false
   r1_low:
-    {prepare: normal, verification: targeted, independent_review: false_unless_control_requires}
+    { prepare: normal, verification: targeted, independent_review: false_unless_control_requires }
   r2_medium:
     prepare: normal
     verification: affected_scope
@@ -304,7 +333,8 @@ profiles:
     human_gate: only_when_specific_human_gate_trigger_occurs
 
 loop:
-  default_path: [prepare, implementation, verification, review_if_required, delivery, pr_aftercare, done]
+  default_path:
+    [prepare, implementation, verification, review_if_required, delivery, pr_aftercare, done]
   side_paths:
     human_gate: on_specific_trigger
     incident: on_failure_or_unknown_retry
@@ -312,18 +342,44 @@ loop:
 
 prepare_contract:
   produces:
-    [goal, in_scope, out_of_scope, acceptance_criteria, invariants, material_assumptions, relevance_dimensions, coverage_map, spec_confidence, risk_level, required_controls, verification_plan]
+    [
+      goal,
+      in_scope,
+      out_of_scope,
+      acceptance_criteria,
+      invariants,
+      material_assumptions,
+      relevance_dimensions,
+      coverage_map,
+      spec_confidence,
+      risk_level,
+      required_controls,
+      verification_plan,
+    ]
   workspace_preflight:
-    {default: required_for_repository_change, skill: skills/workspace-preflight/SKILL.md}
+    { default: required_for_repository_change, skill: skills/workspace-preflight/SKILL.md }
   impact_analysis:
     default: inline
-    separate_skill_when: [cross_cutting, shared_callers_unbounded, protected_boundary_impact_unclear, rollback_or_deploy_impact_unclear]
+    separate_skill_when:
+      [
+        cross_cutting,
+        shared_callers_unbounded,
+        protected_boundary_impact_unclear,
+        rollback_or_deploy_impact_unclear,
+      ]
   before_human_question:
     - authorized cheap discoveryを完了する
     - concrete alternativesとmaterial differenceを示す
 
 verification_policy:
-  execution_order: [cheap_scopeable_static, targeted_unit_contract, affected_integration, functional_e2e_when_required, repo_wide_regression_via_ci_aftercare]
+  execution_order:
+    [
+      cheap_scopeable_static,
+      targeted_unit_contract,
+      affected_integration,
+      functional_e2e_when_required,
+      repo_wide_regression_via_ci_aftercare,
+    ]
   stop_expensive_downstream_on_material_failure: true
   no_blind_retry: true
   duplicate_full_check_requires_reason: true
@@ -358,7 +414,17 @@ review_policy:
   reviewer_to_reviewer_debate: false
   specialist_addition_requires_materially_distinct_control: true
   r4_alone_does_not_add_specialist: true
-  compact_input: [ac_iv_ids, relevant_dimensions, material_assumptions, impact_risk_controls, behavior_diff, coverage_and_evidence, open_finding_ids, revision]
+  compact_input:
+    [
+      ac_iv_ids,
+      relevant_dimensions,
+      material_assumptions,
+      impact_risk_controls,
+      behavior_diff,
+      coverage_and_evidence,
+      open_finding_ids,
+      revision,
+    ]
   omission_scan_first:
     - missing_implementation_or_evidence_for_contract
     - behavior_diff_without_contract
@@ -379,7 +445,8 @@ finding_ledger:
   storage: .loop/state/<task-id>.yaml
   stable_unique_id_required: true
   statuses: [open, resolved]
-  dispositions: [open, fix_now, defer_with_evidence, accept_with_human_gate, not_applicable, resolved]
+  dispositions:
+    [open, fix_now, defer_with_evidence, accept_with_human_gate, not_applicable, resolved]
   rules:
     - 同じfindingはVerification/Review/CI/Aftercareをまたいで同じrecordを更新する
     - open/fix_now findingがある間DeliveryをBLOCKする
@@ -388,7 +455,24 @@ finding_ledger:
     - protected domainはAgent単独defer不可
     - defer/not_applicable/resolvedには対応するEvidenceを必要とする
   protected_risk_domains:
-    [invariant, auth, authentication, authorization, tenant_boundary, group_boundary, data_integrity, financial_integrity, state_rollback, idempotency, atomicity, immutability, privileged_boundary, current_scope, test_gap, other]
+    [
+      invariant,
+      auth,
+      authentication,
+      authorization,
+      tenant_boundary,
+      group_boundary,
+      data_integrity,
+      financial_integrity,
+      state_rollback,
+      idempotency,
+      atomicity,
+      immutability,
+      privileged_boundary,
+      current_scope,
+      test_gap,
+      other,
+    ]
 
 process_learning_policy:
   trigger: event_driven_only
@@ -418,20 +502,27 @@ process_learning_policy:
       - snapshotのactionable findingは全件task-state.findings[]へ同じstable IDで登録する
       - actionable findingは全件少なくとも1つのlearning candidate.source_finding_idsで覆う
       - review toolの切替時もsnapshot契約を維持しvendor名をtriggerや判定条件にしない
-  target_priority: [script_or_code, ci_or_deterministic_enforcement, skill, agents_policy, runbook_or_docs]
+  target_priority:
+    [script_or_code, ci_or_deterministic_enforcement, skill, agents_policy, runbook_or_docs]
 
 revision_policy:
   canonical_identity:
     commit_sha: required
     tree_sha: required_for_evidence_reuse
   same_tree_new_commit:
-    {reuse_previous_evidence: true, proof_requires_matching_non_empty_tree_sha: true}
+    { reuse_previous_evidence: true, proof_requires_matching_non_empty_tree_sha: true }
   identity_not_proven:
     treat_as_content_changed: true
   content_changed:
     require_delta_verification: true
     require_delta_review_when_review_was_required: true
-    full_rerun_when: [protected_behavior_changed, acceptance_coverage_changed, risk_or_controls_changed, delta_unbounded]
+    full_rerun_when:
+      [
+        protected_behavior_changed,
+        acceptance_coverage_changed,
+        risk_or_controls_changed,
+        delta_unbounded,
+      ]
 
 states:
   prepare:
@@ -456,7 +547,17 @@ states:
 conditional_skill_loading:
   default_load: [AGENTS.md, .loop/process.yaml, skill_for_current_state]
   load_only_when_triggered:
-    [skills/workspace-preflight/SKILL.md, skills/prompt-injection-guard/SKILL.md, skills/service-ops-safety/SKILL.md, skills/impact-analysis/SKILL.md, skills/security-review/SKILL.md, skills/risk-reconciliation/SKILL.md, skills/incident/SKILL.md, skills/process-learning/SKILL.md, skills/task-transition/SKILL.md]
+    [
+      skills/workspace-preflight/SKILL.md,
+      skills/prompt-injection-guard/SKILL.md,
+      skills/service-ops-safety/SKILL.md,
+      skills/impact-analysis/SKILL.md,
+      skills/security-review/SKILL.md,
+      skills/risk-reconciliation/SKILL.md,
+      skills/incident/SKILL.md,
+      skills/process-learning/SKILL.md,
+      skills/task-transition/SKILL.md,
+    ]
   release_from_active_context_after_use: true
 
 delivery_contract:
@@ -464,10 +565,43 @@ delivery_contract:
   default_target: merge_ready
   explicit_stop_after_publish_requires_user_instruction: true
   pre_publish_required:
-    [spec_confirmed, workspace_preflight, task_state_template_check, forward_and_reverse_coverage, acceptance_criteria_verified, required_verification_pass, required_review_pass, no_blocking_finding, required_human_approval_when_triggered]
+    [
+      spec_confirmed,
+      workspace_preflight,
+      task_state_template_check,
+      forward_and_reverse_coverage,
+      acceptance_criteria_verified,
+      required_verification_pass,
+      required_review_pass,
+      no_blocking_finding,
+      required_human_approval_when_triggered,
+    ]
   post_publish_required:
-    [latest_pr_content, required_ci_success, no_blocking_review, no_requested_changes, required_approvals, revision_consistency, no_conflict, mergeable]
+    [
+      latest_pr_content,
+      required_ci_success,
+      no_blocking_review,
+      no_requested_changes,
+      required_approvals,
+      revision_consistency,
+      no_conflict,
+      mergeable,
+    ]
 
 completion:
   done_requires:
-    [spec_confirmed, risk_and_max_observed_recorded, required_controls_recorded, relevance_dimensions_classified, forward_and_reverse_coverage, acceptance_criteria_verified, required_review_complete, no_blocking_finding, required_human_approval_when_triggered, delivery_target_reached, telemetry_summary_recorded, learning_event_classified, learning_candidates_dispositioned]
+    [
+      spec_confirmed,
+      risk_and_max_observed_recorded,
+      required_controls_recorded,
+      relevance_dimensions_classified,
+      forward_and_reverse_coverage,
+      acceptance_criteria_verified,
+      required_review_complete,
+      no_blocking_finding,
+      required_human_approval_when_triggered,
+      delivery_target_reached,
+      telemetry_summary_recorded,
+      learning_event_classified,
+      learning_candidates_dispositioned,
+    ]
