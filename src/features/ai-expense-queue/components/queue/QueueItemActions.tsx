@@ -55,11 +55,7 @@ export function QueueItemActions({
             再解析
           </Button>
         ) : null}
-        <DeleteQueueButton
-          isDeleting={isDeleting || isRetrying}
-          item={item}
-          onDelete={onDelete}
-        />
+        <DeleteQueueButton isDeleting={isDeleting || isRetrying} item={item} onDelete={onDelete} />
       </Stack>
     );
   }
