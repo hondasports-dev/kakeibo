@@ -1,4 +1,4 @@
-import { isValidSignedLineItemAmount } from "../receipt/discountItems";
+import { isValidSignedLineItemAmount, type ReceiptItemLineType } from "../receipt/discountItems";
 import {
   AI_EXPENSE_DRAFT_CONFIDENCE_THRESHOLD,
   AI_EXPENSE_DRAFT_REVIEW_REASONS,
@@ -23,6 +23,7 @@ export type AiExpenseDraftClassificationInput = {
   items?: Array<{
     itemName?: string;
     amountYen: number;
+    lineType?: ReceiptItemLineType;
     categoryId?: unknown;
   }>;
 };
@@ -128,7 +129,9 @@ function hasMultipleItemCategories(input: AiExpenseDraftClassificationInput) {
 function hasInvalidItemAmount(input: AiExpenseDraftClassificationInput) {
   return (
     input.items?.some(
-      (item) => !item.itemName || !isValidSignedLineItemAmount(item.itemName, item.amountYen),
+      (item) =>
+        !item.itemName ||
+        !isValidSignedLineItemAmount(item.itemName, item.amountYen, item.lineType),
     ) ?? false
   );
 }

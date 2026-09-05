@@ -43,6 +43,18 @@ export function getPrimaryReviewReason(reasons: string[]): string | undefined {
   })[0];
 }
 
+/** 編集中の明細分類を反映し、解消済みの未分類警告を表示対象から外す。 */
+export function deriveVisibleReviewReasons(
+  reasons: string[],
+  items: Array<{ categoryId: string }>,
+  receiptCategoryId: string,
+): string[] {
+  if (receiptCategoryId.trim() !== "" && items.every((item) => item.categoryId.trim() !== "")) {
+    return reasons.filter((reason) => reason !== "ambiguous_category");
+  }
+  return reasons;
+}
+
 export function formatReviewSaveMessage(args: {
   status: "ready" | "needs_review" | "failed" | "registered";
   reviewReasons: string[];

@@ -18,6 +18,7 @@ import { deleteDraftAndItems } from "./draftRepository";
 import type {
   AmountBasis,
   ExtractedTaxSummary,
+  ReceiptItemLineType,
   ReceiptItemTaxRatePercent,
 } from "../receiptImageExtraction/types";
 import type {
@@ -38,6 +39,7 @@ import { applyReceiptUserOverride } from "../../domain/aiExpenseDrafts/receiptDa
 
 type AiExpenseDraftItemInput = {
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: number;
   printedAmountYen?: number;
   amountBasis?: AmountBasis;
@@ -131,6 +133,7 @@ async function insertDraftItems(
       groupId,
       draftId,
       itemName: item.itemName,
+      lineType: item.lineType,
       amountYen: item.amountYen,
       printedAmountYen: item.printedAmountYen,
       amountBasis: item.amountBasis,

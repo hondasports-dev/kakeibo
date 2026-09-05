@@ -47,9 +47,11 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
         "roleConfidence",
         "explicitlyPrinted",
         "sourceLineIndex",
-        "boundingBox",
       ]),
     );
+    expect(observation.required).not.toContain("boundingBox");
+    expect(observation.properties).not.toHaveProperty("boundingBox");
+    expect(observation.properties.lineRoleCandidates.maxItems).toBe(2);
     expect(observation.properties.lineRoleCandidates.items.enum).toEqual(
       expect.arrayContaining(["item", "tax", "subtotal", "total", "payment", "change", "unknown"]),
     );
@@ -63,6 +65,14 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     expect(prompt).toContain("推測でカテゴリを設定せず");
     expect(prompt).toContain("categoryName を空文字列");
     expect(prompt).toContain("warnings に理由");
+  });
+
+  it("商品カテゴリ・複数行境界・2桁年の抽出規則を明示する", () => {
+    const prompt = RECEIPT_EXTRACTION_PROMPT_LINES.join("\n");
+    expect(prompt).toContain("店舗種別より商品名と用途");
+    expect(prompt).toContain("価格が印字された各商品行を境界");
+    expect(prompt).toContain("2桁");
+    expect(prompt).toContain("20YY");
   });
 
   it("有効カテゴリをデータとしてプロンプトへ渡しcategoryNameを動的enumに制限する", () => {
@@ -123,6 +133,13 @@ describe("RECEIPT_EXTRACTION_PROMPT_LINES", () => {
     const taxSummarySchema = schema.properties.taxSummaries.items;
 
     expect(itemSchema.properties.printedAmountYen).toMatchObject({ type: "integer" });
+    expect(itemSchema.properties.lineType.enum).toEqual([
+      "item",
+      "discount",
+      "promotion_adjustment",
+      "unknown",
+    ]);
+    expect(itemSchema.required).toContain("lineType");
     expect(itemSchema.properties.taxRatePercent).toEqual({
       type: ["integer", "null"],
       enum: [0, 8, 10, null],

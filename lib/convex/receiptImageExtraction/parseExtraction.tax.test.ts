@@ -257,14 +257,65 @@ describe("parseOpenAIResponse tax boundary", () => {
     expect(() => parse(payload)).toThrow(new RegExp(field));
   });
 
-  it("通常明細の負の印字額を落とし、割引明細では許容する", () => {
-    const invalid = structuredClone(trialExtraction);
-    invalid.items[0].printedAmountYen = -100;
-    expect(() => parse(invalid)).toThrow(/printedAmountYen/);
+  it("負額を行種別付きで保持し、不確実な通常行は行単位warningにする", () => {
+    const promotion = structuredClone(trialExtraction);
+    promotion.items[0].itemName = "M002 玉ねぎ3玉";
+    promotion.items[0].printedAmountYen = -16;
+    (promotion.items[0] as Record<string, unknown>).lineType = "promotion_adjustment";
+    expect(parse(promotion).items?.[0]).toMatchObject({
+      lineType: "promotion_adjustment",
+      printedAmountYen: -16,
+      warnings: [],
+    });
 
-    const discount = structuredClone(trialExtraction);
-    discount.items[0].itemName = "クーポン割引";
-    discount.items[0].printedAmountYen = -100;
-    expect(parse(discount).items?.[0].printedAmountYen).toBe(-100);
+    const invalidProduct = structuredClone(trialExtraction);
+    invalidProduct.items[0].printedAmountYen = -100;
+    (invalidProduct.items[0] as Record<string, unknown>).lineType = "item";
+    expect(parse(invalidProduct).items?.[0]).toMatchObject({
+      lineType: "item",
+      printedAmountYen: -100,
+      warnings: ["negative_amount_on_product_line"],
+    });
+
+    const legacyUnknown = structuredClone(trialExtraction);
+    legacyUnknown.items[0].itemName = "M001 東洋水産よりどり";
+    legacyUnknown.items[0].printedAmountYen = -10;
+    expect(parse(legacyUnknown).items?.[0]).toMatchObject({
+      lineType: "unknown",
+      warnings: ["negative_amount_line_type_uncertain"],
+    });
+  });
+
+  it("46件の長尺結果にkeywordless負額販促行があっても全体を保持する", () => {
+    const payload = structuredClone(trialExtraction);
+    const base = payload.items[0];
+    payload.items = Array.from({ length: 44 }, (_, index) => ({
+      ...structuredClone(base),
+      itemName: `商品${index + 1}`,
+      printedAmountYen: 100,
+      lineType: "item",
+    })) as typeof payload.items;
+    payload.items.push(
+      {
+        ...structuredClone(base),
+        itemName: "M002 玉ねぎ3玉",
+        printedAmountYen: -16,
+        lineType: "promotion_adjustment",
+      } as never,
+      {
+        ...structuredClone(base),
+        itemName: "M001 東洋水産よりどり",
+        printedAmountYen: -10,
+        lineType: "promotion_adjustment",
+      } as never,
+    );
+
+    const result = parse(payload);
+
+    expect(result.items).toHaveLength(46);
+    expect(result.items?.slice(-2)).toEqual([
+      expect.objectContaining({ itemName: "M002 玉ねぎ3玉", printedAmountYen: -16 }),
+      expect.objectContaining({ itemName: "M001 東洋水産よりどり", printedAmountYen: -10 }),
+    ]);
   });
 });

@@ -15,4 +15,13 @@ describe("getImageCaptureFailureHint", () => {
     expect(getImageCaptureFailureHint("needs_review")).toBeUndefined();
     expect(getImageCaptureFailureHint("registered")).toBeUndefined();
   });
+
+  it.each([
+    ["[receipt_extraction:timeout]", "タイムアウト"],
+    ["[receipt_extraction:incomplete]", "途中で終了"],
+    ["[receipt_extraction:domain_validation]", "形式を確認できません"],
+    ["[receipt_extraction:network]", "通信エラー"],
+  ])("失敗種別 %s をユーザー向けに区別する", (warning, expected) => {
+    expect(getImageCaptureFailureHint("failed", [warning])).toContain(expected);
+  });
 });

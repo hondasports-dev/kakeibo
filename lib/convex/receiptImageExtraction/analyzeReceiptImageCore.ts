@@ -5,11 +5,13 @@ import type { Doc } from "../../../convex/_generated/dataModel";
 import type { ReceiptUserOverrideSnapshot } from "../../domain/aiExpenseDrafts/receiptDataContract";
 import { mapExtractionToDraftArgs } from "../../../lib/domain/aiExpenseDrafts/extractionMapping";
 import { extractReceiptFieldsHandler } from "../../../convex/receiptImageExtraction/extraction";
+import { measureReceiptExtractionSave } from "./telemetry";
 
 export type AnalyzeReceiptImageCoreArgs = {
   imageDataUrl: string;
   imageFileName?: string;
   preservedUserOverride?: ReceiptUserOverrideSnapshot<Doc<"categories">["_id"]>;
+  telemetryId?: string;
 };
 
 export function getSafeFailureWarning(err: unknown) {
@@ -42,23 +44,25 @@ export async function analyzeReceiptImageToDraftCore(
     categories = await ctx.runQuery(api.categories.queries.listActive, {});
     extracted = await extractReceiptFieldsHandler(ctx, {
       imageDataUrl: args.imageDataUrl,
+      telemetryId: args.telemetryId,
       categories: categories.map((category) => ({
         name: category.name,
         description: category.description,
       })),
     });
   } catch (err) {
-    return await ctx.runMutation(
-      internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis,
-      {
+    return await measureReceiptExtractionSave(args.telemetryId, "failure_draft", () =>
+      ctx.runMutation(internal.aiExpenseDrafts.internal.createFailedDraftFromImageAnalysis, {
         warning: getSafeFailureWarning(err),
         imageFileName: args.imageFileName,
-      },
+      }),
     );
   }
 
-  return await ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
-    ...mapExtractionToDraftArgs(extracted, categories, args.imageFileName),
-    preservedUserOverride: args.preservedUserOverride,
-  });
+  return await measureReceiptExtractionSave(args.telemetryId, "result_draft", () =>
+    ctx.runMutation(internal.aiExpenseDrafts.internal.createFromExtraction, {
+      ...mapExtractionToDraftArgs(extracted, categories, args.imageFileName),
+      preservedUserOverride: args.preservedUserOverride,
+    }),
+  );
 }

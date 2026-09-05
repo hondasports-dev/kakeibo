@@ -14,9 +14,11 @@ import type {
   TaxResolutionSource,
 } from "../receipt/tax/types";
 import type { ReceiptLineClassification } from "../receipt/observations";
+import type { ReceiptItemLineType } from "../receipt/discountItems";
 
 export type ReceiptDraftItemSnapshot<TCategoryId = string> = {
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: number;
   printedAmountYen?: number;
   amountBasis?: AmountBasis;

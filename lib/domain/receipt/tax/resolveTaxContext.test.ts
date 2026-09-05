@@ -46,6 +46,16 @@ describe("resolveTaxContext", () => {
     expect(contexts.map((context) => context.taxRatePercent)).toEqual([8, 8, 10, null]);
   });
 
+  it("0円販促行を部分集合の別解として数えない", () => {
+    const contexts = resolveTaxContext({
+      amountYen: 300,
+      items: [item(100), item(200), item(0)],
+      taxSummaries: [summary(8, 100), summary(10, 200)],
+      evidence: [],
+    });
+    expect(contexts.slice(0, 2).map((context) => context.taxRatePercent)).toEqual([8, 10]);
+  });
+
   it("異なる税率が競合したmarkerは後続の同率証拠でも復活させない", () => {
     const evidence: TaxEvidence[] = [
       {

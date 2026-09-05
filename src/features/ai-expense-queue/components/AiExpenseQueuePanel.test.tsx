@@ -174,6 +174,24 @@ describe("AiExpenseQueuePanel", () => {
     expect(screen.getByRole("button", { name: "詳しい説明" })).toBeInTheDocument();
   });
 
+  it("初期アイテムでも保存済みwarningから失敗原因を表示する", () => {
+    renderWithProviders(
+      <AiExpenseQueuePanel
+        initialItems={[
+          {
+            id: "draft-timeout",
+            fileName: "long-receipt.jpg",
+            status: "failed",
+            documentType: "receipt",
+            warnings: ["[receipt_extraction:timeout] response body timeout"],
+          },
+        ]}
+      />,
+    );
+
+    expect(screen.getByText(/画像の送信がタイムアウトしました/)).toBeInTheDocument();
+  });
+
   it("画像送信の同意状態を読み込み中は画像追加導線を無効化する", () => {
     useQueryMock.mockImplementation((reference: string, _args: unknown) => {
       if (reference === "receiptAnalysisJobs.queries.listJobs") return [];

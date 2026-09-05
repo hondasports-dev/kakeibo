@@ -528,6 +528,45 @@ describe("aiExpenseDrafts", () => {
     expect(insertedDraft).not.toHaveProperty("image");
   });
 
+  it("keywordless負額販促行のlineTypeとwarningを下書き明細へ保存する", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      insertedDoc: { ...ownedDraft, _id: "new-draft-id", status: "needs_review" },
+    });
+
+    await createFromExtractionHandler(ctx, {
+      documentType: "receipt",
+      shopName: "マルアイ",
+      date: "2026-08-16",
+      amountYen: 7462,
+      confidence: { shopName: 1, date: 1, amountYen: 1 },
+      warnings: [],
+      reviewReasons: ["user_confirmation_required"],
+      items: [
+        {
+          itemName: "M002 玉ねぎ3玉",
+          lineType: "unknown",
+          amountYen: -16,
+          printedAmountYen: -16,
+          confidence: { itemName: 0.8, amountYen: 1 },
+          warnings: ["negative_amount_line_type_uncertain"],
+        },
+      ],
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const dbInsert = (ctx.db as any).insert as ReturnType<typeof vi.fn>;
+    expect(dbInsert).toHaveBeenCalledWith(
+      "aiExpenseDraftItems",
+      expect.objectContaining({
+        itemName: "M002 玉ねぎ3玉",
+        lineType: "unknown",
+        amountYen: -16,
+        printedAmountYen: -16,
+        warnings: ["negative_amount_line_type_uncertain"],
+      }),
+    );
+  });
+
   it("再解析では新しいAI interpretationを保存しつつuser overrideを正本にする", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       getDocById: {

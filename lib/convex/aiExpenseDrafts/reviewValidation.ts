@@ -1,7 +1,10 @@
 import { ConvexError } from "convex/values";
 import type { MutationCtx } from "../../../convex/_generated/server";
 import type { Doc, Id } from "../../../convex/_generated/dataModel";
-import { isValidSignedLineItemAmount } from "../../../lib/domain/receipt/discountItems";
+import {
+  isValidSignedLineItemAmount,
+  type ReceiptItemLineType,
+} from "../../../lib/domain/receipt/discountItems";
 import { trimOptional } from "../../../lib/domain/common/string";
 import {
   getReviewUpdateReadyErrorMessage,
@@ -26,6 +29,7 @@ export {
 export type UpdateForReviewItem = {
   itemId?: Id<"aiExpenseDraftItems">;
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: number;
   categoryId: Id<"categories">;
   confidence?: {
@@ -140,16 +144,18 @@ export async function replaceDraftItemsForReview(
   }
   for (const item of items) {
     const itemName = trimOptional(item.itemName);
-    if (!itemName || !isValidSignedLineItemAmount(itemName, item.amountYen)) {
+    const previous = item.itemId === undefined ? undefined : existingItemsById.get(item.itemId);
+    const lineType = item.lineType ?? previous?.lineType;
+    if (!itemName || !isValidSignedLineItemAmount(itemName, item.amountYen, lineType)) {
       throw new ConvexError("Draft item name and amount are required");
     }
     await assertActiveCategoryBelongsToGroup(ctx, item.categoryId, groupId);
-    const previous = item.itemId === undefined ? undefined : existingItemsById.get(item.itemId);
     const amounts = resolveReviewItemAmountsForReplace(item.amountYen, previous);
     await ctx.db.insert("aiExpenseDraftItems", {
       groupId,
       draftId,
       itemName,
+      lineType,
       amountYen: amounts.amountYen,
       printedAmountYen: amounts.printedAmountYen,
       categoryId: item.categoryId,

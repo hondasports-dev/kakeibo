@@ -1,9 +1,14 @@
-import { isDiscountItemName } from "./discountItems";
+import {
+  isDiscountItemName,
+  RECEIPT_ITEM_LINE_TYPES,
+  type ReceiptItemLineType,
+} from "./discountItems";
 import {
   validateExtractedIsoDate,
   validateReceiptShopName,
   validateReceiptTotalAmount,
 } from "./receiptExtraction";
+import { normalizeReceiptDate } from "./receiptDate";
 import type {
   AmountBasis,
   ExtractedFields,
@@ -57,10 +62,6 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
     if (typeof obj.date !== "string") {
       throw new Error("OpenAI レスポンスの date が文字列ではありません");
     }
-    const dateResult = validateExtractedIsoDate(obj.date);
-    if (!dateResult.success) {
-      throw new Error("OpenAI レスポンスの date が実在する YYYY-MM-DD 形式ではありません");
-    }
     if (typeof obj.amountYen !== "number" && obj.amountYen !== null) {
       throw new Error("OpenAI レスポンスの amountYen が数値またはnullではありません");
     }
@@ -84,12 +85,13 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
     const taxSummaries = parseOptionalTaxSummaries(obj.taxSummaries);
     const markerDefinitions = parseOptionalMarkerDefinitions(obj.markerDefinitions);
     const rawObservations = parseOptionalRawObservations(obj.rawObservations);
+    const parsedDate = resolveExtractedDate(obj.date, rawObservations);
 
     return {
       success: true,
       extracted: {
         shopName: obj.shopName,
-        date: obj.date,
+        date: parsedDate.date,
         amountYen: obj.amountYen,
         documentType,
         paymentPlace,
@@ -101,14 +103,58 @@ export function parseOpenAIResponse(data: OpenAIResponsesApiResponse): ParseOpen
         markerDefinitions,
         rawObservations,
         confidence,
-        warnings: Array.isArray(obj.warnings)
-          ? (obj.warnings as string[]).filter((w) => typeof w === "string")
-          : [],
+        warnings: [
+          ...(Array.isArray(obj.warnings)
+            ? (obj.warnings as string[]).filter((w) => typeof w === "string")
+            : []),
+          ...parsedDate.warnings,
+        ],
       },
     };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+function resolveExtractedDate(
+  date: string,
+  rawObservations: ReceiptRawObservationLine[] | undefined,
+): { date: string; warnings: string[] } {
+  const validated = validateExtractedIsoDate(date);
+  if (validated.success && validated.date !== "") return { date: validated.date, warnings: [] };
+
+  const normalizedStructuredDate = normalizeReceiptDate(date);
+  if (normalizedStructuredDate.success) {
+    return {
+      date: normalizedStructuredDate.date,
+      warnings: ["date_normalized_from_structured_value"],
+    };
+  }
+
+  const candidates = [
+    ...new Set(
+      (rawObservations ?? []).flatMap((line) => {
+        if (!isPurchaseDateObservation(line.rawText)) return [];
+        const result = normalizeReceiptDate(line.rawText);
+        return result.success ? [result.date] : [];
+      }),
+    ),
+  ];
+  if (candidates.length === 1) {
+    return { date: candidates[0], warnings: ["date_recovered_from_raw_observations"] };
+  }
+  if (date === "") return { date, warnings: [] };
+  throw new Error("OpenAI レスポンスの date が妥当な YYYY-MM-DD 形式ではありません");
+}
+
+const NON_PURCHASE_DATE_CONTEXT =
+  /(?:期限|有効|失効|キャンペーン|休業|定休日|返品|交換|発行|登録|入会|製造|賞味|消費)/;
+const PRINTED_TIME = /(?:[01]?\d|2[0-3])\s*(?::|時)\s*[0-5]?\d(?:\s*分)?/;
+
+/** 購入日時らしい明示時刻を伴う行だけを、不正な構造化日付の救済候補にする。 */
+function isPurchaseDateObservation(rawText: string): boolean {
+  const normalized = rawText.normalize("NFKC");
+  return PRINTED_TIME.test(normalized) && !NON_PURCHASE_DATE_CONTEXT.test(normalized);
 }
 
 function parseOptionalRawObservations(value: unknown): ReceiptRawObservationLine[] | undefined {
@@ -241,10 +287,10 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
   if (typeof item.itemName !== "string") {
     throw new Error(`OpenAI レスポンスの items[${index}].itemName が文字列ではありません`);
   }
+  const lineType = parseReceiptItemLineType(item.lineType, item.itemName, item.printedAmountYen);
   const printedAmountYen = parseSignedItemInteger(
     item.printedAmountYen,
     `items[${index}].printedAmountYen`,
-    item.itemName,
   );
   const amountBasis = parseAmountBasis(item.amountBasis, `items[${index}].amountBasis`);
   const taxRatePercent = parseItemTaxRatePercent(
@@ -257,6 +303,7 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
   const confidence = parseItemConfidence(item.confidence, index);
   return {
     itemName: item.itemName,
+    lineType,
     amountYen: printedAmountYen,
     printedAmountYen,
     amountBasis,
@@ -267,10 +314,33 @@ function parseReceiptItem(value: unknown, index: number): ExtractReceiptItemResu
     unitPriceYen: parseOptionalInteger(item.unitPriceYen, `items[${index}].unitPriceYen`),
     categoryName: parseOptionalString(item.categoryName, `items[${index}].categoryName`),
     confidence,
-    warnings: Array.isArray(item.warnings)
-      ? (item.warnings as string[]).filter((warning) => typeof warning === "string")
-      : [],
+    warnings: [
+      ...(Array.isArray(item.warnings)
+        ? (item.warnings as string[]).filter((warning) => typeof warning === "string")
+        : []),
+      ...(printedAmountYen < 0 && lineType === "unknown"
+        ? ["negative_amount_line_type_uncertain"]
+        : []),
+      ...(printedAmountYen < 0 && lineType === "item" ? ["negative_amount_on_product_line"] : []),
+    ],
   };
+}
+
+function parseReceiptItemLineType(
+  value: unknown,
+  itemName: string,
+  printedAmountYen: unknown,
+): ReceiptItemLineType {
+  if (typeof value === "string" && RECEIPT_ITEM_LINE_TYPES.includes(value as ReceiptItemLineType)) {
+    return value as ReceiptItemLineType;
+  }
+  if (value !== undefined && value !== null) {
+    throw new Error("OpenAI レスポンスの items[].lineType が不正です");
+  }
+  if (typeof printedAmountYen === "number" && printedAmountYen < 0) {
+    return isDiscountItemName(itemName) ? "discount" : "unknown";
+  }
+  return "item";
 }
 
 function parseOptionalMarkerDefinitions(value: unknown): ReceiptMarkerDefinition[] | undefined {
@@ -446,15 +516,9 @@ function parseOptionalInteger(value: unknown, field: string): number | undefined
   return value;
 }
 
-function parseSignedItemInteger(value: unknown, field: string, itemName: string): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isInteger(value) ||
-    (value < 0 && !isDiscountItemName(itemName))
-  ) {
-    throw new Error(
-      `OpenAI レスポンスの ${field} は通常明細では0以上、割引明細では負の整数である必要があります`,
-    );
+function parseSignedItemInteger(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isInteger(value)) {
+    throw new Error(`OpenAI レスポンスの ${field} は整数である必要があります`);
   }
   return value;
 }

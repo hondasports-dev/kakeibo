@@ -12,6 +12,7 @@ export function getMockResult(): ExtractReceiptFieldsResult {
     items: [
       {
         itemName: "サンプル食品",
+        lineType: "item",
         amountYen: 734,
         printedAmountYen: 734,
         amountBasis: "tax_included",
@@ -33,6 +34,7 @@ export function getMockResult(): ExtractReceiptFieldsResult {
       },
       {
         itemName: "サンプル日用品",
+        lineType: "item",
         amountYen: 500,
         printedAmountYen: 500,
         amountBasis: "tax_included",

@@ -25,6 +25,7 @@ import { ReviewItemsEditor } from "./ReviewItemsEditor";
 import { ReviewSummaryView } from "./ReviewSummaryView";
 import type { TaxSummaryChange } from "./ReceiptTaxSummaryEditor";
 import type { AmountBasis } from "../../../../../lib/receiptTax/types";
+import { deriveVisibleReviewReasons } from "../../utils/reviewFeedback";
 
 const RECEIPT_LINE_ROLE_LABELS = {
   item: "商品",
@@ -84,7 +85,7 @@ export function ReviewDialog({
   onFieldChange: (field: keyof ReviewFormValues, value: string) => void;
   onItemChange: (
     itemId: string,
-    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId" | "lineType">,
     value: string,
   ) => void;
   onAddItem: () => void;
@@ -108,6 +109,11 @@ export function ReviewDialog({
   const [itemsExpanded, setItemsExpanded] = useState(false);
   const hasLineItems = reviewItems.length > 0;
   const showSummaryView = hasLineItems && !isEditMode;
+  const visibleReviewReasons = deriveVisibleReviewReasons(
+    selectedReviewDraft?.reviewReasons ?? [],
+    reviewItems,
+    reviewForm.categoryId,
+  );
   const receiptAmount = Number(reviewForm.amountYen) || 0;
   const lineClassifications =
     selectedReviewDraft?.receiptInterpretation?.values.receiptLineClassifications ?? [];
@@ -223,19 +229,18 @@ export function ReviewDialog({
                 />
               ) : (
                 <>
-                  {selectedReviewDraft?.reviewReasons &&
-                    selectedReviewDraft.reviewReasons.length > 0 && (
-                      <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
-                        {selectedReviewDraft.reviewReasons.map((reason) => (
-                          <Chip
-                            key={reason}
-                            label={getReviewReasonLabel(reason)}
-                            size="small"
-                            variant="outlined"
-                          />
-                        ))}
-                      </Stack>
-                    )}
+                  {visibleReviewReasons.length > 0 && (
+                    <Stack direction="row" spacing={0.75} sx={{ flexWrap: "wrap" }}>
+                      {visibleReviewReasons.map((reason) => (
+                        <Chip
+                          key={reason}
+                          label={getReviewReasonLabel(reason)}
+                          size="small"
+                          variant="outlined"
+                        />
+                      ))}
+                    </Stack>
+                  )}
 
                   {hasLineItems && (
                     <ReceiptTotalsPanel

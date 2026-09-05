@@ -1,6 +1,6 @@
 import { Autocomplete, MenuItem, TextField, Typography } from "@mui/material";
 import type { AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
-import { isDiscountItemName } from "../../utils/discountItems";
+import { isDiscountLine } from "../../utils/discountItems";
 
 export type ReviewItemCategoryControlProps = {
   item: ReviewItemValues;
@@ -21,7 +21,7 @@ export function ReviewItemCategoryControl({
   onAssignCategoryToItems,
   onDiscountTargetChange,
 }: ReviewItemCategoryControlProps) {
-  const discount = isDiscountItemName(item.itemName);
+  const discount = isDiscountLine(item.itemName, item.lineType);
 
   if (discount) {
     return (

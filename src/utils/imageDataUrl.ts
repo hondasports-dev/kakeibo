@@ -1,12 +1,31 @@
 import { MAX_IMAGE_DATA_URL_LENGTH } from "../../lib/domain/common/imageDataUrl";
 
 const RESIZE_CANDIDATES = [
-  { longSide: 1600, quality: 0.8 },
-  { longSide: 1400, quality: 0.75 },
-  { longSide: 1200, quality: 0.7 },
-  { longSide: 1000, quality: 0.65 },
-  { longSide: 800, quality: 0.6 },
+  { longSide: 1600, minShortSide: 1000, quality: 0.8 },
+  { longSide: 1600, minShortSide: 900, quality: 0.75 },
+  { longSide: 1400, minShortSide: 800, quality: 0.7 },
+  { longSide: 1200, minShortSide: 700, quality: 0.65 },
+  { longSide: 1000, minShortSide: 600, quality: 0.6 },
 ];
+
+export function calculateResizeDimensions(
+  width: number,
+  height: number,
+  candidate: { longSide: number; minShortSide?: number },
+) {
+  const originalLongSide = Math.max(width, height);
+  const originalShortSide = Math.min(width, height);
+  const longSideScale = Math.min(1, candidate.longSide / originalLongSide);
+  const readableScale =
+    candidate.minShortSide && originalShortSide >= candidate.minShortSide
+      ? candidate.minShortSide / originalShortSide
+      : 0;
+  const scale = Math.max(longSideScale, readableScale);
+  return {
+    width: Math.max(1, Math.round(width * scale)),
+    height: Math.max(1, Math.round(height * scale)),
+  };
+}
 
 export function getImageFileErrorMessage(error: unknown) {
   if (error instanceof Error && error.message) {
@@ -41,20 +60,17 @@ function renderBitmapToDataUrl(
   bitmap: ImageBitmap,
   width: number,
   height: number,
-  candidate: { longSide: number; quality: number },
+  candidate: { longSide: number; minShortSide?: number; quality: number },
 ): string {
-  const longSide = Math.max(width, height);
-  const scale = longSide > candidate.longSide ? candidate.longSide / longSide : 1;
-  const targetWidth = Math.max(1, Math.round(width * scale));
-  const targetHeight = Math.max(1, Math.round(height * scale));
+  const target = calculateResizeDimensions(width, height, candidate);
 
   const canvas = document.createElement("canvas");
-  canvas.width = targetWidth;
-  canvas.height = targetHeight;
+  canvas.width = target.width;
+  canvas.height = target.height;
   const ctx = canvas.getContext("2d");
   if (!ctx) {
     throw new Error("Canvas 2D context を取得できませんでした");
   }
-  ctx.drawImage(bitmap, 0, 0, targetWidth, targetHeight);
+  ctx.drawImage(bitmap, 0, 0, target.width, target.height);
   return canvas.toDataURL("image/jpeg", candidate.quality);
 }

@@ -238,4 +238,51 @@ describe("taxSummaryConsistency matrix", () => {
     const result = normalizeTaxSummary(base, undefined);
     expect(result.status).toBe("verified");
   });
+
+  it("明示includedと算術一致からunknown basisを安全に補完する", () => {
+    const result = normalizeTaxSummary(
+      baseSummary({ taxableAmountBasis: "unknown", taxableAmountYen: 1060 }),
+      1060,
+    );
+    expect(result).toMatchObject({
+      taxMode: "included",
+      taxableAmountBasis: "tax_included",
+      status: "verified",
+    });
+  });
+
+  it("明示externalと算術一致からunknown basisを安全に補完する", () => {
+    const result = normalizeTaxSummary(
+      baseSummary({
+        taxMode: "external",
+        taxableAmountBasis: "unknown",
+        taxableAmountYen: 964,
+        taxIncludedAmountYen: 1060,
+      }),
+      1060,
+    );
+    expect(result).toMatchObject({
+      taxMode: "external",
+      taxableAmountBasis: "tax_excluded",
+      status: "verified",
+    });
+  });
+
+  it("照合額のない複数税率では明示modeだけでunknown basisを補完しない", () => {
+    const result = normalizeTaxSummary(
+      baseSummary({
+        taxMode: "external",
+        taxableAmountBasis: "unknown",
+        taxableAmountYen: 198,
+        taxYen: 16,
+        taxIncludedAmountYen: undefined,
+      }),
+      undefined,
+    );
+    expect(result).toMatchObject({
+      taxMode: "external",
+      taxableAmountBasis: "unknown",
+      status: "ambiguous",
+    });
+  });
 });

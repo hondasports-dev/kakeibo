@@ -1,5 +1,5 @@
 import { Stack, Typography } from "@mui/material";
-import type { ExtractedTaxSummary } from "../../../../../lib/receiptTax/types";
+import type { AmountBasis, ExtractedTaxSummary } from "../../../../../lib/receiptTax/types";
 import { formatYenLabel, getTaxSummaryConflictLabel } from "../../utils/receiptTaxLabels";
 import { getTaxModeLabel } from "../../utils/receiptItemTaxViewModel";
 import { formatTaxWarnings } from "../../utils/taxWarnings";
@@ -17,7 +17,7 @@ type ReadableTaxSummary = Pick<
 >;
 
 export function ReceiptTaxSummaryReadOnly({ summary }: { summary: ReadableTaxSummary }) {
-  const amountBasisLabel = summary.taxableAmountBasis === "tax_included" ? "（税込）" : "（税抜）";
+  const amountBasisLabel = getAmountBasisLabel(summary.taxableAmountBasis);
 
   return (
     <Stack spacing={0.25}>
@@ -48,4 +48,10 @@ export function ReceiptTaxSummaryReadOnly({ summary }: { summary: ReadableTaxSum
       )}
     </Stack>
   );
+}
+
+function getAmountBasisLabel(amountBasis: AmountBasis): string {
+  if (amountBasis === "tax_included") return "（税込）";
+  if (amountBasis === "tax_excluded") return "（税抜）";
+  return "（種別不明）";
 }

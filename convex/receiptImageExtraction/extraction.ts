@@ -61,6 +61,7 @@ export async function extractReceiptFieldsFromImage(
   return callOpenAIReceiptExtractor({
     imageDataUrl,
     apiKey,
+    telemetryId: args.telemetryId,
     categoryNames: args.categoryNames ?? [],
     categories: args.categories,
   });

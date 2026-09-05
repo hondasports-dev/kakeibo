@@ -1,5 +1,47 @@
 import { describe, expect, it } from "vitest";
-import { classifyCreatedDraft } from "./classification";
+import { classifyAiExpenseDraft, classifyCreatedDraft } from "./classification";
+
+const completeDraft = {
+  documentType: "receipt" as const,
+  shopName: "マルアイ",
+  date: "2026-08-16",
+  amountYen: 90,
+  categoryId: "food",
+  confidence: { shopName: 1, date: 1, amountYen: 1, categoryId: 1 },
+  warnings: [] as string[],
+};
+
+describe("classifyAiExpenseDraft signed items", () => {
+  it("明示された販促調整の負額を有効な明細として扱う", () => {
+    const result = classifyAiExpenseDraft({
+      ...completeDraft,
+      items: [
+        { itemName: "商品", amountYen: 100, categoryId: "food", lineType: "item" },
+        {
+          itemName: "M001 東洋水産よりどり",
+          amountYen: -10,
+          categoryId: "food",
+          lineType: "promotion_adjustment",
+        },
+      ],
+    });
+    expect(result.reviewReasons).not.toContain("amount_mismatch");
+  });
+
+  it("通常商品または不明行の負額をready扱いにしない", () => {
+    for (const lineType of ["item", "unknown"] as const) {
+      const result = classifyAiExpenseDraft({
+        ...completeDraft,
+        items: [
+          { itemName: "商品", amountYen: 100, categoryId: "food", lineType: "item" },
+          { itemName: "不明な負額", amountYen: -10, categoryId: "food", lineType },
+        ],
+      });
+      expect(result).toMatchObject({ status: "needs_review" });
+      expect(result.reviewReasons).toContain("amount_mismatch");
+    }
+  });
+});
 
 describe("classifyCreatedDraft", () => {
   it("画像解析直後は user_confirmation_required を付与して needs_review とする", () => {

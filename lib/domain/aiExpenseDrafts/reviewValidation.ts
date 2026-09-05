@@ -1,5 +1,9 @@
 import { parseExpenseAmountString } from "../expenseEntries/expenseEntryItem";
-import { isDiscountItemName, isValidSignedLineItemAmount } from "../receipt/discountItems";
+import {
+  isDiscountLine,
+  isValidSignedLineItemAmount,
+  type ReceiptItemLineType,
+} from "../receipt/discountItems";
 import { isValidIsoDateString } from "../week/weekDates";
 import type { AiExpenseDraftDocumentType } from "./constants";
 import type { AiExpenseRegistrationMode } from "./receiptDataContract";
@@ -15,6 +19,7 @@ export type ReviewFormInput = {
 
 export type ReviewItemInput = {
   itemName: string;
+  lineType?: ReceiptItemLineType;
   amountYen: string;
   categoryId: string;
   discountTargetItemId?: string;
@@ -64,7 +69,7 @@ export function getReviewFormErrorMessage(reviewForm: ReviewFormInput): string |
 /** レビュー明細入力エラーをユーザー向けメッセージに変換する。 */
 export function getReviewItemsErrorMessage(reviewItems: ReviewItemInput[]): string | null {
   const unresolvedDiscount = reviewItems.find(
-    (item) => isDiscountItemName(item.itemName) && !item.discountTargetItemId,
+    (item) => isDiscountLine(item.itemName, item.lineType) && !item.discountTargetItemId,
   );
   if (unresolvedDiscount) {
     return "割引対象の商品を選択してください。";
@@ -74,7 +79,7 @@ export function getReviewItemsErrorMessage(reviewItems: ReviewItemInput[]): stri
     const itemAmount = Number(item.amountYen);
     return (
       !item.itemName.trim() ||
-      !isValidSignedLineItemAmount(item.itemName, itemAmount) ||
+      !isValidSignedLineItemAmount(item.itemName, itemAmount, item.lineType) ||
       !item.categoryId
     );
   });

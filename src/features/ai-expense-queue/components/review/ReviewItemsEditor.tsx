@@ -2,7 +2,7 @@ import AddIcon from "@mui/icons-material/Add";
 import { Button, Stack, Typography } from "@mui/material";
 import { useMemo, useState } from "react";
 import type { AiExpenseDraft, AiExpenseQueueCategory, ReviewItemValues } from "../../types/types";
-import { isDiscountItemName } from "../../utils/discountItems";
+import { isDiscountLine } from "../../utils/discountItems";
 import { ReviewItemCard } from "./ReviewItemCard";
 
 export function ReviewItemsEditor({
@@ -28,7 +28,7 @@ export function ReviewItemsEditor({
   onAddItem: () => void;
   onItemChange: (
     itemId: string,
-    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId" | "lineType">,
     value: string,
   ) => void;
   onRemoveItem: (itemId: string) => void;
@@ -41,7 +41,7 @@ export function ReviewItemsEditor({
 }) {
   const [expandedDetailIds, setExpandedDetailIds] = useState<Set<string>>(new Set());
   const productItems = useMemo(
-    () => reviewItems.filter((item) => !isDiscountItemName(item.itemName)),
+    () => reviewItems.filter((item) => !isDiscountLine(item.itemName, item.lineType)),
     [reviewItems],
   );
   const categoryNamesById = useMemo(

@@ -19,8 +19,9 @@ import {
   initializeReviewCategoryState,
   prepareReviewItemsForSubmit,
 } from "../../utils/reviewItemCategories";
-import { isDiscountItemName } from "../../utils/discountItems";
+import { isDiscountItemName, isDiscountLine } from "../../utils/discountItems";
 import { applyReviewItemsTaxPreview } from "../../utils/reviewItemsTaxPreview";
+import { reconcileNegativeLineWarnings } from "../../utils/negativeLineWarnings";
 
 export function useReviewFormState({
   selectedReviewDraftId,
@@ -117,12 +118,16 @@ export function useReviewFormState({
 
   const handleReviewItemChange = (
     itemId: string,
-    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId">,
+    field: keyof Pick<ReviewItemValues, "itemName" | "amountYen" | "categoryId" | "lineType">,
     value: string,
   ) => {
     setReviewItems((current) => {
       const targetItem = current.find((item) => item.id === itemId);
-      if (field === "categoryId" && targetItem && !isDiscountItemName(targetItem.itemName)) {
+      if (
+        field === "categoryId" &&
+        targetItem &&
+        !isDiscountLine(targetItem.itemName, targetItem.lineType)
+      ) {
         return assignCategoryToItems(current, [itemId], value);
       }
       const updated = current.map((item) => {
@@ -150,12 +155,26 @@ export function useReviewFormState({
               amountYen: value,
               printedAmountYen: amountNum,
               normalizedAmountYen: amountNum,
+              warnings: reconcileNegativeLineWarnings(item.warnings, item.lineType, amountNum),
             };
           }
           return {
             ...item,
             amountYen: value,
             printedAmountYen: amountNum,
+            warnings: reconcileNegativeLineWarnings(item.warnings, item.lineType, amountNum),
+          };
+        }
+        if (field === "lineType") {
+          return {
+            ...item,
+            lineType: value as ReviewItemValues["lineType"],
+            discountTargetItemId: undefined,
+            warnings: reconcileNegativeLineWarnings(
+              item.warnings,
+              value as ReviewItemValues["lineType"],
+              Number(item.amountYen),
+            ),
           };
         }
         if (field !== "itemName") {

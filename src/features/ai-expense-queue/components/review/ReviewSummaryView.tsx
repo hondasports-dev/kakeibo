@@ -11,7 +11,7 @@ import type {
   ReviewItemValues,
 } from "../../types/types";
 import { formatReviewDraftHeader, resolveReviewShopName } from "../../utils/reviewDialogUtils";
-import { getPrimaryReviewReason } from "../../utils/reviewFeedback";
+import { deriveVisibleReviewReasons, getPrimaryReviewReason } from "../../utils/reviewFeedback";
 import { ReceiptTotalsPanel } from "./ReceiptTotalsPanel";
 import { ReviewItemsReadOnly } from "./ReviewItemsReadOnly";
 
@@ -41,7 +41,11 @@ export function ReviewSummaryView({
     selectedReviewDraft?.shopName ?? selectedReviewDraft?.payeeName,
   );
   const categoryName = categories.find((category) => category._id === reviewForm.categoryId)?.name;
-  const reviewReasons = selectedReviewDraft?.reviewReasons ?? [];
+  const reviewReasons = deriveVisibleReviewReasons(
+    selectedReviewDraft?.reviewReasons ?? [],
+    reviewItems,
+    reviewForm.categoryId,
+  );
   const primaryReviewReason = getPrimaryReviewReason(reviewReasons);
 
   return (

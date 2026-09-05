@@ -34,10 +34,11 @@ function findUniqueSubset(
   target: number,
 ): number[] | undefined {
   if (target === 0) return undefined;
+  const monetaryIndexes = indexes.filter((index) => items[index].printedAmountYen !== 0);
   let states = new Map<number, { count: 1 | 2; indexes: number[] }>([
     [0, { count: 1, indexes: [] }],
   ]);
-  for (const itemIndex of indexes) {
+  for (const itemIndex of monetaryIndexes) {
     const next = new Map(
       [...states].map(([sum, state]) => [sum, { count: state.count, indexes: [...state.indexes] }]),
     );

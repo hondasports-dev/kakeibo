@@ -29,6 +29,47 @@ function matchingModes(
   return modes;
 }
 
+function modeFromBasis(basis: ExtractedTaxSummary["taxableAmountBasis"]): ResolvedMode | undefined {
+  if (basis === "tax_included") return "included";
+  if (basis === "tax_excluded") return "external";
+  return undefined;
+}
+
+function basisFromMode(mode: ResolvedMode): ExtractedTaxSummary["taxableAmountBasis"] {
+  return mode === "included" ? "tax_included" : "tax_excluded";
+}
+
+/**
+ * AIが mode または basis の片方だけを確定できた場合に、印字された税込合計との
+ * 算術が矛盾しない範囲で欠けた側を補完する。明示値同士の矛盾は変更しない。
+ */
+function canonicalizeTaxSummaryDeclaration(
+  summary: ExtractedTaxSummary,
+  amountYen?: number,
+): ExtractedTaxSummary {
+  const expectedAmount = summary.taxIncludedAmountYen ?? amountYen;
+  const modes = matchingModes(summary.taxableAmountYen, summary.taxYen, expectedAmount);
+  const declaredMode =
+    summary.taxMode === "included" || summary.taxMode === "external" ? summary.taxMode : undefined;
+  const basisMode = modeFromBasis(summary.taxableAmountBasis);
+  const canInferMode = summary.taxMode === "unknown";
+
+  if (declaredMode && !basisMode && expectedAmount !== undefined && modes.includes(declaredMode)) {
+    return { ...summary, taxableAmountBasis: basisFromMode(declaredMode) };
+  }
+  if (canInferMode && basisMode && expectedAmount !== undefined && modes.includes(basisMode)) {
+    return { ...summary, taxMode: basisMode };
+  }
+  if (canInferMode && !basisMode && modes.length === 1) {
+    return {
+      ...summary,
+      taxMode: modes[0],
+      taxableAmountBasis: basisFromMode(modes[0]),
+    };
+  }
+  return summary;
+}
+
 export function canonicalTaxSummaryStatus(
   status: TaxSummaryConsistencyStatus | undefined,
 ): "verified" | "ambiguous" | "contradictory" | undefined {
@@ -125,9 +166,10 @@ export function normalizeTaxSummary(
   summary: ExtractedTaxSummary,
   amountYen?: number,
 ): ExtractedTaxSummary {
-  const consistency = reconcileTaxSummary({ amountYen, summary });
+  const canonical = canonicalizeTaxSummaryDeclaration(summary, amountYen);
+  const consistency = reconcileTaxSummary({ amountYen, summary: canonical });
   return {
-    ...summary,
+    ...canonical,
     status: consistency.status,
     reasons: consistency.reasons,
   };

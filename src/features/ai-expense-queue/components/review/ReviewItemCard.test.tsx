@@ -65,6 +65,25 @@ describe("ReviewItemCard", () => {
     expect(onItemChange).toHaveBeenCalledWith("item-1", "amountYen", "200");
   });
 
+  it("不確実な負額行は行種別を選んで解決できる", async () => {
+    const user = userEvent.setup();
+    const onItemChange = vi.fn();
+    renderCard({
+      item: makeItem({
+        itemName: "M002 玉ねぎ3玉",
+        amountYen: "-16",
+        lineType: "unknown",
+        warnings: ["negative_amount_line_type_uncertain"],
+      }),
+      onItemChange,
+    });
+
+    expect(screen.getByText("負の金額の行種別を確認してください。")).toBeInTheDocument();
+    await user.click(screen.getByRole("combobox", { name: "この負額行の種類" }));
+    await user.click(screen.getByRole("option", { name: "販促・よりどり調整" }));
+    expect(onItemChange).toHaveBeenCalledWith("item-1", "lineType", "promotion_adjustment");
+  });
+
   it("削除ボタンを押すと onRemoveItem が呼ばれる", async () => {
     const user = userEvent.setup();
     const onRemoveItem = vi.fn();
