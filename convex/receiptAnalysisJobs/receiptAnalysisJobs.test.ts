@@ -325,7 +325,7 @@ describe("retryImageJobHandler", () => {
     ).rejects.toThrow(ConvexError);
   });
 
-  it("failed 以外の job は再試行できない", async () => {
+  it("failed と needs_review 以外の job は再試行できない", async () => {
     const ctx = createMutationCtx(createIdentity(), {
       docs: {
         "job-1": { groupId: GROUP_ID, status: "ready" },
@@ -333,7 +333,7 @@ describe("retryImageJobHandler", () => {
     });
     await expect(
       retryImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> }),
-    ).rejects.toThrow("Only failed jobs can be retried");
+    ).rejects.toThrow("Only failed or needs_review jobs can be retried");
   });
 
   it("failed job を queued に戻す", async () => {
@@ -347,6 +347,47 @@ describe("retryImageJobHandler", () => {
       "job-1",
       expect.objectContaining({ status: "queued", error: undefined }),
     );
+  });
+
+  it("needs_review job を queued に戻して再解析できる", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": { groupId: GROUP_ID, status: "needs_review" },
+      },
+    });
+
+    await retryImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> });
+
+    expect(ctx.db.patch).toHaveBeenCalledWith(
+      "job-1",
+      expect.objectContaining({ status: "queued", error: undefined }),
+    );
+  });
+
+  it("needs_review でも他グループの job は再試行できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": { groupId: "group-other", status: "needs_review" },
+      },
+    });
+
+    await expect(
+      retryImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> }),
+    ).rejects.toThrow("Job not found");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
+  });
+
+  it("queued job は二重に再試行できない", async () => {
+    const ctx = createMutationCtx(createIdentity(), {
+      docs: {
+        "job-1": { groupId: GROUP_ID, status: "queued" },
+      },
+    });
+
+    await expect(
+      retryImageJobHandler(ctx, { jobId: "job-1" as Id<"receiptAnalysisImageJobs"> }),
+    ).rejects.toThrow("Only failed or needs_review jobs can be retried");
+    expect(ctx.db.patch).not.toHaveBeenCalled();
   });
 });
 
@@ -607,6 +648,79 @@ describe("finalizeAnalysisAttemptHandler", () => {
     expect(docs.get("job-1")).toMatchObject({ status: "ready", draftId: "draft-success" });
     expect(removed).toEqual(expect.arrayContaining(["draft-old", "draft-failed"]));
     expect(removed).not.toContain("draft-success");
+  });
+
+  it("旧draftが編集中に変わっていれば再解析結果で上書きしない", async () => {
+    const docs = new Map<string, Record<string, unknown>>([
+      [
+        "job-1",
+        {
+          _id: "job-1",
+          groupId: GROUP_ID,
+          batchId: "batch-1",
+          status: "running",
+          draftId: "draft-old",
+        },
+      ],
+      [
+        "batch-1",
+        {
+          _id: "batch-1",
+          aiReviewNotificationScheduledAt: 1,
+        },
+      ],
+      [
+        "draft-old",
+        {
+          _id: "draft-old",
+          groupId: GROUP_ID,
+          status: "needs_review",
+          updatedAt: 11,
+        },
+      ],
+      [
+        "draft-new",
+        {
+          _id: "draft-new",
+          groupId: GROUP_ID,
+          status: "ready",
+          updatedAt: 20,
+        },
+      ],
+    ]);
+    const removed: string[] = [];
+    const ctx = {
+      db: {
+        get: vi.fn(async (id: string) => docs.get(id) ?? null),
+        patch: vi.fn(async (id: string, values: Record<string, unknown>) => {
+          docs.set(id, { ...(docs.get(id) ?? {}), ...values });
+        }),
+        delete: vi.fn(async (id: string) => {
+          removed.push(id);
+          docs.delete(id);
+        }),
+        query: vi.fn(() => ({
+          withIndex: vi.fn(() => ({ collect: vi.fn(async () => []) })),
+        })),
+      },
+      scheduler: { runAfter: vi.fn() },
+    } as unknown as MutationCtx;
+
+    const result = await finalizeAnalysisAttemptHandler(ctx, {
+      jobId: "job-1" as Id<"receiptAnalysisImageJobs">,
+      expectedDraftId: "draft-old" as Id<"aiExpenseDrafts">,
+      expectedDraftUpdatedAt: 10,
+      newDraftId: "draft-new" as Id<"aiExpenseDrafts">,
+      status: "ready",
+    });
+
+    expect(result).toEqual({ applied: false, reason: "draft_changed" });
+    expect(docs.get("job-1")).toMatchObject({
+      status: "needs_review",
+      draftId: "draft-old",
+    });
+    expect(removed).toContain("draft-new");
+    expect(removed).not.toContain("draft-old");
   });
 });
 
@@ -902,6 +1016,7 @@ describe("analyzeImageJobHandler", () => {
       const oldDraft = {
         _id: "draft-old",
         groupId: GROUP_ID,
+        updatedAt: 10,
         receiptUserOverride,
       } as Doc<"aiExpenseDrafts">;
       const newDraft = { _id: "draft-new", status: "needs_review" } as Doc<"aiExpenseDrafts">;
@@ -933,6 +1048,7 @@ describe("analyzeImageJobHandler", () => {
       );
       expect((ctx.runMutation as ReturnType<typeof vi.fn>).mock.calls[2]?.[1]).toMatchObject({
         expectedDraftId: "draft-old",
+        expectedDraftUpdatedAt: 10,
         newDraftId: "draft-new",
         status: "needs_review",
       });
