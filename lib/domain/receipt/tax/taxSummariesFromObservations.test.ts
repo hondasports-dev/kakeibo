@@ -19,6 +19,37 @@ function line(
 }
 
 describe("deriveTaxSummariesFromObservations", () => {
+  it("unlabelled external target remains net when tax arithmetic supports it", () => {
+    expect(
+      deriveTaxSummariesFromObservations(
+        [line(1, "8%対象 1000円", 1000), line(2, "外税8% 80円", 80)],
+        1080,
+      ),
+    ).toEqual([expect.objectContaining({ taxableAmountYen: 1000, taxIncludedAmountYen: 1080 })]);
+  });
+  it("unlabelled gross echo is distinguished from an external net target", () => {
+    expect(
+      deriveTaxSummariesFromObservations(
+        [
+          line(1, "外税8% 582円", 582),
+          line(2, "税率8%対象額7860円", 7860),
+          line(3, "(内)消費税等8%582円", 582),
+        ],
+        8716,
+      ),
+    ).toEqual([expect.objectContaining({ taxableAmountYen: 7278, taxIncludedAmountYen: 7860 })]);
+  });
+  it("ambiguous unlabelled bases and inconsistent subtotals stay unresolved", () => {
+    expect(
+      deriveTaxSummariesFromObservations([line(1, "8%対象10円", 10), line(2, "外税8%0円", 0)], 10),
+    ).toEqual([]);
+    expect(
+      deriveTaxSummariesFromObservations(
+        [line(1, "小計1000円", 1000), line(2, "外税8%80円", 80)],
+        1000,
+      ),
+    ).toEqual([]);
+  });
   it("構造化税summaryが欠落しても明示内税行を復元する", () => {
     expect(
       deriveTaxSummariesFromObservations([

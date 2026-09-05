@@ -74,6 +74,34 @@ function parse(payload: unknown) {
 }
 
 describe("parseOpenAIResponse domain", () => {
+  it.each([
+    { rows: [{ rawText: "26年07月24日 10:08", explicitlyPrinted: false }] },
+    {
+      rows: [
+        { rawText: "26年07月24日 10:08", explicitlyPrinted: true },
+        { rawText: "26年07月25日 10:08", explicitlyPrinted: true },
+      ],
+    },
+    { rows: [{ rawText: "ポイント有効期限26年07月24日 10:08", explicitlyPrinted: true }] },
+  ])(
+    "conflicting, inferred or expiry observations do not override a valid structured date",
+    ({ rows }) => {
+      const result = parse({
+        ...trialExtraction,
+        rawObservations: rows.map((row, sourceLineIndex) => ({
+          ...row,
+          sourceLineIndex,
+          amountText: null,
+          amountYen: null,
+          lineRoleCandidates: ["unknown"],
+          roleConfidence: 0.9,
+          boundingBox: null,
+        })),
+      });
+      expect(result.success).toBe(true);
+      if (result.success) expect(result.extracted.date).toBe(trialExtraction.date);
+    },
+  );
   it("正常系: TRIAL 外税をパースする", () => {
     const result = parse(trialExtraction);
     expect(result.success).toBe(true);
@@ -106,11 +134,11 @@ describe("parseOpenAIResponse domain", () => {
     expect(result.success).toBe(false);
   });
 
-  it("不合理な構造化年を2桁年の生観測から復元する", () => {
+  it.each(["2674-07-24", "2014-07-24"])("構造化年 %s を2桁年の生観測から復元する", (date) => {
     const payload = structuredClone(trialExtraction) as typeof trialExtraction & {
       rawObservations: Array<Record<string, unknown>>;
     };
-    payload.date = "2674-07-24";
+    payload.date = date;
     payload.rawObservations = [
       {
         rawText: "26年07月24日 10:08",

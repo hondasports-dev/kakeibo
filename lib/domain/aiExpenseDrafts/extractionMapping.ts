@@ -17,7 +17,12 @@ import type {
   ReceiptRawObservationLine,
   ReceiptStructuralLineRole,
 } from "../receipt/observations";
-import { classifyReceiptLines, normalizeReceiptLineMatchText } from "../receipt/lineClassification";
+import { classifyReceiptLines } from "../receipt/lineClassification";
+import {
+  prepareReceiptItemEvidence,
+  receiptItemMatchName,
+  withoutReceiptAmount,
+} from "./receiptItemEvidence";
 import { buildCategoryCandidates, resolveCategoryIdFromCandidates } from "../categories/candidate";
 import {
   deriveTaxReviewReasons,
@@ -109,7 +114,7 @@ function classificationForExtractedItem(
   classifications: ReceiptLineClassification[],
   excludedSourceLineIndexes: ReadonlySet<number> = new Set(),
 ) {
-  const itemText = normalizeReceiptLineMatchText(item.itemName);
+  const itemText = receiptItemMatchName(item.itemName);
   const printedAmountYen = item.printedAmountYen ?? item.amountYen;
   const candidates = classifications.flatMap((classification) => {
     if (excludedSourceLineIndexes.has(classification.sourceLineIndex)) return [];
@@ -117,7 +122,8 @@ function classificationForExtractedItem(
       (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
     );
     if (!line) return [];
-    const lineText = normalizeReceiptLineMatchText(line.rawText);
+    const text = withoutReceiptAmount(line);
+    const lineText = receiptItemMatchName(text);
     const textMatches =
       itemText.length > 0 &&
       lineText.length > 0 &&
@@ -182,7 +188,7 @@ export function mapExtractionToDraftArgs<TId>(
   const taxSummaries =
     extractedTaxSummaries.length > 0
       ? extractedTaxSummaries
-      : deriveTaxSummariesFromObservations(rawObservationLines);
+      : deriveTaxSummariesFromObservations(rawObservationLines, extracted.amountYen);
   const receiptLineClassifications = classifyReceiptLines(rawObservationLines, {
     receiptTotalYen: extracted.amountYen,
     taxAmountsYen: receiptTaxAmounts(taxSummaries),
@@ -193,11 +199,12 @@ export function mapExtractionToDraftArgs<TId>(
     NonNullable<ExtractReceiptFieldsResult["items"]>[number],
     number
   >();
-  const extractedItems = extracted.items?.filter((item, index) => {
+  const evidence = prepareReceiptItemEvidence(extracted.items ?? [], rawObservationLines);
+  const extractedItems = evidence.items.filter((item, index) => {
     if (isNonMonetaryPromotion(item)) return false;
     const rawMatch = classificationForExtractedItem(
       item,
-      rawObservationLines,
+      evidence.lines,
       receiptLineClassifications,
       consumedRawLineIndexes,
     );
@@ -221,7 +228,7 @@ export function mapExtractionToDraftArgs<TId>(
     if (fromRaw) matchedRawLineIndexByItem.set(item, fromRaw.sourceLineIndex);
     if (fromRaw) {
       consumedRawLineIndexes.add(fromRaw.sourceLineIndex);
-      const rawAmount = rawObservationLines.find(
+      const rawAmount = evidence.lines.find(
         (line) => line.sourceLineIndex === fromRaw.sourceLineIndex,
       )?.amountYen;
       if (
@@ -250,15 +257,13 @@ export function mapExtractionToDraftArgs<TId>(
     ) {
       return [];
     }
-    const line = rawObservationLines.find(
+    const line = evidence.lines.find(
       (candidate) => candidate.sourceLineIndex === classification.sourceLineIndex,
     );
     if (!line || !line.explicitlyPrinted || line.amountYen === null || line.amountYen <= 0) {
       return [];
     }
-    const itemName = line.amountText
-      ? line.rawText.replace(line.amountText, "").trim()
-      : line.rawText.trim();
+    const itemName = withoutReceiptAmount(line);
     if (!itemName) return [];
     return [
       {
@@ -282,6 +287,15 @@ export function mapExtractionToDraftArgs<TId>(
       },
     ];
   });
+  const markerDefinitions = [...(extracted.markerDefinitions ?? [])];
+  for (const line of rawObservationLines) {
+    const match = line.rawText
+      .normalize("NFKC")
+      .match(/^\s*([※*◎軽])(?:印)?(?:は|:|：).*?(?:8\s*%|軽減税率)/);
+    if (match && !markerDefinitions.some((definition) => definition.marker === match[1])) {
+      markerDefinitions.push({ marker: match[1], description: line.rawText.normalize("NFKC") });
+    }
+  }
   const effectiveItems = [
     ...(extractedItems ?? []).map((item) => ({
       item,
@@ -290,7 +304,20 @@ export function mapExtractionToDraftArgs<TId>(
     ...recoveredRawItems,
   ]
     .sort((left, right) => left.sourceLineIndex - right.sourceLineIndex)
-    .map(({ item }) => item);
+    .map(({ item, sourceLineIndex }) => {
+      const raw = evidence.lines
+        .find((line) => line.sourceLineIndex === sourceLineIndex)
+        ?.rawText.normalize("NFKC");
+      const printedMarkers = markerDefinitions
+        .filter(
+          (definition) =>
+            raw &&
+            (raw.trimStart().startsWith(definition.marker) ||
+              (definition.marker === "軽" && /軽[※*]?\s*[¥￥]/.test(raw))),
+        )
+        .map((definition) => definition.marker);
+      return { ...item, markers: [...new Set([...(item.markers ?? []), ...printedMarkers])] };
+    });
 
   const candidates = buildCategoryCandidates({
     documentType: extracted.documentType,
@@ -314,7 +341,7 @@ export function mapExtractionToDraftArgs<TId>(
           receiptTotalConfidence: extracted.confidence.amountYen,
           items: effectiveItems.map(normalizeExtractedItemForTax),
           taxSummaries,
-          markerDefinitions: extracted.markerDefinitions,
+          markerDefinitions,
           rawObservationLines,
           receiptLineClassifications,
         }
@@ -420,7 +447,7 @@ export function mapExtractionToDraftArgs<TId>(
     receiptTaxDecision,
     rawObservationLines: extracted.rawObservations,
     receiptLineClassifications,
-    markerDefinitions: extracted.markerDefinitions,
+    markerDefinitions,
     categoryId,
     imageFileName,
     confidence: {
