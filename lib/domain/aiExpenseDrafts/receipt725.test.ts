@@ -394,6 +394,23 @@ describe("725 production receipt regressions", () => {
     );
     expect(result.items.map((i) => i.itemName)).toEqual(["コーラ", "キャメル"]);
   });
+  it("removes an ambiguous merged candidate when distinct products share its amount", () => {
+    const rows: Row[] = [
+      ["商品A ¥100", 100, "¥100"],
+      ["商品B ¥100", 100, "¥100"],
+    ];
+    const result = prepareReceiptItemEvidence(
+      [item("商品A商品B", 100), item("商品A", 100), item("商品B", 100)],
+      observations(rows),
+    );
+    expect(result.items.map((i) => i.itemName)).toEqual(["商品A", "商品B"]);
+    const mapped = map(
+      [item("商品A商品B", 100), item("商品A", 100), item("商品B", 100)],
+      rows,
+      200,
+    );
+    expect(mapped.items?.map((i) => i.itemName)).toEqual(["商品A", "商品B"]);
+  });
   it("does not merge conflicting adjacent amounts or mutate original observations", () => {
     const raw = observations([
       ["商品 ¥100", 100, "¥100"],
