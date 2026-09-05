@@ -1799,7 +1799,7 @@ describe("AiExpenseQueuePanel", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     expect(screen.getByText(/保存しました。確認待ちに残っています。/)).toBeInTheDocument();
-    expect(screen.getByText(/確認ポイント：金額不一致/)).toBeInTheDocument();
+    expect(screen.getByText(/確認ポイント：金額・税内訳の確認が必要/)).toBeInTheDocument();
   });
 
   describe("Issue #337 レシート入力UI改善の表示・操作回帰", () => {
