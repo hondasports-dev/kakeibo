@@ -105,6 +105,7 @@ export async function finalizeAnalysisAttemptHandler(
   args: {
     jobId: Id<"receiptAnalysisImageJobs">;
     expectedDraftId: Id<"aiExpenseDrafts"> | null;
+    expectedDraftUpdatedAt?: number;
     newDraftId: Id<"aiExpenseDrafts">;
     status: "ready" | "needs_review" | "failed";
     error?: string;
@@ -121,6 +122,41 @@ export async function finalizeAnalysisAttemptHandler(
       await deleteDraftAndItems(ctx, args.newDraftId, job.groupId);
     }
     return { applied: false };
+  }
+
+  if (args.expectedDraftId !== null && args.expectedDraftUpdatedAt !== undefined) {
+    const currentDraft = await ctx.db.get(args.expectedDraftId);
+    if (!currentDraft || currentDraft.updatedAt !== args.expectedDraftUpdatedAt) {
+      await deleteDraftAndItems(ctx, args.newDraftId, job.groupId);
+
+      if (!currentDraft) {
+        await ctx.db.patch(args.jobId, {
+          status: "cancelled",
+          draftId: undefined,
+          error: undefined,
+          updatedAt: Date.now(),
+        });
+        return { applied: false, reason: "draft_changed" as const };
+      }
+
+      const restoredStatus =
+        currentDraft.status === "ready" ||
+        currentDraft.status === "needs_review" ||
+        currentDraft.status === "failed"
+          ? currentDraft.status
+          : "cancelled";
+      await ctx.db.patch(args.jobId, {
+        status: restoredStatus,
+        draftId: restoredStatus === "cancelled" ? undefined : args.expectedDraftId,
+        error: undefined,
+        updatedAt: Date.now(),
+      });
+      await scheduleAiReviewNotificationIfNeeded(ctx, {
+        batchId: job.batchId,
+        status: restoredStatus,
+      });
+      return { applied: false, reason: "draft_changed" as const };
+    }
   }
 
   const patch: Partial<Doc<"receiptAnalysisImageJobs">> = {
@@ -261,6 +297,7 @@ export const finalizeAnalysisAttempt = internalMutation({
   args: {
     jobId: v.id("receiptAnalysisImageJobs"),
     expectedDraftId: v.union(v.id("aiExpenseDrafts"), v.null()),
+    expectedDraftUpdatedAt: v.optional(v.number()),
     newDraftId: v.id("aiExpenseDrafts"),
     status: v.union(v.literal("ready"), v.literal("needs_review"), v.literal("failed")),
     error: v.optional(v.string()),

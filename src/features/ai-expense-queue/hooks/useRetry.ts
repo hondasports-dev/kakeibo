@@ -68,7 +68,8 @@ export function useRetry({
     }
     const imageDataUrl = pendingImageDataUrls.get(job._id);
     if (!imageDataUrl) {
-      setRetryError("このセッションに画像がありません。再撮影または画像を選び直してください。");
+      setPendingRetryJob(job);
+      retryInputRef.current?.click();
       return;
     }
     await runRetry(job, imageDataUrl);

@@ -69,8 +69,8 @@ export async function retryImageJobHandler(ctx: MutationCtx, args: RetryImageJob
   if (!job || job.groupId !== groupId) {
     throw new ConvexError("Job not found");
   }
-  if (job.status !== "failed") {
-    throw new ConvexError("Only failed jobs can be retried");
+  if (job.status !== "failed" && job.status !== "needs_review") {
+    throw new ConvexError("Only failed or needs_review jobs can be retried");
   }
 
   await ctx.db.patch(args.jobId, {

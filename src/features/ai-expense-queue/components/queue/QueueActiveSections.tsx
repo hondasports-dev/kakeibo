@@ -69,10 +69,12 @@ export function QueueActiveSections({
         onOpenReview={onOpenReview}
         onRegisterItem={(itemId) => void onRegisterReady([itemId])}
         onDelete={(item) => void onDeleteQueueItem(item)}
+        onReanalyze={onReanalyze}
         onReturnToManualInput={(item) => void onDeleteQueueItem(item)}
         onToggleReadySelection={onToggleReadySelection}
         deletingIds={deletingIds}
         registeringIds={registeringIds}
+        retryingItemId={retryingItemId}
       />
       <QueueSection
         sectionKey="failed"
