@@ -120,28 +120,29 @@ function resolveExtractedDate(
   date: string,
   rawObservations: ReceiptRawObservationLine[] | undefined,
 ): { date: string; warnings: string[] } {
-  const validated = validateExtractedIsoDate(date);
-  if (validated.success && validated.date !== "") return { date: validated.date, warnings: [] };
-
-  const normalizedStructuredDate = normalizeReceiptDate(date);
-  if (normalizedStructuredDate.success) {
-    return {
-      date: normalizedStructuredDate.date,
-      warnings: ["date_normalized_from_structured_value"],
-    };
-  }
-
   const candidates = [
     ...new Set(
       (rawObservations ?? []).flatMap((line) => {
-        if (!isPurchaseDateObservation(line.rawText)) return [];
+        if (!line.explicitlyPrinted || !isPurchaseDateObservation(line.rawText)) return [];
         const result = normalizeReceiptDate(line.rawText);
         return result.success ? [result.date] : [];
       }),
     ),
   ];
   if (candidates.length === 1) {
-    return { date: candidates[0], warnings: ["date_recovered_from_raw_observations"] };
+    return {
+      date: candidates[0],
+      warnings: candidates[0] === date ? [] : ["date_recovered_from_raw_observations"],
+    };
+  }
+  const validated = validateExtractedIsoDate(date);
+  if (validated.success && validated.date !== "") return { date: validated.date, warnings: [] };
+  const normalizedStructuredDate = normalizeReceiptDate(date);
+  if (normalizedStructuredDate.success) {
+    return {
+      date: normalizedStructuredDate.date,
+      warnings: ["date_normalized_from_structured_value"],
+    };
   }
   if (date === "") return { date, warnings: [] };
   throw new Error("OpenAI レスポンスの date が妥当な YYYY-MM-DD 形式ではありません");
@@ -151,7 +152,7 @@ const NON_PURCHASE_DATE_CONTEXT =
   /(?:期限|有効|失効|キャンペーン|休業|定休日|返品|交換|発行|登録|入会|製造|賞味|消費)/;
 const PRINTED_TIME = /(?:[01]?\d|2[0-3])\s*(?::|時)\s*[0-5]?\d(?:\s*分)?/;
 
-/** 購入日時らしい明示時刻を伴う行だけを、不正な構造化日付の救済候補にする。 */
+/** 購入日時らしい明示時刻を伴う行だけを、構造化日付の照合根拠にする。 */
 function isPurchaseDateObservation(rawText: string): boolean {
   const normalized = rawText.normalize("NFKC");
   return PRINTED_TIME.test(normalized) && !NON_PURCHASE_DATE_CONTEXT.test(normalized);
