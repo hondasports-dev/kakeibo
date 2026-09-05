@@ -99,38 +99,40 @@ E2E 実行前は `pnpm exec playwright install chromium` とlocal Convexの起�
 
 | 用途                           | 参照先                          |
 | ------------------------------ | ------------------------------- |
+| Agent Loopの常時実行契約       | `AGENTS.md`                     |
+| Agent Loopの機械可読contract   | `.loop/process.yaml`            |
+| Agent Loop v12の設計意図       | `.loop/README.md`               |
+| 工程別Agent Skill              | `skills/*/SKILL.md`             |
+| 委譲prompt / model profile     | `workflows/delegation-prompts.md` |
 | 開発プロセス、PR、CI、レビュー | `docs/development-process.md`   |
 | 認証ガード設計                 | `docs/auth-guard.md`            |
 | 環境変数一覧                   | `docs/environment-variables.md` |
 | QAチェックリスト               | `docs/qa-checklist.md`          |
-| エージェント運用マニュアル     | `OPERATING_MANUAL.md`           |
-| 仮想開発会社の構成             | `COMPANY.md`                    |
 
-## エージェントループ
+## エージェントループ v12
 
-リポジトリ変更を伴うエージェント作業の必須ループは `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` です。PR作成は checkpoint であり、次は PR Aftercare、その後に Process Learning です。
+リポジトリ変更を伴うエージェント作業の正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md` です。`workflows/*` と `docs/development-process.md` は運用説明であり、矛盾する場合は正本を優先します。
 
-下表の Codex / Devin 向け Skill は実行補助です。`$code-review` は `skills/code-review/SKILL.md` の代替ではありません。`$babysit-pr` は `skills/pr-aftercare/SKILL.md` の代替ではありません。
+Default path:
 
-## Codex / Devinでの作業
+```text
+PREPARE → IMPLEMENT → VERIFY → REVIEW? → DELIVER → PR AFTERCARE → DONE
+```
 
-このリポジトリでは、Codex / Devin 向けの共有Skillを `.agents/skills/` に置きます。
+主なv12原則:
 
-| Skill                   | 用途                                                                           |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `$issue-gate-0`         | Plan 契約フェーズ0。実装前仕様ゲート                                           |
-| `$tdd-implement`        | Plan 契約フェーズ1。TDD 実装（RED/GREEN）                                      |
-| `$e2e-author`           | Plan 契約フェーズ2。E2E 追加・更新・省略判断                                   |
-| `$e2e-smoke-run`        | Smoke E2E 実行手順。依存更新 PR などで golden-path ユーザー導線が壊れていないか確認する |
-| `$verify-pre-push`      | Plan 契約フェーズ3。push 前検証                                                |
-| `$code-review`          | Plan 契約フェーズ4。preview 差分のセルフレビュー                               |
-| `$babysit-pr`           | PR を merge-ready にする                                                       |
-| `$prompt-injection-guard` | GitHub Issue / PRコメント、ログ、Web等の外部由来コンテンツを扱う前の安全確認 |
-| `$virtual-company`      | 仮想ソフト開発会社の役割分担、作業分解、ワークフロー選択                       |
-| `$service-ops-safety`   | Clerk、Vercel、Convex、Chrome DevTools MCP、secret、production操作前の安全確認 |
-| `$browser-verification` | Chrome DevTools MCPによる画面、Console、Network、DOM確認                       |
+- current explicit user instructionをgeneral Skill guidanceより優先する（non-bypassable safetyを除く）
+- 質問や承認要求の前に、許可済みread-only / reversible作業を完了する
+- R4 classificationだけではHuman Gateを起動しない
+- Human Gateはproduction / irreversible operation等の具体的triggerへ束縛する
+- reversible / low-impact変更でimplementation detailを鏡写しするだけのtestを増やさない
+- subagentは速度または独立coverageへmaterialに効く場合だけ使う
+- 作業途中の新しい指示はaffected contractだけ更新し、unaffected work / Evidenceを維持する
+- Process Learningはevent-drivenで、Learning Eventがある時だけ起動する
 
-`.agents/roles/` 配下は実行時サブエージェントではなく、Codex / Devin 共通の役割別プロンプト集です。詳細な使い方は `OPERATING_MANUAL.md` と `COMPANY.md` を参照してください。
+PR作成はcheckpointであり、通常はPR Aftercareでlatest contentをmerge-readyまで確認します。Process LearningはPRの後に常時実行する工程ではありません。
+
+具体的な委譲promptとGPT-6 Astraのmodel profileは `workflows/delegation-prompts.md` を参照してください。Loop本体はmodel非依存です。
 
 ## ローカル状態とsecret
 
@@ -138,7 +140,7 @@ E2E 実行前は `pnpm exec playwright install chromium` とlocal Convexの起�
 
 - `.env.local`
 - `.vercel/`
-- `.agents/` 配下の生成物
+- `.agents/` 配下のローカル補助生成物
 - `.pnpm-store/`
 - `.npmrc`
 

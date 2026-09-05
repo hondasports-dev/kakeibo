@@ -1,6 +1,6 @@
 ---
 name: verification
-description: AC/IV/TCのCoverage Map、max observed Risk、Required Controlsに対応する最小十分な検証をfail-fast順で行い、requirements gapとtest gapを分離する。
+description: AC/IV/TCのCoverage Map、max observed Risk、Required Controlsに対応する最小十分な検証をfail-fast順で行い、requirements gapとtest gapを分離する。小変更の過剰testと重複checkを避ける。
 license: Apache-2.0
 ---
 
@@ -13,6 +13,26 @@ license: Apache-2.0
 PREPAREのCoverage Mapを使い、ここで仕様やtest caseをゼロから再導出しない。
 
 テストを追加したことと、実行してPASSしたことは別。
+
+## Test calibration
+
+reversible / low-impact変更では、implementation detailを鏡写しするだけの新規testを作らない。
+
+新しいtestは次のどれかをmaterialに証明する場合だけ追加する。
+
+- observable AC / IV
+- relevant boundary / denial / failure
+- Required Control
+- regression riskが実際にあるcaller / state transition
+
+required checksがPASSした後は、次の理由が無い限り範囲を広げたり同じcheckを繰り返したりしない。
+
+- content change
+- material failure
+- unresolved concern
+- Required Controlが追加Evidenceを要求
+
+「念のため」「pathが広いから」だけでfull suiteや全E2Eへ広げない。
 
 ## Context discipline
 
@@ -72,7 +92,9 @@ R2に加え、affected scopeのrelevant dimension:
 
 ### R4
 
-R3 + rollback / recovery evidence + Human Gate precondition。
+R3 + rollback / recovery Evidence + Required Controls。
+
+**R4 classificationだけではHuman Gate preconditionにしない。** production / irreversible operationを実行するtaskでは、検証可能な内容を先に完了し、具体的操作の直前だけHuman Gateを適用する。
 
 ## Coverage checks
 
@@ -142,6 +164,17 @@ PREPAREで`relevant`になった観点だけ確認する。
 
 全部のtaskへ全部のtestを要求しない。`not_applicable`の観点をVerificationで再議論しない unless 新Evidenceが出た場合。
 
+## Mid-turn / revision change
+
+新しいユーザー指示やcontent changeが入った場合、unaffected Evidenceを無条件に破棄しない。
+
+previous evidenceをsame contentとして再利用するには、previous/current双方の非空tree SHA一致を必須とする。
+
+- matching tree SHA → previous evidence reuse可
+- tree identity不明 → content changedとしてdelta/full再検証
+- content changed → delta verification
+- protected behavior / AC coverage / Risk / Controls changed、またはdeltaをboundできない → affected scopeをfull rerun
+
 ## Suzumemo E2E environment
 
 browser ACがある場合は既存手順を使う。
@@ -194,18 +227,7 @@ localで同じfull suiteを重ねる場合は理由を記録する。
 
 同じgapが残る場合はduplicate recordを作らず、同じstable IDのentryへ最新revision / evidenceを追記する。
 
-別のmaterial_test_gap表やresidual recordへ転記しない。
-
 requirements gapはPREPAREへ戻す。test gapは解決までVerification PASS不可。Human Gateで迂回しない。
-
-## Revision change
-
-previous evidenceをsame contentとして再利用するには、previous/current双方の非空tree SHA一致を必須とする。
-
-- matching tree SHA → previous evidence reuse可
-- tree identity不明 → content changedとしてdelta/full再検証
-- content changed → delta verification
-- protected behavior / AC coverage / Risk / Controls changed、またはdeltaをboundできない → affected scopeをfull rerun
 
 ## PASS条件
 
@@ -215,6 +237,7 @@ previous evidenceをsame contentとして再利用するには、previous/curren
 - Required Controlsのboundaryが証明済み
 - blocking requirements gap / test gapなし
 - required checks PASS
+- broad/repeated checksを追加した場合はmaterialな理由あり
 
 ## 出力
 
@@ -230,7 +253,8 @@ TC results:
 Forward / reverse coverage:
 Checks:
 Skipped + reason:
-Reruns + reason:
+Reruns / broadened checks + reason:
 Finding IDs added/updated:
+Pending concrete Human Gate operation:
 Evidence:
 ```

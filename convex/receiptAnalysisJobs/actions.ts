@@ -100,6 +100,7 @@ export async function analyzeImageJobHandler(ctx: ActionCtx, args: AnalyzeImageJ
     {
       jobId: args.jobId,
       expectedDraftId: job.draftId ?? null,
+      expectedDraftUpdatedAt: existingDraft?.updatedAt,
       newDraftId: draft._id,
       status: jobFailed ? "failed" : (draft.status as "ready" | "needs_review"),
       error: jobFailed ? (draft.warnings?.[0] ?? "画像解析に失敗しました") : undefined,

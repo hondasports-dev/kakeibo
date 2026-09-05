@@ -1,20 +1,29 @@
-# 標準デリバリーフロー v9
+# 標準デリバリーフロー v12
+
+この文書は**非normativeな運用要約**。実行契約の正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md`。矛盾する場合は正本を優先する。
 
 ## 目的
 
-品質を維持しつつ、低リスク変更へ不要なmulti-agent reviewやfull verificationを課さない。
+品質を維持しつつ、低リスク変更へ不要なmulti-agent reviewやfull verificationを課さない。GPT-6 Astraを含む強いinstruction-following modelが、Skillを過剰解釈して不要な確認・test・reviewで停止しないようにする。
 
-実行契約の正本は `AGENTS.md`、`.loop/process.yaml`、`skills/*/SKILL.md`。この文書は運用の要約であり、正本と矛盾する場合は正本を優先する。
+v12の追加原則:
+
+- current explicit user instruction > general Skill guidance（non-bypassable safetyを除く）
+- authorized read-only / reversible workは確認前に完了する
+- R4 classificationだけではHuman Gateを起動しない
+- low-impact changeでimplementation detailを鏡写しするtestを増やさない
+- subagentは速度または独立coverageへmaterialに効く時だけ使う
+- mid-turn instructionはaffected contractだけ更新し、unaffected work/Evidenceを維持する
 
 ## 1. PREPARE
 
 最初にSpec Confidenceを `C0 / C1 / C2` で判定する。
 
 - C2: 目的・期待結果・Acceptance Criteriaが明確でmaterial conflictなし
-- C1: 不足をauthoritative sourceからほぼ一意に復元可能
+- C1: 不足をauthoritative sourceからmaterial choiceなしに復元可能
 - C0: 不明またはConflict。実装禁止
 
-C0はRequirements Discovery / Source Reconciliationを行い、解消できないmaterial choiceはHuman Gateへ送る。
+C0でも即質問せず、まず許可済みのRequirements Discovery / Source Reconciliationを行う。authorized discovery後も成果物をmaterially変えるchoiceが複数残る場合だけHuman Gateへ送る。
 
 repository変更では、最初の編集前にWorkspace Preflightを実行する。
 
@@ -25,11 +34,13 @@ node scripts/check-task-worktree.mjs --require-clean
 PREPAREは最低限次を確定する。
 
 - Goal / In scope / Out of scope
-- Acceptance Criteria
+- AC / relevant IV
+- material assumptions
+- relevant dimensions
 - Spec Confidence
 - Risk
 - Required Controls
-- Verification plan
+- Coverage Map / Verification plan / TC
 
 ## 2. Risk + Required Controls
 
@@ -51,9 +62,11 @@ Riskは4軸で評価する。
 - Financial Integrity: billing/payment/settlement
 - Destructive/Stateful: deletion/retention、rollback、idempotency/state transition
 - Service Ops: Clerk/Convex/Vercel/GitHub/OAuth/webhook/env/deploy/DNS等のwrite
-- Human Gate: R4、production/irreversible write、protected finding acceptance
+- Human Gate: unresolved material choice、production/irreversible write、production secret/DNS/money movement、protected finding acceptance
 
 Risk R3/R4という理由だけでRequirements reviewerやSecurity reviewerの人数を増やさない。
+
+**R4 classificationだけではHuman Gateを起動しない。** R4はaffected scope、rollback/recovery Evidence、independent review、Required Controlsを強める。
 
 ## 3. Default path
 
@@ -76,11 +89,11 @@ writerは原則1体。
 Implementationへ渡すpacketは必要十分にする。
 
 - Goal
-- Acceptance Criteria
+- AC / relevant IV
 - editable scope
 - relevant impact
 - Risk / Required Controls
-- Verification plan
+- Verification TC / plan
 
 Issue本文や前工程の長い議論をそのまま再転記しない。
 
@@ -88,21 +101,43 @@ Issue本文や前工程の長い議論をそのまま再転記しない。
 
 Implementation開始後はtask中のmax observed Riskをcompletion floorとする。
 
+R4でもreversibleな実装・test・reviewは進める。production / irreversible operationが必要なら、具体的操作の直前までdiff / rollback / Evidenceを準備する。
+
+### Mid-turn steering
+
+作業中に新しいユーザー指示が来た場合:
+
+1. 新指示を最優先sourceとして取り込む
+2. affected Goal / scope / AC / IV / TC / Risk / Controlsだけ更新する
+3. unaffected work / Evidenceは保持する
+4. bounded deltaだけImplementation / Verification / Reviewへ戻す
+5. material choiceが新たに発生した時だけPREPARE / Human Gateへ戻す
+
+loop全体を無条件にrestartしない。
+
 ## 5. Verification
 
-品質は「Gate数」ではなくAcceptance CriteriaとRequired ControlsのEvidenceで証明する。
+品質は「Gate数」ではなくAcceptance Criteria / relevant IVとRequired ControlsのEvidenceで証明する。
 
 - R0: targeted static / behavior-preserving check
 - R1: changed/directly affected tests + scopeable static checks +必要なfunctional E2E
 - R2: affected scope + shared caller regression
 - R3: affected scopeのnormal/boundary/error/auth denial/partial failure等
-- R4: R3 + recovery evidence
+- R4: R3 + recovery Evidence + Required Controls
 
 repo-wide full checks / regression E2Eはlatest contentのCI Aftercareを正本にできる。同じfull suiteをlocal/CIで理由なく重複しない。
 
+### Test calibration
+
+reversible / low-impact変更でimplementation detailを鏡写しするだけの新規testを作らない。
+
+新規testはobservable AC/IV、required boundary、Required Control、実在するregression riskをmaterialに証明する場合だけ追加する。
+
+required checksがPASSした後は、content change / material failure / unresolved concern / Required Controlが無い限りcheckを広げたり繰り返したりしない。
+
 test gapは共通 `findings[]` にstable IDで記録し、解消するまでVerification PASS不可。
 
-## 6. REVIEW
+## 6. REVIEW / Delegation
 
 independent Reviewは次の場合だけ起動する。
 
@@ -112,7 +147,17 @@ independent Reviewは次の場合だけ起動する。
 
 既定は最大1 reviewer。reviewer同士を討論させず、rootが1回だけ統合する。
 
+- R0: 原則なし
+- R1: Control要求時のみ
+- R2: 1 reviewer
+- R3: 1 risk-aware reviewer
+- R4: 1 risk-aware reviewer
+
+R4だけを理由にspecialistやreviewerを追加しない。materially distinctなControlが必要な場合だけspecialistを追加する。
+
 Security specialistはSecurity Review Controlが起動した時だけ同じREVIEW stageへ追加する。
+
+subagentはread-only discovery、required independent review、path-disjoint analysisで並列化効果がmaterialな時だけ使う。same shared diffはone writerとする。
 
 findingはすべて共通 `findings[]` にstable IDで記録する。
 
@@ -127,7 +172,25 @@ previous/current双方の非空tree SHAが一致する場合だけsame content�
 
 tree identityを証明できない、またはcontentが変わった場合はdelta Verification / Reviewを行い、protected behavior / AC / Risk / Controlsが変わるかdeltaをboundできない場合はaffected-scope full rerunへ戻る。
 
-## 8. Delivery / PR Aftercare
+mid-turn instructionでも同じ原則を使い、affected contractだけ更新してunaffected Evidenceを維持する。
+
+## 8. Human Gate
+
+Human Gateの前に既に許可されたread-only / reversible workを完了し、具体的な結果をレビュー可能にする。
+
+代表trigger:
+
+- authorized discovery後もmaterial choiceが複数残る
+- production deploy / production data mutation
+- irreversible / bulk mutation
+- production env / secret / key rotation
+- DNS/domain cutover
+- production money movement
+- protected finding acceptance
+
+branch作成、reversible edit、test/review、依頼済みPR作成・更新には追加確認を要求しない。
+
+## 9. Delivery / PR Aftercare
 
 PR作成はcheckpoint。
 
@@ -139,7 +202,7 @@ Delivery前に:
 - corresponding Verification Evidence
 - required Controls / Review
 - blocking findingなし
-- required Human Gate approval
+- concrete Human Gateがtriggerされた場合だけ必要approval
 
 を確認する。
 
@@ -159,7 +222,7 @@ merge-ready PASS直前に、PR current headとobserved revision、checks/review/
 
 required approvalがある場合はapproval PASSまで完了扱いにしない。pending / queued / in_progressはPASSではない。
 
-## 9. Finding Ledger
+## 10. Finding Ledger
 
 review / verification / CI / human findingは `task-state.findings[]` だけを正本にする。
 
@@ -179,7 +242,7 @@ review / verification / CI / human findingは `task-state.findings[]` だけを�
 
 protected findingを `accept_with_human_gate` にする場合はapprover / approved_at / scope / evidenceを含む完全なapproval recordが必要。test gapはHuman Gateで迂回できない。
 
-## 10. Process Learning
+## 11. Process Learning
 
 Process Learningは**完全event-driven**。
 
@@ -208,7 +271,7 @@ Status: NOT_REQUIRED
 
 DONE条件ではLearning Eventの判定だけを必須とし、full Process Learning自体は必須にしない。
 
-## 11. Task Transition
+## 12. Task Transition
 
 Task Transitionは通常のDONE条件ではない。
 
@@ -222,19 +285,20 @@ Task Transitionは通常のDONE条件ではない。
 
 ## Failure routing
 
-- Spec ambiguity / conflict → PREPARE / Human Gate
+- Spec ambiguity / conflict → PREPARE / Human Gate after authorized discovery
 - Impact拡大 → PREPAREでRisk / Controls更新
 - code/test defect → Implementation → required Verification/Review
 - unknown/repeated failure → Incident
-- human-only production/irreversible step → Human Gate
+- production/irreversible operation → concrete resultを作った後Human Gate
 
 ## 完了条件
 
 - Spec Confidence C1/C2
 - Risk / Required Controls記録済み
-- Acceptance Criteria verified
+- Acceptance Criteria / relevant IV verified
 - required Review完了
 - blocking findingなし
+- concrete Human Gateがtriggerされた場合だけ必要approval済み
 - Delivery target到達
 - PR Aftercare terminal
 - Learning Event判定済み（`none` 可）

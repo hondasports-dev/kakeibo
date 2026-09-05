@@ -1,6 +1,8 @@
-# Suzumemo Agent Loop
+# Suzumemo Agent Loop v12
 
 このファイルは**常時contextに置く最小の実行契約**だけを持つ。詳細をここへ重複させない。
+
+正本:
 
 - Machine-readable loop: `.loop/process.yaml`
 - Overview / rationale: `.loop/README.md`
@@ -8,6 +10,23 @@
 - Current task state (worktree-local, ignored): `.loop/state/<task-id>.yaml`
 - Current stage / conditional helper: `skills/*/SKILL.md`
 - Plugin manifest: `plugin.json`
+
+`workflows/*` と `docs/development-process.md` は運用説明であり、上記正本と矛盾する場合は正本を優先する。
+
+## Instruction priority
+
+実行判断の優先順位は次とする。
+
+1. platform / non-bypassable safety
+2. current explicit user instruction
+3. latest explicitly approved task / spec / decision
+4. `AGENTS.md` / `.loop/process.yaml`
+5. current state / triggered `SKILL.md`
+6. workflow / explanatory docs
+
+Skillは、既にユーザーが許可したreversible / read-only / review / fix / PR作成等の作業を独自に狭める権限として扱わない。
+
+Skillの指示が原因でpermission確認、作業停止、未完了、またはユーザー意図からの逸脱が必要になる場合は、**どの `SKILL.md` のどの指示が原因か**を示し、明示要件とAgent解釈を分けて説明する。
 
 ## Default loop
 
@@ -28,12 +47,31 @@ Human Gate / Incident / Process Learning は必要時だけのside path。
 - **reverse coverage**: 全behavior-changing diffをAC/IV/design deviationへ対応させる。
 - requirements gapはPREPAREへ戻す。test gapは解消またはRequirements正式変更までVerification PASS不可。
 - RiskとRequired Controlsを分離し、Implementation開始後の`max observed Risk`をcompletion floorとする。
+- R4は高い検証・review要求を表すが、**R4という分類だけではHuman Gateを起動しない**。
 - required Verification / ReviewがFAIL・BLOCKEDのまま進まない。
 - current instance（`.loop/state/<task-id>.yaml`）の`findings[]`をfindingの唯一のsource of truthとする。protected findingをAgent単独でdeferしない。
 - same tree/contentのEvidenceは再利用し、content changeでは必要なdeltaだけ再検証する。
 - `PR created`はcheckpoint。通常targetはlatest PR contentの`merge_ready`。
 - Process Learningはevent-driven。R3/R4だけを理由に起動しない。
 - scope外の改善を勝手に同じPRへ混ぜない。
+
+## Autonomy / Human Gate
+
+ユーザーの意図と既存contextからroutineなscopeを推定し、許可済み作業を完了まで進める。
+
+Human Gateの前に、すでに許可されているread-only / reversible作業を完了し、**具体的にレビュー可能な結果**を作る。
+
+Human Gateを要求する主な場面:
+
+- authorized discovery後も実装結果をmaterially変えるchoiceが複数残る
+- production write
+- irreversible / bulk state mutation
+- production secret / credential rotation
+- production DNS/domain cutover
+- production money movement
+- protected finding acceptance
+
+branch作成、コード・docs修正、test/review、同一task PRの作成・更新等、明示または強く含意されたreversible作業に追加確認を要求しない。
 
 ## Context discipline
 
@@ -71,6 +109,26 @@ Conditional Skillはtrigger時だけ読む。
 
 使用後のconditional Skill全文はactive contextから外してよい。
 
+## Mid-turn steering
+
+作業中にユーザーから修正・追加条件を受けた場合、完了済み作業を無条件に捨ててloop全体をrestartしない。
+
+1. 新しい指示を最優先sourceとして取り込む
+2. 影響するGoal / scope / AC / IV / TC / Risk / Controlsだけ更新する
+3. unaffected contractとsame-content Evidenceは保持する
+4. 変更deltaだけImplementation / Verification / Reviewへ戻す
+5. material choiceが新たに発生した場合だけPREPARE / Human Gateへ戻す
+
+## Delegation
+
+subagentは人数を増やすためではなく、wall-clock短縮または独立coverage改善にmaterially効く時だけ使う。
+
+- read-only discovery / independent review / path-disjoint analysisは並列化候補
+- same shared diffのwriterは原則1体
+- cheapな逐次作業、単純検索、同じ情報の再要約はdelegateしない
+- default independent reviewerは最大1体
+- reviewer-to-reviewer debateはしない。rootが1回統合する
+
 ## PREPARE
 
 詳細: `skills/requirements/SKILL.md`
@@ -85,7 +143,7 @@ Conditional Skillはtrigger時だけ読む。
 - Risk / Required Controls
 - Coverage Map / `TCxx`
 
-Material choiceが残ればC0。Riskを上げて曖昧さを隠さない。
+質問する前に、許可済みのrepository/source調査でcheapに解消できるmaterial assumptionを潰す。Material choiceが残ればC0。Riskを上げて曖昧さを隠さない。
 
 ## IMPLEMENT
 
@@ -94,6 +152,8 @@ Material choiceが残ればC0。Riskを上げて曖昧さを隠さない。
 compact contractに必要な最小差分だけ実装する。終了時にbehavior-changing diffをAC/IV/design deviationへ逆引きする。
 
 新しい仕様・caller・auth/data/financial impactを見つけたら暗黙にscope拡大せずPREPAREへ戻してcontractを更新する。
+
+R4でも、production / irreversible operationそのものに到達するまでは、許可済みの実装・test・reviewを進める。
 
 ## VERIFY
 
@@ -108,6 +168,10 @@ cheap static / owning tsconfig
 → required functional E2E
 → repo-wide regression = CI Aftercare
 ```
+
+reversible / low-impact変更でimplementation detailを鏡写しするだけの新規testを作らない。AC/IVをmaterialに証明するtestだけ追加する。
+
+required checksがPASSした後は、新しい変更・failure・unresolved concernが無い限り、範囲を理由なく広げたり同じtestを繰り返したりしない。
 
 同じfull suiteをlocalとCIで理由なく重複しない。required env不足はskipではなく復旧またはBLOCKED / Incident。
 
@@ -126,33 +190,13 @@ cheap static / owning tsconfig
 - Preserve経路を壊している
 - scope外behaviorが混入している
 
-具体的な不足が出た時だけsource探索を広げる。
+具体的な不足が出た時だけsource探索を広げる。R4だけを理由にreviewerやspecialistを追加しない。
 
 ## Timing telemetry
 
 各stageで開始・終了と少数counterだけ記録する。計測自体を新しいGateにしない。
 
-主なstage:
-
-- PREPARE
-- IMPLEMENT
-- VERIFY
-- REVIEW
-- DELIVER
-- PR AFTERCARE
-- Incident / Process Learning（起動時だけ）
-
-DONE時にcompact summaryを表示する。
-
-```text
-Spec: C2 | Risk: R2 (max R2) | Size: small
-Files: 4 | AC: 3 | IV: 1 | TC: 6 | Controls: 1
-Prepare 1m32s | Implement 5m10s | Verify 3m04s | Review 1m01s
-Deliver 22s | Aftercare 4m00s (external wait 3m25s)
-Total 15m09s | Active 11m44s | Retries 1 | Full suites 0 | Review cycles 1
-```
-
-wall-clockを記録し、CI/Human Gate/external service待ちは可能なら`external_wait`へ分離する。観測できない時間やtoken数を推測しない。
+DONE時にcompact summaryを表示する。wall-clockを記録し、CI/Human Gate/external service待ちは可能なら`external_wait`へ分離する。観測できない時間やtoken数を推測しない。
 
 Telemetryだけを理由にProcess Learningを起動しない。Learning Eventがある時だけ、Risk / Spec Confidence / task size / countersと一緒に改善Evidenceとして使う。
 
@@ -174,6 +218,7 @@ Telemetryだけを理由にProcess Learningを起動しない。Learning Event�
 - forward / reverse coverage成立
 - required Verification / Review完了
 - blocking findingなし
+- triggered Human Gateがあれば必要な時点で承認済み
 - Delivery target到達
 - telemetry summary記録
 - Learning Event判定済み（`none`可）

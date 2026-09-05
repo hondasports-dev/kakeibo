@@ -1,5 +1,5 @@
 const REVIEW_REASON_LABELS: Record<string, string> = {
-  amount_mismatch: "金額不一致",
+  amount_mismatch: "金額・税内訳の確認が必要",
   ambiguous_category: "未分類あり",
   ambiguous_document_type: "書類種別要確認",
   cannot_reconcile_item_amounts: "商品合計とレシート小計が不一致",

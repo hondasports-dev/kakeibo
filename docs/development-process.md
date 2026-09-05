@@ -2,7 +2,7 @@
 
 このドキュメントは Suzumemo（kakeibo）の**日常開発・PR・リリース運用の入口**を定義する。
 
-Agent Loop の詳細をここへ二重定義しない。内容が衝突した場合は次を正本とする。
+Agent Loopの詳細をここへ二重定義しない。この文書は非normativeな運用説明で、内容が衝突した場合は次を正本とする。
 
 - Agent実行契約: `AGENTS.md`
 - Loop / Risk / Required Controls: `.loop/process.yaml`
@@ -195,7 +195,7 @@ Agent taskで残す価値があるもの:
 
 ---
 
-## 5. Agent Loop v9
+## 5. Agent Loop v12
 
 Agent taskのdefault path:
 
@@ -203,7 +203,40 @@ Agent taskのdefault path:
 PREPARE → IMPLEMENT → VERIFY → REVIEW? → DELIVER → PR AFTERCARE → DONE
 ```
 
-詳細は `AGENTS.md` / `.loop/process.yaml` を正とする。
+詳細は `AGENTS.md` / `.loop/process.yaml` / `skills/*/SKILL.md` を正とする。
+
+### Instruction priority / autonomy
+
+```text
+platform / non-bypassable safety
+  ↓
+current explicit user instruction
+  ↓
+latest approved task / spec / decision
+  ↓
+AGENTS.md / process.yaml
+  ↓
+current / triggered Skill
+  ↓
+workflow / explanatory docs
+```
+
+Skillは既に許可されたreversible / read-only / review / fix / PR作業を独自に狭めるものとして扱わない。
+
+ユーザーへ質問する前に、許可済みのrepository/docs/tests調査を行い、cheapに解消できるmaterial assumptionを潰す。
+
+branch作成、reversible repository edit、test/review/fix、依頼済みPR作成・更新に追加確認を要求しない。
+
+Human Gateは具体的なtriggerへ束縛する。
+
+- authorized discovery後もmaterial choiceが複数残る
+- production / irreversible write
+- production secret / key rotation
+- production DNS/domain cutover
+- production money movement
+- protected finding acceptance
+
+**R4 classificationだけではHuman Gateを起動しない。**
 
 ### PREPARE
 
@@ -211,10 +244,12 @@ PREPARE → IMPLEMENT → VERIFY → REVIEW? → DELIVER → PR AFTERCARE → DO
 
 - Spec Confidence
 - Goal / scope / Preserve
-- Acceptance Criteria
+- AC / relevant IV
+- material assumptions
+- relevant dimensions
 - Risk
 - Required Controls
-- Verification plan
+- Coverage Map / Verification plan / TC
 
 Spec Confidence:
 
@@ -223,7 +258,7 @@ Spec Confidence:
 - `C0 unclear`: 複数の妥当な成果物がある
 - `C0 conflicted`: desired stateについてsourceが衝突する
 
-`C0` は実装禁止。
+`C0` は実装禁止。ただしHuman Gateの前にauthorized discoveryを行う。
 
 ### Requirementsの独立review
 
@@ -235,7 +270,7 @@ Riskの高さだけでreviewer数を増やさない。
 
 Reviewer同士を討論させない。必要なreviewerは独立して所見を出し、rootが1回だけ統合する。
 
-旧運用の「通常2 reviewer / 高Risk 3 reviewer / post-synthesis review必須」は廃止する。
+旧運用の「通常2 reviewer / 高Risk 3 reviewer / post-synthesis review必須」は廃止したままとする。
 
 ### RiskとRequired Controls
 
@@ -255,6 +290,8 @@ Auth、Convex schema、billing等のdomainはRiskを機械的にHighへ固定す
 
 Implementation開始後は `max observed Risk` をcompletion floorとする。
 
+R4はVerification / recovery / independent reviewを強める分類であり、Human Gateそのものではない。
+
 ---
 
 ## 6. Implementation Handoff / Writer境界
@@ -267,25 +304,41 @@ Issue本文だけをimplementerへ渡さない。
 Goal:
 Scope / Editable paths:
 Out of scope:
-Acceptance Criteria:
+AC / IV IDs:
 Constraints:
 Required Controls:
-Verification plan:
+Verification TC / plan:
 References:
 ```
 
 - 同じshared diffのwriterは原則1体。
-- 複数writerはpath-disjointを明確にできる場合だけ。
+- 複数writerはpath-disjointを明確にでき、並列化がwall-clock短縮にmaterially効く場合だけ。
+- read-only discovery / independent reviewは安全に分離できる場合のみdelegateする。
+- cheapな逐次作業や単純検索のためだけにsubagentを増やさない。
 - Reviewerはread-only。
 - 実装者の自己確認をrequired independent reviewに数えない。
 
+R4でもreversibleな実装・test・reviewを進める。production / irreversible operationがある場合、具体的操作の直前までdiff / rollback / Evidenceを準備する。
+
 Implementer返却後はscope外変更、無関係refactor、未報告dependency、secret/local artifactが無いことを確認する。
+
+### Mid-turn steering
+
+作業中に新しいユーザー指示が来た場合:
+
+1. 新指示を最優先sourceへ追加
+2. affected Goal / scope / AC / IV / TC / Risk / Controlsだけ更新
+3. unaffected work / Evidenceを保持
+4. bounded deltaだけImplementation / Verification / Reviewへ戻す
+5. material choiceが新たに発生した時だけPREPARE / Human Gateへ戻す
+
+loop全体を無条件にrestartしない。
 
 ---
 
 ## 7. Verification
 
-「全コマンドを毎回実行する」ことではなく、Acceptance CriteriaとRequired Controlsを証明する。
+「全コマンドを毎回実行する」ことではなく、Acceptance Criteria / relevant IVとRequired Controlsを証明する。
 
 ローカル既定:
 
@@ -297,6 +350,14 @@ Implementer返却後はscope外変更、無関係refactor、未報告dependency�
 repo-wide regression checkはlatest contentのCI Aftercareを正本にできる。
 
 同じfull suiteをlocalとCIで理由なく重複しない。
+
+### Test calibration
+
+reversible / low-impact変更でimplementation detailを鏡写しするだけの新規testを作らない。
+
+新規testはobservable AC/IV、required boundary、Required Control、実在するregression riskをmaterialに証明する場合だけ追加する。
+
+required checksがPASSした後は、content change / material failure / unresolved concern / Required Controlが無い限りcheckを広げたり繰り返したりしない。
 
 ### Functional E2E
 
@@ -371,15 +432,19 @@ ACやrequired invariantを証明できない場合はFinding Ledgerへ `test_gap
 - R1: Controlが要求した時だけ
 - R2: 1 reviewer
 - R3: 1 risk-aware reviewer
-- R4: 1 reviewer + Human Gate
+- R4: 1 risk-aware reviewer
+
+R4 classificationだけを理由にspecialistや追加reviewerを増やさない。materially distinctなRequired Controlが別専門性を要求する場合だけspecialistを追加する。
 
 Security specialistはsecurity controlが起動した場合だけ同じREVIEW stageへ追加する。
 
 「Code Review → Security Review」を全taskの固定serial Gateにしない。
 
+reversible / low-impact変更でimplementation detailを鏡写しするだけのtest追加をreview findingにしない。observable AC/IVの未証明がある場合だけtest gapとして扱う。
+
 Findingは `.loop/state/<task-id>.yaml` の `findings[]` に直接記録する。同じ所見をreview / residual / reconciliationへ転記しない。
 
-Protected findingはagent単独でdeferしない。
+Protected findingはagent単独でdeferしない。protected finding acceptanceだけは具体的なHuman Gate triggerとする。
 
 ---
 
@@ -395,7 +460,7 @@ Delivery前:
 - Required Controls完了
 - required REVIEW PASS / NOT_REQUIRED
 - blocking Findingなし
-- required Human Gate承認済み
+- concrete Human Gateがtriggerされた場合だけ必要approval済み
 
 PR本文には最低限:
 
@@ -581,6 +646,7 @@ Agent taskのDONEは `AGENTS.md` / `.loop/process.yaml` を正とする。
 - Acceptance Criteriaを検証済み
 - Required Controls完了
 - blocking Findingなし
+- concrete Human Gateがtriggerされた場合だけ必要approval済み
 - required CI成功
 - PRがrequired review / branch protectionを満たす
 - latest PR contentがmergeable

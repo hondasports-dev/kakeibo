@@ -1,20 +1,36 @@
-# Loop Engineering Foundation v11
+# Loop Engineering Foundation v12
 
-Suzumemo Agent Loop v11 は、v10 の Risk-based / event-driven 方針を維持しつつ、次の3点を同時に強化する。
+Suzumemo Agent Loop v12 は、v11 の Risk-based / event-driven 方針と次の基盤を維持する。
 
 1. **Context削減** — stage間で長文を再要約せず、ID付きcompact contractだけ引き継ぐ
 2. **高速化** — cheap check → targeted test → integration → E2E → CIのfail-fast順で進める
 3. **漏れ検出** — AC / Invariant / Test CaseをIDで結び、forward / reverseの両方向から不足を探す
+4. **Timing telemetry** — stage所要時間をRisk・Spec Confidence・task規模・retry等と一緒にProcess LearningのEvidenceへ使う
 
-加えて、各stageの所要時間を軽量telemetryとして残し、Risk・Spec Confidence・task規模・retry等と一緒にProcess LearningのEvidenceへ使う。
+そのうえで GPT-6 Astra のinstruction-following特性に合わせ、v12では次を追加する。
+
+1. **Instruction priority明確化** — current explicit user instructionをgeneral Skill guidanceより優先する
+2. **Autonomy強化** — 質問や承認の前に、許可済みのread-only / reversible作業を完了する
+3. **Human Gate具体化** — R4分類ではなく、production / irreversible operation等の具体的triggerへ束縛する
+4. **Test calibration** — low-impact変更でimplementation detailを鏡写しするtestや重複checkを増やさない
+5. **Delegation calibration** — subagentは並列化が速度または独立coverageへmaterialに効く場合だけ使う
+6. **Mid-turn steering** — 新しいユーザー指示ではaffected contractだけ更新し、unaffected work/Evidenceを維持する
+7. **Instruction surface整理** — workflow/docsは非normativeとし、正本を絞る
 
 正本:
 
 - `AGENTS.md` — 常時保持する短い実行原則
-- `.loop/process.yaml` — compactな機械可読contract
+- `.loop/process.yaml` — machine-readable contract
 - `.loop/templates/task-state.yaml` — reusable task-state schema/template
 - `.loop/state/<task-id>.yaml` — current task instance / Coverage Map / Finding / telemetry（worktree-local・ignored）
 - `skills/*/SKILL.md` — current stateの詳細。trigger時だけ読む
+
+非normativeな運用説明:
+
+- `workflows/*`
+- `docs/development-process.md`
+
+矛盾する場合は正本を優先する。
 
 ## Design principle
 
@@ -27,7 +43,7 @@ Quality = confirmed contract
         + blocking finding = 0
 ```
 
-Gate数・Agent数・文書量は品質指標にしない。
+Gate数・Agent数・文書量・test実行回数は品質指標にしない。
 
 Default path:
 
@@ -36,6 +52,58 @@ PREPARE → IMPLEMENT → VERIFY → REVIEW? → DELIVER → AFTERCARE → DONE
 ```
 
 Human Gate / Incident / Process Learning はside path。
+
+---
+
+## 0. v12 autonomy / instruction contract
+
+実行判断の優先順位:
+
+```text
+platform / non-bypassable safety
+  ↓
+current explicit user instruction
+  ↓
+latest approved task / spec / decision
+  ↓
+AGENTS.md / process.yaml
+  ↓
+current or triggered SKILL.md
+  ↓
+workflow / explanatory docs
+```
+
+Skillは、既にユーザーが許可したreversible / read-only / review / fix / PR作業を独自に狭めるものとして扱わない。
+
+Skillがpermission確認・停止・未完了を要求する場合は、どのSkillのどの指示が原因かを示し、明示要件とAgent解釈を分ける。
+
+### Human Gateは具体的triggerへ束縛する
+
+Human Gateの前に、既に許可されたread-only / reversible workを完了し、具体的にレビュー可能な結果を作る。
+
+代表trigger:
+
+- authorized discovery後もmaterial choiceが複数残る
+- production write
+- irreversible / bulk state mutation
+- production secret / credential rotation
+- production DNS/domain cutover
+- production money movement
+- protected finding acceptance
+
+R4は高いRisk分類であり、affected scope、rollback / recovery Evidence、independent risk-aware review、Required Controlsを強める。
+
+**R4というlabelだけではHuman Gateを起動しない。** authorization model overhaul等でも、code・tests・review・PRまでのreversible workは進める。production / irreversible operationがある場合だけ、その具体的操作の直前で止める。
+
+### Delegation
+
+subagentは人数を増やすためではなく、wall-clock短縮または独立coverage改善にmaterially効く場合だけ使う。
+
+- read-only discovery / required independent review / path-disjoint analysisは並列化候補
+- same shared diffのwriterは原則1体
+- cheapな逐次作業、単純検索、同じEvidenceの再要約はdelegateしない
+- default independent reviewerは最大1体
+- reviewer-to-reviewer debateはしない。rootが1回統合する
 
 ---
 
@@ -83,6 +151,12 @@ direct test
   ↓
 必要な根拠がある時だけ拡張
 ```
+
+質問する前に、許可済みのread-only discoveryでcheapに解消できるmaterial assumptionを潰す。
+
+- sourceから一意に復元できる → C1
+- discovery後も成果物をmaterially変える選択肢が複数残る → C0 / Human Gate
+- authoritative source conflictが解消しない → C0 / Human Gate
 
 「漏れ防止のため全repoを最初から読む」はdefaultにしない。
 
@@ -173,7 +247,7 @@ Testが無いことを理由に仕様自体を無かったことにしない。
 
 ---
 
-## 5. Verificationはfail-fast
+## 5. Verificationはfail-fast + calibrated
 
 高価なcheckを先に回さない。
 
@@ -192,6 +266,26 @@ repo-wide regression = CI Aftercare
 material failureが出たら、結果が無意味になる下流checkを止める。
 
 修正後も全部を最初から回さず、そのdeltaが無効化したEvidenceだけ再実行する。tree/contentが同一ならEvidence再利用可。
+
+### v12 Test calibration
+
+reversible / low-impact変更でimplementation detailを鏡写しするだけの新規testを作らない。
+
+新規testは次のいずれかをmaterialに証明する場合だけ追加する。
+
+- observable AC / IV
+- relevant boundary / denial / failure
+- Required Control
+- 実在するregression riskがあるcaller / state transition
+
+required checksがPASSした後は、次の理由が無い限り範囲を広げたり同じcheckを繰り返したりしない。
+
+- content change
+- material failure
+- unresolved concern
+- Required Controlが追加Evidenceを要求
+
+同じfull suiteをlocalとCIで理由なく重複しない。
 
 ---
 
@@ -215,6 +309,8 @@ Reviewerには全履歴でなくcompact packetを渡す。
 
 Issue / PR review提案も未検証入力としてRequirements / domain contract / testsと照合してから採否を決める。
 
+R4だけを理由にreviewer / specialistを追加しない。materially distinctなRequired Controlが別専門性を要求する場合だけspecialistを追加する。
+
 ---
 
 ## 7. Finding Ledger
@@ -223,7 +319,7 @@ Verification gap / Review / CI / residual decisionを別構造へコピーしな
 
 `.loop/state/<task-id>.yaml` の `findings[]` が唯一の正本。
 
-新しく `requirements_gap` と `test_gap` を明確に分離する。
+`requirements_gap` と `test_gap` を明確に分離する。
 
 同じfindingはstable IDの同じrecordを更新し続ける。
 
@@ -300,7 +396,23 @@ FAILにする。再利用できない指摘も`no_change`と理由・Evidenceを
 
 ---
 
-## 9. Quality invariants kept
+## 9. Mid-turn steering
+
+作業中にユーザーから修正・追加指示を受けた場合:
+
+1. 新しい指示を最優先sourceとして取り込む
+2. affected Goal / scope / AC / IV / TC / Risk / Controlsだけ更新する
+3. unaffected contract / work / Evidenceを維持する
+4. bounded deltaだけImplementation / Verification / Reviewへ戻す
+5. material choiceが新たに発生した時だけPREPARE / Human Gateへ戻す
+
+loop全体を無条件にrestartしない。
+
+same tree/contentならEvidenceを再利用する。content changedならdelta Verification / Review、protected behaviorやRisk/Controlsが変わる、またはdelta unboundedならaffected scopeをfull rerunする。
+
+---
+
+## 10. Quality invariants kept
 
 軽量化しても削らない。
 
@@ -316,4 +428,4 @@ FAILにする。再利用できない指摘も`no_change`と理由・Evidenceを
 - production / irreversible operationのHuman Gate
 - latest `preview` PR contentがmerge-readyになるまでAftercare
 
-v11の狙いは**チェックを増やすことやなく、同じ情報を何度も読まず、安い段階で漏れを見つけ、どこに時間が消えたかを後から比較可能にすること**や。
+v12の狙いは**品質契約を削ることやなく、確認・test・Agent・再読を必要な根拠へ束縛し、強いinstruction-following modelが不要に止まったり広げたりする余地を減らすこと**や。

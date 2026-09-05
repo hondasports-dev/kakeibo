@@ -864,14 +864,15 @@ describe("mapExtractionToDraftArgs tax normalization", () => {
     ]);
   });
 
-  it("全明細のカテゴリが空ならレシート全体カテゴリを補完する", () => {
+  it("全明細のカテゴリが空でもレシート全体カテゴリを押し付けない", () => {
     const source = {
       ...trialExternal8Fixture,
       categoryName: "食費",
       items: trialExternal8Fixture.items!.map((item) => ({ ...item, categoryName: "" })),
     };
     const mapped = mapExtractionToDraftArgs(source, [foodCategory]);
-    expect(mapped.items?.every((item) => item.categoryId === foodCategory._id)).toBe(true);
-    expect(mapped.items?.every((item) => item.categoryName === foodCategory.name)).toBe(true);
+    expect(mapped.categoryId).toBe(foodCategory._id);
+    expect(mapped.items?.every((item) => item.categoryId === undefined)).toBe(true);
+    expect(mapped.items?.every((item) => item.categoryName === undefined)).toBe(true);
   });
 });

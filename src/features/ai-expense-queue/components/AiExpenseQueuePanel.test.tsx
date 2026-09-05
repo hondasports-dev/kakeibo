@@ -871,6 +871,42 @@ describe("AiExpenseQueuePanel", () => {
     });
   });
 
+  it("確認待ちの保存済み下書きを画像を選び直して再解析できる", async () => {
+    const user = userEvent.setup();
+    useQueryMock.mockImplementation((reference: string, _args: unknown) => {
+      if (reference === "receiptAnalysisJobs.queries.listJobs") {
+        return [
+          {
+            _id: "job-review",
+            draftId: "draft-review",
+            fileName: "review-payment.png",
+            status: "needs_review",
+          },
+        ];
+      }
+      if (reference === "users.queries.getReceiptImageConsent") {
+        return { hasAcceptedExternalApiConsent: true, acceptedAt: 1234567890 };
+      }
+      return [];
+    });
+
+    renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[1]]} />);
+
+    await user.click(screen.getByRole("button", { name: "再解析" }));
+    await user.upload(
+      screen.getByLabelText("再撮影する画像を選択"),
+      new File(["retry"], "review-payment-retry.png", { type: "image/png" }),
+    );
+
+    await waitFor(() => {
+      expect(retryImageJobMock).toHaveBeenCalledWith({ jobId: "job-review" });
+      expect(analyzeImageJobMock).toHaveBeenCalledWith({
+        jobId: "job-review",
+        imageDataUrl: "data:image/jpeg;base64,mockBase64Data",
+      });
+    });
+  });
+
   it("失敗下書きから手入力へ戻ると一覧から削除する", async () => {
     const user = userEvent.setup();
     renderWithProviders(<AiExpenseQueuePanel initialItems={[queueItems[2]]} />);
@@ -1799,7 +1835,7 @@ describe("AiExpenseQueuePanel", () => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
     expect(screen.getByText(/保存しました。確認待ちに残っています。/)).toBeInTheDocument();
-    expect(screen.getByText(/確認ポイント：金額不一致/)).toBeInTheDocument();
+    expect(screen.getByText(/確認ポイント：金額・税内訳の確認が必要/)).toBeInTheDocument();
   });
 
   describe("Issue #337 レシート入力UI改善の表示・操作回帰", () => {

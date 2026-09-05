@@ -34,10 +34,28 @@ export function QueueItemActions({
   if (item.status === "needs_review") {
     return (
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-        <Button onClick={() => onOpenReview(item.id)} size="small" type="button" variant="outlined">
+        <Button
+          disabled={isRetrying}
+          onClick={() => onOpenReview(item.id)}
+          size="small"
+          type="button"
+          variant="outlined"
+        >
           確認する
         </Button>
-        <DeleteQueueButton isDeleting={isDeleting} item={item} onDelete={onDelete} />
+        {onReanalyze && item.jobId ? (
+          <Button
+            disabled={isRetrying}
+            size="small"
+            startIcon={<ReplayIcon fontSize="small" />}
+            onClick={() => onReanalyze(item.id)}
+            type="button"
+            variant="outlined"
+          >
+            再解析
+          </Button>
+        ) : null}
+        <DeleteQueueButton isDeleting={isDeleting || isRetrying} item={item} onDelete={onDelete} />
       </Stack>
     );
   }
