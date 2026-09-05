@@ -411,6 +411,19 @@ describe("725 production receipt regressions", () => {
     );
     expect(mapped.items?.map((i) => i.itemName)).toEqual(["商品A", "商品B"]);
   });
+  it("preserves exact items when same-price product names contain one another", () => {
+    const rows: Row[] = [
+      ["コーラ ¥100", 100, "¥100"],
+      ["ゼロコーラ ¥100", 100, "¥100"],
+    ];
+    const result = prepareReceiptItemEvidence(
+      [item("コーラ", 100), item("ゼロコーラ", 100)],
+      observations(rows),
+    );
+    expect(result.items.map((i) => i.itemName)).toEqual(["コーラ", "ゼロコーラ"]);
+    const mapped = map([item("コーラ", 100), item("ゼロコーラ", 100)], rows, 200);
+    expect(mapped.items?.map((i) => i.itemName)).toEqual(["コーラ", "ゼロコーラ"]);
+  });
   it("does not merge conflicting adjacent amounts or mutate original observations", () => {
     const raw = observations([
       ["商品 ¥100", 100, "¥100"],

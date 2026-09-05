@@ -128,7 +128,8 @@ export function prepareReceiptItemEvidence(items: Item[], raw: ReceiptRawObserva
       if (
         new Set(contained.map((line) => receiptItemMatchName(withoutReceiptAmount(line)))).size >
           1 &&
-        priced.length > 1
+        priced.length > 1 &&
+        !contained.some((line) => receiptItemMatchName(withoutReceiptAmount(line)) === name)
       ) {
         // Do not keep a merged AI candidate when its amount maps to multiple
         // printed products; the candidate cannot be assigned uniquely.
