@@ -1,6 +1,6 @@
 ---
 name: requirements
-description: PREPAREを所有し、Spec Confidence、scope、ID付きAcceptance Criteria/Invariant、Risk、Required Controls、Coverage Mapを一度だけ確定する。長文再読を避けつつ仕様・要件・test case漏れを早期検出する。
+description: PREPAREを所有し、Spec Confidence、scope、ID付きAcceptance Criteria/Invariant、Risk、Required Controls、Coverage Mapを一度だけ確定する。許可済みdiscoveryを先に使い、不要な確認停止と長文再読を避ける。
 license: Apache-2.0
 ---
 
@@ -25,6 +25,23 @@ license: Apache-2.0
 - 必要十分な Impact summary
 
 `C0` のままImplementationへ進まない。
+
+## Instruction / autonomy
+
+優先順位は `AGENTS.md` / `.loop/process.yaml` に従う。current explicit user instructionはこのSkillの一般ガイドより優先する。ただしnon-bypassable safetyは維持する。
+
+ユーザーへ質問する前に、現在の依頼から既に許可されているread-only discoveryを実施する。
+
+- repository / docs / tests / existing patternをcheapに確認する
+- material assumptionをsourceから一意に解消できるならC1として進める
+- routineな実装detailは既存patternから合理的に補う
+- reversibleな準備作業を止めない
+
+Human Gateへ送るのは、authorized discovery後も**成果物をmaterially変える妥当な選択肢が複数残る場合**だけ。質問時は、確認済み事実・具体的な選択肢・差分を示す。
+
+R4 classificationだけではHuman Gateを起動しない。production / irreversible operationの承認は、実装・検証・review等のreversible作業を終えた後、具体的操作の直前に扱う。
+
+このSkillが原因でpermission確認・停止・未完了が必要になる場合は、該当する指示を明示し、Skillの明示要件とAgent解釈を分ける。
 
 ## Context discipline
 
@@ -65,17 +82,17 @@ repository fileを変更するtaskでは、最初の編集前に `skills/workspa
 
 複数の妥当な成果物があり、選択でUX・data意味・権限・課金・完了条件等がmaterially変わる。
 
-→ Requirements Discovery。解消しなければHuman Gate。
+→ Requirements Discoveryを先に行う。解消しなければHuman Gate。
 
 ### C0 conflicted
 
 desired stateについてauthoritative source同士が矛盾する。
 
-→ Source reconciliation。解消しなければHuman Gate。
+→ Source reconciliationを行う。解消しなければHuman Gate。
 
 ## Source priority
 
-1. current user instruction
+1. current explicit user instruction
 2. latest explicitly approved spec / ADR / decision
 3. current task Issue / comments
 4. canonical docs
@@ -85,6 +102,15 @@ desired stateについてauthoritative source同士が矛盾する。
 Issueが「現在BをAへ変える」と明示している場合、Bとの差はexpected deltaでありconflictではない。
 
 既存testは重要なEvidenceやが、現在の明示仕様と矛盾する場合にtestを仕様へ昇格させない。
+
+## Mid-turn steering
+
+PREPARE後に新しいユーザー指示が来た場合、全contractを作り直さない。
+
+- 新しい指示を最優先sourceへ追加する
+- 影響するGoal / scope / AC / IV / TC / Risk / Controlsだけ更新する
+- unaffected contract / source ref / Evidenceは維持する
+- material choiceが新たに生じた時だけC0へ戻す
 
 ## Material assumptions
 
@@ -156,34 +182,19 @@ AC本文を何度もコピーせずIDだけで繋ぐ。
 
 ### Reverse coverage
 
-想定するbehavior-changing surfaceが:
-
-- AC
-- IV
-- 明示したdesign deviation
-
-のどれかへ対応すること。
-
-この段階では実際のdiffはまだ無いので、Implementation終了時にreverse coverageを確定する。
+想定するbehavior-changing surfaceがAC / IV / 明示したdesign deviationのどれかへ対応すること。実際のdiffはImplementation終了時に確定する。
 
 ## Test Case derivation
 
 TCはAC/IVから導出する。
 
-- positive
-- boundary
-- negative / denial
-- failure
-- regression
-- functional E2E
+positive / boundary / negative / failure / regression / functional E2Eを全部機械的に作らず、`relevant` と判定したdimensionだけ作る。
 
-を全部機械的に作るのではなく、`relevant` と判定したdimensionだけ作る。
-
-「test fileが存在する」ではなく、何を証明するかをTC IDで短く定義する。
+reversible / low-impact変更では、implementation detailを鏡写しするだけのtestを計画しない。何を証明するかをTC IDで短く定義する。
 
 ## Independent Spec Review
 
-RiskがR3/R4という理由だけで複数reviewerを起動しない。
+RiskがR3/R4という理由だけでreviewerを増やさない。
 
 最大1 reviewerを使うのは次だけ。
 
@@ -223,6 +234,8 @@ R4代表:
 
 Risk上昇は発見時点で即時。Implementation開始後はmax observed Riskをcompletion floorにする。
 
+**R4は検証・review・recovery要求を強める分類であり、Human Gateそのものではない。**
+
 ## Required Controls
 
 Riskとは別に選ぶ。
@@ -235,6 +248,8 @@ Riskとは別に選ぶ。
 - `service_ops`
 - `human_gate`
 - `prompt_injection_guard`
+
+Human Gateを選ぶのは、unresolved material choice、production/irreversible write、production secret/DNS/money movement、protected finding acceptance等の具体的triggerがある時だけ。
 
 authやschemaに触れたという理由だけで全High ceremonyを起動せず、必要なControlを追加する。
 
@@ -252,6 +267,7 @@ authやschemaに触れたという理由だけで全High ceremonyを起動せず
 ## PREPARE PASS条件
 
 - C1 / C2
+- authorized discovery実施済み
 - unresolved material choiceなし
 - material assumptionが解消済み、またはC1根拠あり
 - AC / relevant IVがID付き
@@ -281,6 +297,6 @@ Risk / max observed:
 Controls:
 Verification TC IDs:
 Independent spec review:
-Human Gate:
+Human Gate trigger:
 Evidence:
 ```
